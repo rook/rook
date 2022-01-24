@@ -17,6 +17,7 @@ package clusterd
 
 import (
 	"testing"
+	"time"
 
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +29,7 @@ func TestDiscoverDevices(t *testing.T) {
 			logger.Infof("mock execute. %s", command)
 			return nil
 		},
-		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, arg ...string) (string, error) {
 			logger.Infof("mock execute with output. %s", command)
 			return "", nil
 		},

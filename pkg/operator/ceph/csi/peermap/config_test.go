@@ -238,7 +238,7 @@ var fakeMultiPeerCephBlockPool = cephv1.CephBlockPool{
 }
 
 var mockExecutor = &exectest.MockExecutor{
-	MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+	MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		// Fake pool details for "rook-ceph-primary" cluster
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[6], ns) {

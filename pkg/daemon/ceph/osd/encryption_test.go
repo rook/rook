@@ -18,6 +18,7 @@ package osd
 
 import (
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -69,7 +70,7 @@ Digests:
 
 func TestCloseEncryptedDevice(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if command == "cryptsetup" && args[0] == "--verbose" && args[1] == "luksClose" {
 			return "success", nil
@@ -89,7 +90,7 @@ Library version:   1.02.154 (2018-12-07)
 Driver version:    4.40.0
 `
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if command == "dmsetup" && args[0] == "version" {
 			return dmsetupOutput, nil
@@ -105,7 +106,7 @@ Driver version:    4.40.0
 
 func TestIsCephEncryptedBlock(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if command == cryptsetupBinary && args[0] == "luksDump" {
 			return luksDump, nil

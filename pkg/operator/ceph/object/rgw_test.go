@@ -19,6 +19,7 @@ package object
 import (
 	"context"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -41,7 +42,7 @@ func TestStartRGW(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 3)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return `{"key":"mysecurekey"}`, nil
 			}
@@ -79,7 +80,7 @@ func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientse
 }
 
 func TestCreateObjectStore(t *testing.T) {
-	commandWithOutputFunc := func(command string, args ...string) (string, error) {
+	commandWithOutputFunc := func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if command == "ceph" {
 			if args[1] == "erasure-code-profile" {

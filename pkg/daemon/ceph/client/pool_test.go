@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -58,7 +59,7 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 	}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -110,7 +111,7 @@ func TestSetPoolApplication(t *testing.T) {
 	clusterInfo := AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" && args[2] == "application" {
 			if args[3] == "get" {
@@ -167,7 +168,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 	compressionModeCreated := false
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "create" {
@@ -249,7 +250,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 	currentFailureDomain := "rack"
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "pool" {
 			if args[2] == "get" {
@@ -354,7 +355,7 @@ func TestGetPoolStatistics(t *testing.T) {
 	p.Trash.SnapCount = 0
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		a := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":1},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 		logger.Infof("Command: %s %v", command, args)
 
@@ -384,7 +385,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	poolName := "mypool"
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 
 		if args[2] == "set" {
@@ -401,7 +402,7 @@ func TestSetPoolReplicatedSizeProperty(t *testing.T) {
 	assert.NoError(t, err)
 
 	// TEST POOL SIZE 1 AND RequireSafeReplicaSize True
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 
 		if args[2] == "set" {
@@ -427,7 +428,7 @@ func TestCreateStretchCrushRule(t *testing.T) {
 func testCreateStretchCrushRule(t *testing.T, alreadyExists bool) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" {
 			if args[1] == "getcrushmap" {
@@ -493,7 +494,7 @@ func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, cru
 	}
 
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		assert.Equal(t, command, "ceph")
 		assert.Equal(t, args[0], "osd")
@@ -557,7 +558,7 @@ func TestCreateHybridCrushRule(t *testing.T) {
 func testCreateHybridCrushRule(t *testing.T, alreadyExists bool) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" {
 			if args[1] == "getcrushmap" {

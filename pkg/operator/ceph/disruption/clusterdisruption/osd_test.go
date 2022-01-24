@@ -349,7 +349,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			clusterInfo.Context = context.TODO()
 			request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 			executor := &exectest.MockExecutor{}
-			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[0] == "status" {
 					return tc.fakeCephStatus, nil
@@ -406,7 +406,7 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 	clusterInfo.Context = context.TODO()
 	request := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "status" {
 			return unHealthyCephStatus, nil

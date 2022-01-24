@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -62,7 +63,7 @@ func (ne *NSEnter) buildNsEnterCLI(binPath string) []string {
 
 func (ne *NSEnter) callNsEnter(binPath string) error {
 	args := ne.buildNsEnterCLI(binPath)
-	op, err := ne.context.Executor.ExecuteCommandWithCombinedOutput(nsenterCmd, args...)
+	op, err := ne.context.Executor.ExecuteCommandWithCombinedOutput(exec.CephCommandsTimeout, nsenterCmd, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to execute nsenter. output: %s", op)
 	}

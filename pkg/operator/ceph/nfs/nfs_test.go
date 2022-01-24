@@ -20,6 +20,7 @@ package nfs
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -130,7 +131,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 	clientset := k8sfake.NewSimpleClientset()
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("executing command: %s %+v", command, args)
 			if args[0] == "auth" {
 				if args[1] == "get-or-create-key" {

@@ -30,6 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -69,12 +70,12 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		go handleTerminate(context, lvPath, volumeGroupName)
 
 		// It's fine to continue if deactivate fails since we will return error if activate fails
-		if op, err := context.Executor.ExecuteCommandWithCombinedOutput("vgchange", "-an", "-vv", volumeGroupName); err != nil {
+		if op, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, "vgchange", "-an", "-vv", volumeGroupName); err != nil {
 			logger.Errorf("failed to deactivate volume group for lv %q. output: %s. %v", lvPath, op, err)
 			return nil
 		}
 
-		if op, err := context.Executor.ExecuteCommandWithCombinedOutput("vgchange", "-ay", "-vv", volumeGroupName); err != nil {
+		if op, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, "vgchange", "-ay", "-vv", volumeGroupName); err != nil {
 			return errors.Wrapf(err, "failed to activate volume group for lv %q. output: %s", lvPath, op)
 		}
 	}
@@ -117,7 +118,7 @@ func handleTerminate(context *clusterd.Context, lvPath, volumeGroupName string) 
 
 func killCephOSDProcess(context *clusterd.Context, lvPath string) error {
 
-	pid, err := context.Executor.ExecuteCommandWithOutput("fuser", "-a", lvPath)
+	pid, err := context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, "fuser", "-a", lvPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to retrieve process ID for %q", lvPath)
 	}
@@ -483,7 +484,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 
 // releaseLVMDevice deactivates the LV to release the device.
 func releaseLVMDevice(context *clusterd.Context, volumeGroupName string) error {
-	if op, err := context.Executor.ExecuteCommandWithCombinedOutput("lvchange", "-an", "-vv", volumeGroupName); err != nil {
+	if op, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, "lvchange", "-an", "-vv", volumeGroupName); err != nil {
 		return errors.Wrapf(err, "failed to deactivate LVM %s. output: %s", volumeGroupName, op)
 	}
 	logger.Info("successfully released device from lvm")

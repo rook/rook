@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -42,7 +43,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	defer os.RemoveAll(configDir)
 	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]

@@ -18,6 +18,7 @@ package osd
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -175,7 +176,7 @@ USEC_INITIALIZED=1128667
 func TestAvailableDevices(t *testing.T) {
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("OUTPUT for %s %v", command, args)
 
 			if command == "lsblk" {

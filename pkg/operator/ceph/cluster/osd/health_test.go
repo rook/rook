@@ -43,7 +43,7 @@ func TestOSDHealthCheck(t *testing.T) {
 
 	var execCount = 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
 			execCount++
 			if args[1] == "dump" {
@@ -140,11 +140,11 @@ func TestDeviceClasses(t *testing.T) {
 
 	var execCount = 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
 		execCount++
 		if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {

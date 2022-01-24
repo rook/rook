@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rook/rook/pkg/util/exec"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -42,7 +43,7 @@ func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries
 	for i := 0; i < retries; i++ {
 		// sleep first and try to check snapshot is ready to cover the error cases.
 		time.Sleep(time.Duration(i) * time.Second)
-		ready, err := k8sh.executor.ExecuteCommandWithOutput("kubectl", "get", "volumesnapshot", name, "--namespace", namespace, "-o", "jsonpath={.status.readyToUse}")
+		ready, err := k8sh.executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, "kubectl", "get", "volumesnapshot", name, "--namespace", namespace, "-o", "jsonpath={.status.readyToUse}")
 		if err != nil {
 			return false, err
 		}

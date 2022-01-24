@@ -20,6 +20,7 @@ import (
 	"context"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -37,7 +38,7 @@ func TestGenerateKey(t *testing.T) {
 	var generateKey = ""
 	var failGenerateKey = false
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if failGenerateKey {
 				return "", errors.New("test error")
 			}

@@ -45,15 +45,15 @@ func (e *TranslateCommandExecutor) ExecuteCommandWithEnv(env []string, command s
 }
 
 // ExecuteCommandWithOutput starts a process and wait for its completion
-func (e *TranslateCommandExecutor) ExecuteCommandWithOutput(command string, arg ...string) (string, error) {
+func (e *TranslateCommandExecutor) ExecuteCommandWithOutput(timeout time.Duration, command string, arg ...string) (string, error) {
 	transCommand, transArgs := e.Translator(command, arg...)
-	return e.Executor.ExecuteCommandWithOutput(transCommand, transArgs...)
+	return e.Executor.ExecuteCommandWithOutput(timeout, transCommand, transArgs...)
 }
 
 // ExecuteCommandWithCombinedOutput starts a process and returns its stdout and stderr combined.
-func (e *TranslateCommandExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
+func (e *TranslateCommandExecutor) ExecuteCommandWithCombinedOutput(timeout time.Duration, command string, arg ...string) (string, error) {
 	transCommand, transArgs := e.Translator(command, arg...)
-	return e.Executor.ExecuteCommandWithCombinedOutput(transCommand, transArgs...)
+	return e.Executor.ExecuteCommandWithCombinedOutput(timeout, transCommand, transArgs...)
 }
 
 // ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.

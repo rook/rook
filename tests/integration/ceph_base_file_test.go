@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -448,7 +449,7 @@ func waitForFilesystemActive(k8sh *utils.K8sHelper, clusterInfo *client.ClusterI
 	logger.Infof("waiting for filesystem %q to be active", filesystemName)
 	for i := 0; i < utils.RetryLoop; i++ {
 		// run the ceph fs status command
-		stat, err := k8sh.MakeContext().Executor.ExecuteCommandWithCombinedOutput(command, args...)
+		stat, err := k8sh.MakeContext().Executor.ExecuteCommandWithCombinedOutput(exec.CephCommandsTimeout, command, args...)
 		if err != nil {
 			logger.Warningf("failed to get filesystem %q status. %+v", filesystemName, err)
 		}

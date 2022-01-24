@@ -19,6 +19,7 @@ package osd
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -36,7 +37,7 @@ func TestBuildNsEnterCLI(t *testing.T) {
 
 func TestCheckIfBinaryExistsOnHost(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if command == "nsenter" && args[0] == "--mount=/rootfs/proc/1/ns/mnt" && args[1] == "--" && args[3] == "help" {
 			if args[2] == "/usr/sbin/lvm" || args[2] == "/sbin/lvm" {

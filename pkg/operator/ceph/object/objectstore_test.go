@@ -72,7 +72,7 @@ const (
 )
 
 func TestReconcileRealm(t *testing.T) {
-	executorFunc := func(command string, args ...string) (string, error) {
+	executorFunc := func(timeout time.Duration, command string, args ...string) (string, error) {
 		idResponse := `{"id":"test-id"}`
 		logger.Infof("Execute: %s %v", command, args)
 		return idResponse, nil
@@ -181,7 +181,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	executorFuncWithTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
 		return mockExecutorFuncOutput(command, args...)
 	}
-	executorFunc := func(command string, args ...string) (string, error) {
+	executorFunc := func(timeout time.Duration, command string, args ...string) (string, error) {
 		return mockExecutorFuncOutput(command, args...)
 	}
 
@@ -238,7 +238,7 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 func TestDashboard(t *testing.T) {
 	storeName := "myobject"
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			return "", nil
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
@@ -261,7 +261,7 @@ func TestDashboard(t *testing.T) {
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
 				return access_key, nil
 			}
@@ -283,7 +283,7 @@ func TestDashboard(t *testing.T) {
 	err = enableRGWDashboard(objContext)
 	assert.Nil(t, err)
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
 				return access_key, nil
 			}

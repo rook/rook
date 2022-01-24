@@ -81,7 +81,7 @@ func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monRe
 	clientset := test.New(t, 3)
 	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := clienttest.CreateConfigDir(path.Join(configDir, namespace))
 				return "", errors.Wrap(err, "failed testing of start cluster without quorum response")
@@ -484,7 +484,7 @@ func TestConfigureArbiter(t *testing.T) {
 	currentArbiter := c.arbiterMon
 	setNewTiebreaker := false
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 			if args[0] == "mon" {
 				if args[1] == "dump" {
@@ -711,7 +711,7 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	crushZoneCount := 0
 	balanced := true
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			switch {
 			case args[0] == "osd" && args[1] == "crush" && args[2] == "dump":
 				crushBuckets := `

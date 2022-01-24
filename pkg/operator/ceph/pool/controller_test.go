@@ -50,7 +50,7 @@ func TestCreatePool(t *testing.T) {
 	enabledMetricsApp := false
 	clusterInfo := client.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" {
 				if args[1] == "erasure-code-profile" {
@@ -131,7 +131,7 @@ func TestDeletePool(t *testing.T) {
 	failOnDelete := false
 	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			emptyPool := "{\"images\":{\"count\":0,\"provisioned_bytes\":0,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 			p := "{\"images\":{\"count\":1,\"provisioned_bytes\":1024,\"snap_count\":0},\"trash\":{\"count\":1,\"provisioned_bytes\":2048,\"snap_count\":0}}"
 			logger.Infof("Command: %s %v", command, args)
@@ -218,7 +218,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_ERR"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
@@ -322,7 +322,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		c.Client = cl
 
 		executor = &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				if args[0] == "status" {
 					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 				}
@@ -418,7 +418,7 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	t.Run("success - mirroring set", func(t *testing.T) {
 		executor = &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				if args[0] == "mirror" && args[1] == "pool" && args[2] == "peer" && args[3] == "bootstrap" && args[4] == "create" {
 					return `eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ==`, nil
 				}

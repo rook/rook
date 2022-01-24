@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -124,7 +125,7 @@ func (s *DiskSanitizer) wipeLVM(osdID int, wg *sync.WaitGroup) {
 	// On return, notify the WaitGroup that we’re done
 	defer wg.Done()
 
-	output, err := s.context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", "--osd-id", strconv.Itoa(osdID), "--destroy")
+	output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, "stdbuf", "-oL", "ceph-volume", "lvm", "zap", "--osd-id", strconv.Itoa(osdID), "--destroy")
 	if err != nil {
 		logger.Errorf("failed to sanitize osd %d. %s. %v", osdID, output, err)
 	}
@@ -134,7 +135,7 @@ func (s *DiskSanitizer) wipeLVM(osdID int, wg *sync.WaitGroup) {
 }
 
 func (s *DiskSanitizer) returnPVDevice(disk string) []string {
-	output, err := s.context.Executor.ExecuteCommandWithOutput("lvs", disk, "-o", "seg_pe_ranges", "--noheadings")
+	output, err := s.context.Executor.ExecuteCommandWithOutput(exec.NoCommandTimout, "lvs", disk, "-o", "seg_pe_ranges", "--noheadings")
 	if err != nil {
 		logger.Errorf("failed to execute lvs command. %v", err)
 		return []string{}
@@ -179,7 +180,7 @@ func (s *DiskSanitizer) executeSanitizeCommand(disk string, wg *sync.WaitGroup) 
 	// On return, notify the WaitGroup that we’re done
 	defer wg.Done()
 
-	output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredUtility, s.buildShredArgs(disk)...)
+	output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(exec.CephCommandsTimeout, shredUtility, s.buildShredArgs(disk)...)
 	if err != nil {
 		logger.Errorf("failed to sanitize osd disk %q. %s. %v", disk, output, err)
 	}

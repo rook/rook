@@ -19,6 +19,7 @@ package pool
 
 import (
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -204,7 +205,7 @@ func TestValidateCrushProperties(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "dump" {
 			return `{"types":[{"type_id": 0,"name": "osd"}],"buckets":[{"id": -1,"name":"default"},{"id": -2,"name":"good"}, {"id": -3,"name":"host"}]}`, nil
@@ -294,7 +295,7 @@ func TestValidateDeviceClasses(t *testing.T) {
 			clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 			executor := &exectest.MockExecutor{}
 			context := &clusterd.Context{Executor: executor}
-			executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
 				if args[1] == "crush" && args[2] == "class" && args[3] == "ls-osd" && args[4] == "ssd" {
 					// Mock executor for `ceph osd crush class ls-osd ssd`

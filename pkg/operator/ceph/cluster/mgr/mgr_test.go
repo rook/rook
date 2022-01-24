@@ -50,7 +50,7 @@ func TestStartMgr(t *testing.T) {
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Execute: %s %v", command, args)
 			if args[0] == "mgr" && args[1] == "stat" {
 				return `{"active_name": "a"}`, nil
@@ -244,7 +244,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 		},
 	}
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[1] == "dump" {
 				calledMgrDump = true
@@ -311,7 +311,7 @@ func TestConfigureModules(t *testing.T) {
 	configSettings := map[string]string{}
 	lastModuleConfigured := ""
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" && len(args) > 3 {
 				if args[0] == "mgr" && args[1] == "module" {
@@ -443,7 +443,7 @@ func TestCluster_enableBalancerModule(t *testing.T) {
 	t.Run("on octopus we configure the balancer AND enable the upmap mode", func(t *testing.T) {
 		c.clusterInfo.CephVersion = cephver.Octopus
 		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if command == "ceph" {
 					if args[0] == "osd" && args[1] == "set-require-min-compat-client" {
@@ -467,7 +467,7 @@ func TestCluster_enableBalancerModule(t *testing.T) {
 	t.Run("on pacific we configure the balancer ONLY and don't set a mode", func(t *testing.T) {
 		c.clusterInfo.CephVersion = cephver.Pacific
 		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if command == "ceph" {
 					if args[0] == "osd" && args[1] == "set-require-min-compat-client" {

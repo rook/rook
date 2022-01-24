@@ -35,7 +35,7 @@ func TestOrchestratorModules(t *testing.T) {
 	rookBackendSet := false
 	backendErrorCount := 0
 	exec.CephCommandsTimeout = 15 * time.Second
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "mgr" && args[1] == "module" && args[2] == "enable" {
 			if args[3] == "rook" {

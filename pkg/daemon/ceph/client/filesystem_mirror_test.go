@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/base64"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -43,7 +44,7 @@ var (
 func TestEnableFilesystemSnapshotMirror(t *testing.T) {
 	fs := "myfs"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "fs" {
 			assert.Equal(t, "snapshot", args[1])
 			assert.Equal(t, "mirror", args[2])
@@ -62,7 +63,7 @@ func TestEnableFilesystemSnapshotMirror(t *testing.T) {
 func TestDisableFilesystemSnapshotMirror(t *testing.T) {
 	fs := "myfs"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "fs" {
 			assert.Equal(t, "snapshot", args[1])
 			assert.Equal(t, "mirror", args[2])
@@ -82,7 +83,7 @@ func TestImportFilesystemMirrorPeer(t *testing.T) {
 	fs := "myfs"
 	token := "my-token"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "fs" {
 			assert.Equal(t, "snapshot", args[1])
 			assert.Equal(t, "mirror", args[2])
@@ -103,7 +104,7 @@ func TestImportFilesystemMirrorPeer(t *testing.T) {
 func TestCreateFSMirrorBootstrapPeer(t *testing.T) {
 	fs := "myfs"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "fs" {
 			assert.Equal(t, "snapshot", args[1])
 			assert.Equal(t, "mirror", args[2])
@@ -126,7 +127,7 @@ func TestCreateFSMirrorBootstrapPeer(t *testing.T) {
 func TestRemoveFilesystemMirrorPeer(t *testing.T) {
 	peerUUID := "peer-uuid"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			assert.Equal(t, "snapshot", args[1])
@@ -147,7 +148,7 @@ func TestFSMirrorDaemonStatus(t *testing.T) {
 	fs := "myfs"
 	executor := &exectest.MockExecutor{}
 	t.Run("snapshot status command with fsName - test for Ceph v16.2.6 and earlier", func(t *testing.T) {
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "fs" {
 				assert.Equal(t, "snapshot", args[1])
 				assert.Equal(t, "mirror", args[2])
@@ -167,7 +168,7 @@ func TestFSMirrorDaemonStatus(t *testing.T) {
 		assert.Equal(t, "myfs", s[0].Filesystems[0].Name)
 	})
 	t.Run("snapshot status command without fsName - test for Ceph v16.2.7 and above", func(t *testing.T) {
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "fs" {
 				assert.Equal(t, "snapshot", args[1])
 				assert.Equal(t, "mirror", args[2])

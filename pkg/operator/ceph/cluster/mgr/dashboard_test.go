@@ -26,6 +26,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
+	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -83,7 +84,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	moduleRetries := 0
 	exitCodeResponse := 0
 	clientset := test.New(t, 3)
-	mockFN := func(command string, args ...string) (string, error) {
+	mockFN := func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("command: %s %v", command, args)
 		exitCodeResponse = 0
 		if args[1] == "module" {
@@ -106,7 +107,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: mockFN,
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
-			return mockFN(command, arg...)
+			return mockFN(exec.NoCommandTimout, command, arg...)
 		},
 	}
 

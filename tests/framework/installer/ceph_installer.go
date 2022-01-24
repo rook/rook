@@ -32,6 +32,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -226,7 +227,7 @@ func (h *CephInstaller) CreateRookToolbox(manifests CephManifests) (err error) {
 func (h *CephInstaller) Execute(command string, parameters []string, namespace string) (error, string) {
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	cmd, args := client.FinalizeCephCommandArgs(command, clusterInfo, parameters, h.k8shelper.MakeContext().ConfigDir)
-	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
+	result, err := h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, cmd, args...)
 	if err != nil {
 		logger.Warningf("Error executing command %q: <%v>", command, err)
 		return err, result

@@ -528,7 +528,7 @@ func testOSDIntegration(t *testing.T) {
 
 func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespace string) *exectest.MockExecutor {
 	return &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			t.Logf("command: %s %v", command, args)
 			if command != "ceph" {
 				return "", errors.Errorf("unexpected command %q with args %v", command, args)

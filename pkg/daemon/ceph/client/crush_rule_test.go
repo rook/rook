@@ -19,6 +19,7 @@ package client
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -61,7 +62,7 @@ func TestBuildCrushSteps(t *testing.T) {
 
 func TestCompileCRUSHMap(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if command == "crushtool" && args[0] == "--compile" && args[1] == "/tmp/063990228" && args[2] == "--outfn" && args[3] == "/tmp/063990228.compiled" {
 			return "3", nil
@@ -75,7 +76,7 @@ func TestCompileCRUSHMap(t *testing.T) {
 
 func TestDecompileCRUSHMap(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if command == "crushtool" && args[0] == "--decompile" && args[1] == "/tmp/063990228" && args[2] == "--outfn" && args[3] == "/tmp/063990228.decompiled" {
 			return "3", nil
@@ -89,7 +90,7 @@ func TestDecompileCRUSHMap(t *testing.T) {
 
 func TestInjectCRUSHMapMap(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" && args[1] == "setcrushmap" && args[2] == "--in-file" && args[3] == "/tmp/063990228.compiled" {
 			return "3", nil
@@ -103,7 +104,7 @@ func TestInjectCRUSHMapMap(t *testing.T) {
 
 func TestSetCRUSHMapMap(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" && args[1] == "crush" && args[2] == "set" && args[3] == "/tmp/063990228.compiled" {
 			return "3", nil

@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -86,7 +87,7 @@ func TestGenerateStatusInfo(t *testing.T) {
 
 func TestExpandBootstrapPeerToken(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if reflect.DeepEqual(args[0:5], []string{"osd", "pool", "get", "pool", "all"}) {
 				return `{"pool_id":13}`, nil
 			}

@@ -20,6 +20,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -31,7 +32,7 @@ func TestOSDBootstrap(t *testing.T) {
 	configDir := t.TempDir()
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}

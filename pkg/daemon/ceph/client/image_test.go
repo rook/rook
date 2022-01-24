@@ -38,7 +38,7 @@ func TestCreateImage(t *testing.T) {
 
 	// mock an error during the create image call.  rbd tool returns error information to the output stream,
 	// separate from the error object, so verify that information also makes it back to us (because it is useful).
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
 			return "mocked detailed ceph error output stream", errors.New("some mocked error")
@@ -54,7 +54,7 @@ func TestCreateImage(t *testing.T) {
 	// (except for 0, that's OK)
 	createCalled := false
 	expectedSizeArg := ""
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
 			createCalled = true
@@ -172,7 +172,7 @@ func TestListImageLogLevelInfo(t *testing.T) {
 	var err error
 	listCalled := false
 	emptyListResult := false
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
 			listCalled = true
@@ -237,7 +237,7 @@ func TestListImageLogLevelDebug(t *testing.T) {
 
 	listCalled := false
 	emptyListResult := false
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
 			listCalled = true

@@ -19,6 +19,7 @@ package exec
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -36,14 +37,15 @@ import (
 
 var (
 	CephCommandsTimeout = 15 * time.Second
+	NoCommandTimout     = 0 * time.Second
 )
 
 // Executor is the main interface for all the exec commands
 type Executor interface {
 	ExecuteCommand(command string, arg ...string) error
 	ExecuteCommandWithEnv(env []string, command string, arg ...string) error
-	ExecuteCommandWithOutput(command string, arg ...string) (string, error)
-	ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error)
+	ExecuteCommandWithOutput(timeout time.Duration, command string, arg ...string) (string, error)
+	ExecuteCommandWithCombinedOutput(timeout time.Duration, command string, arg ...string) (string, error)
 	ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error)
 }
 
@@ -125,19 +127,17 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command
 }
 
 // ExecuteCommandWithOutput executes a command with output
-func (*CommandExecutor) ExecuteCommandWithOutput(command string, arg ...string) (string, error) {
+func (*CommandExecutor) ExecuteCommandWithOutput(timeout time.Duration, command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	// #nosec G204 Rook controls the input to the exec arguments
-	cmd := exec.Command(command, arg...)
-	return runCommandWithOutput(cmd, false)
+	return runCommandWithOutput(timeout, command, false, arg...)
 }
 
 // ExecuteCommandWithCombinedOutput executes a command with combined output
-func (*CommandExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
+func (*CommandExecutor) ExecuteCommandWithCombinedOutput(timeout time.Duration, command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	// #nosec G204 Rook controls the input to the exec arguments
-	cmd := exec.Command(command, arg...)
-	return runCommandWithOutput(cmd, true)
+	return runCommandWithOutput(timeout, command, true, arg...)
 }
 
 func startCommand(env []string, command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
@@ -199,10 +199,23 @@ func logOutput(stdout, stderr io.ReadCloser) {
 	logFromReader(childLogger, stdout)
 }
 
-func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
+func runCommandWithOutput(timeout time.Duration, command string, combinedOutput bool, args ...string) (string, error) {
 	var output []byte
 	var err error
 	var out string
+	var cmd *exec.Cmd
+
+	logCommand(command, args...)
+
+	if timeout == 0 {
+		// #nosec G204 Rook controls the input to the exec arguments
+		cmd = exec.Command(command, args...)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
+		// #nosec G204 Rook controls the input to the exec arguments
+		cmd = exec.CommandContext(ctx, command, args...)
+	}
 
 	if combinedOutput {
 		output, err = cmd.CombinedOutput()
@@ -223,7 +236,7 @@ func runCommandWithOutput(cmd *exec.Cmd, combinedOutput bool) (string, error) {
 }
 
 func logCommand(command string, arg ...string) {
-	logger.Debugf("Running command: %s %s", command, strings.Join(arg, " "))
+	logger.Debugf("Running command with: %s %s", command, strings.Join(arg, " "))
 }
 
 func assertErrorType(err error) string {

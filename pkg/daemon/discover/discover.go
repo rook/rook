@@ -34,6 +34,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	pgkexec "github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 
 	v1 "k8s.io/api/core/v1"
@@ -473,7 +474,7 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 // getCephVolumeInventory: Return a map of strings indexed by device with the
 // information about the device returned by the command <ceph-volume inventory>
 func getCephVolumeInventory(context *clusterd.Context) (*map[string]string, error) {
-	inventory, err := context.Executor.ExecuteCommandWithOutput("ceph-volume", "inventory", "--format", "json")
+	inventory, err := context.Executor.ExecuteCommandWithOutput(pgkexec.NoCommandTimout, "ceph-volume", "inventory", "--format", "json")
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute ceph-volume inventory. %+v", err)
 	}

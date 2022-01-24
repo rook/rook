@@ -20,6 +20,7 @@ package discover
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -71,7 +72,7 @@ Partition table holds up to 128 entries
 func TestProbeDevices(t *testing.T) {
 	// set up mock execute so we can verify the partitioning happens on sda
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("RUN Command %s  %v", command, args)
 		output := ""
 		if args[0] == "--all" {
@@ -340,7 +341,7 @@ func TestDeviceListsEqual(t *testing.T) {
 func TestGetCephVolumeInventory(t *testing.T) {
 	run := 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, arg ...string) (string, error) {
 			run++
 			logger.Infof("run %d command %s", run, command)
 			switch {

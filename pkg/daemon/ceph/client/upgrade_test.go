@@ -31,7 +31,7 @@ import (
 
 func TestGetCephMonVersionString(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		assert.Equal(t, "version", args[0])
 		return "", nil
 	}
@@ -43,7 +43,7 @@ func TestGetCephMonVersionString(t *testing.T) {
 
 func TestGetCephMonVersionsString(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		assert.Equal(t, "versions", args[0])
 		return "", nil
 	}
@@ -55,7 +55,7 @@ func TestGetCephMonVersionsString(t *testing.T) {
 
 func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		assert.Equal(t, "osd", args[0])
 		assert.Equal(t, "require-osd-release", args[1])
 		return "", nil
@@ -69,7 +69,7 @@ func TestEnableReleaseOSDFunctionality(t *testing.T) {
 func TestOkToStopDaemon(t *testing.T) {
 	// First test
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		switch {
 		case args[0] == "mon" && args[1] == "ok-to-stop" && args[2] == "a":
 			return "", nil
@@ -83,7 +83,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Second test
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		assert.Equal(t, "mgr", args[0])
 		assert.Equal(t, "ok-to-stop", args[1])
 		assert.Equal(t, "a", args[2])
@@ -96,7 +96,7 @@ func TestOkToStopDaemon(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Third test
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		assert.Equal(t, "dummy", args[0])
 		assert.Equal(t, "ok-to-stop", args[1])
 		assert.Equal(t, "a", args[2])
@@ -292,7 +292,7 @@ func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
 	treeOutput := ""
 	context := &clusterd.Context{
 		Executor: &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				t.Logf("command: %s %v", command, args)
 				if command != "ceph" || args[0] != "osd" {
 					panic("not a 'ceph osd' call")

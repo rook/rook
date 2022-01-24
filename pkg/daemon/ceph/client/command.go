@@ -170,15 +170,15 @@ func (c *CephToolCommand) run() ([]byte, error) {
 				err = errors.Errorf("%s. %s", err.Error(), stderr)
 			}
 		} else if c.timeout == 0 {
-			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, command, args...)
 		} else {
 			output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)
 		}
 	} else if c.timeout == 0 {
 		if c.combinedOutput {
-			output, err = c.context.Executor.ExecuteCommandWithCombinedOutput(command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithCombinedOutput(exec.CephCommandsTimeout, command, args...)
 		} else {
-			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
+			output, err = c.context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, command, args...)
 		}
 	} else {
 		output, err = c.context.Executor.ExecuteCommandWithTimeout(c.timeout, command, args...)

@@ -18,6 +18,7 @@ package client
 
 import (
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -38,7 +39,7 @@ var (
 func TestCreateRBDMirrorBootstrapPeer(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "peer", args[2])
@@ -65,7 +66,7 @@ func TestEnablePoolMirroring(t *testing.T) {
 		},
 	}
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "enable", args[2])
@@ -84,7 +85,7 @@ func TestEnablePoolMirroring(t *testing.T) {
 func TestGetPoolMirroringStatus(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "status", args[2])
@@ -104,7 +105,7 @@ func TestGetPoolMirroringStatus(t *testing.T) {
 func TestImportRBDMirrorBootstrapPeer(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "peer", args[2])
@@ -121,7 +122,7 @@ func TestImportRBDMirrorBootstrapPeer(t *testing.T) {
 	err := ImportRBDMirrorBootstrapPeer(context, AdminTestClusterInfo("mycluster"), pool, "", []byte(bootstrapPeerToken))
 	assert.NoError(t, err)
 
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "peer", args[2])
@@ -143,7 +144,7 @@ func TestImportRBDMirrorBootstrapPeer(t *testing.T) {
 func TestGetPoolMirroringInfo(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "info", args[2])
@@ -167,7 +168,7 @@ func TestEnableSnapshotSchedule(t *testing.T) {
 	// Schedule with Interval
 	{
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %v %v", command, args)
 			if args[0] == "mirror" {
 				assert.Equal(t, "snapshot", args[1])
@@ -192,7 +193,7 @@ func TestEnableSnapshotSchedule(t *testing.T) {
 	{
 		startTime := "14:00:00-05:00"
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %v %v", command, args)
 			if args[0] == "mirror" {
 				assert.Equal(t, "snapshot", args[1])
@@ -218,7 +219,7 @@ func TestEnableSnapshotSchedule(t *testing.T) {
 func TestListSnapshotSchedules(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %v %v", command, args)
 		if args[0] == "mirror" {
 			assert.Equal(t, "snapshot", args[1])
@@ -240,7 +241,7 @@ func TestListSnapshotSchedules(t *testing.T) {
 func TestListSnapshotSchedulesRecursively(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %v %v", command, args)
 		if args[0] == "mirror" {
 			assert.Equal(t, "snapshot", args[1])
@@ -263,7 +264,7 @@ func TestListSnapshotSchedulesRecursively(t *testing.T) {
 func TestRemoveSnapshotSchedule(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %v %v", command, args)
 		if args[0] == "mirror" {
 			assert.Equal(t, "snapshot", args[1])
@@ -286,7 +287,7 @@ func TestRemoveSnapshotSchedules(t *testing.T) {
 	interval := "24h"
 	startTime := "14:00:00-05:00"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %v %v", command, args)
 		if args[0] == "mirror" {
 			switch args[3] {
@@ -317,7 +318,7 @@ func TestRemoveSnapshotSchedules(t *testing.T) {
 func TestDisableMirroring(t *testing.T) {
 	pool := "pool-test"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "disable", args[2])
@@ -336,7 +337,7 @@ func TestRemoveClusterPeer(t *testing.T) {
 	pool := "pool-test"
 	peerUUID := "39ae33fb-1dd6-4f9b-8ed7-0e4517068900"
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if args[0] == "mirror" {
 			assert.Equal(t, "pool", args[1])
 			assert.Equal(t, "peer", args[2])

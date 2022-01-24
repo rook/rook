@@ -105,7 +105,7 @@ func TestFilesystemRemove(t *testing.T) {
 			DataPools:      []int{1},
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -192,7 +192,7 @@ func TestFailAllStandbyReplayMDS(t *testing.T) {
 			},
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -240,7 +240,7 @@ func TestFailAllStandbyReplayMDS(t *testing.T) {
 			},
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -285,7 +285,7 @@ func TestFailAllStandbyReplayMDS(t *testing.T) {
 			},
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -335,7 +335,7 @@ func TestGetMdsIdByRank(t *testing.T) {
 			},
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -360,7 +360,7 @@ func TestGetMdsIdByRank(t *testing.T) {
 	assert.NoError(t, err)
 
 	// test errors
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -407,7 +407,7 @@ func TestGetMdsIdByRank(t *testing.T) {
 		},
 	}
 	// test get mds by id failed error
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -455,7 +455,7 @@ func TestGetMdsIdByRank(t *testing.T) {
 			},
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "get" {
@@ -484,7 +484,7 @@ func TestGetMdsIdByRank(t *testing.T) {
 func TestGetMDSDump(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "dump" {
@@ -507,7 +507,7 @@ func TestGetMDSDump(t *testing.T) {
 	assert.NoError(t, err)
 	assert.ElementsMatch(t, mdsDump.Standbys, []MDSStandBy{{Name: "rook-ceph-filesystem-b", Rank: -1}})
 
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "dump" {
@@ -524,7 +524,7 @@ func TestGetMDSDump(t *testing.T) {
 func TestWaitForNoStandbys(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "dump" {
@@ -546,7 +546,7 @@ func TestWaitForNoStandbys(t *testing.T) {
 	err := WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), 6*time.Second)
 	assert.Error(t, err)
 
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "dump" {
@@ -560,7 +560,7 @@ func TestWaitForNoStandbys(t *testing.T) {
 	assert.Error(t, err)
 
 	firstCall := true
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "fs" {
 			if args[1] == "dump" {

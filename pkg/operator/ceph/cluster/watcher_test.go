@@ -19,6 +19,7 @@ package cluster
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -95,7 +96,7 @@ func TestOnK8sNode(t *testing.T) {
 	client := getFakeClient(objects...)
 
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		return "", errors.New("failed to get osd list on host")
 	}
 	clientCluster := newClientCluster(client, ns, &clusterd.Context{

@@ -21,6 +21,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -56,7 +57,7 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 }
 
 func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
-	output, err := context.Executor.ExecuteCommandWithOutput("pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
+	output, err := context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, "pvdisplay", "-C", "-o", "lvpath", "--noheadings", deviceName)
 	if err != nil {
 		logger.Warningf("failed to retrieve logical volume path for %q. %v", deviceName, err)
 		return ""

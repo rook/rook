@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -171,7 +172,7 @@ func StatusWithUser(context *clusterd.Context, clusterInfo *ClusterInfo) (CephSt
 	args := []string{"status", "--format", "json"}
 	command, args := FinalizeCephCommandArgs("ceph", clusterInfo, args, context.ConfigDir)
 
-	buf, err := context.Executor.ExecuteCommandWithOutput(command, args...)
+	buf, err := context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, command, args...)
 	if err != nil {
 		if buf != "" {
 			return CephStatus{}, errors.Wrapf(err, "failed to get status. %s", string(buf))

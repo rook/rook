@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -211,7 +212,7 @@ func GetOSDOnHost(context *clusterd.Context, clusterInfo *ClusterInfo, node stri
 func compileCRUSHMap(context *clusterd.Context, crushMapPath string) error {
 	mapFile := buildCompileCRUSHFileName(crushMapPath)
 	args := []string{"--compile", crushMapPath, "--outfn", mapFile}
-	output, err := context.Executor.ExecuteCommandWithOutput("crushtool", args...)
+	output, err := context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, "crushtool", args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to compile crush map %q. %s", mapFile, output)
 	}
@@ -222,7 +223,7 @@ func compileCRUSHMap(context *clusterd.Context, crushMapPath string) error {
 func decompileCRUSHMap(context *clusterd.Context, crushMapPath string) error {
 	mapFile := buildDecompileCRUSHFileName(crushMapPath)
 	args := []string{"--decompile", crushMapPath, "--outfn", mapFile}
-	output, err := context.Executor.ExecuteCommandWithOutput("crushtool", args...)
+	output, err := context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, "crushtool", args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to decompile crush map %q. %s", mapFile, output)
 	}

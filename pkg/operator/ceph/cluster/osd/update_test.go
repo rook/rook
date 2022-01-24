@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -144,7 +145,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		}
 
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			t.Logf("command: %s %v", command, args)
 			if args[0] == "osd" {
 				if args[1] == "ok-to-stop" {

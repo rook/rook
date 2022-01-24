@@ -28,6 +28,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -41,7 +42,7 @@ var (
 
 func closeEncryptedDevice(context *clusterd.Context, dmName string) error {
 	args := []string{"--verbose", "luksClose", dmName}
-	cryptsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
+	cryptsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, cryptsetupBinary, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to close encrypted device. %s", cryptsetupOut)
 	}
@@ -52,7 +53,7 @@ func closeEncryptedDevice(context *clusterd.Context, dmName string) error {
 
 func dmsetupVersion(context *clusterd.Context) error {
 	args := []string{"version"}
-	dmsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(dmsetupBinary, args...)
+	dmsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.CephCommandsTimeout, dmsetupBinary, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to find device mapper version. %s", dmsetupOut)
 	}
@@ -120,7 +121,7 @@ func setLUKSLabelAndSubsystem(context *clusterd.Context, clusterInfo *cephclient
 	logger.Infof("setting LUKS subsystem to %q and label to %q to disk %q", subsystem, label, disk)
 	// 48 characters limit for both label and subsystem
 	args := []string{"config", disk, "--subsystem", subsystem, "--label", label}
-	output, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, cryptsetupBinary, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set subsystem %q and label %q to encrypted device %q. is your distro built with LUKS1 as a default?. %s", subsystem, label, disk, output)
 	}
@@ -131,7 +132,7 @@ func setLUKSLabelAndSubsystem(context *clusterd.Context, clusterInfo *cephclient
 
 func dumpLUKS(context *clusterd.Context, disk string) (string, error) {
 	args := []string{"luksDump", disk}
-	cryptsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
+	cryptsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, cryptsetupBinary, args...)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to dump LUKS header for disk %q. %s", disk, cryptsetupOut)
 	}

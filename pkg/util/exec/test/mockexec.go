@@ -30,8 +30,8 @@ type MockExecutor struct {
 	MockExecuteCommand                   func(command string, arg ...string) error
 	MockExecuteCommandWithEnv            func(env []string, command string, arg ...string) error
 	MockStartExecuteCommand              func(command string, arg ...string) (*exec.Cmd, error)
-	MockExecuteCommandWithOutput         func(command string, arg ...string) (string, error)
-	MockExecuteCommandWithCombinedOutput func(command string, arg ...string) (string, error)
+	MockExecuteCommandWithOutput         func(timeout time.Duration, command string, arg ...string) (string, error)
+	MockExecuteCommandWithCombinedOutput func(timeout time.Duration, command string, arg ...string) (string, error)
 	MockExecuteCommandWithTimeout        func(timeout time.Duration, command string, arg ...string) (string, error)
 }
 
@@ -54,9 +54,9 @@ func (e *MockExecutor) ExecuteCommandWithEnv(env []string, command string, arg .
 }
 
 // ExecuteCommandWithOutput mocks ExecuteCommandWithOutput
-func (e *MockExecutor) ExecuteCommandWithOutput(command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithOutput(timeout time.Duration, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutput != nil {
-		return e.MockExecuteCommandWithOutput(command, arg...)
+		return e.MockExecuteCommandWithOutput(timeout, command, arg...)
 	}
 
 	return "", nil
@@ -73,9 +73,9 @@ func (e *MockExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command 
 }
 
 // ExecuteCommandWithCombinedOutput mocks ExecuteCommandWithCombinedOutput
-func (e *MockExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithCombinedOutput(timeout time.Duration, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithCombinedOutput != nil {
-		return e.MockExecuteCommandWithCombinedOutput(command, arg...)
+		return e.MockExecuteCommandWithCombinedOutput(timeout, command, arg...)
 	}
 
 	return "", nil

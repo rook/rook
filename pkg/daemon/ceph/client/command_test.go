@@ -113,7 +113,7 @@ func TestNewRBDCommand(t *testing.T) {
 	t.Run("rbd command with no multus", func(t *testing.T) {
 		clusterInfo := AdminTestClusterInfo("rook")
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			switch {
 			case command == "rbd" && args[0] == "create":
 				assert.Len(t, args, 8)

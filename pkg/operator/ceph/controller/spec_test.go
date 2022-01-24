@@ -23,6 +23,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -256,7 +257,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[1] == "dump" {
 					return fmt.Sprintf(`{"active_addr":"%s"}`, "192.168.0.1:6801/2535462469"), nil
@@ -286,7 +287,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[1] == "dump" {
 					return fmt.Sprintf(`{"active_addr":"%s"}`, "172.17.0.12:6801/2535462469"), nil
@@ -315,7 +316,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[1] == "dump" {
 					return fmt.Sprintf(`{"active_addr":"%s"}`, "172.17.0.12:6801/2535462469"), nil
@@ -349,7 +350,7 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
 				if args[1] == "dump" {
 					return fmt.Sprintf(`{"active_addr":"%s"}`, "192.168.0.1:6801/2535462469"), nil

@@ -43,7 +43,7 @@ func NewHelmHelper(helmPath string) *HelmHelper {
 
 // Execute is wrapper for executing helm commands
 func (h *HelmHelper) Execute(args ...string) (string, error) {
-	result, err := h.executor.ExecuteCommandWithOutput(h.HelmPath, args...)
+	result, err := h.executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, h.HelmPath, args...)
 	if err != nil {
 		logger.Errorf("Errors Encountered while executing helm command %v: %v", result, err)
 		return result, fmt.Errorf("Failed to run helm command on args %v : %v , err -> %v", args, result, err)

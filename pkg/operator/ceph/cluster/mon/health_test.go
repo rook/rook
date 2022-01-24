@@ -47,7 +47,7 @@ func TestCheckHealth(t *testing.T) {
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("executing command: %s %+v", command, args)
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return "{\"key\":\"mysecurekey\"}", nil
@@ -189,7 +189,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	clientset := test.New(t, 1)
 	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("executing command: %s %+v", command, args)
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
@@ -285,7 +285,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("executing command: %s %+v", command, args)
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return "{\"key\":\"mysecurekey\"}", nil
@@ -346,7 +346,7 @@ func TestAddRemoveMons(t *testing.T) {
 
 	monQuorumResponse := clienttest.MonInQuorumResponse()
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("executing command: %s %+v", command, args)
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return "{\"key\":\"mysecurekey\"}", nil

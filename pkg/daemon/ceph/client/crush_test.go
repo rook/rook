@@ -18,6 +18,7 @@ package client
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -265,7 +266,7 @@ const testCrushMap = `{
 
 func TestGetCrushMap(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "dump" {
 			return testCrushMap, nil
@@ -283,7 +284,7 @@ func TestGetCrushMap(t *testing.T) {
 
 func TestGetOSDOnHost(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "ls" {
 			return "[\"osd.2\",\"osd.0\",\"osd.1\"]", nil

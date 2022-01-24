@@ -224,7 +224,7 @@ func TerminateFatal(reason error) {
 
 // GetOperatorBaseImageCephVersion returns the Ceph version of the operator image
 func GetOperatorBaseImageCephVersion(context *clusterd.Context) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithOutput("ceph", "--version")
+	output, err := context.Executor.ExecuteCommandWithOutput(exec.CephCommandsTimeout, "ceph", "--version")
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to execute command to detect ceph version")
 	}

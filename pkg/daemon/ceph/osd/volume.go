@@ -34,6 +34,7 @@ import (
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/display"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -337,7 +338,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			}
 
 			// execute ceph-volume with the device
-			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
+			op, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, baseCommand, immediateExecuteArgs...)
 			if err != nil {
 				cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
 
@@ -571,7 +572,7 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 			immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
 
 			// execute ceph-volume with the device
-			op, err := context.Executor.ExecuteCommandWithCombinedOutput(baseCommand, immediateExecuteArgs...)
+			op, err := context.Executor.ExecuteCommandWithCombinedOutput(exec.NoCommandTimout, baseCommand, immediateExecuteArgs...)
 			if err != nil {
 				cvLogFilePath := path.Join(cephLogDir, "ceph-volume.log")
 
@@ -758,7 +759,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 			"json",
 		}...)
 
-		cvOut, err := context.Executor.ExecuteCommandWithOutput(baseCommand, reportArgs...)
+		cvOut, err := context.Executor.ExecuteCommandWithOutput(exec.NoCommandTimout, baseCommand, reportArgs...)
 		if err != nil {
 			return errors.Wrapf(err, "failed ceph-volume json report: %s", cvOut) // fail return here as validation provided by ceph-volume
 		}
@@ -1152,7 +1153,7 @@ func callCephVolume(context *clusterd.Context, args ...string) (string, error) {
 
 	// Do not use combined output for "list" calls, otherwise we will get stderr is the output and this will break the json unmarshall
 	f := context.Executor.ExecuteCommandWithOutput
-	co, err := f(baseCommand, append(baseArgs, args...)...)
+	co, err := f(exec.NoCommandTimout, baseCommand, append(baseArgs, args...)...)
 	if err != nil {
 		// Print c-v log before exiting with failure
 		cvLog := readCVLogContent("/tmp/ceph-log/ceph-volume.log")

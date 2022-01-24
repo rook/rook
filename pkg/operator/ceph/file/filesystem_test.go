@@ -25,6 +25,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -142,7 +143,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 
 	if multiFS {
 		return &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 				if contains(args, "fs") && contains(args, "get") {
 					if firstGet {
 						firstGet = false
@@ -219,7 +220,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 	}
 
 	return &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if contains(args, "fs") && contains(args, "get") {
 				if firstGet {
 					firstGet = false
@@ -458,7 +459,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 	}
 	createdFsResponse, _ := json.Marshal(mdsmap)
 	firstGet := false
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		if contains(args, "fs") && contains(args, "get") {
 			if firstGet {
 				firstGet = false
@@ -522,7 +523,7 @@ func TestCreateNopoolFilesystem(t *testing.T) {
 	clientset := testop.New(t, 3)
 	configDir := t.TempDir()
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				err := clienttest.CreateConfigDir(path.Join(configDir, "ns"))
 				assert.Nil(t, err)

@@ -23,6 +23,7 @@ import (
 	"os"
 	"path"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -340,7 +341,7 @@ func TestConfigureCVDevices(t *testing.T) {
 	{
 		t.Log("Test case for creating new raw mode OSD on LV-backed PVC")
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1, a ...interface{})`, mapperDev), nil
@@ -368,7 +369,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
 			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[6] == mapperDev {
 				return "", nil
@@ -404,7 +405,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		// Test case for with no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD
 		t.Log("Test case for with no available lvm mode OSD and existing raw mode OSD on LV-backed PVC, it should return info of raw mode OSD")
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1, a ...interface{})`, mapperDev), nil
@@ -429,7 +430,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			}
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 
@@ -459,7 +460,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		// Test case for a lvm mode OSD on LV-backed PVC, it should return info of lvm mode OSD
 		t.Log("Test case for a lvm mode OSD on LV-backed PVC, it should return info of lvm mode OSD")
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
 				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="%s" KNAME="/dev/dm-1"
@@ -529,7 +530,7 @@ func TestConfigureCVDevices(t *testing.T) {
 	{
 		t.Log("Test case for raw mode on partition")
 		executor := &exectest.MockExecutor{}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			// get lsblk for disks from cephVolumeRAWTestResult var
 			if command == "lsblk" && (args[0] == "/dev/vdb1") {
@@ -547,7 +548,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		deviceClassSet := false
-		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
 			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" {
 				assert.Equal(t, "myclass", args[8])
@@ -797,7 +798,7 @@ func TestInitializeBlock(t *testing.T) {
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 
 			// Validate base common args
@@ -852,7 +853,7 @@ func TestInitializeBlock(t *testing.T) {
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
 
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("%s %v", command, args)
 
 			// Validate base common args
@@ -879,7 +880,7 @@ func TestInitializeBlock(t *testing.T) {
 
 func TestInitializeBlockPVC(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" {
 			return initializeBlockPVCTestResult, nil
@@ -906,7 +907,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", metadataBlockPath)
 	assert.Equal(t, "", walBlockPath)
 
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" {
 			assert.Equal(t, "foo", args[8])
@@ -950,7 +951,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 
 func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--block.db" {
 			return initializeBlockPVCTestResult, nil
@@ -979,7 +980,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	assert.Equal(t, "/srv/set1-metadata-0-8c7kr", metadataBlockPath)
 	assert.Equal(t, "", walBlockPath)
 
-	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithCombinedOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" && args[9] == "--block.db" {
 			return initializeBlockPVCTestResult, nil
@@ -1014,7 +1015,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 
 func TestParseCephVolumeLVMResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 
 		logger.Infof("%s %v", command, args)
@@ -1035,7 +1036,7 @@ func TestParseCephVolumeLVMResult(t *testing.T) {
 
 func TestParseCephVolumeRawResult(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 		if command == "stdbuf" {
 			if args[4] == "raw" && args[5] == "list" {
@@ -1064,7 +1065,7 @@ func TestParseCephVolumeRawResult(t *testing.T) {
 func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 
 		if command == "stdbuf" {
@@ -1088,7 +1089,7 @@ func TestCephVolumeResultMultiClusterSingleOSD(t *testing.T) {
 func TestCephVolumeResultMultiClusterMultiOSD(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
 
 		if command == "stdbuf" {
@@ -1220,7 +1221,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			// First command
 			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdd" && args[14] == "--report" {
 				return `[{"block_db": "/dev/sdd", "encryption": "None", "data": "/dev/sda", "data_size": "100.00 GB", "block_db_size": "100.00 GB"}]`, nil
@@ -1259,7 +1260,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
-		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		executor.MockExecuteCommandWithOutput = func(timeout time.Duration, command string, args ...string) (string, error) {
 			// First command
 			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/vg0/lv0" && args[14] == "--report" {
 				return `[{"block_db": "vg0/lv0", "encryption": "None", "data": "/dev/sda", "data_size": "100.00 GB", "block_db_size": "10.00 GB"}]`, nil

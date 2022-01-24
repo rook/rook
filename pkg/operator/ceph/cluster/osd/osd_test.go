@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -157,7 +158,7 @@ func TestAddRemoveNode(t *testing.T) {
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	generateKey := "expected key"
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			return "{\"key\": \"" + generateKey + "\"}", nil
 		},
 	}
@@ -209,7 +210,7 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// mock the ceph calls that will be called during remove node
 	context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "status" {
 				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
