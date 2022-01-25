@@ -56,6 +56,9 @@ func TestCreatePool(t *testing.T) {
 					return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
 				}
 				if args[0] == "osd" && args[1] == "pool" && args[2] == "application" {
+					if args[3] == "get" {
+						return ``, nil
+					}
 					assert.Equal(t, "enable", args[3])
 					if args[5] != "rbd" {
 						enabledMetricsApp = true

@@ -116,6 +116,30 @@ func GetPoolNamesByID(context *clusterd.Context, clusterInfo *ClusterInfo) (map[
 	return names, nil
 }
 
+func getPoolApplication(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (string, error) {
+	args := []string{"osd", "pool", "application", "get", poolName}
+	appDetails, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get current application for pool %s", poolName)
+	}
+
+	if len(appDetails) == 0 {
+		// no application name
+		return "", nil
+	}
+	var application map[string]interface{}
+	err = json.Unmarshal([]byte(appDetails), &application)
+	if err != nil {
+		return "", errors.Wrapf(err, "unmarshal failed raw buffer response %s", string(appDetails))
+	}
+	for name := range application {
+		// Return the first application name in the list since only one is expected
+		return name, nil
+	}
+	// No application name assigned
+	return "", nil
+}
+
 // GetPoolDetails gets all the details of a given pool
 func GetPoolDetails(context *clusterd.Context, clusterInfo *ClusterInfo, name string) (CephStoragePoolDetails, error) {
 	args := []string{"osd", "pool", "get", name, "all"}
@@ -234,10 +258,19 @@ func DeletePool(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 }
 
 func givePoolAppTag(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, appName string) error {
-	args := []string{"osd", "pool", "application", "enable", poolName, appName, confirmFlag}
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	currentAppName, err := getPoolApplication(context, clusterInfo, poolName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to enable application %s on pool %s", appName, poolName)
+		return errors.Wrapf(err, "failed to get application for pool %q", poolName)
+	}
+	if currentAppName == appName {
+		logger.Infof("application %q is already set on pool %q", appName, poolName)
+		return nil
+	}
+
+	args := []string{"osd", "pool", "application", "enable", poolName, appName, confirmFlag}
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to enable application %q on pool %q", appName, poolName)
 	}
 
 	return nil
