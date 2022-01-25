@@ -168,4 +168,4 @@ subjects:
     name: rook-csi-rbd-provisioner-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 {{- end }}
-{{- end -}}
+{{- end }}
