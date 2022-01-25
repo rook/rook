@@ -29,6 +29,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const emptyApplicationName = `{"":{}}`
+
 func TestCreateECPoolWithOverwrites(t *testing.T) {
 	testCreateECPool(t, true, "")
 }
@@ -79,6 +81,9 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 				}
 			}
 			if args[2] == "application" {
+				if args[3] == "get" {
+					return emptyApplicationName, nil
+				}
 				assert.Equal(t, "enable", args[3])
 				assert.Equal(t, "mypool", args[4])
 				assert.Equal(t, "myapp", args[5])
@@ -95,6 +100,53 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 	} else {
 		assert.False(t, compressionModeCreated)
 	}
+}
+
+func TestSetPoolApplication(t *testing.T) {
+	poolName := "testpool"
+	appName := "testapp"
+	setAppName := false
+	blankAppName := false
+	clusterInfo := AdminTestClusterInfo("mycluster")
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[1] == "pool" && args[2] == "application" {
+			if args[3] == "get" {
+				assert.Equal(t, poolName, args[4])
+				if blankAppName {
+					return emptyApplicationName, nil
+				} else {
+					return fmt.Sprintf(`{"%s":{}}`, appName), nil
+				}
+			}
+			if args[3] == "enable" {
+				setAppName = true
+				assert.Equal(t, poolName, args[4])
+				assert.Equal(t, appName, args[5])
+				return "", nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+
+	t.Run("set pool application", func(t *testing.T) {
+		setAppName = false
+		blankAppName = true
+		err := givePoolAppTag(context, clusterInfo, poolName, appName)
+		assert.NoError(t, err)
+		assert.True(t, setAppName)
+	})
+
+	t.Run("pool application already set", func(t *testing.T) {
+		setAppName = false
+		blankAppName = false
+		err := givePoolAppTag(context, clusterInfo, poolName, appName)
+		assert.NoError(t, err)
+		assert.False(t, setAppName)
+	})
+
 }
 
 func TestCreateReplicaPoolWithFailureDomain(t *testing.T) {
@@ -137,6 +189,9 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 				return "", nil
 			}
 			if args[2] == "application" {
+				if args[3] == "get" {
+					return emptyApplicationName, nil
+				}
 				assert.Equal(t, "enable", args[3])
 				assert.Equal(t, "mypool", args[4])
 				assert.Equal(t, "myapp", args[5])
@@ -465,7 +520,11 @@ func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, cru
 			poolRuleSet = true
 			return "", nil
 		}
-		if len(args) >= 4 && args[1] == "pool" && args[2] == "application" && args[3] == "enable" {
+		if len(args) >= 4 && args[1] == "pool" && args[2] == "application" {
+			if args[3] == "get" {
+				return emptyApplicationName, nil
+			}
+
 			crushRuleName := args[4]
 			assert.Equal(t, crushRuleName, poolSpec.Name)
 			poolAppEnable = true
