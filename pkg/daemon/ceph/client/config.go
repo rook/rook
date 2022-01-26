@@ -292,7 +292,7 @@ func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error 
 	}
 	dst, err := ioutil.ReadFile(DefaultConfigFilePath())
 	if err == nil {
-		logger.Debugf("config file @ %s: %s", DefaultConfigFilePath(), dst)
+		logger.Debugf("config file @ %s:\n%s", DefaultConfigFilePath(), dst)
 	} else {
 		logger.Warningf("wrote and copied config file but failed to read it back from %s for logging. %v", DefaultConfigFilePath(), err)
 	}
