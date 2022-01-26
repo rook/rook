@@ -302,6 +302,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		Image:        c.spec.CephVersion.Image,
 		VolumeMounts: volumeMounts,
 		Env:          envVars,
+		EnvFrom:      getEnvFromSources(),
 		SecurityContext: &v1.SecurityContext{
 			Privileged:             &privileged,
 			RunAsUser:              &runAsUser,

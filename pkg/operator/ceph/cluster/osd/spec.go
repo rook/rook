@@ -466,6 +466,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 				Image:           c.rookVersion,
 				VolumeMounts:    configVolumeMounts,
 				Env:             configEnvVars,
+				EnvFrom:         getEnvFromSources(),
 				SecurityContext: securityContext,
 			})
 	}
@@ -549,6 +550,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					Image:           c.spec.CephVersion.Image,
 					VolumeMounts:    volumeMounts,
 					Env:             envVars,
+					EnvFrom:         getEnvFromSources(),
 					Resources:       osdProps.resources,
 					SecurityContext: securityContext,
 					StartupProbe:    controller.GenerateStartupProbeExecDaemon(opconfig.OsdType, osdID),
@@ -767,6 +769,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		VolumeMounts:    volMounts,
 		SecurityContext: controller.PrivilegedContext(true),
 		Env:             envVars,
+		EnvFrom:         getEnvFromSources(),
 		Resources:       osdProps.resources,
 	}
 

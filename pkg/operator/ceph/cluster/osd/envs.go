@@ -32,6 +32,7 @@ const (
 	osdWalSizeEnvVarName      = "ROOK_OSD_WAL_SIZE"
 	osdsPerDeviceEnvVarName   = "ROOK_OSDS_PER_DEVICE"
 	osdDeviceClassEnvVarName  = "ROOK_OSD_DEVICE_CLASS"
+	osdConfigMapOverrideName  = "rook-ceph-osd-env-override"
 	// EncryptedDeviceEnvVarName is used in the pod spec to indicate whether the OSD is encrypted or not
 	EncryptedDeviceEnvVarName = "ROOK_ENCRYPTED_DEVICE"
 	PVCNameEnvVarName         = "ROOK_PVC_NAME"
@@ -211,6 +212,19 @@ func osdActivateEnvVar() []v1.EnvVar {
 	}
 
 	return append(cephVolumeEnvVar(), monEnvVars...)
+}
+
+func getEnvFromSources() []v1.EnvFromSource {
+	optionalConfigMapRef := true
+
+	return []v1.EnvFromSource{
+		{
+			ConfigMapRef: &v1.ConfigMapEnvSource{
+				LocalObjectReference: v1.LocalObjectReference{Name: osdConfigMapOverrideName},
+				Optional:             &optionalConfigMapRef,
+			},
+		},
+	}
 }
 
 func getTcmallocMaxTotalThreadCacheBytes(tcmallocMaxTotalThreadCacheBytes string) v1.EnvVar {
