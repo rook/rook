@@ -549,9 +549,9 @@ ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.5.1"
 ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0"
 ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0"
 ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
-ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.3.0"
+ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.4.0"
 ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0"
-CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.1.0"
+CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.3.0"
 ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.2.1"
 ```
 
@@ -574,9 +574,9 @@ kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec
 k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
 k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
 k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
-k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
+k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
 k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0
 quay.io/cephcsi/cephcsi:v3.5.1
-quay.io/csiaddons/volumereplication-operator:v0.1.0
+quay.io/csiaddons/volumereplication-operator:v0.3.0
 quay.io/csiaddons/k8s-sidecar:v0.2.1
 ```
