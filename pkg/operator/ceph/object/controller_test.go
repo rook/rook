@@ -21,6 +21,7 @@ import (
 	"context"
 	"net/http"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -744,4 +745,49 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		assert.True(t, dependentsChecked)
 		assert.True(t, calledCommitConfigChanges)
 	})
+}
+
+func TestDiffVersions(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "versions" {
+				return `{
+    "mon": {
+        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 3
+    },
+    "mgr": {
+        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 1
+    },
+    "osd": {
+        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 3
+    },
+    "mds": {
+        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 2
+    },
+    "rgw": {
+        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 1
+    },
+    "overall": {
+        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 10
+    }
+}`, nil
+			}
+			return "", errors.Errorf("unknown command %s %v", command, args)
+		},
+	}
+	c := &clusterd.Context{Executor: executor}
+
+	// desiredCephVersion comes from DetectCephVersion() (ceph --version) which uses ExtractCephVersion()
+	desiredCephVersion, err := cephver.ExtractCephVersion("ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)")
+	assert.NoError(t, err)
+
+	// runningCephVersion comes from LeastUptodateDaemonVersion()
+	runningCephVersion, err := client.LeastUptodateDaemonVersion(c, &client.ClusterInfo{Context: context.TODO()}, "mon")
+	assert.NoError(t, err)
+
+	// Compares the pointer's address with the struct so it's wrong
+	assert.False(t, reflect.DeepEqual(runningCephVersion, desiredCephVersion))
+
+	// Compares the actual value of the pointer by dereferencing the pointer
+	assert.True(t, reflect.DeepEqual(runningCephVersion, *desiredCephVersion))
 }
