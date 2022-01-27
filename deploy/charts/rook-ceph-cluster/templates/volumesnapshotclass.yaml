@@ -11,8 +11,15 @@ apiVersion: snapshot.storage.k8s.io/v1beta1
 kind: VolumeSnapshotClass
 metadata:
   name: {{ $filesystemvsc.name }}
+{{- if $filesystemvsc.labels }}
+  labels:
+{{ toYaml $filesystemvsc.labels | indent 4 }}
+{{- end }}
   annotations:
     snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $filesystemvsc.isDefault }}true{{ else }}false{{ end }}"
+{{- if $filesystemvsc.annotations }}
+{{ toYaml $filesystemvsc.annotations | indent 4 }}
+{{- end }}
 driver: {{ .Values.operatorNamespace }}.cephfs.csi.ceph.com
 parameters:
   clusterID: {{ .Release.Namespace }}
@@ -34,8 +41,15 @@ apiVersion: snapshot.storage.k8s.io/v1beta1
 kind: VolumeSnapshotClass
 metadata:
   name: {{ $blockpoolvsc.name }}
+{{- if $blockpoolvsc.labels }}
+  labels:
+{{ toYaml $blockpoolvsc.labels | indent 4 }}
+{{- end }}
   annotations:
     snapshot.storage.kubernetes.io/is-default-class: "{{ if default false $blockpoolvsc.isDefault }}true{{ else }}false{{ end }}"
+{{- if $blockpoolvsc.annotations }}
+{{ toYaml $blockpoolvsc.annotations | indent 4 }}
+{{- end }}
 driver: {{ .Values.operatorNamespace }}.rbd.csi.ceph.com
 parameters:
   clusterID: {{ .Release.Namespace }}
