@@ -282,7 +282,7 @@ csi:
   #provisioner:
     #image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
   #snapshotter:
-    #image: k8s.gcr.io/sig-storage/csi-snapshotter:v4.2.0
+    #image: k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1
   #attacher:
     #image: k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
   #resizer:
