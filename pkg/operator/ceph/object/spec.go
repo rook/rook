@@ -297,9 +297,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	}
 
 	// If the startup probe is enabled
-	configureStartupProbe(&container, c.store.Spec.HealthCheck)
+	container = cephconfig.ConfigureStartupProbe(container, c.store.Spec.HealthCheck.StartupProbe)
 	// If the liveness probe is enabled
-	configureLivenessProbe(&container, c.store.Spec.HealthCheck)
+	container = cephconfig.ConfigureLivenessProbe(container, c.store.Spec.HealthCheck.LivenessProbe)
 	// If the readiness probe is enabled
 	configureReadinessProbe(&container, c.store.Spec.HealthCheck)
 	if c.store.Spec.IsTLSEnabled() {
@@ -356,22 +356,6 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	return container
 }
 
-// configureLivenessProbe returns the desired liveness probe for a given daemon
-func configureLivenessProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
-	if ok := healthCheck.LivenessProbe; ok != nil {
-		if !healthCheck.LivenessProbe.Disabled {
-			probe := healthCheck.LivenessProbe.Probe
-			// If the spec value is empty, let's use a default
-			if probe != nil {
-				// Set the liveness probe on the container to overwrite the default probe created by Rook
-				container.LivenessProbe = cephconfig.GetProbeWithDefaults(probe, container.LivenessProbe)
-			}
-		} else {
-			container.LivenessProbe = nil
-		}
-	}
-}
-
 // configureReadinessProbe returns the desired readiness probe for a given daemon
 func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
 	if ok := healthCheck.ReadinessProbe; ok != nil {
@@ -384,21 +368,6 @@ func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketH
 			}
 		} else {
 			container.ReadinessProbe = nil
-		}
-	}
-}
-
-func configureStartupProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
-	if ok := healthCheck.StartupProbe; ok != nil {
-		if !healthCheck.StartupProbe.Disabled {
-			probe := healthCheck.StartupProbe.Probe
-			// If the spec value is empty, let's use a default
-			if probe != nil {
-				// Set the startup probe on the container to overwrite the default probe created by Rook
-				container.StartupProbe = cephconfig.GetProbeWithDefaults(probe, container.StartupProbe)
-			}
-		} else {
-			container.StartupProbe = nil
 		}
 	}
 }

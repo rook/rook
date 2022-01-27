@@ -44,13 +44,8 @@ const (
 func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.Deployment, error) {
 
 	mdsContainer := c.makeMdsDaemonContainer(mdsConfig)
-<<<<<<< HEAD
-	cephconfig.ConfigureStartupProbe(mdsContainer, c.fs.Spec.StatusCheck.StartupProbe)
-	cephconfig.ConfigureLivenessProbe(mdsContainer, c.fs.Spec.StatusCheck.LivenessProbe)
-=======
 	mdsContainer = cephconfig.ConfigureStartupProbe(mdsContainer, c.fs.Spec.MetadataServer.StartupProbe)
 	mdsContainer = cephconfig.ConfigureLivenessProbe(mdsContainer, c.fs.Spec.MetadataServer.LivenessProbe)
->>>>>>> d9d19f9f9 (fsdfsd)
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
