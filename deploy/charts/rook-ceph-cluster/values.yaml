@@ -403,6 +403,8 @@ cephFileSystemVolumeSnapshotClass:
   name: ceph-filesystem
   isDefault: true
   deletionPolicy: Delete
+  annotations: {}
+  labels: {}
   # see https://rook.io/docs/rook/latest/ceph-csi-snapshot.html#cephfs-snapshots for available configuration
   parameters: {}
 
@@ -411,6 +413,8 @@ cephBlockPoolsVolumeSnapshotClass:
   name: ceph-block
   isDefault: false
   deletionPolicy: Delete
+  annotations: {}
+  labels: {}
   # see https://rook.io/docs/rook/latest/ceph-csi-snapshot.html#rbd-snapshots for available configuration
   parameters: {}
 
