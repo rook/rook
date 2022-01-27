@@ -27,7 +27,7 @@ import (
 const (
 	// snapshotterVersion from which the snapshotcontroller and CRD will be
 	// installed
-	snapshotterVersion = "v4.0.0"
+	snapshotterVersion = "v5.0.1"
 	repoURL            = "https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter"
 	rbacPath           = "deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml"
 	controllerPath     = "deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml"
@@ -83,7 +83,7 @@ func (k8sh *K8sHelper) snapshotController(action string) error {
 // WaitForSnapshotController check snapshotcontroller is ready within given
 // retries count.
 func (k8sh *K8sHelper) WaitForSnapshotController(retries int) error {
-	namespace := "default"
+	namespace := "kube-system"
 	ctx := context.TODO()
 	snapshotterName := "snapshot-controller"
 	for i := 0; i < retries; i++ {
