@@ -37,17 +37,18 @@ func TestMergeResourceRequirements(t *testing.T) {
 	first = v1.ResourceRequirements{}
 	second = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceCPU:     *resource.NewQuantity(100.0, resource.BinarySI),
+			v1.ResourceStorage: *resource.NewQuantity(50.0, resource.BinarySI),
 		},
 		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			v1.ResourceName("foo"): *resource.NewQuantity(23.0, resource.BinarySI),
 		},
 	}
 	result = MergeResourceRequirements(first, second)
-	assert.Equal(t, 1, len(result.Limits))
+	assert.Equal(t, 2, len(result.Limits))
 	assert.Equal(t, 1, len(result.Requests))
 	assert.Equal(t, "100", result.Limits.Cpu().String())
-	assert.Equal(t, "1337", result.Requests.Memory().String())
+	assert.Equal(t, "50", result.Limits.Storage().String())
 
 	first = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
