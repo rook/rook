@@ -87,17 +87,17 @@ func (k8sh *K8sHelper) WaitForSnapshotController(retries int) error {
 	ctx := context.TODO()
 	snapshotterName := "snapshot-controller"
 	for i := 0; i < retries; i++ {
-		ss, err := k8sh.Clientset.AppsV1().StatefulSets(namespace).Get(ctx, snapshotterName, metav1.GetOptions{})
+		ss, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, snapshotterName, metav1.GetOptions{})
 		if err != nil && !apierrors.IsNotFound(err) {
 			return err
 		}
 		if ss.Status.ReadyReplicas > 0 && ss.Status.ReadyReplicas == ss.Status.Replicas {
 			return nil
 		}
-		logger.Infof("waiting for %q statufulset in namespace %q (readyreplicas %d < replicas %d)", snapshotterName, namespace, ss.Status.ReadyReplicas, ss.Status.Replicas)
+		logger.Infof("waiting for %q deployment in namespace %q (readyreplicas %d < replicas %d)", snapshotterName, namespace, ss.Status.ReadyReplicas, ss.Status.Replicas)
 		time.Sleep(RetryInterval * time.Second)
 	}
-	return fmt.Errorf("giving up waiting for %q statufulset in namespace %q", snapshotterName, namespace)
+	return fmt.Errorf("giving up waiting for %q deployment in namespace %q", snapshotterName, namespace)
 }
 
 // CreateSnapshotController creates the snapshotcontroller and required RBAC
