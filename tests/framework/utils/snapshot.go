@@ -112,20 +112,33 @@ func (k8sh *K8sHelper) DeleteSnapshotController() error {
 
 // snapshotCRD can be used for creating or deleting the snapshot CRD's
 func (k8sh *K8sHelper) snapshotCRD(action string) error {
+	// setting validate=false to skip CRD validation during create operation to
+	// support lower Kubernetes versions.
+	args := func(crdpath string) []string {
+		a := []string{
+			action,
+			"-f",
+			crdpath,
+		}
+		if action == "create" {
+			a = append(a, "--validate=false")
+		}
+		return a
+	}
 	snapshotClassCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, snapshotClassCRDPath)
-	_, err := k8sh.Kubectl(action, "-f", snapshotClassCRD)
+	_, err := k8sh.Kubectl(args(snapshotClassCRD)...)
 	if err != nil {
 		return err
 	}
 
 	snapshotContentsCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeSnapshotContentsCRDPath)
-	_, err = k8sh.Kubectl(action, "-f", snapshotContentsCRD)
+	_, err = k8sh.Kubectl(args(snapshotContentsCRD)...)
 	if err != nil {
 		return err
 	}
 
 	snapshotCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeSnapshotCRDPath)
-	_, err = k8sh.Kubectl(action, "-f", snapshotCRD)
+	_, err = k8sh.Kubectl(args(snapshotCRD)...)
 	if err != nil {
 		return err
 	}
