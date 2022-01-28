@@ -96,7 +96,7 @@ func wereMonEndpointsUpdated(oldCMData, newCMData map[string]string) bool {
 
 			// Iterate over the map and compare the values
 			for _, v := range oldKeys {
-				if !reflect.DeepEqual(oldMappingToGo.Schedule[v], newMappingToGo.Schedule[v]) {
+				if !reflect.DeepEqual(*oldMappingToGo.Schedule[v], *newMappingToGo.Schedule[v]) {
 					logger.Debugf("oldMappingToGo.Schedule[v] AND newMappingToGo.Schedule[v]: %v | %v", oldMappingToGo.Schedule[v], newMappingToGo.Schedule[v])
 					return true
 				}

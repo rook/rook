@@ -743,8 +743,11 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 
 	// If endpoints are identical there is nothing to do
-	if reflect.DeepEqual(currentEndpoints, endpoint) {
-		return nil
+	// First check for nil pointers otherwise dereferencing a nil pointer will cause a panic
+	if endpoint != nil && currentEndpoints != nil {
+		if reflect.DeepEqual(*currentEndpoints, *endpoint) {
+			return nil
+		}
 	}
 	logger.Debugf("diff between current endpoint and newly generated one: %v \n", cmp.Diff(currentEndpoints, endpoint, cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })))
 
