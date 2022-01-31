@@ -131,11 +131,20 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 	logger.Infof("install snapshot CRD")
 	err := k8sh.CreateSnapshotCRD()
 	require.NoError(s.T(), err)
-
 	logger.Infof("install snapshot controller")
 	err = k8sh.CreateSnapshotController()
 	require.NoError(s.T(), err)
+	// cleanup the CRD and controller in defer to make sure the CRD and
+	// controller are removed as filesystem test also install CRD and controller.
+	defer func() {
+		logger.Infof("delete snapshot-controller")
+		err = k8sh.DeleteSnapshotController()
+		require.NoError(s.T(), err)
 
+		logger.Infof("delete snapshot CRD")
+		err = k8sh.DeleteSnapshotCRD()
+		require.NoError(s.T(), err)
+	}()
 	logger.Infof("check snapshot controller is running")
 	err = k8sh.WaitForSnapshotController(15)
 	require.NoError(s.T(), err)
@@ -236,15 +245,6 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 	logger.Infof("delete snapshotclass")
 
 	err = helper.BlockClient.DeleteSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
-	require.NoError(s.T(), err)
-	logger.Infof("delete snapshot-controller")
-
-	err = k8sh.DeleteSnapshotController()
-	require.NoError(s.T(), err)
-	logger.Infof("delete snapshot CRD")
-
-	// remove snapshotcontroller and delete snapshot CRD
-	err = k8sh.DeleteSnapshotCRD()
 	require.NoError(s.T(), err)
 }
 
