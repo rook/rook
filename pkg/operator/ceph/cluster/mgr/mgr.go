@@ -463,7 +463,7 @@ func (c *Cluster) configureMgrModules() error {
 func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool) {
 	minVersions := map[string]cephver.CephVersion{
 		// Put the modules here, example:
-		// pgautoscalerModuleName: {Major: 14},
+		// pgautoscalerModuleName: {Major: 15},
 	}
 	if ver, ok := minVersions[name]; ok {
 		// Check if the required min version is met

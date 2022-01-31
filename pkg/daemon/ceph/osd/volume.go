@@ -53,8 +53,6 @@ var (
 	cephLogDir    = "/var/log/ceph"
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
-	// The "ceph-volume raw" command is available since Ceph 14.2.8 as well as partition support in ceph-volume
-	cephVolumeRawModeMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}
 
 	// The Ceph Octopus to include a retry to acquire device lock
 	cephFlockFixOctopusMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}
@@ -150,27 +148,23 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 				return osds, nil
 			}
 
-			// List THE existing OSD configured with ceph-volume raw mode
-			if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
-				// For block mode
-				block = fmt.Sprintf("/mnt/%s", a.nodeName)
+			// For block mode
+			block = fmt.Sprintf("/mnt/%s", a.nodeName)
 
-				// This is hard to determine a potential metadata device here
-				// Also, I don't think (leseb) this code we have run in this condition
-				// I tried several things:
-				//    * evict a node, osd moves, the prepare job was never relaunched ever because we check for the osd deployment and skip the prepare
-				//    * restarted the operator, again the prepare job was not re-run
-				//
-				// I'm leaving this code with an empty metadata device for now
-				metadataBlock, walBlock = "", ""
+			// This is hard to determine a potential metadata device here
+			// Also, I don't think (leseb) this code we have run in this condition
+			// I tried several things:
+			//    * evict a node, osd moves, the prepare job was never relaunched ever because we check for the osd deployment and skip the prepare
+			//    * restarted the operator, again the prepare job was not re-run
+			//
+			// I'm leaving this code with an empty metadata device for now
+			metadataBlock, walBlock = "", ""
 
-				rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
-				if err != nil {
-					logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
-				}
-				osds = append(osds, rawOsds...)
+			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
+			if err != nil {
+				logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
 			}
-
+			osds = append(osds, rawOsds...)
 		} else {
 			// Non-PVC case
 			// List existing OSD(s) configured with ceph-volume lvm mode
@@ -209,27 +203,13 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 		}
 	}
 
-	// Should we use ceph-volume raw mode?
-	useRawMode, err := a.useRawMode(context, a.pvcBacked)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to determine which ceph-volume mode to use")
-	}
-
-	// If not raw mode we must execute a few LVM prerequisites
-	if !useRawMode {
-		err = lvmPreReq(context, a.pvcBacked, lvBackedPV)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to run lvm prerequisites")
-		}
-	}
-
 	// If running on OSD on PVC
 	if a.pvcBacked {
 		if block, metadataBlock, walBlock, err = a.initializeBlockPVC(context, devices, lvBackedPV); err != nil {
 			return nil, errors.Wrap(err, "failed to initialize devices on PVC")
 		}
 	} else {
-		err := a.initializeDevices(context, devices, useRawMode)
+		err = a.initializeDevices(context, devices)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to initialize osd")
 		}
@@ -265,23 +245,16 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	baseCommand := "stdbuf"
 	var baseArgs []string
 
-	cephVolumeMode := "lvm"
-	if a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion) {
-		cephVolumeMode = "raw"
-	} else if lvBackedPV {
-		return "", "", "", errors.New("OSD on LV-backed PVC requires new Ceph to use raw mode")
-	}
-
 	// Create a specific log directory so that each prepare command will have its own log
 	// Only do this if nothing is present so that we don't override existing logs
 	cvLogDir = path.Join(cephLogDir, a.nodeName)
 	err := os.MkdirAll(cvLogDir, 0750)
 	if err != nil {
 		logger.Errorf("failed to create ceph-volume log directory %q, continue with default %q. %v", cvLogDir, cephLogDir, err)
-		baseArgs = []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", "--bluestore"}
+		baseArgs = []string{"-oL", cephVolumeCmd, "raw", "prepare", "--bluestore"}
 	} else {
 		// Always force Bluestore!
-		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, cephVolumeMode, "prepare", "--bluestore"}
+		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, "raw", "prepare", "--bluestore"}
 	}
 
 	var metadataArg, walArg []string
@@ -374,10 +347,9 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				return "", "", "", errors.Wrapf(err, "failed to run ceph-volume. %s. debug logs below:\n%s", op, cvLog)
 			}
 			logger.Infof("%v", op)
-			// if raw mode is used or PV on LV, let's return the path of the device
-			if cephVolumeMode == "raw" && !isEncrypted {
+			if !isEncrypted {
 				blockPath = deviceArg
-			} else if cephVolumeMode == "raw" && isEncrypted {
+			} else {
 				blockPath = getEncryptedBlockPath(op, oposd.DmcryptBlockType)
 				if blockPath == "" {
 					return "", "", "", errors.New("failed to get encrypted block path from ceph-volume lvm prepare output")
@@ -394,11 +366,6 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 						return "", "", "", errors.New("failed to get encrypted block.wal path from ceph-volume lvm prepare output")
 					}
 				}
-			} else {
-				blockPath = getLVPath(op)
-				if blockPath == "" {
-					return "", "", "", errors.New("failed to get lv path from ceph-volume lvm prepare output")
-				}
 			}
 		} else {
 			logger.Infof("skipping device %q with osd %d already configured", device.Config.Name, device.Data)
@@ -406,21 +373,6 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	}
 
 	return blockPath, metadataBlockPath, walBlockPath, nil
-}
-
-func getLVPath(op string) string {
-	tmp := sys.Grep(op, "Volume group")
-	vgtmp := strings.Split(tmp, "\"")
-
-	tmp = sys.Grep(op, "Logical volume")
-	lvtmp := strings.Split(tmp, "\"")
-
-	if len(vgtmp) >= 2 && len(lvtmp) >= 2 {
-		if sys.Grep(vgtmp[1], "ceph") != "" && sys.Grep(lvtmp[1], "osd-block") != "" {
-			return fmt.Sprintf("/dev/%s/%s", vgtmp[1], lvtmp[1])
-		}
-	}
-	return ""
 }
 
 func getEncryptedBlockPath(op, blockType string) string {
@@ -479,26 +431,22 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 	return nil
 }
 
-func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, error) {
-	if pvcBacked {
-		return a.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawModeMinCephVersion), nil
-	}
-
-	var useRawMode bool
+func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
+	var allowRawMode bool
 	if a.clusterInfo.CephVersion.IsOctopus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixOctopusMinCephVersion) {
 		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixOctopusMinCephVersion)
-		useRawMode = true
+		allowRawMode = true
 	}
 
 	if a.clusterInfo.CephVersion.IsAtLeastPacific() {
 		logger.Debug("will use raw mode since cluster version is at least pacific")
-		useRawMode = true
+		allowRawMode = true
 	}
 
 	// ceph-volume raw mode does not support encryption yet
 	if a.storeConfig.EncryptedDevice {
 		logger.Debug("won't use raw mode since encryption is enabled")
-		useRawMode = false
+		allowRawMode = false
 	}
 
 	// ceph-volume raw mode does not support more than one OSD per disk
@@ -509,19 +457,33 @@ func (a *OsdAgent) useRawMode(context *clusterd.Context, pvcBacked bool) (bool, 
 	}
 	if osdsPerDeviceCount > 1 {
 		logger.Debugf("won't use raw mode since osd per device is %d", osdsPerDeviceCount)
-		useRawMode = false
+		allowRawMode = false
 	}
 
 	// ceph-volume raw mode mode does not support metadata device if not running on PVC because the user has specified a whole device
 	if a.metadataDevice != "" {
 		logger.Debugf("won't use raw mode since there is a metadata device %q", a.metadataDevice)
-		useRawMode = false
+		allowRawMode = false
 	}
 
-	return useRawMode, nil
+	return allowRawMode, nil
 }
 
-func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping, allowRawMode bool) error {
+func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
+	// Should we allow ceph-volume raw mode?
+	allowRawMode, err := a.allowRawMode(context)
+	if err != nil {
+		return errors.Wrap(err, "failed to determine which ceph-volume mode to use")
+	}
+
+	// If not raw mode we must execute a few LVM prerequisites
+	if !allowRawMode {
+		err = lvmPreReq(context)
+		if err != nil {
+			return errors.Wrap(err, "failed to run lvm prerequisites")
+		}
+	}
+
 	// it's a little strange to split this into parts, looping here and in the init functions, but
 	// the LVM mode init requires the ability to loop over all the devices looking for metadata.
 	rawDevices := &DeviceOsdMapping{
@@ -548,7 +510,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		lvmDevices.Entries[name] = device
 	}
 
-	err := a.initializeDevicesRawMode(context, rawDevices)
+	err = a.initializeDevicesRawMode(context, rawDevices)
 	if err != nil {
 		return err
 	}
@@ -826,7 +788,7 @@ func (a *OsdAgent) appendDeviceClassArg(device *DeviceOsdIDEntry, args []string)
 	return args
 }
 
-func lvmPreReq(context *clusterd.Context, pvcBacked, lvBackedPV bool) error {
+func lvmPreReq(context *clusterd.Context) error {
 	// Check for the presence of LVM on the host when NOT running on PVC
 	// since this scenario is still using LVM
 	ne := NewNsenter(context, lvmCommandToCheck, []string{"--help"})
@@ -836,8 +798,7 @@ func lvmPreReq(context *clusterd.Context, pvcBacked, lvBackedPV bool) error {
 	}
 
 	// Update LVM configuration file
-	// Only do this after Ceph Nautilus 14.2.6 since it will use the ceph-volume raw mode by default and not LVM anymore
-	if err := UpdateLVMConfig(context, pvcBacked, lvBackedPV); err != nil {
+	if err := UpdateLVMConfig(context, false, false); err != nil {
 		return errors.Wrap(err, "failed to update lvm configuration file")
 	}
 
