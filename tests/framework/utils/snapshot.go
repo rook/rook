@@ -40,6 +40,8 @@ const (
 // CheckSnapshotISReadyToUse checks snapshot is ready to use
 func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries int) (bool, error) {
 	for i := 0; i < retries; i++ {
+		// sleep first and try to check snapshot is ready to cover the error cases.
+		time.Sleep(time.Duration(i) * time.Second)
 		ready, err := k8sh.executor.ExecuteCommandWithOutput("kubectl", "get", "volumesnapshot", name, "--namespace", namespace, "-o", "jsonpath={.status.readyToUse}")
 		if err != nil {
 			return false, err
@@ -52,7 +54,6 @@ func (k8sh *K8sHelper) CheckSnapshotISReadyToUse(name, namespace string, retries
 		if val {
 			return true, nil
 		}
-		time.Sleep(RetryInterval * time.Second)
 	}
 	return false, fmt.Errorf("giving up waiting for %q snapshot in namespace %q", name, namespace)
 }
