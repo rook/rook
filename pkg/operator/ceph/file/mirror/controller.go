@@ -29,7 +29,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -243,25 +243,28 @@ func (r *ReconcileFilesystemMirror) reconcileFilesystemMirror(filesystemMirror *
 
 // updateStatus updates an object with a given status
 func (r *ReconcileFilesystemMirror) updateStatus(client client.Client, name types.NamespacedName, status string) {
-	fsMirror := &cephv1.CephFilesystemMirror{}
-	err := client.Get(r.opManagerContext, name, fsMirror)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		fsMirror := &cephv1.CephFilesystemMirror{}
+		err := client.Get(r.opManagerContext, name, fsMirror)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve filesystem mirror %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve filesystem mirror %q to update status to %q. %v", name, status, err)
-		return
+
+		if fsMirror.Status == nil {
+			fsMirror.Status = &cephv1.Status{}
+		}
+		fsMirror.Status.Phase = status
+
+		return client.Status().Update(r.opManagerContext, fsMirror)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for fs mirror %q. %v", status, name, err)
 	}
 
-	if fsMirror.Status == nil {
-		fsMirror.Status = &cephv1.Status{}
-	}
-
-	fsMirror.Status.Phase = status
-	if err := reporting.UpdateStatus(client, fsMirror); err != nil {
-		logger.Errorf("failed to set filesystem mirror %q status to %q. %v", fsMirror.Name, status, err)
-		return
-	}
 	logger.Debugf("filesystem mirror %q status updated to %q", name, status)
 }

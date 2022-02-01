@@ -26,8 +26,8 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -297,23 +297,26 @@ func (r *ReconcileObjectZoneGroup) setFailedStatus(name types.NamespacedName, er
 
 // updateStatus updates an zone group with a given status
 func (r *ReconcileObjectZoneGroup) updateStatus(client client.Client, name types.NamespacedName, status string) {
-	objectZoneGroup := &cephv1.CephObjectZoneGroup{}
-	if err := client.Get(r.opManagerContext, name, objectZoneGroup); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectZoneGroup resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		objectZoneGroup := &cephv1.CephObjectZoneGroup{}
+		if err := client.Get(r.opManagerContext, name, objectZoneGroup); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephObjectZoneGroup resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve object zone group %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve object zone group %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if objectZoneGroup.Status == nil {
-		objectZoneGroup.Status = &cephv1.Status{}
+		if objectZoneGroup.Status == nil {
+			objectZoneGroup.Status = &cephv1.Status{}
+		}
+		objectZoneGroup.Status.Phase = status
+
+		return client.Status().Update(r.opManagerContext, objectZoneGroup)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for object zone group %q. %v", status, name.Name, err)
 	}
 
-	objectZoneGroup.Status.Phase = status
-	if err := reporting.UpdateStatus(client, objectZoneGroup); err != nil {
-		logger.Errorf("failed to set object zone group %q status to %q. %v", name, status, err)
-		return
-	}
 	logger.Debugf("object zone group %q status updated to %q", name, status)
 }

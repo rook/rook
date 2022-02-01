@@ -21,6 +21,7 @@ import (
 	"path"
 
 	"k8s.io/api/batch/v1beta1"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -47,6 +48,8 @@ const (
 
 // createOrUpdateCephCrash is a wrapper around controllerutil.CreateOrUpdate
 func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) (controllerutil.OperationResult, error) {
+	var opRes controllerutil.OperationResult
+
 	// Create or Update the deployment default/foo
 	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
 	if !ok {
@@ -124,7 +127,18 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		return nil
 	}
 
-	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, deploy, mutateFunc)
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		opRes, err = controllerutil.CreateOrUpdate(r.opManagerContext, r.client, deploy, mutateFunc)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return controllerutil.OperationResultNone, errors.Wrapf(err, "failed to create or update crashcollector deployment %q", deploy.Name)
+	}
+
+	return opRes, err
 }
 
 // createOrUpdateCephCron is a wrapper around controllerutil.CreateOrUpdate

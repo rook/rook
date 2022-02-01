@@ -21,7 +21,6 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
@@ -59,10 +58,7 @@ func updateStatus(client client.Client, namespacedName types.NamespacedName, sta
 		objectStore.Status.Phase = status
 		objectStore.Status.Info = info
 
-		if err := reporting.UpdateStatus(client, objectStore); err != nil {
-			return errors.Wrapf(err, "failed to set object store %q status to %q", namespacedName.String(), status)
-		}
-		return nil
+		return client.Status().Update(context.TODO(), objectStore)
 	})
 	if err != nil {
 		logger.Error(err)
@@ -95,10 +91,7 @@ func updateStatusBucket(client client.Client, name types.NamespacedName, status 
 		}
 
 		// but we still need to update the health checker status
-		if err := reporting.UpdateStatus(client, objectStore); err != nil {
-			return errors.Wrapf(err, "failed to set object store %q status to %v", name.String(), status)
-		}
-		return nil
+		return client.Status().Update(context.TODO(), objectStore)
 	})
 	if err != nil {
 		logger.Error(err)

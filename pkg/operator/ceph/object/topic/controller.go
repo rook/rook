@@ -27,10 +27,10 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -223,24 +223,27 @@ func (r *ReconcileBucketTopic) setFailedStatus(name types.NamespacedName, errMes
 
 // updateStatus updates the topic with a given status
 func (r *ReconcileBucketTopic) updateStatus(nsName types.NamespacedName, status string, topicARN *string) {
-	topic := &cephv1.CephBucketTopic{}
-	if err := r.client.Get(r.opManagerContext, nsName, topic); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debugf("CephBucketTopic %q not found. Ignoring since resource must be deleted", nsName)
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		topic := &cephv1.CephBucketTopic{}
+		if err := r.client.Get(r.opManagerContext, nsName, topic); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("CephBucketTopic %q not found. Ignoring since resource must be deleted", nsName)
+				return nil
+			}
+			logger.Warningf("failed to retrieve CephBucketTopic %q to update status to %q. error %v", nsName, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve CephBucketTopic %q to update status to %q. error %v", nsName, status, err)
-		return
-	}
-	if topic.Status == nil {
-		topic.Status = &cephv1.BucketTopicStatus{}
+		if topic.Status == nil {
+			topic.Status = &cephv1.BucketTopicStatus{}
+		}
+		topic.Status.ARN = topicARN
+		topic.Status.Phase = status
+
+		return r.client.Status().Update(r.opManagerContext, topic)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for ceph bucket topic %q. %v", status, nsName.Name, err)
 	}
 
-	topic.Status.ARN = topicARN
-	topic.Status.Phase = status
-	if err := reporting.UpdateStatus(r.client, topic); err != nil {
-		logger.Errorf("failed to set CephBucketTopic %q status to %q. error %v", nsName, status, err)
-		return
-	}
 	logger.Debugf("CephbucketTopic %q status updated to %q", nsName, status)
 }

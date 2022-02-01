@@ -22,58 +22,65 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // updateStatus updates a pool CR with the given status
 func updateStatus(client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
-	pool := &cephv1.CephBlockPool{}
-	err := client.Get(context.TODO(), poolName, pool)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		pool := &cephv1.CephBlockPool{}
+		err := client.Get(context.TODO(), poolName, pool)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve pool %q to update status to %q. %v", poolName, status, err)
-		return
+
+		if pool.Status == nil {
+			pool.Status = &cephv1.CephBlockPoolStatus{}
+		}
+
+		pool.Status.Phase = status
+		pool.Status.Info = info
+
+		return client.Status().Update(context.TODO(), pool)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for rbd mirror %q. %v", status, poolName.Name, err)
 	}
 
-	if pool.Status == nil {
-		pool.Status = &cephv1.CephBlockPoolStatus{}
-	}
-
-	pool.Status.Phase = status
-	pool.Status.Info = info
-	if err := reporting.UpdateStatus(client, pool); err != nil {
-		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
-		return
-	}
 	logger.Debugf("pool %q status updated to %q", poolName, status)
 }
 
 // updateStatusBucket updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolMirroringStatusSummarySpec, mirrorInfo *cephv1.PoolMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
-	blockPool := &cephv1.CephBlockPool{}
-	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, blockPool); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		blockPool := &cephv1.CephBlockPool{}
+		if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, blockPool); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve ceph block pool %q to update mirroring status. %v", c.namespacedName.Name, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve ceph block pool %q to update mirroring status. %v", c.namespacedName.Name, err)
-		return
-	}
-	if blockPool.Status == nil {
-		blockPool.Status = &cephv1.CephBlockPoolStatus{}
-	}
+		if blockPool.Status == nil {
+			blockPool.Status = &cephv1.CephBlockPoolStatus{}
+		}
 
-	// Update the CephBlockPool CR status field
-	blockPool.Status.MirroringStatus, blockPool.Status.MirroringInfo, blockPool.Status.SnapshotScheduleStatus = toCustomResourceStatus(blockPool.Status.MirroringStatus, mirrorStatus, blockPool.Status.MirroringInfo, mirrorInfo, blockPool.Status.SnapshotScheduleStatus, snapSchedStatus, details)
-	if err := reporting.UpdateStatus(c.client, blockPool); err != nil {
-		logger.Errorf("failed to set ceph block pool %q mirroring status. %v", c.namespacedName.Name, err)
-		return
+		// Update the CephBlockPool CR status field
+		blockPool.Status.MirroringStatus, blockPool.Status.MirroringInfo, blockPool.Status.SnapshotScheduleStatus = toCustomResourceStatus(blockPool.Status.MirroringStatus, mirrorStatus, blockPool.Status.MirroringInfo, mirrorInfo, blockPool.Status.SnapshotScheduleStatus, snapSchedStatus, details)
+
+		return c.client.Status().Update(c.clusterInfo.Context, blockPool)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status for ceph block pool %q. %v", c.namespacedName.Name, err)
 	}
 
 	logger.Debugf("ceph block pool %q mirroring status updated", c.namespacedName.Name)

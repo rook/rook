@@ -27,8 +27,8 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -328,23 +328,26 @@ func (r *ReconcileObjectRealm) setFailedStatus(name types.NamespacedName, errMes
 
 // updateStatus updates an realm with a given status
 func (r *ReconcileObjectRealm) updateStatus(client client.Client, name types.NamespacedName, status string) {
-	objectRealm := &cephv1.CephObjectRealm{}
-	if err := client.Get(r.opManagerContext, name, objectRealm); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", name)
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		objectRealm := &cephv1.CephObjectRealm{}
+		if err := client.Get(r.opManagerContext, name, objectRealm); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", name)
+				return nil
+			}
+			logger.Warningf("failed to retrieve object realm %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve object realm %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if objectRealm.Status == nil {
-		objectRealm.Status = &cephv1.Status{}
+		if objectRealm.Status == nil {
+			objectRealm.Status = &cephv1.Status{}
+		}
+		objectRealm.Status.Phase = status
+
+		return client.Status().Update(r.opManagerContext, objectRealm)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for object realm %q. %v", status, name.Name, err)
 	}
 
-	objectRealm.Status.Phase = status
-	if err := reporting.UpdateStatus(client, objectRealm); err != nil {
-		logger.Errorf("failed to set object realm %q status to %q. %v", name, status, err)
-		return
-	}
 	logger.Debugf("object realm %q status updated to %q", name, status)
 }

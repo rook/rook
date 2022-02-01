@@ -39,13 +39,13 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -335,27 +335,30 @@ func generateClientName(name string) string {
 
 // updateStatus updates an object with a given status
 func (r *ReconcileCephClient) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
-	cephClient := &cephv1.CephClient{}
-	if err := client.Get(r.opManagerContext, name, cephClient); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cephClient := &cephv1.CephClient{}
+		if err := client.Get(r.opManagerContext, name, cephClient); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve ceph client %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if cephClient.Status == nil {
-		cephClient.Status = &cephv1.CephClientStatus{}
+		if cephClient.Status == nil {
+			cephClient.Status = &cephv1.CephClientStatus{}
+		}
+
+		cephClient.Status.Phase = status
+		if cephClient.Status.Phase == cephv1.ConditionReady {
+			cephClient.Status.Info = generateStatusInfo(cephClient)
+		}
+		return client.Status().Update(r.opManagerContext, cephClient)
+	})
+	if err != nil {
+		logger.Errorf("failed to update ceph client %q status to %q. %v", name, status, err)
 	}
 
-	cephClient.Status.Phase = status
-	if cephClient.Status.Phase == cephv1.ConditionReady {
-		cephClient.Status.Info = generateStatusInfo(cephClient)
-	}
-	if err := reporting.UpdateStatus(client, cephClient); err != nil {
-		logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
-		return
-	}
 	logger.Debugf("ceph client %q status updated to %q", name, status)
 }
 

@@ -21,58 +21,64 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // updateStatus updates a fs CR with the given status
 func (r *ReconcileCephFilesystem) updateStatus(client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
-	fs := &cephv1.CephFilesystem{}
-	err := client.Get(r.opManagerContext, namespacedName, fs)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		fs := &cephv1.CephFilesystem{}
+		err := client.Get(r.opManagerContext, namespacedName, fs)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve filesystem %q to update status to %q. %v", namespacedName, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve filesystem %q to update status to %q. %v", namespacedName, status, err)
-		return
+
+		if fs.Status == nil {
+			fs.Status = &cephv1.CephFilesystemStatus{}
+		}
+
+		fs.Status.Phase = status
+		fs.Status.Info = info
+		return client.Status().Update(r.opManagerContext, fs)
+	})
+	if err != nil {
+		logger.Errorf("failed to set ceph filesystem %q status to %q. %v", namespacedName.Name, status, err)
 	}
 
-	if fs.Status == nil {
-		fs.Status = &cephv1.CephFilesystemStatus{}
-	}
-
-	fs.Status.Phase = status
-	fs.Status.Info = info
-	if err := reporting.UpdateStatus(client, fs); err != nil {
-		logger.Warningf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
-		return
-	}
-	logger.Debugf("filesystem %q status updated to %q", fs.Name, status)
+	logger.Debugf("filesystem %q status updated to %q", namespacedName.Name, status)
 }
 
 // updateStatusBucket updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus []cephv1.FilesystemMirroringInfo, snapSchedStatus []cephv1.FilesystemSnapshotSchedulesSpec, details string) {
-	fs := &cephv1.CephFilesystem{}
-	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, fs); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		fs := &cephv1.CephFilesystem{}
+		if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, fs); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve ceph filesystem %q to update mirroring status. %v", c.namespacedName.Name, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve ceph filesystem %q to update mirroring status. %v", c.namespacedName.Name, err)
-		return
-	}
-	if fs.Status == nil {
-		fs.Status = &cephv1.CephFilesystemStatus{}
-	}
+		if fs.Status == nil {
+			fs.Status = &cephv1.CephFilesystemStatus{}
+		}
 
-	// Update the CephFilesystem CR status field
-	fs.Status = toCustomResourceStatus(fs.Status, mirrorStatus, snapSchedStatus, details)
-	if err := reporting.UpdateStatus(c.client, fs); err != nil {
-		logger.Errorf("failed to set ceph filesystem %q mirroring status. %v", c.namespacedName.Name, err)
-		return
+		// Update the CephFilesystem CR status field
+		fs.Status = toCustomResourceStatus(fs.Status, mirrorStatus, snapSchedStatus, details)
+
+		return c.client.Status().Update(c.clusterInfo.Context, fs)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status for ceph filesystem mirror %q. %v", c.namespacedName.Name, err)
 	}
 
 	logger.Debugf("ceph filesystem %q mirroring status updated", c.namespacedName.Name)

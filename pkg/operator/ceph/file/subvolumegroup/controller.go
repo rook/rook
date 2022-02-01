@@ -41,12 +41,12 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -288,24 +288,26 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 
 // updateStatus updates an object with a given status
 func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
-	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{}
-	if err := client.Get(r.opManagerContext, name, cephFilesystemSubVolumeGroup); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephFilesystemSubVolumeGroup resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{}
+		if err := client.Get(r.opManagerContext, name, cephFilesystemSubVolumeGroup); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephFilesystemSubVolumeGroup resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve ceph filesystem subvolume group %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve ceph ceph filesystem subvolume group %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if cephFilesystemSubVolumeGroup.Status == nil {
-		cephFilesystemSubVolumeGroup.Status = &cephv1.CephFilesystemSubVolumeGroupStatus{}
-	}
+		if cephFilesystemSubVolumeGroup.Status == nil {
+			cephFilesystemSubVolumeGroup.Status = &cephv1.CephFilesystemSubVolumeGroupStatus{}
+		}
+		cephFilesystemSubVolumeGroup.Status.Phase = status
+		cephFilesystemSubVolumeGroup.Status.Info = map[string]string{"clusterID": buildClusterID(cephFilesystemSubVolumeGroup)}
 
-	cephFilesystemSubVolumeGroup.Status.Phase = status
-	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{"clusterID": buildClusterID(cephFilesystemSubVolumeGroup)}
-	if err := reporting.UpdateStatus(client, cephFilesystemSubVolumeGroup); err != nil {
-		logger.Errorf("failed to set ceph ceph filesystem subvolume group %q status to %q. %v", name, status, err)
-		return
+		return client.Status().Update(r.opManagerContext, cephFilesystemSubVolumeGroup)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for ceph filesystem subvolume group %q. %v", status, name.Name, err)
 	}
 	logger.Debugf("ceph ceph filesystem subvolume group %q status updated to %q", name, status)
 }

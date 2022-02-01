@@ -30,12 +30,12 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -198,7 +198,7 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, cond
 
 	// Update condition
 	logger.Debugf("updating ceph cluster %q status and condition to %+v, %v, %s, %s", clusterName.Namespace, status, conditionStatus, reason, message)
-	opcontroller.UpdateClusterCondition(c.context, cephCluster, c.clusterInfo.NamespacedName(), condition, conditionStatus, reason, message, true)
+	opcontroller.UpdateClusterCondition(c.clusterInfo.Context, c.context, cephCluster, c.clusterInfo.NamespacedName(), condition, conditionStatus, reason, message, true)
 }
 
 // toCustomResourceStatus converts the ceph status to the struct expected for the CephCluster CR status
@@ -243,26 +243,29 @@ func formatTime(t time.Time) string {
 func (c *ClusterController) updateClusterCephVersion(image string, cephVersion cephver.CephVersion) {
 	logger.Infof("cluster %q: version %q detected for image %q", c.namespacedName.Namespace, cephVersion.String(), image)
 
-	cephCluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespacedName.Namespace).Get(c.OpManagerCtx, c.namespacedName.Name, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		cephCluster, err := c.context.RookClientset.CephV1().CephClusters(c.namespacedName.Namespace).Get(c.OpManagerCtx, c.namespacedName.Name, metav1.GetOptions{})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Errorf("failed to retrieve ceph cluster %q to update ceph version to %+v. %v", c.namespacedName.Name, cephVersion, err)
+			return err
 		}
-		logger.Errorf("failed to retrieve ceph cluster %q to update ceph version to %+v. %v", c.namespacedName.Name, cephVersion, err)
-		return
-	}
 
-	cephClusterVersion := &cephv1.ClusterVersion{
-		Image:   image,
-		Version: opcontroller.GetCephVersionLabel(cephVersion),
-	}
-	// update the Ceph version on the retrieved cluster object
-	// do not overwrite the ceph status that is updated in a separate goroutine
-	cephCluster.Status.CephVersion = cephClusterVersion
-	if err := reporting.UpdateStatus(c.client, cephCluster); err != nil {
-		logger.Errorf("failed to update cluster %q version. %v", c.namespacedName.Name, err)
-		return
+		cephClusterVersion := &cephv1.ClusterVersion{
+			Image:   image,
+			Version: opcontroller.GetCephVersionLabel(cephVersion),
+		}
+		// update the Ceph version on the retrieved cluster object
+		// do not overwrite the ceph status that is updated in a separate goroutine
+		cephCluster.Status.CephVersion = cephClusterVersion
+
+		return c.client.Status().Update(c.OpManagerCtx, cephCluster)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status for ceph cluster %q. %v", c.namespacedName.Name, err)
 	}
 }
 

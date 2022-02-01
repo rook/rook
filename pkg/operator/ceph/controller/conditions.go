@@ -25,8 +25,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 // UpdateCondition function will export each condition into the cluster custom resource
@@ -38,69 +40,81 @@ func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName typ
 		return
 	}
 
-	UpdateClusterCondition(c, cluster, namespaceName, conditionType, status, reason, message, false)
+	UpdateClusterCondition(ctx, c, cluster, namespaceName, conditionType, status, reason, message, false)
 }
 
 // UpdateClusterCondition function will export each condition into the cluster custom resource
-func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus,
+func UpdateClusterCondition(ctx context.Context, c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus,
 	reason cephv1.ConditionReason, message string, preserveAllConditions bool) {
 
-	// Keep the conditions that already existed if they are in the list of long-term conditions,
-	// otherwise discard the temporary conditions
-	var currentCondition *cephv1.Condition
-	var conditions []cephv1.Condition
-	for _, condition := range cluster.Status.Conditions {
-		// Only keep conditions in the list if it's a persisted condition such as the cluster creation being completed.
-		// The transient conditions are not persisted. However, if the currently requested condition is not expected to
-		// reset the transient conditions, they are retained. For example, if the operator is checking for ceph health
-		// in the middle of the reconcile, the progress condition should not be reset by the status check update.
-		if preserveAllConditions ||
-			condition.Reason == cephv1.ClusterCreatedReason ||
-			condition.Reason == cephv1.ClusterConnectedReason ||
-			condition.Type == cephv1.ConditionDeleting ||
-			condition.Type == cephv1.ConditionDeletionIsBlocked {
-			if conditionType != condition.Type {
-				conditions = append(conditions, condition)
-				continue
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		// Fetch latest cephcluster object
+		if err := c.Client.Get(ctx, namespaceName, cluster); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+				return nil
 			}
-			// Update the existing condition with the new status
-			currentCondition = condition.DeepCopy()
-			if currentCondition.Status != status || currentCondition.Message != message {
-				// Update the last transition time since the status changed
-				currentCondition.LastTransitionTime = metav1.NewTime(time.Now())
+			logger.Warningf("failed to retrieve ceph cluster %q to update status. %v", namespaceName.Name, err)
+			return err
+		}
+
+		// Keep the conditions that already existed if they are in the list of long-term conditions,
+		// otherwise discard the temporary conditions
+		var currentCondition *cephv1.Condition
+		var conditions []cephv1.Condition
+		for _, condition := range cluster.Status.Conditions {
+			// Only keep conditions in the list if it's a persisted condition such as the cluster creation being completed.
+			// The transient conditions are not persisted. However, if the currently requested condition is not expected to
+			// reset the transient conditions, they are retained. For example, if the operator is checking for ceph health
+			// in the middle of the reconcile, the progress condition should not be reset by the status check update.
+			if preserveAllConditions ||
+				condition.Reason == cephv1.ClusterCreatedReason ||
+				condition.Reason == cephv1.ClusterConnectedReason ||
+				condition.Type == cephv1.ConditionDeleting ||
+				condition.Type == cephv1.ConditionDeletionIsBlocked {
+				if conditionType != condition.Type {
+					conditions = append(conditions, condition)
+					continue
+				}
+				// Update the existing condition with the new status
+				currentCondition = condition.DeepCopy()
+				if currentCondition.Status != status || currentCondition.Message != message {
+					// Update the last transition time since the status changed
+					currentCondition.LastTransitionTime = metav1.NewTime(time.Now())
+				}
+				currentCondition.Status = status
+				currentCondition.Reason = reason
+				currentCondition.Message = message
+				currentCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
 			}
-			currentCondition.Status = status
-			currentCondition.Reason = reason
-			currentCondition.Message = message
-			currentCondition.LastHeartbeatTime = metav1.NewTime(time.Now())
 		}
-	}
-	if currentCondition == nil {
-		// Create a new condition since not found in the existing conditions
-		currentCondition = &cephv1.Condition{
-			Type:               conditionType,
-			Status:             status,
-			Reason:             reason,
-			Message:            message,
-			LastTransitionTime: metav1.NewTime(time.Now()),
-			LastHeartbeatTime:  metav1.NewTime(time.Now()),
+		if currentCondition == nil {
+			// Create a new condition since not found in the existing conditions
+			currentCondition = &cephv1.Condition{
+				Type:               conditionType,
+				Status:             status,
+				Reason:             reason,
+				Message:            message,
+				LastTransitionTime: metav1.NewTime(time.Now()),
+				LastHeartbeatTime:  metav1.NewTime(time.Now()),
+			}
 		}
-	}
-	conditions = append(conditions, *currentCondition)
-	cluster.Status.Conditions = conditions
+		conditions = append(conditions, *currentCondition)
+		cluster.Status.Conditions = conditions
 
-	// Once the cluster begins deleting, the phase should not revert back to any other phase
-	if cluster.Status.Phase != cephv1.ConditionDeleting {
-		cluster.Status.Phase = conditionType
-		if state := translatePhasetoState(conditionType, status); state != "" {
-			cluster.Status.State = state
+		// Once the cluster begins deleting, the phase should not revert back to any other phase
+		if cluster.Status.Phase != cephv1.ConditionDeleting {
+			cluster.Status.Phase = conditionType
+			if state := translatePhasetoState(conditionType, status); state != "" {
+				cluster.Status.State = state
+			}
+			cluster.Status.Message = currentCondition.Message
+			logger.Debugf("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
 		}
-		cluster.Status.Message = currentCondition.Message
-		logger.Debugf("CephCluster %q status: %q. %q", namespaceName.Namespace, cluster.Status.Phase, cluster.Status.Message)
-	}
-
-	if err := reporting.UpdateStatus(c.Client, cluster); err != nil {
-		logger.Errorf("failed to update cluster condition to %+v. %v", *currentCondition, err)
+		return reporting.UpdateStatus(c.Client, cluster)
+	})
+	if err != nil {
+		logger.Errorf("failed to update cluster condition. %v", err)
 	}
 }
 

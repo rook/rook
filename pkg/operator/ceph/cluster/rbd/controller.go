@@ -29,7 +29,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -258,25 +258,28 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 
 // updateStatus updates an object with a given status
 func (r *ReconcileCephRBDMirror) updateStatus(client client.Client, name types.NamespacedName, status string) {
-	rbdMirror := &cephv1.CephRBDMirror{}
-	err := client.Get(r.opManagerContext, name, rbdMirror)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephRBDMirror resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		rbdMirror := &cephv1.CephRBDMirror{}
+		err := client.Get(r.opManagerContext, name, rbdMirror)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephRBDMirror resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve rbd mirror %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve rbd mirror %q to update status to %q. %v", name, status, err)
-		return
+
+		if rbdMirror.Status == nil {
+			rbdMirror.Status = &cephv1.Status{}
+		}
+		rbdMirror.Status.Phase = status
+
+		return client.Status().Update(r.opManagerContext, rbdMirror)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for rbd mirror %q. %v", status, name.Name, err)
 	}
 
-	if rbdMirror.Status == nil {
-		rbdMirror.Status = &cephv1.Status{}
-	}
-
-	rbdMirror.Status.Phase = status
-	if err := reporting.UpdateStatus(client, rbdMirror); err != nil {
-		logger.Errorf("failed to set rbd mirror %q status to %q. %v", rbdMirror.Name, status, err)
-		return
-	}
 	logger.Debugf("rbd mirror %q status updated to %q", name, status)
 }

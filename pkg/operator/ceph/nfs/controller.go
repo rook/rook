@@ -30,7 +30,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -346,23 +346,27 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 
 // updateStatus updates an object with a given status
 func updateStatus(client client.Client, name types.NamespacedName, status string) {
-	nfs := &cephv1.CephNFS{}
-	err := client.Get(context.TODO(), name, nfs)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephNFS resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		nfs := &cephv1.CephNFS{}
+		err := client.Get(context.TODO(), name, nfs)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephNFS resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve nfs %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve nfs %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if nfs.Status == nil {
-		nfs.Status = &cephv1.Status{}
+		if nfs.Status == nil {
+			nfs.Status = &cephv1.Status{}
+		}
+
+		nfs.Status.Phase = status
+		return client.Status().Update(context.TODO(), nfs)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for ceph nfs %q. %v", status, name, err)
 	}
 
-	nfs.Status.Phase = status
-	if err := reporting.UpdateStatus(client, nfs); err != nil {
-		logger.Errorf("failed to set nfs %q status to %q. %v", nfs.Name, status, err)
-	}
 	logger.Debugf("nfs %q status updated to %q", name, status)
 }

@@ -26,8 +26,8 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -346,23 +346,26 @@ func (r *ReconcileObjectZone) setFailedStatus(name types.NamespacedName, errMess
 
 // updateStatus updates an zone with a given status
 func (r *ReconcileObjectZone) updateStatus(client client.Client, name types.NamespacedName, status string) {
-	objectZone := &cephv1.CephObjectZone{}
-	if err := client.Get(r.opManagerContext, name, objectZone); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		objectZone := &cephv1.CephObjectZone{}
+		if err := client.Get(r.opManagerContext, name, objectZone); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve object zone %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve object zone %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if objectZone.Status == nil {
-		objectZone.Status = &cephv1.Status{}
+		if objectZone.Status == nil {
+			objectZone.Status = &cephv1.Status{}
+		}
+		objectZone.Status.Phase = status
+
+		return client.Status().Update(r.opManagerContext, objectZone)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for object zone %q. %v", status, name.Name, err)
 	}
 
-	objectZone.Status.Phase = status
-	if err := reporting.UpdateStatus(client, objectZone); err != nil {
-		logger.Errorf("failed to set object zone %q status to %q. %v", name, status, err)
-		return
-	}
 	logger.Debugf("object zone %q status updated to %q", name, status)
 }

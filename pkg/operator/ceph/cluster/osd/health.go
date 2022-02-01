@@ -26,9 +26,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/client-go/util/retry"
 )
 
 const (
@@ -192,20 +192,25 @@ func (m *OSDHealthMonitor) updateCephStatus(devices []string) {
 	for _, device := range devices {
 		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: device})
 	}
-	err := m.context.Client.Get(m.clusterInfo.Context, m.clusterInfo.NamespacedName(), &cephCluster)
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		err := m.context.Client.Get(m.clusterInfo.Context, m.clusterInfo.NamespacedName(), &cephCluster)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Errorf("failed to retrieve ceph cluster %q to update ceph Storage. %v", m.clusterInfo.NamespacedName().Name, err)
+			return err
+		}
+		if !reflect.DeepEqual(cephCluster.Status.CephStorage, cephClusterStorage) {
+			cephCluster.Status.CephStorage = &cephClusterStorage
+			return m.context.Client.Status().Update(m.clusterInfo.Context, &cephCluster)
+		}
+
+		return nil
+	})
 	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
-			return
-		}
-		logger.Errorf("failed to retrieve ceph cluster %q to update ceph Storage. %v", m.clusterInfo.NamespacedName().Name, err)
-		return
-	}
-	if !reflect.DeepEqual(cephCluster.Status.CephStorage, cephClusterStorage) {
-		cephCluster.Status.CephStorage = &cephClusterStorage
-		if err := reporting.UpdateStatus(m.context.Client, &cephCluster); err != nil {
-			logger.Errorf("failed to update cluster %q Storage. %v", m.clusterInfo.NamespacedName().Name, err)
-			return
-		}
+		logger.Errorf("failed to update status for ceph cluster %q. %v", m.clusterInfo.NamespacedName().Name, err)
 	}
 }

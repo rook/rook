@@ -25,9 +25,9 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -573,26 +573,30 @@ func labelsForRgw(name string) map[string]string {
 
 // updateStatus updates an object with a given status
 func (r *ReconcileObjectStoreUser) updateStatus(client client.Client, name types.NamespacedName, status string) {
-	user := &cephv1.CephObjectStoreUser{}
-	if err := client.Get(r.opManagerContext, name, user); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
-			return
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		user := &cephv1.CephObjectStoreUser{}
+		if err := client.Get(r.opManagerContext, name, user); err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
+				return nil
+			}
+			logger.Warningf("failed to retrieve object store user %q to update status to %q. %v", name, status, err)
+			return err
 		}
-		logger.Warningf("failed to retrieve object store user %q to update status to %q. %v", name, status, err)
-		return
-	}
-	if user.Status == nil {
-		user.Status = &cephv1.ObjectStoreUserStatus{}
+		if user.Status == nil {
+			user.Status = &cephv1.ObjectStoreUserStatus{}
+		}
+
+		user.Status.Phase = status
+		if user.Status.Phase == k8sutil.ReadyStatus {
+			user.Status.Info = generateStatusInfo(user)
+		}
+
+		return client.Status().Update(r.opManagerContext, user)
+	})
+	if err != nil {
+		logger.Errorf("failed to update status to %q for object store user %q. %v", status, name, err)
 	}
 
-	user.Status.Phase = status
-	if user.Status.Phase == k8sutil.ReadyStatus {
-		user.Status.Info = generateStatusInfo(user)
-	}
-	if err := reporting.UpdateStatus(client, user); err != nil {
-		logger.Errorf("failed to set object store user %q status to %q. %v", name, status, err)
-		return
-	}
 	logger.Debugf("object store user %q status updated to %q", name, status)
 }
