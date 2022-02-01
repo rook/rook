@@ -508,7 +508,11 @@ kind: CephBucketNotification
 metadata:
   name: ` + notificationName + `
 spec:
-  topic: ` + topicName
+  topic: ` + topicName + `
+  events:
+    - s3:ObjectCreated:Put
+    - s3:ObjectRemoved:Delete
+`
 }
 
 //GetBucketTopic returns the manifest to create ceph bucket topic
@@ -520,7 +524,7 @@ metadata:
 spec:
   endpoint:
     http:
-      uri: http://` + httpEndpointService + `
+      uri: ` + httpEndpointService + `
       sendCloudEvents: false
   objectStoreName: ` + storeName + `
   objectStoreNamespace: ` + m.settings.Namespace

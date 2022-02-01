@@ -19,6 +19,7 @@ package clients
 import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // TopicOperation is a wrapper for rook topic operations
@@ -61,4 +62,52 @@ func (t *TopicOperation) CheckTopic(topicName string) bool {
 
 	logger.Infof("topic ARN is %q", topicARN)
 	return true
+}
+
+func (t *TopicOperation) CreateHTTPServer(serverName, namespace, port string) error {
+	// TODO: Fix https://github.com/rook/rook/issues/9741, do not use third party image
+	deployment := `
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ` + serverName + `
+  namespace: ` + namespace + `
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ` + serverName + `
+  template:
+    metadata:
+      labels:
+        app: ` + serverName + `
+    spec:
+      containers:
+      - name: ` + serverName + `
+        image: quay.io/jthottan/pythonwebserver:latest
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ` + serverName + `
+  namespace: ` + namespace + `
+spec:
+  type: NodePort
+  selector:
+    app: ` + serverName + `
+  ports:
+  - port: ` + port + `
+    targetPort: ` + port + `
+`
+	_, err := t.k8sh.KubectlWithStdin(deployment, []string{"apply", "-f", "-"}...)
+	if err != nil && !kerrors.IsAlreadyExists(err) {
+		return err
+	}
+	appLabel := "app=" + serverName
+	err = t.k8sh.WaitForLabeledPodsToRun(appLabel, namespace)
+	if err != nil {
+		return err
+	}
+	return nil
 }
