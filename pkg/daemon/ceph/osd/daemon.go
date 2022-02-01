@@ -320,8 +320,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		if device.Type == sys.PartType {
 			device, err := clusterd.PopulateDeviceUdevInfo(device.Name, context.Executor, device)
 			if err != nil {
+				// Do not fail, the rest of the code can continue without problems
+				// Temporary workaround for https://github.com/ceph/ceph-container/issues/1984
+				// TODO: remove me once the udevadm binary is back?
 				logger.Errorf("failed to get udev info of partition %q. %v", device.Name, err)
-				continue
 			}
 		}
 
