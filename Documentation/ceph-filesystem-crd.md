@@ -223,6 +223,8 @@ The metadata server settings correspond to the MDS daemon settings.
 * `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/cluster.yaml).
 * `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [MDS Resources Configuration Settings](#mds-resources-configuration-settings)
 * `priorityClassName`: Set priority class name for the Filesystem MDS Pod(s)
+* `startupProbe` : Disable, or override timing and threshold values of the Filesystem MDS startup probe
+* `livenessProbe` : Disable, or override timing and threshold values of the Filesystem MDS livenessProbe.
 
 ### MDS Resources Configuration Settings
 

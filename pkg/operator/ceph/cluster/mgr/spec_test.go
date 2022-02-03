@@ -93,6 +93,18 @@ func TestPodSpec(t *testing.T) {
 		assert.Equal(t, "CEPH_ARGS", d.Spec.Template.Spec.Containers[1].Env[len(d.Spec.Template.Spec.Containers[1].Env)-1].Name)                                                          // connection info to the cluster
 		assert.Equal(t, "-m $(ROOK_CEPH_MON_HOST) -k /etc/ceph/admin-keyring-store/keyring", d.Spec.Template.Spec.Containers[1].Env[len(d.Spec.Template.Spec.Containers[1].Env)-1].Value) // connection info to the cluster
 	})
+
+	t.Run(("check mgr ConfigureProbe"), func(t *testing.T) {
+		c.spec.HealthCheck.StartupProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
+		c.spec.HealthCheck.StartupProbe[cephv1.KeyMgr] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
+		c.spec.HealthCheck.LivenessProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
+		c.spec.HealthCheck.LivenessProbe[cephv1.KeyMgr] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
+		container := c.makeMgrDaemonContainer(&mgrTestConfig)
+		assert.NotNil(t, container.LivenessProbe)
+		assert.NotNil(t, container.StartupProbe)
+		assert.Equal(t, int32(900), container.LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(1000), container.StartupProbe.InitialDelaySeconds)
+	})
 }
 
 func TestServiceSpec(t *testing.T) {

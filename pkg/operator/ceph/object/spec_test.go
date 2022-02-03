@@ -89,6 +89,17 @@ func TestPodSpecs(t *testing.T) {
 	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class", "default", "cephobjectstores.ceph.rook.io", "ceph-rgw")
+
+	t.Run(("check rgw ConfigureProbe"), func(t *testing.T) {
+		c.store.Spec.HealthCheck.StartupProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
+		c.store.Spec.HealthCheck.LivenessProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
+		deployment := c.makeDaemonContainer(rgwConfig)
+		assert.NotNil(t, deployment)
+		assert.NotNil(t, c.store.Spec.HealthCheck.LivenessProbe)
+		assert.NotNil(t, c.store.Spec.HealthCheck.StartupProbe)
+		assert.Equal(t, int32(900), deployment.LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(1000), deployment.StartupProbe.InitialDelaySeconds)
+	})
 }
 
 func TestSSLPodSpec(t *testing.T) {

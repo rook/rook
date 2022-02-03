@@ -19,6 +19,7 @@ package v1
 const (
 	KeyAll                     = "all"
 	KeyMds             KeyType = "mds"
+	KeyRgw             KeyType = "rgw"
 	KeyMon             KeyType = "mon"
 	KeyMonArbiter      KeyType = "arbiter"
 	KeyMgr             KeyType = "mgr"

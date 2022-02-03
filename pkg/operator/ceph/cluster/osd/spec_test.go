@@ -450,6 +450,19 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		assert.True(t, shareProcessNamespace)
 	}
 
+	t.Run(("check osd ConfigureProbe"), func(t *testing.T) {
+		c.spec.HealthCheck.StartupProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
+		c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
+		c.spec.HealthCheck.LivenessProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
+		c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
+		deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
+		assert.Nil(t, err)
+		assert.NotNil(t, deployment)
+		assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe)
+		assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].StartupProbe)
+		assert.Equal(t, int32(900), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(1000), deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds)
+	})
 }
 
 func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
