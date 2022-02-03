@@ -93,7 +93,7 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := CreateECPoolForApp(context, AdminTestClusterInfo("mycluster"), "mypoolprofile", p, DefaultPGCount, "myapp", overwrite)
+	err := createECPoolForApp(context, AdminTestClusterInfo("mycluster"), "mypoolprofile", p, DefaultPGCount, "myapp", overwrite)
 	assert.Nil(t, err)
 	if compressionMode != "" {
 		assert.True(t, compressionModeCreated)
@@ -234,7 +234,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 		p.CompressionMode = compressionMode
 	}
 	clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}}
-	err := CreateReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, p, DefaultPGCount, "myapp")
+	err := createReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, p, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 	if compressionMode != "" {
@@ -542,7 +542,7 @@ func testCreatePoolWithReplicasPerFailureDomain(t *testing.T, failureDomain, cru
 	}
 	context := &clusterd.Context{Executor: executor}
 	clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{Config: map[string]string{CrushRootConfigKey: "cluster-crush-root"}}}
-	err := CreateReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, poolSpec, DefaultPGCount, "myapp")
+	err := createReplicatedPoolForApp(context, AdminTestClusterInfo("mycluster"), clusterSpec, poolSpec, DefaultPGCount, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, poolRuleCreated)
 	assert.True(t, poolRuleSet)
