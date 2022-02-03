@@ -21,6 +21,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/pkg/errors"
+
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -45,7 +47,6 @@ func TestCephClientController(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
-	logger.Info("RUN 1")
 	var (
 		name      = "group-a"
 		namespace = "rook-ceph"
@@ -192,11 +193,11 @@ func TestCephClientController(t *testing.T) {
 
 		executor = &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-				if args[0] == "auth" && args[1] == "fs" && args[2] == "subvolumegroup" && args[3] == "create" {
+				if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "create" {
 					return "", nil
 				}
 
-				return "", nil
+				return "", errors.Errorf("unknown command. %v", args)
 			},
 		}
 		c.Executor = executor
@@ -226,6 +227,53 @@ func TestCephClientController(t *testing.T) {
 		err = r.client.Get(ctx, req.NamespacedName, cephFilesystemSubVolumeGroup)
 		assert.NoError(t, err)
 		assert.Equal(t, cephv1.ConditionReady, cephFilesystemSubVolumeGroup.Status.Phase)
+		assert.NotEmpty(t, cephFilesystemSubVolumeGroup.Status.Info["clusterID"])
+
+		// test that csi configmap is created
+		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
+		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
+		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
+		err = c.Clientset.CoreV1().ConfigMaps(namespace).Delete(ctx, csi.ConfigName, metav1.DeleteOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("success - external mode csi config is updated", func(t *testing.T) {
+		cephCluster.Spec.External.Enable = true
+		objects := []runtime.Object{
+			cephFilesystemSubVolumeGroup,
+			cephCluster,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephFilesystemSubVolumeGroup object with the scheme and fake client.
+		r = &ReconcileCephFilesystemSubVolumeGroup{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: ctx,
+		}
+
+		// Enable CSI
+		csi.EnableRBD = true
+		os.Setenv("POD_NAMESPACE", namespace)
+		// Create CSI config map
+		ownerRef := &metav1.OwnerReference{}
+		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
+		err := csi.CreateCsiConfigMap(namespace, c.Clientset, ownerInfo)
+		assert.NoError(t, err)
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = r.client.Get(ctx, req.NamespacedName, cephFilesystemSubVolumeGroup)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionConnected, cephFilesystemSubVolumeGroup.Status.Phase)
 		assert.NotEmpty(t, cephFilesystemSubVolumeGroup.Status.Info["clusterID"])
 
 		// test that csi configmap is created

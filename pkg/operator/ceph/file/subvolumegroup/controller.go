@@ -144,7 +144,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteSubVolumeGroup() function since everything is gone already
@@ -175,13 +175,18 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	// DELETE: the CR was deleted
 	if !cephFilesystemSubVolumeGroup.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting subvolume group %q", cephFilesystemSubVolumeGroup.Name)
-		err := r.deleteSubVolumeGroup(cephFilesystemSubVolumeGroup)
-		if err != nil {
-			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-				logger.Info(opcontroller.OperatorNotInitializedMessage)
-				return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		// On external cluster, we don't delete the subvolume group, it has to be deleted manually
+		if cephCluster.Spec.External.Enable {
+			logger.Warning("external subvolume group deletion is not supported, delete it manually")
+		} else {
+			err := r.deleteSubVolumeGroup(cephFilesystemSubVolumeGroup)
+			if err != nil {
+				if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+					logger.Info(opcontroller.OperatorNotInitializedMessage)
+					return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+				}
+				return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 			}
-			return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 		}
 
 		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, nil)
@@ -200,33 +205,43 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	// Build the NamespacedName to fetch the Filesystem and make sure it exists, if not we cannot
-	// create the subvolumegroup
-	cephFilesystem := &cephv1.CephFilesystem{}
-	cephFilesystemNamespacedName := types.NamespacedName{Name: cephFilesystemSubVolumeGroup.Spec.FilesystemName, Namespace: request.Namespace}
-	err = r.client.Get(r.opManagerContext, cephFilesystemNamespacedName, cephFilesystem)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to fetch ceph filesystem %q, cannot create subvolumegroup %q", cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+	// create the subvolume group
+	// On external mode the filesystem is created externally, so we don't need to check for CRD and
+	// assume it's there
+	if !cephCluster.Spec.External.Enable {
+		cephFilesystem := &cephv1.CephFilesystem{}
+		cephFilesystemNamespacedName := types.NamespacedName{Name: cephFilesystemSubVolumeGroup.Spec.FilesystemName, Namespace: request.Namespace}
+		err = r.client.Get(r.opManagerContext, cephFilesystemNamespacedName, cephFilesystem)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to fetch ceph filesystem %q, cannot create subvolume group %q", cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+			}
+			// Error reading the object - requeue the request.
+			return reconcile.Result{}, errors.Wrap(err, "failed to get cephFilesystemSubVolumeGroup")
 		}
-		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get cephFilesystemSubVolumeGroup")
-	}
 
-	// If the CephFilesystem is not ready to accept commands, we should wait for it to be ready
-	if cephFilesystem.Status.Phase != cephv1.ConditionReady {
-		// We know the CR is present so it should a matter of second for it to become ready
-		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, errors.Wrapf(err, "failed to fetch ceph filesystem %q, cannot create subvolumegroup %q", cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+		// If the CephFilesystem is not ready to accept commands, we should wait for it to be ready
+		if cephFilesystem.Status.Phase != cephv1.ConditionReady {
+			// We know the CR is present so it should a matter of second for it to become ready
+			return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, errors.Wrapf(err, "failed to fetch ceph filesystem %q, cannot create subvolume group %q", cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+		}
 	}
 
 	// Create or Update ceph filesystem subvolume group
-	err = r.createOrUpdateSubVolumeGroup(cephFilesystemSubVolumeGroup)
-	if err != nil {
-		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+	// On external mode the subvolume group is created externally, so we don't need to try to create
+	// it and assume it's there already
+	if cephCluster.Spec.External.Enable {
+		logger.Debug("external subvolume group creation is not supported, create it manually, the controller will assume it's there")
+	} else {
+		err = r.createOrUpdateSubVolumeGroup(cephFilesystemSubVolumeGroup)
+		if err != nil {
+			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+				logger.Info(opcontroller.OperatorNotInitializedMessage)
+				return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+			}
+			r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 		}
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
-		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 	}
 
 	// Update CSI config map
@@ -244,7 +259,11 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	// Success! Let's update the status
-	r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
+	if cephCluster.Spec.External.Enable {
+		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionConnected)
+	} else {
+		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
+	}
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -268,12 +287,12 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 	logger.Infof("deleting ceph filesystem subvolume group object %q", cephFilesystemSubVolumeGroup.Name)
 	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name); err != nil {
 		code, ok := exec.ExitStatus(err)
-		// If the subvolumegroup does not exit, we should not return an error
+		// If the subvolume group does not exit, we should not return an error
 		if ok && code == int(syscall.ENOENT) {
 			logger.Debugf("ceph filesystem subvolume group %q do not exist", cephFilesystemSubVolumeGroup.Name)
 			return nil
 		}
-		// If the subvolumegroup has subvolumes the command will fail with:
+		// If the subvolume group has subvolumes the command will fail with:
 		// Error ENOTEMPTY: error in rmdir /volumes/csi
 		if ok && (code == int(syscall.ENOTEMPTY)) {
 			return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q, remove the subvolumes first", cephFilesystemSubVolumeGroup.Name)
@@ -294,7 +313,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(client client.Clien
 			logger.Debug("CephFilesystemSubVolumeGroup resource not found. Ignoring since object must be deleted.")
 			return
 		}
-		logger.Warningf("failed to retrieve ceph ceph filesystem subvolume group %q to update status to %q. %v", name, status, err)
+		logger.Warningf("failed to retrieve ceph filesystem subvolume group %q to update status to %q. %v", name, status, err)
 		return
 	}
 	if cephFilesystemSubVolumeGroup.Status == nil {
@@ -304,7 +323,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(client client.Clien
 	cephFilesystemSubVolumeGroup.Status.Phase = status
 	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{"clusterID": buildClusterID(cephFilesystemSubVolumeGroup)}
 	if err := reporting.UpdateStatus(client, cephFilesystemSubVolumeGroup); err != nil {
-		logger.Errorf("failed to set ceph ceph filesystem subvolume group %q status to %q. %v", name, status, err)
+		logger.Errorf("failed to set ceph filesystem subvolume group %q status to %q. %v", name, status, err)
 		return
 	}
 	logger.Debugf("ceph ceph filesystem subvolume group %q status updated to %q", name, status)
