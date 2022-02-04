@@ -57,19 +57,27 @@ jobs:
         kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
         kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
         kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
-        # remove the existing client auth that will be re-created by external script
-        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-cephfs-node
-        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-cephfs-provisioner
-        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-rbd-node
-        kubectl -n rook-ceph exec $toolbox -- ceph auth del client.csi-rbd-provisioner
+        timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
         # print existing client auth
         kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-        timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
 
     - name: dry run external script create-external-cluster-resources.py
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run
+
+    - name: test external script create-external-cluster-resources.py if users already exist with different caps
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # update client.csi-rbd-provisioner csi user caps
+        # print client.csi-rbd-provisioner user before update
+        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+        kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
+        # print client.csi-rbd-provisioner user after update
+        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool 
+        # print client.csi-rbd-provisioner user after running script
+        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
 
     - name: run external script create-external-cluster-resources.py unit tests
       run: |
