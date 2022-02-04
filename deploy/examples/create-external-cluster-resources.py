@@ -103,6 +103,12 @@ class DummyRados(object):
         self.cmd_output_map['''{"format": "json", "prefix": "mgr services"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
         self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}'''
         self.cmd_output_map['''{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}'''] = '''[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]'''
+        self.cmd_output_map['''{"entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get"}'''] = '''[]'''
+        self.cmd_output_map['''{"entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get"}'''] = '''[]'''
+        self.cmd_output_map['''{"entity": "client.csi-rbd-provisioner", "format": "json", "prefix": "auth get"}'''] = '''[]'''
+        self.cmd_output_map['''{"entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get"}'''] = '''[]'''
+        self.cmd_output_map['''{"entity": "client.csi-cephfs-provisioner-openshift-storage", "format": "json", "prefix": "auth get"}'''] = '''[]'''
+        self.cmd_output_map['''{"entity": "client.csi-cephfs-provisioner-openshift-storage-myfs", "format": "json", "prefix": "auth get"}'''] = '''[]'''
         self.cmd_output_map[self.cmd_names['caps_change_default_pool_prefix']] = '''[{}]'''
         self.cmd_output_map['{"format": "json", "prefix": "status"}'] = ceph_status_str
 
@@ -509,6 +515,14 @@ class RadosJSON:
         all_mgr_ips_str = ",".join(mgr_ips)
         return all_mgr_ips_str, monitoring_endpoint_port
 
+    def check_user_exist(self,user):
+        cmd_json = {"prefix": "auth get", "entity": "{}".format(
+            user), "format": "json"}
+        ret_val, json_out, _ = self._common_cmd_json_gen(cmd_json)
+        if ret_val != 0 or len(json_out) == 0:
+            return ""
+        return str(json_out[0]['key'])
+    
     def create_cephCSIKeyring_cephFSProvisioner(self):
         '''
         command: ceph auth get-or-create client.csi-cephfs-provisioner mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs metadata=*'
@@ -546,6 +560,11 @@ class RadosJSON:
                         "format": "json"}
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
+        # check if user already exist
+        user_key = self.check_user_exist(entity)
+        if user_key != "":
+            return user_key
+        
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -592,6 +611,11 @@ class RadosJSON:
                         "format": "json"}
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
+        # check if user already exist
+        user_key = self.check_user_exist(entity)
+        if user_key != "":
+            return user_key
+        
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -626,6 +650,11 @@ class RadosJSON:
                         "format": "json"}
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
+        # check if user already exist
+        user_key = self.check_user_exist(entity)
+        if user_key != "":
+            return user_key
+        
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -747,6 +776,11 @@ class RadosJSON:
                         "format": "json"}
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
+        # check if user already exist
+        user_key = self.check_user_exist(entity)
+        if user_key != "":
+            return user_key
+        
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
