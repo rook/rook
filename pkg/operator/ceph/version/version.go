@@ -48,14 +48,11 @@ var (
 	// Quincy Ceph version
 	Quincy = CephVersion{17, 0, 0, 0, ""}
 
-	// cephVolumeLVMDiskSortingCephVersion introduced a major regression in c-v and thus is not suitable for production
-	cephVolumeLVMDiskSortingCephVersion = CephVersion{Major: 14, Minor: 2, Extra: 13}
-
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions = []CephVersion{Octopus, Pacific}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
-	unsupportedVersions = []CephVersion{cephVolumeLVMDiskSortingCephVersion}
+	unsupportedVersions = []CephVersion{}
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)

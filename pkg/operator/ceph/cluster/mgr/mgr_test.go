@@ -360,7 +360,7 @@ func TestConfigureModules(t *testing.T) {
 	c.spec.Mgr.Modules = []cephv1.Module{
 		{Name: "pg_autoscaler", Enabled: true},
 	}
-	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 14}
+	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 15}
 	modulesEnabled = 0
 	assert.NoError(t, c.configureMgrModules())
 	assert.Equal(t, 1, modulesEnabled)
