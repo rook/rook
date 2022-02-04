@@ -1378,3 +1378,9 @@ func TestAppendOSDInfo(t *testing.T) {
 		assert.Equal(t, 3, len(trimmedOSDs))
 	}
 }
+
+func TestIsSafeToUseRawMode(t *testing.T) {
+	assert.Equal(t, true, isSafeToUseRawMode(sys.PartType, cephver.CephVersion{Major: 16, Minor: 2, Extra: 5}))
+	assert.Equal(t, false, isSafeToUseRawMode(sys.DiskType, cephver.CephVersion{Major: 16, Minor: 2, Extra: 5}))
+	assert.Equal(t, true, isSafeToUseRawMode(sys.DiskType, cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}))
+}

@@ -56,8 +56,12 @@ var (
 
 	// The Ceph Octopus to include a retry to acquire device lock
 	cephFlockFixOctopusMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}
-	isEncrypted                       = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
-	isOnPVC                           = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
+
+	// The mitigation of phantom ATARI partition problem is fixed in Ceph v16.2.6. Quincy doesn't have this problem from the beginning
+	// See https://github.com/ceph/ceph/pull/42469
+	cephIgnorePhantomAtariPartitionCephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+	isEncrypted                                = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
+	isOnPVC                                    = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
 )
 
 type osdInfoBlock struct {
@@ -468,6 +472,16 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 	return allowRawMode, nil
 }
 
+func isSafeToUseRawMode(deviceType string, cephVersion cephver.CephVersion) bool {
+	if deviceType != sys.DiskType {
+		return true
+	}
+	if cephVersion.IsAtLeast(cephIgnorePhantomAtariPartitionCephVersion) {
+		return true
+	}
+	return false
+}
+
 func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	// Should we allow ceph-volume raw mode?
 	allowRawMode, err := a.allowRawMode(context)
@@ -493,7 +507,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 	}
 
 	for name, device := range devices.Entries {
-		// Even if we can use raw mode, do NOT use raw mode on disks. Ceph bluestore disks can
+		// Even if we can use raw mode, do NOT use raw mode on disks in Ceph < 16.2.6. Ceph bluestore disks can
 		// sometimes appear as though they have "phantom" Atari (AHDI) partitions created on them
 		// when they don't in reality. This is due to a series of bugs in the Linux kernel when it
 		// is built with Atari support enabled. This behavior does not appear for raw mode OSDs on
@@ -502,7 +516,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		// which reports only the phantom partitions (and malformed OSD info) when they exist and
 		// ignores the original (correct) OSDs created on the raw disk.
 		// See: https://github.com/rook/rook/issues/7940
-		if device.DeviceInfo.Type != sys.DiskType && allowRawMode {
+		if allowRawMode && isSafeToUseRawMode(device.DeviceInfo.Type, a.clusterInfo.CephVersion) {
 			rawDevices.Entries[name] = device
 			continue
 		}
