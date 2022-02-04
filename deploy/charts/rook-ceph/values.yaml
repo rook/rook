@@ -278,7 +278,7 @@ csi:
   #cephcsi:
     #image: quay.io/cephcsi/cephcsi:v3.5.1
   #registrar:
-    #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
+    #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
   #provisioner:
     #image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
   #snapshotter:

@@ -546,7 +546,7 @@ The default upstream images are included below, which you can change to your des
 
 ```yaml
 ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.5.1"
-ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0"
+ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0"
 ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0"
 ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
 ROOK_CSI_RESIZER_IMAGE: "k8s.gcr.io/sig-storage/csi-resizer:v1.4.0"
@@ -572,7 +572,7 @@ kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec
 
 ```
 k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
-k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
+k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
 k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
 k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
 k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1
