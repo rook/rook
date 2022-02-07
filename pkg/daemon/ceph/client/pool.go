@@ -178,12 +178,16 @@ func ParsePoolDetails(in []byte) (CephStoragePoolDetails, error) {
 	return poolDetails, nil
 }
 
-func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName string) error {
+func CreatePool(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName string) error {
+	return CreatePoolWithPGs(context, clusterInfo, clusterSpec, pool, appName, DefaultPGCount)
+}
+
+func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName, pgCount string) error {
 	if pool.Name == "" {
 		return errors.New("pool name must be specified")
 	}
 	if pool.IsReplicated() {
-		return CreateReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, DefaultPGCount, appName)
+		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, pgCount, appName)
 	}
 
 	if !pool.IsErasureCoded() {
@@ -198,12 +202,12 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterInfo *ClusterInfo, 
 	}
 
 	// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
-	return CreateECPoolForApp(
+	return createECPoolForApp(
 		context,
 		clusterInfo,
 		ecProfileName,
 		pool,
-		DefaultPGCount,
+		pgCount,
 		appName,
 		true /* enableECOverwrite */)
 }
@@ -384,7 +388,7 @@ func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
 
-func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount, appName string, enableECOverwrite bool) error {
 	args := []string{"osd", "pool", "create", pool.Name, pgCount, "erasure", ecProfileName}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -405,7 +409,7 @@ func CreateECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecP
 	return nil
 }
 
-func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount, appName string) error {
+func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount, appName string) error {
 	// If it's a replicated pool, ensure the failure domain is desired
 	checkFailureDomain := false
 
@@ -438,27 +442,31 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		}
 	}
 
-	args := []string{"osd", "pool", "create", pool.Name, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
-	output, err := NewCephCommand(context, clusterInfo, args).Run()
+	poolDetails, err := GetPoolDetails(context, clusterInfo, pool.Name)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create replicated pool %s. %s", pool.Name, string(output))
-	}
-
-	if !clusterSpec.IsStretchCluster() {
-		// the pool is type replicated, set the size for the pool now that it's been created
-		// Only set the size if not 0, otherwise ceph will fail to set size to 0
-		if pool.Replicated.Size > 0 {
+		// Create the pool since it doesn't exist yet
+		// If there was some error other than ENOENT (not exists), go ahead and ensure the pool is created anyway
+		args := []string{"osd", "pool", "create", pool.Name, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
+		output, err := NewCephCommand(context, clusterInfo, args).Run()
+		if err != nil {
+			return errors.Wrapf(err, "failed to create replicated pool %s. %s", pool.Name, string(output))
+		}
+	} else {
+		// If the pool is type replicated, set the size for the pool if it changed
+		if !clusterSpec.IsStretchCluster() && pool.IsReplicated() && poolDetails.Size != pool.Replicated.Size {
+			logger.Infof("pool size is changed from %d to %d", poolDetails.Size, pool.Replicated.Size)
 			if err := SetPoolReplicatedSizeProperty(context, clusterInfo, pool.Name, strconv.FormatUint(uint64(pool.Replicated.Size), 10)); err != nil {
 				return errors.Wrapf(err, "failed to set size property to replicated pool %q to %d", pool.Name, pool.Replicated.Size)
 			}
 		}
 	}
 
-	if err = setCommonPoolProperties(context, clusterInfo, pool, appName); err != nil {
+	// update the common pool properties
+	if err := setCommonPoolProperties(context, clusterInfo, pool, appName); err != nil {
 		return err
 	}
 
-	logger.Infof("creating replicated pool %s succeeded", pool.Name)
+	logger.Infof("reconciling replicated pool %s succeeded", pool.Name)
 
 	if checkFailureDomain {
 		if err = ensureFailureDomain(context, clusterInfo, clusterSpec, pool); err != nil {

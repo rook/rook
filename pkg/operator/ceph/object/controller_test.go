@@ -308,7 +308,7 @@ func TestCephObjectStoreController(t *testing.T) {
 				Name:      store,
 				Namespace: namespace,
 			},
-			Spec:     cephv1.ObjectStoreSpec{},
+			Spec:     cephv1.ObjectStoreSpec{MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}, DataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}},
 			TypeMeta: controllerTypeMeta,
 		}
 		objectStore.Spec.Gateway.Port = 80
@@ -445,6 +445,9 @@ func TestCephObjectStoreController(t *testing.T) {
 				}
 				if args[0] == "versions" {
 					return dummyVersionsRaw, nil
+				}
+				if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+					return "", errors.New("test pool does not exit yet")
 				}
 				if args[0] == "osd" && args[1] == "lspools" {
 					// ceph actually outputs this all on one line, but this parses the same
@@ -630,6 +633,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			}
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return rgwCephAuthGetOrCreateKey, nil
+			}
+			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+				return "", errors.New("test pool does not exit yet")
 			}
 			if args[0] == "versions" {
 				return dummyVersionsRaw, nil
