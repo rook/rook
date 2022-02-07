@@ -11771,6 +11771,19 @@ spec:
                 store:
                   description: The store the user will be created in
                   type: string
+                subUsers:
+                  items:
+                    properties:
+                      access:
+                        type: string
+                      name:
+                        type: string
+                    required:
+                      - access
+                      - name
+                    type: object
+                  nullable: true
+                  type: array
               type: object
             status:
               description: ObjectStoreUserStatus represents the status Ceph Object Store Gateway User

@@ -2147,6 +2147,19 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>subUsers,omitemtpy</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SubuserSpec">
+[]SubuserSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -2640,6 +2653,30 @@ string
 </td>
 </tr>
 </tbody>
+</table>
+<h3 id="ceph.rook.io/v1.AccessSpec">AccessSpec
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.SubuserSpec">SubuserSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;full&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;read&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;readwrite&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;write&#34;</p></td>
+<td></td>
+</tr></tbody>
 </table>
 <h3 id="ceph.rook.io/v1.AddressRangesSpec">AddressRangesSpec
 </h3>
@@ -9642,6 +9679,19 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>subUsers,omitemtpy</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SubuserSpec">
+[]SubuserSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus
@@ -12424,6 +12474,45 @@ string
 <td>
 <em>(Optional)</em>
 <p>Zones is the list of zones</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.SubuserSpec">SubuserSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+</td>
+</tr>
+<tr>
+<td>
+<code>access</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AccessSpec">
+AccessSpec
+</a>
+</em>
+</td>
+<td>
 </td>
 </tr>
 </tbody>
