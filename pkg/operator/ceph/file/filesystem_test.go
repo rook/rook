@@ -199,6 +199,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				} else if reflect.DeepEqual(args[0:4], []string{"fs", "add_data_pool", fsName, fsName + "-named-pool"}) {
 					*addDataPoolCount++
 					return "", nil
+				} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "get"}) {
+					return "", errors.New("test pool does not exist yet")
 				} else if contains(args, "versions") {
 					versionStr, _ := json.Marshal(
 						map[string]map[string]int{
@@ -269,6 +271,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return "", nil
 			} else if reflect.DeepEqual(args[0:6], []string{"osd", "pool", "set", fsName + "-named-pool", "size", "1"}) {
 				return "", nil
+			} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "get"}) {
+				return "", errors.New("test pool does not exist yet")
 			} else if reflect.DeepEqual(args[0:4], []string{"fs", "add_data_pool", fsName, fsName + "-named-pool"}) {
 				*addDataPoolCount++
 				return "", nil
@@ -491,6 +495,8 @@ func TestUpgradeFilesystem(t *testing.T) {
 			return "", nil
 		} else if contains(args, "config") && contains(args, "get") {
 			return "{}", nil
+		} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "get"}) {
+			return "", errors.New("test pool does not exist yet")
 		} else if contains(args, "versions") {
 			versionStr, _ := json.Marshal(
 				map[string]map[string]int{
