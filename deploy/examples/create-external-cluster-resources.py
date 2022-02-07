@@ -179,7 +179,11 @@ class RadosJSON:
         common_group.add_argument("--rgw-pool-prefix", default="",
                                   help="RGW Pool prefix")
         common_group.add_argument("--restricted-auth-permission", default=False,
-                                  help="Restricted cephCSIKeyrings auth permissions to specific pools, cluster and pool namespaces. Mandatory flags that need to be set are --rbd-data-pool-name, --rados-namespace and --cluster-name. Note: Restricting the users per pool, per cluster and per pool namespace will require to create new users and new secrets for that users.")
+                                  help="Restricted cephCSIKeyrings auth permissions to specific pools, cluster and pool namespaces."+
+                                  "Mandatory flags that need to be set are --rbd-data-pool-name, --rados-namespace and --cluster-name."+
+                                  "--cephfs-filesystem-name flag can also be passed in case of cephfs user restriction, so it can restrict user to particular cephfs filesystem"+
+                                  "sample run: `python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage --restricted-auth-permission true`"+
+                                  "Note: Restricting the users per pool, per cluster and per pool namespace will require to create new users and new secrets for that users.")
 
         output_group = argP.add_argument_group('output')
         output_group.add_argument("--format", "-t", choices=["json", "bash"],
@@ -213,7 +217,14 @@ class RadosJSON:
 
         upgrade_group = argP.add_argument_group('upgrade')
         upgrade_group.add_argument("--upgrade", action='store_true', default=False,
-                                   help="Upgrades the 'user' with all the permissions needed for the new cluster version and older permission will still be applied. PS: An existing non-restricted user cannot be downgraded to a restricted user. Admin need to create a new user for this.")
+                                   help="Upgrades the 'csi-user'(For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied." +
+                                   "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade`, this will upgrade all the default csi users(non-restricted)" +
+                                   "For restricted users(For example: client.csi-cephfs-provisioner-openshift-storage-myfs), users created using --restricted-auth-permission flag need to pass mandatory flags" +
+                                   "mandatory flags: '--rbd-data-pool-name, --rados-namespace, --cluster-name and --run-as-user' flags while upgrading"+
+                                   "in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating user then while upgrading it will be mandatory too"+
+                                   "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool-radosNamespace`"+
+                                   "PS: An existing non-restricted user cannot be downgraded to a restricted user by upgrading. Admin need to create a new restricted user for this by re-running the script."+
+                                   "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access")
 
         if args_to_parse:
             assert type(args_to_parse) == list, \
@@ -610,11 +621,11 @@ class RadosJSON:
                 "no user found with user_name: {} ,".format(user_name)
                 + "get_caps_and_entity command failed.\n")    
     
-    def create_cephCSIKeyring_cephFSProvisioner(self):
+    def create_cephCSIKeyring_user(self,user):
         '''
         command: ceph auth get-or-create client.csi-cephfs-provisioner mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs metadata=*'
         '''
-        caps, entity = self.get_caps_and_entity("client.csi-cephfs-provisioner")
+        caps, entity = self.get_caps_and_entity(user)
         cmd_json = {"prefix": "auth get-or-create",
                         "entity": entity,
                         "caps": [cap for cap_list in list(caps.items()) for cap in cap_list],
@@ -631,73 +642,7 @@ class RadosJSON:
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
             raise ExecutionFailureException(
-                "'auth get-or-create client.csi-cephfs-provisioner' command failed.\n" +
-                "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
-        return str(json_out[0]['key'])
-
-    def create_cephCSIKeyring_cephFSNode(self):
-        caps, entity = self.get_caps_and_entity("client.csi-cephfs-node")
-        cmd_json = {"prefix": "auth get-or-create",
-                    "entity": entity,
-                    "caps": [cap for cap_list in list(caps.items()) for cap in cap_list],
-                    "format": "json"}
-        
-        if self._arg_parser.dry_run:
-            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
-        # check if user already exist
-        user_key = self.check_user_exist(entity)
-        if user_key != "":
-            return user_key
-        
-        ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
-        # if there is an unsuccessful attempt,
-        if ret_val != 0 or len(json_out) == 0:
-            raise ExecutionFailureException(
-                "'auth get-or-create client.csi-cephfs-node' command failed.\n" +
-                "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
-        return str(json_out[0]['key'])
-
-    def create_cephCSIKeyring_RBDProvisioner(self):
-        caps, entity = self.get_caps_and_entity("client.csi-rbd-provisioner")
-        cmd_json = {"prefix": "auth get-or-create",
-                    "entity": entity,
-                    "caps": [cap for cap_list in list(caps.items()) for cap in cap_list],
-                    "format": "json"}
-
-        if self._arg_parser.dry_run:
-            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
-        # check if user already exist
-        user_key = self.check_user_exist(entity)
-        if user_key != "":
-            return user_key
-        
-        ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
-        # if there is an unsuccessful attempt,
-        if ret_val != 0 or len(json_out) == 0:
-            raise ExecutionFailureException(
-                "'auth get-or-create client.csi-rbd-provisioner' command failed.\n" +
-                "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
-        return str(json_out[0]['key'])
-    
-    def create_cephCSIKeyring_RBDNode(self):
-        caps, entity = self.get_caps_and_entity("client.csi-rbd-node")
-        cmd_json = {"prefix": "auth get-or-create",
-                    "entity": entity,
-                    "caps": [cap for cap_list in list(caps.items()) for cap in cap_list],
-                    "format": "json"}
-        
-        if self._arg_parser.dry_run:
-            return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
-        # check if user already exist
-        user_key = self.check_user_exist(entity)
-        if user_key != "":
-            return user_key
-        
-        ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
-        # if there is an unsuccessful attempt,
-        if ret_val != 0 or len(json_out) == 0:
-            raise ExecutionFailureException(
-                "'auth get-or-create client.csi-rbd-node' command failed\n" +
+                "'auth get-or-create {}' command failed.\n".format(user) +
                 "Error: {}".format(err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST))
         return str(json_out[0]['key'])
 
@@ -894,8 +839,8 @@ class RadosJSON:
         self.out_map['ROOK_EXTERNAL_CEPH_MON_DATA'] = self.get_ceph_external_mon_data()
         self.out_map['ROOK_EXTERNAL_USER_SECRET'] = self.create_checkerKey()
         self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK'] = self.get_ceph_dashboard_link()
-        self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_RBDNode()
-        self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_RBDProvisioner()
+        self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_user("client.csi-rbd-node")
+        self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user("client.csi-rbd-provisioner")
         self.out_map['CEPHFS_POOL_NAME'] = self._arg_parser.cephfs_data_pool_name
         self.out_map['CEPHFS_METADATA_POOL_NAME'] = self._arg_parser.cephfs_metadata_pool_name
         self.out_map['CEPHFS_FS_NAME'] = self._arg_parser.cephfs_filesystem_name
@@ -905,8 +850,8 @@ class RadosJSON:
         self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = ''
         # create CephFS node and provisioner keyring only when MDS exists
         if self.out_map['CEPHFS_FS_NAME'] and self.out_map['CEPHFS_POOL_NAME']:
-            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_cephFSNode()
-            self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_cephFSProvisioner()
+            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_user("client.csi-cephfs-node")
+            self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
         self.out_map['RGW_TLS_CERT'] = ''
         self.out_map['MONITORING_ENDPOINT'], \
@@ -1257,14 +1202,14 @@ class TestRadosJSON(unittest.TestCase):
             print("Exception thrown successfully: {}".format(err))
 
     def test_method_create_cephCSIKeyring_cephFSProvisioner(self):
-        csiKeyring = self.rjObj.create_cephCSIKeyring_cephFSProvisioner()
+        csiKeyring = self.rjObj.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         print("cephCSIKeyring without restricting it to a metadata pool. {}".format(csiKeyring))
         self.rjObj._arg_parser.restricted_auth_permission = True
         self.rjObj._arg_parser.cluster_name = "openshift-storage"
-        csiKeyring = self.rjObj.create_cephCSIKeyring_cephFSProvisioner()
+        csiKeyring = self.rjObj.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         print("cephCSIKeyring for a specific cluster. {}".format(csiKeyring))
         self.rjObj._arg_parser.cephfs_filesystem_name = "myfs"
-        csiKeyring = self.rjObj.create_cephCSIKeyring_cephFSProvisioner()
+        csiKeyring = self.rjObj.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         print("cephCSIKeyring for a specific metadata pool and cluster. {}".format(csiKeyring))
 
     def test_non_zero_return_and_error(self):
