@@ -154,9 +154,9 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 	return err
 }
 
-// Kubectl is wrapper for executing kubectl commands
-func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-	result, err := k8sh.executor.ExecuteCommandWithTimeout(15*time.Second, "kubectl", args...)
+// KubectlWithTimeout is wrapper for executing kubectl commands
+func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string) (string, error) {
+	result, err := k8sh.executor.ExecuteCommandWithTimeout(timeout*time.Second, "kubectl", args...)
 	if err != nil {
 		k8slogger.Errorf("Failed to execute: %s %+v : %+v. %s", cmd, args, err, result)
 		if args[0] == "delete" {
@@ -166,6 +166,13 @@ func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 		return result, fmt.Errorf("Failed to run: %s %v : %v", cmd, args, err)
 	}
 	return result, nil
+}
+
+// Kubectl is wrapper for executing kubectl commands and a timeout of 15 seconds
+func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
+
+	return k8sh.KubectlWithTimeout(15, args...)
+
 }
 
 // KubectlWithStdin is wrapper for executing kubectl commands in stdin

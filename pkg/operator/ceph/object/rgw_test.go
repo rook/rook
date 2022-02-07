@@ -18,6 +18,7 @@ package object
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -82,7 +83,7 @@ func TestStartRGW(t *testing.T) {
 
 	t.Run("Deployment is created", func(t *testing.T) {
 		store.Spec.Gateway.Instances = 1
-		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
 		assert.Nil(t, err)
 
 		validateStart(ctx, t, c, clientset)
@@ -95,7 +96,7 @@ func TestStartRGW(t *testing.T) {
 		// Purge store of configurations applied to gateways
 		appliedRgwConfigurations = make(map[string]string)
 
-		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
 		assert.Nil(t, err)
 
 		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
@@ -109,7 +110,7 @@ func TestStartRGW(t *testing.T) {
 		// Purge store of configurations applied to gateways
 		appliedRgwConfigurations = make(map[string]string)
 
-		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
 		assert.Nil(t, err)
 
 		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
@@ -139,9 +140,20 @@ func TestCreateObjectStore(t *testing.T) {
 		}
 		return "", nil
 	}
+
+	timeoutCommand := func(timeout time.Duration, command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		for _, arg := range args {
+			assert.False(t, strings.Contains(arg, "swift"))
+			assert.False(t, strings.Contains(arg, "keystone"))
+		}
+		return "", nil
+	}
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithCombinedOutput: commandWithOutputFunc,
 		MockExecuteCommandWithOutput:         commandWithOutputFunc,
+		MockExecuteCommandWithTimeout:        timeoutCommand,
 	}
 
 	store := simpleStore()
@@ -157,7 +169,7 @@ func TestCreateObjectStore(t *testing.T) {
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
-	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
+	err := c.createOrUpdateStore(store.Name, store.Name, store.Name, nil)
 	assert.Nil(t, err)
 }
 
@@ -168,6 +180,57 @@ func simpleStore() *cephv1.CephObjectStore {
 			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
 			DataPool:     cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
 			Gateway:      cephv1.GatewaySpec{Port: 123},
+		},
+	}
+}
+
+func TestCreateObjectStoreWithKeystoneAndS3(t *testing.T) {
+	commandWithOutputFunc := func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if command == "ceph" {
+			if args[1] == "erasure-code-profile" {
+				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return `{"key":"mykey"}`, nil
+			}
+		} else {
+			return `{"realms": []}`, nil
+		}
+		return "", nil
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithCombinedOutput: commandWithOutputFunc,
+		MockExecuteCommandWithOutput:         commandWithOutputFunc,
+	}
+
+	store := simpleStoreWithKeystoneAndS3()
+	clientset := test.New(t, 3)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
+	info := clienttest.CreateTestClusterInfo(1)
+	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
+
+	// create the pools
+	s := scheme.Scheme
+	object := []runtime.Object{&cephv1.CephObjectStore{}}
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	r := &ReconcileCephObjectStore{client: cl, scheme: s}
+	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
+	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
+	err := c.createOrUpdateStore(store.Name, store.Name, store.Name, nil)
+	assert.Nil(t, err)
+}
+
+func simpleStoreWithKeystoneAndS3() *cephv1.CephObjectStore {
+	authUseKeystone := true
+	return &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
+		Spec: cephv1.ObjectStoreSpec{
+			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			DataPool:     cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
+			Gateway:      cephv1.GatewaySpec{Port: 123},
+			Auth:         cephv1.AuthSpec{Keystone: &cephv1.KeystoneSpec{Url: "testurl", ServiceUserSecretName: "testname", AcceptedRoles: []string{"testrole"}}},
+			Protocols:    cephv1.ProtocolSpec{S3: &cephv1.S3Spec{AuthUseKeystone: &authUseKeystone}},
 		},
 	}
 }
