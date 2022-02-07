@@ -51,9 +51,12 @@ to further technologies (such as LDAP authentication).
   create a separate `cephobjectstoreuser`, configure its access rights
   to the bucket and use those credentials.
 
+* Support for Kubernetes Container Object Storage (COSI)
+
 * Support for authentication technologies other than Keystone (e.g. LDAP)
 
 * Exposing options that disable security features (e.g. TLS verification)
+
 
 ## Proposal details
 
@@ -80,11 +83,11 @@ Annotations:
   options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#keystone-settings),
   the corresponding RGW option is formed by prefixing it with
   `rgw_keystone_` and replacing upper case letters by their lower case
-  letter followed by an underscore. E.g. `tokenCacheSize` maps to
+  letter preceded by an underscore. E.g. `tokenCacheSize` maps to
   `rgw_keystone_token_cache_size`.
 * `[2]` These settings are required in the `keystone` section if
   present.
-* `[1]` The name of the secret containing the credentials for the
+* `[3]` The name of the secret containing the credentials for the
   service user account used by RGW. It has to be in the same namespace
   as the object store resource.
 
@@ -173,12 +176,12 @@ Annotations:
   options](https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings),
   the corresponding RGW option is formed by prefixing it with
   `rgw_swift_` and replacing upper case letters by their lower case
-  letter followed by an underscore. E.g. `urlPrefix` maps to
+  letter preceded by an underscore. E.g. `urlPrefix` maps to
   `rgw_swift_url_prefix`. They are optional. If not given, the defaults
   of the corresponding RGW option apply.
 
-The access to the Swift API is granted by creating a subuser of an RGW
-user. While commonly the access is granted via projects
+Access to the Swift API is granted by creating a subuser of an RGW
+user. While commonly access is granted via projects
 mapped from Keystone, explicit creation of subusers is supported by
 extending the `cephobjectstoreuser` resource with a new optional section
 `spec.subUsers`:

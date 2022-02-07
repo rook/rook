@@ -110,7 +110,50 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
 }
 
+func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[string]string, error) {
+
+	requiredKeys := []string{"OS_PROJECT_DOMAIN_NAME",
+		"OS_USER_DOMAIN_NAME",
+		"OS_PROJECT_DOMAIN_NAME",
+		"OS_USER_DOMAIN_NAME",
+		"OS_PROJECT_NAME",
+		"OS_USERNAME",
+		"OS_PASSWORD"}
+
+	data := make(map[string]string)
+	for key, value := range secret.Data {
+		data[key] = string(value[:])
+	}
+
+	for _, key := range requiredKeys {
+		if value, ok := data[key]; !ok || value == "" {
+			return nil, errors.New(fmt.Sprintf("Missing or empty %s", key))
+		}
+	}
+
+	if authType, ok := data["OS_AUTH_TYPE"]; ok && authType != "password" {
+		return nil, errors.New(fmt.Sprintf("OS_AUTHTYPE %s is not supported. Only OS_AUTH_TYPE password is supported!", authType))
+	}
+
+	if apiVersion, ok := data["OS_IDENTITY_API_VERSION"]; ok && apiVersion != "3" {
+		return nil, errors.New(fmt.Sprintf("OS_IDENTITY_API_VERSION %s is not supported! Only OS_IDENTITY_API_VERSION 3 is supported!", apiVersion))
+	}
+
+	if data["OS_PROJECT_DOMAIN_NAME"] != data["OS_USER_DOMAIN_NAME"] {
+		return nil, errors.New("The user domain name does not match the project domain name.")
+	}
+
+	cfg["rgw_keystone_api_version"] = data["OS_IDENTITY_API_VERSION"]
+	cfg["rgw_keystone_admin_domain"] = data["OS_PROJECT_DOMAIN_NAME"]
+	cfg["rgw_keystone_admin_project"] = data["OS_PROJECT_NAME"]
+	cfg["rgw_keystone_admin_user"] = data["OS_USERNAME"]
+	cfg["rgw_keystone_admin_password"] = data["OS_PASSWORD"]
+
+	return cfg, nil
+}
+
 func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
+
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
 	configOptions := make(map[string]string)
@@ -126,6 +169,60 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	configOptions["rgw_zone"] = rgwConfig.Zone
 	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
 
+	configOptions, err := configureKeystoneAuthentication(rgwConfig, configOptions)
+	if err != nil {
+		return err
+	}
+
+	s3disabled := false
+	if s3 := rgwConfig.Protocols.S3; s3 != nil {
+		if s3.Enabled != nil && !*s3.Enabled {
+			s3disabled = true
+		}
+
+		if s3.AuthUseKeystone != nil {
+			configOptions["rgw_s3_auth_use_keystone"] = fmt.Sprintf("%t", *s3.AuthUseKeystone)
+		}
+
+	}
+
+	if swift := rgwConfig.Protocols.Swift; swift != nil {
+
+		if swift.AccountInUrl != nil {
+			configOptions["rgw_swift_account_in_url"] = fmt.Sprintf("%t", *swift.AccountInUrl)
+		}
+
+		if swift.UrlPrefix != nil {
+			configOptions["rgw_swift_url_prefix"] = *swift.UrlPrefix
+
+			if configOptions["rgw_swift_url_prefix"] == "/" {
+				logger.Warning("Forcefully disabled S3 as the swift prefix is given as a slash /. Ignoring any S3 options (including Enabled=true)!")
+				// this will later on disable the s3 api using the rgw_enable_apis setting
+				s3disabled = true
+			}
+
+		}
+		if swift.VersioningEnabled != nil {
+			configOptions["rgw_swift_versioning_enabled"] = fmt.Sprintf("%t", *swift.VersioningEnabled)
+		}
+
+	}
+
+	if s3disabled {
+		// XXX: how to handle enabled APIs? We only configure s3 and
+		// swift in the resource, `admin` is required for the operator to
+		// work, `swift_auth` is required to access swift without keystone
+		// – not sure about the additional APIs
+		// https://docs.ceph.com/en/quincy/radosgw/config-ref/#confval-rgw_enable_apis
+		// see also https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings on disabling s3
+		// when using '/' as prefix
+
+		// Swift was enabled so far already by default, so perhaps better
+		// not change that if someone relies on it.
+
+		configOptions["rgw_enable_apis"] = "s3website, swift, swift_auth, admin, sts, iam, notifications"
+	}
+
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)
 		if err != nil {
@@ -134,6 +231,54 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	}
 
 	return nil
+}
+
+func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
+
+	keystone := rgwConfig.Auth.Keystone
+	if keystone == nil {
+		logger.Debug("Authentication with keystone is disabled")
+		return configOptions, nil
+	}
+
+	logger.Info("Configuring authentication with keystone")
+
+	configOptions["rgw_keystone_url"] = keystone.Url
+	configOptions["rgw_keystone_accepted_roles"] = strings.Join(keystone.AcceptedRoles, ",")
+	if keystone.ImplicitTenants != "" {
+		lc := strings.ToLower(string(keystone.ImplicitTenants))
+
+		// only four values are valid here (swift, s3, true and false)
+		//
+		// https://docs.ceph.com/en/latest/radosgw/keystone/#integrating-with-openstack-keystone
+		if lc != "true" &&
+			lc != "false" &&
+			lc != "swift" &&
+			lc != "s3" {
+
+			return nil, errors.New(fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %q", string(keystone.ImplicitTenants)))
+
+		}
+
+		configOptions["rgw_keystone_implicit_tenants"] = lc
+
+	}
+
+	if keystone.TokenCacheSize != nil {
+		configOptions["rgw_keystone_token_cache_size"] = fmt.Sprintf("%d", *keystone.TokenCacheSize)
+	}
+
+	if rgwConfig.KeystoneSecret == nil {
+		return nil, errors.New("Cannot find keystone secret")
+	}
+
+	var err error
+	configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("error mapping keystone secret %s to config", rgwConfig.KeystoneSecret.Name))
+	}
+
+	return configOptions, nil
 }
 
 func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
