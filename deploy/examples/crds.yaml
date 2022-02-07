@@ -10687,6 +10687,34 @@ spec:
                   items:
                     type: string
                   type: array
+                auth:
+                  description: The authentication configuration
+                  nullable: true
+                  properties:
+                    keystone:
+                      description: KeystoneSpec represents the Keystone authentication configuration of a Ceph Object Store Gateway
+                      nullable: true
+                      properties:
+                        acceptedRoles:
+                          items:
+                            type: string
+                          type: array
+                        implicitTenants:
+                          type: string
+                        revocationInterval:
+                          type: integer
+                        serviceUserSecretName:
+                          type: string
+                        tokenCacheSize:
+                          type: integer
+                        url:
+                          type: string
+                      required:
+                        - acceptedRoles
+                        - serviceUserSecretName
+                        - url
+                      type: object
+                  type: object
                 dataPool:
                   description: The data pool settings
                   nullable: true
@@ -11976,6 +12004,31 @@ spec:
                 preservePoolsOnDelete:
                   description: Preserve pools on object store deletion
                   type: boolean
+                protocols:
+                  description: The protocol specification
+                  nullable: true
+                  properties:
+                    s3:
+                      description: The spec for S3
+                      nullable: true
+                      properties:
+                        authUseKeystone:
+                          type: boolean
+                        enabled:
+                          type: boolean
+                      type: object
+                    swift:
+                      description: The spec for S3
+                      nullable: true
+                      properties:
+                        accountInUrl:
+                          type: boolean
+                        urlPrefix:
+                          type: string
+                        versioningEnabled:
+                          type: boolean
+                      type: object
+                  type: object
                 security:
                   description: Security represents security settings
                   nullable: true

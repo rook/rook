@@ -1423,6 +1423,16 @@ type ObjectStoreSpec struct {
 	// +nullable
 	Gateway GatewaySpec `json:"gateway"`
 
+	// The protocol specification
+	// +optional
+	// +nullable
+	Protocols ProtocolSpec `json:"protocols,omitempty"`
+
+	// The authentication configuration
+	// +optional
+	// +nullable
+	Auth AuthSpec `json:"auth,omitempty"`
+
 	// The multisite info
 	// +optional
 	// +nullable
@@ -1571,6 +1581,59 @@ type EndpointAddress struct {
 	// +optional
 	Hostname string `json:"hostname,omitempty" protobuf:"bytes,3,opt,name=hostname"`
 }
+
+// ProtocolSpec represents a Ceph Object Store protocol specification
+type ProtocolSpec struct {
+	// The spec for S3
+	// +optional
+	// +nullable
+	S3 *S3Spec `json:"s3,omitempty"`
+
+	// The spec for S3
+	// +optional
+	// +nullable
+	Swift *SwiftSpec `json:"swift"`
+}
+
+// S3Spec represents Ceph Object Store specification for the S3 API
+type S3Spec struct {
+	Enabled         *bool `json:"enabled,omitempty"`
+	AuthUseKeystone *bool `json:"authUseKeystone,omitempty"`
+}
+
+// S3Spec represents Ceph Object Store specification for the Swift API
+type SwiftSpec struct {
+	AccountInUrl      *bool   `json:"accountInUrl,omitempty"`
+	UrlPrefix         *string `json:"urlPrefix,omitempty"`
+	VersioningEnabled *bool   `json:"versioningEnabled,omitempty"`
+}
+
+// AuthSpec represents the authentication protocol configuration of a Ceph Object Store Gateway
+type AuthSpec struct {
+	// +optional
+	// +nullable
+	Keystone *KeystoneSpec `json:"keystone,omitempty"`
+}
+
+// KeystoneSpec represents the Keystone authentication configuration of a Ceph Object Store Gateway
+type KeystoneSpec struct {
+	Url                   string                `json:"url"`
+	ServiceUserSecretName string                `json:"serviceUserSecretName"`
+	AcceptedRoles         []string              `json:"acceptedRoles"`
+	ImplicitTenants       ImplicitTenantSetting `json:"implicitTenants,omitempty"`
+	TokenCacheSize        *int                  `json:"tokenCacheSize,omitempty"`
+	RevocationInterval    *int                  `json:"revocationInterval,omitempty"`
+}
+
+type ImplicitTenantSetting string
+
+const (
+	ImplicitTenantSwift   ImplicitTenantSetting = "swift"
+	ImplicitTenantS3      ImplicitTenantSetting = "s3"
+	ImplicitTenantTrue    ImplicitTenantSetting = "true"
+	ImplicitTenantFalse   ImplicitTenantSetting = "false"
+	ImplicitTenantDefault ImplicitTenantSetting = ""
+)
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
 type ZoneSpec struct {
@@ -1746,6 +1809,7 @@ type ObjectUserQuotaSpec struct {
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
+// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
