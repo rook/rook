@@ -1676,6 +1676,9 @@ type ObjectStoreUserSpec struct {
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
+	// +optional
+	// +nullable
+	Subusers []SubuserSpec `json:"subUsers,omitemtpy"`
 }
 
 // Additional admin-level capabilities for the Ceph object store user
@@ -1763,6 +1766,21 @@ type ObjectUserQuotaSpec struct {
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
+type SubuserSpec struct {
+	Name   string     `json:"name"`
+	Access AccessSpec `json:"access"`
+}
+
+type AccessSpec string
+
+const (
+	AccessSpecFull      AccessSpec = "full"
+	AccessSpecRead      AccessSpec = "read"
+	AccessSpecWrite     AccessSpec = "write"
+	AccessSpecReadWrite AccessSpec = "readwrite"
+)
+
+// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
