@@ -106,12 +106,23 @@ func (r *ReconcileCSI) Reconcile(context context.Context, request reconcile.Requ
 }
 
 func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
+	}
+
 	// See if there is a CephCluster
 	cephClusters := &cephv1.CephClusterList{}
-	err := r.client.List(r.opManagerContext, cephClusters, &client.ListOptions{})
+	err = r.client.List(r.opManagerContext, cephClusters, &client.ListOptions{})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("no ceph cluster found not deploying ceph csi driver")
+			EnableRBD, EnableCephFS = false, false
+			err = r.stopDrivers(serverVersion)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
+			}
+
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
@@ -121,6 +132,12 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	// // Do not nothing if no ceph cluster is present
 	if len(cephClusters.Items) == 0 {
 		logger.Debug("no ceph cluster found not deploying ceph csi driver")
+		EnableRBD, EnableCephFS = false, false
+		err = r.stopDrivers(serverVersion)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
+		}
+
 		return reconcile.Result{}, nil
 	} else {
 		for _, cluster := range cephClusters.Items {
@@ -155,11 +172,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		r.opConfig.Parameters = opConfig.Data
 	}
 
-	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
-	}
-
 	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
 	if err != nil {
 		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
@@ -184,7 +196,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 
 	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed configure ceph csi")
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
 	}
 
 	return reconcile.Result{}, nil

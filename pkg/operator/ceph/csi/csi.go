@@ -47,21 +47,13 @@ func (r *ReconcileCSI) validateAndConfigureDrivers(serverVersion *version.Info, 
 	}
 
 	if CSIEnabled() {
-		maxRetries := 3
-		for i := 0; i < maxRetries; i++ {
-			if err = r.startDrivers(serverVersion, ownerInfo, v); err != nil {
-				logger.Errorf("failed to start Ceph csi drivers, will retry starting csi drivers %d more times. %v", maxRetries-i-1, err)
-			} else {
-				break
-			}
+		if err = r.startDrivers(serverVersion, ownerInfo, v); err != nil {
+			return errors.Wrap(err, "failed to start ceph csi drivers")
 		}
-		return errors.Wrap(err, "failed to start ceph csi drivers")
 	}
 
 	// Check whether RBD or CephFS needs to be disabled
-	r.stopDrivers(serverVersion)
-
-	return nil
+	return r.stopDrivers(serverVersion)
 }
 
 func (r *ReconcileCSI) setParams() error {

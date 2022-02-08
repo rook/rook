@@ -221,11 +221,8 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		Param:     CSIParam,
 		Namespace: r.opConfig.OperatorNamespace,
 	}
-	// if the user didn't specify a custom DriverNamePrefix use
-	// the namespace (and a dot).
-	if tp.DriverNamePrefix == "" {
-		tp.DriverNamePrefix = fmt.Sprintf("%s.", r.opConfig.OperatorNamespace)
-	}
+
+	tp.DriverNamePrefix = fmt.Sprintf("%s.", r.opConfig.OperatorNamespace)
 
 	CephFSDriverName = tp.DriverNamePrefix + "cephfs.csi.ceph.com"
 	RBDDriverName = tp.DriverNamePrefix + "rbd.csi.ceph.com"
@@ -561,58 +558,56 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	return nil
 }
 
-func (r *ReconcileCSI) stopDrivers(ver *version.Info) {
+func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
+	RBDDriverName = fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
+	CephFSDriverName = fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
+
 	if !EnableRBD {
 		logger.Info("CSI Ceph RBD driver disabled")
-		succeeded := r.deleteCSIDriverResources(ver, csiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
-		if succeeded {
-			logger.Info("successfully removed CSI Ceph RBD driver")
-		} else {
-			logger.Error("failed to remove CSI Ceph RBD driver")
+		err := r.deleteCSIDriverResources(ver, csiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
+		if err != nil {
+			return errors.Wrap(err, "failed to remove CSI Ceph RBD driver")
 		}
+		logger.Info("successfully removed CSI Ceph RBD driver")
 	}
 
 	if !EnableCephFS {
 		logger.Info("CSI CephFS driver disabled")
-		succeeded := r.deleteCSIDriverResources(ver, csiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
-		if succeeded {
-			logger.Info("successfully removed CSI CephFS driver")
-		} else {
-			logger.Error("failed to remove CSI CephFS driver")
+		err := r.deleteCSIDriverResources(ver, csiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
+		if err != nil {
+			return errors.Wrap(err, "failed to remove CSI CephFS driver")
 		}
+		logger.Info("successfully removed CSI CephFS driver")
 	}
+
+	return nil
 }
 
-func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) bool {
-	succeeded := true
+func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) error {
 	csiDriverobj = beta1CsiDriver{}
 	if ver.Major > KubeMinMajor || ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForV1csiDriver {
 		csiDriverobj = v1CsiDriver{}
 	}
 	err := k8sutil.DeleteDaemonset(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
 	if err != nil {
-		logger.Errorf("failed to delete the %q. %v", daemonset, err)
-		succeeded = false
+		return errors.Wrapf(err, "failed to delete the %q", daemonset)
 	}
 
 	err = k8sutil.DeleteDeployment(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, deployment)
 	if err != nil {
-		logger.Errorf("failed to delete the %q. %v", deployment, err)
-		succeeded = false
+		return errors.Wrapf(err, "failed to delete the %q", deployment)
 	}
 
 	err = k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, service)
 	if err != nil {
-		logger.Errorf("failed to delete the %q. %v", service, err)
-		succeeded = false
+		return errors.Wrapf(err, "failed to delete the %q", service)
 	}
 
 	err = csiDriverobj.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, driverName)
 	if err != nil {
-		logger.Errorf("failed to delete %q Driver Info. %v", driverName, err)
-		succeeded = false
+		return errors.Wrapf(err, "failed to delete %q Driver Info", driverName)
 	}
-	return succeeded
+	return nil
 }
 
 func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.ObjectMeta) (bool, error) {
