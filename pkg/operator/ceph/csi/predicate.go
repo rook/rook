@@ -94,6 +94,13 @@ func predicateController(ctx context.Context, c client.Client, opNamespace strin
 			if cm, ok := e.Object.(*v1.ConfigMap); ok {
 				return cm.Name == opcontroller.OperatorSettingConfigMapName
 			}
+
+			// if cephCluster is deleted, trigger reconcile to cleanup the csi driver resources
+			// if zero cephClusters exist.
+			if _, ok := e.Object.(*cephv1.CephCluster); ok {
+				return true
+			}
+
 			return false
 		},
 
