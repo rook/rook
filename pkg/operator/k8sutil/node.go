@@ -19,6 +19,7 @@ package k8sutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -31,33 +32,33 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-// ValidNodeNoSched returns true if the node (1) meets Rook's placement terms,
+// validNodeNoSched returns true if the node (1) meets Rook's placement terms,
 // and (2) is ready. Unlike ValidNode, this method will ignore the
 // Node.Spec.Unschedulable flag. False otherwise.
-func ValidNodeNoSched(node v1.Node, placement cephv1.Placement) (bool, error) {
+func validNodeNoSched(node v1.Node, placement cephv1.Placement) error {
 	p, err := NodeMeetsPlacementTerms(node, placement, false)
 	if err != nil {
-		return false, fmt.Errorf("failed to check if node meets Rook placement terms. %+v", err)
+		return fmt.Errorf("failed to check if node meets Rook placement terms. %+v", err)
 	}
 	if !p {
-		return false, nil
+		return errors.New("placement settings do not match")
 	}
 
 	if !NodeIsReady(node) {
-		return false, nil
+		return errors.New("node is not ready")
 	}
 
-	return true, nil
+	return nil
 }
 
 // ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
 // (3) is ready. False otherwise.
-func ValidNode(node v1.Node, placement cephv1.Placement) (bool, error) {
+func ValidNode(node v1.Node, placement cephv1.Placement) error {
 	if !GetNodeSchedulable(node) {
-		return false, nil
+		return errors.New("node is unschedulable")
 	}
 
-	return ValidNodeNoSched(node, placement)
+	return validNodeNoSched(node, placement)
 }
 
 // GetValidNodes returns all nodes that (1) are not cordoned, (2) meet Rook's placement terms, and
@@ -71,13 +72,19 @@ func GetValidNodes(ctx context.Context, rookStorage cephv1.StorageScopeSpec, cli
 	}
 
 	validK8sNodes := []v1.Node{}
+	reasonsForSkippingNodes := map[string][]string{}
 	for _, n := range matchingK8sNodes {
-		valid, err := ValidNode(n, placement)
+		err := ValidNode(n, placement)
 		if err != nil {
-			logger.Errorf("failed to validate node %s. %+v", n.Name, err)
-		} else if valid {
+			reason := err.Error()
+			reasonsForSkippingNodes[reason] = append(reasonsForSkippingNodes[reason], n.Name)
+		} else {
 			validK8sNodes = append(validK8sNodes, n)
 		}
+	}
+
+	for reason, nodes := range reasonsForSkippingNodes {
+		logger.Infof("skipping creation of OSDs on nodes %v: %s", nodes, reason)
 	}
 
 	return RookNodesMatchingKubernetesNodes(rookStorage, validK8sNodes)

@@ -95,8 +95,8 @@ func (c *clientCluster) onK8sNode(object runtime.Object) bool {
 
 	logger.Debugf("node %q is ready, checking if it can run OSDs", node.Name)
 	nodesCheckedForReconcile.Insert(node.Name)
-	valid, _ := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
-	if valid {
+	err := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
+	if err == nil {
 		nodeName := node.Name
 		hostname, ok := node.Labels[v1.LabelHostname]
 		if ok && hostname != "" {
