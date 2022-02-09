@@ -34,7 +34,8 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 	ctx := context.TODO()
 	node := &v1.Node{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: nodeName,
+			Name:   nodeName,
+			Labels: map[string]string{"testLabel": nodeName},
 		},
 		Status: v1.NodeStatus{
 			Conditions: []v1.NodeCondition{
@@ -49,29 +50,58 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 }
 
 func TestValidNode(t *testing.T) {
-	nodeA := "nodeA"
-	nodeB := "nodeB"
-
 	storage := cephv1.StorageScopeSpec{
 		Nodes: []cephv1.Node{
 			{
-				Name: nodeA,
+				Name: "nodeA",
 			},
 			{
-				Name: nodeB,
+				Name: "nodeB",
+			},
+			{
+				Name: "nodeC",
 			},
 		},
 	}
-	var placement cephv1.Placement
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
 
-	nodeErr := createNode(nodeA, v1.NodeReady, clientset)
+	nodeErr := createNode("nodeA", v1.NodeReady, clientset)
 	assert.Nil(t, nodeErr)
-	nodeErr = createNode(nodeB, v1.NodeNetworkUnavailable, clientset)
+	nodeErr = createNode("nodeB", v1.NodeNetworkUnavailable, clientset)
 	assert.Nil(t, nodeErr)
-	validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
-	assert.Equal(t, len(validNodes), 1)
+
+	t.Run("test valid node", func(t *testing.T) {
+		var placement cephv1.Placement
+		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
+		assert.Equal(t, len(validNodes), 1)
+		assert.Equal(t, "nodeA", validNodes[0].Name)
+	})
+
+	t.Run("test placement", func(t *testing.T) {
+		nodeErr = createNode("nodeC", v1.NodeReady, clientset)
+		assert.Nil(t, nodeErr)
+
+		placement := cephv1.Placement{NodeAffinity: &v1.NodeAffinity{
+			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+				NodeSelectorTerms: []v1.NodeSelectorTerm{
+					{
+						MatchExpressions: []v1.NodeSelectorRequirement{
+							{
+								Key:      "testLabel",
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{"nodeC"},
+							},
+						},
+					},
+				},
+			},
+		},
+		}
+		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
+		assert.Equal(t, len(validNodes), 1)
+		assert.Equal(t, "nodeC", validNodes[0].Name)
+	})
 }
 
 func testNode(taints []v1.Taint) v1.Node {
