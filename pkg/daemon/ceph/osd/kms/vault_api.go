@@ -84,6 +84,11 @@ func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretC
 		return nil, err
 	}
 
+	// Set the namespace if the config has a namespace
+	if backendPath := GetParam(secretConfig, api.EnvVaultNamespace); backendPath != "" {
+		client.SetNamespace(secretConfig[api.EnvVaultNamespace])
+	}
+
 	// Configure the authentication method, either Token or Kubernetes.
 	// Both return a token
 	token, _, err := utils.Authenticate(client, c)
