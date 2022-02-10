@@ -132,7 +132,9 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		"--foreground",
 	)
 
-	if !c.clusterSpec.Network.IsHost() {
+	// If host networking is enabled, we don't need a bind addr that is different from the public addr
+	// If multus is enabled, we have set public_network to the desired multus net
+	if !c.clusterSpec.Network.IsHost() && !c.clusterSpec.Network.IsMultus() {
 		args = append(args,
 			config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}

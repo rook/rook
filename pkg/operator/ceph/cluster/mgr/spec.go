@@ -193,7 +193,8 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	container = config.ConfigureLivenessProbe(cephv1.KeyMgr, container, c.spec.HealthCheck)
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
-	if !c.spec.Network.IsHost() {
+	// If multus is enabled, we have set public_network to the desired multus net
+	if !c.spec.Network.IsHost() && !c.spec.Network.IsMultus() {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,
