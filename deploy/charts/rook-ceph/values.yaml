@@ -80,7 +80,7 @@ csi:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  cephFSFSGroupPolicy: "None"
+  cephFSFSGroupPolicy: "ReadWriteOnceWithFSType"
 
   # OMAP generator generates the omap mapping between the PV name and the RBD image
   # which helps CSI to identify the rbd images for CSI operations.

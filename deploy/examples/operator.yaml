@@ -68,7 +68,7 @@ data:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  CSI_CEPHFS_FSGROUPPOLICY: "None"
+  CSI_CEPHFS_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
 
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
