@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	appsv1 "k8s.io/api/apps/v1"
@@ -290,35 +291,46 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, cephObjectStore, nil
 	}
 
-	// Detect desired CephCluster version
-	runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
-		r.opManagerContext,
-		r.opConfig.Image,
-		cephObjectStore.Namespace,
-		controllerName,
-		k8sutil.NewOwnerInfo(cephObjectStore, r.scheme),
-		r.context,
-		r.clusterSpec,
-		r.clusterInfo,
-	)
-	if err != nil {
-		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, cephObjectStore, nil
+	var desiredCephVersion cephver.CephVersion
+	if cephObjectStore.Spec.IsExternal() {
+		// Check the ceph version of the running monitors
+		desiredCephVersion, err = cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
+		if err != nil {
+			return reconcile.Result{}, nil, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
 		}
-		return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to detect running and desired ceph version")
+
+	} else {
+		// Detect desired CephCluster version
+		runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
+			r.opManagerContext,
+			r.opConfig.Image,
+			cephObjectStore.Namespace,
+			controllerName,
+			k8sutil.NewOwnerInfo(cephObjectStore, r.scheme),
+			r.context,
+			r.clusterSpec,
+			r.clusterInfo,
+		)
+		if err != nil {
+			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
+				logger.Info(opcontroller.OperatorNotInitializedMessage)
+				return opcontroller.WaitForRequeueIfOperatorNotInitialized, cephObjectStore, nil
+			}
+			return reconcile.Result{}, cephObjectStore, errors.Wrap(err, "failed to detect running and desired ceph version")
+		}
+
+		// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
+		// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
+		// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
+		if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
+			// Upgrade is in progress, let's wait for the mons to be done
+			return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+				cephObjectStore,
+				opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
+		}
 	}
 
-	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
-	// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
-	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
-	if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
-		// Upgrade is in progress, let's wait for the mons to be done
-		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
-			cephObjectStore,
-			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
-	}
-	r.clusterInfo.CephVersion = *desiredCephVersion
+	r.clusterInfo.CephVersion = desiredCephVersion
 
 	// validate the store settings
 	if err := r.validateStore(cephObjectStore); err != nil {
