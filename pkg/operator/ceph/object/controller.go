@@ -34,7 +34,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	appsv1 "k8s.io/api/apps/v1"
@@ -291,14 +290,13 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, cephObjectStore, nil
 	}
 
-	var desiredCephVersion cephver.CephVersion
 	if cephObjectStore.Spec.IsExternal() {
 		// Check the ceph version of the running monitors
-		desiredCephVersion, err = cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
+		desiredCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
 		if err != nil {
 			return reconcile.Result{}, nil, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
 		}
-
+		r.clusterInfo.CephVersion = desiredCephVersion
 	} else {
 		// Detect desired CephCluster version
 		runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
@@ -328,9 +326,8 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 				cephObjectStore,
 				opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
 		}
+		r.clusterInfo.CephVersion = *desiredCephVersion
 	}
-
-	r.clusterInfo.CephVersion = desiredCephVersion
 
 	// validate the store settings
 	if err := r.validateStore(cephObjectStore); err != nil {
