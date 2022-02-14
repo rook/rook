@@ -523,6 +523,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
 		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
 		assert.True(t, calledCommitConfigChanges)
+		assert.Equal(t, 16, r.clusterInfo.CephVersion.Major)
 	})
 }
 
