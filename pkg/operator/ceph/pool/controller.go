@@ -227,6 +227,15 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
+		deps, err := cephBlockPoolDependents(r.context, r.clusterInfo, cephBlockPool)
+		if err != nil {
+			return reconcile.Result{}, *cephBlockPool, err
+		}
+		if !deps.Empty() {
+			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephBlockPool, deps)
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephBlockPool, err
+		}
+		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephBlockPool)
 		// If the ceph block pool is still in the map, we must remove it during CR deletion
 		// We must remove it first otherwise the checker will panic since the status/info will be nil
 		r.cancelMirrorMonitoring(cephBlockPool)
@@ -235,7 +244,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		logger.Infof("deleting pool %q", cephBlockPool.Name)
 		poolSpec := cephBlockPool.Spec.ToNamedPoolSpec()
-		err := deletePool(r.context, clusterInfo, &poolSpec)
+		err = deletePool(r.context, clusterInfo, &poolSpec)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}

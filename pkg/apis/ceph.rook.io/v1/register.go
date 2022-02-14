@@ -85,6 +85,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephFilesystemMirrorList{},
 		&CephFilesystemSubVolumeGroup{},
 		&CephFilesystemSubVolumeGroupList{},
+		&CephBlockPoolRadosNamespace{},
+		&CephBlockPoolRadosNamespaceList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	scheme.AddKnownTypes(bktv1alpha1.SchemeGroupVersion,
