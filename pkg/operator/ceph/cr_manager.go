@@ -44,6 +44,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/zone"
 	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	"github.com/rook/rook/pkg/operator/ceph/pool/radosnamespace"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
@@ -108,6 +109,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	topic.Add,
 	notification.Add,
 	subvolumegroup.Add,
+	radosnamespace.Add,
 }
 
 // AddToManagerOpFunc is a list of functions to add all Controllers to the Manager (entrypoint for

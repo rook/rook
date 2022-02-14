@@ -168,6 +168,11 @@ spec:
         version: v1
         displayName: Ceph Filesystem SubVolumeGroup
         description: Represents a Ceph Filesystem SubVolumeGroup.
+      - kind: CephBlockPoolRadosNamespace
+        name: cephblockpoolradosnamespaces.ceph.rook.io
+        version: v1
+        displayName: Ceph BlockPool Rados Namespace
+        description: Represents a Ceph BlockPool Rados Namespace.
   displayName: Rook-Ceph
   description: |
 
