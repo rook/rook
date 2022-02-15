@@ -142,7 +142,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			// List THE existing OSD configured with ceph-volume lvm mode
 			lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, skipLVRelease, lvBackedPV)
 			if err != nil {
-				logger.Infof("failed to get device already provisioned by ceph-volume lvm. %v", err)
+				return nil, errors.Wrap(err, "failed to get device already provisioned by ceph-volume lvm")
 			}
 			osds = append(osds, lvmOsds...)
 			if len(osds) > 0 {
@@ -166,7 +166,7 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 
 				rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, metadataBlock, walBlock, lvBackedPV, false)
 				if err != nil {
-					logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
+					return nil, errors.Wrap(err, "failed to get device already provisioned by ceph-volume raw")
 				}
 				osds = append(osds, rawOsds...)
 			}
@@ -176,14 +176,14 @@ func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *Device
 			// List existing OSD(s) configured with ceph-volume lvm mode
 			lvmOsds, err = GetCephVolumeLVMOSDs(context, a.clusterInfo, a.clusterInfo.FSID, lvPath, false, false)
 			if err != nil {
-				logger.Infof("failed to get devices already provisioned by ceph-volume. %v", err)
+				return nil, errors.Wrap(err, "failed to get devices already provisioned by ceph-volume")
 			}
 			osds = append(osds, lvmOsds...)
 
 			// List existing OSD(s) configured with ceph-volume raw mode
 			rawOsds, err = GetCephVolumeRawOSDs(context, a.clusterInfo, a.clusterInfo.FSID, block, "", "", false, false)
 			if err != nil {
-				logger.Infof("failed to get device already provisioned by ceph-volume raw. %v", err)
+				return nil, errors.Wrap(err, "failed to get device already provisioned by ceph-volume raw")
 			}
 			osds = appendOSDInfo(osds, rawOsds)
 		}
