@@ -30,6 +30,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	httpServerName      = "sample-http-server"
+	httpServerNameSpace = "default"
+	httpServerPort      = "8080"
+	httpEndpointService = "http://" + httpServerName + "." + httpServerNameSpace + ":" + httpServerPort
+	putEvent            = "ObjectCreated:Put"
+	deleteEvent         = "ObjectRemoved:Delete"
+)
+
 func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("bucket notification tests skipped on openshift")
@@ -50,8 +59,14 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 
 	notificationName := "my-notification"
 	topicName := "my-topic"
-	httpEndpointService := "my-notification-sink"
+	appLabel := "app=" + httpServerName
+
 	logger.Infof("Testing Bucket Notifications on %s", storeName)
+
+	t.Run("create HTTP Endpoint for receiving notifications", func(t *testing.T) {
+		err := helper.TopicClient.CreateHTTPServer(httpServerName, httpServerNameSpace, httpServerPort)
+		assert.Nil(t, err)
+	})
 
 	t.Run("create CephBucketTopic", func(t *testing.T) {
 		err := helper.TopicClient.CreateTopic(topicName, storeName, httpEndpointService)
@@ -101,6 +116,52 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 		assert.NotEqual(t, 4, i)
 		assert.Equal(t, bucketname, bkt.Name)
 		logger.Info("OBC, Secret and ConfigMap created")
+	})
+
+	t.Run("perform s3 operations and check for notifications", func(t *testing.T) {
+		var s3client *rgw.S3Agent
+		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
+		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
+		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
+		if objectStore.Spec.IsTLSEnabled() {
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
+		} else {
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
+		}
+
+		assert.Nil(t, err)
+		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
+
+		t.Run("put object", func(t *testing.T) {
+			_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey1, contentType)
+			assert.Nil(t, err)
+		})
+
+		t.Run("check for put bucket notification", func(t *testing.T) {
+			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey1)
+			assert.True(t, notificationReceived)
+			assert.Nil(t, err)
+			// negative test case to confirm didn't receive any delete event notification
+			notificationReceived, err = helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey1)
+			assert.False(t, notificationReceived)
+			assert.Nil(t, err)
+		})
+
+		t.Run("delete objects", func(t *testing.T) {
+			_, err := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
+			assert.Nil(t, err)
+		})
+
+		t.Run("check for delete bucket notification", func(t *testing.T) {
+			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey1)
+			assert.True(t, notificationReceived)
+			assert.Nil(t, err)
+			// negative test case to confirm didn't receive any put event notification
+			notificationReceived, err = helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey1)
+			assert.False(t, notificationReceived)
+			assert.Nil(t, err)
+		})
+
 	})
 
 	t.Run("check CephBucketNotification created for bucket", func(t *testing.T) {
@@ -159,6 +220,45 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 			time.Sleep(5 * time.Second)
 		}
 		assert.False(t, notificationPresent)
+	})
+
+	t.Run("perform s3 operations and confirm notifications are no longer received", func(t *testing.T) {
+		var s3client *rgw.S3Agent
+		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
+		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
+		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
+		if objectStore.Spec.IsTLSEnabled() {
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
+		} else {
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
+		}
+
+		assert.Nil(t, err)
+		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
+
+		t.Run("put object", func(t *testing.T) {
+			_, err := s3client.PutObjectInBucket(bucketname, ObjBody, ObjectKey2, contentType)
+			assert.Nil(t, err)
+		})
+
+		t.Run("check for put bucket notification", func(t *testing.T) {
+			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, putEvent, ObjectKey2)
+			assert.False(t, notificationReceived)
+			assert.Nil(t, err)
+		})
+
+		t.Run("delete objects", func(t *testing.T) {
+			_, err := s3client.DeleteObjectInBucket(bucketname, ObjectKey1)
+			assert.Nil(t, err)
+		})
+
+		t.Run("check for delete bucket notification", func(t *testing.T) {
+			notificationReceived, err := helper.NotificationClient.CheckNotificationFromHTTPEndPoint(appLabel, deleteEvent, ObjectKey2)
+			assert.False(t, notificationReceived)
+			assert.Nil(t, err)
+
+		})
+
 	})
 
 	t.Run("add topic, notification to existing OBC", func(t *testing.T) {

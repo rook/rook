@@ -17,6 +17,9 @@ limitations under the License.
 package clients
 
 import (
+	"strings"
+	"time"
+
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
@@ -55,4 +58,18 @@ func (t *NotificationOperation) CheckNotificationCR(notificationName string) boo
 	}
 
 	return true
+}
+
+func (t *NotificationOperation) CheckNotificationFromHTTPEndPoint(appLabel, eventName, fileName string) (bool, error) {
+	// wait for the notification to reach http-server
+	time.Sleep(5 * time.Second)
+	selectorName := "--selector=" + appLabel
+	l, err := t.k8sh.Kubectl("logs", selectorName, "--tail", "5")
+	if err != nil {
+		return false, err
+	}
+	if strings.Contains(l, eventName) && strings.Contains(l, fileName) {
+		return true, nil
+	}
+	return false, nil
 }
