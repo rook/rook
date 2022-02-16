@@ -53,13 +53,13 @@ var (
 	ObjectKey4             = "rookObj4"
 	contentType            = "plain/text"
 	obcName                = "smoke-delete-bucket"
-	region                 = "us-east-1"
 	maxObject              = "2"
 	newMaxObject           = "3"
 	bucketStorageClassName = "rook-smoke-delete-bucket"
 	maxBucket              = 1
 	maxSize                = "100000"
 	userCap                = "read"
+	userBucket             = "user-bkt"
 )
 
 // Test Object StoreCreation on Rook that was installed via helm

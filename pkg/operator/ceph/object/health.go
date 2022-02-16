@@ -165,7 +165,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 	// Initiate s3 agent
 	logger.Debugf("initializing s3 connection for object store %q", c.namespacedName.Name)
-	s3client, err := NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", false)
+	s3client, err := NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, c.objContext.ZoneGroup, false)
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize s3 connection")
 	}

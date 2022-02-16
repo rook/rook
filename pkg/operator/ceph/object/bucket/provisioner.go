@@ -337,13 +337,13 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	}
 
 	p.setObjectStoreName(sc)
-	p.setRegion(sc)
 	p.setAdditionalConfigData(obc.Spec.AdditionalConfig)
 	p.setEndpoint(sc)
 	err = p.setObjectContext()
 	if err != nil {
 		return err
 	}
+	p.setRegion(sc)
 
 	// If an endpoint is declared let's use it
 	err = p.populateDomainAndPort(sc)
@@ -513,7 +513,13 @@ func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
 
 func (p *Provisioner) setRegion(sc *storagev1.StorageClass) {
 	const key = "region"
-	p.region = sc.Parameters[key]
+	if len(sc.Parameters[key]) > 0 {
+		p.region = sc.Parameters[key]
+	} else {
+		// If user does not define, then set region to Zonegroup, since RGW internally maps
+		// aws region to ZoneGroup
+		p.region = p.objectContext.ZoneGroup
+	}
 }
 
 func (p Provisioner) getObjectStoreEndpoint() string {

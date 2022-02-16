@@ -163,8 +163,13 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 	ctx := context.TODO()
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()
+	context := k8sh.MakeContext()
+	objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	rgwcontext, err := rgw.NewMultisiteContext(context, clusterInfo, objectStore)
+	assert.Nil(t, err)
+	logger.Infof("Testing Object Store Operations on %s", storeName)
 
-	logger.Infof("Testing Object Operations on %s", storeName)
 	t.Run("create CephObjectStoreUser", func(t *testing.T) {
 		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true, true)
 		i := 0
@@ -178,14 +183,44 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		assert.NotEqual(t, 4, i)
 	})
 
-	context := k8sh.MakeContext()
-	objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	rgwcontext, err := rgw.NewMultisiteContext(context, clusterInfo, objectStore)
-	assert.Nil(t, err)
+	t.Run("S3 access for Ceph Object Store User", func(t *testing.T) {
+		var s3client *rgw.S3Agent
+		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
+		s3AccessKey, _ := helper.ObjectUserClient.GetAccessKey(namespace, storeName, userid)
+		s3SecretKey, _ := helper.ObjectUserClient.GetSecretKey(namespace, storeName, userid)
+		if objectStore.Spec.IsTLSEnabled() {
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, storeName, true)
+		} else {
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, storeName, true, nil)
+		}
+
+		assert.Nil(t, err)
+		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
+
+		t.Run("create bucket", func(t *testing.T) {
+			err = s3client.CreateBucket(userBucket)
+			assert.Nil(t, err)
+		})
+
+		t.Run("delete bucket", func(t *testing.T) {
+			_, err = s3client.DeleteBucket(userBucket)
+			assert.Nil(t, err)
+		})
+
+		t.Run("create bucket with invalid region", func(t *testing.T) {
+			if objectStore.Spec.IsTLSEnabled() {
+				s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "invalid-region", true)
+			} else {
+				s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "invalid-region", true, nil)
+			}
+			err = s3client.CreateBucket(userBucket)
+			assert.Error(t, err)
+		})
+	})
+
 	t.Run("create ObjectBucketClaim", func(t *testing.T) {
 		logger.Infof("create OBC %q with storageclass %q - using reclaim policy 'delete' so buckets don't block deletion", obcName, bucketStorageClassName)
-		cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
+		cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", storeName)
 		assert.Nil(t, cobErr)
 		cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 		assert.Nil(t, cobcErr)
@@ -219,9 +254,9 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
 		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, storeName, true)
 		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, storeName, true, nil)
 		}
 
 		assert.Nil(t, err)
@@ -269,6 +304,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 			assert.Nil(t, delobjErr)
 			logger.Info("Objects deleted on bucket successfully")
 		})
+
 	})
 
 	t.Run("Regression check: OBC does not revert to Pending phase", func(t *testing.T) {
@@ -342,7 +378,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		assert.NotEqual(t, 4, i)
 		assert.Equal(t, rgwErr, rgw.RGWErrorNotFound)
 
-		dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
+		dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", storeName)
 		assert.Nil(t, dobErr)
 	})
 

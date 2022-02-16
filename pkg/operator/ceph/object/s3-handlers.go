@@ -45,11 +45,6 @@ func NewInsecureS3Agent(accessKey, secretKey, endpoint, region string, debug boo
 }
 
 func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
-	var cephRegion = "us-east-1"
-	if region != "" {
-		cephRegion = region
-	}
-
 	logLevel := aws.LogOff
 	if debug {
 		logLevel = aws.LogDebug
@@ -64,7 +59,7 @@ func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCe
 	}
 	session, err := awssession.NewSession(
 		aws.NewConfig().
-			WithRegion(cephRegion).
+			WithRegion(region).
 			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
 			WithEndpoint(endpoint).
 			WithS3ForcePathStyle(true).

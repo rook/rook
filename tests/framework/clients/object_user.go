@@ -18,6 +18,7 @@ package clients
 
 import (
 	"context"
+	b64 "encoding/base64"
 	"fmt"
 	"strings"
 
@@ -33,6 +34,11 @@ type ObjectUserOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests
 }
+
+var (
+	// #nosec G101 since this is not leaking any hardcoded credentials, it's just prefix for the secret name
+	objectStoreUserSecretPrefix = "rook-ceph-object-user-"
+)
 
 // CreateObjectUserOperation creates new rook object user client
 func CreateObjectUserOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *ObjectUserOperation {
@@ -90,4 +96,27 @@ func (o *ObjectUserOperation) Delete(namespace string, userid string) error {
 		return err
 	}
 	return nil
+}
+
+// Fetch SecretKey, AccessKey for s3 client.
+func (o *ObjectUserOperation) GetAccessKey(namespace, store, userid string) (string, error) {
+	SecretName := objectStoreUserSecretPrefix + store + "-" + userid
+	args := []string{"-n", namespace, "get", "secret", SecretName, "-o", "jsonpath={@.data.AccessKey}"}
+	AccessKey, err := o.k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to find access key -- %s", err)
+	}
+	decode, _ := b64.StdEncoding.DecodeString(AccessKey)
+	return string(decode), nil
+}
+
+func (o *ObjectUserOperation) GetSecretKey(namespace, store, userid string) (string, error) {
+	SecretName := objectStoreUserSecretPrefix + store + "-" + userid
+	args := []string{"-n", namespace, "get", "secret", SecretName, "-o", "jsonpath={@.data.SecretKey}"}
+	SecretKey, err := o.k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to find secret key-- %s", err)
+	}
+	decode, _ := b64.StdEncoding.DecodeString(SecretKey)
+	return string(decode), nil
 }
