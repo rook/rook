@@ -565,7 +565,7 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 			c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey], "/data")
 	case kms.VaultTransitSecretEngineKey:
 		if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/transit")
+			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine)
 		} else {
 			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/export/encryption-key")
 		}
