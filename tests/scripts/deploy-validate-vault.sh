@@ -122,9 +122,10 @@ function deploy_vault {
   # Configure Vault
   ROOT_TOKEN=$(jq -r '.root_token' "$VAULT_INIT_TEMP_DIR")
   kubectl exec -it vault-0 -- vault login -ca-cert /vault/userconfig/vault-server-tls/vault.crt "$ROOT_TOKEN"
-  #enable kv engine v1 for osd and v2 for rgw encryption respectively in different path
+  #enable kv engine v1 for osd and v2,transit for rgw encryption respectively in different path
   kubectl exec -ti vault-0 -- vault secrets enable -ca-cert /vault/userconfig/vault-server-tls/vault.crt -path=rook/ver1 kv
   kubectl exec -ti vault-0 -- vault secrets enable -ca-cert /vault/userconfig/vault-server-tls/vault.crt -path=rook/ver2 kv-v2
+  kubectl exec -ti vault-0 -- vault secrets enable -ca-cert /vault/userconfig/vault-server-tls/vault.crt transit
   kubectl exec -ti vault-0 -- vault kv list -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver1 || true # failure is expected
   kubectl exec -ti vault-0 -- vault kv list -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver2 || true # failure is expected
 
@@ -135,6 +136,22 @@ function deploy_vault {
   }
   path "sys/mounts" {
   capabilities = ["read"]
+  }
+  path "transit/keys/*" {
+    capabilities = [ "create", "update" ]
+    denied_parameters = {"exportable" = [], "allow_plaintext_backup" = [] }
+  }
+  path "transit/keys/*" {
+    capabilities = ["read", "delete"]
+  }
+  path "transit/keys/" {
+    capabilities = ["list"]
+  }
+  path "transit/keys/+/rotate" {
+    capabilities = [ "update" ]
+  }
+  path "transit/*" {
+    capabilities = [ "update" ]
   }'| kubectl exec -i vault-0 -- vault policy write -ca-cert /vault/userconfig/vault-server-tls/vault.crt "$VAULT_POLICY_NAME" -
 
   # Configure Kubernetes auth
@@ -150,9 +167,6 @@ function deploy_vault {
 }
 
 function validate_rgw_token {
-  # Create secret for RGW server in kv engine
-  ENCRYPTION_KEY=$(openssl rand -base64 32)
-  kubectl exec vault-0 -- vault kv put -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver2/"$RGW_BUCKET_KEY" key="$ENCRYPTION_KEY"
   RGW_POD=$(kubectl -n rook-ceph get pods -l app=rook-ceph-rgw | awk 'FNR == 2 {print $1}')
   RGW_TOKEN_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-token-file" | cut -f2- -d=)
   VAULT_PATH_PREFIX=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-prefix" | cut -f2- -d=)
@@ -160,13 +174,28 @@ function validate_rgw_token {
   VAULT_CACERT_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-ssl-cacert" | cut -f2- -d=)
   VAULT_CLIENT_CERT_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-ssl-clientcert" | cut -f2- -d=)
   VAULT_CLIENT_KEY_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-ssl-clientkey" | cut -f2- -d=)
+  VAULT_SECRET_ENGINE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-secret-engine" | cut -f2- -d=)
 
+  if [[ "$VAULT_SECRET_ENGINE" == "kv" ]]; then
+    # Create secret for RGW server in kv engine
+    ENCRYPTION_KEY=$(openssl rand -base64 32)
+    kubectl exec vault-0 -- vault kv put -ca-cert /vault/userconfig/vault-server-tls/vault.crt rook/ver2/"$RGW_BUCKET_KEY" key="$ENCRYPTION_KEY"
+    #fetch key from vault server using token from RGW pod
+    FETCHED_KEY=$(kubectl -n rook-ceph exec $RGW_POD -- curl --key "$VAULT_CLIENT_KEY_FILE" --cert "$VAULT_CLIENT_CERT_FILE" --cacert "$VAULT_CACERT_FILE" -X GET -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_SERVER""$VAULT_PATH_PREFIX"/"$RGW_BUCKET_KEY"|jq -r .data.data.key)
+      if [[ "$ENCRYPTION_KEY" != "$FETCHED_KEY" ]]; then
+        echo "The set key $ENCRYPTION_KEY is different from fetched key $FETCHED_KEY"
+        exit 1
+      fi
+  elif [[ "$VAULT_SECRET_ENGINE" == "transit" ]]; then
+    # Create secret for RGW server in transit engine
+    kubectl exec vault-0 -- vault write -ca-cert /vault/userconfig/vault-server-tls/vault.crt -f transit/keys/"$RGW_BUCKET_KEY"
+    # check key exists via curl from RGW pod using credentials
+    HTTP_STATUS=$(kubectl -n rook-ceph exec $RGW_POD -- curl -s -o /dev/null -w "%{http_code}" --key "$VAULT_CLIENT_KEY_FILE" --cert "$VAULT_CLIENT_CERT_FILE" --cacert "$VAULT_CACERT_FILE" -X PUT -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_SERVER""$VAULT_PATH_PREFIX"/datakey/plaintext/"$RGW_BUCKET_KEY")
+      if [ "$HTTP_STATUS" -ne 200 ] ; then
+        echo "The http status code $HTTP_STATUS is different from 200"
+        exit 1
+      fi
 
-  #fetch key from vault server using token from RGW pod, P.S using -k for curl since custom ssl certs not yet to support in RGW
-  FETCHED_KEY=$(kubectl -n rook-ceph exec $RGW_POD -- curl --key "$VAULT_CLIENT_KEY_FILE" --cert "$VAULT_CLIENT_CERT_FILE" --cacert "$VAULT_CACERT_FILE" -X GET -H "X-Vault-Token:$VAULT_TOKEN" "$VAULT_SERVER""$VAULT_PATH_PREFIX"/"$RGW_BUCKET_KEY"|jq -r .data.data.key)
-  if [[ "$ENCRYPTION_KEY" != "$FETCHED_KEY" ]]; then
-    echo "The set key $ENCRYPTION_KEY is different from fetched key $FETCHED_KEY"
-    exit 1
   fi
 }
 
