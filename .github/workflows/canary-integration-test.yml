@@ -105,6 +105,27 @@ jobs:
         kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace
         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage --restricted-auth-permission true
 
+    - name: test the upgrade flag
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # print existing client auth
+        kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+        # update the existing non-restricted client auth with the new ones
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
+        # print ugraded client auth
+        kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+
+    - name: test the upgrade flag for restricted auth user
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # print existing client auth
+        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookStorage-replicapool-radosNamespace
+        # restricted auth user need to provide --rbd-data-pool-name, --rados-namespace,
+        #  --cluster-name and --run-as-user flag while upgrading
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool-radosNamespace
+        # print ugraded client auth
+        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookStorage-replicapool-radosNamespace    
+
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
 
