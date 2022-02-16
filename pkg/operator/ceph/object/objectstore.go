@@ -195,6 +195,15 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 // This is used for quickly getting the name of the realm, zone group, and zone for an object-store to pass into a Context
 func getMultisiteForObjectStore(clusterdContext *clusterd.Context, spec *cephv1.ObjectStoreSpec, namespace, name string) (string, string, string, error) {
 	ctx := context.TODO()
+
+	if spec.IsExternal() {
+		// Currently external cluster with zones/zonegroup/realm are not supported, will be
+		// fixed by https://github.com/rook/rook/issues/6342. So if user does not create
+		// zone/zonegroup, RGW internally creates zone/zonegroup named as `default`, hence
+		// Rook can set this value in the object context fields.
+		return "", "default", "default", nil
+	}
+
 	if spec.IsMultisite() {
 		zone, err := clusterdContext.RookClientset.CephV1().CephObjectZones(namespace).Get(ctx, spec.Zone.Name, metav1.GetOptions{})
 		if err != nil {
