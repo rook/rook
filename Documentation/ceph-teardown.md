@@ -92,34 +92,44 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 
 ### Zapping Devices
 
-Disks on nodes used by Rook for osds can be reset to a usable state with the following methods:
+Disks on nodes used by Rook for osds can be reset to a usable state with methods suggested below.
+Note that these scripts are not one-size-fits-all. Please use them with discretion to ensure you are
+not removing data unrelated to Rook and/or Ceph.
 
-```console
-#!/usr/bin/env bash
-DISK="/dev/sdb"
+Disks can be zapped fairly easily. A single disk can usually be cleared with some or all of the
+steps below.
+
+```sh
+DISK="/dev/sdX"
 
 # Zap the disk to a fresh, usable state (zap-all is important, b/c MBR has to be clean)
-
-# You will have to run this step for all disks.
 sgdisk --zap-all $DISK
 
-# Clean hdds with dd
+# Wipe a large portion of the beginning of the disk to remove more LVM metadata that may be present
 dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
 
-# Clean disks such as ssd with blkdiscard instead of dd
+# SSDs may be better cleaned with blkdiscard instead of dd
 blkdiscard $DISK
 
-# These steps only have to be run once on each node
-# If rook sets up osds using ceph-volume, teardown leaves some devices mapped that lock the disks.
+# Inform the OS of partition table changes
+partprobe $DISK
+```
+
+Ceph can leave LVM and device mapper data that can lock the disks, preventing the disks from being
+used again. These steps can help to free up old Ceph disks for re-use. Note that this only needs to
+be run once on each node and assumes that **all** Ceph disks are being wiped. If only some disks are
+being wiped, you will have to manually determine which disks map to which device mapper devices.
+
+```sh
+# This command hangs on some systems: with caution, 'demsetup remove_all --force' can be used
 ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
 
 # ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
 rm -rf /dev/ceph-*
 rm -rf /dev/mapper/ceph--*
-
-# Inform the OS of partition table changes
-partprobe $DISK
 ```
+
+If disks are still reported locked, rebooting the node often helps clear LVM-related holds on disks.
 
 ## Troubleshooting
 
