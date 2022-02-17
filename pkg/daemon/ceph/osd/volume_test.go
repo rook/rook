@@ -448,7 +448,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			if command == "sgdisk" {
 				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
 			}
-			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" && args[6] == mapperDev {
+			if args[1] == "ceph-volume" && args[4] == "lvm" && args[5] == "list" {
 				return `{}`, nil
 			}
 			if args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "list" && args[6] == mountedDev {
