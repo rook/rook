@@ -248,8 +248,8 @@ jobs:
         if: always()
         run: |
           export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade-ns"
-          export OPERATOR_NAMESPACE="upgrade-ns-system"
+          export CLUSTER_NAMESPACE="upgrade"
+          export OPERATOR_NAMESPACE="upgrade-system"
           tests/scripts/collect-logs.sh
 
       - name: Artifact
@@ -282,8 +282,8 @@ jobs:
         if: always()
         run: |
           export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade-ns"
-          export OPERATOR_NAMESPACE="upgrade-ns-system"
+          export CLUSTER_NAMESPACE="upgrade"
+          export OPERATOR_NAMESPACE="upgrade-system"
           tests/scripts/collect-logs.sh
 
       - name: Artifact
