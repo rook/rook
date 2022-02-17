@@ -41,7 +41,7 @@ try:
     import rbd
 except ModuleNotFoundError as noModErr:
     print("Error: %s\nExiting the script..." % noModErr)
-    sys.exit(1)    
+    sys.exit(1)
 
 try:
     # for 2.7.x
@@ -56,6 +56,7 @@ try:
 except ModuleNotFoundError:
     # for 3.x
     from urllib.parse import urlparse
+
 
 class ExecutionFailureException(Exception):
     pass
@@ -179,10 +180,10 @@ class RadosJSON:
         common_group.add_argument("--rgw-pool-prefix", default="",
                                   help="RGW Pool prefix")
         common_group.add_argument("--restricted-auth-permission", default=False,
-                                  help="Restricted cephCSIKeyrings auth permissions to specific pools, cluster and pool namespaces."+
-                                  "Mandatory flags that need to be set are --rbd-data-pool-name, --rados-namespace and --cluster-name."+
-                                  "--cephfs-filesystem-name flag can also be passed in case of cephfs user restriction, so it can restrict user to particular cephfs filesystem"+
-                                  "sample run: `python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage --restricted-auth-permission true`"+
+                                  help="Restricted cephCSIKeyrings auth permissions to specific pools, cluster and pool namespaces." +
+                                  "Mandatory flags that need to be set are --rbd-data-pool-name, --rados-namespace and --cluster-name." +
+                                  "--cephfs-filesystem-name flag can also be passed in case of cephfs user restriction, so it can restrict user to particular cephfs filesystem" +
+                                  "sample run: `python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage --restricted-auth-permission true`" +
                                   "Note: Restricting the users per pool, per cluster and per pool namespace will require to create new users and new secrets for that users.")
 
         output_group = argP.add_argument_group('output')
@@ -212,7 +213,7 @@ class RadosJSON:
                                   help="Provides the name of erasure coded RBD metadata pool")
         output_group.add_argument("--dry-run", default=False, action='store_true',
                                   help="Dry run prints the executed commands without running them")
-        output_group.add_argument("--rados-namespace",default="", required=False,
+        output_group.add_argument("--rados-namespace", default="", required=False,
                                   help="divides a pool into separate logical namespaces")
 
         upgrade_group = argP.add_argument_group('upgrade')
@@ -220,10 +221,10 @@ class RadosJSON:
                                    help="Upgrades the 'csi-user'(For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied." +
                                    "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade`, this will upgrade all the default csi users(non-restricted)" +
                                    "For restricted users(For example: client.csi-cephfs-provisioner-openshift-storage-myfs), users created using --restricted-auth-permission flag need to pass mandatory flags" +
-                                   "mandatory flags: '--rbd-data-pool-name, --rados-namespace, --cluster-name and --run-as-user' flags while upgrading"+
-                                   "in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating user then while upgrading it will be mandatory too"+
-                                   "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool-radosNamespace`"+
-                                   "PS: An existing non-restricted user cannot be downgraded to a restricted user by upgrading. Admin need to create a new restricted user for this by re-running the script."+
+                                   "mandatory flags: '--rbd-data-pool-name, --rados-namespace, --cluster-name and --run-as-user' flags while upgrading" +
+                                   "in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating user then while upgrading it will be mandatory too" +
+                                   "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool-radosNamespace`" +
+                                   "PS: An existing non-restricted user cannot be downgraded to a restricted user by upgrading. Admin need to create a new restricted user for this by re-running the script." +
                                    "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access")
 
         if args_to_parse:
@@ -519,14 +520,14 @@ class RadosJSON:
         all_mgr_ips_str = ",".join(mgr_ips)
         return all_mgr_ips_str, monitoring_endpoint_port
 
-    def check_user_exist(self,user):
+    def check_user_exist(self, user):
         cmd_json = {"prefix": "auth get", "entity": "{}".format(
             user), "format": "json"}
         ret_val, json_out, _ = self._common_cmd_json_gen(cmd_json)
         if ret_val != 0 or len(json_out) == 0:
             return ""
         return str(json_out[0]['key'])
-    
+
     def get_cephfs_provisioner_caps_and_entity(self):
         entity = "client.csi-cephfs-provisioner"
         caps = {"mon": "allow r, allow command 'osd blocklist'",
@@ -539,13 +540,15 @@ class RadosJSON:
                     "cluster_name not found, please set the '--cluster-name' flag")
             cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
             if cephfs_filesystem == "":
-                entity = "{}-{}".format(entity,cluster_name)
+                entity = "{}-{}".format(entity, cluster_name)
             else:
-                entity = "{}-{}-{}".format(entity,cluster_name,cephfs_filesystem)
-                caps["osd"] = "allow rw tag cephfs metadata={}".format(cephfs_filesystem)
-        
-        return caps,entity
-    
+                entity = "{}-{}-{}".format(entity,
+                                           cluster_name, cephfs_filesystem)
+                caps["osd"] = "allow rw tag cephfs metadata={}".format(
+                    cephfs_filesystem)
+
+        return caps, entity
+
     def get_cephfs_node_caps_and_entity(self):
         entity = "client.csi-cephfs-node"
         caps = {"mon": "allow r, allow command 'osd blocklist'",
@@ -559,13 +562,15 @@ class RadosJSON:
                     "cluster_name not found, please set the '--cluster-name' flag")
             cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
             if cephfs_filesystem == "":
-                entity = "{}-{}".format(entity,cluster_name)
+                entity = "{}-{}".format(entity, cluster_name)
             else:
-                entity = "{}-{}-{}".format(entity,cluster_name,cephfs_filesystem)
-                caps["osd"] = "allow rw tag cephfs data={}".format(cephfs_filesystem)
-            
-        return caps,entity    
-    
+                entity = "{}-{}-{}".format(entity,
+                                           cluster_name, cephfs_filesystem)
+                caps["osd"] = "allow rw tag cephfs data={}".format(
+                    cephfs_filesystem)
+
+        return caps, entity
+
     def get_rbd_provisioner_caps_and_entity(self):
         entity = "client.csi-rbd-provisioner"
         caps = {"mon": "profile rbd, allow command 'osd blocklist'",
@@ -578,11 +583,12 @@ class RadosJSON:
             if rbd_pool_name == "" or cluster_name == "" or rados_namespace == "":
                 raise ExecutionFailureException(
                     "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' and --rados-namespace flags")
-            entity = "{}-{}-{}-{}".format(entity,cluster_name,rbd_pool_name,rados_namespace)
+            entity = "{}-{}-{}-{}".format(entity, cluster_name,
+                                          rbd_pool_name, rados_namespace)
             caps["osd"] = "profile rbd pool={}".format(rbd_pool_name)
-        
-        return caps,entity    
-    
+
+        return caps, entity
+
     def get_rbd_node_caps_and_entity(self):
         entity = "client.csi-rbd-node"
         caps = {"mon": "profile rbd, allow command 'osd blocklist'",
@@ -594,11 +600,12 @@ class RadosJSON:
             if rbd_pool_name == "" or cluster_name == "" or rados_namespace == "":
                 raise ExecutionFailureException(
                     "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' and --rados-namespace flags")
-            entity = "{}-{}-{}-{}".format(entity,cluster_name,rbd_pool_name,rados_namespace)
+            entity = "{}-{}-{}-{}".format(entity, cluster_name,
+                                          rbd_pool_name, rados_namespace)
             caps["osd"] = "profile rbd pool={}".format(rbd_pool_name)
-            
-        return caps,entity
-    
+
+        return caps, entity
+
     def get_caps_and_entity(self, user_name):
         if "client.csi-cephfs-provisioner" in user_name:
             if "client.csi-cephfs-provisioner" != user_name:
@@ -615,29 +622,29 @@ class RadosJSON:
         elif "client.csi-rbd-node" in user_name:
             if "client.csi-rbd-node" != user_name:
                 self._arg_parser.restricted_auth_permission = True
-            return self.get_rbd_node_caps_and_entity()             
-        
+            return self.get_rbd_node_caps_and_entity()
+
         raise ExecutionFailureException(
-                "no user found with user_name: {} ,".format(user_name)
-                + "get_caps_and_entity command failed.\n")    
-    
-    def create_cephCSIKeyring_user(self,user):
+            "no user found with user_name: {} ,".format(user_name)
+            + "get_caps_and_entity command failed.\n")
+
+    def create_cephCSIKeyring_user(self, user):
         '''
         command: ceph auth get-or-create client.csi-cephfs-provisioner mon 'allow r' mgr 'allow rw' osd 'allow rw tag cephfs metadata=*'
         '''
         caps, entity = self.get_caps_and_entity(user)
         cmd_json = {"prefix": "auth get-or-create",
-                        "entity": entity,
-                        "caps": [cap for cap_list in list(caps.items()) for cap in cap_list],
-                        "format": "json"}
-        
+                    "entity": entity,
+                    "caps": [cap for cap_list in list(caps.items()) for cap in cap_list],
+                    "format": "json"}
+
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + cmd_json['prefix'] + " " + cmd_json['entity'] + " " + " ".join(cmd_json['caps']))
         # check if user already exist
         user_key = self.check_user_exist(entity)
         if user_key != "":
             return user_key
-        
+
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
         if ret_val != 0 or len(json_out) == 0:
@@ -812,7 +819,7 @@ class RadosJSON:
             if not self.cluster.pool_exists(pool):
                 raise ExecutionFailureException(
                     "The provided pool, '{}', does not exist".format(pool))
-    
+
     def validate_rados_namespace(self):
         rbd_pool_name = self._arg_parser.rbd_data_pool_name
         rados_namespace = self._arg_parser.rados_namespace
@@ -821,10 +828,10 @@ class RadosJSON:
         rbd_inst = rbd.RBD()
         ioctx = self.cluster.open_ioctx(rbd_pool_name)
         if rbd_inst.namespace_exists(ioctx, rados_namespace) == False:
-           raise ExecutionFailureException(
-                    ("The provided rados Namespace, '{}', is not found in the pool '{}'").format(
-                        rados_namespace,rbd_pool_name))
-    
+            raise ExecutionFailureException(
+                ("The provided rados Namespace, '{}', is not found in the pool '{}'").format(
+                    rados_namespace, rbd_pool_name))
+
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -839,8 +846,10 @@ class RadosJSON:
         self.out_map['ROOK_EXTERNAL_CEPH_MON_DATA'] = self.get_ceph_external_mon_data()
         self.out_map['ROOK_EXTERNAL_USER_SECRET'] = self.create_checkerKey()
         self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK'] = self.get_ceph_dashboard_link()
-        self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_user("client.csi-rbd-node")
-        self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user("client.csi-rbd-provisioner")
+        self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_user(
+            "client.csi-rbd-node")
+        self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user(
+            "client.csi-rbd-provisioner")
         self.out_map['CEPHFS_POOL_NAME'] = self._arg_parser.cephfs_data_pool_name
         self.out_map['CEPHFS_METADATA_POOL_NAME'] = self._arg_parser.cephfs_metadata_pool_name
         self.out_map['CEPHFS_FS_NAME'] = self._arg_parser.cephfs_filesystem_name
@@ -850,8 +859,10 @@ class RadosJSON:
         self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = ''
         # create CephFS node and provisioner keyring only when MDS exists
         if self.out_map['CEPHFS_FS_NAME'] and self.out_map['CEPHFS_POOL_NAME']:
-            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_user("client.csi-cephfs-node")
-            self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
+            self.out_map['CSI_CEPHFS_NODE_SECRET'] = self.create_cephCSIKeyring_user(
+                "client.csi-cephfs-node")
+            self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user(
+                "client.csi-cephfs-provisioner")
         self.out_map['RGW_ENDPOINT'] = self._arg_parser.rgw_endpoint
         self.out_map['RGW_TLS_CERT'] = ''
         self.out_map['MONITORING_ENDPOINT'], \
@@ -937,30 +948,30 @@ class RadosJSON:
             cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
             rados_namespace = self._arg_parser.rados_namespace
             json_out.append({
-                "name": "rook-csi-rbd-node-{}-{}-{}".format(cluster_name,rbd_pool_name,rados_namespace),
+                "name": "rook-csi-rbd-node-{}-{}-{}".format(cluster_name, rbd_pool_name, rados_namespace),
                 "kind": "Secret",
                 "data": {
-                    "userID": 'csi-rbd-node-{}-{}-{}'.format(cluster_name,rbd_pool_name,rados_namespace),
+                    "userID": 'csi-rbd-node-{}-{}-{}'.format(cluster_name, rbd_pool_name, rados_namespace),
                     "userKey": self.out_map['CSI_RBD_NODE_SECRET_SECRET']
-                    }
+                }
             })
             # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
             if self.out_map['CSI_RBD_PROVISIONER_SECRET']:
                 json_out.append({
-                    "name": "rook-csi-rbd-provisioner-{}-{}-{}".format(cluster_name,rbd_pool_name,rados_namespace),
+                    "name": "rook-csi-rbd-provisioner-{}-{}-{}".format(cluster_name, rbd_pool_name, rados_namespace),
                     "kind": "Secret",
                     "data": {
-                        "userID": 'csi-rbd-provisioner-{}-{}-{}'.format(cluster_name,rbd_pool_name,rados_namespace),
+                        "userID": 'csi-rbd-provisioner-{}-{}-{}'.format(cluster_name, rbd_pool_name, rados_namespace),
                         "userKey": self.out_map['CSI_RBD_PROVISIONER_SECRET']
                     },
                 })
             # if 'CSI_CEPHFS_PROVISIONER_SECRET' exists, then only add 'rook-csi-cephfs-provisioner' Secret
             if self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] and cephfs_filesystem != "":
                 json_out.append({
-                    "name": "rook-csi-cephfs-provisioner-{}-{}".format(cluster_name,cephfs_filesystem),
+                    "name": "rook-csi-cephfs-provisioner-{}-{}".format(cluster_name, cephfs_filesystem),
                     "kind": "Secret",
                     "data": {
-                        "adminID": 'csi-cephfs-provisioner-{}-{}'.format(cluster_name,cephfs_filesystem),
+                        "adminID": 'csi-cephfs-provisioner-{}-{}'.format(cluster_name, cephfs_filesystem),
                         "adminKey": self.out_map['CSI_CEPHFS_PROVISIONER_SECRET']
                     },
                 })
@@ -972,14 +983,14 @@ class RadosJSON:
                         "adminID": 'csi-cephfs-provisioner-{}'.format(cluster_name),
                         "adminKey": self.out_map['CSI_CEPHFS_PROVISIONER_SECRET']
                     },
-                })    
+                })
             # if 'CSI_CEPHFS_NODE_SECRET' exists, then only add 'rook-csi-cephfs-node' Secret
             if self.out_map['CSI_CEPHFS_NODE_SECRET'] and cephfs_filesystem != "":
                 json_out.append({
-                    "name": "rook-csi-cephfs-node-{}-{}".format(cluster_name,cephfs_filesystem),
+                    "name": "rook-csi-cephfs-node-{}-{}".format(cluster_name, cephfs_filesystem),
                     "kind": "Secret",
                     "data": {
-                        "adminID": 'csi-cephfs-node-{}-{}'.format(cluster_name,cephfs_filesystem),
+                        "adminID": 'csi-cephfs-node-{}-{}'.format(cluster_name, cephfs_filesystem),
                         "adminKey": self.out_map['CSI_CEPHFS_NODE_SECRET']
                     }
                 })
@@ -991,7 +1002,7 @@ class RadosJSON:
                         "adminID": 'csi-cephfs-node-{}'.format(cluster_name),
                         "adminKey": self.out_map['CSI_CEPHFS_NODE_SECRET']
                     }
-                })    
+                })
         else:
             json_out.append({
                 "name": "rook-csi-rbd-node",
@@ -999,7 +1010,7 @@ class RadosJSON:
                 "data": {
                     "userID": 'csi-rbd-node',
                     "userKey": self.out_map['CSI_RBD_NODE_SECRET_SECRET']
-                    }
+                }
             })
             # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
             if self.out_map['CSI_RBD_PROVISIONER_SECRET']:
@@ -1086,13 +1097,14 @@ class RadosJSON:
         return json.dumps(json_out)+LINESEP
 
     def upgrade_users_permissions(self):
-        users = ["client.csi-cephfs-node","client.csi-cephfs-provisioner","client.csi-rbd-node","client.csi-rbd-provisioner"]
+        users = ["client.csi-cephfs-node", "client.csi-cephfs-provisioner",
+                 "client.csi-rbd-node", "client.csi-rbd-provisioner"]
         if self.run_as_user != "" and self.run_as_user not in users:
             users.append(self.run_as_user)
         for user in users:
             self.upgrade_user_permissions(user)
-        
-    def upgrade_user_permissions(self,user):
+
+    def upgrade_user_permissions(self, user):
         # check whether the given user exists or not
         cmd_json = {"prefix": "auth get", "entity": "{}".format(
             user), "format": "json"}
@@ -1120,11 +1132,11 @@ class RadosJSON:
                 x) for x in cur_cap_perm_list if x not in new_cap_list]
             existing_caps[eachCap] = ", ".join(new_cap_list)
             if existing_caps[eachCap]:
-               caps.append(eachCap)
-               caps.append(existing_caps[eachCap]) 
+                caps.append(eachCap)
+                caps.append(existing_caps[eachCap])
         cmd_json = {"prefix": "auth caps",
                     "entity": user,
-                    "caps": caps,   
+                    "caps": caps,
                     "format": "json"}
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         if ret_val != 0:
@@ -1166,208 +1178,3 @@ if __name__ == '__main__':
         print("Error while trying to output the data: {}".format(osErr))
     finally:
         rjObj.shutdown()
-
-
-################################################
-##################### TEST #####################
-################################################
-# inorder to test the package,
-# cd <script_directory>
-# python3 -m unittest --verbose <script_name_without_dot_py>
-class TestRadosJSON(unittest.TestCase):
-    def setUp(self):
-        print("\nI am in setup")
-        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc',
-                                '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
-        # for testing, we are using 'DummyRados' object
-        self.rjObj.cluster = DummyRados.Rados()
-
-    def tearDown(self):
-        print("\nI am tearing down the setup\n")
-        self.rjObj.shutdown()
-
-    def test_method_main_output(self):
-        print("JSON Output")
-        self.rjObj._arg_parser.format = "json"
-        self.rjObj.main()
-        print("\n\nShell Output")
-        self.rjObj._arg_parser.format = "bash"
-        self.rjObj.main()
-        print("\n\nNon compatible output (--abcd)")
-        try:
-            self.rjObj._arg_parser.format = 'abcd'
-            self.rjObj.main()
-            self.fail("Function should have thrown an Exception")
-        except ExecutionFailureException as err:
-            print("Exception thrown successfully: {}".format(err))
-
-    def test_method_create_cephCSIKeyring_cephFSProvisioner(self):
-        csiKeyring = self.rjObj.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
-        print("cephCSIKeyring without restricting it to a metadata pool. {}".format(csiKeyring))
-        self.rjObj._arg_parser.restricted_auth_permission = True
-        self.rjObj._arg_parser.cluster_name = "openshift-storage"
-        csiKeyring = self.rjObj.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
-        print("cephCSIKeyring for a specific cluster. {}".format(csiKeyring))
-        self.rjObj._arg_parser.cephfs_filesystem_name = "myfs"
-        csiKeyring = self.rjObj.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
-        print("cephCSIKeyring for a specific metadata pool and cluster. {}".format(csiKeyring))
-
-    def test_non_zero_return_and_error(self):
-        self.rjObj.cluster.return_val = 1
-        self.rjObj.cluster.err_message = "Dummy Error"
-        try:
-            self.rjObj.create_checkerKey()
-            self.fail("Failed to raise an exception, 'ExecutionFailureException'")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error.\nError: {}".format(err))
-
-    def test_multi_filesystem_scenario(self):
-        cmd_key = self.rjObj.cluster.cmd_names['fs ls']
-        cmd_out = self.rjObj.cluster.cmd_output_map[cmd_key]
-        cmd_json_out = json.loads(cmd_out)
-        second_fs_details = dict(cmd_json_out[0])
-        second_fs_details['name'] += '-2'
-        cmd_json_out.append(second_fs_details)
-        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
-        # multiple filesystem present,
-        # but no specific '--cephfs-filesystem-name' argument provided
-        try:
-            self.rjObj.get_cephfs_data_pool_details()
-            print("As we are returning silently, no error thrown as expected")
-        except ExecutionFailureException as err:
-            self.fail(
-                "Supposed to get returned silently, but instead error thrown: {}".format(err))
-        # pass an existing filesystem name
-        try:
-            self.rjObj._arg_parser.cephfs_filesystem_name = second_fs_details['name']
-            self.rjObj.get_cephfs_data_pool_details()
-        except ExecutionFailureException as err:
-            self.fail("Should not have thrown error: {}".format(err))
-        # pass a non-existing filesystem name
-        try:
-            self.rjObj._arg_parser.cephfs_filesystem_name += "-non-existing-fs-name"
-            self.rjObj.get_cephfs_data_pool_details()
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        # empty file-system array
-        try:
-            self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps([])
-            self.rjObj.get_cephfs_data_pool_details()
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-
-    def test_multi_data_pool_scenario(self):
-        cmd_key = self.rjObj.cluster.cmd_names['fs ls']
-        cmd_out = self.rjObj.cluster.cmd_output_map[cmd_key]
-        cmd_json_out = json.loads(cmd_out)
-        first_fs_details = cmd_json_out[0]
-        new_data_pool_name = 'myfs-data1'
-        first_fs_details['data_pools'].append(new_data_pool_name)
-        print("Modified JSON Cmd Out: {}".format(cmd_json_out))
-        self.rjObj._arg_parser.cephfs_data_pool_name = new_data_pool_name
-        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
-        self.rjObj.get_cephfs_data_pool_details()
-        # use a non-existing data-pool-name
-        bad_data_pool_name = 'myfs-data3'
-        self.rjObj._arg_parser.cephfs_data_pool_name = bad_data_pool_name
-        try:
-            self.rjObj.get_cephfs_data_pool_details()
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        # empty data-pool scenario
-        first_fs_details['data_pools'] = []
-        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
-        try:
-            self.rjObj.get_cephfs_data_pool_details()
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-
-    def test_valid_rgw_endpoint(self):
-        self.rjObj._invalid_endpoint("10.10.212.133:8000")
-        # invalid port
-        try:
-            self.rjObj._invalid_endpoint("10.10.212.133:238000")
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        # out of range IP
-        try:
-            self.rjObj._invalid_endpoint("10.1033.212.133:8000")
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        # mal formatted IP
-        try:
-            self.rjObj._invalid_endpoint("10.103..212.133:8000")
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        try:
-            self.rjObj._invalid_endpoint("10.103.212.133::8000")
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        try:
-            self.rjObj._invalid_endpoint("10.10.103.212.133:8000")
-            self.fail("An Exception was expected to be thrown")
-        except ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
-        
-    def test_upgrade_user_permissions(self):
-        self.rjObj = RadosJSON(
-            ['--upgrade', '--run-as-user=client.csi-cephfs-provisioner', '--format=json'])
-        # for testing, we are using 'DummyRados' object
-        self.rjObj.cluster = DummyRados.Rados()
-        self.rjObj.main()
-
-    def test_monitoring_endpoint_validation(self):
-        self.rjObj = RadosJSON(['--rbd-data-pool-name=abc', '--format=json'])
-        self.rjObj.cluster = DummyRados.Rados()
-
-        valid_ip_ports = [("10.22.31.131", "3534"),
-                          ("10.177.3.81", ""), ("", ""), ("", "9092")]
-        for each_ip_port_pair in valid_ip_ports:
-            # reset monitoring ip and port
-            self.rjObj._arg_parser.monitoring_endpoint = ''
-            self.rjObj._arg_parser.monitoring_endpoint_port = ''
-            new_mon_ip, new_mon_port = each_ip_port_pair
-            check_ip_val = self.rjObj.cluster.dummy_host_ip_map.get(
-                new_mon_ip, new_mon_ip)
-            check_port_val = RadosJSON.DEFAULT_MONITORING_ENDPOINT_PORT
-            if new_mon_ip:
-                self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
-            if new_mon_port:
-                check_port_val = new_mon_port
-                self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
-            # for testing, we are using 'DummyRados' object
-            mon_ips, mon_port = self.rjObj.get_active_and_standby_mgrs()
-            mon_ip = mon_ips.split(",")[0]
-            if check_ip_val and check_ip_val != mon_ip:
-                self.fail("Expected IP: {}, Returned IP: {}".format(
-                    check_ip_val, mon_ip))
-            if check_port_val and check_port_val != mon_port:
-                self.fail("Expected Port: '{}', Returned Port: '{}'".format(
-                    check_port_val, mon_port))
-            print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
-
-        invalid_ip_ports = [("10.22.31.131.43", "5334"), ("", "91943"),
-                            ("10.177.3.81", "90320"), ("", "73422"), ("10.232.12.8", "90922")]
-        for each_ip_port_pair in invalid_ip_ports:
-            # reset the command-line monitoring args
-            self.rjObj._arg_parser.monitoring_endpoint = ''
-            self.rjObj._arg_parser.monitoring_endpoint_port = ''
-            new_mon_ip, new_mon_port = each_ip_port_pair
-            if new_mon_ip:
-                self.rjObj._arg_parser.monitoring_endpoint = new_mon_ip
-            if new_mon_port:
-                self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
-            try:
-                mon_ip, mon_port = self.rjObj.get_active_and_standby_mgrs()
-                print("[Wrong] MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
-                self.fail("An exception was expected")
-            except ExecutionFailureException as err:
-                print("Exception thrown successfully: {}".format(err))
