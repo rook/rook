@@ -32,7 +32,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -162,45 +161,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
 	}
 
-	if err := ValidateCephCSIConnectionSecrets(clusterdContext, namespace); err != nil {
-		return nil, maxMonID, monMapping, err
-	}
-
 	return clusterInfo, maxMonID, monMapping, nil
-}
-
-// ValidateCephCSIConnectionSecrets returns the secret value of the client health checker key
-func ValidateCephCSIConnectionSecrets(clusterdContext *clusterd.Context, namespace string) error {
-	ctx := context.TODO()
-	_, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiRBDNodeSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDNodeSecret)
-		}
-	}
-
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiRBDProvisionerSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDProvisionerSecret)
-		}
-	}
-
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiCephFSNodeSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSNodeSecret)
-		}
-	}
-
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiCephFSProvisionerSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSProvisionerSecret)
-		}
-	}
-
-	return nil
 }
 
 // WriteConnectionConfig save monitor connection config to disk
@@ -373,18 +334,24 @@ func ExtractKey(contents string) (string, error) {
 	return secret, nil
 }
 
-// PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, ctx context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) *cephclient.ClusterInfo {
+// PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no
+// OSDs keep waiting
+func PopulateExternalClusterInfo(context *clusterd.Context, ctx context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, error) {
 	for {
-		clusterInfo, _, _, err := LoadClusterInfo(context, ctx, namespace)
+		// Checking for the context makes sure we don't loop forever with a canceled context
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil)
 		if err != nil {
-			logger.Warningf("waiting for the csi connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
+			logger.Warningf("waiting for connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			logger.Debugf("%v", err)
 			time.Sleep(externalConnectionRetry)
 			continue
 		}
 		logger.Infof("found the cluster info to connect to the external cluster. will use %q to check health and monitor status. mons=%+v", clusterInfo.CephCred.Username, clusterInfo.Monitors)
 		clusterInfo.OwnerInfo = ownerInfo
-		return clusterInfo
+
+		return clusterInfo, nil
 	}
 }
