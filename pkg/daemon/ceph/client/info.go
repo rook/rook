@@ -138,6 +138,10 @@ func (c *ClusterInfo) IsInitialized(logError bool) bool {
 		if logError {
 			logger.Error("nil context")
 		}
+	} else if c.Context.Err() != nil {
+		if logError {
+			logger.Errorf("%v", c.Context.Err())
+		}
 	} else {
 		isInitialized = true
 	}

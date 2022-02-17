@@ -173,19 +173,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		}
 	}
 
-	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.OpManagerCtx, cluster.Namespace)
-	if err != nil {
-		if errors.Is(err, mon.ClusterInfoNoClusterNoSecret) {
-			logger.Info("clusterInfo not yet found, must be a new cluster.")
-		} else {
-			return errors.Wrap(err, "failed to load cluster info")
-		}
-	} else {
-		clusterInfo.OwnerInfo = cluster.ownerInfo
-		clusterInfo.SetName(c.namespacedName.Name)
-		cluster.ClusterInfo = clusterInfo
-	}
-
 	// Depending on the cluster type choose the correct orchestation
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
@@ -194,6 +181,18 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
 	} else {
+		clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.OpManagerCtx, cluster.Namespace)
+		if err != nil {
+			if errors.Is(err, mon.ClusterInfoNoClusterNoSecret) {
+				logger.Info("clusterInfo not yet found, must be a new cluster.")
+			} else {
+				return errors.Wrap(err, "failed to load cluster info")
+			}
+		} else {
+			clusterInfo.OwnerInfo = cluster.ownerInfo
+			clusterInfo.SetName(c.namespacedName.Name)
+			cluster.ClusterInfo = clusterInfo
+		}
 		// If the local cluster has already been configured, immediately start monitoring the cluster.
 		// Test if the cluster has already been configured if the mgr deployment has been created.
 		// If the mgr does not exist, the mons have never been verified to be in quorum.
