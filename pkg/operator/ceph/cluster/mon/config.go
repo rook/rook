@@ -32,7 +32,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -162,45 +161,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
 	}
 
-	if err := ValidateCephCSIConnectionSecrets(clusterdContext, namespace); err != nil {
-		return nil, maxMonID, monMapping, err
-	}
-
 	return clusterInfo, maxMonID, monMapping, nil
-}
-
-// ValidateCephCSIConnectionSecrets returns the secret value of the client health checker key
-func ValidateCephCSIConnectionSecrets(clusterdContext *clusterd.Context, namespace string) error {
-	ctx := context.TODO()
-	_, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiRBDNodeSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDNodeSecret)
-		}
-	}
-
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiRBDProvisionerSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiRBDProvisionerSecret)
-		}
-	}
-
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiCephFSNodeSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSNodeSecret)
-		}
-	}
-
-	_, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(ctx, csi.CsiCephFSProvisionerSecret, metav1.GetOptions{})
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
-			return errors.Wrapf(err, "failed to get %q secret", csi.CsiCephFSProvisionerSecret)
-		}
-	}
-
-	return nil
 }
 
 // WriteConnectionConfig save monitor connection config to disk
