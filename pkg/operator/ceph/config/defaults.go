@@ -80,16 +80,6 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 	return overrides
 }
 
-// DefaultLegacyConfigs need to be added to the Ceph config file until the integration tests can be
-// made to override these options for the Ceph clusters it creates.
-func DefaultLegacyConfigs() []Option {
-	overrides := []Option{
-		// TODO: move this under LegacyConfigs() when FlexVolume is no longer supported
-		configOverride("global", "rbd_default_features", "3"),
-	}
-	return overrides
-}
-
 // LegacyConfigs represents old configuration that were applied to a cluster and not needed anymore
 func LegacyConfigs() []Option {
 	return []Option{
