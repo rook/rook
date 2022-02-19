@@ -38,36 +38,36 @@ func (m *CephManifestsPreviousVersion) Settings() *TestCephSettings {
 }
 
 func (m *CephManifestsPreviousVersion) GetCRDs(k8shelper *utils.K8sHelper) string {
-	return m.settings.readManifestFromGithub("crds.yaml")
+	return m.settings.readManifestFromGitHub("crds.yaml")
 }
 
 // GetRookOperator returns rook Operator manifest
 func (m *CephManifestsPreviousVersion) GetOperator() string {
 	var manifest string
 	if utils.IsPlatformOpenShift() {
-		manifest = m.settings.readManifestFromGithub("operator-openshift.yaml")
+		manifest = m.settings.readManifestFromGitHub("operator-openshift.yaml")
 	} else {
-		manifest = m.settings.readManifestFromGithub("operator.yaml")
+		manifest = m.settings.readManifestFromGitHub("operator.yaml")
 	}
 	return m.settings.replaceOperatorSettings(manifest)
 }
 
 // GetCommon returns rook-cluster manifest
 func (m *CephManifestsPreviousVersion) GetCommon() string {
-	return m.settings.readManifestFromGithub("common.yaml")
+	return m.settings.readManifestFromGitHub("common.yaml")
 }
 
 // GetRookToolBox returns rook-toolbox manifest
 func (m *CephManifestsPreviousVersion) GetToolbox() string {
 	if m.settings.DirectMountToolbox {
-		manifest := strings.ReplaceAll(m.settings.readManifestFromGithub("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
+		manifest := strings.ReplaceAll(m.settings.readManifestFromGitHub("direct-mount.yaml"), "name: rook-direct-mount", "name: rook-ceph-tools")
 		return strings.ReplaceAll(manifest, "app: rook-direct-mount", "app: rook-ceph-tools")
 	}
-	return m.settings.readManifestFromGithub("toolbox.yaml")
+	return m.settings.readManifestFromGitHub("toolbox.yaml")
 }
 
 func (m *CephManifestsPreviousVersion) GetCommonExternal() string {
-	return m.settings.readManifestFromGithub("common-external.yaml")
+	return m.settings.readManifestFromGitHub("common-external.yaml")
 }
 
 //**********************************************************************************
