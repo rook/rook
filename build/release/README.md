@@ -8,7 +8,7 @@ The workflow at a high level for minor releases is as follows:
 2. Create the new release branch with a beta release when the commits are winding down
 3. When all the release criteria is met we tag the final release
 
-Github actions provide all the jobs to complete the release -- there is no need to perform any of the release tasks on a build/dev machine.
+GitHub actions provide all the jobs to complete the release -- there is no need to perform any of the release tasks on a build/dev machine.
 
 ## Minor Release Criteria
 
@@ -53,7 +53,7 @@ in the next section with the updated version.
 
 **IMPORTANT** Before tagging the release, open a new PR to update the documentation and example manifest tags to the release version.
 
-To publish a new release build, run the `Tag` action in Github actions. Be sure to use the correct branch for the
+To publish a new release build, run the `Tag` action in GitHub actions. Be sure to use the correct branch for the
 release. New minor releases will always be run from master, and patch releases will come from a
 previously created release branch.
 

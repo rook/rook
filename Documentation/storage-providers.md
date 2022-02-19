@@ -47,7 +47,7 @@ Rook provides the following framework to assist storage providers in building an
   Operators in their own repo define their own cadence and versioning scheme as desired.
   * Storage providers own their release process, while following Rook best practices to
     ensure high quality.
-  * Each provider owns independent CI based on Github actions, with patterns and build
+  * Each provider owns independent CI based on GitHub actions, with patterns and build
     automation that can be re-used by providers
 * Docker images are pushed to the [Rook DockerHub](https://hub.docker.com/u/rook) where
   each storage provider has its own repo.
@@ -79,7 +79,7 @@ The engineering costs of each storage provider include:
 * Rook maintainers will help answer questions along the way, but ultimately
   you own the development
 * If there are test failures in the CI, they should be investigated in a timely manner
-* If issues are opened in Github, they need investigation and triage to provide
+* If issues are opened in GitHub, they need investigation and triage to provide
   expectations about the priority and timeline
 * If users have questions in Slack, they should be answered in a timely manner.
   Community members can also be redirected to other locations if desired for the provider.

@@ -24,8 +24,8 @@
 * Crashing pod(s) logs, if necessary
 
  To get logs, use `kubectl -n <namespace> logs <pod name>`
-When pasting logs, always surround them with backticks or use the `insert code` button from the Github UI.
-Read [Github documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
+When pasting logs, always surround them with backticks or use the `insert code` button from the GitHub UI.
+Read [GitHub documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
 
 **Feature Request**
 

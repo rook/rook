@@ -42,7 +42,7 @@ Run `make help` for more options.
 
 ## CI Workflow
 
-Every PR and every merge to master triggers the CI process in Github actions.
+Every PR and every merge to master triggers the CI process in GitHub actions.
 On every commit to PR and master the CI will build, run unit tests, and run integration tests.
 If the build is for master or a release, the build will also be published to
 [dockerhub.com](https://cloud.docker.com/u/rook/repository/list).

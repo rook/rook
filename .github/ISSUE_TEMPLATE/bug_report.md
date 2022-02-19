@@ -26,7 +26,7 @@ labels: bug
 
  To get logs, use `kubectl -n <namespace> logs <pod name>`
 When pasting logs, always surround them with backticks or use the `insert code` button from the Github UI.
-Read [Github documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
+Read [GitHub documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
 
 **Environment**:
 * OS (e.g. from /etc/os-release):

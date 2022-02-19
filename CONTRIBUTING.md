@@ -174,6 +174,6 @@ We should explore this further with some experimentation and potentially leverag
 
 ### Alternatives Considered
 
-The built in support in Github for [`CODEOWNERS`](https://help.github.com/en/articles/about-code-owners) files was considered.
+The built in support in GitHub for [`CODEOWNERS`](https://help.github.com/en/articles/about-code-owners) files was considered.
 However, this only supports the automated assignment of reviewers to pull requests.
 It has no tiering or differentiation between roles like the proposed maintainers/reviewers model has and is therefore not a good fit.
