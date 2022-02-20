@@ -48,7 +48,7 @@ For further details, please see the complete [security release process](SECURITY
 Please use the following to reach members of the community:
 
 - Slack: Join our [slack channel](https://slack.rook.io)
-- Github: Start a [discussion](https://github.com/rook/rook/discussions) or open an [issue](https://github.com/rook/rook/issues)
+- GitHub: Start a [discussion](https://github.com/rook/rook/discussions) or open an [issue](https://github.com/rook/rook/issues)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
 - Security topics: [cncf-rook-security@lists.cncf.io](#reporting-security-vulnerabilities)
 

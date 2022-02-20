@@ -106,7 +106,7 @@ should volunteer to be moved to emeritus status. In extreme cases this can also 
 the maintainers per the voting process below.
 
 
-### Github Project Administration
+### GitHub Project Administration
 
 Maintainers will be added to the Rook GitHub organization (if they are not already) and added to
 the GitHub Maintainers team.

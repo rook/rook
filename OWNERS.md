@@ -9,8 +9,8 @@ This page lists all active contributors and their areas of expertise. This can b
 
 Steering committee members will be added according to the [process for adding a steering committee member](GOVERNANCE.md#becoming-a-steering-committee-member) in the [governance](GOVERNANCE.md).
 
-| Name                                 | Represents  | Github                                |
-| ------------------------------------ | ----------- | ------------------------------------- |
+| Name                                 | Represents  | GitHub                                |
+| ------------------------------------ | ----------- |---------------------------------------|
 | Travis Nielsen <tnielsen@redhat.com> | Ceph        | [travisn](https://github.com/travisn) |
 | Jared Watts <jared@upbound.io>       | Independent | [jbw976](https://github.com/jbw976)   |
 
@@ -47,5 +47,5 @@ Code owners, as described in the [change approval process](GOVERNANCE.md#change-
 ## Community
 
 We are grateful for the countless members of the community who contribute to Rook,
-whether reporting issues in Github or Slack or submitting code or documentation PRs.
+whether reporting issues in GitHub or Slack or submitting code or documentation PRs.
 Thank you for helping this project to grow and mature!

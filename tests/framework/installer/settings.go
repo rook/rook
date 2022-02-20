@@ -49,7 +49,7 @@ func buildURL(rookVersion, filename string) string {
 	return fmt.Sprintf("%s/deploy/examples/%s", rookVersion, filename)
 }
 
-func readManifestFromGithub(rookVersion, filename string) string {
+func readManifestFromGitHub(rookVersion, filename string) string {
 	url := fmt.Sprintf("https://raw.githubusercontent.com/rook/rook/%s", buildURL(rookVersion, filename))
 	return readManifestFromURL(url)
 }

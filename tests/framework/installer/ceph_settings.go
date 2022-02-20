@@ -67,12 +67,12 @@ func (s *TestCephSettings) readManifest(filename string) string {
 	return replaceNamespaces(manifest, manifest, s.OperatorNamespace, s.Namespace)
 }
 
-func (s *TestCephSettings) readManifestFromGithub(filename string) string {
-	return s.readManifestFromGithubWithClusterNamespace(filename, s.Namespace)
+func (s *TestCephSettings) readManifestFromGitHub(filename string) string {
+	return s.readManifestFromGitHubWithClusterNamespace(filename, s.Namespace)
 }
 
-func (s *TestCephSettings) readManifestFromGithubWithClusterNamespace(filename, clusterNamespace string) string {
-	manifest := readManifestFromGithub(s.RookVersion, filename)
+func (s *TestCephSettings) readManifestFromGitHubWithClusterNamespace(filename, clusterNamespace string) string {
+	manifest := readManifestFromGitHub(s.RookVersion, filename)
 	return replaceNamespaces(filename, manifest, s.OperatorNamespace, clusterNamespace)
 }
 
