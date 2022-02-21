@@ -16,30 +16,43 @@ $CEPH_CMD -s > "${LOG_DIR}"/ceph-status.txt
 $CEPH_CMD osd dump > "${LOG_DIR}"/ceph-osd-dump.txt
 $CEPH_CMD report > "${LOG_DIR}"/ceph-report.txt
 
-for pod in $(kubectl -n "${CLUSTER_NAMESPACE}" get pod -o jsonpath='{.items[*].metadata.name}'); do
-  kubectl -n "${CLUSTER_NAMESPACE}" describe pod "$pod" > "${LOG_DIR}"/pod-describe-"$pod".txt
+NAMESPACES=("$CLUSTER_NAMESPACE")
+if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
+  NAMESPACES+=("$OPERATOR_NAMESPACE")
+fi
+
+for NAMESPACE in "${NAMESPACES[@]}"; do
+  # each namespace is a sub-directory for easier debugging
+  NS_DIR="${LOG_DIR}"/namespace-"${NAMESPACE}"
+  mkdir "${NS_DIR}"
+
+  # describe every one of the k8s resources in the namespace which rook commonly uses
+  for KIND in 'pod' 'deployment' 'job' 'daemonset'; do
+    kubectl -n "$NAMESPACE" get "$KIND" -o wide > "${NS_DIR}"/"$KIND"-list.txt
+    for resource in $(kubectl -n "$NAMESPACE" get "$KIND" -o jsonpath='{.items[*].metadata.name}'); do
+      kubectl -n "$NAMESPACE" describe "$KIND" "$resource" > "${NS_DIR}"/"$KIND"-describe--"$resource".txt
+
+      # collect logs for pods along the way
+      if [[ "$KIND" == 'pod' ]]; then
+        kubectl -n "$NAMESPACE" logs --all-containers "$resource" > "${NS_DIR}"/logs--"$resource".txt
+      fi
+    done
+  done
+
+  # describe every one of the custom resources in the namespace since all should be rook-related and
+  # they aren't captured by 'kubectl get all'
+  for CRD in $(kubectl get crds -o jsonpath='{.items[*].metadata.name}'); do
+    for resource in $(kubectl -n "$NAMESPACE" get "$CRD" -o jsonpath='{.items[*].metadata.name}'); do
+      crd_main_type="${CRD%%.*}" # e.g., for cephclusters.ceph.rook.io, only use 'cephclusters'
+      kubectl -n "$NAMESPACE" get -o yaml "$CRD" "$resource" > "${NS_DIR}"/"$crd_main_type"-describe--"$resource".txt
+    done
+  done
+
+  # do simple 'get all' calls for resources we don't often want to look at
+  kubectl get all -n "$NAMESPACE" -o wide > "${NS_DIR}"/all-wide.txt
+  kubectl get all -n "$NAMESPACE" -o yaml > "${NS_DIR}"/all-yaml.txt
 done
-for dep in $(kubectl -n "${CLUSTER_NAMESPACE}" get deploy -o jsonpath='{.items[*].metadata.name}'); do
-  kubectl -n "${CLUSTER_NAMESPACE}" describe deploy "$dep" > "${LOG_DIR}"/deploy-describe-"$dep".txt
-  kubectl -n "${CLUSTER_NAMESPACE}" log deploy "$dep" --all-containers > "${LOG_DIR}"/deploy-describe-"$dep"-log.txt
-done
-kubectl -n "${OPERATOR_NAMESPACE}" logs deploy/rook-ceph-operator > "${LOG_DIR}"/operator-logs.txt
-kubectl -n "${OPERATOR_NAMESPACE}" get pods -o wide > "${LOG_DIR}"/operator-pods-list.txt
-kubectl -n "${CLUSTER_NAMESPACE}" get pods -o wide > "${LOG_DIR}"/cluster-pods-list.txt
-kubectl -n "${CLUSTER_NAMESPACE}" get jobs -o wide > "${LOG_DIR}"/cluster-jobs-list.txt
-prepare_job="$(kubectl -n "${CLUSTER_NAMESPACE}" get job -l app=rook-ceph-osd-prepare --output name | awk 'FNR <= 1')" # outputs job/<name>
-removal_job="$(kubectl -n "${CLUSTER_NAMESPACE}" get job -l app=rook-ceph-purge-osd --output name | awk 'FNR <= 1')" # outputs job/<name>
-kubectl -n "${CLUSTER_NAMESPACE}" describe "${prepare_job}" > "${LOG_DIR}"/osd-prepare-describe.txt
-kubectl -n "${CLUSTER_NAMESPACE}" logs "${prepare_job}" > "${LOG_DIR}"/osd-prepare-logs.txt
-kubectl -n "${CLUSTER_NAMESPACE}" describe "${removal_job}" > "${LOG_DIR}"/osd-removal-describe.txt
-kubectl -n "${CLUSTER_NAMESPACE}" logs "${removal_job}" > "${LOG_DIR}"/osd-removal-logs.txt
-kubectl -n "${CLUSTER_NAMESPACE}" logs deploy/rook-ceph-osd-0 --all-containers > "${LOG_DIR}"/rook-ceph-osd-0-logs.txt
-kubectl -n "${CLUSTER_NAMESPACE}" logs deploy/rook-ceph-osd-1 --all-containers > "${LOG_DIR}"/rook-ceph-osd-1-logs.txt
-kubectl get all -n "${OPERATOR_NAMESPACE}" -o wide > "${LOG_DIR}"/operator-wide.txt
-kubectl get all -n "${OPERATOR_NAMESPACE}" -o wide > "${LOG_DIR}"/operator-yaml.txt
-kubectl get all -n "${CLUSTER_NAMESPACE}" -o wide > "${LOG_DIR}"/cluster-wide.txt
-kubectl get all -n "${CLUSTER_NAMESPACE}" -o yaml > "${LOG_DIR}"/cluster-yaml.txt
-kubectl -n "${CLUSTER_NAMESPACE}" get cephcluster -o yaml > "${LOG_DIR}"/cephcluster.txt
+
 sudo lsblk | sudo tee -a "${LOG_DIR}"/lsblk.txt
 journalctl -o short-precise --dmesg > "${LOG_DIR}"/dmesg.txt
 journalctl > "${LOG_DIR}"/journalctl.txt
