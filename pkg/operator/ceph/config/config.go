@@ -138,6 +138,21 @@ func SetOrRemoveDefaultConfigs(
 		}
 	}
 
+	// remove `rbd_default_features` since it is no longer used in the
+	// upgraded clusters. This was set to `3` previously from Rook.
+	rbdDefaultFeatures := "rbd_default_features"
+	val, err := monStore.Get("mon", rbdDefaultFeatures)
+	if err != nil {
+		// This should not happen in normal case, this should fetch the ceph defaults.
+		return errors.Wrapf(err, "failed to get rbd_default_features configuration")
+	}
+	if val == "3" {
+		logger.Debug("removing rbd_default_features config")
+		err = monStore.Delete("global", rbdDefaultFeatures)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete rbd_default_features configuration")
+		}
+	}
 	// Apply Multus if needed
 	if clusterSpec.Network.IsMultus() {
 		logger.Info("configuring ceph network(s) with multus")
