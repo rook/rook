@@ -558,6 +558,7 @@ func Test_createMultisite(t *testing.T) {
 func TestGetRealmKeySecret(t *testing.T) {
 	ns := "my-ns"
 	realmName := "my-realm"
+	ctx := context.TODO()
 
 	t.Run("secret exists", func(t *testing.T) {
 		secret := &v1.Secret{
@@ -576,7 +577,7 @@ func TestGetRealmKeySecret(t *testing.T) {
 			Clientset: k8sfake.NewSimpleClientset(secret),
 		}
 
-		secret, err := GetRealmKeySecret(c, types.NamespacedName{Namespace: ns, Name: realmName})
+		secret, err := GetRealmKeySecret(ctx, c, types.NamespacedName{Namespace: ns, Name: realmName})
 		assert.NoError(t, err)
 		assert.NotNil(t, secret)
 	})
@@ -586,7 +587,7 @@ func TestGetRealmKeySecret(t *testing.T) {
 			Clientset: k8sfake.NewSimpleClientset(),
 		}
 
-		secret, err := GetRealmKeySecret(c, types.NamespacedName{Namespace: ns, Name: realmName})
+		secret, err := GetRealmKeySecret(ctx, c, types.NamespacedName{Namespace: ns, Name: realmName})
 		assert.Error(t, err)
 		assert.Nil(t, secret)
 	})
@@ -648,6 +649,7 @@ func TestGetRealmKeyArgsFromSecret(t *testing.T) {
 func TestGetRealmKeyArgs(t *testing.T) {
 	ns := "my-ns"
 	realmName := "my-realm"
+	ctx := context.TODO()
 
 	baseSecret := &v1.Secret{
 		TypeMeta: metav1.TypeMeta{
@@ -674,7 +676,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 			Clientset: k8sfake.NewSimpleClientset(s),
 		}
 
-		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
+		access, secret, err := GetRealmKeyArgs(ctx, c, realmName, ns)
 		assert.NoError(t, err)
 		assert.Equal(t, "--access-key=my-access-key", access)
 		assert.Equal(t, "--secret-key=my-secret-key", secret)
@@ -685,7 +687,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 			Clientset: k8sfake.NewSimpleClientset(),
 		}
 
-		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
+		access, secret, err := GetRealmKeyArgs(ctx, c, realmName, ns)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to get CephObjectRealm \"my-ns/my-realm\" keys secret")
 		assert.Equal(t, "", access)
@@ -700,7 +702,7 @@ func TestGetRealmKeyArgs(t *testing.T) {
 			Clientset: k8sfake.NewSimpleClientset(s),
 		}
 
-		access, secret, err := GetRealmKeyArgs(c, realmName, ns)
+		access, secret, err := GetRealmKeyArgs(ctx, c, realmName, ns)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to decode CephObjectRealm \"my-ns/my-realm\"")
 		assert.Equal(t, "", access)

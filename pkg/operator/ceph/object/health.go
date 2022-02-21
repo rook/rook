@@ -92,7 +92,7 @@ func (c *bucketChecker) checkObjectStore(context context.Context) {
 	// check the object store health immediately before starting the loop
 	err := c.checkObjectStoreHealth()
 	if err != nil {
-		updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
+		updateStatusBucket(context, c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
 		logger.Debugf("failed to check rgw health for object store %q. %v", c.namespacedName.Name, err)
 	}
 
@@ -109,7 +109,7 @@ func (c *bucketChecker) checkObjectStore(context context.Context) {
 			logger.Debugf("checking rgw health of object store %q", c.namespacedName.Name)
 			err := c.checkObjectStoreHealth()
 			if err != nil {
-				updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
+				updateStatusBucket(context, c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
 				logger.Debugf("failed to check rgw health for object store %q. %v", c.namespacedName.Name, err)
 			}
 		}
@@ -182,7 +182,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	logger.Debugf("successfully checked object store endpoint for object store %q", c.namespacedName.String())
 
 	// Update the EndpointStatus in the CR to reflect the healthyness
-	updateStatusBucket(c.client, c.namespacedName, cephv1.ConditionConnected, "")
+	updateStatusBucket(c.objContext.clusterInfo.Context, c.client, c.namespacedName, cephv1.ConditionConnected, "")
 
 	return nil
 }

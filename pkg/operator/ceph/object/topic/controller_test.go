@@ -86,7 +86,7 @@ func TestCephBucketTopicController(t *testing.T) {
 			},
 		},
 	}
-	clusterInfo := cephclient.AdminClusterInfo(namespace, "rook")
+	clusterInfo := cephclient.AdminClusterInfo(ctx, namespace, "rook")
 	clusterSpec := cephv1.ClusterSpec{}
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{

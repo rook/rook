@@ -86,7 +86,7 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 
 	// get the ceph cluster
 	cephClusters := &cephv1.CephClusterList{}
-	if err := r.client.List(context.TODO(), cephClusters, client.InNamespace(request.Namespace)); err != nil {
+	if err := r.client.List(r.context.OpManagerContext, cephClusters, client.InNamespace(request.Namespace)); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "could not get cephclusters in namespace %q", request.Namespace)
 	}
 	if len(cephClusters.Items) == 0 {
@@ -244,7 +244,7 @@ func (c *ClusterMap) GetClusterNamespaces() []string {
 }
 
 func (r *ReconcileClusterDisruption) deleteDrainCanaryPods(namespace string) error {
-	err := r.client.DeleteAllOf(context.TODO(), &appsv1.Deployment{}, client.InNamespace(namespace),
+	err := r.client.DeleteAllOf(r.context.OpManagerContext, &appsv1.Deployment{}, client.InNamespace(namespace),
 		client.MatchingLabels{k8sutil.AppAttr: legacyDrainCanaryLabel})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrapf(err, "failed to delete all the legacy drain-canary pods with label %q", legacyDrainCanaryLabel)

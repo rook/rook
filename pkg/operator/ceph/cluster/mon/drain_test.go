@@ -38,6 +38,7 @@ const (
 )
 
 func createFakeCluster(t *testing.T, cephClusterObj *cephv1.CephCluster, k8sVersion string) *Cluster {
+	ctx := context.TODO()
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	scheme := scheme.Scheme
 	err := policyv1.AddToScheme(scheme)
@@ -47,7 +48,7 @@ func createFakeCluster(t *testing.T, cephClusterObj *cephv1.CephCluster, k8sVers
 
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
 	clientset := test.New(t, 3)
-	c := New(&clusterd.Context{Client: cl, Clientset: clientset}, mockNamespace, cephClusterObj.Spec, ownerInfo)
+	c := New(ctx, &clusterd.Context{Client: cl, Clientset: clientset}, mockNamespace, cephClusterObj.Spec, ownerInfo)
 	test.SetFakeKubernetesVersion(clientset, k8sVersion)
 	return c
 }

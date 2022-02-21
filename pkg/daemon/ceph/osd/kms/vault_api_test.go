@@ -40,9 +40,10 @@ func TestBackendVersion(t *testing.T) {
 	core := cluster.Cores[0].Core
 	vault.TestWaitActive(t, core)
 	client := cluster.Cores[0].Client
+	ctx := context.TODO()
 
 	// Mock the client here
-	vaultClient = func(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
+	vaultClient = func(ctx context.Context, clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
 		return client, nil
 	}
 
@@ -76,7 +77,7 @@ func TestBackendVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := BackendVersion(&clusterd.Context{}, "ns", tt.args.secretConfig)
+			got, err := BackendVersion(ctx, &clusterd.Context{}, "ns", tt.args.secretConfig)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("BackendVersion() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -186,7 +187,7 @@ cjLxGL8tcZjHKg==
 	}
 
 	// Populate TLS config
-	newConfigWithTLS, removeCertFiles, err := configTLS(context, ns, secretConfig)
+	newConfigWithTLS, removeCertFiles, err := configTLS(ctx, context, ns, secretConfig)
 	assert.NoError(t, err)
 	defer removeCertFiles()
 

@@ -253,10 +253,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 			return reconcile.Result{}, *cephFilesystem, err
 		}
 		if !deps.Empty() {
-			err := reporting.ReportDeletionBlockedDueToDependents(logger, r.client, cephFilesystem, deps)
+			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, cephFilesystem, deps)
 			return opcontroller.WaitForRequeueIfFinalizerBlocked, *cephFilesystem, err
 		}
-		reporting.ReportDeletionNotBlockedDueToDependents(logger, r.client, r.recorder, cephFilesystem)
+		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, cephFilesystem)
 
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, clusterInfo, config.MonType)
 		if err != nil {

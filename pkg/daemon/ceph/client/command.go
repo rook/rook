@@ -165,7 +165,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	// Still forcing the check for the command if the behavior changes in the future
 	if command == RBDTool {
 		if c.RemoteExecution {
-			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
+			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
 			if stderr != "" || err != nil {
 				err = errors.Errorf("%s. %s", err.Error(), stderr)
 			}

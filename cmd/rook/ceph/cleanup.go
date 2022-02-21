@@ -59,6 +59,8 @@ func startCleanUp(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(cleanUpCmd.Flags())
 
+	ctx := cmd.Context()
+
 	logger.Info("starting cluster clean up")
 	// Delete dataDirHostPath
 	if dataDirHostPath != "" {
@@ -67,7 +69,7 @@ func startCleanUp(cmd *cobra.Command, args []string) error {
 	}
 
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	clusterInfo := client.AdminClusterInfo(namespace, "")
+	clusterInfo := client.AdminClusterInfo(ctx, namespace, "")
 	clusterInfo.FSID = clusterFSID
 
 	// Build Sanitizer

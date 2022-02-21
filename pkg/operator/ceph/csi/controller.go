@@ -184,7 +184,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
-	err = CreateCsiConfigMap(r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
+	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
 	}

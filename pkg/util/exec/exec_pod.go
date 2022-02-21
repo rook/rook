@@ -92,9 +92,9 @@ func (e *RemotePodCommandExecutor) ExecWithOptions(options ExecOptions) (string,
 
 // ExecCommandInContainerWithFullOutput executes a command in the
 // specified container and return stdout, stderr and error
-func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutput(appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
+func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutput(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appLabel)}
-	pods, err := e.ClientSet.CoreV1().Pods(namespace).List(context.TODO(), options)
+	pods, err := e.ClientSet.CoreV1().Pods(namespace).List(ctx, options)
 	if err != nil {
 		return "", "", err
 	}
@@ -130,6 +130,6 @@ func execute(method string, url *url.URL, config *rest.Config, stdin io.Reader, 
 	})
 }
 
-func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
-	return e.ExecCommandInContainerWithFullOutput(appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(CephCommandsTimeout.Seconds()))}, cmd...)...)
+func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel, containerName, namespace string, cmd ...string) (string, string, error) {
+	return e.ExecCommandInContainerWithFullOutput(ctx, appLabel, containerName, namespace, append([]string{"timeout", strconv.Itoa(int(CephCommandsTimeout.Seconds()))}, cmd...)...)
 }

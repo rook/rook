@@ -69,7 +69,7 @@ func Test_configTLS(t *testing.T) {
 			"VAULT_BACKEND_PATH": "vault",
 		}
 		// No tls config
-		_, removeCertFiles, err := configTLS(context, ns, config)
+		_, removeCertFiles, err := configTLS(ctx, context, ns, config)
 		assert.NoError(t, err)
 		defer removeCertFiles()
 	})
@@ -83,7 +83,7 @@ func Test_configTLS(t *testing.T) {
 			"VAULT_CACERT":       "/etc/vault/cacert",
 			"VAULT_SKIP_VERIFY":  "false",
 		}
-		config, removeCertFiles, err := configTLS(context, ns, config)
+		config, removeCertFiles, err := configTLS(ctx, context, ns, config)
 		assert.NoError(t, err)
 		assert.Equal(t, "/etc/vault/cacert", config["VAULT_CACERT"])
 		defer removeCertFiles()
@@ -98,7 +98,7 @@ func Test_configTLS(t *testing.T) {
 			"VAULT_CACERT":       "vault-ca-cert",
 			"VAULT_SKIP_VERIFY":  "false",
 		}
-		_, removeCertFiles, err := configTLS(context, ns, config)
+		_, removeCertFiles, err := configTLS(ctx, context, ns, config)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to fetch tls k8s secret \"vault-ca-cert\": secrets \"vault-ca-cert\" not found")
 		assert.Nil(t, removeCertFiles)
@@ -122,7 +122,7 @@ func Test_configTLS(t *testing.T) {
 		}
 		_, err := context.Clientset.CoreV1().Secrets(ns).Create(ctx, s, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		config, removeCertFiles, err := configTLS(context, ns, config)
+		config, removeCertFiles, err := configTLS(ctx, context, ns, config)
 		defer removeCertFiles()
 		assert.NoError(t, err)
 		assert.NotEqual(t, "vault-ca-cert", config["VAULT_CACERT"])
@@ -167,7 +167,7 @@ func Test_configTLS(t *testing.T) {
 		assert.NoError(t, err)
 		_, err = context.Clientset.CoreV1().Secrets(ns).Create(ctx, sClKey, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		config, removeCertFiles, err := configTLS(context, ns, config)
+		config, removeCertFiles, err := configTLS(ctx, context, ns, config)
 		assert.NoError(t, err)
 		assert.NotEqual(t, "vault-ca-cert", config["VAULT_CACERT"])
 		assert.NotEqual(t, "vault-client-cert", config["VAULT_CLIENT_CERT"])
@@ -191,7 +191,7 @@ func Test_configTLS(t *testing.T) {
 			"VAULT_CLIENT_CERT":  "vault-client-cert",
 			"VAULT_CLIENT_KEY":   "vault-client-key",
 		}
-		config, removeCertFiles, err := configTLS(context, ns, config)
+		config, removeCertFiles, err := configTLS(ctx, context, ns, config)
 		assert.NoError(t, err)
 		assert.NotEqual(t, "vault-ca-cert", config["VAULT_CACERT"])
 		assert.NotEqual(t, "vault-client-cert", config["VAULT_CLIENT_CERT"])
@@ -246,7 +246,7 @@ func Test_configTLS(t *testing.T) {
 			"VAULT_CLIENT_CERT":  "vault-client-cert",
 			"VAULT_CLIENT_KEY":   "vault-client-key",
 		}
-		_, _, err := configTLS(context, ns, config)
+		_, _, err := configTLS(ctx, context, ns, config)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to generate temp file for k8s secret \"vault-ca-cert\" content: error creating tmp file")
 		assert.NoFileExists(t, os.Getenv("ROOK_TMP_FILE"))

@@ -30,14 +30,14 @@ import (
 )
 
 // predicateOpController is the predicate function to trigger reconcile on operator configuration cm change
-func predicateController(client client.Client) predicate.Funcs {
+func predicateController(ctx context.Context, client client.Client) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			if cm, ok := e.Object.(*v1.ConfigMap); ok {
 				return cm.Name == controller.OperatorSettingConfigMapName
 			} else if s, ok := e.Object.(*v1.Secret); ok {
 				if s.Name == admissionControllerAppName {
-					err := client.Get(context.TODO(), types.NamespacedName{Name: admissionControllerAppName, Namespace: e.Object.GetNamespace()}, &v1.Service{})
+					err := client.Get(ctx, types.NamespacedName{Name: admissionControllerAppName, Namespace: e.Object.GetNamespace()}, &v1.Service{})
 					if err != nil {
 						if kerrors.IsNotFound(err) {
 							// If the service is present we don't need to reload again. If we don't perform

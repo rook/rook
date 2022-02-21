@@ -74,7 +74,7 @@ type CephVolumeInventory struct {
 }
 
 // Run is the entry point of that package execution
-func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) error {
+func Run(ctx context.Context, context *clusterd.Context, probeInterval time.Duration, useCV bool) error {
 	if context == nil {
 		return fmt.Errorf("nil context")
 	}
@@ -87,7 +87,7 @@ func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) err
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
 
-	err := updateDeviceCM(context)
+	err := updateDeviceCM(ctx, context)
 	if err != nil {
 		logger.Infof("failed to update device configmap: %v", err)
 		return err
@@ -101,13 +101,13 @@ func Run(context *clusterd.Context, probeInterval time.Duration, useCV bool) err
 			logger.Infof("shutdown signal received, exiting...")
 			return nil
 		case <-time.After(probeInterval):
-			if err := updateDeviceCM(context); err != nil {
+			if err := updateDeviceCM(ctx, context); err != nil {
 				logger.Errorf("failed to update device configmap during probe interval. %v", err)
 			}
 		case _, ok := <-udevEvents:
 			if ok {
 				logger.Info("trigger probe from udev event")
-				if err := updateDeviceCM(context); err != nil {
+				if err := updateDeviceCM(ctx, context); err != nil {
 					logger.Errorf("failed to update device configmap triggered from udev event. %v", err)
 				}
 			} else {
@@ -323,8 +323,7 @@ func DeviceListsEqual(old, new string) (bool, error) {
 	return checkDeviceListsEqual(oldDevs, newDevs), nil
 }
 
-func updateDeviceCM(clusterdContext *clusterd.Context) error {
-	ctx := context.TODO()
+func updateDeviceCM(ctx context.Context, clusterdContext *clusterd.Context) error {
 	logger.Infof("updating device configmap")
 	devices, err := probeDevices(clusterdContext)
 	if err != nil {
