@@ -16,7 +16,7 @@ Rook up and running. Minikube should not be used for production but the Rook aut
 consider it great for development. While other tools such as k3d/kind are great, users have faced
 issues deploying Rook.
 
-**Always use a virtual machine when testing Rook, never use your host system.**
+**Always use a virtual machine when testing Rook. Never use your host system where local devices may mistakenly be consumed.**
 
 To install Minikube follow the [official
 guide](https://minikube.sigs.k8s.io/docs/start/). It is recommended to use the
