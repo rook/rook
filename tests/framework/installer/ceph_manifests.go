@@ -294,7 +294,7 @@ spec:
 
 func (m *CephManifestsMaster) GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string {
 	// Create a CSI driver storage class
-	return `
+	sc := `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -311,13 +311,19 @@ parameters:
   imageFeatures: layering
   csi.storage.k8s.io/fstype: ext4
 `
+	if m.settings.ConnectionsEncrypted {
+		// encryption requires either the 5.11 kernel or the nbd mounter. Until the newer
+		// kernel is available in minikube, we need to test with nbd.
+		sc += "  mounter: rbd-nbd"
+	}
+	return sc
 }
 
 func (m *CephManifestsMaster) GetFileStorageClass(fsName, storageClassName string) string {
 	// Create a CSI driver storage class
 	csiCephFSNodeSecret := "rook-csi-cephfs-node"               //nolint:gosec // We safely suppress gosec in tests file
 	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner" //nolint:gosec // We safely suppress gosec in tests file
-	return `
+	sc := `
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -332,6 +338,12 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-name: ` + csiCephFSNodeSecret + `
   csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.Namespace + `
 `
+	if m.settings.ConnectionsEncrypted {
+		// encryption requires either the 5.11 kernel or the fuse mounter. Until the newer
+		// kernel is available in minikube, we need to test with fuse.
+		sc += "  mounter: fuse"
+	}
+	return sc
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
