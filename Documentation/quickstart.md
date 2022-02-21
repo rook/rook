@@ -14,6 +14,8 @@ If you have any questions along the way, please don't hesitate to ask us in our 
 This guide will walk you through the basic setup of a Ceph cluster and enable you to consume block, object, and file storage
 from other pods running in your cluster.
 
+**Always use a virtual machine when testing Rook. Never use your host system where local devices may mistakenly be consumed.**
+
 ## Minimum Version
 
 Kubernetes **v1.11** or higher is supported by Rook.
