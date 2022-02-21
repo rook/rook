@@ -15,6 +15,8 @@ indent: true
 
 ### Setup expectation
 
+**Always use a virtual machine when testing Rook. Never use your host system where local devices may mistakenly be consumed.**
+
 There are a bunch of pre-requisites to be able to deploy the following environment. Such as:
 
 * A Linux workstation (CentOS or Fedora)
