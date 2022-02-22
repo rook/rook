@@ -21,6 +21,9 @@ spec:
 {{- if ($network.provider | default "") | eq "host" }}
       hostNetwork: true
 {{- end }}
+{{- if .Values.toolbox.priorityClassName }}
+      priorityClassName: {{ .Values.toolbox.priorityClassName }}
+{{- end }}
       containers:
         - name: rook-ceph-tools
           image: {{ .Values.toolbox.image }}

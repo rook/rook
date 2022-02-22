@@ -21,6 +21,9 @@ spec:
 {{ toYaml .Values.annotations | indent 8 }}
 {{- end }}
     spec:
+{{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Values.priorityClassName }}
+{{- end }}
       containers:
       - name: rook-ceph-operator
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
