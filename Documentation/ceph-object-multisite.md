@@ -3,6 +3,7 @@ title: Object Multisite
 weight: 2250
 indent: true
 ---
+{% include_relative branch.liquid %}
 
 # Object Multisite
 
@@ -18,7 +19,8 @@ When a ceph-object-store is created with the `zone` section, the ceph-object-sto
 
 This allows the ceph-object-store to replicate its data over multiple Ceph clusters.
 
-To review core multisite concepts please read the [ceph-multisite design overview](/design/ceph/object/ceph-multisite-overview.md).
+To review core multisite concepts please read the
+[ceph-multisite design overview](https://github.com/rook/rook/blob/{{ branchName }}/design/ceph/object/ceph-multisite-overview.md).
 
 ## Prerequisites
 
@@ -28,12 +30,12 @@ This guide assumes a Rook cluster as explained in the [Quickstart](quickstart.md
 
 If an admin wants to set up multisite on a Rook Ceph cluster, the admin should create:
 
-1. A [realm](/Documentation/ceph-object-multisite-crd.md#object-realm-settings)
-1. A [zonegroup](/Documentation/ceph-object-multisite-crd.md#object-zone-group-settings)
-1. A [zone](/Documentation/ceph-object-multisite-crd.md#object-zone-settings)
-1. An [object-store](/Documentation/ceph-object-store-crd.md#zone-settings) with the `zone` section
+1. A [realm](ceph-object-multisite-crd.md#object-realm-settings)
+1. A [zonegroup](ceph-object-multisite-crd.md#object-zone-group-settings)
+1. A [zone](ceph-object-multisite-crd.md#object-zone-settings)
+1. A ceph object store with the `zone` section
 
-object-multisite.yaml in the [examples](/deploy/examples/) directory can be used to create the multisite CRDs.
+object-multisite.yaml in the [examples](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/) directory can be used to create the multisite CRDs.
 
 ```console
 kubectl create -f object-multisite.yaml
@@ -41,7 +43,7 @@ kubectl create -f object-multisite.yaml
 
 The first zone group created in a realm is the master zone group. The first zone created in a zone group is the master zone.
 
-When a non-master zone or non-master zone group is created, the zone group or zone is not in the Ceph Radosgw Multisite [Period](https://docs.ceph.com/docs/master/radosgw/multisite/) until an object-store is created in that zone (and zone group).
+When a non-master zone or non-master zone group is created, the zone group or zone is not in the Ceph Radosgw Multisite [Period](https://docs.ceph.com/docs/en/latest/radosgw/multisite/) until an object-store is created in that zone (and zone group).
 
 The zone will create the pools for the object-store(s) that are in the zone to use.
 
@@ -165,12 +167,12 @@ kubectl create -f realm-a-keys.yaml
 
 Once the admin knows the endpoint and the secret for the keys has been created, the admin should create:
 
-1. A [CephObjectRealm](/design/ceph/object/realm.md) matching to the realm on the other Ceph cluster, with an endpoint as described above.
-1. A [CephObjectZoneGroup](/design/ceph/object/zone-group.md) matching the master zone group name or the master CephObjectZoneGroup from the cluster the the realm was pulled from.
-1. A [CephObjectZone](/design/ceph/object/zone.md) referring to the CephObjectZoneGroup created above.
-1. A [CephObjectStore](/design/ceph/object/store.md) referring to the new CephObjectZone resource.
+1. A [CephObjectRealm](ceph-object-multisite-crd.md#object-realm-settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
+1. A [CephObjectZoneGroup](ceph-object-multisite-crd.md#object-zone-group-settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the the realm was pulled from.
+1. A [CephObjectZone](ceph-object-multisite-crd.md#object-zone-settings) referring to the CephObjectZoneGroup created above.
+1. A CephObjectStore referring to the new CephObjectZone resource.
 
-object-multisite-pull-realm.yaml (with changes) in the [examples](/deploy/examples/) directory can be used to create the multisite CRDs.
+object-multisite-pull-realm.yaml (with changes) in the [examples](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/) directory can be used to create the multisite CRDs.
 
 ```console
 kubectl create -f object-multisite-pull-realm.yaml
