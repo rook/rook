@@ -247,7 +247,7 @@ spec:
         severity: critical
     - alert: CephClusterWarningState
       annotations:
-        description: Storage cluster is in warning state for more than 10m.
+        description: Storage cluster is in warning state for more than 15m.
         message: Storage cluster is in degraded state
         severity_level: warning
         storage_type: ceph
