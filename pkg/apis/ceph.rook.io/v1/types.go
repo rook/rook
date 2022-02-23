@@ -1053,6 +1053,12 @@ type MetadataServerSpec struct {
 	// PriorityClassName sets priority classes on components
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
+
+	// +optional
+	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+
+	// +optional
+	StartupProbe *ProbeSpec `json:"startupProbe,omitempty"`
 }
 
 // FSMirroringSpec represents the setting for a mirrored filesystem

@@ -23,28 +23,19 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-type fn func(cephv1.CephClusterHealthCheckSpec) *v1.Probe
-
 // ConfigureLivenessProbe returns the desired liveness probe for a given daemon
-func ConfigureLivenessProbe(daemon cephv1.KeyType, container v1.Container, healthCheck cephv1.CephClusterHealthCheckSpec) v1.Container {
-	// Map of functions
-	probeFnMap := map[cephv1.KeyType]fn{
-		cephv1.KeyMon: cephv1.GetMonLivenessProbe,
-		cephv1.KeyMgr: cephv1.GetMgrLivenessProbe,
-		cephv1.KeyOSD: cephv1.GetOSDLivenessProbe,
-		cephv1.KeyMds: cephv1.GetMdsLivenessProbe,
+func ConfigureLivenessProbe(container v1.Container, livenessProbe *cephv1.ProbeSpec) v1.Container {
+	if livenessProbe == nil {
+		return container
 	}
-
-	if _, ok := healthCheck.LivenessProbe[daemon]; ok {
-		if healthCheck.LivenessProbe[daemon].Disabled {
-			container.LivenessProbe = nil
-		} else {
-			probe := probeFnMap[daemon](healthCheck)
-			// If the spec value is not empty, let's apply it along with default when some fields are not specified
-			if probe != nil {
-				// Set the liveness probe on the container to overwrite the default probe created by Rook
-				container.LivenessProbe = GetProbeWithDefaults(probe, container.LivenessProbe)
-			}
+	if livenessProbe.Disabled {
+		container.LivenessProbe = nil
+	} else {
+		probe := livenessProbe.Probe
+		// If the spec value is not empty, let's apply it along with default when some fields are not specified
+		if probe != nil {
+			// Set the liveness probe on the container to overwrite the default probe created by Rook
+			container.LivenessProbe = GetProbeWithDefaults(probe, container.LivenessProbe)
 		}
 	}
 
@@ -52,25 +43,18 @@ func ConfigureLivenessProbe(daemon cephv1.KeyType, container v1.Container, healt
 }
 
 // ConfigureStartupProbe returns the desired startup probe for a given daemon
-func ConfigureStartupProbe(daemon cephv1.KeyType, container v1.Container, healthCheck cephv1.CephClusterHealthCheckSpec) v1.Container {
-	// Map of functions
-	probeFnMap := map[cephv1.KeyType]fn{
-		cephv1.KeyMon: cephv1.GetMonStartupProbe,
-		cephv1.KeyMgr: cephv1.GetMgrStartupProbe,
-		cephv1.KeyOSD: cephv1.GetOSDStartupProbe,
-		cephv1.KeyMds: cephv1.GetMdsStartupProbe,
+func ConfigureStartupProbe(container v1.Container, startupProbe *cephv1.ProbeSpec) v1.Container {
+	if startupProbe == nil {
+		return container
 	}
-
-	if _, ok := healthCheck.StartupProbe[daemon]; ok {
-		if healthCheck.StartupProbe[daemon].Disabled {
-			container.StartupProbe = nil
-		} else {
-			probe := probeFnMap[daemon](healthCheck)
-			// If the spec value is not empty, let's apply it along with default when some fields are not specified
-			if probe != nil {
-				// Set the startup probe on the container to overwrite the default probe created by Rook
-				container.StartupProbe = GetProbeWithDefaults(probe, container.StartupProbe)
-			}
+	if startupProbe.Disabled {
+		container.StartupProbe = nil
+	} else {
+		probe := startupProbe.Probe
+		// If the spec value is not empty, let's apply it along with default when some fields are not specified
+		if probe != nil {
+			// Set the startup probe on the container to overwrite the default probe created by Rook
+			container.StartupProbe = GetProbeWithDefaults(probe, container.StartupProbe)
 		}
 	}
 

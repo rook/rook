@@ -80,6 +80,17 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		ResourceName: "rook-ceph-mds-myfs-a",
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, "myfs-a", "rook-ceph", "/var/lib/rook/"),
 	}
+	t.Run(("check mds ConfigureProbe"), func(t *testing.T) {
+		c.fs.Spec.MetadataServer.StartupProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
+		c.fs.Spec.MetadataServer.LivenessProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
+		deployment, err := c.makeDeployment(mdsTestConfig, "ns")
+		assert.Nil(t, err)
+		assert.NotNil(t, deployment)
+		assert.NotNil(t, c.fs.Spec.MetadataServer.LivenessProbe)
+		assert.NotNil(t, c.fs.Spec.MetadataServer.StartupProbe)
+		assert.Equal(t, int32(900), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(1000), deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds)
+	})
 	return c.makeDeployment(mdsTestConfig, "ns")
 }
 

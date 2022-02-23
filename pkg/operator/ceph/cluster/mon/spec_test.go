@@ -86,6 +86,18 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	podTemplate.RunFullSuite(config.MonType, monID, AppName, "ns", "quay.io/ceph/ceph:myceph",
 		"200", "100", "1337", "500", /* resources */
 		"my-priority-class", "default", "cephclusters.ceph.rook.io", "ceph-mon")
+
+	t.Run(("check mon ConfigureProbe"), func(t *testing.T) {
+		c.spec.HealthCheck.StartupProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
+		c.spec.HealthCheck.StartupProbe[cephv1.KeyMon] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
+		c.spec.HealthCheck.LivenessProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
+		c.spec.HealthCheck.LivenessProbe[cephv1.KeyMon] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
+		container := c.makeMonDaemonContainer(monConfig)
+		assert.NotNil(t, container.LivenessProbe)
+		assert.NotNil(t, container.StartupProbe)
+		assert.Equal(t, int32(900), container.LivenessProbe.InitialDelaySeconds)
+		assert.Equal(t, int32(1000), container.StartupProbe.InitialDelaySeconds)
+	})
 }
 
 func TestDeploymentPVCSpec(t *testing.T) {
