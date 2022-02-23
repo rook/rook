@@ -52,6 +52,9 @@ rbacEnable: true
 ##
 pspEnable: true
 
+# Set the priority class for the rook operator deployment if desired
+# priorityClassName: class
+
 ## Settings for whether to disable the drivers or other daemons if they are not
 ## needed
 csi:

@@ -24,6 +24,8 @@ toolbox:
   image: rook/ceph:VERSION
   tolerations: []
   affinity: {}
+  # Set the priority class for the toolbox if desired
+  # priorityClassName: class
 
 monitoring:
   # requires Prometheus to be pre-installed
