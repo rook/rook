@@ -66,6 +66,17 @@ type deviceSet struct {
 	Encrypted bool
 }
 
+// PrepareStorageClassDeviceSets is only exposed for testing purposes
+func (c *Cluster) PrepareStorageClassDeviceSets() error {
+	errors := newProvisionErrors()
+	c.prepareStorageClassDeviceSets(errors)
+	if len(errors.errors) > 0 {
+		// return the first error
+		return errors.errors[0]
+	}
+	return nil
+}
+
 func (c *Cluster) prepareStorageClassDeviceSets(errs *provisionErrors) {
 	c.deviceSets = []deviceSet{}
 
