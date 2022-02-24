@@ -209,7 +209,6 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		{"supported", fields{Major: 16, Minor: 2, Extra: 1, Build: 0}, false},
 		{"supported", fields{Major: 15, Minor: 2, Extra: 1, Build: 0}, false},
 		{"supported", fields{Major: 15, Minor: 2, Extra: 6, Build: 0}, false},
-		{"unsupported", fields{Major: 14, Minor: 2, Extra: 13, Build: 0}, true},
 		{"unsupported", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
 	}
 	for _, tt := range tests {
