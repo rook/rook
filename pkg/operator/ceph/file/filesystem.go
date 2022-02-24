@@ -104,13 +104,15 @@ func deleteFilesystem(
 	// The K8s resources will already be removed with the K8s owner references
 	if err := downFilesystem(context, clusterInfo, fs.Name); err != nil {
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
-		return errors.Wrapf(err, "failed to down filesystem %q", fs.Name)
+		// Log the error for best effort and continue
+		logger.Warningf("continuing to remove filesystem CR even though downing the filesystem failed. %v", err)
 	}
 
 	// Permanently remove the filesystem if it was created by rook and the spec does not prevent it.
 	if len(fs.Spec.DataPools) != 0 && !fs.Spec.PreserveFilesystemOnDelete {
 		if err := cephclient.RemoveFilesystem(context, clusterInfo, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {
-			return errors.Wrapf(err, "failed to remove filesystem %q", fs.Name)
+			// log the error for best effort and continue
+			logger.Warningf("continuing to remove filesystem CR even though removal failed. %v", err)
 		}
 	}
 	return nil
