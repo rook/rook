@@ -40,6 +40,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -201,7 +202,7 @@ func TestCephNFSController(t *testing.T) {
 
 	newReconcile := func(clusterCtx *clusterd.Context, cl client.WithWatch) *ReconcileCephNFS {
 		// Create a ReconcileCephNFS object with the scheme and fake client.
-		return &ReconcileCephNFS{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx}
+		return &ReconcileCephNFS{client: cl, scheme: testScheme, context: clusterCtx, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a

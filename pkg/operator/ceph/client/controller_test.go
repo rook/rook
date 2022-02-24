@@ -36,6 +36,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -172,6 +173,7 @@ func TestCephClientController(t *testing.T) {
 		scheme:           s,
 		context:          c,
 		opManagerContext: ctx,
+		recorder:         record.NewFakeRecorder(5),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -220,6 +222,7 @@ func TestCephClientController(t *testing.T) {
 		scheme:           s,
 		context:          c,
 		opManagerContext: ctx,
+		recorder:         record.NewFakeRecorder(5),
 	}
 	assert.True(t, res.Requeue)
 
@@ -278,6 +281,7 @@ func TestCephClientController(t *testing.T) {
 		scheme:           s,
 		context:          c,
 		opManagerContext: context.TODO(),
+		recorder:         record.NewFakeRecorder(5),
 	}
 
 	res, err = r.Reconcile(ctx, req)

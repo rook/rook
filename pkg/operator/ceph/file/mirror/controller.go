@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -77,6 +78,7 @@ type ReconcileFilesystemMirror struct {
 	cephClusterSpec  *cephv1.ClusterSpec
 	opManagerContext context.Context
 	opConfig         opcontroller.OperatorConfig
+	recorder         record.EventRecorder
 }
 
 // Add creates a new CephFilesystemMirror Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -93,6 +95,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opConfig:         opConfig,
 		opManagerContext: opManagerContext,
+		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
 	}
 }
 
@@ -130,26 +133,25 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileFilesystemMirror) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
-	reconcileResponse, err := r.reconcile(request)
+	reconcileResponse, cephFilesystemMirror, err := r.reconcile(request)
 	if err != nil {
 		r.updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
-		logger.Errorf("failed to reconcile %v", err)
 	}
 
-	return reconcileResponse, err
+	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephFilesystemMirror, reconcileResponse, err)
 }
 
-func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephFilesystemMirror, error) {
 	// Fetch the CephFilesystemMirror instance
 	filesystemMirror := &cephv1.CephFilesystemMirror{}
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, filesystemMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, *filesystemMirror, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get CephFilesystemMirror")
+		return reconcile.Result{}, *filesystemMirror, errors.Wrap(err, "failed to get CephFilesystemMirror")
 	}
 
 	// The CR was just created, initializing status fields
@@ -161,7 +163,9 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	cephCluster, isReadyToReconcile, _, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		logger.Debugf("CephCluster resource not ready in namespace %q, retrying in %q.", request.NamespacedName.Namespace, reconcileResponse.RequeueAfter.String())
-		return reconcileResponse, nil
+		r.recorder.Event(filesystemMirror, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+
+		return reconcileResponse, *filesystemMirror, nil
 	}
 
 	// Assign the clusterSpec
@@ -170,7 +174,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	// Populate clusterInfo
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
+		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Detect desired CephCluster version
@@ -187,9 +191,9 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *filesystemMirror, nil
 		}
-		return reconcile.Result{}, errors.Wrap(err, "failed to detect running and desired ceph version")
+		return reconcile.Result{}, *filesystemMirror, errors.Wrap(err, "failed to detect running and desired ceph version")
 	}
 
 	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
@@ -197,21 +201,21 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
 	if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
 		// Upgrade is in progress, let's wait for the mons to be done
-		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading, *filesystemMirror,
 			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
 	}
 	r.clusterInfo.CephVersion = *runningCephVersion
 
 	// Validate Ceph version
 	if !r.clusterInfo.CephVersion.IsAtLeastPacific() {
-		return opcontroller.ImmediateRetryResult, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", r.clusterInfo.CephVersion.String())
+		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", r.clusterInfo.CephVersion.String())
 	}
 
 	// CREATE/UPDATE
 	logger.Debug("reconciling ceph filesystem mirror deployments")
 	reconcileResponse, err = r.reconcileFilesystemMirror(filesystemMirror)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create ceph filesystem mirror deployments")
+		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Wrap(err, "failed to create ceph filesystem mirror deployments")
 	}
 
 	// Set Ready status, we are done reconciling
@@ -219,7 +223,7 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph filesystem mirror")
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, *filesystemMirror, nil
 
 }
 
