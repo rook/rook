@@ -75,7 +75,7 @@ jobs:
         kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
         # print client.csi-rbd-provisioner user after update
         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool 
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
         # print client.csi-rbd-provisioner user after running script
         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
 
@@ -124,7 +124,7 @@ jobs:
         #  --cluster-name and --run-as-user flag while upgrading
         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool-radosNamespace
         # print ugraded client auth
-        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookStorage-replicapool-radosNamespace    
+        kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookStorage-replicapool-radosNamespace
 
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
@@ -140,7 +140,8 @@ jobs:
         kubectl -n rook-ceph create -f deploy/examples/osd-purge.yaml
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         kubectl -n rook-ceph exec $toolbox -- ceph status
-        timeout 120 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1.*.destroyed'; do echo 'waiting for ceph osd 1 to be destroyed'; sleep 1; done"
+        # wait until osd.1 is removed from the osd tree
+        timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
         kubectl -n rook-ceph exec $toolbox -- ceph status
         kubectl -n rook-ceph exec $toolbox -- ceph osd tree
 
