@@ -19,7 +19,10 @@ package mgr
 import (
 	"context"
 	"fmt"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"os"
+	"path"
 	"testing"
 	"time"
 
@@ -486,5 +489,139 @@ func TestCluster_enableBalancerModule(t *testing.T) {
 		c.context.Executor = executor
 		err := c.enableBalancerModule()
 		assert.NoError(t, err)
+	})
+}
+
+func TestPrometheusRuleTemplate(t *testing.T) {
+	clusterSpec := cephv1.ClusterSpec{
+		Labels: cephv1.LabelsSpec{},
+	}
+	c := &Cluster{spec: clusterSpec}
+	projectRoot := util.PathToProjectRoot()
+	monitoringPath = path.Join(projectRoot, "/deploy/examples/monitoring/")
+	t.Run("default prometheus rule created successfully from template", func(t *testing.T) {
+		os.Setenv(k8sutil.PodNamespaceEnvVar, "test-ns")
+		defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+		pr, err := c.templateToPrometheusRule("name", PrometheusRuleTemplatePath)
+		assert.NoError(t, err)
+		assert.NotNil(t, pr.Spec.Groups)
+		for _, g := range pr.Spec.Groups {
+			assert.NotNil(t, g.Rules)
+			if g.Name == "ceph-mgr-status" {
+				foundAlert := false
+				for _, r := range g.Rules {
+					if r.Alert == "CephMgrIsAbsent" {
+						assert.Equal(t, r.For, "5m")
+						assert.Contains(t, r.Expr.StrVal, "test-ns")
+						assert.Equal(t, r.Labels["severity"], "critical")
+						assert.Equal(t, r.Annotations["severity_level"], "critical")
+					}
+					if r.Alert == "CephMgrIsMissingReplicas" {
+						foundAlert = true
+					}
+				}
+				assert.Equal(t, foundAlert, true)
+			}
+			if g.Name == "osd-alert.rules" {
+				for _, r := range g.Rules {
+					if r.Alert == "CephOSDNearFull" {
+						assert.Contains(t, r.Expr.StrVal, "0.75")
+					}
+					if r.Alert == "CephOSDFlapping" {
+						assert.Contains(t, r.Expr.StrVal, "[5m]")
+					}
+				}
+			}
+		}
+	})
+	t.Run("overwrite prometheus rule created successfully from template", func(t *testing.T) {
+		os.Setenv(k8sutil.PodNamespaceEnvVar, "test-ns")
+		defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+		alerts := make(map[string]*cephv1.CephAlert)
+		alerts["CephMgrIsMissingReplicas"] = &cephv1.CephAlert{Disabled: true, For: "1m"}
+		alerts["CephMgrIsAbsent"] = &cephv1.CephAlert{For: "1m", SeverityLevel: "error"}
+		alerts["CephOSDNearFull"] = &cephv1.CephAlert{Limit: 80}
+		alerts["CephOSDFlapping"] = &cephv1.CephAlert{OsdUpRate: "10m"}
+		c.spec.Monitoring.AlertRuleOverrides = alerts
+		pr, err := c.templateToPrometheusRule("name", PrometheusRuleTemplatePath)
+		assert.NoError(t, err)
+		assert.NotNil(t, pr.Spec.Groups)
+		for _, g := range pr.Spec.Groups {
+			assert.NotNil(t, g.Rules)
+			if g.Name == "ceph-mgr-status" {
+				foundAlert := false
+				for _, r := range g.Rules {
+					if r.Alert == "CephMgrIsAbsent" {
+						assert.Equal(t, r.For, "1m")
+						assert.Contains(t, r.Expr.StrVal, "test-ns")
+						assert.Equal(t, r.Labels["severity"], "critical")
+						assert.Equal(t, r.Annotations["severity_level"], "error")
+					}
+					if r.Alert == "CephMgrIsMissingReplicas" {
+						foundAlert = true
+					}
+				}
+				assert.Equal(t, foundAlert, false)
+			}
+			if g.Name == "osd-alert.rules" {
+				for _, r := range g.Rules {
+					if r.Alert == "CephOSDNearFull" {
+						assert.Contains(t, r.Expr.StrVal, "0.80")
+					}
+					if r.Alert == "CephOSDFlapping" {
+						assert.Contains(t, r.Expr.StrVal, "[10m]")
+					}
+				}
+			}
+		}
+	})
+	t.Run("empty AlertRuleOverrides map will return default alert values as expected", func(t *testing.T) {
+		os.Setenv(k8sutil.PodNamespaceEnvVar, "test-ns")
+		defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+		c.spec.Monitoring.AlertRuleOverrides = make(map[string]*cephv1.CephAlert)
+		pr, err := c.templateToPrometheusRule("name", PrometheusRuleTemplatePath)
+		assert.NoError(t, err)
+		assert.NotNil(t, pr.Spec.Groups)
+		for _, g := range pr.Spec.Groups {
+			assert.NotNil(t, g.Rules)
+			if g.Name == "ceph-mgr-status" {
+				foundAlert := false
+				for _, r := range g.Rules {
+					if r.Alert == "CephMgrIsAbsent" {
+						assert.Equal(t, r.For, "5m")
+						assert.Contains(t, r.Expr.StrVal, "test-ns")
+						assert.Equal(t, r.Labels["severity"], "critical")
+						assert.Equal(t, r.Annotations["severity_level"], "critical")
+					}
+					if r.Alert == "CephMgrIsMissingReplicas" {
+						foundAlert = true
+					}
+				}
+				assert.Equal(t, foundAlert, true)
+			}
+		}
+	})
+	t.Run("groups that all their alerts were disabled, were removed from prometheus rule spec successfully", func(t *testing.T) {
+		alerts := make(map[string]*cephv1.CephAlert)
+		alerts["CephMgrIsMissingReplicas"] = &cephv1.CephAlert{Disabled: true}
+		alerts["CephMgrIsAbsent"] = &cephv1.CephAlert{Disabled: true}
+		alerts["CephNodeDown"] = &cephv1.CephAlert{Disabled: true}
+		c.spec.Monitoring.AlertRuleOverrides = alerts
+		pr, err := c.templateToPrometheusRule("name", PrometheusRuleTemplatePath)
+		assert.NoError(t, err)
+		assert.NotNil(t, pr.Spec.Groups)
+		foundStatusGroup := false
+		foundNodeGroup := false
+		for _, g := range pr.Spec.Groups {
+			assert.NotNil(t, g.Rules)
+			if g.Name == "ceph-mgr-status" {
+				foundStatusGroup = true
+			}
+			if g.Name == "ceph-node-alert.rules" {
+				foundNodeGroup = true
+			}
+		}
+		assert.Equal(t, foundStatusGroup, false)
+		assert.Equal(t, foundNodeGroup, false)
 	})
 }

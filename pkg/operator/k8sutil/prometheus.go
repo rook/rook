@@ -87,20 +87,6 @@ func CreateOrUpdateServiceMonitor(ctx context.Context, serviceMonitorDefinition 
 	return sm, nil
 }
 
-// GetPrometheusRule returns provided prometheus rules or an error
-func GetPrometheusRule(ruleFilePath string) (*monitoringv1.PrometheusRule, error) {
-	ruleFile, err := ioutil.ReadFile(filepath.Clean(ruleFilePath))
-	if err != nil {
-		return nil, fmt.Errorf("prometheusRules file could not be fetched. %v", err)
-	}
-	var rule monitoringv1.PrometheusRule
-	err = k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBufferString(string(ruleFile)), 1000).Decode(&rule)
-	if err != nil {
-		return nil, fmt.Errorf("prometheusRules could not be decoded. %v", err)
-	}
-	return &rule, nil
-}
-
 // CreateOrUpdatePrometheusRule creates a prometheusRule object or an error
 func CreateOrUpdatePrometheusRule(ctx context.Context, prometheusRule *monitoringv1.PrometheusRule) (*monitoringv1.PrometheusRule, error) {
 	name := prometheusRule.GetName()

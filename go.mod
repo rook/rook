@@ -15,6 +15,7 @@ require (
 	github.com/hashicorp/vault-plugin-secrets-kv v0.9.0
 	github.com/hashicorp/vault/api v1.1.2-0.20210713235431-1fc8af4c041f
 	github.com/hashicorp/vault/sdk v0.2.2-0.20211101151547-6654f4b913f9
+	github.com/imdario/mergo v0.3.12
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220105185820-c1da9586e05b
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec

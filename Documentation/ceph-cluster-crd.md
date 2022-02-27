@@ -186,6 +186,7 @@ If this value is empty, each pod will get an ephemeral directory to store their 
   * `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
 * `monitoring`: Settings for monitoring Ceph using Prometheus. To enable monitoring on your cluster see the [monitoring guide](ceph-monitoring.md#prometheus-alerts).
   * `enabled`: Whether to enable prometheus based monitoring for this cluster
+  * `alertRuleOverrides`: Custom prometheus rule alerts values to override default values
   * `externalMgrEndpoints`: external cluster manager endpoints
   * `externalMgrPrometheusPort`: external prometheus manager module port. See [external cluster configuration](#external-cluster) for more details.
   * `rulesNamespace`: Namespace to deploy prometheusRule. If empty, namespace of the cluster will be used.
@@ -1402,6 +1403,25 @@ spec:
     #externalMgrEndpoints:
       #- ip: 192.168.39.182
     #externalMgrPrometheusPort: 9283
+    # prometheus rule alerts values for overriding default prometheus rules values
+    # Notes:
+    # 1. Specific alerts can be disabled by setting disabled field to true 
+    # 2. The difference between severityLevel and severity fields is:
+    #    severityLevel - is an annotation for marking warning/critical/error in ceph dashboard UI.
+    #    severity - is a label that can be used by Prometheus AlertManager for sending alerts based on this label.
+    #alertRuleOverrides:
+    #  CephNodeDown:
+    #    disabled: true
+    #  CephMgrIsAbsent:
+    #    for: 1m
+    #    severityLevel: warning # must be warning, critical, or error
+    #    severity: custom-severity
+    #  CephOSDNearFull:
+    #    limit: 80
+    #    for: 2m
+    #  CephOSDFlapping:
+    #    osdUpRate: 10m  
+    #    severity: custom-severity-2
 ```
 
 Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.

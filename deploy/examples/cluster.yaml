@@ -79,6 +79,25 @@ spec:
     # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
     # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
     rulesNamespace: rook-ceph
+    # prometheus rule alerts values for overriding default prometheus rules values
+    # Notes:
+    # 1. Specific alerts can be disabled by setting disabled field to true
+    # 2. The difference between severityLevel and severity fields is:
+    #    severityLevel - is an annotation for marking warning/critical/error in ceph dashboard UI.
+    #    severity - is a label that can be used by Prometheus AlertManager for sending alerts based on this label.
+    #alertRuleOverrides:
+    #  CephNodeDown:
+    #    disabled: true
+    #  CephMgrIsAbsent:
+    #    for: 1m
+    #    severityLevel: warning # must be warning, critical, or error
+    #    severity: custom-severity
+    #  CephOSDNearFull:
+    #    limit: 80
+    #    for: 2m
+    #  CephOSDFlapping:
+    #    osdUpRate: 10m
+    #    severity: custom-severity-2
   network:
     # enable host networking
     #provider: host

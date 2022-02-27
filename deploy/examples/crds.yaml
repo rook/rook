@@ -1592,6 +1592,32 @@ spec:
                   description: Prometheus based Monitoring settings
                   nullable: true
                   properties:
+                    alertRuleOverrides:
+                      additionalProperties:
+                        description: CephAlert basic customized alert
+                        properties:
+                          disabled:
+                            type: boolean
+                          for:
+                            type: string
+                          limit:
+                            type: integer
+                          namespace:
+                            type: string
+                          osdUpRate:
+                            type: string
+                          severity:
+                            type: string
+                          severityLevel:
+                            enum:
+                              - warning
+                              - critical
+                              - error
+                            type: string
+                        type: object
+                      description: AlertRuleOverrides points to a customized Ceph prometheus alerts
+                      nullable: true
+                      type: object
                     enabled:
                       description: Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus types must exist or the creation will fail.
                       type: boolean

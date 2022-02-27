@@ -76,7 +76,7 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 
 func checkIfRookClusterHasHealthyIngress(s suite.Suite, k8sh *utils.K8sHelper, clusterNamespace string) {
 	logger.Infof("Testing ingress %s health", clusterNamespace)
-	_, err := k8sh.GetResourceStatus("Ingress", clusterNamespace + "-dashboard", clusterNamespace)
+	_, err := k8sh.GetResourceStatus("Ingress", clusterNamespace+"-dashboard", clusterNamespace)
 	assert.NoError(s.T(), err)
 }
 

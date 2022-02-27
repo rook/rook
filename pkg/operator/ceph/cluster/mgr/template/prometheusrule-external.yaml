@@ -1,0 +1,42 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+  name: prometheus-ceph-rules
+  namespace: rook-ceph
+spec:
+  groups:
+  - name: persistent-volume-alert.rules
+    rules:
+    {{- if not .PersistentVolumeUsageNearFull.Disabled }}
+    - alert: PersistentVolumeUsageNearFull
+      annotations:
+        description: PVC `{{`{{`}} $labels.persistentvolumeclaim {{`}}`}}` utilization has crossed
+          {{ .PersistentVolumeUsageNearFull.Limit }}%. Free up some space or expand the PVC.
+        message: PVC `{{`{{`}} $labels.persistentvolumeclaim {{`}}`}}` is nearing full. Data deletion
+          or PVC expansion is required.
+        severity_level: {{ .PersistentVolumeUsageNearFull.SeverityLevel }}
+        storage_type: ceph
+      expr: |
+        (kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) / (kubelet_volume_stats_capacity_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) > 0.{{ .PersistentVolumeUsageNearFull.Limit }}
+      for: {{ .PersistentVolumeUsageNearFull.For }}
+      labels:
+        severity: {{ .PersistentVolumeUsageNearFull.Severity }}
+    {{- end }}
+    {{- if not .PersistentVolumeUsageCritical.Disabled }}
+    - alert: PersistentVolumeUsageCritical
+      annotations:
+        description: PVC `{{`{{`}} $labels.persistentvolumeclaim {{`}}`}}` utilization has crossed
+          {{ .PersistentVolumeUsageCritical.Limit }}%. Free up some space or expand the PVC immediately.
+        message: PVC `{{`{{`}} $labels.persistentvolumeclaim {{`}}`}}` is critically full. Data
+          deletion or PVC expansion is required.
+        severity_level: {{ .PersistentVolumeUsageCritical.SeverityLevel }}
+        storage_type: ceph
+      expr: |
+        (kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) / (kubelet_volume_stats_capacity_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) > 0.{{ .PersistentVolumeUsageCritical.Limit }}
+      for: {{ .PersistentVolumeUsageCritical.For }}
+      labels:
+        severity: {{ .PersistentVolumeUsageCritical.Severity }}
+    {{- end }}

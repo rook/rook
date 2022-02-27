@@ -31,3 +31,15 @@ spec:
   #   externalMgrEndpoints:
       #- ip: ip
       # externalMgrPrometheusPort: 9283
+    # prometheus rule alerts values for overriding default prometheus rules values
+    # Notes:
+    # 1. Specific alerts can be disabled by setting disabled field to true
+    # 2. The difference between severityLevel and severity fields is:
+    #    severityLevel - is an annotation for marking warning/critical/error in ceph dashboard UI.
+    #    severity - is a label that can be used by Prometheus AlertManager for sending alerts based on this label.
+    #alertRuleOverrides:
+    #  PersistentVolumeUsageNearFull:
+    #    limit: 80
+    #    for: 1m
+    #    severityLevel: warning # must be warning, critical, or error
+    #    severity: custom-severity

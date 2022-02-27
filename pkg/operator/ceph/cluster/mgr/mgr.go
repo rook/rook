@@ -18,13 +18,12 @@ limitations under the License.
 package mgr
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
-	"path"
-	"strconv"
-	"strings"
-
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/imdario/mergo"
 	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -39,26 +38,42 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/yaml"
+	"os"
+	"path"
+	"path/filepath"
+	"strings"
+	"text/template"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
+var (
+	logger             = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
+	prometheusRuleName = "prometheus-ceph-rules"
 
-var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
+	// PrometheusExternalRuleName is the name of the prometheus external rule
+	PrometheusExternalRuleName = "prometheus-ceph-rules-external"
+	monitoringPath             = "/etc/ceph-monitoring/"
 
-// PrometheusExternalRuleName is the name of the prometheus external rule
-var PrometheusExternalRuleName = "prometheus-ceph-vVERSION-rules-external"
+	// PrometheusRuleTemplatePath Local package template path for prometheusrule
+	//go:embed template/prometheusrule.yaml
+	PrometheusRuleTemplatePath string
+
+	// PrometheusRuleExternalTemplatePath Local package template path for prometheusrule-external
+	//go:embed template/prometheusrule-external.yaml
+	PrometheusRuleExternalTemplatePath string
+)
 
 const (
-	AppName                = "rook-ceph-mgr"
-	serviceAccountName     = "rook-ceph-mgr"
-	maxMgrCount            = 2
-	PrometheusModuleName   = "prometheus"
-	crashModuleName        = "crash"
-	PgautoscalerModuleName = "pg_autoscaler"
-	balancerModuleName     = "balancer"
-	balancerModuleMode     = "upmap"
-	monitoringPath         = "/etc/ceph-monitoring/"
-	serviceMonitorFile     = "service-monitor.yaml"
+	AppName                   = "rook-ceph-mgr"
+	serviceAccountName        = "rook-ceph-mgr"
+	maxMgrCount               = 2
+	PrometheusModuleName      = "prometheus"
+	crashModuleName           = "crash"
+	PgautoscalerModuleName    = "pg_autoscaler"
+	balancerModuleName        = "balancer"
+	balancerModuleMode        = "upmap"
+	serviceMonitorFile        = "service-monitor.yaml"
+	defaultPrometheusRuleFile = "prometheusrule-default-values.yaml"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 	// DefaultMetricsPort prometheus exporter port
@@ -513,13 +528,13 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 
 // DeployPrometheusRule deploy prometheusRule that adds alerting and/or recording rules to the cluster
 func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
-	version := strconv.Itoa(c.clusterInfo.CephVersion.Major)
-	name = strings.Replace(name, "VERSION", version, 1)
-	prometheusRuleFile := name + ".yaml"
-	prometheusRuleFile = path.Join(monitoringPath, prometheusRuleFile)
-	prometheusRule, err := k8sutil.GetPrometheusRule(prometheusRuleFile)
+	templatePath := PrometheusRuleTemplatePath
+	if strings.Contains(name, "external") {
+		templatePath = PrometheusRuleExternalTemplatePath
+	}
+	prometheusRule, err := c.templateToPrometheusRule(name, templatePath)
 	if err != nil {
-		return errors.Wrap(err, "prometheus rule could not be deployed")
+		return errors.Wrap(err, "failed to template prometheus rule")
 	}
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(namespace)
@@ -529,9 +544,68 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	}
 	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&prometheusRule.ObjectMeta)
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(c.clusterInfo.Context, prometheusRule); err != nil {
+		logger.Errorf("failed to deploy prometheusRule: %v", prometheusRule)
 		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}
 	return nil
+}
+
+func (c *Cluster) templateToPrometheusRule(name, templateData string) (*monitoringv1.PrometheusRule, error) {
+	var rule monitoringv1.PrometheusRule
+	customPrometheusRule, err := c.computeCustomizedPrometheusAlerts()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to compute customized prometheus rule")
+	}
+	t, err := loadTemplate(name, templateData, customPrometheusRule)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load prometheus rule template")
+	}
+	err = yaml.Unmarshal(t, &rule)
+	if err != nil {
+		return nil, err
+	}
+	// remove groups that all their alerts where disabled from prometheus rule spec
+	for i, g := range rule.Spec.Groups {
+		if g.Rules == nil {
+			rule.Spec.Groups = append(rule.Spec.Groups[:i], rule.Spec.Groups[i+1:]...)
+		}
+	}
+	return &rule, nil
+}
+
+func loadTemplate(name, templateData string, p map[string]*cephv1.CephAlert) ([]byte, error) {
+	var writer bytes.Buffer
+	t := template.New(name)
+	t, err := t.Parse(templateData)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse template %v", name)
+	}
+	err = t.Execute(&writer, p)
+	return writer.Bytes(), err
+}
+
+// computeCustomizedPrometheusAlerts compute Alerts by merging the data that was get from cephcluster spec with the default data
+func (c *Cluster) computeCustomizedPrometheusAlerts() (map[string]*cephv1.CephAlert, error) {
+	defaultAlerts := make(map[string]*cephv1.CephAlert)
+	fi, err := os.ReadFile(filepath.Clean(path.Join(monitoringPath, defaultPrometheusRuleFile)))
+	if err != nil {
+		return nil, err
+	}
+	//replace dynamic values
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	fi = []byte(strings.NewReplacer("${operatorNamespace}", operatorNamespace).Replace(string(fi)))
+	err = yaml.Unmarshal(fi, &defaultAlerts)
+	if err != nil {
+		return nil, err
+	}
+	// merge custom alerts values with default values (if any)
+	if c.spec.Monitoring.AlertRuleOverrides != nil {
+		err = mergo.Merge(&defaultAlerts, c.spec.Monitoring.AlertRuleOverrides, mergo.WithOverride)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return defaultAlerts, nil
 }
 
 // IsModuleInSpec returns whether a module is present in the CephCluster manager spec

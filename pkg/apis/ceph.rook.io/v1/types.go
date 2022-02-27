@@ -304,6 +304,29 @@ type MonitoringSpec struct {
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	ExternalMgrPrometheusPort uint16 `json:"externalMgrPrometheusPort,omitempty"`
+	// AlertRuleOverrides points to a customized Ceph prometheus alerts
+	// +optional
+	// +nullable
+	AlertRuleOverrides map[string]*CephAlert `json:"alertRuleOverrides,omitempty"`
+}
+
+//CephAlert basic customized alert
+type CephAlert struct {
+	// +optional
+	Disabled bool `json:"disabled,omitempty"`
+	// +optional
+	For string `json:"for,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum=warning;critical;error
+	SeverityLevel string `json:"severityLevel,omitempty"`
+	// +optional
+	Severity string `json:"severity,omitempty"`
+	// +optional
+	Namespace string `json:"namespace,omitempty"`
+	// +optional
+	Limit int `json:"limit,omitempty"`
+	// +optional
+	OsdUpRate string `json:"osdUpRate,omitempty"`
 }
 
 // ClusterStatus represents the status of a Ceph cluster

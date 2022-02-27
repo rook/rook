@@ -6,3 +6,6 @@
 Pr: https://github.com/rook/rook/pull/9550
 
 ## Features
+
+### Ceph
+- Prometheus Rule alerts can be customized by user preference.
