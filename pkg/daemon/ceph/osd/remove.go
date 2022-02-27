@@ -174,19 +174,19 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	}
 
 	// purge the osd
-	logger.Infof("destroying osd.%d", osdID)
-	purgeOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdID), "--yes-i-really-mean-it"}
+	logger.Infof("purging osd.%d", osdID)
+	purgeOSDArgs := []string{"osd", "purge", fmt.Sprintf("osd.%d", osdID), "--force", "--yes-i-really-mean-it"}
 	_, err = client.NewCephCommand(clusterdContext, clusterInfo, purgeOSDArgs).Run()
 	if err != nil {
 		logger.Errorf("failed to purge osd.%d. %v", osdID, err)
 	}
 
 	// Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host
-	logger.Infof("removing osd.%d from ceph", osdID)
+	logger.Infof("attempting to remove host %q from crush map if not in use", osdID)
 	hostArgs := []string{"osd", "crush", "rm", hostName}
 	_, err = client.NewCephCommand(clusterdContext, clusterInfo, hostArgs).Run()
 	if err != nil {
-		logger.Errorf("failed to remove CRUSH host %q. %v", hostName, err)
+		logger.Infof("failed to remove CRUSH host %q. %v", hostName, err)
 	}
 
 	// call archiveCrash to silence crash warning in ceph health if any
