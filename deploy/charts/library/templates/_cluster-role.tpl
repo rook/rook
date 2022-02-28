@@ -109,5 +109,5 @@ rules:
     verbs: ["get", "list", "delete" ]
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
-    verbs: ["get", "update", "delete"]
+    verbs: ["get", "update", "delete", "list"]
 {{- end }}
