@@ -6,3 +6,6 @@
 Pr: https://github.com/rook/rook/pull/9550
 
 ## Features
+
+*  Add support for custom ceph.conf for csi pods.
+Pr: https://github.com/rook/rook/pull/9567

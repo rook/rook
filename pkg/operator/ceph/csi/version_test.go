@@ -89,3 +89,19 @@ func Test_extractCephCSIVersion(t *testing.T) {
 	assert.Nil(t, version)
 	assert.Contains(t, err.Error(), "failed to parse version from")
 }
+
+func TestSupportsCustomCephConf(t *testing.T) {
+	AllowUnsupported = true
+	ret := testMinVersion.SupportsCustomCephConf()
+	assert.True(t, ret)
+
+	AllowUnsupported = false
+	ret = testMinVersion.SupportsCustomCephConf()
+	assert.False(t, ret)
+
+	ret = testReleaseV340.SupportsCustomCephConf()
+	assert.False(t, ret)
+
+	ret = testReleaseV350.SupportsCustomCephConf()
+	assert.True(t, ret)
+}

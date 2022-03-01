@@ -59,6 +59,7 @@ type Param struct {
 	EnableCephFSSnapshotter        bool
 	EnableVolumeReplicationSideCar bool
 	EnableCSIAddonsSideCar         bool
+	MountCustomCephConf            bool
 	LogLevel                       uint8
 	CephFSGRPCMetricsPort          uint16
 	CephFSLivenessMetricsPort      uint16
@@ -79,10 +80,11 @@ type templateParam struct {
 var (
 	CSIParam Param
 
-	EnableRBD            = false
-	EnableCephFS         = false
-	EnableCSIGRPCMetrics = false
-	AllowUnsupported     = false
+	EnableRBD                 = false
+	EnableCephFS              = false
+	EnableCSIGRPCMetrics      = false
+	AllowUnsupported          = false
+	CustomCSICephConfigExists = false
 
 	//driver names
 	CephFSDriverName string
@@ -347,6 +349,9 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		}
 	}
 
+	if CustomCSICephConfigExists {
+		tp.MountCustomCephConf = v.SupportsCustomCephConf()
+	}
 	tp.ProvisionerReplicas = defaultProvisionerReplicas
 	nodes, err := r.context.Clientset.CoreV1().Nodes().List(r.opManagerContext, metav1.ListOptions{})
 	if err == nil {

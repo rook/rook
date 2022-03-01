@@ -194,6 +194,12 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create pool ID mapping config map")
 	}
 
+	exists, err := checkCsiCephConfigMapExists(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get csi ceph.conf configmap")
+	}
+	CustomCSICephConfigExists = exists
+
 	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")

@@ -258,6 +258,21 @@ func (h *CephInstaller) CreateCephCluster() error {
 		return errors.Errorf("failed to create custom ceph.conf. %+v", err)
 	}
 
+	customCSISettings := map[string]string{
+		"ceph.conf": "[global]\nauth_client_required = cephx",
+	}
+	customCSICM := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "csi-ceph-conf-override",
+			Namespace: h.settings.Namespace,
+		},
+		Data: customCSISettings,
+	}
+
+	if _, err := h.k8shelper.Clientset.CoreV1().ConfigMaps(h.settings.Namespace).Create(ctx, customCSICM, metav1.CreateOptions{}); err != nil {
+		return errors.Errorf("failed to create custom csi ceph.conf. %+v", err)
+	}
+
 	logger.Info("Starting Rook Cluster")
 	rookCluster := h.Manifests.GetCephCluster()
 	logger.Info(rookCluster)
