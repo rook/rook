@@ -217,6 +217,8 @@ spec:
       databaseSizeMB: "1024"
       journalSizeMB: "1024"
   mgr:
+    count: ` + strconv.Itoa(mgrCount) + `
+    allowMultiplePerNode: true
     modules:
     - name: pg_autoscaler
       enabled: true
