@@ -27,6 +27,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 * [LVM metadata can be corrupted with OSD on LV-backed PVC](#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
 * [OSD prepare job fails due to low aio-max-nr setting](#osd-prepare-job-fails-due-to-low-aio-max-nr-setting)
 * [Unexpected partitions created](#unexpected-partitions-created)
+* [Operator environment variables are ignored](#operator-environment-variables-are-ignored)
 
 See also the [CSI Troubleshooting Guide](ceph-csi-troubleshooting.md).
 
@@ -724,3 +725,41 @@ as well as a second corrupted disk `/dev/sde` with one unexpected partition (`/d
 
 If your Rook-Ceph cluster does not have any critical data stored in it, it may be simpler to
 uninstall Rook completely and redeploy with v1.6.8 or higher.
+
+## Operator environment variables are ignored
+
+### Symptoms
+
+Configuration settings passed as environment variables do not take effect as expected. For example,
+the discover daemonset is not created, even though `ROOK_ENABLE_DISCOVERY_DAEMON="true"` is set.
+
+### Investigation
+
+Inspect the `rook-ceph-operator-config` ConfigMap for conflicting settings. The ConfigMap takes
+precedence over the environment. The ConfigMap [must exist](ceph-advanced-configuration.md#configuration-using-environment-variables),
+even if all actual configuration is supplied through the environment.
+
+Look for lines with the `op-k8sutil` prefix in the operator logs.
+These lines detail the final values, and source, of the different configuration variables.
+
+Verify that both of the following messages are present in the operator logs:
+
+```log
+rook-ceph-operator-config-controller successfully started
+rook-ceph-operator-config-controller done reconciling
+```
+
+### Solution
+
+If it does not exist, create an empty ConfigMap:
+
+```yaml
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: rook-ceph-operator-config
+  namespace: rook-ceph # namespace:operator
+data: {}
+```
+
+If the ConfigMap exists, remove any keys that you wish to configure through the environment.
