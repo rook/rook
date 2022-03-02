@@ -34,10 +34,15 @@ toolbox:
   # Set the priority class for the toolbox if desired
   # priorityClassName: class
 
+# monitoring requires Prometheus to be pre-installed
 monitoring:
-  # requires Prometheus to be pre-installed
   # enabling will also create RBAC rules to allow Operator to create ServiceMonitors
   enabled: false
+  # whether to create the prometheus rules
+  createPrometheusRules: false
+  # the namespace in which to create the prometheus rules, if different from the rook cluster namespace
+  # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
+  # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
   rulesNamespaceOverride:
 
 # If true, create & use PSP resources. Set this to the same value as the rook-ceph chart.

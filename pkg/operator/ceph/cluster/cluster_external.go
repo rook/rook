@@ -237,21 +237,5 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 	} else {
 		logger.Info("external service monitor created")
 	}
-
-	// namespace in which the prometheusRule should be deployed
-	// if left empty, it will be deployed in current namespace
-	namespace := cluster.Spec.Monitoring.RulesNamespace
-	if namespace == "" {
-		namespace = cluster.Namespace
-	}
-
-	logger.Info("creating external prometheus rule")
-	err = manager.DeployPrometheusRule(mgr.PrometheusExternalRuleName, namespace)
-	if err != nil {
-		logger.Errorf("failed to create external prometheus rule. %v", err)
-	} else {
-		logger.Info("external prometheus rule created")
-	}
-
 	return nil
 }

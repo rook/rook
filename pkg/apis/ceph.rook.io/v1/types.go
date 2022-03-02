@@ -289,11 +289,6 @@ type MonitoringSpec struct {
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
-	// RulesNamespace is the namespace where the prometheus rules and alerts should be created.
-	// If empty, the same namespace as the cluster will be used.
-	// +optional
-	RulesNamespace string `json:"rulesNamespace,omitempty"`
-
 	// ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
 	// +optional
 	// +nullable

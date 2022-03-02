@@ -63,8 +63,7 @@ func TestCephClusterValidateCreate(t *testing.T) {
 	assert.NoError(t, err)
 	c.Spec.External.Enable = true
 	c.Spec.Monitoring = MonitoringSpec{
-		Enabled:        true,
-		RulesNamespace: "rook-ceph",
+		Enabled: true,
 	}
 	err = c.ValidateCreate()
 	assert.Error(t, err)
