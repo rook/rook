@@ -537,6 +537,8 @@ version of CSI.
 The operator configuration variables have recently moved from the operator deployment to the
 `rook-ceph-operator-config` ConfigMap. The values in the operator deployment can still be set,
 but if the ConfigMap settings are applied, they will override the operator deployment settings.
+The ConfigMap must exist for the operator to work correctly, even if all configuration is
+supplied through the environment.
 
 ```console
 kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
