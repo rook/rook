@@ -121,7 +121,7 @@ be run once on each node and assumes that **all** Ceph disks are being wiped. If
 being wiped, you will have to manually determine which disks map to which device mapper devices.
 
 ```sh
-# This command hangs on some systems: with caution, 'demsetup remove_all --force' can be used
+# This command hangs on some systems: with caution, 'dmsetup remove_all --force' can be used
 ls /dev/mapper/ceph-* | xargs -I% -- dmsetup remove %
 
 # ceph-volume setup can leave ceph-<UUID> directories in /dev and /dev/mapper (unnecessary clutter)
