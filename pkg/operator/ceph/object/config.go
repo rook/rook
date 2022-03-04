@@ -110,7 +110,63 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
 }
 
+func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[string]string, error) {
+	// TODO: add useful error messages
+
+	authType, ok := secret.StringData["OS_AUTH_TYPE"]
+	if ok {
+		if authType != "password" {
+			return nil, errors.New("")
+		}
+	}
+
+	apiVersion, ok := secret.StringData["OS_IDENTITY_API_VERSION"]
+	if ok {
+		if apiVersion != "3" {
+			return nil, errors.New("")
+		}
+	}
+
+	projectDomain, ok := secret.StringData["OS_PROJECT_DOMAIN_NAME"]
+	if !ok {
+		return nil, errors.New("")
+	}
+
+	userDomain, ok := secret.StringData["OS_USER_DOMAIN_NAME"]
+	if !ok {
+		return nil, errors.New("")
+	}
+
+	if projectDomain != userDomain {
+		return nil, errors.New("")
+	}
+
+	project, ok := secret.StringData["OS_PROJECT_NAME"]
+	if !ok {
+		return nil, errors.New("")
+	}
+
+	username, ok := secret.StringData["OS_USERNAME"]
+	if !ok {
+		return nil, errors.New("")
+	}
+
+	password, ok := secret.StringData["OS_PASSWORD"]
+	if !ok {
+		return nil, errors.New("")
+	}
+
+	cfg["rgw_keystone_admin_domain"] = userDomain
+	cfg["rgw_keystone_admin_project"] = project
+	cfg["rgw_keystone_admin_user"] = username
+	cfg["rgw_keystone_admin_password"] = password
+
+	return cfg, nil
+}
+
 func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
+	var err error
+
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
 	configOptions := make(map[string]string)
@@ -125,6 +181,64 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	configOptions["rgw_enable_usage_log"] = "true"
 	configOptions["rgw_zone"] = rgwConfig.Zone
 	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
+
+	if ks := rgwConfig.Auth.Keystone; ks != nil {
+		configOptions["rgw_keystone_url"] = ks.Url
+		configOptions["rgw_keystone_accepted_roles"] = strings.Join(ks.AcceptedRoles, ",")
+		if ks.ImplicitTenants != "" {
+			// XXX: where do we validate this?
+			configOptions["rgw_keystone_implicit_tenants"] = string(ks.ImplicitTenants)
+		}
+		if ks.TokenCacheSize != nil {
+			configOptions["rgw_keystone_token_cache_size"] = fmt.Sprintf("%d", *ks.TokenCacheSize)
+		}
+		if ks.RevocationInterval != nil {
+			configOptions["rgw_keystone_revocation_interval"] = fmt.Sprintf("%d", *ks.RevocationInterval)
+		}
+		if rgwConfig.KeystoneSecret == nil {
+			return errors.New("")
+		}
+
+		configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
+		if err != nil {
+			return err
+		}
+	}
+
+	s3disabled := false
+	if s3 := rgwConfig.Protocols.S3; s3 != nil {
+		if s3.Enabled != nil && !*s3.Enabled {
+			s3disabled = true
+		}
+
+		if s3.AuthUseKeystone != nil {
+			configOptions["rgw_s3_auth_use_keystone"] = fmt.Sprintf("%t", *s3.AuthUseKeystone)
+		}
+	}
+
+	if swift := rgwConfig.Protocols.Swift; swift != nil {
+		if swift.AccountInUrl != nil {
+			configOptions["rgw_swift_account_in_url"] = fmt.Sprintf("%t", *swift.AccountInUrl)
+		}
+		if swift.UrlPrefix != nil {
+			configOptions["rgw_swift_url_prefix"] = *swift.UrlPrefix
+		}
+		if swift.VersioningEnabled != nil {
+			configOptions["rgw_swift_versioning_enabled"] = fmt.Sprintf("%t", *swift.VersioningEnabled)
+		}
+	}
+
+	if s3disabled {
+		// XXX: how to handle enabled APIs? We only configure s3 and
+		// swift in the resource, `admin` is required for the operator to
+		// work, `swift_auth` is required to access swift without keystone
+		// – not sure about the additional APIs
+
+		// Swift was enabled so far already by default, so perhaps better
+		// not change that if someon relies on it.
+
+		configOptions["rgw_enabled_apis"] = "s3website, swift, swift_auth, admin, sts, iam, notifications"
+	}
 
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)
