@@ -464,7 +464,7 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 		allowRawMode = false
 	}
 
-	// ceph-volume raw mode mode does not support metadata device if not running on PVC because the user has specified a whole device
+	// ceph-volume raw mode does not support metadata device if not running on PVC because the user has specified a whole device
 	if a.metadataDevice != "" {
 		logger.Debugf("won't use raw mode since there is a metadata device %q", a.metadataDevice)
 		allowRawMode = false
@@ -473,14 +473,29 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 	return allowRawMode, nil
 }
 
-func isSafeToUseRawMode(deviceType string, cephVersion cephver.CephVersion) bool {
-	if deviceType != sys.DiskType {
-		return true
+// test if safe to use raw mode for a particular device
+func isSafeToUseRawMode(device *DeviceOsdIDEntry, cephVersion cephver.CephVersion) bool {
+	if device.DeviceInfo.Type == sys.DiskType {
+		// if this is a disk but the atari partition fix isn't in, we can't use raw mode
+		if !cephVersion.IsAtLeast(cephIgnorePhantomAtariPartitionCephVersion) {
+			logger.Debugf("won't use raw mode for disk %q since this is a disk and the atari partition issue isn't fixed", device.Config.Name)
+			return false
+		}
 	}
-	if cephVersion.IsAtLeast(cephIgnorePhantomAtariPartitionCephVersion) {
-		return true
+
+	// ceph-volume raw mode does not support more than one OSD per disk
+	if device.Config.OSDsPerDevice > 1 {
+		logger.Debugf("won't use raw mode for disk %q since osd per device is %d", device.Config.Name, device.Config.OSDsPerDevice)
+		return false
 	}
-	return false
+
+	// ceph-volume raw mode does not support metadata device if not running on PVC because the user has specified a whole device
+	if device.Config.MetadataDevice != "" {
+		logger.Debugf("won't use raw mode for disk %q since this disk has a metadata device", device.Config.Name)
+		return false
+	}
+
+	return true
 }
 
 func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
@@ -517,7 +532,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		// which reports only the phantom partitions (and malformed OSD info) when they exist and
 		// ignores the original (correct) OSDs created on the raw disk.
 		// See: https://github.com/rook/rook/issues/7940
-		if allowRawMode && isSafeToUseRawMode(device.DeviceInfo.Type, a.clusterInfo.CephVersion) {
+		if allowRawMode && isSafeToUseRawMode(device, a.clusterInfo.CephVersion) {
 			rawDevices.Entries[name] = device
 			continue
 		}
