@@ -1380,7 +1380,65 @@ func TestAppendOSDInfo(t *testing.T) {
 }
 
 func TestIsSafeToUseRawMode(t *testing.T) {
-	assert.Equal(t, true, isSafeToUseRawMode(sys.PartType, cephver.CephVersion{Major: 16, Minor: 2, Extra: 5}))
-	assert.Equal(t, false, isSafeToUseRawMode(sys.DiskType, cephver.CephVersion{Major: 16, Minor: 2, Extra: 5}))
-	assert.Equal(t, true, isSafeToUseRawMode(sys.DiskType, cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}))
+	baseDisk := func() *DeviceOsdIDEntry {
+		return &DeviceOsdIDEntry{
+			Config: DesiredDevice{
+				Name: "vda",
+			},
+			DeviceInfo: &sys.LocalDisk{
+				Name: "vda",
+				Type: sys.DiskType,
+			},
+		}
+	}
+	basePart := func() *DeviceOsdIDEntry {
+		return &DeviceOsdIDEntry{
+			Config: DesiredDevice{
+				Name: "vda1",
+			},
+			DeviceInfo: &sys.LocalDisk{
+				Name: "vda1",
+				Type: sys.PartType,
+			},
+		}
+	}
+
+	cephPrevMajor := cephver.CephVersion{Major: 15, Minor: 2, Extra: 15}
+	cephBeforeAtariPatch := cephver.CephVersion{Major: 16, Minor: 2, Extra: 5}
+	cephWithAtariPatch := cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+	cephNextMajor := cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
+
+	t.Run("safe for partitions with all Ceph versions", func(t *testing.T) {
+		device := basePart()
+		assert.True(t, isSafeToUseRawMode(device, cephPrevMajor))
+		assert.True(t, isSafeToUseRawMode(device, cephBeforeAtariPatch))
+		assert.True(t, isSafeToUseRawMode(device, cephWithAtariPatch))
+		assert.True(t, isSafeToUseRawMode(device, cephNextMajor))
+	})
+
+	t.Run("safe for disks only with atari patch", func(t *testing.T) {
+		device := baseDisk()
+		// make sure it's still unsafe for previous ceph version
+		assert.False(t, isSafeToUseRawMode(device, cephPrevMajor))
+		assert.False(t, isSafeToUseRawMode(device, cephBeforeAtariPatch))
+		assert.True(t, isSafeToUseRawMode(device, cephWithAtariPatch))
+		// make sure it's still safe when next ceph version comes out
+		assert.True(t, isSafeToUseRawMode(device, cephNextMajor))
+	})
+
+	t.Run("not safe if OSDs per device > 1", func(t *testing.T) {
+		device := baseDisk()
+		device.Config.OSDsPerDevice = 2
+		// we only care about the cases where disks would otherwise be safe
+		assert.False(t, isSafeToUseRawMode(device, cephWithAtariPatch))
+		assert.False(t, isSafeToUseRawMode(device, cephNextMajor))
+	})
+
+	t.Run("not safe if metadata device specified", func(t *testing.T) {
+		device := baseDisk()
+		device.Config.MetadataDevice = "vdb1"
+		// we only care about the cases where disks would otherwise be safe
+		assert.False(t, isSafeToUseRawMode(device, cephWithAtariPatch))
+		assert.False(t, isSafeToUseRawMode(device, cephNextMajor))
+	})
 }
