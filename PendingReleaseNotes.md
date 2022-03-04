@@ -22,3 +22,4 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 - Support for virtual style hosting for s3 buckets in the CephObjectStore.
 - Add option to specify prefix for the OBC provisioner.
 - Support Azure Key Vault for storing OSD encryption keys.
+- Support creating swift sub-users through Kubernetes CRs (see [#9088](https://github.com/rook/rook/issues/9088)).

@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -263,7 +264,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
-	reconcileResponse, err = object.ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.objContext.Endpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
+	reconcileResponse, err = object.ReconcileCephUserSecrets(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.objContext.Endpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -362,15 +363,121 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
 	}
 
+	// Reconcile subusers
+	user, err = r.reconcileSubusers(user, u)
+	if err != nil {
+		return err
+	}
+
 	// Set access and secret key
 	if r.userConfig.Keys == nil || len(r.userConfig.Keys) == 0 {
 		r.userConfig.Keys = make([]admin.UserKeySpec, 1)
 	}
 	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
 	r.userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
+
+	// Copy the subuser keys – XXX: should this be a deep copy for safety?
+	r.userConfig.SwiftKeys = append([]admin.SwiftKeySpec{}, user.SwiftKeys...)
+
 	logger.Info(logCreateOrUpdate)
 
 	return nil
+}
+
+var accessLevelMap = map[admin.SubuserAccess]admin.SubuserAccess{
+	admin.SubuserAccessReplyNone:      admin.SubuserAccessNone,
+	admin.SubuserAccessReplyRead:      admin.SubuserAccessRead,
+	admin.SubuserAccessReplyWrite:     admin.SubuserAccessWrite,
+	admin.SubuserAccessReplyReadWrite: admin.SubuserAccessReadWrite,
+	admin.SubuserAccessReplyFull:      admin.SubuserAccessFull,
+}
+
+func mapAccessLevel(outputAccessLevel admin.SubuserAccess) (admin.SubuserAccess, error) {
+	level, ok := accessLevelMap[outputAccessLevel]
+	if !ok {
+		return admin.SubuserAccessNone, fmt.Errorf("invalid access level returned by RGW %s", outputAccessLevel)
+	}
+	return level, nil
+}
+
+func (r *ReconcileObjectStoreUser) reconcileSubusers(userIs admin.User, userSpec *cephv1.CephObjectStoreUser) (admin.User, error) {
+	var err error
+
+	mustRefreshUser := false
+
+	subusersSpec := append([]cephv1.SubuserSpec{}, userSpec.Spec.Subusers...)
+	subusersIs := append([]admin.SubuserSpec{}, userIs.Subusers...)
+
+	sort.Slice(subusersSpec, func(i, j int) bool {
+		return subusersSpec[i].Name < subusersSpec[j].Name
+	})
+	sort.Slice(subusersIs, func(i, j int) bool {
+		return subusersIs[i].Name < subusersIs[j].Name
+	})
+
+	toCreate := make([]cephv1.SubuserSpec, 0)
+	toDelete := make([]admin.SubuserSpec, 0)
+	for len(subusersSpec) > 0 && len(subusersIs) > 0 {
+		subuserFullNameSpec := fmt.Sprintf("%s:%s", userIs.ID, subusersSpec[0].Name)
+
+		if subuserFullNameSpec < subusersIs[0].Name {
+			toCreate = append(toCreate, subusersSpec[0])
+			subusersSpec = subusersSpec[1:]
+		} else if subuserFullNameSpec > subusersIs[0].Name {
+			toDelete = append(toDelete, subusersIs[0])
+			subusersIs = subusersIs[1:]
+		} else { // subusersSpec[0].Name == subusersIs[0].Name
+			accessLevelIs, err := mapAccessLevel(subusersIs[0].Access)
+			if err != nil {
+				return userIs, errors.Wrapf(err, "failed to reconcile subusers")
+			}
+			if string(subusersSpec[0].Access) != string(accessLevelIs) {
+				modifiedSubuser := admin.SubuserSpec{
+					Name:   subuserFullNameSpec,
+					Access: admin.SubuserAccess(subusersSpec[0].Access),
+				}
+				mustRefreshUser = true
+				err = r.objContext.AdminOpsClient.ModifySubuser(r.opManagerContext, userIs, modifiedSubuser)
+				if err != nil {
+					return userIs, errors.Wrapf(err, "failed to modify subuser %q", modifiedSubuser.Name)
+				}
+			}
+
+			subusersSpec = subusersSpec[1:]
+			subusersIs = subusersIs[1:]
+		}
+	}
+	toCreate = append(toCreate, subusersSpec...)
+	toDelete = append(toDelete, subusersIs...)
+
+	for _, subuserToCreate := range toCreate {
+		err = r.objContext.AdminOpsClient.CreateSubuser(r.opManagerContext, userIs, admin.SubuserSpec{
+			Name:   fmt.Sprintf("%s:%s", userIs.ID, subuserToCreate.Name),
+			Access: admin.SubuserAccess(subuserToCreate.Access),
+		})
+		mustRefreshUser = true
+		if err != nil {
+			return userIs, errors.Wrapf(err, "failed to create subuser %q", subuserToCreate.Name)
+		}
+	}
+
+	for _, subuserToDelete := range toDelete {
+		mustRefreshUser = true
+		err = r.objContext.AdminOpsClient.RemoveSubuser(r.opManagerContext, userIs, subuserToDelete)
+		if err != nil {
+			return userIs, errors.Wrapf(err, "failed to delete subuser %q", subuserToDelete.Name)
+		}
+	}
+
+	if mustRefreshUser {
+		// As the subuser commands don't give us the full user object, we need to get it here to have an accurate representation of the user state after the reconcile
+		userIs, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, userIs)
+		if err != nil {
+			return userIs, errors.Wrapf(err, "failed to reconcile subusers during refresh")
+		}
+	}
+
+	return userIs, nil
 }
 
 func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephObjectStoreUser) error {

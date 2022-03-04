@@ -269,7 +269,36 @@ func generateCephUserSecret(userConfig *admin.User, endpoint, namespace, storeNa
 	return secret
 }
 
-func ReconcileCephUserSecret(ctx context.Context, k8sclient client.Client, scheme *runtime.Scheme, ownerRef metav1.Object, userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) (reconcile.Result, error) {
+func generateCephSubuserSecretName(store, username, subusername string) string {
+	return fmt.Sprintf("rook-ceph-object-subuser-%s-%s-%s", store, username, subusername)
+}
+
+func generateCephSubuserSecret(userConfig *admin.User, endpoint, namespace, storeName string, subuser *admin.SwiftKeySpec) *corev1.Secret {
+	secrets := map[string]string{
+		"SWIFT_USER":          subuser.User,
+		"SWIFT_SECRET_KEY":    subuser.SecretKey,
+		"SWIFT_AUTH_ENDPOINT": "TODO", // TODO
+	}
+	splitSubUserName := strings.SplitN(subuser.User, ":", 2)
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateCephSubuserSecretName(storeName, userConfig.ID, splitSubUserName[1]),
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":  AppName,
+				"user": userConfig.ID,
+				// XXX: should we add a subuser label?
+				"rook_cluster":      namespace,
+				"rook_object_store": storeName,
+			},
+		},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	return secret
+}
+
+func ReconcileCephUserSecrets(ctx context.Context, k8sclient client.Client, scheme *runtime.Scheme, ownerRef metav1.Object, userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) (reconcile.Result, error) {
 	// Generate Kubernetes Secret
 	secret := generateCephUserSecret(userConfig, endpoint, namespace, storeName, tlsSecretName)
 
@@ -284,5 +313,22 @@ func ReconcileCephUserSecret(ctx context.Context, k8sclient client.Client, schem
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
 	}
+
+	for _, key := range userConfig.SwiftKeys {
+		key := key // To avoid memory aliasing. Won't be necessary in Go 1.22 anymore
+		secret = generateCephSubuserSecret(userConfig, endpoint, namespace, storeName, &key)
+
+		err = controllerutil.SetControllerReference(ownerRef, secret, scheme)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object subuser secret %q", secret.Name)
+		}
+
+		// Create Kubernetes Secret
+		err = opcontroller.CreateOrUpdateObject(ctx, k8sclient, secret)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object subuser %q secret", secret.Name)
+		}
+	}
+
 	return reconcile.Result{}, nil
 }
