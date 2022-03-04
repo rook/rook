@@ -438,6 +438,7 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 	userConfig := admin.User{
 		ID:          user.Name,
 		DisplayName: displayName,
+		Keys:        make([]admin.UserKeySpec, 0),
 	}
 
 	defaultMaxBuckets := 1000
