@@ -19,6 +19,7 @@ package object
 
 import (
 	"context"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"os"
 	"reflect"
@@ -751,6 +752,200 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		assert.False(t, res.Requeue)
 		assert.True(t, dependentsChecked)
 		assert.True(t, calledCommitConfigChanges)
+	})
+}
+
+func TestCephObjectExternalStoreController(t *testing.T) {
+	ctx := context.TODO()
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespace,
+			Namespace: namespace,
+		},
+		Status: cephv1.ClusterStatus{
+			Phase: k8sutil.ReadyStatus,
+			CephStatus: &cephv1.CephStatus{
+				Health: "HEALTH_OK",
+			},
+		},
+	}
+
+	secrets := map[string][]byte{
+		"fsid":         []byte(name),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: namespace,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+
+	externalObjectStore := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      store,
+			Namespace: namespace,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectStore",
+		},
+		Spec: cephv1.ObjectStoreSpec{},
+	}
+
+	externalObjectStore.Spec.Gateway.Port = 81
+	externalObjectStore.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{{IP: ""}}
+
+	rgwAdminOpsUserSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rgw-admin-ops-user",
+			Namespace: namespace,
+		},
+		Data: map[string][]byte{
+			"accessKey": []byte("rgw-admin-ops-user-access-key"),
+			"secretKey": []byte("rgw-admin-ops-user-secret-key"),
+		},
+	}
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "status" {
+				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return rgwCephAuthGetOrCreateKey, nil
+			}
+			if args[0] == "osd" && args[1] == "pool" && args[2] == "get" {
+				return "", errors.New("test pool does not exit yet")
+			}
+			if args[0] == "versions" {
+				return dummyVersionsRaw, nil
+			}
+			return "", nil
+		},
+	}
+
+	clientset := test.New(t, 3)
+
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZone{}, &cephv1.CephObjectZoneList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectStore{}, &cephv1.CephObjectStoreList{})
+	s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
+
+	getReconciler := func(objects []runtime.Object) *ReconcileCephObjectStore {
+		// Create a fake client to mock API calls.
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+
+		c := &clusterd.Context{
+			Executor:      executor,
+			RookClientset: rookclient.NewSimpleClientset(),
+			Clientset:     clientset,
+			Client:        cl,
+		}
+
+		r := &ReconcileCephObjectStore{
+			client:              cl,
+			scheme:              s,
+			context:             c,
+			objectStoreContexts: make(map[string]*objectStoreHealth),
+			recorder:            record.NewFakeRecorder(5),
+			opManagerContext:    ctx,
+		}
+
+		_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		if !k8serrors.IsAlreadyExists(err) {
+			_, err = r.context.Clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+			assert.NoError(t, err)
+		}
+
+		return r
+	}
+
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      store,
+			Namespace: namespace,
+		},
+	}
+
+	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
+		return &cephver.Pacific, &cephver.Pacific, nil
+	}
+
+	{
+		objects := []runtime.Object{
+			cephCluster,
+			externalObjectStore,
+			rgwAdminOpsUserSecret,
+		}
+
+		r := getReconciler(objects)
+
+		t.Run("create an external object store", func(t *testing.T) {
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.False(t, res.Requeue)
+		})
+
+		t.Run("delete the same external store", func(t *testing.T) {
+			// no dependents
+			dependentsChecked := false
+			cephObjectStoreDependentsOrig := cephObjectStoreDependents
+			defer func() { cephObjectStoreDependents = cephObjectStoreDependentsOrig }()
+			cephObjectStoreDependents = func(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, store *cephv1.CephObjectStore, objCtx *Context, opsCtx *AdminOpsContext) (*dependents.DependentList, error) {
+				dependentsChecked = true
+				return &dependents.DependentList{}, nil
+			}
+
+			err := r.client.Get(ctx, req.NamespacedName, externalObjectStore)
+			assert.NoError(t, err)
+			externalObjectStore.DeletionTimestamp = &metav1.Time{
+				Time: time.Now(),
+			}
+			err = r.client.Update(ctx, externalObjectStore)
+			assert.NoError(t, err)
+
+			// have to also track the same objects in the rook clientset
+			r.context.RookClientset = rookfake.NewSimpleClientset(externalObjectStore)
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.False(t, res.Requeue)
+			assert.True(t, dependentsChecked)
+		})
+	}
+
+	t.Run("create an external object store with missing secret", func(t *testing.T) {
+		objects := []runtime.Object{
+			cephCluster,
+			externalObjectStore,
+		}
+		r := getReconciler(objects)
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.False(t, res.Requeue)
+	})
+
+	t.Run("create an external object store with no external RGW endpoints", func(t *testing.T) {
+		externalObjectStoreOrig := externalObjectStore
+		externalObjectStore.Spec.Gateway.ExternalRgwEndpoints = nil
+		objects := []runtime.Object{
+			cephCluster,
+			externalObjectStore,
+			rgwAdminOpsUserSecret,
+		}
+		r := getReconciler(objects)
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.False(t, res.Requeue)
+		defer func() {
+			externalObjectStore = externalObjectStoreOrig
+		}()
 	})
 }
 
