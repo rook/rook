@@ -233,6 +233,9 @@ func toCustomResourceStatus(currentStatus cephv1.ClusterStatus, newStatus *cephc
 			s.Capacity = currentStatus.CephStatus.Capacity
 		}
 	}
+	// update fsid on cephcluster Status
+	s.FSID = newStatus.FSID
+
 	return s
 }
 
