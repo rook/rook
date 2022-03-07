@@ -100,6 +100,7 @@ The `cephFileSystems` array in the values file will define a list of CephFileSys
 | `spec`                       | The CephFileSystem spec, see the [CephFilesystem CRD](ceph-filesystem-crd.md) documentation.                                                                | see values.yaml   |
 | `storageClass.enabled`       | Whether a storage class is deployed alongside the CephFileSystem                                                                                            | `true`            |
 | `storageClass.name`          | The name of the storage class                                                                                                                               | `ceph-filesystem` |
+| `storageClass.pool`          | The name of [Data Pool](ceph-filesystem-crd.md#pools), without the filesystem name prefix                                                                   | `data0`           |
 | `storageClass.parameters`    | See [Shared Filesystem](ceph-filesystem.md) documentation or the helm values.yaml for suitable values                                                       | see values.yaml   |
 | `storageClass.reclaimPolicy` | The default [Reclaim Policy](https://kubernetes.io/docs/concepts/storage/storage-classes/#reclaim-policy) to apply to PVCs created with this storage class. | `Delete`          |
 | `storageClass.mountOptions`  | Specifies the mount options for storageClass                                                                                                                | `[]`              |

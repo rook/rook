@@ -376,6 +376,8 @@ cephFileSystems:
         - failureDomain: host
           replicated:
             size: 3
+          # Optional and highly recommended, 'data0' by default, see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem-crd.md#pools
+          name: data0
       metadataServer:
         activeCount: 1
         activeStandby: true
@@ -383,6 +385,8 @@ cephFileSystems:
       enabled: true
       isDefault: false
       name: ceph-filesystem
+      # (Optional) specify a data pool to use, must be the name of one of the data pools above, 'data0' by default
+      pool: data0
       reclaimPolicy: Delete
       allowVolumeExpansion: true
       mountOptions: []
