@@ -57,6 +57,7 @@ jobs:
         kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
         kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
         kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
+        kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
         timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
         # print existing client auth
         kubectl -n rook-ceph exec $toolbox -- ceph auth ls
@@ -81,7 +82,7 @@ jobs:
 
     - name: run external script create-external-cluster-resources.py unit tests
       run: |
-        kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 -m unittest /etc/ceph/create-external-cluster-resources.py
+        kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 -m unittest /etc/ceph/create-external-cluster-resources-tests.py
         # write a test file
         # copy the test file
         # execute the test file
