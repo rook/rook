@@ -355,6 +355,7 @@ type CephStatus struct {
 	Capacity       Capacity                     `json:"capacity,omitempty"`
 	// +optional
 	Versions *CephDaemonsVersions `json:"versions,omitempty"`
+	FSID     string               `json:"fsid,omitempty"`
 }
 
 // Capacity is the capacity information of a Ceph Cluster
