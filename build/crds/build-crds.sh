@@ -51,6 +51,21 @@ copy_ob_obc_crds() {
   cp -f "${SCRIPT_ROOT}/deploy/olm/assemble/objectbucket.io_objectbuckets.yaml" "$OLM_CATALOG_DIR"
 }
 
+copy_volume_replication_crds() {
+  volume_replication_dir=${SCRIPT_ROOT}/.cache/crds/volumereplication
+  volume_replication_crd=replication.storage.openshift.io_volumereplications.yaml
+  volume_replication_class_crd=replication.storage.openshift.io_volumereplicationclasses.yaml
+  if [[ ! -d "${volume_replication_dir}" ]]; then
+    mkdir -p "${volume_replication_dir}"
+    volume_replication_url=https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.1.0/config/crd/bases
+    curl -L ${volume_replication_url}/${volume_replication_crd} -o ${volume_replication_dir}/${volume_replication_crd}
+    curl -L ${volume_replication_url}/${volume_replication_class_crd} -o ${volume_replication_dir}/${volume_replication_class_crd}
+  fi
+
+  cp -f "${volume_replication_dir}/${volume_replication_crd}" "$OLM_CATALOG_DIR"
+  cp -f "${volume_replication_dir}/${volume_replication_class_crd}" "$OLM_CATALOG_DIR"
+}
+
 generating_crds_v1() {
   echo "Generating ceph crds"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
@@ -106,3 +121,7 @@ echo "---" >> "$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
 $YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >> "$CEPH_CRDS_FILE_PATH"
 
 build_helm_resources
+
+# copy the volume replication crds last so they won't be included in the helm chart or crds.yaml,
+# we just want them to end up owned by the csv
+copy_volume_replication_crds
