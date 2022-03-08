@@ -312,28 +312,28 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 		}
 	}
 
-	deployments, err := r.context.Clientset.AppsV1().Deployments(cephNFS.Namespace).List(r.opManagerContext, metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Infof("creating ceph nfs %q", cephNFS.Name)
-			err := r.upCephNFS(cephNFS)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to create ceph nfs %q", cephNFS.Name)
-			}
-			return reconcile.Result{}, nil
-		}
-		return reconcile.Result{}, errors.Wrap(err, "failed to list ceph nfs deployments")
+	// list nfs deployments that belong to this CephNFS
+	listOps := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, CephNFSNameLabelKey, cephNFS.Name),
+	}
+	deployments, err := r.context.Clientset.AppsV1().Deployments(cephNFS.Namespace).List(r.opManagerContext, listOps)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to list deployments for CephNFS %q", cephNFS.Name)
+	}
+	currentNFSServerCount := 0
+	if deployments != nil {
+		currentNFSServerCount = len(deployments.Items)
 	}
 
-	nfsServerListNum := len(deployments.Items)
 	// Scale down case (CR value cephNFS.Spec.Server.Active changed)
-	if nfsServerListNum > cephNFS.Spec.Server.Active {
-		logger.Infof("scaling down ceph nfs %q from %d to %d", cephNFS.Name, nfsServerListNum, cephNFS.Spec.Server.Active)
-		err := r.downCephNFS(cephNFS, nfsServerListNum)
+	if currentNFSServerCount > cephNFS.Spec.Server.Active {
+		logger.Infof("scaling down ceph nfs %q from %d to %d", cephNFS.Name, currentNFSServerCount, cephNFS.Spec.Server.Active)
+		err := r.downCephNFS(cephNFS, currentNFSServerCount)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to scale down ceph nfs %q", cephNFS.Name)
 		}
 	}
+
 	// Update existing deployments and create new ones in the scale up case
 	logger.Infof("updating ceph nfs %q", cephNFS.Name)
 	err = r.upCephNFS(cephNFS)
