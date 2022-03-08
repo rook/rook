@@ -42,6 +42,10 @@ spec:
                 secretKeyRef:
                   name: rook-ceph-mon
                   key: ceph-secret
+{{- if .Values.toolbox.resources }}
+          resources:
+{{- toYaml .Values.toolbox.resources | nindent 12 }}
+{{- end }}
           volumeMounts:
             - mountPath: /etc/ceph
               name: ceph-config
