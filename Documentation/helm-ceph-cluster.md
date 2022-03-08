@@ -62,6 +62,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `toolbox.enabled`      | Enable Ceph debugging pod deployment. See [toolbox](ceph-toolbox.md) | `false`     |
 | `toolbox.tolerations`  | Toolbox tolerations                                                  | `[]`        |
 | `toolbox.affinity`     | Toolbox affinity                                                     | `{}`        |
+| `toolbox.resources`    | Toolbox resources                                                    | `{}`        |
 | `monitoring.enabled`   | Enable Prometheus integration, will also create necessary RBAC rules | `false`     |
 | `cephClusterSpec.*`    | Cluster configuration, see below                                     | See below   |
 | `ingress.dashboard`    | Enable an ingress for the ceph-dashboard                             | `{}`        |
