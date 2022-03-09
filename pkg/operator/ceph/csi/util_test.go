@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
 )
 
 func TestDaemonSetTemplate(t *testing.T) {
@@ -79,4 +80,39 @@ func TestGetPortFromConfig(t *testing.T) {
 
 	err = os.Unsetenv(key)
 	assert.Nil(t, err)
+}
+
+func TestApplyingResourcesToRBDPlugin(t *testing.T) {
+	tp := templateParam{}
+	rbdPlugin, err := templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
+	assert.Nil(t, err)
+	params := make(map[string]string)
+
+	// need to build using map[string]interface{} because the following resource
+	// doesn't serialise nicely
+	// https://pkg.go.dev/k8s.io/apimachinery/pkg/api/resource#Quantity
+	resource := []map[string]interface{}{
+		{
+			"name": "driver-registrar",
+			"resource": map[string]interface{}{
+				"limits": map[string]interface{}{
+					"cpu":    "200m",
+					"memory": "256Mi",
+				},
+				"requests": map[string]interface{}{
+					"cpu":    "100m",
+					"memory": "128Mi",
+				},
+			},
+		},
+	}
+
+	resourceRaw, err := yaml.Marshal(resource)
+	assert.Nil(t, err)
+	params[rbdPluginResource] = string(resourceRaw)
+	applyResourcesToContainers(params, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
+	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String(), "128Mi")
+	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String(), "256Mi")
+	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String(), "100m")
+	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().String(), "200m")
 }
