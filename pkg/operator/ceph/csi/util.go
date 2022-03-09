@@ -99,10 +99,9 @@ func applyResourcesToContainers(opConfig map[string]string, key string, podspec 
 func getComputeResource(opConfig map[string]string, key string) []k8sutil.ContainerResource {
 	// Add Resource list if any
 	resource := []k8sutil.ContainerResource{}
-	resourceRaw := ""
 	var err error
 
-	if k8sutil.GetValue(opConfig, key, "") != "" {
+	if resourceRaw := k8sutil.GetValue(opConfig, key, ""); resourceRaw != "" {
 		resource, err = k8sutil.YamlToContainerResource(resourceRaw)
 		if err != nil {
 			logger.Warningf("failed to parse %q. %v", resourceRaw, err)
