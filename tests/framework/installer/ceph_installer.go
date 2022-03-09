@@ -59,7 +59,7 @@ const (
 osd_pool_default_size = 1
 bdev_flock_retry = 20
 `
-	volumeReplicationVersion = "v0.1.0"
+	volumeReplicationVersion = "v0.3.0"
 )
 
 var (

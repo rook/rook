@@ -188,9 +188,9 @@ APIs for storage disaster recovery. The extended APIs are provided via Custom
 Resource Definition(CRD). Create the VolumeReplication CRDs on all the peer clusters.
 
 ```bash
-$ kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.1.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
+$ kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
 
-$ kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.1.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
+$ kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
 ```
 
 ## Enable CSI Replication Sidecars

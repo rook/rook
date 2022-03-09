@@ -57,7 +57,7 @@ copy_volume_replication_crds() {
   volume_replication_class_crd=replication.storage.openshift.io_volumereplicationclasses.yaml
   if [[ ! -d "${volume_replication_dir}" ]]; then
     mkdir -p "${volume_replication_dir}"
-    volume_replication_url=https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.1.0/config/crd/bases
+    volume_replication_url=https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases
     curl -L ${volume_replication_url}/${volume_replication_crd} -o ${volume_replication_dir}/${volume_replication_crd}
     curl -L ${volume_replication_url}/${volume_replication_class_crd} -o ${volume_replication_dir}/${volume_replication_class_crd}
   fi
