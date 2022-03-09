@@ -860,7 +860,10 @@ class RadosJSON:
         self.out_map['RBD_METADATA_EC_POOL_NAME'] = self.validate_rgw_metadata_ec_pool_name()
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
         if self._arg_parser.rgw_endpoint:
-            self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
+            if self._arg_parser.dry_run:
+                self.create_rgw_admin_ops_user()
+            else:
+                self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
             if self._arg_parser.rgw_tls_cert_path:
                 self.out_map['RGW_TLS_CERT'] = self.validate_rgw_endpoint_tls_cert()
 
