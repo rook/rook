@@ -81,38 +81,10 @@ EOF
 
 echo "Successfully deployed cert-manager"
 
-echo "Creating Issuer and Certificate"
-cat <<EOF | kubectl create -f -
-apiVersion: cert-manager.io/v1
-kind: Issuer
-metadata:
-  name: selfsigned-issuer
-  namespace: ${NAMESPACE}
-spec:
-  selfSigned: {}
----
-apiVersion: cert-manager.io/v1
-kind: Certificate
-metadata:
-  name: rook-admission-controller-cert
-  namespace: ${NAMESPACE}
-spec:
-  dnsNames:
-  - ${SERVICE_NAME}
-  - ${SERVICE_NAME}.${NAMESPACE}.svc
-  - ${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local
-  issuerRef:
-    kind: Issuer
-    name: selfsigned-issuer
-  secretName: rook-ceph-admission-controller
-EOF
-
-echo "Successfully created Issuer and Certificate"
-
+echo "Creating Issuer, Certificate and Deploying webhook config"
 echo "Deploying webhook config"
-< "${BASE_DIR}"/webhook-config.yaml \
-        sed -e "s|\${NAMESPACE}|${NAMESPACE}|g" | \
-        sed -e "s|\${WEBHOOK_CONFIG_NAME}|${WEBHOOK_CONFIG_NAME}|g" | \
-        sed -e "s|\${SERVICE_NAME}|${SERVICE_NAME}|g" | \
-        kubectl create -f -
+
+envsubst < "${BASE_DIR}"/webhook-config.yaml |
+kubectl create -f -
+
 echo "Webhook deployed! Please start the rook operator to create the service and admission controller pods"
