@@ -33,13 +33,21 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
-	readinessProbePath = "/swift/healthcheck"
-	serviceAccountName = "rook-ceph-rgw"
+	readinessProbePath      = "/swift/healthcheck"
+	serviceAccountName      = "rook-ceph-rgw"
+	vaultAgentPort          = 8100
+	vaultAgentContainerName = "vault-agent-container"
+	vaultAgentVolumeName    = "vault-agent-config"
+	vaultAgentCM            = "vault-agent-cm"
+	vaultAgentMountPath     = "/etc/vault/agent/"
+	vaultAgentConfigFile    = "vault-agent-config.hcl"
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
@@ -180,6 +188,30 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol, tmpvolume)
 			podSpec.InitContainers = append(podSpec.InitContainers,
 				c.vaultTokenInitContainer(rgwConfig))
+		} else if c.store.Spec.Security.KeyManagementService.IsK8sAuthEnabled() {
+			if err := c.generateVaultAgentConfigMap(); err != nil {
+				return v1.PodTemplateSpec{}, err
+			}
+			vaultFileVol, _ := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
+				"")
+			tmpvolume := v1.Volume{
+				Name: rgwVaultVolumeName,
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				},
+			}
+			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol, tmpvolume)
+			vaultAgentVol := v1.Volume{Name: vaultAgentVolumeName,
+				VolumeSource: v1.VolumeSource{
+					ConfigMap: &v1.ConfigMapVolumeSource{
+						LocalObjectReference: v1.LocalObjectReference{Name: vaultAgentCM},
+						Items:                []v1.KeyToPath{{Key: vaultAgentConfigFile, Path: vaultAgentConfigFile}},
+					},
+				},
+			}
+			podSpec.Volumes = append(podSpec.Volumes, vaultAgentVol)
+			podSpec.Containers = append(podSpec.Containers,
+				c.vaultAgentContainer(rgwConfig))
 		}
 	}
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
@@ -254,7 +286,56 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Contain
 		SecurityContext: controller.PodSecurityContext(),
 	}
 }
+func (c *clusterConfig) vaultAgentContainer(rgwConfig *rgwConfig) v1.Container {
+	vaultAgentVolMount := v1.VolumeMount{
+		Name:      vaultAgentVolumeName,
+		ReadOnly:  true,
+		MountPath: vaultAgentMountPath,
+	}
+	_, vaultCertMount := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails, "")
 
+	vaultAgentEnvVariables := []v1.EnvVar{{Name: api.EnvVaultAddress, Value: c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]}}
+	if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() {
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientCert) != "" {
+			vaultAgentEnvVariables = append(vaultAgentEnvVariables, v1.EnvVar{Name: api.EnvVaultClientCert, Value: path.Join(kms.EtcVaultDir, kms.VaultCertFileName)})
+		}
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientKey) != "" {
+			vaultAgentEnvVariables = append(vaultAgentEnvVariables, v1.EnvVar{Name: api.EnvVaultClientKey, Value: path.Join(kms.EtcVaultDir, kms.VaultKeyFileName)})
+		}
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultCACert) != "" {
+			vaultAgentEnvVariables = append(vaultAgentEnvVariables, v1.EnvVar{Name: api.EnvVaultCACert, Value: path.Join(kms.EtcVaultDir, kms.VaultCAFileName)})
+		}
+	} else {
+		vaultAgentEnvVariables = append(vaultAgentEnvVariables, v1.EnvVar{Name: api.EnvVaultSkipVerify, Value: "true"})
+	}
+	vaultAgentResource := v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(500, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(128*(1024*1024), resource.DecimalSI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceCPU:    *resource.NewMilliQuantity(250, resource.DecimalSI),
+			v1.ResourceMemory: *resource.NewQuantity(64*(1024*1024), resource.DecimalSI),
+		},
+	}
+	return v1.Container{
+		Name:  vaultAgentContainerName,
+		Image: "hashicorp/vault",
+		Command: []string{
+			"vault",
+		},
+		Args: []string{
+			"agent",
+			"-config=/etc/vault/agent/vault-agent-config.hcl",
+			"-log-level=debug",
+		},
+		Ports:           []v1.ContainerPort{{ContainerPort: vaultAgentPort}},
+		VolumeMounts:    []v1.VolumeMount{vaultAgentVolMount, vaultCertMount},
+		Resources:       vaultAgentResource,
+		SecurityContext: controller.PodSecurityContext(),
+		Env:             vaultAgentEnvVariables,
+	}
+}
 func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Container {
 	return controller.ChownCephDataDirsInitContainer(
 		*c.DataPathMap,
@@ -321,17 +402,22 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 		container.Args = append(container.Args,
 			cephconfig.NewFlag("rgw crypt s3 kms backend",
 				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
-			cephconfig.NewFlag("rgw crypt vault addr",
-				c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
+			cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
+			cephconfig.NewFlag("rgw crypt vault secret engine",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
 		)
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
 			container.Args = append(container.Args,
 				cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
 				cephconfig.NewFlag("rgw crypt vault token file",
 					path.Join(rgwVaultDirName, kms.VaultFileName)),
-				cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
-				cephconfig.NewFlag("rgw crypt vault secret engine",
-					c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
+				cephconfig.NewFlag("rgw crypt vault addr",
+					c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
+			)
+		} else if c.store.Spec.Security.KeyManagementService.IsK8sAuthEnabled() {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw crypt vault auth", "agent"),
+				cephconfig.NewFlag("rgw crypt vault addr", "http://127.0.0.1:8100"),
 			)
 		}
 		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() &&
@@ -677,4 +763,35 @@ func (c *clusterConfig) rgwTLSSecretType(secretName string) (v1.SecretType, erro
 
 func getDaemonName(rgwConfig *rgwConfig) string {
 	return fmt.Sprintf("ceph-%s", generateCephXUser(rgwConfig.ResourceName))
+}
+
+func (c *clusterConfig) generateVaultAgentConfigMap() error {
+	k := k8sutil.NewConfigMapKVStore(c.store.Namespace, c.context.Clientset, c.ownerInfo)
+	if _, err := k.GetValue(c.clusterInfo.Context, vaultAgentCM, vaultAgentConfigFile); err == nil || !kerrors.IsNotFound(err) {
+		logger.Infof("vault agent config map %q for object store %q already exists, not overwriting", vaultAgentCM, c.store.Name)
+		return nil
+	}
+
+	vaultAgentConfigFileContent := `
+pid_file = "/home/vault/pidfile"
+auto_auth {
+    method "kubernetes" {
+        mount_path = "auth/kubernetes"
+        config = {
+            role = "` + c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.AuthKubernetesRole] + `"
+        }
+    }
+}
+cache {
+  use_auto_auth_token = true
+}
+listener "tcp" {
+  address = "127.0.0.1:8100"
+  tls_disable = "true"
+}`
+
+	if err := k.SetValue(c.clusterInfo.Context, vaultAgentCM, vaultAgentConfigFile, vaultAgentConfigFileContent); err != nil {
+		return errors.Wrapf(err, "failed to create vault agent config map for object store %q", c.store.Name)
+	}
+	return nil
 }

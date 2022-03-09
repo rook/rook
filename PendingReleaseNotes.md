@@ -4,3 +4,4 @@
 
 
 ## Features
+* Add support for Kubernetes Authentication for RGW when using Vault as Key Management Service.

@@ -202,7 +202,7 @@ Rook-Ceph always keeps the bucket and the user for the health check, it just doe
 
 ## Security settings
 
-Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](ceph-cluster-crd.md#vault-kms) for detailed explanation.
+Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](ceph-kms.md#vault) for detailed explanation.
 If these settings are defined, then RGW establish a connection between Vault and whenever S3 client sends a request with Server Side Encryption,
 it encrypts that using the key specified by the client. For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
 
@@ -217,6 +217,7 @@ security:
       VAULT_BACKEND_PATH: rgw
       VAULT_SECRET_ENGINE: kv
       VAULT_BACKEND: v2
+      VAULT_AUTH_METHOD: token
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rgw-vault-token
 ```
@@ -229,6 +230,8 @@ $ vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
 $ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
 * TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
+
+* The Kubernetes Service Account authentication method is confgiured for RGW with help of vault agent
 
 ## Deleting a CephObjectStore
 
