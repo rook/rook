@@ -40,6 +40,9 @@ const (
 	postNFSChangeDefaultPoolName = ".nfs"
 	// Default RADOS pool name before the NFS changes in Ceph
 	preNFSChangeDefaultPoolName = "nfs-ganesha"
+
+	// CephNFSNameLabelKey is the label key that contains the name of the CephNFS resource
+	CephNFSNameLabelKey = "ceph_nfs"
 )
 
 var updateDeploymentAndWait = opmon.UpdateCephDeploymentAndWait
@@ -219,27 +222,39 @@ func (r *ReconcileCephNFS) createConfigMap(n *cephv1.CephNFS, name string) (stri
 
 // Down scale the ganesha server
 func (r *ReconcileCephNFS) downCephNFS(n *cephv1.CephNFS, nfsServerListNum int) error {
-	diffCount := nfsServerListNum - n.Spec.Server.Active
-	for i := 0; i < diffCount; {
-		depIDToRemove := nfsServerListNum - 1
+	for i := nfsServerListNum - 1; i >= n.Spec.Server.Active; i-- {
+		idToRemove := i
 
-		name := k8sutil.IndexToName(depIDToRemove)
-		depNameToRemove := instanceName(n, name)
+		name := k8sutil.IndexToName(idToRemove)
+		resourceName := instanceName(n, name) // shared by deployment, service, and configmap
 
-		// Remove deployment
-		logger.Infof("removing deployment %q", depNameToRemove)
-		err := r.context.Clientset.AppsV1().Deployments(n.Namespace).Delete(r.opManagerContext, depNameToRemove, metav1.DeleteOptions{})
+		// Remove service
+		err := r.context.Clientset.CoreV1().Services(n.Namespace).Delete(r.opManagerContext, resourceName, metav1.DeleteOptions{})
 		if err != nil {
 			if !kerrors.IsNotFound(err) {
-				return errors.Wrap(err, "failed to delete ceph nfs deployment")
+				return errors.Wrapf(err, "failed to delete ceph nfs service %q", resourceName)
+			}
+		}
+
+		// Remove configmap
+		err = r.context.Clientset.CoreV1().ConfigMaps(n.Namespace).Delete(r.opManagerContext, resourceName, metav1.DeleteOptions{})
+		if err != nil {
+			if !kerrors.IsNotFound(err) {
+				return errors.Wrapf(err, "failed to delete ceph nfs config map %q", resourceName)
 			}
 		}
 
 		// Remove from grace db
 		r.removeServerFromDatabase(n, name)
 
-		nfsServerListNum = nfsServerListNum - 1
-		i++
+		// Remove deployment
+		// since we list deployments to determine what to remove, have to remove deployment last
+		err = r.context.Clientset.AppsV1().Deployments(n.Namespace).Delete(r.opManagerContext, resourceName, metav1.DeleteOptions{})
+		if err != nil {
+			if !kerrors.IsNotFound(err) {
+				return errors.Wrapf(err, "failed to delete ceph nfs deployment %q", resourceName)
+			}
+		}
 	}
 
 	return nil
