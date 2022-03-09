@@ -112,10 +112,10 @@ func (r *ReconcileNotifications) Reconcile(context context.Context, request reco
 		logger.Errorf("failed to reconcile %v", err)
 	}
 
-	return reporting.ReportReconcileResult(logger, r.recorder, notification, reconcileResponse, err)
+	return reporting.ReportReconcileResult(logger, r.recorder, request, &notification, reconcileResponse, err)
 }
 
-func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile.Result, *cephv1.CephBucketNotification, error) {
+func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephBucketNotification, error) {
 	// fetch the CephBucketNotification instance
 	notification := &cephv1.CephBucketNotification{ObjectMeta: metav1.ObjectMeta{Name: request.Name, Namespace: request.Namespace}}
 	bnName := request.NamespacedName
@@ -124,33 +124,33 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debugf("CephBucketNotification %q resource not found. Ignoring since resource must be deleted.", bnName)
-			return reconcile.Result{}, notification, nil
+			return reconcile.Result{}, *notification, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, notification, errors.Wrapf(err, "failed to retrieve CephBucketNotification %q", bnName)
+		return reconcile.Result{}, *notification, errors.Wrapf(err, "failed to retrieve CephBucketNotification %q", bnName)
 	}
 
 	// DELETE: the CR was deleted
 	if !notification.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("CephBucketNotification %q was deleted", bnName)
 		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, notification, nil
+		return reconcile.Result{}, *notification, nil
 	}
 
 	// get the topic associated with the notification, and make sure it is provisioned
 	topicName := types.NamespacedName{Namespace: notification.Namespace, Name: notification.Spec.Topic}
 	bucketTopic, err := topic.GetProvisioned(r.client, r.opManagerContext, topicName)
 	if err != nil {
-		return waitForRequeueIfTopicNotReady, notification, errors.Wrapf(err, "topic %q not provisioned yet", topicName)
+		return waitForRequeueIfTopicNotReady, *notification, errors.Wrapf(err, "topic %q not provisioned yet", topicName)
 	}
 
 	// Populate clusterInfo during each reconcile
 	clusterInfo, clusterSpec, err := getReadyCluster(r.client, r.opManagerContext, *r.context, bucketTopic.Spec.ObjectStoreNamespace)
 	if err != nil {
-		return opcontroller.WaitForRequeueIfCephClusterNotReady, notification, errors.Wrapf(err, "cluster is not ready")
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, *notification, errors.Wrapf(err, "cluster is not ready")
 	}
 	if clusterInfo == nil || clusterSpec == nil {
-		return opcontroller.WaitForRequeueIfCephClusterNotReady, notification, errors.New("cluster is not ready")
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, *notification, errors.New("cluster is not ready")
 	}
 
 	// fetch all OBCs that has a label matching this CephBucketNotification
@@ -161,30 +161,30 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 	obcList := &bktv1alpha1.ObjectBucketClaimList{}
 	err = r.client.List(r.opManagerContext, obcList, namespaceListOpt, labelListOpt)
 	if err != nil {
-		return reconcile.Result{}, notification, errors.Wrapf(err, "failed to list ObjectBucketClaims for CephBucketNotification %q", bnName)
+		return reconcile.Result{}, *notification, errors.Wrapf(err, "failed to list ObjectBucketClaims for CephBucketNotification %q", bnName)
 	}
 	if len(obcList.Items) == 0 {
 		logger.Debugf("no ObjectbucketClaim associated with CephBucketNotification %q", bnName)
-		return reconcile.Result{}, notification, nil
+		return reconcile.Result{}, *notification, nil
 	}
 
 	// loop through all OBCs in the list and get their OBs
 	for _, obc := range obcList.Items {
 		if obc.Spec.ObjectBucketName == "" {
-			return waitForRequeueIfObjectBucketNotReady, notification, errors.Errorf("ObjectBucketClaim %q did not create the bucket yet",
+			return waitForRequeueIfObjectBucketNotReady, *notification, errors.Errorf("ObjectBucketClaim %q did not create the bucket yet",
 				types.NamespacedName{Name: obc.Name, Namespace: obc.Namespace})
 		}
 		ob := bktv1alpha1.ObjectBucket{}
 		bucketName := types.NamespacedName{Namespace: notification.Namespace, Name: obc.Spec.ObjectBucketName}
 		if err := r.client.Get(r.opManagerContext, bucketName, &ob); err != nil {
-			return reconcile.Result{}, notification, errors.Wrapf(err, "failed to retrieve ObjectBucket %v", bucketName)
+			return reconcile.Result{}, *notification, errors.Wrapf(err, "failed to retrieve ObjectBucket %v", bucketName)
 		}
 		objectStoreName, err := getCephObjectStoreName(ob)
 		if err != nil {
-			return reconcile.Result{}, notification, errors.Wrapf(err, "failed to get object store from ObjectBucket %q", bucketName)
+			return reconcile.Result{}, *notification, errors.Wrapf(err, "failed to get object store from ObjectBucket %q", bucketName)
 		}
 		if err = validateObjectStoreName(bucketTopic, objectStoreName); err != nil {
-			return reconcile.Result{}, notification, err
+			return reconcile.Result{}, *notification, err
 		}
 
 		err = createNotificationFunc(
@@ -201,12 +201,12 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 			notification,
 		)
 		if err != nil {
-			return reconcile.Result{}, notification, errors.Wrapf(err, "failed to provision notification for ObjectBucketClaims %q", bucketName)
+			return reconcile.Result{}, *notification, errors.Wrapf(err, "failed to provision notification for ObjectBucketClaims %q", bucketName)
 		}
 		logger.Infof("provisioned CephBucketNotification %q for ObjectBucketClaims %q", bnName, bucketName)
 	}
 
-	return reconcile.Result{}, notification, nil
+	return reconcile.Result{}, *notification, nil
 }
 
 func getCephObjectStoreName(ob bktv1alpha1.ObjectBucket) (types.NamespacedName, error) {
