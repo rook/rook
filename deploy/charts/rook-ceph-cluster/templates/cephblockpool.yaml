@@ -19,7 +19,9 @@ provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
 parameters:
   pool: {{ $blockpool.name }}
   clusterID: {{ $root.Release.Namespace }}
-{{ toYaml $blockpool.storageClass.parameters | indent 2 }}
+{{ with $blockpool.storageClass.parameters }}
+{{ toYaml . | indent 2 }}
+{{ end }}
 reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
 {{- if $blockpool.storageClass.mountOptions }}
