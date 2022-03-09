@@ -4122,6 +4122,8 @@ spec:
                           - severity
                         type: object
                       type: object
+                    fsid:
+                      type: string
                     health:
                       type: string
                     lastChanged:
