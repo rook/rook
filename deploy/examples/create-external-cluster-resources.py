@@ -879,6 +879,8 @@ class RadosJSON:
 
     def gen_json_out(self):
         self._gen_output_map()
+        if self._arg_parser.dry_run:
+            return ""
         json_out = [
             {
                 "name": "rook-ceph-mon-endpoints",
@@ -1082,9 +1084,6 @@ class RadosJSON:
                     "cert": self.out_map['RGW_TLS_CERT'],
                 }
             })
-
-        if self._arg_parser.dry_run:
-            return ""
 
         return json.dumps(json_out)+LINESEP
 
