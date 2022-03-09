@@ -111,7 +111,6 @@ echo "Successfully created Issuer and Certificate"
 
 echo "Deploying webhook config"
 < "${BASE_DIR}"/webhook-config.yaml \
-        "${BASE_DIR}"/webhook-patch-ca-bundle.sh | \
         sed -e "s|\${NAMESPACE}|${NAMESPACE}|g" | \
         sed -e "s|\${WEBHOOK_CONFIG_NAME}|${WEBHOOK_CONFIG_NAME}|g" | \
         sed -e "s|\${SERVICE_NAME}|${SERVICE_NAME}|g" | \

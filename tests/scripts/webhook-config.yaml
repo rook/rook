@@ -16,7 +16,6 @@ webhooks:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephcluster
-      caBundle: ${CA_BUNDLE}
     admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
     sideEffects: None
     timeoutSeconds: 5
@@ -31,7 +30,6 @@ webhooks:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephblockpool
-      caBundle: ${CA_BUNDLE}
     admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
     sideEffects: None
     timeoutSeconds: 5
@@ -46,7 +44,6 @@ webhooks:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephobjectstore
-      caBundle: ${CA_BUNDLE}
     admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
     sideEffects: None
     timeoutSeconds: 5
