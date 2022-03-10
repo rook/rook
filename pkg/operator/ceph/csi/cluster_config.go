@@ -190,11 +190,6 @@ func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerI
 // The locker l is typically a mutex and is used to prevent the config
 // map from being updated for multiple clusters simultaneously.
 func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, clusterInfo *cephclient.ClusterInfo, newCsiClusterConfigEntry *CsiClusterConfigEntry) error {
-	if !CSIEnabled() {
-		logger.Debug("skipping csi config update because csi is not enabled")
-		return nil
-	}
-
 	// csi is deployed into the same namespace as the operator
 	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if csiNamespace == "" {
