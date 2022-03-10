@@ -103,8 +103,13 @@ build_helm_resources() {
 ########
 # MAIN #
 ########
+# clean the directory where CRDs are generated
+rm -fr "$OLM_CATALOG_DIR"
+
+# generate the CRDs
 generating_crds_v1
 
+# get the OBC CRDs
 if [ -z "$NO_OB_OBC_VOL_GEN" ]; then
   echo "Generating obcs in crds.yaml"
   copy_ob_obc_crds
