@@ -96,7 +96,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 }
 
 func (s *UpgradeSuite) TestUpgradeRook() {
-	s.testUpgrade(false, installer.PacificVersion)
+	s.testUpgrade(false, installer.OctopusVersion)
 }
 
 func (s *UpgradeSuite) TestUpgradeHelm() {
@@ -152,6 +152,20 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	if s.settings.UseHelm {
 		return
 	}
+
+	//
+	// Upgrade from octopus to pacific
+	//
+	logger.Infof("*** UPGRADING CEPH FROM OCTOPUS TO PACIFIC ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")
+	s.upgradeCephVersion(installer.PacificVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile = "post-pacific-upgrade-file"
+	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("Verified upgrade from octopus to pacific")
+
+	rbdFilesToRead = append(rbdFilesToRead, newFile)
+	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 
 	//
 	// Upgrade from pacific to quincy

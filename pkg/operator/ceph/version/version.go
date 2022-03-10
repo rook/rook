@@ -49,7 +49,7 @@ var (
 	Quincy = CephVersion{17, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Octopus, Pacific}
+	supportedVersions = []CephVersion{Octopus, Pacific, Quincy}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions = []CephVersion{}
