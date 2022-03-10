@@ -195,15 +195,16 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, 
 		return nil
 	}
 
-	configMutex.Lock()
-	defer configMutex.Unlock()
-
 	// csi is deployed into the same namespace as the operator
 	csiNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	if csiNamespace == "" {
-		return errors.Errorf("namespace value missing for %q", k8sutil.PodNamespaceEnvVar)
+		logger.Warningf("cannot save csi config due to missing env var %q", k8sutil.PodNamespaceEnvVar)
+		return nil
 	}
 	logger.Debugf("using %q for csi configmap namespace", csiNamespace)
+
+	configMutex.Lock()
+	defer configMutex.Unlock()
 
 	// fetch current ConfigMap contents
 	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context, ConfigName, metav1.GetOptions{})
