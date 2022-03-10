@@ -630,7 +630,8 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	d.Spec.Template.Spec.Containers[0].Image = c.rookVersion
 	d.Spec.Template.Spec.Containers[0].Command = []string{"sleep"} // sleep responds to signals so we don't need to wrap it
 	d.Spec.Template.Spec.Containers[0].Args = []string{"3600"}
-	// remove the liveness probe on the canary pod
+	// remove the startup and liveness probes on the canary pod
+	d.Spec.Template.Spec.Containers[0].StartupProbe = nil
 	d.Spec.Template.Spec.Containers[0].LivenessProbe = nil
 
 	// setup affinity settings for pod scheduling
