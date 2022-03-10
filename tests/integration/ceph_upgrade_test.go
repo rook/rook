@@ -96,7 +96,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 }
 
 func (s *UpgradeSuite) TestUpgradeRook() {
-	s.testUpgrade(false, installer.OctopusVersion)
+	s.testUpgrade(false, installer.PacificVersion)
 }
 
 func (s *UpgradeSuite) TestUpgradeHelm() {
@@ -154,15 +154,15 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	}
 
 	//
-	// Upgrade from octopus to pacific
+	// Upgrade from pacific to quincy
 	//
-	logger.Infof("*** UPGRADING CEPH FROM OCTOPUS TO PACIFIC ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")
-	s.upgradeCephVersion(installer.PacificVersion.Image, numOSDs)
+	logger.Infof("*** UPGRADING CEPH FROM PACIFIC TO QUINCY ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_quincy_upgrade")
+	s.upgradeCephVersion(installer.QuincyVersion.Image, numOSDs)
 	// Verify reading and writing to the test clients
-	newFile = "post-pacific-upgrade-file"
+	newFile = "post-quincy-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from octopus to pacific")
+	logger.Infof("Verified upgrade from pacific to quincy")
 
 	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
@@ -201,7 +201,7 @@ func (s *UpgradeSuite) TestUpgradeCephToOctopusDevel() {
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
-	s.baseSetup(false, installer.OctopusVersion)
+	s.baseSetup(false, installer.PacificVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
