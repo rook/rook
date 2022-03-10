@@ -225,6 +225,11 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+            {{ if .EnableOIDCTokenProjection }}
+            - name: oidc-token
+              mountPath: /run/secrets/tokens
+              readOnly: true
+            {{ end }}
         - name: liveness-prometheus
           image: {{ .CSIPluginImage }}
           args:
@@ -286,3 +291,12 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
+        {{ if .EnableOIDCTokenProjection }}
+        - name: oidc-token
+          projected:
+            sources:
+            - serviceAccountToken:
+                path: oidc-token
+                expirationSeconds: 3600
+                audience: ceph-csi-kms
+        {{ end }}
