@@ -93,6 +93,9 @@ func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretC
 	// Both return a token
 	token, _, err := utils.Authenticate(client, c)
 	if err != nil {
+		if authType := GetParam(secretConfig, vault.AuthMethod); authType == vault.AuthMethodKubernetes {
+			return nil, errors.Wrap(err, "failed to get vault authentication token for kubernetes authentication (missing Service Account?)")
+		}
 		return nil, errors.Wrap(err, "failed to get vault authentication token")
 	}
 
