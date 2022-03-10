@@ -18,6 +18,7 @@ package pool
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -48,6 +49,7 @@ import (
 func TestCreatePool(t *testing.T) {
 	p := &cephv1.NamedPoolSpec{}
 	enabledMetricsApp := false
+	enabledMgrApp := false
 	clusterInfo := client.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -62,9 +64,17 @@ func TestCreatePool(t *testing.T) {
 					}
 					assert.Equal(t, "enable", args[3])
 					if args[5] != "rbd" {
-						enabledMetricsApp = true
-						assert.Equal(t, "device_health_metrics", args[4])
-						assert.Equal(t, "mgr_devicehealth", args[5])
+						if args[4] == "device_health_metrics" {
+							enabledMetricsApp = true
+							assert.Equal(t, "device_health_metrics", args[4])
+							assert.Equal(t, "mgr_devicehealth", args[5])
+						} else if args[4] == ".mgr" {
+							enabledMgrApp = true
+							assert.Equal(t, ".mgr", args[4])
+							assert.Equal(t, "mgr", args[5])
+						} else {
+							assert.Fail(t, fmt.Sprintf("invalid pool %q", args[4]))
+						}
 					}
 				}
 			}
@@ -92,6 +102,13 @@ func TestCreatePool(t *testing.T) {
 		err := createPool(context, clusterInfo, clusterSpec, p)
 		assert.Nil(t, err)
 		assert.True(t, enabledMetricsApp)
+	})
+
+	t.Run("built-in mgr pool", func(t *testing.T) {
+		p.Name = ".mgr"
+		err := createPool(context, clusterInfo, clusterSpec, p)
+		assert.Nil(t, err)
+		assert.True(t, enabledMgrApp)
 	})
 
 	t.Run("ec pool", func(t *testing.T) {

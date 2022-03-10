@@ -28,7 +28,7 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v16.2.7
+    image: quay.io/ceph/ceph:v17
     allowUnsupported: true
   mon:
     count: 1
@@ -55,11 +55,10 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: device-health-metrics
+  name: mgr
   namespace: rook-ceph # namespace:cluster
 spec:
-  name: device_health_metrics
-  failureDomain: host
+  name: .mgr
   replicated:
     size: 1
     requireSafeReplicaSize: false

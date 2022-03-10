@@ -115,6 +115,7 @@ spec:
                   enum:
                     - device_health_metrics
                     - .nfs
+                    - .mgr
                   type: string
                 parameters:
                   additionalProperties:

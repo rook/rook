@@ -375,6 +375,8 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	appName := poolApplicationNameRBD
 	if p.Name == "device_health_metrics" {
 		appName = "mgr_devicehealth"
+	} else if p.Name == ".mgr" {
+		appName = "mgr"
 	} else if p.Name == ".nfs" {
 		appName = "nfs"
 	}
