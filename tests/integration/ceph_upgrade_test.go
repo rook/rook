@@ -87,7 +87,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 		UsePVC:                      false,
 		Mons:                        1,
 		EnableDiscovery:             true,
-		RookVersion:                 installer.Version1_7,
+		RookVersion:                 installer.Version1_8,
 		CephVersion:                 initialCephVersion,
 	}
 
@@ -123,9 +123,9 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	}()
 
 	//
-	// Upgrade Rook from v1.7 to master
+	// Upgrade Rook from v1.8 to master
 	//
-	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_7)
+	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_8)
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
 	s.upgradeToMaster()
 
@@ -134,8 +134,8 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	err := s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
 
-	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_7)
-	newFile := "post-upgrade-1_7-to-master-file"
+	logger.Infof("Done with automatic upgrade from %s to master", installer.Version1_8)
+	newFile := "post-upgrade-1_8-to-master-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
@@ -146,7 +146,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
 	assert.True(s.T(), s.helper.BucketClient.CheckOBC(obcName, "bound"))
 
-	logger.Infof("Verified upgrade from %s to master", installer.Version1_7)
+	logger.Infof("Verified upgrade from %s to master", installer.Version1_8)
 
 	// SKIP the Ceph version upgrades for the helm test
 	if s.settings.UseHelm {
@@ -282,7 +282,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectUserID, preFilename string)
 	require.True(s.T(), created)
 
 	// verify that we're actually running the right pre-upgrade image
-	s.verifyOperatorImage(installer.Version1_7)
+	s.verifyOperatorImage(installer.Version1_8)
 
 	assert.NoError(s.T(), s.k8sh.WriteToPod("", rbdPodName, preFilename, simpleTestMessage))
 	assert.NoError(s.T(), s.k8sh.ReadFromPod("", rbdPodName, preFilename, simpleTestMessage))
