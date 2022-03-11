@@ -29,6 +29,20 @@ import (
 // will be registered for the validating webhook.
 var _ webhook.Validator = &CephCluster{}
 
+// RequireMsgr2 checks if the network settings require the msgr2 protocol
+func (c *ClusterSpec) RequireMsgr2() bool {
+	if c.Network.Connections == nil {
+		return false
+	}
+	if c.Network.Connections.Compression != nil && c.Network.Connections.Compression.Enabled {
+		return true
+	}
+	if c.Network.Connections.Encryption != nil && c.Network.Connections.Encryption.Enabled {
+		return true
+	}
+	return false
+}
+
 func (c *ClusterSpec) IsStretchCluster() bool {
 	return c.Mon.StretchCluster != nil && len(c.Mon.StretchCluster.Zones) > 0
 }

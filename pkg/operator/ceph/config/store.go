@@ -74,7 +74,7 @@ func (s *Store) createOrUpdateMonHostSecrets(clusterInfo *cephclient.ClusterInfo
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
-	members, hosts := cephclient.PopulateMonHostMembers(clusterInfo.Monitors)
+	members, hosts := cephclient.PopulateMonHostMembers(clusterInfo)
 
 	// store these in a secret instead of the configmap; secrets are required by CSI drivers
 	secret := &v1.Secret{

@@ -42,6 +42,7 @@ type ClusterInfo struct {
 	CephVersion   cephver.CephVersion
 	Namespace     string
 	OwnerInfo     *k8sutil.OwnerInfo
+	RequireMsgr2  bool
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name              string

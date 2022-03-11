@@ -88,6 +88,8 @@ func (s *SmokeSuite) SetupSuite() {
 		Mons:                      3,
 		SkipOSDCreation:           false,
 		EnableAdmissionController: true,
+		ConnectionsEncrypted:      true,
+		ConnectionsCompressed:     true,
 		UseCrashPruner:            true,
 		EnableVolumeReplication:   true,
 		ChangeHostName:            true,

@@ -46,6 +46,8 @@ const (
 	DefaultKeyringFile = "keyring"
 	// Msgr2port is the listening port of the messenger v2 protocol
 	Msgr2port = 3300
+	// Msgr1port is the listening port of the messenger v1 protocol
+	Msgr1port = 6789
 )
 
 var (
@@ -188,7 +190,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo
 
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// and "mon hosts" global config field
-	monMembers, monHosts := PopulateMonHostMembers(clusterInfo.Monitors)
+	monMembers, monHosts := PopulateMonHostMembers(clusterInfo)
 
 	conf := &CephConfig{
 		GlobalConfig: &GlobalConfig{
@@ -244,25 +246,28 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 
 // PopulateMonHostMembers extracts a list of just the monitor names, which will populate the "mon initial members"
 // and "mon hosts" global config field
-func PopulateMonHostMembers(monitors map[string]*MonInfo) ([]string, []string) {
-	monMembers := make([]string, len(monitors))
-	monHosts := make([]string, len(monitors))
+func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
+	monMembers := make([]string, len(clusterInfo.Monitors))
+	monHosts := make([]string, len(clusterInfo.Monitors))
 
 	i := 0
-	for _, monitor := range monitors {
+	for _, monitor := range clusterInfo.Monitors {
 		monMembers[i] = monitor.Name
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
-
-		// This tries to detect the current port if the mon already exists
-		// This basically handles the transition between monitors running on 6790 to msgr2
-		// So whatever the previous monitor port was we keep it
-		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
-
-		monPorts := [2]string{strconv.Itoa(int(Msgr2port)), strconv.Itoa(int(currentMonPort))}
-		msgr2Endpoint := net.JoinHostPort(monIP, monPorts[0])
-		msgr1Endpoint := net.JoinHostPort(monIP, monPorts[1])
-
-		monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		if clusterInfo.RequireMsgr2 {
+			monHosts[i] = fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port)
+		} else {
+			// Detect the current port if the mon already exists
+			// so the same msgr1 port can be preserved if needed (6789 or 6790)
+			currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
+			// Ensure we're setting a msgr1 port, rather than duplicating msgr2
+			if currentMonPort == Msgr2port {
+				currentMonPort = Msgr1port
+			}
+			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
+			msgr1Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(currentMonPort)))
+			monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+		}
 		i++
 	}
 

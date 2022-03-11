@@ -44,6 +44,8 @@ type TestCephSettings struct {
 	SkipClusterCleanup          bool
 	SkipCleanupPolicy           bool
 	DirectMountToolbox          bool
+	ConnectionsEncrypted        bool
+	ConnectionsCompressed       bool
 	EnableVolumeReplication     bool
 	ChangeHostName              bool
 	RookVersion                 string

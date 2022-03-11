@@ -69,6 +69,7 @@ func (h *HelmSuite) SetupSuite() {
 		EnableAdmissionController: false,
 		EnableDiscovery:           true,
 		ChangeHostName:            true,
+		ConnectionsEncrypted:      true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.OctopusVersion,
 	}

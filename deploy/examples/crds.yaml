@@ -1652,6 +1652,27 @@ spec:
                   description: Network related configuration
                   nullable: true
                   properties:
+                    connections:
+                      description: Settings for network connections such as compression and encryption across the wire.
+                      nullable: true
+                      properties:
+                        compression:
+                          description: Compression settings for the network connections.
+                          nullable: true
+                          properties:
+                            enabled:
+                              description: Whether to compress the data in transit across the wire. The default is not set. Requires Ceph Quincy (v17) or newer.
+                              type: boolean
+                          type: object
+                        encryption:
+                          description: Encryption settings for the network connections.
+                          nullable: true
+                          properties:
+                            enabled:
+                              description: Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network. The default is not set. Even if encryption is not enabled, clients still establish a strong initial authentication for the connection and data integrity is still validated with a crc check. When encryption is enabled, all communication between clients and Ceph daemons, or between Ceph daemons will be encrypted.
+                              type: boolean
+                          type: object
+                      type: object
                     dualStack:
                       description: DualStack determines whether Ceph daemons should listen on both IPv4 and IPv6
                       type: boolean

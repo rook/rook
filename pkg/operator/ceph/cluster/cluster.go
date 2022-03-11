@@ -191,6 +191,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		} else {
 			clusterInfo.OwnerInfo = cluster.ownerInfo
 			clusterInfo.SetName(c.namespacedName.Name)
+			clusterInfo.RequireMsgr2 = cluster.Spec.RequireMsgr2()
 			cluster.ClusterInfo = clusterInfo
 		}
 		// If the local cluster has already been configured, immediately start monitoring the cluster.
@@ -496,11 +497,6 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 	}
 
-	// Enable Ceph messenger 2 protocol on Nautilus
-	if err := client.EnableMessenger2(c.context, c.ClusterInfo); err != nil {
-		return errors.Wrap(err, "failed to enable Ceph messenger version 2")
-	}
-
 	// Always ensure the skip mds sanity checks setting is cleared, for all Pacific deployments
 	if c.ClusterInfo.CephVersion.IsPacific() {
 		if err := c.skipMDSSanityChecks(false); err != nil {
@@ -508,6 +504,10 @@ func (c *cluster) postMonStartupActions() error {
 			// at the next reconcile.
 			logger.Warningf("failed to re-enable the mon_mds_skip_sanity. %v", err)
 		}
+	}
+
+	if err := c.configureMsgr2(); err != nil {
+		return errors.Wrap(err, "failed to configured msgr2")
 	}
 
 	crushRoot := client.GetCrushRootFromSpec(c.Spec)
@@ -526,5 +526,48 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
+	return nil
+}
+
+func (c *cluster) configureMsgr2() error {
+	if c.Spec.Network.Connections == nil {
+		return nil
+	}
+
+	// Set network encryption
+	monStore := config.GetMonStore(c.context, c.ClusterInfo)
+	if c.Spec.Network.Connections.Encryption != nil {
+		encryptionSetting := "crc secure"
+		if c.Spec.Network.Connections.Encryption.Enabled {
+			encryptionSetting = "secure"
+		}
+		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
+
+		if err := monStore.Set("global", "ms_cluster_mode", encryptionSetting); err != nil {
+			return errors.Wrapf(err, "failed to set ms_cluster_mode to %q", encryptionSetting)
+		}
+		if err := monStore.Set("global", "ms_service_mode", encryptionSetting); err != nil {
+			return errors.Wrapf(err, "failed to set ms_service_mode to %q", encryptionSetting)
+		}
+		if err := monStore.Set("global", "ms_client_mode", encryptionSetting); err != nil {
+			return errors.Wrapf(err, "failed to set ms_client_mode to %q", encryptionSetting)
+		}
+	}
+
+	// Set network compression
+	if c.Spec.Network.Connections.Compression != nil {
+		if c.ClusterInfo.CephVersion.IsAtLeastQuincy() {
+			compressionSetting := "none"
+			if c.Spec.Network.Connections.Compression.Enabled {
+				compressionSetting = "force"
+			}
+			logger.Infof("setting msgr2 compression mode to %q", compressionSetting)
+			if err := monStore.Set("global", "ms_osd_compress_mode", compressionSetting); err != nil {
+				return errors.Wrapf(err, "failed to set ms_osd_compress_mode to %q", compressionSetting)
+			}
+		} else {
+			logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
+		}
+	}
 	return nil
 }

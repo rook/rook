@@ -55,15 +55,3 @@ func addServicePort(service *v1.Service, name string, port int32) {
 		Protocol:   v1.ProtocolTCP,
 	})
 }
-
-// addContainerPort adds a port to a container
-func addContainerPort(container v1.Container, name string, port int32) {
-	if port == 0 {
-		return
-	}
-	container.Ports = append(container.Ports, v1.ContainerPort{
-		Name:          name,
-		ContainerPort: port,
-		Protocol:      v1.ProtocolTCP,
-	})
-}

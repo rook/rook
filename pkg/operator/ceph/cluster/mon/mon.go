@@ -500,6 +500,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 	c.ClusterInfo.OwnerInfo = c.ownerInfo
 	c.ClusterInfo.Context = context
 	c.ClusterInfo.SetName(clusterName)
+	c.ClusterInfo.RequireMsgr2 = c.spec.RequireMsgr2()
 
 	// save cluster monitor config
 	if err = c.saveMonConfig(); err != nil {
@@ -568,7 +569,7 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         DefaultMsgr1Port,
+		Port:         DefaultMsgr2Port,
 		Zone:         zone,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),

@@ -279,7 +279,7 @@ func TestPersistMons(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
+	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
 	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 
 	// Persist mon b, and remove mon a for simply testing the configmap is updated
@@ -307,7 +307,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, "a=1.2.3.1:6789", cm.Data[EndpointDataKey])
+	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
 	assert.Equal(t, `{"node":{}}`, cm.Data[MappingKey])
 	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
