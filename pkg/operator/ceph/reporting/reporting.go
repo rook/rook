@@ -20,6 +20,7 @@ package reporting
 import (
 	"context"
 	"fmt"
+	"reflect"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -33,25 +34,109 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const unknownKind = "<UnknownObjectKind>"
+
+// an object of a given type that has a nil reference is not the same as obj==nil (untyped nil)
+// (e.g., var cluster cephv1.CephCluster = nil ), so we must also check for nil via reflection
+func objIsNil(obj client.Object) bool {
+	return obj == nil || reflect.ValueOf(obj).IsNil()
+}
+
+// get the kind through the object API, but if that is empty, make a best guess via golang reflection
+func objKindOrBestGuess(obj client.Object) string {
+	// can't get any type info from an untyped nil
+	if obj == nil {
+		return unknownKind
+	}
+
+	if !reflect.ValueOf(obj).IsNil() {
+		kind := obj.GetObjectKind().GroupVersionKind().Kind
+		if kind != "" {
+			return kind
+		}
+	}
+
+	// typed nil, or object's typemeta is empty
+	t := reflect.TypeOf(obj)
+	if t.Kind() == reflect.Ptr {
+		return t.Elem().Name()
+	}
+	return t.Name()
+}
+
+func copyObject(obj client.Object) client.Object {
+	if obj == nil {
+		return nil // cannot copy nil object
+	}
+
+	if !reflect.ValueOf(obj).IsNil() {
+		return obj.DeepCopyObject().(client.Object) // deep copy the object if it's non-nil
+	}
+
+	// Otherwise, it is a nil object, but it has a type. We can use reflection to make an empty
+	// object to use as the copy in this case.
+	var nonNilCopy client.Object
+	t := reflect.TypeOf(obj)
+	if t.Kind() == reflect.Ptr {
+		innerType := t.Elem()
+		newObj := reflect.New(innerType)
+		nonNilCopy = newObj.Interface().(client.Object)
+	} else {
+		newObj := reflect.Zero(t)
+		nonNilCopy = newObj.Interface().(client.Object)
+	}
+
+	return nonNilCopy
+}
+
 // ReportReconcileResult will report the result of an object's reconcile in 2 ways:
 // 1. to the given logger
 // 2. as an event on the object (via the given event recorder)
-// The results of the object's reconcile should include the object, the reconcile response, and the
-// error returned by the reconcile.
+//
+// The results of the object's reconcile should include the object (NEVER NIL),
+// the reconcile response, and the error returned by the reconcile.
+//
+// The reconcile request is used to reference a given object that doesn't have a name.
+//
 // The function is designed to return the appropriate values needed for the controller-runtime
 // framework's Reconcile() method.
-func ReportReconcileResult(logger *capnslog.PackageLogger, recorder record.EventRecorder,
-	obj client.Object, reconcileResponse reconcile.Result, err error,
+func ReportReconcileResult(
+	logger *capnslog.PackageLogger,
+	recorder record.EventRecorder,
+	reconcileRequest reconcile.Request,
+	obj client.Object,
+	reconcileResponse reconcile.Result,
+	err error,
 ) (reconcile.Result, error) {
-	kind := obj.GetObjectKind().GroupVersionKind().Kind
-	nsName := fmt.Sprintf("%s/%s", obj.GetNamespace(), obj.GetName())
+	kind := objKindOrBestGuess(obj)
+
+	if objIsNil(obj) {
+		logger.Errorf("object associated with reconcile request %s %q should not be nil", kind, reconcileRequest)
+	}
+
+	objCopy := copyObject(obj)
+
+	// If object is empty, this may be because (a) the object was deleted and so the reconciler only
+	// had an empty object, (b)) the api server didn't give the object, or (c)the reconciler
+	// returned nil accidentally. The object needs full metadata in order to have an event
+	// associated with it, but even with an empty object we can at least create an event that
+	// references the namespaced name of the object, even if event won't show up in the output of
+	// `kubectl describe object`.
+	if objCopy != nil && objCopy.GetName() == "" {
+		objCopy.SetName(reconcileRequest.Name)
+		objCopy.SetNamespace(reconcileRequest.Namespace)
+	}
+
+	nsName := reconcileRequest.NamespacedName.String()
 
 	if err != nil {
+		errorMsg := fmt.Sprintf("failed to reconcile %s %q. %v", kind, nsName, err)
+
 		// 1. log
-		logger.Errorf("failed to reconcile %s %q. %v", kind, nsName, err)
+		logger.Errorf(errorMsg)
 
 		// 2. event
-		recorder.Event(obj, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), err.Error())
+		recorder.Event(objCopy, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), errorMsg)
 
 		if !reconcileResponse.IsZero() {
 			// The framework will requeue immediately if there is an error. If we get an error with
@@ -67,7 +152,7 @@ func ReportReconcileResult(logger *capnslog.PackageLogger, recorder record.Event
 		logger.Debug(successMsg)
 
 		// 2. event
-		recorder.Event(obj, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), successMsg)
+		recorder.Event(objCopy, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), successMsg)
 	}
 
 	return reconcileResponse, err
