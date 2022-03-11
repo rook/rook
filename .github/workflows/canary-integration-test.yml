@@ -679,6 +679,8 @@ jobs:
       run: |
         tests/scripts/github-action-helper.sh deploy_first_rook_cluster
         cd deploy/examples/
+        sed -i "/resources:/,/ # priorityClassName:/d" rbdmirror.yaml
+        sed -i "/resources:/,/ # priorityClassName:/d" filesystem-mirror.yaml
         kubectl create -f rbdmirror.yaml -f filesystem-mirror.yaml
 
     # cephfs-mirroring is a push operation

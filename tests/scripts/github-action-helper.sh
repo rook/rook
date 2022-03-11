@@ -213,7 +213,9 @@ function deploy_cluster() {
   kubectl create -f object-test.yaml
   kubectl create -f pool-test.yaml
   kubectl create -f filesystem-test.yaml
+  sed -i "/resources:/,/ # priorityClassName:/d" rbdmirror.yaml
   kubectl create -f rbdmirror.yaml
+  sed -i "/resources:/,/ # priorityClassName:/d" filesystem-mirror.yaml
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
   kubectl create -f subvolumegroup.yaml

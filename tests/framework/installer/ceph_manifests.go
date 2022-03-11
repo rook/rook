@@ -134,6 +134,7 @@ metadata:
   name: ` + m.settings.ClusterName + `
   namespace: ` + m.settings.Namespace + `
 spec:
+  resources: null
   dataDirHostPath: ` + m.settings.DataDirHostPath + `
   mon:
     count: ` + strconv.Itoa(m.settings.Mons) + `
@@ -198,6 +199,7 @@ metadata:
   name: ` + m.settings.ClusterName + `
   namespace: ` + m.settings.Namespace + `
 spec:
+  resources: null
   cephVersion:
     image: ` + m.settings.CephVersion.Image + `
     allowUnsupported: ` + strconv.FormatBool(m.settings.CephVersion.AllowUnsupported) + `
@@ -374,6 +376,7 @@ spec:
       requireSafeReplicaSize: false
     compressionMode: none
   metadataServer:
+    resources: null
     activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true`
 }
@@ -425,6 +428,7 @@ spec:
       size: 1
       requireSafeReplicaSize: false
   gateway:
+    resources: null
     type: s3
     securePort: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
@@ -451,6 +455,7 @@ spec:
       size: 1
       requireSafeReplicaSize: false
   gateway:
+    resources: null
     port: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
   healthCheck:
