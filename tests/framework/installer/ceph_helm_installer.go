@@ -288,7 +288,7 @@ func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interfa
 		return err
 	}
 
-	storageClassBytes := []byte(h.Manifests.GetBucketStorageClass(name, scName, "Delete", "us-east-1"))
+	storageClassBytes := []byte(h.Manifests.GetBucketStorageClass(name, scName, "Delete"))
 	var testObjectStoreSC map[string]interface{}
 	if err := yaml.Unmarshal(storageClassBytes, &testObjectStoreSC); err != nil {
 		return err

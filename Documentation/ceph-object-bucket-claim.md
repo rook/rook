@@ -105,7 +105,6 @@ provisioner: rook-ceph.ceph.rook.io/bucket [2]
 parameters: [3]
   objectStoreName: my-store
   objectStoreNamespace: rook-ceph
-  region: us-west-1
   bucketName: ceph-bucket [4]
 reclaimPolicy: Delete [5]
 ```

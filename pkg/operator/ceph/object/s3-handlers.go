@@ -31,25 +31,23 @@ import (
 	"github.com/pkg/errors"
 )
 
+// Region for aws golang sdk
+const CephRegion = "us-east-1"
+
 // S3Agent wraps the s3.S3 structure to allow for wrapper methods
 type S3Agent struct {
 	Client *s3.S3
 }
 
-func NewS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCert []byte) (*S3Agent, error) {
-	return newS3Agent(accessKey, secretKey, endpoint, region, debug, tlsCert, false)
+func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte) (*S3Agent, error) {
+	return newS3Agent(accessKey, secretKey, endpoint, debug, tlsCert, false)
 }
 
-func NewInsecureS3Agent(accessKey, secretKey, endpoint, region string, debug bool) (*S3Agent, error) {
-	return newS3Agent(accessKey, secretKey, endpoint, region, debug, nil, true)
+func NewInsecureS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, error) {
+	return newS3Agent(accessKey, secretKey, endpoint, debug, nil, true)
 }
 
-func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
-	var cephRegion = "us-east-1"
-	if region != "" {
-		cephRegion = region
-	}
-
+func newS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
 	logLevel := aws.LogOff
 	if debug {
 		logLevel = aws.LogDebug
@@ -64,7 +62,7 @@ func newS3Agent(accessKey, secretKey, endpoint, region string, debug bool, tlsCe
 	}
 	session, err := awssession.NewSession(
 		aws.NewConfig().
-			WithRegion(cephRegion).
+			WithRegion(CephRegion).
 			WithCredentials(credentials.NewStaticCredentials(accessKey, secretKey, "")).
 			WithEndpoint(endpoint).
 			WithS3ForcePathStyle(true).

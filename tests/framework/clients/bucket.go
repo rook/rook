@@ -38,12 +38,12 @@ func CreateBucketOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 	return &BucketOperation{k8sh, manifests}
 }
 
-func (b *BucketOperation) CreateBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) error {
-	return b.k8sh.ResourceOperation("create", b.manifests.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region))
+func (b *BucketOperation) CreateBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string) error {
+	return b.k8sh.ResourceOperation("create", b.manifests.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy))
 }
 
-func (b *BucketOperation) DeleteBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string, region string) error {
-	err := b.k8sh.ResourceOperation("delete", b.manifests.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region))
+func (b *BucketOperation) DeleteBucketStorageClass(namespace string, storeName string, storageClassName string, reclaimPolicy string) error {
+	err := b.k8sh.ResourceOperation("delete", b.manifests.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy))
 	return err
 }
 
@@ -157,9 +157,9 @@ func (b *BucketOperation) CheckBucketNotificationSetonRGW(namespace, storeName, 
 	s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 	s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
 	if tlsEnabled {
-		s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", true)
+		s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
 	} else {
-		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, "", true, nil)
+		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
 	}
 	if err != nil {
 		logger.Infof("failed to s3client due to %v", err)

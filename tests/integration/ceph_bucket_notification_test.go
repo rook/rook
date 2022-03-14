@@ -90,7 +90,7 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 
 	t.Run("create ObjectBucketClaim", func(t *testing.T) {
 		logger.Infof("create OBC %q with storageclass %q and notification %q", obcName, bucketStorageClassName, notificationName)
-		cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
+		cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete")
 		assert.Nil(t, cobErr)
 		cobcErr := helper.BucketClient.CreateObcNotification(obcName, bucketStorageClassName, bucketname, notificationName, true)
 		assert.Nil(t, cobcErr)
@@ -124,9 +124,9 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
 		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
 		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
 		}
 
 		assert.Nil(t, err)
@@ -228,9 +228,9 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
 		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true)
+			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
 		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, region, true, nil)
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
 		}
 
 		assert.Nil(t, err)
@@ -427,7 +427,7 @@ func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *ut
 		assert.NotEqual(t, 4, i)
 		assert.Equal(t, rgwErr, rgw.RGWErrorNotFound)
 
-		dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete", region)
+		dobErr := helper.BucketClient.DeleteBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete")
 		assert.Nil(t, dobErr)
 	})
 

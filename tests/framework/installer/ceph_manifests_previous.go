@@ -128,8 +128,8 @@ func (m *CephManifestsPreviousVersion) GetObjectStoreUser(name, displayName, sto
 }
 
 //GetBucketStorageClass returns the manifest to create object bucket
-func (m *CephManifestsPreviousVersion) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string {
-	return m.latest.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region)
+func (m *CephManifestsPreviousVersion) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string {
+	return m.latest.GetBucketStorageClass(storeName, storageClassName, reclaimPolicy)
 }
 
 //GetOBC returns the manifest to create object bucket claim
