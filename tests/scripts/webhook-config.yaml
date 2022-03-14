@@ -1,3 +1,26 @@
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: selfsigned-issuer
+  namespace: ${NAMESPACE}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: rook-admission-controller-cert
+  namespace: ${NAMESPACE}
+spec:
+  dnsNames:
+    - ${SERVICE_NAME}
+    - ${SERVICE_NAME}.${NAMESPACE}.svc
+    - ${SERVICE_NAME}.${NAMESPACE}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: selfsigned-issuer
+  secretName: rook-ceph-admission-controller
+---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
@@ -7,46 +30,43 @@ metadata:
 webhooks:
   - name: cephcluster-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
     rules:
-      - apiGroups:   ["ceph.rook.io"]
+      - apiGroups: ["ceph.rook.io"]
         apiVersions: ["v1"]
-        operations:  ["CREATE","UPDATE","DELETE"]
-        resources:   ["cephclusters"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["cephclusters"]
     clientConfig:
       service:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephcluster
-      caBundle: ${CA_BUNDLE}
-    admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
+    admissionReviewVersions: ["v1", "v1beta1"] # API server will try to use first version in the list which it supports.
     sideEffects: None
     timeoutSeconds: 5
   - name: cephblockpool-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
     rules:
-      - apiGroups:   ["ceph.rook.io"]
+      - apiGroups: ["ceph.rook.io"]
         apiVersions: ["v1"]
-        operations:  ["CREATE","UPDATE","DELETE"]
-        resources:   ["cephblockpools"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["cephblockpools"]
     clientConfig:
       service:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephblockpool
-      caBundle: ${CA_BUNDLE}
-    admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
+    admissionReviewVersions: ["v1", "v1beta1"] # API server will try to use first version in the list which it supports.
     sideEffects: None
     timeoutSeconds: 5
   - name: cephobjectstore-wh-${SERVICE_NAME}-${NAMESPACE}.rook.io
     rules:
-      - apiGroups:   ["ceph.rook.io"]
+      - apiGroups: ["ceph.rook.io"]
         apiVersions: ["v1"]
-        operations:  ["CREATE","UPDATE","DELETE"]
-        resources:   ["cephobjectstores"]
+        operations: ["CREATE", "UPDATE", "DELETE"]
+        resources: ["cephobjectstores"]
     clientConfig:
       service:
         name: ${SERVICE_NAME}
         namespace: ${NAMESPACE}
         path: /validate-ceph-rook-io-v1-cephobjectstore
-      caBundle: ${CA_BUNDLE}
-    admissionReviewVersions: ["v1", "v1beta1"]  # API server will try to use first version in the list which it supports.
+    admissionReviewVersions: ["v1", "v1beta1"] # API server will try to use first version in the list which it supports.
     sideEffects: None
     timeoutSeconds: 5
