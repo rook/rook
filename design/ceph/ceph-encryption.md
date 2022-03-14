@@ -163,7 +163,7 @@ for customers to bring their own encryption keys.
 
 This introduces new feature requirements into rook/ceph:
 1. Support for key rotation.
-2. Support for BYOK for encryption.
+2. Support for BYOK (Bring Your Own Key) for encryption.
 
 ## Key Rotation
 As of today, neither Ceph nor Rook support a flag or easy mechanism to
