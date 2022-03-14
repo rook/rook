@@ -40,6 +40,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -245,6 +246,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		context:           c,
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  context.TODO(),
+		recorder:          record.NewFakeRecorder(5),
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -300,6 +302,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
+			recorder:          record.NewFakeRecorder(5),
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -357,6 +360,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
+			recorder:          record.NewFakeRecorder(5),
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -372,7 +376,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		err := r.client.Update(context.TODO(), pool)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 	})
 
@@ -428,6 +432,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
+			recorder:          record.NewFakeRecorder(5),
 		}
 
 		pool.Spec.Mirroring.Mode = "image"
@@ -469,6 +474,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
+			recorder:          record.NewFakeRecorder(5),
 		}
 
 		pool.Spec.Mirroring.Peers.SecretNames = []string{peerSecretName}
@@ -476,7 +482,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
 		// assert reconcile failure because peer token secert was not created
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 	})
 
@@ -506,6 +512,7 @@ func TestCephBlockPoolController(t *testing.T) {
 			context:           c,
 			blockPoolContexts: make(map[string]*blockPoolHealth),
 			opManagerContext:  context.TODO(),
+			recorder:          record.NewFakeRecorder(5),
 		}
 		pool.Spec.Mirroring.Enabled = false
 		pool.Spec.Mirroring.Mode = "image"

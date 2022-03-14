@@ -38,6 +38,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -113,6 +114,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 			ServiceAccount:    "foo",
 		},
 		opManagerContext: ctx,
+		recorder:         record.NewFakeRecorder(5),
 	}
 	req := reconcile.Request{
 		NamespacedName: types.NamespacedName{
@@ -163,6 +165,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 				ServiceAccount:    "foo",
 			},
 			opManagerContext: ctx,
+			recorder:         record.NewFakeRecorder(5),
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -205,9 +208,10 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 				ServiceAccount:    "foo",
 			},
 			opManagerContext: ctx,
+			recorder:         record.NewFakeRecorder(5),
 		}
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 	})
 
@@ -229,8 +233,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
-		assert.EqualError(t, err, "waiting for ceph monitors upgrade to finish. current version: 16.0.0-0 pacific. expected version: 15.0.0-0 octopus. will reconcile again in 1m0s")
+		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 	})
 

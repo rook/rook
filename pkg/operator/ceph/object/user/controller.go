@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -43,6 +44,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -76,6 +78,7 @@ type ReconcileObjectStoreUser struct {
 	cephClusterSpec  *cephv1.ClusterSpec
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
+	recorder         record.EventRecorder
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -91,6 +94,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
+		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
 	}
 }
 
@@ -126,31 +130,29 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileObjectStoreUser) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
-	reconcileResponse, err := r.reconcile(request)
-	if err != nil {
-		logger.Errorf("failed to reconcile %v", err)
-	}
+	reconcileResponse, cephObjectStoreUser, err := r.reconcile(request)
 
-	return reconcileResponse, err
+	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephObjectStoreUser, reconcileResponse, err)
+
 }
 
-func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephObjectStoreUser, error) {
 	// Fetch the CephObjectStoreUser instance
 	cephObjectStoreUser := &cephv1.CephObjectStoreUser{}
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectStoreUser)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, *cephObjectStoreUser, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get CephObjectStoreUser")
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to get CephObjectStoreUser")
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStoreUser)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// The CR was just created, initializing status fields
@@ -171,20 +173,20 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreUser)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+				return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 			}
 
 			// Return and do not requeue. Successful deletion.
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, *cephObjectStoreUser, nil
 		}
-		return reconcileResponse, nil
+		return reconcileResponse, *cephObjectStoreUser, nil
 	}
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo during each reconcile
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Validate the object store has been initialized
@@ -194,16 +196,17 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreUser)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+				return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 			}
+			r.recorder.Event(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 			// Return and do not requeue. Successful deletion.
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, *cephObjectStoreUser, nil
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
 			request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
 		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-		return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, nil
 	}
 
 	// Generate user config
@@ -213,40 +216,43 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting pool %q", cephObjectStoreUser.Name)
+		r.recorder.Eventf(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
+
 		err := r.deleteUser(cephObjectStoreUser)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph object user %q", cephObjectStoreUser.Name)
+			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to delete ceph object user %q", cephObjectStoreUser.Name)
 		}
 
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStoreUser)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 		}
+		r.recorder.Event(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, *cephObjectStoreUser, nil
 	}
 
 	// validate the user settings
 	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
 		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-		return reconcile.Result{}, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
 	}
 
 	// CREATE/UPDATE CEPH USER
 	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser)
 	if err != nil {
 		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-		return reconcileResponse, err
+		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
 	// CREATE/UPDATE KUBERNETES SECRET
 	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser)
 	if err != nil {
 		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-		return reconcileResponse, err
+		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
 	// Set Ready status, we are done reconciling
@@ -254,7 +260,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, *cephObjectStoreUser, nil
 }
 
 func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {

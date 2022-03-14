@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -143,7 +144,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 		// Create a ReconcileCephRBDMirror object with the scheme and fake client.
-		r := &ReconcileCephRBDMirror{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		r := &ReconcileCephRBDMirror{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
@@ -154,7 +155,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileCephRBDMirror object with the scheme and fake client.
-		r := &ReconcileCephRBDMirror{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		r := &ReconcileCephRBDMirror{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
@@ -192,13 +193,14 @@ func TestCephRBDMirrorController(t *testing.T) {
 			context:          c,
 			peers:            make(map[string]*peerSpec),
 			opManagerContext: ctx,
+			recorder:         record.NewFakeRecorder(5),
 		}
 
 		rbdMirror.Spec.Peers.SecretNames = []string{peerSecretName}
 		err = r.client.Update(context.TODO(), rbdMirror)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 
 	})
@@ -212,6 +214,7 @@ func TestCephRBDMirrorController(t *testing.T) {
 			context:          c,
 			peers:            make(map[string]*peerSpec),
 			opManagerContext: ctx,
+			recorder:         record.NewFakeRecorder(5),
 		}
 		bootstrapPeerToken := `eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ==` //nolint:gosec // This is just a var name, not a real token
 		peerSecret := &v1.Secret{

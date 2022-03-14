@@ -43,6 +43,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -150,7 +151,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileObjectStoreUser object with the scheme and fake client.
-	r := &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx}
+	r := &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -185,7 +186,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileObjectStoreUser object with the scheme and fake client.
-		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
@@ -233,7 +234,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		c.Executor = executor
 
 		// Create a ReconcileObjectStoreUser object with the scheme and fake client.
-		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -265,7 +266,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileObjectStoreUser object with the scheme and fake client.
-		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx}
+		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
 
 		err := r.client.Get(context.TODO(), types.NamespacedName{Name: store, Namespace: namespace}, cephObjectStore)
 		assert.NoError(t, err, cephObjectStore)

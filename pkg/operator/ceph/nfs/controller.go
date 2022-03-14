@@ -39,6 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -82,6 +83,7 @@ type ReconcileCephNFS struct {
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
 	opConfig         opcontroller.OperatorConfig
+	recorder         record.EventRecorder
 }
 
 // Add creates a new cephNFS Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -98,6 +100,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		context:          context,
 		opManagerContext: opManagerContext,
 		opConfig:         opConfig,
+		recorder:         mgr.GetEventRecorderFor("rook-" + controllerName),
 	}
 }
 
@@ -135,31 +138,28 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileCephNFS) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
-	reconcileResponse, err := r.reconcile(request)
-	if err != nil {
-		logger.Errorf("failed to reconcile %v", err)
-	}
+	reconcileResponse, cephNFS, err := r.reconcile(request)
 
-	return reconcileResponse, err
+	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephNFS, reconcileResponse, err)
 }
 
-func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Result, error) {
+func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Result, cephv1.CephNFS, error) {
 	// Fetch the cephNFS instance
 	cephNFS := &cephv1.CephNFS{}
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephNFS)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("cephNFS resource not found. Ignoring since object must be deleted.")
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, *cephNFS, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, errors.Wrap(err, "failed to get cephNFS")
+		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to get cephNFS")
 	}
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephNFS)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to add finalizer")
+		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to add finalizer")
 	}
 
 	// The CR was just created, initializing status fields
@@ -180,13 +180,14 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 			// Remove finalizer
 			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephNFS)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+				return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to remove finalizer")
 			}
 
+			r.recorder.Event(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 			// Return and do not requeue. Successful deletion.
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, *cephNFS, nil
 		}
-		return reconcileResponse, nil
+		return reconcileResponse, *cephNFS, nil
 	}
 	r.cephClusterSpec = &cephCluster.Spec
 
@@ -194,33 +195,35 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// Always populate it during each reconcile
 	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// DELETE: the CR was deleted
 	if !cephNFS.GetDeletionTimestamp().IsZero() {
 		logger.Infof("deleting ceph nfs %q", cephNFS.Name)
+		r.recorder.Eventf(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephNFS %q", cephNFS.Name)
 
 		// Detect running Ceph version
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
+			return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
 		}
 		r.clusterInfo.CephVersion = runningCephVersion
 
 		err = r.removeServersFromDatabase(cephNFS, 0)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to delete filesystem %q. ", cephNFS.Name)
+			return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "failed to delete filesystem %q. ", cephNFS.Name)
 		}
 
 		// Remove finalizer
 		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephNFS)
 		if err != nil {
-			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+			return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to remove finalizer")
 		}
+		r.recorder.Event(cephNFS, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, *cephNFS, nil
 	}
 
 	// Detect desired CephCluster version
@@ -237,9 +240,9 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephNFS, nil
 		}
-		return reconcile.Result{}, errors.Wrap(err, "failed to detect running and desired ceph version")
+		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to detect running and desired ceph version")
 	}
 
 	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
@@ -247,7 +250,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
 	if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
 		// Upgrade is in progress, let's wait for the mons to be done
-		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading,
+		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading, *cephNFS,
 			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
 	}
 	r.clusterInfo.CephVersion = *runningCephVersion
@@ -276,13 +279,13 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// validate the store settings
 	if err := validateGanesha(r.context, r.clusterInfo, cephNFS); err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
+		return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "invalid ceph nfs %q arguments", cephNFS.Name)
 	}
 
 	// Check for the existence of the .nfs pool
 	err = r.configureNFSPool(cephNFS)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to configure nfs pool %q", cephNFS.Spec.RADOS.Pool)
+		return reconcile.Result{}, *cephNFS, errors.Wrapf(err, "failed to configure nfs pool %q", cephNFS.Spec.RADOS.Pool)
 	}
 
 	// CREATE/UPDATE
@@ -290,7 +293,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	_, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
 		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
-		return reconcile.Result{}, errors.Wrap(err, "failed to create ceph nfs deployments")
+		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to create ceph nfs deployments")
 	}
 
 	// Set Ready status, we are done reconciling
@@ -298,7 +301,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph nfs")
-	return reconcile.Result{}, nil
+	return reconcile.Result{}, *cephNFS, nil
 
 }
 
