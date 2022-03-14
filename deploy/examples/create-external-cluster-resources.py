@@ -768,7 +768,7 @@ class RadosJSON:
         cmd = ['radosgw-admin', 'user', 'create', '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME, '--display-name',
                'Rook RGW Admin Ops user', '--caps', 'buckets=*;users=*;usage=read;metadata=read;zone=read']
         if self._arg_parser.dry_run:
-            return self.dry_run("ceph " + "".joing(cmd))
+            return self.dry_run("ceph " + " ".join(cmd))
         try:
             output = subprocess.check_output(cmd,
                                              stderr=subprocess.PIPE)
@@ -860,7 +860,10 @@ class RadosJSON:
         self.out_map['RBD_METADATA_EC_POOL_NAME'] = self.validate_rgw_metadata_ec_pool_name()
         self.out_map['RGW_POOL_PREFIX'] = self._arg_parser.rgw_pool_prefix
         if self._arg_parser.rgw_endpoint:
-            self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
+            if self._arg_parser.dry_run:
+                self.create_rgw_admin_ops_user()
+            else:
+                self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
             if self._arg_parser.rgw_tls_cert_path:
                 self.out_map['RGW_TLS_CERT'] = self.validate_rgw_endpoint_tls_cert()
 
@@ -876,6 +879,8 @@ class RadosJSON:
 
     def gen_json_out(self):
         self._gen_output_map()
+        if self._arg_parser.dry_run:
+            return ""
         json_out = [
             {
                 "name": "rook-ceph-mon-endpoints",
@@ -1079,9 +1084,6 @@ class RadosJSON:
                     "cert": self.out_map['RGW_TLS_CERT'],
                 }
             })
-
-        if self._arg_parser.dry_run:
-            return ""
 
         return json.dumps(json_out)+LINESEP
 
