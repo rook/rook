@@ -19,7 +19,11 @@ spec:
     singular: cephblockpool
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephBlockPool represents a Ceph Storage Pool
@@ -511,7 +515,11 @@ spec:
     singular: cephbuckettopic
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
@@ -657,7 +665,11 @@ spec:
     singular: cephclient
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephClient represents a Ceph Client
@@ -739,8 +751,7 @@ spec:
         - jsonPath: .metadata.creationTimestamp
           name: Age
           type: date
-        - description: Phase
-          jsonPath: .status.phase
+        - jsonPath: .status.phase
           name: Phase
           type: string
         - description: Message
@@ -4280,7 +4291,11 @@ spec:
     singular: cephfilesystemmirror
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephFilesystemMirror is the Ceph Filesystem Mirror object definition
@@ -6329,7 +6344,11 @@ spec:
     singular: cephfilesystemsubvolumegroup
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephFilesystemSubVolumeGroup represents a Ceph Filesystem SubVolumeGroup
@@ -7121,7 +7140,11 @@ spec:
     singular: cephobjectstore
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephObjectStore represents a Ceph Object Store Gateway
@@ -8546,7 +8569,11 @@ spec:
     singular: cephobjectstoreuser
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephObjectStoreUser represents a Ceph Object Store Gateway User
@@ -8679,7 +8706,11 @@ spec:
     singular: cephobjectzonegroup
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
@@ -8739,7 +8770,11 @@ spec:
     singular: cephobjectzone
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephObjectZone represents a Ceph Object Store Gateway Zone
@@ -9127,7 +9162,11 @@ spec:
     singular: cephrbdmirror
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephRBDMirror represents a Ceph RBD Mirror
