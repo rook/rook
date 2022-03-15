@@ -37,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -204,7 +205,14 @@ func TestCephFilesystemController(t *testing.T) {
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	// Create a ReconcileCephFilesystem object with the scheme and fake client.
-	r := &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsContexts: make(map[string]*fsHealth), opManagerContext: context.TODO()}
+	r := &ReconcileCephFilesystem{
+		client:           cl,
+		recorder:         record.NewFakeRecorder(5),
+		scheme:           s,
+		context:          c,
+		fsContexts:       make(map[string]*fsHealth),
+		opManagerContext: context.TODO(),
+	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
 	// watched resource .
@@ -238,7 +246,13 @@ func TestCephFilesystemController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
-		r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c, opManagerContext: context.TODO()}
+		r = &ReconcileCephFilesystem{
+			client:           cl,
+			recorder:         record.NewFakeRecorder(5),
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
@@ -290,7 +304,14 @@ func TestCephFilesystemController(t *testing.T) {
 		c.Executor = executor
 
 		// Create a ReconcileCephFilesystem object with the scheme and fake client.
-		r = &ReconcileCephFilesystem{client: cl, scheme: s, context: c, fsContexts: make(map[string]*fsHealth), opManagerContext: context.TODO()}
+		r = &ReconcileCephFilesystem{
+			client:           cl,
+			recorder:         record.NewFakeRecorder(5),
+			scheme:           s,
+			context:          c,
+			fsContexts:       make(map[string]*fsHealth),
+			opManagerContext: context.TODO(),
+		}
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
