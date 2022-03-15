@@ -242,6 +242,11 @@ After the pod restart, the new settings should be in effect. Note that if the Co
 cluster's namespace is created before the cluster is created, the daemons will pick up the settings
 at first launch.
 
+To automate the restart of the Ceph daemon pods, you will need to trigger an update to the pod specs.
+The simplest way to trigger the update is to add [annotations or labels](ceph-cluster-crd.md#annotations-and-labels)
+to the CephCluster CR for the daemons you want to restart. The operator will then proceed with a rolling
+update, similar to any other update to the cluster.
+
 ### Example
 
 In this example we will set the default pool `size` to two, and tell OSD
