@@ -23,17 +23,43 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/dependents"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// CephFilesystemDependents returns the subvolume group(s) which exist in the ceph filesystem that should block
-// deletion.
-func CephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
+const subvolumeGroupDependentType = "filesystem subvolume groups that contain subvolumes (could be from CephFilesystem PVCs or CephNFS exports)"
+
+// the empty string is used to represent "no group". Use a clear string for users when reporting
+// subvolume dependents in no group to prevent confusion
+const noGroupDependentName = "<no group>"
+
+// there are special subvolume groups that should not contain valid subvolumes. skip these during
+// subvolume dependency checking. there is some possibility users could manually put subvolumes into
+// these groups, but that should be exceedingly rare. future ceph versions may stop reporting these
+// groups. ignore "_nogroup" in favor of explicitly listing subvolumes not in any group for forwards
+// compatibility with ceph versions that do not list "_nogroup"
+var ignoredDependentSubvolumeGroups = []string{"_nogroup", "_index", "_legacy", "_deleting"}
+
+// CephFilesystemDependents returns the subvolume group(s) which exist in the ceph filesystem that
+// should block deletion.
+//
+// No RBD images are created by normal operations on filesystems, so there will be no images present
+// to check if a filesystem has user data in it. Therefore, we need some other check for user data.
+// We approximate such a check here by checking for subvolume groups that have subvolumes. Subvolume
+// groups with no subvolumes don't block deletion.
+var CephFilesystemDependents = cephFilesystemDependents
+
+// with above, allow this to be overridden for unit testing
+func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
 	nsName := fmt.Sprintf("%s/%s", filesystem.Namespace, filesystem.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephFilesystem %q", nsName)
 
-	deps := dependents.NewDependentList()
+	// subvolume groups that contain subvolumes
+	deps, err := subvolumeGroupDependents(clusterdCtx, clusterInfo, filesystem)
+	if err != nil {
+		return deps, errors.Wrapf(err, baseErrMsg)
+	}
 
 	// CephFilesystemSubVolumeGroups
 	subVolumeGroups, err := clusterdCtx.RookClientset.CephV1().CephFilesystemSubVolumeGroups(filesystem.Namespace).List(clusterInfo.Context, metav1.ListOptions{})
@@ -48,4 +74,55 @@ func CephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *client
 	}
 
 	return deps, nil
+}
+
+// return subvolume groups that have 1 or more subvolumes present in them
+func subvolumeGroupDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
+	baseErr := "failed to get Ceph subvolume groups containing subvolumes"
+
+	deps := dependents.NewDependentList()
+
+	svgs, err := client.ListSubvolumeGroups(clusterdCtx, clusterInfo, filesystem.Name)
+	if err != nil {
+		return deps, errors.Wrap(err, baseErr)
+	}
+
+	// also check the case where subvolumes are not in a group
+	svgs = append(svgs, client.SubvolumeGroup{Name: client.NoSubvolumeGroup})
+
+	errs := []error{}
+	for _, svg := range svgs {
+		if ignoreSVG(svg.Name) {
+			continue
+		}
+
+		svs, err := client.ListSubvolumesInGroup(clusterdCtx, clusterInfo, filesystem.Name, svg.Name)
+		if err != nil {
+			errs = append(errs, errors.Wrapf(err, "failed to list subvolumes in subvolume group %q", svg.Name))
+		}
+
+		if len(svs) > 0 {
+			name := svg.Name
+			if name == client.NoSubvolumeGroup {
+				// identify the "no group" case clearly for users
+				name = noGroupDependentName
+			}
+			deps.Add(subvolumeGroupDependentType, name)
+		}
+	}
+
+	outErr := util.AggregateErrors(errs, "failed to list subvolumes in filesystem %q for one or more subvolume groups; "+
+		"a timeout might indicate there are many subvolumes in a subvolume group", filesystem.Name)
+
+	return deps, outErr
+}
+
+func ignoreSVG(name string) bool {
+	for _, ignore := range ignoredDependentSubvolumeGroups {
+		if name == ignore {
+			logger.Debugf("skipping dependency check for subvolumes in subvolumegroup %q", ignore)
+			return true
+		}
+	}
+	return false
 }

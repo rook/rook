@@ -50,6 +50,7 @@ type CephManifests interface {
 	GetBucketNotification(notificationName string, topicName string) string
 	GetBucketTopic(topicName string, storeName string, httpEndpointService string) string
 	GetClient(name string, caps map[string]string) string
+	GetFilesystemSubvolumeGroup(fsName, groupName string) string
 }
 
 // CephManifestsMaster wraps rook yaml definitions
@@ -593,4 +594,14 @@ metadata:
   namespace: ` + m.settings.Namespace + `
 spec:
   count: ` + strconv.Itoa(count)
+}
+
+func (m *CephManifestsMaster) GetFilesystemSubvolumeGroup(fsName, groupName string) string {
+	return `apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: ` + groupName + `
+  namespace: ` + m.settings.Namespace + `
+spec:
+  filesystemName: ` + fsName
 }

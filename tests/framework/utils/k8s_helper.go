@@ -44,6 +44,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -204,6 +205,24 @@ func getManifestFromURL(url string) (string, error) {
 	return string(body), nil
 }
 
+// ExecToolboxWithRetry will attempt to run a toolbox command "retries" times, waiting 3s between each call. Upon success, returns the output.
+func (k8sh *K8sHelper) ExecToolboxWithRetry(retries int, namespace, command string, commandArgs []string) (string, error) {
+	var err error
+	var output, stderr string
+	cliFinal := append([]string{command}, commandArgs...)
+	for i := 0; i < retries; i++ {
+		output, stderr, err = k8sh.remoteExecutor.ExecCommandInContainerWithFullOutput(context.TODO(), "rook-ceph-tools", "rook-ceph-tools", namespace, cliFinal...)
+		if err == nil {
+			return output, nil
+		}
+		if i < retries-1 {
+			logger.Warningf("remote command %v execution failed trying again... %v", cliFinal, kerrors.ReasonForError(err))
+			time.Sleep(3 * time.Second)
+		}
+	}
+	return "", fmt.Errorf("remote exec command %v failed on pod in namespace %s. %s. %s. %+v", cliFinal, namespace, output, stderr, err)
+}
+
 // ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
@@ -323,6 +342,28 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 		time.Sleep(RetryInterval * time.Second)
 	}
 	return fmt.Errorf("Giving up waiting for pods with label %s in namespace %s", label, namespace)
+}
+
+func (k8sh *K8sHelper) WaitForStatusPhase(namespace, kind, name, desiredPhase string, timeout time.Duration) error {
+	baseErr := fmt.Sprintf("waiting for resource %q %q in namespace %q to have status.phase %q", kind, name, namespace, desiredPhase)
+	err := wait.Poll(3*time.Second, timeout, func() (done bool, err error) {
+		phase, err := k8sh.GetResource("--namespace", namespace, kind, name, "--output", "jsonpath={.status.phase}")
+		if err != nil {
+			logger.Warningf("error %s. %v", baseErr, err)
+		}
+
+		if phase == desiredPhase {
+			return true, nil
+		}
+
+		logger.Infof(baseErr)
+		return false, nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed %s", baseErr)
+	}
+
+	return nil
 }
 
 // IsPodWithLabelPresent return true if there is at least one Pod with the label is present.
