@@ -171,16 +171,20 @@ func TestSupportedVersion(t *testing.T) {
 	c := testSpec(t)
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
-	// Supported versions are valid
+	// Octopus is supported
 	v := &cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
 	assert.NoError(t, c.validateCephVersion(v))
 
-	// Supported versions are valid
+	// Pacific is supported
 	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
 
-	// Unsupported versions are not valid
+	// Quincy is supported
 	v = &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
+	assert.NoError(t, c.validateCephVersion(v))
+
+	// v18 is not supported
+	v = &cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
 	assert.Error(t, c.validateCephVersion(v))
 
 	// Unsupported versions are now valid

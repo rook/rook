@@ -650,7 +650,7 @@ type PoolSpec struct {
 // allowed pool names that can be specified.
 type NamedBlockPoolSpec struct {
 	// The desired name of the pool if different from the CephBlockPool CR name.
-	// +kubebuilder:validation:Enum=device_health_metrics;.nfs
+	// +kubebuilder:validation:Enum=device_health_metrics;.nfs;.mgr
 	// +optional
 	Name string `json:"name,omitempty"`
 	// The core pool configuration
