@@ -186,6 +186,11 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephFilesystem, errors.Wrap(err, "failed to get cephFilesystem")
 	}
 
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephFilesystem.ObjectMeta.Generation
+
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystem)
 	if err != nil {
@@ -194,7 +199,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// The CR was just created, initializing status fields
 	if cephFilesystem.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus, nil)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus, nil)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -324,7 +329,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	logger.Debug("reconciling ceph filesystem store deployments")
 	reconcileResponse, err = r.reconcileCreateFilesystem(cephFilesystem)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil)
 		return reconcileResponse, *cephFilesystem, err
 	}
 
@@ -352,7 +357,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 				logger.Info("reconciling create cephfs-mirror peer configuration")
 				reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, r.clusterInfo, cephFilesystem, k8sutil.NewOwnerInfo(cephFilesystem, r.scheme))
 				if err != nil {
-					r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure, nil)
+					r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil)
 					return reconcileResponse, *cephFilesystem,
 						errors.Wrapf(err, "failed to create cephfs-mirror bootstrap peer for filesystem %q.", cephFilesystem.Name)
 				}
@@ -364,8 +369,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 						errors.Wrapf(err, "failed to configure mirroring for filesystem %q.", cephFilesystem.Name)
 				}
 
+				// update ObservedGeneration in status at the end of reconcile
 				// Set Ready status, we are done reconciling
-				r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem))
+				r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem))
 				statusUpdated = true
 
 				// Run go routine check for mirroring status
@@ -383,9 +389,10 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		}
 	}
 	if !statusUpdated {
+		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling$
 		// TODO: set status to Ready **only** if the filesystem is ready
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady, nil)
+		r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, nil)
 	}
 
 	return reconcile.Result{}, *cephFilesystem, nil

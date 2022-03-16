@@ -138,10 +138,14 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephObjectRealm, errors.Wrap(err, "failed to get CephObjectRealm")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephObjectRealm.ObjectMeta.Generation
 
 	// The CR was just created, initializing status fields
 	if cephObjectRealm.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -173,12 +177,12 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	// validate the realm settings
 	err = validateRealmCR(cephObjectRealm)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, *cephObjectRealm, errors.Wrapf(err, "invalid CephObjectRealm CR %q", cephObjectRealm.Name)
 	}
 
 	// Start object reconciliation, updating status for this
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
+	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// Create/Pull Ceph Realm
 	if cephObjectRealm.Spec.IsPullRealm() {
@@ -190,17 +194,18 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	} else {
 		_, err = r.createRealmKeys(cephObjectRealm)
 		if err != nil {
-			return r.setFailedStatus(cephObjectRealm, request.NamespacedName, "failed to create keys for realm", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, cephObjectRealm, request.NamespacedName, "failed to create keys for realm", err)
 		}
 
 		_, err = r.createCephRealm(cephObjectRealm)
 		if err != nil {
-			return r.setFailedStatus(cephObjectRealm, request.NamespacedName, "failed to create ceph realm", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, cephObjectRealm, request.NamespacedName, "failed to create ceph realm", err)
 		}
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("realm %q done reconciling", request.NamespacedName)
@@ -322,15 +327,15 @@ func validateRealmCR(u *cephv1.CephObjectRealm) error {
 	return nil
 }
 
-func (r *ReconcileObjectRealm) setFailedStatus(cephObjectRealm *cephv1.CephObjectRealm, name types.NamespacedName, errMessage string, err error) (reconcile.Result, cephv1.CephObjectRealm, error) {
-	r.updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
+func (r *ReconcileObjectRealm) setFailedStatus(observedGeneration int64, cephObjectRealm *cephv1.CephObjectRealm, name types.NamespacedName, errMessage string, err error) (reconcile.Result, cephv1.CephObjectRealm, error) {
+	r.updateStatus(observedGeneration, name, k8sutil.ReconcileFailedStatus)
 	return reconcile.Result{}, *cephObjectRealm, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an realm with a given status
-func (r *ReconcileObjectRealm) updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileObjectRealm) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	objectRealm := &cephv1.CephObjectRealm{}
-	if err := client.Get(r.opManagerContext, name, objectRealm); err != nil {
+	if err := r.client.Get(r.opManagerContext, name, objectRealm); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", name)
 			return
@@ -343,7 +348,10 @@ func (r *ReconcileObjectRealm) updateStatus(client client.Client, name types.Nam
 	}
 
 	objectRealm.Status.Phase = status
-	if err := reporting.UpdateStatus(client, objectRealm); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		objectRealm.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, objectRealm); err != nil {
 		logger.Errorf("failed to set object realm %q status to %q. %v", name, status, err)
 		return
 	}

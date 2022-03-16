@@ -155,6 +155,10 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to get cephNFS")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephNFS.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephNFS)
@@ -164,7 +168,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// The CR was just created, initializing status fields
 	if cephNFS.Status == nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -292,12 +296,13 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	logger.Debug("reconciling ceph nfs deployments")
 	_, err = r.reconcileCreateCephNFS(cephNFS)
 	if err != nil {
-		updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
+		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.FailedStatus)
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to create ceph nfs deployments")
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	updateStatus(observedGeneration, r.client, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph nfs")
@@ -348,7 +353,7 @@ func (r *ReconcileCephNFS) reconcileCreateCephNFS(cephNFS *cephv1.CephNFS) (reco
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(client client.Client, name types.NamespacedName, status string) {
+func updateStatus(observedGeneration int64, client client.Client, name types.NamespacedName, status string) {
 	nfs := &cephv1.CephNFS{}
 	err := client.Get(context.TODO(), name, nfs)
 	if err != nil {
@@ -364,6 +369,9 @@ func updateStatus(client client.Client, name types.NamespacedName, status string
 	}
 
 	nfs.Status.Phase = status
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		nfs.Status.ObservedGeneration = observedGeneration
+	}
 	if err := reporting.UpdateStatus(client, nfs); err != nil {
 		logger.Errorf("failed to set nfs %q status to %q. %v", nfs.Name, status, err)
 	}

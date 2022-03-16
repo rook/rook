@@ -315,6 +315,9 @@ type ClusterStatus struct {
 	CephStatus  *CephStatus     `json:"ceph,omitempty"`
 	CephStorage *CephStorage    `json:"storage,omitempty"`
 	CephVersion *ClusterVersion `json:"version,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // CephDaemonsVersions show the current ceph version for different ceph daemons
@@ -685,6 +688,9 @@ type CephBlockPoolStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // MirroringStatusSpec is the status of the pool mirroring
@@ -843,6 +849,9 @@ type SnapshotSchedule struct {
 type Status struct {
 	// +optional
 	Phase string `json:"phase,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // ReplicatedSpec represents the spec for replication in a pool
@@ -1109,6 +1118,9 @@ type CephFilesystemStatus struct {
 	// +optional
 	MirroringStatus *FilesystemMirroringInfoSpec `json:"mirroringStatus,omitempty"`
 	Conditions      []Condition                  `json:"conditions,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // FilesystemMirroringInfo is the status of the pool mirroring
@@ -1421,6 +1433,9 @@ type ObjectStoreStatus struct {
 	// +nullable
 	Info       map[string]string `json:"info,omitempty"`
 	Conditions []Condition       `json:"conditions,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // BucketStatus represents the status of a bucket
@@ -1457,6 +1472,9 @@ type ObjectStoreUserStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1646,6 +1664,9 @@ type BucketTopicStatus struct {
 	// +optional
 	// +nullable
 	ARN *string `json:"ARN,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // CephBucketTopicList represents a list Ceph Object Store Bucket Notification Topics
@@ -2036,6 +2057,9 @@ type CephClientStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }
 
 // CleanupPolicySpec represents a Ceph Cluster cleanup policy
@@ -2400,4 +2424,7 @@ type CephFilesystemSubVolumeGroupStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+	// ObservedGeneration is the latest generation observed by the controller.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 }

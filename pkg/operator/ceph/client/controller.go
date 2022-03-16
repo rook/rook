@@ -138,6 +138,10 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to get cephClient")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephClient.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephClient)
@@ -147,7 +151,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 
 	// The CR was just created, initializing status fields
 	if cephClient.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -212,12 +216,13 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephClient, nil
 		}
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure)
 		return reconcile.Result{}, *cephClient, errors.Wrapf(err, "failed to create or update client %q", cephClient.Name)
 	}
 
+	// update status with latest ObservedGeneration value at the end of reconcile
 	// Success! Let's update the status
-	r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
+	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -335,9 +340,9 @@ func generateClientName(name string) string {
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileCephClient) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
+func (r *ReconcileCephClient) updateStatus(observedGeneration int64, name types.NamespacedName, status cephv1.ConditionType) {
 	cephClient := &cephv1.CephClient{}
-	if err := client.Get(r.opManagerContext, name, cephClient); err != nil {
+	if err := r.client.Get(r.opManagerContext, name, cephClient); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephClient resource not found. Ignoring since object must be deleted.")
 			return
@@ -353,7 +358,10 @@ func (r *ReconcileCephClient) updateStatus(client client.Client, name types.Name
 	if cephClient.Status.Phase == cephv1.ConditionReady {
 		cephClient.Status.Info = generateStatusInfo(cephClient)
 	}
-	if err := reporting.UpdateStatus(client, cephClient); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		cephClient.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, cephClient); err != nil {
 		logger.Errorf("failed to set ceph client %q status to %q. %v", name, status, err)
 		return
 	}

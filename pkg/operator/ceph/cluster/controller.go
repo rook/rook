@@ -269,7 +269,7 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 
 	// Set the deleting status
 	opcontroller.UpdateClusterCondition(r.context, cephCluster, nsName,
-		cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Deleting the CephCluster",
+		k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionDeleting, corev1.ConditionTrue, cephv1.ClusterDeletingReason, "Deleting the CephCluster",
 		true /* keep all other conditions to be safe */)
 
 	deps, err := CephClusterDependents(r.context, cephCluster.Namespace)
@@ -343,6 +343,8 @@ func (c *ClusterController) reconcileCephCluster(clusterObj *cephv1.CephCluster,
 		cluster = newCluster(clusterObj, c.context, ownerInfo)
 	}
 	cluster.namespacedName = c.namespacedName
+	// updating observedGeneration in cluster if it's not the first reconcile
+	cluster.observedGeneration = clusterObj.ObjectMeta.Generation
 
 	// Pass down the client to interact with Kubernetes objects
 	// This will be used later down by spec code to create objects like deployment, services etc

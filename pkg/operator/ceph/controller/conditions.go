@@ -24,13 +24,14 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
 // UpdateCondition function will export each condition into the cluster custom resource
-func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason cephv1.ConditionReason, message string) {
+func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName types.NamespacedName, observedGeneration int64, conditionType cephv1.ConditionType, status v1.ConditionStatus, reason cephv1.ConditionReason, message string) {
 	// use client.Client unit test this more easily with updating statuses which must use the client
 	cluster := &cephv1.CephCluster{}
 	if err := c.Client.Get(ctx, namespaceName, cluster); err != nil {
@@ -38,11 +39,11 @@ func UpdateCondition(ctx context.Context, c *clusterd.Context, namespaceName typ
 		return
 	}
 
-	UpdateClusterCondition(c, cluster, namespaceName, conditionType, status, reason, message, false)
+	UpdateClusterCondition(c, cluster, namespaceName, observedGeneration, conditionType, status, reason, message, false)
 }
 
 // UpdateClusterCondition function will export each condition into the cluster custom resource
-func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, conditionType cephv1.ConditionType, status v1.ConditionStatus,
+func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, namespaceName types.NamespacedName, observedGeneration int64, conditionType cephv1.ConditionType, status v1.ConditionStatus,
 	reason cephv1.ConditionReason, message string, preserveAllConditions bool) {
 
 	// Keep the conditions that already existed if they are in the list of long-term conditions,
@@ -88,6 +89,10 @@ func UpdateClusterCondition(c *clusterd.Context, cluster *cephv1.CephCluster, na
 	}
 	conditions = append(conditions, *currentCondition)
 	cluster.Status.Conditions = conditions
+	// update observed generation
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable && conditionType == cephv1.ConditionReady {
+		cluster.Status.ObservedGeneration = observedGeneration
+	}
 
 	// Once the cluster begins deleting, the phase should not revert back to any other phase
 	if cluster.Status.Phase != cephv1.ConditionDeleting {

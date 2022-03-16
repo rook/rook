@@ -22,15 +22,15 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // updateStatus updates a fs CR with the given status
-func (r *ReconcileCephFilesystem) updateStatus(client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
 	fs := &cephv1.CephFilesystem{}
-	err := client.Get(r.opManagerContext, namespacedName, fs)
+	err := r.client.Get(r.opManagerContext, namespacedName, fs)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
@@ -46,7 +46,10 @@ func (r *ReconcileCephFilesystem) updateStatus(client client.Client, namespacedN
 
 	fs.Status.Phase = status
 	fs.Status.Info = info
-	if err := reporting.UpdateStatus(client, fs); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		fs.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, fs); err != nil {
 		logger.Warningf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
 		return
 	}

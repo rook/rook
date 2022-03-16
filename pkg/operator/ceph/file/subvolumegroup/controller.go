@@ -131,6 +131,10 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, errors.Wrap(err, "failed to get cephFilesystemSubVolumeGroup")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephFilesystemSubVolumeGroup.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephFilesystemSubVolumeGroup)
@@ -140,7 +144,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 
 	// The CR was just created, initializing status fields
 	if cephFilesystemSubVolumeGroup.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -239,7 +243,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 				logger.Info(opcontroller.OperatorNotInitializedMessage)
 				return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 			}
-			r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionFailure)
+			r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure)
 			return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 		}
 	}
@@ -258,11 +262,12 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
 
+	// update ObservedGeneration in status at te end of reconcile
 	// Success! Let's update the status
 	if cephCluster.Spec.External.Enable {
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionConnected)
+		r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionConnected)
 	} else {
-		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionReady)
+		r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 	}
 
 	// Return and do not requeue
@@ -306,9 +311,9 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(client client.Client, name types.NamespacedName, status cephv1.ConditionType) {
+func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(observedGeneration int64, name types.NamespacedName, status cephv1.ConditionType) {
 	cephFilesystemSubVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{}
-	if err := client.Get(r.opManagerContext, name, cephFilesystemSubVolumeGroup); err != nil {
+	if err := r.client.Get(r.opManagerContext, name, cephFilesystemSubVolumeGroup); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystemSubVolumeGroup resource not found. Ignoring since object must be deleted.")
 			return
@@ -322,11 +327,14 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(client client.Clien
 
 	cephFilesystemSubVolumeGroup.Status.Phase = status
 	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{"clusterID": buildClusterID(cephFilesystemSubVolumeGroup)}
-	if err := reporting.UpdateStatus(client, cephFilesystemSubVolumeGroup); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		cephFilesystemSubVolumeGroup.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, cephFilesystemSubVolumeGroup); err != nil {
 		logger.Errorf("failed to set ceph filesystem subvolume group %q status to %q. %v", name, status, err)
 		return
 	}
-	logger.Debugf("ceph ceph filesystem subvolume group %q status updated to %q", name, status)
+	logger.Debugf("ceph filesystem subvolume group %q status updated to %q", name, status)
 }
 
 func buildClusterID(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) string {
