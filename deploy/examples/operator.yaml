@@ -30,6 +30,8 @@ data:
   ROOK_CSI_ENABLE_CEPHFS: "true"
   # Enable the default version of the CSI RBD driver. To start another version of the CSI driver, see image properties below.
   ROOK_CSI_ENABLE_RBD: "true"
+  # Enable the CSI NFS driver. To start another version of the CSI driver, see image properties below.
+  ROOK_CSI_ENABLE_NFS: "false"
   ROOK_CSI_ENABLE_GRPC_METRICS: "false"
 
   # Set to true to enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
@@ -70,6 +72,10 @@ data:
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   CSI_CEPHFS_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
 
+  # (Optional) policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted.
+  # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
+  CSI_NFS_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
 
@@ -85,6 +91,7 @@ data:
   # ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0"
   # ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1"
   # ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
+  # ROOK_CSI_NFS_IMAGE: "mcr.microsoft.com/k8s/csi/nfs-csi:v3.1.0"
 
   # (Optional) set user created priorityclassName for csi plugin pods.
   # CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
@@ -99,6 +106,10 @@ data:
   # Default value is RollingUpdate.
   # CSI_RBD_PLUGIN_UPDATE_STRATEGY: "OnDelete"
 
+  # CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+  # Default value is RollingUpdate.
+  # CSI_NFS_PLUGIN_UPDATE_STRATEGY: "OnDelete"
+
   # kubelet directory path, if kubelet configured to use other than /var/lib/kubelet path.
   # ROOK_CSI_KUBELET_DIR_PATH: "/var/lib/kubelet"
 
@@ -106,6 +117,8 @@ data:
   # ROOK_CSI_CEPHFS_POD_LABELS: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   # ROOK_CSI_RBD_POD_LABELS: "key1=value1,key2=value2"
+  # Labels to add to the CSI NFS Deployments and DaemonSets Pods.
+  # ROOK_CSI_NFS_POD_LABELS: "key1=value1,key2=value2"
 
   # (Optional) CephCSI provisioner NodeAffinity(applied to both CephFS and RBD provisioner).
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
@@ -164,6 +177,15 @@ data:
   # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
   # CSI_CEPHFS_PLUGIN_TOLERATIONS: |
   #   - key: node.rook.io/cephfs
+  #     operator: Exists
+
+  # (Optional) CephCSI NFS plugin NodeAffinity (overrides CSI_PLUGIN_NODE_AFFINITY).
+  # CSI_NFS_PLUGIN_NODE_AFFINITY: "role=nfs-node"
+  # (Optional) CephCSI NFS plugin tolerations list (overrides CSI_PLUGIN_TOLERATIONS).
+  # Put here list of taints you want to tolerate in YAML format.
+  # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
+  # CSI_NFS_PLUGIN_TOLERATIONS: |
+  #   - key: node.rook.io/nfs
   #     operator: Exists
 
   # (Optional) CEPH CSI RBD provisioner resource requirement list, Put here list of resource
@@ -314,6 +336,26 @@ data:
   #      limits:
   #        memory: 256Mi
   #        cpu: 100m
+
+  # (Optional) CEPH CSI NFS plugin resource requirement list, Put here list of resource
+  # requests and limits you want to apply for plugin pod
+  # CSI_NFS_PLUGIN_RESOURCE: |
+  #  - name : driver-registrar
+  #    resource:
+  #      requests:
+  #        memory: 128Mi
+  #        cpu: 50m
+  #      limits:
+  #        memory: 256Mi
+  #        cpu: 100m
+  #  - name : csi-nfsplugin
+  #    resource:
+  #      requests:
+  #        memory: 512Mi
+  #        cpu: 250m
+  #      limits:
+  #        memory: 1Gi
+  #        cpu: 500m
 
   # Configure CSI CSI Ceph FS grpc and liveness metrics port
   # CSI_CEPHFS_GRPC_METRICS_PORT: "9091"

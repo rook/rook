@@ -1362,6 +1362,15 @@ metadata:
 # imagePullSecrets:
 #   - name: my-registry-secret
 ---
+# Service account for the NFS CSI driver
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-csi-nfs-plugin-sa
+  namespace: rook-ceph # namespace:operator
+# imagePullSecrets:
+#   - name: my-registry-secret
+---
 # Service account for the RBD CSI driver
 apiVersion: v1
 kind: ServiceAccount

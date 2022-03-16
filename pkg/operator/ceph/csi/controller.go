@@ -117,7 +117,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("no ceph cluster found not deploying ceph csi driver")
-			EnableRBD, EnableCephFS = false, false
+			EnableRBD, EnableCephFS, EnableNFS = false, false, false
 			err = r.stopDrivers(serverVersion)
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
@@ -132,7 +132,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	// // Do not nothing if no ceph cluster is present
 	if len(cephClusters.Items) == 0 {
 		logger.Debug("no ceph cluster found not deploying ceph csi driver")
-		EnableRBD, EnableCephFS = false, false
+		EnableRBD, EnableCephFS, EnableNFS = false, false, false
 		err = r.stopDrivers(serverVersion)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")

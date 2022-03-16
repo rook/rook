@@ -67,6 +67,10 @@ func (r *ReconcileCSI) setParams() error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_CEPHFS'")
 	}
 
+	if EnableNFS, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ENABLE_NFS", "false")); err != nil {
+		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_NFS'")
+	}
+
 	if AllowUnsupported, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION", "false")); err != nil {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ALLOW_UNSUPPORTED_VERSION'")
 	}
@@ -80,6 +84,7 @@ func (r *ReconcileCSI) setParams() error {
 	}
 
 	CSIParam.CSIPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
+	CSIParam.NFSPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_IMAGE", DefaultNFSPluginImage)
 	CSIParam.RegistrarImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
 	CSIParam.ProvisionerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
 	CSIParam.AttacherImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)
@@ -89,6 +94,8 @@ func (r *ReconcileCSI) setParams() error {
 	CSIParam.CSIAddonsImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
 	csiCephFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)
+	csiNFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_POD_LABELS", "")
+	CSIParam.CSINFSPodLabels = k8sutil.ParseStringToLabels(csiNFSPodLabels)
 	csiRBDPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RBD_POD_LABELS", "")
 	CSIParam.CSIRBDPodLabels = k8sutil.ParseStringToLabels(csiRBDPodLabels)
 
