@@ -83,6 +83,10 @@ csi:
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   cephFSFSGroupPolicy: "ReadWriteOnceWithFSType"
+  
+  # (Optional) policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted.
+  # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
+  nfsFSGroupPolicy: "ReadWriteOnceWithFSType"
 
   # OMAP generator generates the omap mapping between the PV name and the RBD image
   # which helps CSI to identify the rbd images for CSI operations.
@@ -97,12 +101,16 @@ csi:
   # Set logging level for csi containers.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0
-  # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+  # CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #rbdPluginUpdateStrategy: OnDelete
-  # CSI Rbd plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+  # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #cephFSPluginUpdateStrategy: OnDelete
+  # CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
+  # Default value is RollingUpdate.
+  #nfsPluginUpdateStrategy: OnDelete
+
   # Allow starting unsupported ceph-csi image
   allowUnsupportedVersion: false
     # CEPH CSI RBD provisioner resource requirement list, Put here list of resource
@@ -253,6 +261,26 @@ csi:
         limits:
           memory: 256Mi
           cpu: 100m
+  # CEPH CSI NFS plugin resource requirement list, Put here list of resource
+  # requests and limits you want to apply for plugin pod
+  csiNFSPluginResource: |
+   - name : driver-registrar
+     resource:
+       requests:
+         memory: 128Mi
+         cpu: 50m
+       limits:
+         memory: 256Mi
+         cpu: 100m
+   - name : csi-nfsplugin
+     resource:
+       requests:
+         memory: 512Mi
+         cpu: 250m
+       limits:
+         memory: 1Gi
+         cpu: 500m
+
   # Set provisonerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
   # provisionerTolerations:
@@ -291,6 +319,8 @@ csi:
     #image: k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
+  # Labels to add to the CSI NFS Deployments and DaemonSets Pods.
+  #nfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   #rbdPodLabels: "key1=value1,key2=value2"
   # Enable the volume replication controller.
@@ -303,6 +333,10 @@ csi:
   csiAddons:
     enabled: false
     #image: "quay.io/csiaddons/k8s-sidecar:v0.2.1"
+  # Enable the nfs csi driver.
+  nfs:
+    enabled: false
+    #image: "mcr.microsoft.com/k8s/csi/nfs-csi:v3.1.0"
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
