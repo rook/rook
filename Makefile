@@ -133,7 +133,7 @@ build: csv-clean build.common ## Only build for linux platform
 	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
 	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
 
-build.all: build.common ## Build source code for all platforms. Best done in the cross build container due to cross compiler dependencies.
+build.all: build.common ## Build source code for all platforms.
 ifneq ($(GOHOSTARCH),amd64)
 	$(error cross platform image build only supported on amd64 host currently)
 endif
@@ -195,7 +195,7 @@ gen-rbac: $(HELM) $(YQ) ## generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 
-.PHONY: all build.common cross.build.parallel
+.PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
 
 # ====================================================================================

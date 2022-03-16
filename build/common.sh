@@ -14,11 +14,8 @@ set -u
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-BUILD_HOST=$(hostname)
-BUILD_REPO=github.com/rook/rook
 BUILD_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P)
 SHA256CMD=${SHA256CMD:-shasum -a 256}
-BUILD_REGISTRY=build-$(echo "${BUILD_HOST}"-"${BUILD_ROOT}" | ${SHA256CMD} | cut -c1-8)
 
 DOCKERCMD=${DOCKERCMD:-docker}
 
@@ -27,10 +24,6 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export OUTPUT_DIR=${BUILD_ROOT}/_output
 export WORK_DIR=${BUILD_ROOT}/.work
 export CACHE_DIR=${BUILD_ROOT}/.cache
-
-CROSS_IMAGE=${BUILD_REGISTRY}/cross-amd64
-CROSS_IMAGE_VOLUME=cross-volume
-CROSS_RSYNC_PORT=10873
 
 function ver() {
     local full_ver maj min bug build
@@ -53,72 +46,4 @@ function check_git() {
         echo WARN: you are running git version "${gitversion}" which has a bug related to relative
         echo WARN: submodule paths. Please consider upgrading to 2.8.3 or later
     fi
-}
-
-function start_rsync_container() {
-    ${DOCKERCMD} run \
-        -d \
-        -e OWNER=root \
-        -e GROUP=root \
-        -e MKDIRS="/volume/go/src/${BUILD_REPO}" \
-        -p ${CROSS_RSYNC_PORT}:873 \
-        -v ${CROSS_IMAGE_VOLUME}:/volume \
-        --entrypoint "/tini" \
-        "${CROSS_IMAGE}" \
-        -- /build/rsyncd.sh
-}
-
-function wait_for_rsync() {
-    # wait for rsync to come up
-    local tries=100
-    while (( tries > 0 )); do
-        if rsync "rsync://localhost:${CROSS_RSYNC_PORT}/"  &> /dev/null ; then
-            return 0
-        fi
-        (( tries-- ))
-        sleep 0.1
-    done
-    echo ERROR: rsyncd did not come up >&2
-    exit 1
-}
-
-function stop_rsync_container() {
-    local id=$1
-
-    ${DOCKERCMD} stop "${id}" &> /dev/null || true
-    ${DOCKERCMD} rm "${id}" &> /dev/null || true
-}
-
-function run_rsync() {
-    local src=$1
-    shift
-
-    local dst=$1
-    shift
-
-    # run the container as an rsyncd daemon so that we can copy the
-    # source tree to the container volume.
-    local id
-    id=$(start_rsync_container)
-
-    # wait for rsync to come up
-    wait_for_rsync || { stop_rsync_container "${id}"; return 1; }
-
-    # NOTE: add --progress to show files being syncd
-    rsync \
-        --archive \
-        --delete \
-        --prune-empty-dirs \
-        "$@" \
-        "$src" "$dst" || { stop_rsync_container "${id}"; return 1; }
-
-    stop_rsync_container "${id}"
-}
-
-function rsync_host_to_container() {
-    run_rsync "${scriptdir}"/.. rsync://localhost:${CROSS_RSYNC_PORT}/volume/go/src/${BUILD_REPO} "$@"
-}
-
-function rsync_container_to_host() {
-    run_rsync rsync://localhost:${CROSS_RSYNC_PORT}/volume/go/src/${BUILD_REPO}/ "${scriptdir}"/.. "$@"
 }

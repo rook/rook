@@ -16,15 +16,3 @@
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/common.sh"
-
-# this should only clean up leaked containers during rsync
-for c in $(docker ps -a -q --filter=ancestor=${CROSS_IMAGE}); do
-    echo removing container ${c}
-    docker stop ${c}
-    docker rm ${c}
-done
-
-if [[ $(docker volume ls | grep ${CROSS_IMAGE_VOLUME}) ]]; then
-    echo removing volume ${CROSS_IMAGE_VOLUME}
-    docker volume rm ${CROSS_IMAGE_VOLUME}
-fi

@@ -10,6 +10,7 @@
 * Prometheus rules are installed by the Helm chart. If you were relying on the cephcluster setting
   `monitoring.enabled` to create the prometheus rules, they now  need to be enabled by setting
   `monitoring.createPrometheusRules` in the Helm chart values.
+* Remove the obsolete cross build container, now unused by the CI
 
 ## Features
 
