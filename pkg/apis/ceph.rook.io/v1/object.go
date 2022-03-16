@@ -45,8 +45,20 @@ func (s *ObjectStoreSpec) GetPort() (int32, error) {
 	return -1, errors.New("At least one of Port or SecurePort should be non-zero")
 }
 
+// IsExternal returns true if at least one `v1.EndpointAddress` is specified, and all specified `v1.EndpointAddress`
+// in the `ExternalRgwEndpoints` point to a non-empty IP address.
 func (s *ObjectStoreSpec) IsExternal() bool {
-	return len(s.Gateway.ExternalRgwEndpoints) != 0
+	isExternal := len(s.Gateway.ExternalRgwEndpoints) != 0
+	if isExternal {
+		for i, endpointObj := range s.Gateway.ExternalRgwEndpoints {
+			if endpointObj.IP == "" {
+				logger.Warningf("EndpointAddress %v at index %d did not specify an IP address", endpointObj, i)
+				isExternal = false
+				break
+			}
+		}
+	}
+	return isExternal
 }
 
 func (s *ObjectRealmSpec) IsPullRealm() bool {

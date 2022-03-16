@@ -799,7 +799,7 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 	}
 
 	externalObjectStore.Spec.Gateway.Port = 81
-	externalObjectStore.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{{IP: ""}}
+	externalObjectStore.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{{IP: "127.0.0.1"}, {IP: "127.0.0.1"}, {IP: "127.0.0.2"}}
 
 	rgwAdminOpsUserSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
