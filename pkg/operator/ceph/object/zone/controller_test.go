@@ -141,8 +141,9 @@ func TestCephObjectZoneController(t *testing.T) {
 	dataPool := cephv1.PoolSpec{}
 	objectZone := &cephv1.CephObjectZone{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+			Name:       name,
+			Namespace:  namespace,
+			Generation: 0,
 		},
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephObjectZone",

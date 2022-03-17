@@ -108,6 +108,10 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get CephBucketTopic %q", request.NamespacedName)
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephBucketTopic.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephBucketTopic)
@@ -117,7 +121,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 
 	// The CR was just created, initializing status fields
 	if cephBucketTopic.Status == nil {
-		r.updateStatus(request.NamespacedName, k8sutil.EmptyStatus, nil)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus, nil)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -169,21 +173,22 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	// validate the topic settings
 	err = cephBucketTopic.ValidateCreate()
 	if err != nil {
-		r.updateStatus(request.NamespacedName, k8sutil.ReconcileFailedStatus, nil)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus, nil)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid CephBucketTopic %q", request.NamespacedName)
 	}
 
 	// Start object reconciliation, updating status for this
-	r.updateStatus(request.NamespacedName, k8sutil.ReconcilingStatus, nil)
+	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus, nil)
 
 	// create topic
 	topicARN, err := r.createCephBucketTopic(cephBucketTopic)
 	if err != nil {
-		return r.setFailedStatus(request.NamespacedName, "failed to create topic for bucket notifications", err)
+		return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, "failed to create topic for bucket notifications", err)
 	}
 
+	// update ObservedGeneration in status a the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(request.NamespacedName, k8sutil.ReadyStatus, topicARN)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus, topicARN)
 
 	// Return and do not requeue
 	return reconcile.Result{}, nil
@@ -216,13 +221,13 @@ func (r *ReconcileBucketTopic) deleteCephBucketTopic(topic *cephv1.CephBucketTop
 	)
 }
 
-func (r *ReconcileBucketTopic) setFailedStatus(name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	r.updateStatus(name, k8sutil.ReconcileFailedStatus, nil)
+func (r *ReconcileBucketTopic) setFailedStatus(observedGeneration int64, name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
+	r.updateStatus(observedGeneration, name, k8sutil.ReconcileFailedStatus, nil)
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates the topic with a given status
-func (r *ReconcileBucketTopic) updateStatus(nsName types.NamespacedName, status string, topicARN *string) {
+func (r *ReconcileBucketTopic) updateStatus(observedGeneration int64, nsName types.NamespacedName, status string, topicARN *string) {
 	topic := &cephv1.CephBucketTopic{}
 	if err := r.client.Get(r.opManagerContext, nsName, topic); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -238,6 +243,9 @@ func (r *ReconcileBucketTopic) updateStatus(nsName types.NamespacedName, status 
 
 	topic.Status.ARN = topicARN
 	topic.Status.Phase = status
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		topic.Status.ObservedGeneration = observedGeneration
+	}
 	if err := reporting.UpdateStatus(r.client, topic); err != nil {
 		logger.Errorf("failed to set CephBucketTopic %q status to %q. error %v", nsName, status, err)
 		return

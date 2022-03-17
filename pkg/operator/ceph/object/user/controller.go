@@ -148,6 +148,10 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to get CephObjectStoreUser")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephObjectStoreUser.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStoreUser)
@@ -157,7 +161,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -205,7 +209,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
 			request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, nil
 	}
 
@@ -237,26 +241,27 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// validate the user settings
 	err = r.validateUser(cephObjectStoreUser)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "invalid pool CR %q spec", cephObjectStoreUser.Name)
 	}
 
 	// CREATE/UPDATE CEPH USER
 	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
 	// CREATE/UPDATE KUBERNETES SECRET
 	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -578,9 +583,9 @@ func labelsForRgw(name string) map[string]string {
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileObjectStoreUser) updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	user := &cephv1.CephObjectStoreUser{}
-	if err := client.Get(r.opManagerContext, name, user); err != nil {
+	if err := r.client.Get(r.opManagerContext, name, user); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectStoreUser resource not found. Ignoring since object must be deleted.")
 			return
@@ -596,7 +601,10 @@ func (r *ReconcileObjectStoreUser) updateStatus(client client.Client, name types
 	if user.Status.Phase == k8sutil.ReadyStatus {
 		user.Status.Info = generateStatusInfo(user)
 	}
-	if err := reporting.UpdateStatus(client, user); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		user.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, user); err != nil {
 		logger.Errorf("failed to set object store user %q status to %q. %v", name, status, err)
 		return
 	}

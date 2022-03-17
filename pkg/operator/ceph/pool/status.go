@@ -23,13 +23,14 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // updateStatus updates a pool CR with the given status
-func updateStatus(client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func updateStatus(client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, info map[string]string, observedGeneration int64) {
 	pool := &cephv1.CephBlockPool{}
 	err := client.Get(context.TODO(), poolName, pool)
 	if err != nil {
@@ -47,6 +48,9 @@ func updateStatus(client client.Client, poolName types.NamespacedName, status ce
 
 	pool.Status.Phase = status
 	pool.Status.Info = info
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		pool.Status.ObservedGeneration = observedGeneration
+	}
 	if err := reporting.UpdateStatus(client, pool); err != nil {
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
 		return

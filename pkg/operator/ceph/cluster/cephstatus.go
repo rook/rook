@@ -198,7 +198,7 @@ func (c *cephStatusChecker) updateCephStatus(status *cephclient.CephStatus, cond
 
 	// Update condition
 	logger.Debugf("updating ceph cluster %q status and condition to %+v, %v, %s, %s", clusterName.Namespace, status, conditionStatus, reason, message)
-	opcontroller.UpdateClusterCondition(c.context, cephCluster, c.clusterInfo.NamespacedName(), condition, conditionStatus, reason, message, true)
+	opcontroller.UpdateClusterCondition(c.context, cephCluster, c.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, condition, conditionStatus, reason, message, true)
 }
 
 // toCustomResourceStatus converts the ceph status to the struct expected for the CephCluster CR status

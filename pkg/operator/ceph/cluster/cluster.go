@@ -59,6 +59,7 @@ type cluster struct {
 	ownerInfo          *k8sutil.OwnerInfo
 	isUpgrade          bool
 	monitoringRoutines map[string]*clusterHealth
+	observedGeneration int64
 }
 
 type clusterHealth struct {
@@ -79,6 +80,10 @@ func newCluster(c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8s
 		monitoringRoutines: make(map[string]*clusterHealth),
 		ownerInfo:          ownerInfo,
 		mons:               mon.New(context, c.Namespace, c.Spec, ownerInfo),
+		// update observedGeneration with current generation value,
+		// because generation can be changed before reconile got completed
+		// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+		observedGeneration: c.ObjectMeta.Generation,
 	}
 }
 
@@ -100,7 +105,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	}
 
 	// Start the mon pods
-	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mons")
+	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mons")
 	clusterInfo, err := c.mons.Start(c.ClusterInfo, rookImage, cephVersion, *c.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to start ceph monitors")
@@ -128,7 +133,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	}
 
 	// Start Ceph manager
-	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
+	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph Mgr(s)")
 	mgrs := mgr.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
 	err = mgrs.Start()
 	if err != nil {
@@ -136,7 +141,7 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	}
 
 	// Start the OSDs
-	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
+	controller.UpdateCondition(c.ClusterInfo.Context, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring Ceph OSDs")
 	osds := osd.New(c.context, c.ClusterInfo, *c.Spec, rookImage)
 	err = osds.Start()
 	if err != nil {
@@ -177,7 +182,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
 		if err != nil {
-			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
+			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
 	} else {
@@ -205,7 +210,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 		err = c.configureLocalCephCluster(cluster)
 		if err != nil {
-			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
+			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
 	}
@@ -227,7 +232,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	}
 
 	// Run image validation job
-	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
+	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Detecting Ceph version")
 	cephVersion, isUpgrade, err := c.detectAndValidateCephVersion(cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed the ceph version check")
@@ -242,7 +247,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 		}
 	}
 
-	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
+	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
 
 	cluster.ClusterInfo.Context = c.OpManagerCtx
 	// Run the orchestration
@@ -252,7 +257,7 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	}
 
 	// Set the condition to the cluster object
-	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cephv1.ConditionReady, v1.ConditionTrue, cephv1.ClusterCreatedReason, "Cluster created successfully")
+	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, cluster.observedGeneration, cephv1.ConditionReady, v1.ConditionTrue, cephv1.ClusterCreatedReason, "Cluster created successfully")
 	return nil
 }
 

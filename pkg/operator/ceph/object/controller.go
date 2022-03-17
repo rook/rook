@@ -178,6 +178,10 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to get cephObjectStore")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephObjectStore.ObjectMeta.Generation
 
 	// Set a finalizer so we can do cleanup before the object goes away
 	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectStore)
@@ -188,7 +192,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// The CR was just created, initializing status fields
 	if cephObjectStore.Status == nil {
 		// The store is not available so let's not build the status Info yet
-		updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{})
+		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{})
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -237,7 +241,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// DELETE: the CR was deleted
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
-		updateStatus(r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
+		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
 
 		// Detect running Ceph version
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
@@ -341,12 +345,13 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		logger.Info(opcontroller.OperatorNotInitializedMessage)
 		return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephObjectStore, nil
 	} else if err != nil {
-		result, err := r.setFailedStatus(request.NamespacedName, "failed to create object store deployments", err)
+		result, err := r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, "failed to create object store deployments", err)
 		return result, *cephObjectStore, err
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Progressing status, we are done reconciling, the health check go routine will update the status
-	updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore))
+	updateStatus(observedGeneration, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore))
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")
@@ -378,7 +383,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		logger.Info("reconciling object store service")
 		_, err = cfg.reconcileService(cephObjectStore)
 		if err != nil {
-			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
 		}
 
 		// RECONCILE ENDPOINTS
@@ -386,11 +391,11 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		logger.Info("reconciling external object store endpoint")
 		err = cfg.reconcileExternalEndpoint(cephObjectStore)
 		if err != nil {
-			return r.setFailedStatus(namespacedName, "failed to reconcile external endpoint", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile external endpoint", err)
 		}
 
 		if err := UpdateEndpoint(objContext, &cephObjectStore.Spec); err != nil {
-			return r.setFailedStatus(namespacedName, "failed to set endpoint", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to set endpoint", err)
 		}
 	} else {
 		logger.Info("reconciling object store deployments")
@@ -418,11 +423,11 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		logger.Debug("reconciling object store service")
 		serviceIP, err := cfg.reconcileService(cephObjectStore)
 		if err != nil {
-			return r.setFailedStatus(namespacedName, "failed to reconcile service", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
 		}
 
 		if err := UpdateEndpoint(objContext, &cephObjectStore.Spec); err != nil {
-			return r.setFailedStatus(namespacedName, "failed to set endpoint", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to set endpoint", err)
 		}
 
 		// Reconcile Pool Creation
@@ -430,7 +435,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 			logger.Info("reconciling object store pools")
 			err = CreatePools(objContext, r.clusterSpec, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool)
 			if err != nil {
-				return r.setFailedStatus(namespacedName, "failed to create object pools", err)
+				return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to create object pools", err)
 			}
 		}
 
@@ -440,7 +445,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err != nil && kerrors.IsNotFound(err) {
 			return reconcile.Result{}, err
 		} else if err != nil {
-			return r.setFailedStatus(namespacedName, "failed to configure multisite for object store", err)
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to configure multisite for object store", err)
 		}
 
 		// Create or Update Store

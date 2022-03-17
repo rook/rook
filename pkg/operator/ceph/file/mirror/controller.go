@@ -135,7 +135,8 @@ func (r *ReconcileFilesystemMirror) Reconcile(context context.Context, request r
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephFilesystemMirror, err := r.reconcile(request)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.FailedStatus)
+		logger.Errorf("failed to reconcile %v", err)
 	}
 
 	return reporting.ReportReconcileResult(logger, r.recorder, request, &cephFilesystemMirror, reconcileResponse, err)
@@ -154,9 +155,14 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 		return reconcile.Result{}, *filesystemMirror, errors.Wrap(err, "failed to get CephFilesystemMirror")
 	}
 
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := filesystemMirror.ObjectMeta.Generation
+
 	// The CR was just created, initializing status fields
 	if filesystemMirror.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -218,8 +224,9 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Wrap(err, "failed to create ceph filesystem mirror deployments")
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph filesystem mirror")
@@ -246,9 +253,9 @@ func (r *ReconcileFilesystemMirror) reconcileFilesystemMirror(filesystemMirror *
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileFilesystemMirror) updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileFilesystemMirror) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	fsMirror := &cephv1.CephFilesystemMirror{}
-	err := client.Get(r.opManagerContext, name, fsMirror)
+	err := r.client.Get(r.opManagerContext, name, fsMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystemMirror resource not found. Ignoring since object must be deleted.")
@@ -263,7 +270,10 @@ func (r *ReconcileFilesystemMirror) updateStatus(client client.Client, name type
 	}
 
 	fsMirror.Status.Phase = status
-	if err := reporting.UpdateStatus(client, fsMirror); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		fsMirror.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, fsMirror); err != nil {
 		logger.Errorf("failed to set filesystem mirror %q status to %q. %v", fsMirror.Name, status, err)
 		return
 	}

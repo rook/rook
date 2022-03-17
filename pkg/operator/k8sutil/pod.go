@@ -49,9 +49,10 @@ const (
 	// ConfigOverrideName config override name
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value
-	ConfigOverrideVal = "config"
-	configMountDir    = "/etc/rook/config"
-	overrideFilename  = "override.conf"
+	ConfigOverrideVal                    = "config"
+	configMountDir                       = "/etc/rook/config"
+	overrideFilename                     = "override.conf"
+	ObservedGenerationNotAvailable int64 = -1
 )
 
 // ConfigOverrideMount is an override mount

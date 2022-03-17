@@ -135,10 +135,14 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to get CephObjectZone")
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephObjectZone.ObjectMeta.Generation
 
 	// The CR was just created, initializing status fields
 	if cephObjectZone.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -172,12 +176,12 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	// validate the zone settings
 	err = r.validateZoneCR(cephObjectZone)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcile.Result{}, *cephObjectZone, errors.Wrapf(err, "invalid CephObjectZone CR %q", cephObjectZone.Name)
 	}
 
 	// Start object reconciliation, updating status for this
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReconcilingStatus)
+	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// Make sure an ObjectZoneGroup is present
 	realmName, reconcileResponse, err := r.reconcileObjectZoneGroup(cephObjectZone)
@@ -194,11 +198,12 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	// Create Ceph Zone
 	_, err = r.createCephZone(cephObjectZone, realmName)
 	if err != nil {
-		return r.setFailedStatus(cephObjectZone, request.NamespacedName, "failed to create ceph zone", err)
+		return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, cephObjectZone, request.NamespacedName, "failed to create ceph zone", err)
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("zone done reconciling")
@@ -341,15 +346,15 @@ func (r *ReconcileObjectZone) validateZoneCR(z *cephv1.CephObjectZone) error {
 	return nil
 }
 
-func (r *ReconcileObjectZone) setFailedStatus(cephObjectZone *cephv1.CephObjectZone, name types.NamespacedName, errMessage string, err error) (reconcile.Result, cephv1.CephObjectZone, error) {
-	r.updateStatus(r.client, name, k8sutil.ReconcileFailedStatus)
+func (r *ReconcileObjectZone) setFailedStatus(observedGeneration int64, cephObjectZone *cephv1.CephObjectZone, name types.NamespacedName, errMessage string, err error) (reconcile.Result, cephv1.CephObjectZone, error) {
+	r.updateStatus(observedGeneration, name, k8sutil.ReconcileFailedStatus)
 	return reconcile.Result{}, *cephObjectZone, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an zone with a given status
-func (r *ReconcileObjectZone) updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileObjectZone) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	objectZone := &cephv1.CephObjectZone{}
-	if err := client.Get(r.opManagerContext, name, objectZone); err != nil {
+	if err := r.client.Get(r.opManagerContext, name, objectZone); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephObjectZone resource not found. Ignoring since object must be deleted.")
 			return
@@ -362,7 +367,10 @@ func (r *ReconcileObjectZone) updateStatus(client client.Client, name types.Name
 	}
 
 	objectZone.Status.Phase = status
-	if err := reporting.UpdateStatus(client, objectZone); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		objectZone.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, objectZone); err != nil {
 		logger.Errorf("failed to set object zone %q status to %q. %v", name, status, err)
 		return
 	}

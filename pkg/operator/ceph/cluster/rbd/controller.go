@@ -144,7 +144,7 @@ func (r *ReconcileCephRBDMirror) Reconcile(context context.Context, request reco
 	// workaround because the rook logging mechanism is not compatible with the controller-runtime logging interface
 	reconcileResponse, cephRBDMirror, err := r.reconcile(request)
 	if err != nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.FailedStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.FailedStatus)
 		logger.Errorf("failed to reconcile %v", err)
 	}
 
@@ -166,8 +166,12 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 
 	// The CR was just created, initializing status fields
 	if cephRBDMirror.Status == nil {
-		r.updateStatus(r.client, request.NamespacedName, k8sutil.EmptyStatus)
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
+	// update observedGeneration local variable with current generation value,
+	// because generation can be changed before reconile got completed
+	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
+	observedGeneration := cephRBDMirror.ObjectMeta.Generation
 
 	// validate the pool settings
 	if err := validateSpec(&cephRBDMirror.Spec); err != nil {
@@ -232,8 +236,9 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to create ceph rbd mirror deployments")
 	}
 
+	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
-	r.updateStatus(r.client, request.NamespacedName, k8sutil.ReadyStatus)
+	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
 	logger.Debug("done reconciling ceph rbd mirror")
@@ -260,9 +265,9 @@ func (r *ReconcileCephRBDMirror) reconcileCreateCephRBDMirror(cephRBDMirror *cep
 }
 
 // updateStatus updates an object with a given status
-func (r *ReconcileCephRBDMirror) updateStatus(client client.Client, name types.NamespacedName, status string) {
+func (r *ReconcileCephRBDMirror) updateStatus(observedGeneration int64, name types.NamespacedName, status string) {
 	rbdMirror := &cephv1.CephRBDMirror{}
-	err := client.Get(r.opManagerContext, name, rbdMirror)
+	err := r.client.Get(r.opManagerContext, name, rbdMirror)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephRBDMirror resource not found. Ignoring since object must be deleted.")
@@ -277,7 +282,10 @@ func (r *ReconcileCephRBDMirror) updateStatus(client client.Client, name types.N
 	}
 
 	rbdMirror.Status.Phase = status
-	if err := reporting.UpdateStatus(client, rbdMirror); err != nil {
+	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
+		rbdMirror.Status.ObservedGeneration = observedGeneration
+	}
+	if err := reporting.UpdateStatus(r.client, rbdMirror); err != nil {
 		logger.Errorf("failed to set rbd mirror %q status to %q. %v", rbdMirror.Name, status, err)
 		return
 	}
