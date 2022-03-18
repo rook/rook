@@ -565,11 +565,15 @@ func (c *Cluster) clusterInfoToMonConfig(excludedMon string) []*monConfig {
 
 func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	daemonName := k8sutil.IndexToName(monID)
+	defaultPort := DefaultMsgr1Port
+	if c.spec.RequireMsgr2() {
+		defaultPort = DefaultMsgr2Port
+	}
 
 	return &monConfig{
 		ResourceName: resourceName(daemonName),
 		DaemonName:   daemonName,
-		Port:         DefaultMsgr2Port,
+		Port:         defaultPort,
 		Zone:         zone,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
