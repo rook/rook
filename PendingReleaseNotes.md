@@ -3,7 +3,7 @@
 ## Breaking Changes
 
 * The mds liveness and startup probes are now configured by the filesystem CR instead of the cluster CR. To apply the mds probes, they need to be specified in the filesystem CR. See the [filesystem CR doc](Documentation/ceph-filesystem-crd.md#metadata-server-settings) for more details. See #9550
-
+* In the helm charts, all Ceph components now have default values for the pod resources. The values can be modified or removed in values.yaml depending on cluster requirements.
 ## Features
 
 * The number of mgr daemons for example clusters is increased to 2 from 1, resulting in a standby mgr daemon.

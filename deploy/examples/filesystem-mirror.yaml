@@ -29,10 +29,10 @@ spec:
   #  key: value
   resources:
   # The requests and limits, for example to allow the cephfs-mirror pod(s) to use half of one CPU core and 1 gigabyte of memory
-  #  limits:
-  #    cpu: "500m"
-  #    memory: "1024Mi"
-  #  requests:
-  #    cpu: "500m"
-  #    memory: "1024Mi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "1Gi"
   # priorityClassName: my-priority-class
