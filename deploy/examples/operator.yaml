@@ -461,6 +461,9 @@ spec:
             - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
               value: "5"
 
+            - name: ROOK_DISABLE_ADMISSION_CONTROLLER
+              value: "false"
+
             # The name of the node to pass with the downward API
             - name: NODE_NAME
               valueFrom:
