@@ -38,7 +38,7 @@ import (
 // +kubebuilder:printcolumn:name="DataDirHostPath",type=string,JSONPath=`.spec.dataDirHostPath`,description="Directory used on the K8s nodes"
 // +kubebuilder:printcolumn:name="MonCount",type=string,JSONPath=`.spec.mon.count`,description="Number of MONs"
 // +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
-// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`,description="Phase"
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:printcolumn:name="Message",type=string,JSONPath=`.status.message`,description="Message"
 // +kubebuilder:printcolumn:name="Health",type=string,JSONPath=`.status.ceph.health`,description="Ceph Health"
 // +kubebuilder:printcolumn:name="External",type=boolean,JSONPath=`.spec.external.enable`
@@ -570,6 +570,7 @@ type CrashCollectorSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephBlockPool represents a Ceph Storage Pool
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1270,6 +1271,7 @@ type PeerStatSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephObjectStore represents a Ceph Object Store Gateway
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1455,6 +1457,7 @@ type BucketStatus struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:resource:shortName=rcou;objectuser
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1582,6 +1585,7 @@ type PullSpec struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectZoneGroup struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1610,6 +1614,7 @@ type ObjectZoneGroupSpec struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectZone struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1646,6 +1651,7 @@ type ObjectZoneSpec struct {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephBucketTopic struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2021,6 +2027,7 @@ type DisruptionManagementSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephClient represents a Ceph Client
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephClient struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2107,6 +2114,7 @@ type SanitizeDisksSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephRBDMirror represents a Ceph RBD Mirror
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephRBDMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2177,6 +2185,7 @@ type MirroringPeerSpec struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephFilesystemMirror is the Ceph Filesystem Mirror object definition
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephFilesystemMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2387,6 +2396,7 @@ type StorageClassDeviceSet struct {
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // CephFilesystemSubVolumeGroup represents a Ceph Filesystem SubVolumeGroup
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephFilesystemSubVolumeGroup struct {
 	metav1.TypeMeta   `json:",inline"`
