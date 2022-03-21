@@ -56,6 +56,7 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 	values := map[string]interface{}{
 		"enableDiscoveryDaemon": h.settings.EnableDiscovery,
 		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
+		"monitoring":            map[string]interface{}{"enabled": true},
 	}
 	values["csi"] = map[string]interface{}{
 		"csiRBDProvisionerResource": nil,
@@ -118,6 +119,10 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 		"enabled": true,
 		"image":   "rook/ceph:" + h.settings.RookVersion,
 		"resources": nil,
+	}
+	values["monitoring"] = map[string]interface{}{
+		"enabled":              true,
+		"createPromtheusRules": true,
 	}
 	values["ingress"] = map[string]interface{}{
 		"dashboard": map[string]interface{}{

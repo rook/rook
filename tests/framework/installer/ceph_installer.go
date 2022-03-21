@@ -552,6 +552,13 @@ func (h *CephInstaller) InstallRook() (bool, error) {
 	}
 
 	if h.settings.UseHelm {
+		// Install Prometheus so we can create the prometheus rules
+		args := []string{"apply", "-f", "https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml"}
+		_, err = h.k8shelper.MakeContext().Executor.ExecuteCommandWithOutput("kubectl", args...)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to install prometheus")
+		}
+		// Create the cluster
 		err = h.CreateRookCephClusterViaHelm()
 		if err != nil {
 			return false, errors.Wrap(err, "failed to install ceph cluster using Helm")

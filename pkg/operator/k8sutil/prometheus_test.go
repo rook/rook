@@ -36,15 +36,3 @@ func TestGetServiceMonitor(t *testing.T) {
 	assert.NotNil(t, servicemonitor.Spec.NamespaceSelector.MatchNames)
 	assert.NotNil(t, servicemonitor.Spec.Endpoints)
 }
-
-func TestGetPrometheusRule(t *testing.T) {
-	projectRoot := util.PathToProjectRoot()
-	filePath := path.Join(projectRoot, "/deploy/examples/monitoring/prometheus-ceph-v14-rules.yaml")
-	rules, err := GetPrometheusRule(filePath)
-	assert.Nil(t, err)
-	assert.Equal(t, "prometheus-ceph-rules", rules.GetName())
-	assert.Equal(t, "rook-ceph", rules.GetNamespace())
-	// Labels should be present as they are used by prometheus for identifying rules
-	assert.NotNil(t, rules.GetLabels())
-	assert.NotNil(t, rules.Spec.Groups)
-}

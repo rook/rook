@@ -1,0 +1,23 @@
+{{- if .Values.monitoring.createPrometheusRules }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+  name: prometheus-ceph-rules
+  namespace: {{ default .Release.Namespace .Values.monitoring.rulesNamespaceOverride }}
+spec:
+# Import the raw prometheus rules since they have descriptions that should not be processed with the helm templates
+{{- $root := . }}
+{{- if .Values.cephClusterSpec.external.enable }}
+  {{- range $path, $bytes := .Files.Glob "prometheus/externalrules.yaml" }}
+  {{ $root.Files.Get $path }}
+  {{- end }}
+{{- else }}
+  {{- range $path, $bytes := .Files.Glob "prometheus/localrules.yaml" }}
+  {{ $root.Files.Get $path }}
+  {{- end }}
+{{- end }}
+{{- end }}

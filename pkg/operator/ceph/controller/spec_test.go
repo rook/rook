@@ -252,7 +252,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 	t.Run("spec and current active mgr endpoint identical with no existing endpoint object", func(t *testing.T) {
 		monitoringSpec := cephv1.MonitoringSpec{
 			Enabled:              true,
-			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
@@ -282,7 +281,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 	t.Run("spec and current active mgr endpoint different with no existing endpoint object", func(t *testing.T) {
 		monitoringSpec := cephv1.MonitoringSpec{
 			Enabled:              true,
-			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
@@ -311,7 +309,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 	t.Run("spec and current active mgr endpoint different with existing endpoint object", func(t *testing.T) {
 		monitoringSpec := cephv1.MonitoringSpec{
 			Enabled:              true,
-			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{
@@ -345,7 +342,6 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 	t.Run("spec and current active mgr endpoint identical with existing endpoint object", func(t *testing.T) {
 		monitoringSpec := cephv1.MonitoringSpec{
 			Enabled:              true,
-			RulesNamespace:       "rook-ceph",
 			ExternalMgrEndpoints: []v1.EndpointAddress{{IP: "192.168.0.1"}},
 		}
 		executor := &exectest.MockExecutor{

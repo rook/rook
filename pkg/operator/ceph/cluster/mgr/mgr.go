@@ -20,8 +20,6 @@ package mgr
 import (
 	"fmt"
 	"path"
-	"strconv"
-	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
@@ -42,11 +40,6 @@ import (
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
-
-var prometheusRuleName = "prometheus-ceph-vVERSION-rules"
-
-// PrometheusExternalRuleName is the name of the prometheus external rule
-var PrometheusExternalRuleName = "prometheus-ceph-vVERSION-rules-external"
 
 const (
 	AppName                = "rook-ceph-mgr"
@@ -206,22 +199,6 @@ func (c *Cluster) Start() error {
 
 	// configure the mgr modules
 	c.configureModules(daemonIDs)
-
-	// enable monitoring if `monitoring: enabled: true`
-	if c.spec.Monitoring.Enabled {
-		// namespace in which the prometheusRule should be deployed
-		// if left empty, it will be deployed in current namespace
-		namespace := c.spec.Monitoring.RulesNamespace
-		if namespace == "" {
-			namespace = c.clusterInfo.Namespace
-		}
-		if err := c.DeployPrometheusRule(prometheusRuleName, namespace); err != nil {
-			logger.Errorf("failed to deploy prometheus rule. %v", err)
-		} else {
-			logger.Infof("prometheusRule deployed")
-		}
-		logger.Debugf("ended monitoring deployment")
-	}
 	return nil
 }
 
@@ -507,29 +484,6 @@ func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 
 	if _, err = k8sutil.CreateOrUpdateServiceMonitor(c.clusterInfo.Context, serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
-	}
-	return nil
-}
-
-// DeployPrometheusRule deploy prometheusRule that adds alerting and/or recording rules to the cluster
-func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
-	version := strconv.Itoa(c.clusterInfo.CephVersion.Major)
-	name = strings.Replace(name, "VERSION", version, 1)
-	prometheusRuleFile := name + ".yaml"
-	prometheusRuleFile = path.Join(monitoringPath, prometheusRuleFile)
-	prometheusRule, err := k8sutil.GetPrometheusRule(prometheusRuleFile)
-	if err != nil {
-		return errors.Wrap(err, "prometheus rule could not be deployed")
-	}
-	prometheusRule.SetName(name)
-	prometheusRule.SetNamespace(namespace)
-	err = c.clusterInfo.OwnerInfo.SetControllerReference(prometheusRule)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference to prometheus rule %q", prometheusRule.Name)
-	}
-	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&prometheusRule.ObjectMeta)
-	if _, err := k8sutil.CreateOrUpdatePrometheusRule(c.clusterInfo.Context, prometheusRule); err != nil {
-		return errors.Wrap(err, "prometheus rule could not be deployed")
 	}
 	return nil
 }

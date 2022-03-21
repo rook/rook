@@ -1672,9 +1672,6 @@ spec:
                       maximum: 65535
                       minimum: 0
                       type: integer
-                    rulesNamespace:
-                      description: RulesNamespace is the namespace where the prometheus rules and alerts should be created. If empty, the same namespace as the cluster will be used.
-                      type: string
                   type: object
                 network:
                   description: Network related configuration

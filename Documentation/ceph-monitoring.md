@@ -95,12 +95,20 @@ A guide to how you can write your own Prometheus consoles can be found on the of
 
 ## Prometheus Alerts
 
-To enable the Ceph Prometheus alerts follow these steps:
+To enable the Ceph Prometheus alerts via the helm charts, set the following properties in values.yaml:
+- rook-ceph chart:
+  `monitoring.enabled: true`
+- rook-ceph-cluster chart:
+  `monitoring.enabled: true`
+  `monitoring.createPrometheusRules: true`
 
-1. Create the RBAC rules to enable monitoring.
+Alternatively, to enable the Ceph Prometheus alerts with example manifests follow these steps:
+
+1. Create the RBAC and prometheus rules:
 
 ```console
 kubectl create -f deploy/examples/monitoring/rbac.yaml
+kubectl create -f deploy/examples/monitoring/localrules.yaml
 ```
 
 2. Make following changes to your CephCluster object (e.g., `cluster.yaml`).
@@ -116,11 +124,8 @@ spec:
 [...]
   monitoring:
     enabled: true
-    rulesNamespace: "rook-ceph"
 [...]
 ```
-
-(Where `rook-ceph` is the CephCluster name / namespace)
 
 3. Deploy or update the CephCluster object.
 
@@ -129,6 +134,52 @@ kubectl apply -f cluster.yaml
 ```
 
 > **NOTE**: This expects the Prometheus Operator and a Prometheus instance to be pre-installed by the admin.
+
+### Customize Alerts
+
+The Prometheus alerts can be customized with a post-processor using tools such as [Kustomize](https://kustomize.io/).
+For example, first extract the helm chart:
+
+```console
+helm template -f values.yaml rook-release/rook-ceph-cluster > cluster-chart.yaml
+```
+
+Now create the desired customization configuration files. This simple example will show how to
+update the severity of a rule, add a label to a rule, and change the `for` time value.
+
+Create a file named kustomization.yaml:
+
+```yaml
+patches:
+- path: modifications.yaml
+  target:
+    group: monitoring.coreos.com
+    kind: PrometheusRule
+    name: prometheus-ceph-rules
+    version: v1
+resources:
+- cluster-chart.yaml
+```
+
+Create a file named modifications.yaml
+
+```yaml
+- op: add
+  path: /spec/groups/0/rules/0/labels
+  value:
+    my-label: foo
+    severity: none
+- op: add
+  path: /spec/groups/0/rules/0/for
+  value: 15m
+```
+
+Finally, run kustomize to update the desired prometheus rules:
+
+```console
+kustomize build . > updated-chart.yaml
+kubectl create -f updated-chart.yaml
+```
 
 ## Grafana Dashboards
 

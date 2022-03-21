@@ -1,0 +1,35 @@
+# Copied from /deploy/charts/rook-ceph-cluster/prometheus/, CR header added, and indentation increased on the groups
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  labels:
+    prometheus: rook-prometheus
+    role: alert-rules
+  name: prometheus-ceph-rules
+  namespace: rook-ceph
+spec:
+  groups:
+    - name: persistent-volume-alert.rules
+      rules:
+        - alert: PersistentVolumeUsageNearFull
+          annotations:
+            description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 75%. Free up some space or expand the PVC.
+            message: PVC {{ $labels.persistentvolumeclaim }} is nearing full. Data deletion or PVC expansion is required.
+            severity_level: warning
+            storage_type: ceph
+          expr: |
+            (kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) / (kubelet_volume_stats_capacity_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) > 0.75
+          for: 5s
+          labels:
+            severity: warning
+        - alert: PersistentVolumeUsageCritical
+          annotations:
+            description: PVC {{ $labels.persistentvolumeclaim }} utilization has crossed 85%. Free up some space or expand the PVC immediately.
+            message: PVC {{ $labels.persistentvolumeclaim }} is critically full. Data deletion or PVC expansion is required.
+            severity_level: error
+            storage_type: ceph
+          expr: |
+            (kubelet_volume_stats_used_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) / (kubelet_volume_stats_capacity_bytes * on (namespace,persistentvolumeclaim) group_left(storageclass, provisioner) (kube_persistentvolumeclaim_info * on (storageclass)  group_left(provisioner) kube_storageclass_info {provisioner=~"(.*rbd.csi.ceph.com)|(.*cephfs.csi.ceph.com)"})) > 0.85
+          for: 5s
+          labels:
+            severity: critical

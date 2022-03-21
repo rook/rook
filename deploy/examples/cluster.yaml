@@ -74,12 +74,6 @@ spec:
   monitoring:
     # requires Prometheus to be pre-installed
     enabled: false
-    # namespace to deploy prometheusRule in. If empty, namespace of the cluster will be used.
-    # Recommended:
-    # If you have a single rook-ceph cluster, set the rulesNamespace to the same namespace as the cluster or keep it empty.
-    # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
-    # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
-    rulesNamespace: rook-ceph
   network:
     connections:
       # Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
