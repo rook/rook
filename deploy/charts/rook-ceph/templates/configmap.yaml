@@ -14,6 +14,7 @@ data:
   CSI_ENABLE_CEPHFS_SNAPSHOTTER: {{ .Values.csi.enableCephfsSnapshotter | quote }}
   CSI_ENABLE_RBD_SNAPSHOTTER: {{ .Values.csi.enableRBDSnapshotter | quote }}
   CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: {{ .Values.csi.enablePluginSelinuxHostMount | quote }}
+  CSI_ENABLE_ENCRYPTION: {{ .Values.csi.enableCSIEncryption | quote }}
   CSI_ENABLE_OMAP_GENERATOR: {{ .Values.csi.enableOMAPGenerator | quote }}
 {{- if .Values.csi.pluginPriorityClassName }}
   CSI_PLUGIN_PRIORITY_CLASSNAME: {{ .Values.csi.pluginPriorityClassName | quote }}
