@@ -841,7 +841,7 @@ class RadosJSON:
         self.out_map['ROOK_EXTERNAL_CEPH_MON_DATA'] = self.get_ceph_external_mon_data()
         self.out_map['ROOK_EXTERNAL_USER_SECRET'] = self.create_checkerKey()
         self.out_map['ROOK_EXTERNAL_DASHBOARD_LINK'] = self.get_ceph_dashboard_link()
-        self.out_map['CSI_RBD_NODE_SECRET_SECRET'] = self.create_cephCSIKeyring_user(
+        self.out_map['CSI_RBD_NODE_SECRET'] = self.create_cephCSIKeyring_user(
             "client.csi-rbd-node")
         self.out_map['CSI_RBD_PROVISIONER_SECRET'] = self.create_cephCSIKeyring_user(
             "client.csi-rbd-provisioner")
@@ -952,7 +952,7 @@ class RadosJSON:
                 "kind": "Secret",
                 "data": {
                     "userID": 'csi-rbd-node-{}-{}-{}'.format(cluster_name, rbd_pool_name, rados_namespace),
-                    "userKey": self.out_map['CSI_RBD_NODE_SECRET_SECRET']
+                    "userKey": self.out_map['CSI_RBD_NODE_SECRET']
                 }
             })
             # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
@@ -1009,7 +1009,7 @@ class RadosJSON:
                 "kind": "Secret",
                 "data": {
                     "userID": 'csi-rbd-node',
-                    "userKey": self.out_map['CSI_RBD_NODE_SECRET_SECRET']
+                    "userKey": self.out_map['CSI_RBD_NODE_SECRET']
                 }
             })
             # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
