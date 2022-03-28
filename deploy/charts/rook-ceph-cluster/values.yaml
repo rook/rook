@@ -188,8 +188,8 @@ cephClusterSpec:
   #           - matchExpressions:
   #             - key: role
   #               operator: In
-  #             values:
-  #             - storage-node
+  #               values:
+  #               - storage-node
   #     podAffinity:
   #     podAntiAffinity:
   #     topologySpreadConstraints:
