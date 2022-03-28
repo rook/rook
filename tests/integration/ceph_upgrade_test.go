@@ -118,7 +118,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 		cleanupFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, installer.FilesystemName)
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
-		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete", region)
+		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
 		objectStoreCleanUp(s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
 
@@ -196,7 +196,7 @@ func (s *UpgradeSuite) TestUpgradeCephToOctopusDevel() {
 		cleanupFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, installer.FilesystemName)
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
-		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete", region)
+		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete")
 		objectStoreCleanUp(s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
 
@@ -229,7 +229,7 @@ func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
 		cleanupFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, installer.FilesystemName)
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
 		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
-		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete", region)
+		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
 		objectStoreCleanUp(s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
 
@@ -284,7 +284,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectUserID, preFilename string)
 	createCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false, false)
 
 	logger.Info("Initializing object bucket claim before the upgrade")
-	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete", region)
+	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete")
 	require.Nil(s.T(), cobErr)
 	cobcErr := s.helper.BucketClient.CreateObc(obcName, installer.ObjectStoreName, bucketPrefix, maxObject, false)
 	require.Nil(s.T(), cobcErr)

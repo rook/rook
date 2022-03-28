@@ -44,7 +44,7 @@ type CephManifests interface {
 	GetRBDMirror(name string, daemonCount int) string
 	GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string
 	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
-	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string
+	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string
 	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
 	GetOBCNotification(obcName, storageClassName, bucketName string, notificationName string, createBucket bool) string
 	GetBucketNotification(notificationName string, topicName string) string
@@ -483,7 +483,7 @@ spec:
 }
 
 //GetBucketStorageClass returns the manifest to create object bucket
-func (m *CephManifestsMaster) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy, region string) string {
+func (m *CephManifestsMaster) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string {
 	return `apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -492,8 +492,7 @@ provisioner: ` + m.settings.Namespace + `.ceph.rook.io/bucket
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
     objectStoreName: ` + storeName + `
-    objectStoreNamespace: ` + m.settings.Namespace + `
-    region: ` + region
+    objectStoreNamespace: ` + m.settings.Namespace
 }
 
 //GetOBC returns the manifest to create object bucket claim
