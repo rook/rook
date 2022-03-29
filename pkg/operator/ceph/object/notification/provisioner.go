@@ -92,7 +92,7 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 		}
 	}
 
-	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, objContext.ZoneGroup, logger.LevelAt(capnslog.DEBUG), tlsCert)
+	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG), tlsCert)
 }
 
 // TODO: convert all rules without restrictions once the AWS SDK supports that

@@ -46,7 +46,6 @@ type Provisioner struct {
 	bucketName      string
 	storeDomainName string
 	storePort       int32
-	region          string
 	// access keys for acct for the bucket *owner*
 	cephUserName         string
 	accessKeyID          string
@@ -82,7 +81,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), p.region, logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -159,7 +158,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
 	}
 
-	s3svc, err := cephObject.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), p.region, logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+	s3svc, err := cephObject.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -255,7 +254,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 
-		s3svc, err := cephObject.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), p.region, logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+		s3svc, err := cephObject.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 		if err != nil {
 			return err
 		}
@@ -337,7 +336,6 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 	}
 
 	p.setObjectStoreName(sc)
-	p.setRegion(sc)
 	p.setAdditionalConfigData(obc.Spec.AdditionalConfig)
 	p.setEndpoint(sc)
 	err = p.setObjectContext()
@@ -418,7 +416,6 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 			BucketHost:           p.storeDomainName,
 			BucketPort:           int(p.storePort),
 			BucketName:           p.bucketName,
-			Region:               p.region,
 			AdditionalConfigData: p.additionalConfigData,
 		},
 		Authentication: &bktv1alpha1.Authentication{
@@ -509,11 +506,6 @@ func (p *Provisioner) setAdditionalConfigData(additionalConfigData map[string]st
 
 func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
 	p.endpoint = sc.Parameters[objectStoreEndpoint]
-}
-
-func (p *Provisioner) setRegion(sc *storagev1.StorageClass) {
-	const key = "region"
-	p.region = sc.Parameters[key]
 }
 
 func (p Provisioner) getObjectStoreEndpoint() string {
