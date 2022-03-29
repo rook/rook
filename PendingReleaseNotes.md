@@ -16,3 +16,4 @@
 * Network compression is configurable with settings in the CephCluster CR. Requires Ceph Quincy (v17) or newer.
 * Add support for custom ceph.conf for csi pods. See #9567
 * Added and updated many Ceph prometheus rules, picked up from the ceph repo
+* Added service account rook-ceph-rgw for the RGW pods.
