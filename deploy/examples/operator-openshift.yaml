@@ -263,6 +263,14 @@ data:
   #   - key: node.rook.io/cephfs
   #     operator: Exists
 
+  # (Optional) CephCSI NFS provisioner NodeAffinity (overrides CSI_PROVISIONER_NODE_AFFINITY).
+  # CSI_NFS_PROVISIONER_NODE_AFFINITY: "role=nfs-node"
+  # (Optional) CephCSI NFS provisioner tolerations list (overrides CSI_PROVISIONER_TOLERATIONS).
+  # Put here list of taints you want to tolerate in YAML format.
+  # CSI provisioner would be best to start on the same nodes as other ceph daemons.
+  # CSI_NFS_PROVISIONER_TOLERATIONS: |
+  #   - key: node.rook.io/nfs
+  #     operator: Exists
   # (Optional) CephCSI NFS plugin NodeAffinity (overrides CSI_PLUGIN_NODE_AFFINITY).
   # CSI_NFS_PLUGIN_NODE_AFFINITY: "role=nfs-node"
   # (Optional) CephCSI NFS plugin tolerations list (overrides CSI_PLUGIN_TOLERATIONS).
@@ -421,6 +429,26 @@ data:
   #        memory: 256Mi
   #        cpu: 100m
 
+
+  # (Optional) CEPH CSI NFS provisioner resource requirement list, Put here list of resource
+  # requests and limits you want to apply for provisioner pod
+  # CSI_NFS_PROVISIONER_RESOURCE: |
+  #  - name : csi-provisioner
+  #    resource:
+  #      requests:
+  #        memory: 128Mi
+  #        cpu: 100m
+  #      limits:
+  #        memory: 256Mi
+  #        cpu: 200m
+  #  - name : csi-nfsplugin
+  #    resource:
+  #      requests:
+  #        memory: 512Mi
+  #        cpu: 250m
+  #      limits:
+  #        memory: 1Gi
+  #        cpu: 500m
   # (Optional) CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   # CSI_NFS_PLUGIN_RESOURCE: |

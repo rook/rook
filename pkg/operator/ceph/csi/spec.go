@@ -138,6 +138,8 @@ var (
 	// Local package template path for NFS
 	//go:embed template/nfs/csi-nfsplugin.yaml
 	NFSPluginTemplatePath string
+	//go:embed template/nfs/csi-nfsplugin-provisioner-dep.yaml
+	NFSProvisionerDepTemplatePath string
 )
 
 const (
@@ -160,8 +162,10 @@ const (
 	cephFSPluginNodeAffinityEnv      = "CSI_CEPHFS_PLUGIN_NODE_AFFINITY"
 
 	// NFS tolerations and node affinity
-	nfsPluginTolerationsEnv  = "CSI_NFS_PLUGIN_TOLERATIONS"
-	nfsPluginNodeAffinityEnv = "CSI_NFS_PLUGIN_NODE_AFFINITY"
+	nfsProvisionerTolerationsEnv  = "CSI_NFS_PROVISIONER_TOLERATIONS"
+	nfsProvisionerNodeAffinityEnv = "CSI_NFS_PROVISIONER_NODE_AFFINITY"
+	nfsPluginTolerationsEnv       = "CSI_NFS_PLUGIN_TOLERATIONS"
+	nfsPluginNodeAffinityEnv      = "CSI_NFS_PLUGIN_NODE_AFFINITY"
 
 	// RBD tolerations and node affinity
 	rbdProvisionerTolerationsEnv  = "CSI_RBD_PROVISIONER_TOLERATIONS"
@@ -176,7 +180,8 @@ const (
 	cephFSProvisionerResource = "CSI_CEPHFS_PROVISIONER_RESOURCE"
 	cephFSPluginResource      = "CSI_CEPHFS_PLUGIN_RESOURCE"
 
-	nfsPluginResource = "CSI_NFS_PLUGIN_RESOURCE"
+	nfsProvisionerResource = "CSI_NFS_PROVISIONER_RESOURCE"
+	nfsPluginResource      = "CSI_NFS_PLUGIN_RESOURCE"
 
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
@@ -233,10 +238,10 @@ func validateCSIParam() error {
 
 func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerInfo, v *CephCSIVersion) error {
 	var (
-		err                                                   error
-		rbdPlugin, cephfsPlugin, nfsPlugin                    *apps.DaemonSet
-		rbdProvisionerDeployment, cephfsProvisionerDeployment *apps.Deployment
-		rbdService, cephfsService                             *corev1.Service
+		err                                                                             error
+		rbdPlugin, cephfsPlugin, nfsPlugin                                              *apps.DaemonSet
+		rbdProvisionerDeployment, cephfsProvisionerDeployment, nfsProvisionerDeployment *apps.Deployment
+		rbdService, cephfsService                                                       *corev1.Service
 	)
 
 	tp := templateParam{
@@ -442,6 +447,11 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs plugin template")
 		}
+
+		nfsProvisionerDeployment, err = templateToDeployment("nfs-provisioner", NFSProvisionerDepTemplatePath, tp)
+		if err != nil {
+			return errors.Wrap(err, "failed to load nfs provisioner deployment template")
+		}
 	}
 
 	// get common provisioner tolerations and node affinity
@@ -610,6 +620,37 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrapf(err, "failed to start nfs plugin daemonset %q", nfsPlugin.Name)
 		}
 		k8sutil.AddRookVersionLabelToDaemonSet(nfsPlugin)
+	}
+
+	if nfsProvisionerDeployment != nil {
+		// get NFS provisioner tolerations and node affinity, defaults to common tolerations and node affinity if not specified
+		nfsProvisionerTolerations := getToleration(r.opConfig.Parameters, nfsProvisionerTolerationsEnv, provisionerTolerations)
+		nfsProvisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, nfsProvisionerNodeAffinityEnv, provisionerNodeAffinity)
+		// apply NFS provisioner tolerations and node affinity
+		applyToPodSpec(&nfsProvisionerDeployment.Spec.Template.Spec, nfsProvisionerNodeAffinity, nfsProvisionerTolerations)
+		// get resource details for nfs provisioner
+		// apply resource request and limit to nfs provisioner containers
+		applyResourcesToContainers(r.opConfig.Parameters, nfsProvisionerResource, &nfsProvisionerDeployment.Spec.Template.Spec)
+		err = ownerInfo.SetControllerReference(nfsProvisionerDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to nfs provisioner deployment %q", nfsProvisionerDeployment.Name)
+		}
+		antiAffinity := GetPodAntiAffinity("app", csiNFSProvisioner)
+		nfsProvisionerDeployment.Spec.Template.Spec.Affinity.PodAntiAffinity = &antiAffinity
+		nfsProvisionerDeployment.Spec.Strategy = apps.DeploymentStrategy{
+			Type: apps.RecreateDeploymentStrategyType,
+		}
+
+		_, err = r.applyCephClusterNetworkConfig(r.opManagerContext, &nfsProvisionerDeployment.Spec.Template.ObjectMeta)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply network config to nfs provisioner deployment %q", nfsProvisionerDeployment.Name)
+		}
+		_, err = k8sutil.CreateOrUpdateDeployment(r.opManagerContext, r.context.Clientset, nfsProvisionerDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to start nfs provisioner deployment %q", nfsProvisionerDeployment.Name)
+		}
+		k8sutil.AddRookVersionLabelToDeployment(nfsProvisionerDeployment)
+		logger.Info("successfully started CSI NFS driver")
 	}
 
 	if EnableRBD {

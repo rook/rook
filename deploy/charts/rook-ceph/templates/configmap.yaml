@@ -121,6 +121,12 @@ data:
 {{- if .Values.csi.cephFSProvisionerNodeAffinity }}
   CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.cephFSProvisionerNodeAffinity }}
 {{- end }}
+{{- if .Values.csi.nfsProvisionerTolerations }}
+  CSI_NFS_PROVISIONER_TOLERATIONS: {{ toYaml .Values.csi.nfsProvisionerTolerations | quote }}
+{{- end }}
+{{- if .Values.csi.nfsProvisionerNodeAffinity }}
+  CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.nfsProvisionerNodeAffinity }}
+{{- end }}
 {{- if .Values.csi.allowUnsupportedVersion }}
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: {{ .Values.csi.allowUnsupportedVersion | quote }}
 {{- end }}
@@ -180,6 +186,9 @@ data:
 {{- end }}
 {{- if .Values.csi.csiCephFSPluginResource }}
   CSI_CEPHFS_PLUGIN_RESOURCE: {{ .Values.csi.csiCephFSPluginResource | quote }}
+{{- end }}
+{{- if .Values.csi.csiNFSProvisionerResource }}
+  CSI_NFS_PROVISIONER_RESOURCE: {{ .Values.csi.csiNFSProvisionerResource | quote }}
 {{- end }}
 {{- if .Values.csi.csiNFSPluginResource }}
   CSI_NFS_PLUGIN_RESOURCE: {{ .Values.csi.csiNFSPluginResource | quote }}

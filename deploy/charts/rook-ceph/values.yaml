@@ -261,6 +261,25 @@ csi:
         limits:
           memory: 256Mi
           cpu: 100m
+  # CEPH CSI NFS provisioner resource requirement list, Put here list of resource
+  # requests and limits you want to apply for provisioner pod
+  csiNFSProvisionerResource: |
+    - name : csi-provisioner
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
+    - name : csi-nfsplugin
+      resource:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m
   # CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   csiNFSPluginResource: |
