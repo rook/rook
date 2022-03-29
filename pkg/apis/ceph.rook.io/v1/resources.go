@@ -90,7 +90,7 @@ func GetCrashCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 
 // GetLogCollectorResources returns the placement for the crash daemon
 func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
-	return p[ResourcesKeyCrashCollector]
+	return p[ResourcesKeyLogCollector]
 }
 
 // GetCleanupResources returns the placement for the cleanup job
