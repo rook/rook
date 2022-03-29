@@ -18,18 +18,13 @@ import errno
 import sys
 import json
 import argparse
-import unittest
 import re
 import requests
 import subprocess
 from os import linesep as LINESEP
 from os import path
 
-# backward compatibility with 2.x
-try:
-    ModuleNotFoundError
-except:
-    ModuleNotFoundError = ImportError
+ModuleNotFoundError = ImportError
 
 try:
     import rados
@@ -495,9 +490,9 @@ class RadosJSON:
         monitoring_endpoint_ip = monitoring_endpoint_ip_list_split[0]
         # rest of the ip-s are added to the 'standby_mgrs' list
         standby_mgrs.extend(monitoring_endpoint_ip_list_split[1:])
-
+        failed_ip = monitoring_endpoint_ip
+        
         try:
-            failed_ip = monitoring_endpoint_ip
             monitoring_endpoint_ip = self._convert_hostname_to_ip(
                 monitoring_endpoint_ip)
             # collect all the 'stand-by' mgr ips
