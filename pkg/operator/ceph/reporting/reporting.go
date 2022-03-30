@@ -164,7 +164,7 @@ func ReportReconcileResult(
 // 2. as a condition on the object (added to the object's conditions list given)
 // 3. as the returned error which should be included in the FailedReconcile message
 func ReportDeletionBlockedDueToDependents(
-	logger *capnslog.PackageLogger, client client.Client, obj cephv1.StatusConditionGetter, deps *dependents.DependentList,
+	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, obj cephv1.StatusConditionGetter, deps *dependents.DependentList,
 ) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	nsName := types.NamespacedName{
@@ -179,7 +179,7 @@ func ReportDeletionBlockedDueToDependents(
 	// 2. condition
 	blockedCond := dependents.DeletionBlockedDueToDependentsCondition(true, blockedMsg)
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := client.Get(context.TODO(), nsName, obj); err != nil {
+		if err := client.Get(ctx, nsName, obj); err != nil {
 			return errors.Wrapf(err, "failed to get latest %s %q", kind, nsName.String())
 		}
 		if err := UpdateStatusCondition(client, obj, blockedCond); err != nil {
@@ -201,7 +201,7 @@ func ReportDeletionBlockedDueToDependents(
 // 2. as an event on the object (via the given event recorder)
 // 3. as a condition on the object (added to the object's conditions list given)
 func ReportDeletionNotBlockedDueToDependents(
-	logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj cephv1.StatusConditionGetter,
+	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj cephv1.StatusConditionGetter,
 ) {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	nsName := types.NamespacedName{
@@ -220,7 +220,7 @@ func ReportDeletionNotBlockedDueToDependents(
 	// 3. condition
 	unblockedCond := dependents.DeletionBlockedDueToDependentsCondition(false, safeMsg)
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		if err := client.Get(context.TODO(), nsName, obj); err != nil {
+		if err := client.Get(ctx, nsName, obj); err != nil {
 			return errors.Wrapf(err, "failed to get latest %s %q", kind, nsName.String())
 		}
 		if err := UpdateStatusCondition(client, obj, unblockedCond); err != nil {

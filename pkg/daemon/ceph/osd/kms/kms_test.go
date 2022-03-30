@@ -34,7 +34,7 @@ import (
 func TestValidateConnectionDetails(t *testing.T) {
 	ctx := context.TODO()
 	// Placeholder
-	context := &clusterd.Context{Clientset: test.New(t, 3)}
+	clusterdContext := &clusterd.Context{Clientset: test.New(t, 3)}
 	securitySpec := &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
 	ns := "rook-ceph"
 	vaultSecret := &v1.Secret{
@@ -63,7 +63,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 	}}
 
 	t.Run("no kms provider given", func(t *testing.T) {
-		err := ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err := ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate kms config \"KMS_PROVIDER\". cannot be empty")
 		securitySpec.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
@@ -71,24 +71,24 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	t.Run("vault - no token object", func(t *testing.T) {
 		securitySpec.KeyManagementService.TokenSecretName = "vault-token"
-		err := ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err := ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to fetch kms token secret \"vault-token\": secrets \"vault-token\" not found")
 	})
 
 	t.Run("vault - token secret present but empty content", func(t *testing.T) {
-		_, err := context.Clientset.CoreV1().Secrets(ns).Create(ctx, vaultSecret, metav1.CreateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Create(ctx, vaultSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to read k8s kms secret \"token\" key \"vault-token\" (not found or empty)")
 	})
 
 	t.Run("vault - token key does not exist", func(t *testing.T) {
 		vaultSecret.Data = map[string][]byte{"foo": []byte("bar")}
-		_, err := context.Clientset.CoreV1().Secrets(ns).Update(ctx, vaultSecret, metav1.UpdateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Update(ctx, vaultSecret, metav1.UpdateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to read k8s kms secret \"token\" key \"vault-token\" (not found or empty)")
 	})
@@ -96,9 +96,9 @@ func TestValidateConnectionDetails(t *testing.T) {
 	// Success: token content is ok
 	t.Run("vault - token content is ok", func(t *testing.T) {
 		vaultSecret.Data["token"] = []byte("token")
-		_, err := context.Clientset.CoreV1().Secrets(ns).Update(ctx, vaultSecret, metav1.UpdateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Update(ctx, vaultSecret, metav1.UpdateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate vault connection details: failed to find connection details \"VAULT_ADDR\"")
 		securitySpec.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
@@ -106,24 +106,24 @@ func TestValidateConnectionDetails(t *testing.T) {
 
 	t.Run("vault - TLS is configured but secrets do not exist", func(t *testing.T) {
 		securitySpec.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
-		err := ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err := ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"vault-ca-secret\"")
 	})
 
 	t.Run("vault - TLS secret exists but empty key", func(t *testing.T) {
-		_, err := context.Clientset.CoreV1().Secrets(ns).Create(ctx, tlsSecret, metav1.CreateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Create(ctx, tlsSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection key \"cert\" for \"VAULT_CACERT\" in k8s secret \"vault-ca-secret\"")
 	})
 
 	t.Run("vault - success TLS config is correct", func(t *testing.T) {
 		tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
-		_, err := context.Clientset.CoreV1().Secrets(ns).Update(ctx, tlsSecret, metav1.UpdateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Update(ctx, tlsSecret, metav1.UpdateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.NoError(t, err, "")
 	})
 
@@ -136,7 +136,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 		vault.TestWaitActive(t, core)
 		client := cluster.Cores[0].Client
 		// Mock the client here
-		vaultClient = func(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
+		vaultClient = func(ctx context.Context, clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
 			return client, nil
 		}
 		if err := client.Sys().Mount("rook/", &api.MountInput{
@@ -156,13 +156,13 @@ func TestValidateConnectionDetails(t *testing.T) {
 				TokenSecretName: "vault-token",
 			},
 		}
-		err := ValidateConnectionDetails(ctx, context, securitySpec, ns)
+		err := ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.NoError(t, err, "")
 		assert.Equal(t, securitySpec.KeyManagementService.ConnectionDetails["VAULT_BACKEND"], "v2")
 	})
 
 	t.Run("ibm kp - fail no token specified, only token is supported", func(t *testing.T) {
-		err := ValidateConnectionDetails(ctx, context, ibmSecuritySpec, ns)
+		err := ValidateConnectionDetails(ctx, clusterdContext, ibmSecuritySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate kms configuration (missing token in spec)")
 		ibmSecuritySpec.KeyManagementService.TokenSecretName = "ibm-token"
@@ -170,25 +170,25 @@ func TestValidateConnectionDetails(t *testing.T) {
 	})
 
 	t.Run("ibm kp - token present but no key for service key", func(t *testing.T) {
-		_, err := context.Clientset.CoreV1().Secrets(ns).Create(ctx, ibmSecret, metav1.CreateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Create(ctx, ibmSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, ibmSecuritySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, ibmSecuritySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to read k8s kms secret \"IBM_KP_SERVICE_API_KEY\" key \"ibm-token\" (not found or empty)")
 	})
 
 	t.Run("ibm kp - token ok but no instance id", func(t *testing.T) {
 		ibmSecret.Data["IBM_KP_SERVICE_API_KEY"] = []byte("foo")
-		_, err := context.Clientset.CoreV1().Secrets(ns).Update(ctx, ibmSecret, metav1.UpdateOptions{})
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Update(ctx, ibmSecret, metav1.UpdateOptions{})
 		assert.NoError(t, err)
-		err = ValidateConnectionDetails(ctx, context, ibmSecuritySpec, ns)
+		err = ValidateConnectionDetails(ctx, clusterdContext, ibmSecuritySpec, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate kms config \"IBM_KP_SERVICE_INSTANCE_ID\". cannot be empty")
 		ibmSecuritySpec.KeyManagementService.ConnectionDetails["IBM_KP_SERVICE_INSTANCE_ID"] = "foo"
 	})
 
 	t.Run("ibm kp - success", func(t *testing.T) {
-		err := ValidateConnectionDetails(ctx, context, ibmSecuritySpec, ns)
+		err := ValidateConnectionDetails(ctx, clusterdContext, ibmSecuritySpec, ns)
 		assert.NoError(t, err, "")
 		// IBM_KP_SERVICE_API_KEY must be appended to the details so that the client can be built with
 		// all the details

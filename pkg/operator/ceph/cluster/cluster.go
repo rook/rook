@@ -67,19 +67,19 @@ type clusterHealth struct {
 	internalCancel context.CancelFunc
 }
 
-func newCluster(c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo) *cluster {
+func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Context, ownerInfo *k8sutil.OwnerInfo) *cluster {
 	return &cluster{
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		ClusterInfo:        client.AdminClusterInfo(c.Namespace, c.Name),
+		ClusterInfo:        client.AdminClusterInfo(ctx, c.Namespace, c.Name),
 		Namespace:          c.Namespace,
 		Spec:               &c.Spec,
 		context:            context,
 		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
 		monitoringRoutines: make(map[string]*clusterHealth),
 		ownerInfo:          ownerInfo,
-		mons:               mon.New(context, c.Namespace, c.Spec, ownerInfo),
+		mons:               mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
 		// update observedGeneration with current generation value,
 		// because generation can be changed before reconile got completed
 		// CR status will be updated at end of reconcile, so to reflect the reconcile has finished

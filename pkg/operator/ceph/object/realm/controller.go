@@ -216,7 +216,7 @@ func (r *ReconcileObjectRealm) pullCephRealm(realm *cephv1.CephObjectRealm) (rec
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
 	urlArg := fmt.Sprintf("--url=%s", realm.Spec.Pull.Endpoint)
 	logger.Debug("getting keys to pull realm for CephObjectRealm %q", realm.Name)
-	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.context, realm.Name, realm.Namespace)
+	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, realm.Name, realm.Namespace)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			return waitForRequeueIfRealmNotReady, err
@@ -264,7 +264,7 @@ func (r *ReconcileObjectRealm) createRealmKeys(realm *cephv1.CephObjectRealm) (r
 	secretName := realm.Name + "-keys"
 
 	// Check if the secret exists first, and check that it has the access information needed.
-	secret, err := object.GetRealmKeySecret(r.context, realmName)
+	secret, err := object.GetRealmKeySecret(r.opManagerContext, r.context, realmName)
 	if err == nil {
 		// secret exists, now verify access info. We don't need the args, but we do want to get the
 		// error if the args can't be built

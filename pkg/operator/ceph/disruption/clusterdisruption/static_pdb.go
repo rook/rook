@@ -17,8 +17,6 @@ limitations under the License.
 package clusterdisruption
 
 import (
-	"context"
-
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,7 +28,7 @@ import (
 )
 
 func (r *ReconcileClusterDisruption) createStaticPDB(pdb client.Object) error {
-	err := r.client.Create(context.TODO(), pdb)
+	err := r.client.Create(r.context.OpManagerContext, pdb)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create pdb %q", pdb.GetName())
 	}
@@ -48,7 +46,7 @@ func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.Namespaced
 	} else {
 		existingPDB = &policyv1.PodDisruptionBudget{}
 	}
-	err = r.client.Get(context.TODO(), request, existingPDB)
+	err = r.client.Get(r.context.OpManagerContext, request, existingPDB)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return r.createStaticPDB(pdb)

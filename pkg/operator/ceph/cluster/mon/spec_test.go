@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -43,6 +44,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	clientset := testop.New(t, 1)
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(
+		context.TODO(),
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		cephv1.ClusterSpec{},
@@ -104,6 +106,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	clientset := testop.New(t, 1)
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	c := New(
+		context.TODO(),
 		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook"},
 		"ns",
 		cephv1.ClusterSpec{},
@@ -163,6 +166,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 
 func testRequiredDuringScheduling(t *testing.T, hostNetwork, allowMultiplePerNode, required bool) {
 	c := New(
+		context.TODO(),
 		&clusterd.Context{},
 		"ns",
 		cephv1.ClusterSpec{},

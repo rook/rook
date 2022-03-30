@@ -17,6 +17,7 @@ limitations under the License.
 package kms
 
 import (
+	"context"
 	"strings"
 
 	"github.com/libopenstorage/secrets/vault"
@@ -38,7 +39,7 @@ var vaultClient = newVaultClient
 
 // newVaultClient returns a vault client, there is no need for any secretConfig validation
 // Since this is called after an already validated call InitVault()
-func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
+func newVaultClient(ctx context.Context, clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
 	// DefaultConfig uses the environment variables if present.
 	config := api.DefaultConfig()
 
@@ -56,7 +57,7 @@ func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretC
 	}
 
 	// Populate TLS config
-	newConfigWithTLS, removeCertFiles, err := configTLS(clusterdContext, namespace, localSecretConfig)
+	newConfigWithTLS, removeCertFiles, err := configTLS(ctx, clusterdContext, namespace, localSecretConfig)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize vault tls configuration")
 	}
@@ -106,7 +107,7 @@ func newVaultClient(clusterdContext *clusterd.Context, namespace string, secretC
 	return client, nil
 }
 
-func BackendVersion(clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (string, error) {
+func BackendVersion(ctx context.Context, clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (string, error) {
 	v1 := "v1"
 	v2 := "v2"
 
@@ -125,7 +126,7 @@ func BackendVersion(clusterdContext *clusterd.Context, namespace string, secretC
 		return v2, nil
 	default:
 		// Initialize Vault client
-		vaultClient, err := vaultClient(clusterdContext, namespace, secretConfig)
+		vaultClient, err := vaultClient(ctx, clusterdContext, namespace, secretConfig)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to initialize vault client")
 		}

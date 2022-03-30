@@ -86,7 +86,7 @@ func (c *Config) PutSecret(secretName, secretValue string) error {
 	}
 	if c.IsVault() {
 		// Store the secret in Vault
-		v, err := InitVault(c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		v, err := InitVault(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return errors.Wrap(err, "failed to init vault kms")
 		}
@@ -123,7 +123,7 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 	var value string
 	if c.IsVault() {
 		// Store the secret in Vault
-		v, err := InitVault(c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		v, err := InitVault(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to init vault")
 		}
@@ -153,7 +153,7 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 func (c *Config) DeleteSecret(secretName string) error {
 	if c.IsVault() {
 		// Store the secret in Vault
-		v, err := InitVault(c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		v, err := InitVault(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete secret in vault")
 		}
@@ -263,7 +263,7 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 	// Validate KMS provider connection details for each provider
 	switch provider {
 	case secrets.TypeVault:
-		err := validateVaultConnectionDetails(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
+		err := validateVaultConnectionDetails(ctx, clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate vault connection details")
 		}
@@ -273,7 +273,7 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 		case VaultKVSecretEngineKey:
 			// Append Backend Version if not already present
 			if GetParam(securitySpec.KeyManagementService.ConnectionDetails, vault.VaultBackendKey) == "" {
-				backendVersion, err := BackendVersion(clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
+				backendVersion, err := BackendVersion(ctx, clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
 				if err != nil {
 					return errors.Wrap(err, "failed to get backend version")
 				}

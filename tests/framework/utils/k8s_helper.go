@@ -222,7 +222,7 @@ func (k8sh *K8sHelper) ExecRemoteWithRetry(retries int, namespace, command strin
 	var output, stderr string
 	cliFinal := append([]string{command}, commandArgs...)
 	for i := 0; i < retries; i++ {
-		output, stderr, err = k8sh.remoteExecutor.ExecCommandInContainerWithFullOutput("rook-ceph-tools", "rook-ceph-tools", namespace, cliFinal...)
+		output, stderr, err = k8sh.remoteExecutor.ExecCommandInContainerWithFullOutput(context.TODO(), "rook-ceph-tools", "rook-ceph-tools", namespace, cliFinal...)
 		if err == nil {
 			return output, nil
 		}

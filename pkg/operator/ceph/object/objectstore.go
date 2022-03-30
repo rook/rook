@@ -193,8 +193,7 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 }
 
 // This is used for quickly getting the name of the realm, zone group, and zone for an object-store to pass into a Context
-func getMultisiteForObjectStore(clusterdContext *clusterd.Context, spec *cephv1.ObjectStoreSpec, namespace, name string) (string, string, string, error) {
-	ctx := context.TODO()
+func getMultisiteForObjectStore(ctx context.Context, clusterdContext *clusterd.Context, spec *cephv1.ObjectStoreSpec, namespace, name string) (string, string, string, error) {
 
 	if spec.IsExternal() {
 		// Currently external cluster with zones/zonegroup/realm are not supported, will be
@@ -310,8 +309,7 @@ func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
 	return string(realmKey), nil
 }
 
-func GetRealmKeySecret(clusterdContext *clusterd.Context, realmName types.NamespacedName) (*v1.Secret, error) {
-	ctx := context.TODO()
+func GetRealmKeySecret(ctx context.Context, clusterdContext *clusterd.Context, realmName types.NamespacedName) (*v1.Secret, error) {
 	realmSecretName := realmName.Name + "-keys"
 	realmSecret, err := clusterdContext.Clientset.CoreV1().Secrets(realmName.Namespace).Get(ctx, realmSecretName, metav1.GetOptions{})
 	if err != nil {
@@ -338,11 +336,11 @@ func GetRealmKeyArgsFromSecret(realmSecret *v1.Secret, realmName types.Namespace
 	return accessKeyArg, secretKeyArg, nil
 }
 
-func GetRealmKeyArgs(clusterdContext *clusterd.Context, realmName, namespace string) (string, string, error) {
+func GetRealmKeyArgs(ctx context.Context, clusterdContext *clusterd.Context, realmName, namespace string) (string, string, error) {
 	realmNsName := types.NamespacedName{Namespace: namespace, Name: realmName}
 	logger.Debugf("getting keys for realm %q", realmNsName.String())
 
-	secret, err := GetRealmKeySecret(clusterdContext, realmNsName)
+	secret, err := GetRealmKeySecret(ctx, clusterdContext, realmNsName)
 	if err != nil {
 		return "", "", err
 	}
@@ -508,7 +506,7 @@ func createSystemUser(objContext *Context, namespace string) error {
 
 	if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
 		logger.Debugf("realm system user %q not found, running `radosgw-admin user create`", uid)
-		accessKeyArg, secretKeyArg, err := GetRealmKeyArgs(objContext.Context, objContext.Realm, namespace)
+		accessKeyArg, secretKeyArg, err := GetRealmKeyArgs(objContext.clusterInfo.Context, objContext.Context, objContext.Realm, namespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to get keys for realm")
 		}
@@ -639,7 +637,7 @@ func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) erro
 	}
 
 	if configurePoolsConcurrently() {
-		waitGroup, _ := errgroup.WithContext(context.TODO())
+		waitGroup, _ := errgroup.WithContext(ctx.clusterInfo.Context)
 		for _, pool := range pools {
 			name := poolName(ctx.Name, pool)
 			waitGroup.Go(func() error {
@@ -761,7 +759,7 @@ func configurePoolsConcurrently() bool {
 func createSimilarPools(ctx *Context, pools []string, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount string) error {
 	// We have concurrency
 	if configurePoolsConcurrently() {
-		waitGroup, _ := errgroup.WithContext(context.TODO())
+		waitGroup, _ := errgroup.WithContext(ctx.clusterInfo.Context)
 		for _, pool := range pools {
 			// Avoid the loop re-using the same value with a closure
 			pool := pool

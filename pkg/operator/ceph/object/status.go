@@ -31,17 +31,17 @@ import (
 )
 
 func (r *ReconcileCephObjectStore) setFailedStatus(observedGeneration int64, name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatus(observedGeneration, r.client, name, cephv1.ConditionFailure, map[string]string{})
+	updateStatus(r.opManagerContext, observedGeneration, r.client, name, cephv1.ConditionFailure, map[string]string{})
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(observedGeneration int64, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func updateStatus(ctx context.Context, observedGeneration int64, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
 	// Updating the status is important to users, but we can still keep operating if there is a
 	// failure. Retry a few times to give it our best effort attempt.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		objectStore := &cephv1.CephObjectStore{}
-		if err := client.Get(context.TODO(), namespacedName, objectStore); err != nil {
+		if err := client.Get(ctx, namespacedName, objectStore); err != nil {
 			if kerrors.IsNotFound(err) {
 				logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
 				return nil
@@ -76,12 +76,12 @@ func updateStatus(observedGeneration int64, client client.Client, namespacedName
 }
 
 // updateStatusBucket updates an object with a given status
-func updateStatusBucket(client client.Client, name types.NamespacedName, status cephv1.ConditionType, details string) {
+func updateStatusBucket(ctx context.Context, client client.Client, name types.NamespacedName, status cephv1.ConditionType, details string) {
 	// Updating the status is important to users, but we can still keep operating if there is a
 	// failure. Retry a few times to give it our best effort attempt.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		objectStore := &cephv1.CephObjectStore{}
-		if err := client.Get(context.TODO(), name, objectStore); err != nil {
+		if err := client.Get(ctx, name, objectStore); err != nil {
 			if kerrors.IsNotFound(err) {
 				logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
 				return nil

@@ -273,7 +273,7 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 	}
 	logger.Debugf("created pools ceph zone %q", zone.Name)
 
-	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.context, realmName, zone.Namespace)
+	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, realmName, zone.Namespace)
 	if err != nil {
 		return errors.Wrap(err, "failed to get keys for realm")
 	}

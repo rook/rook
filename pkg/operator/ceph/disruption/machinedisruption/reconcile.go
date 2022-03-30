@@ -72,7 +72,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 
 	// Fetching the cephCluster
 	cephClusterInstance := &cephv1.CephCluster{}
-	err := r.client.Get(context.TODO(), request.NamespacedName, cephClusterInstance)
+	err := r.client.Get(r.context.OpManagerContext, request.NamespacedName, cephClusterInstance)
 	if kerrors.IsNotFound(err) {
 		logger.Infof("cephCluster instance not found for %s", request.NamespacedName)
 		return reconcile.Result{}, nil
@@ -93,7 +93,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		},
 	}
 
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: mdb.GetName(), Namespace: mdb.GetNamespace()}, mdb)
+	err = r.client.Get(r.context.OpManagerContext, types.NamespacedName{Name: mdb.GetName(), Namespace: mdb.GetNamespace()}, mdb)
 	if kerrors.IsNotFound(err) {
 		// If the MDB is not found creating the MDB for the cephCluster
 		maxUnavailable := int32(0)
@@ -121,7 +121,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of mdb %q", newMDB.Name)
 		}
-		err = r.client.Create(context.TODO(), newMDB)
+		err = r.client.Create(r.context.OpManagerContext, newMDB)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to create mdb %s", mdb.GetName())
 		}
@@ -134,12 +134,12 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 		mdb.Spec.MaxUnavailable = &maxUnavailable
 	}
 	// Check if the cluster is clean or not
-	clusterInfo := cephClient.AdminClusterInfo(request.NamespacedName.Namespace, request.NamespacedName.Name)
+	clusterInfo := cephClient.AdminClusterInfo(r.context.OpManagerContext, request.NamespacedName.Namespace, request.NamespacedName.Name)
 	_, isClean, err := cephClient.IsClusterClean(r.context.ClusterdContext, clusterInfo)
 	if err != nil {
 		maxUnavailable := int32(0)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
-		err = r.client.Update(context.TODO(), mdb)
+		err = r.client.Update(r.context.OpManagerContext, mdb)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to update mdb %s", mdb.GetName())
 		}
@@ -148,14 +148,14 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 	if isClean && *mdb.Spec.MaxUnavailable != 1 {
 		maxUnavailable := int32(1)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
-		err = r.client.Update(context.TODO(), mdb)
+		err = r.client.Update(r.context.OpManagerContext, mdb)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to update mdb %s", mdb.GetName())
 		}
 	} else if !isClean && *mdb.Spec.MaxUnavailable != 0 {
 		maxUnavailable := int32(0)
 		mdb.Spec.MaxUnavailable = &maxUnavailable
-		err = r.client.Update(context.TODO(), mdb)
+		err = r.client.Update(r.context.OpManagerContext, mdb)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to update mdb %s", mdb.GetName())
 		}

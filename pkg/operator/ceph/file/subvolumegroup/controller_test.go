@@ -217,7 +217,7 @@ func TestCephClientController(t *testing.T) {
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
-		err = csi.CreateCsiConfigMap(namespace, c.Clientset, ownerInfo)
+		err = csi.CreateCsiConfigMap(ctx, namespace, c.Clientset, ownerInfo)
 		assert.NoError(t, err)
 
 		res, err := r.Reconcile(ctx, req)
@@ -264,7 +264,7 @@ func TestCephClientController(t *testing.T) {
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
-		err := csi.CreateCsiConfigMap(namespace, c.Clientset, ownerInfo)
+		err := csi.CreateCsiConfigMap(ctx, namespace, c.Clientset, ownerInfo)
 		assert.NoError(t, err)
 
 		res, err := r.Reconcile(ctx, req)

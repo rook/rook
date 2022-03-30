@@ -448,15 +448,16 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 
 func TestHasNodeDrained(t *testing.T) {
 	osdPOD := fakeOSDPod(0, nodeName)
+	ctx := context.TODO()
 	// Not expecting node drain because OSD pod is assigned to a schedulable node
 	r := getFakeReconciler(t, nodeObj, osdPOD.DeepCopy(), &corev1.ConfigMap{})
-	expected, err := hasOSDNodeDrained(r.client, namespace, "0")
+	expected, err := hasOSDNodeDrained(ctx, r.client, namespace, "0")
 	assert.NoError(t, err)
 	assert.False(t, expected)
 
 	// Expecting node drain because OSD pod is assigned to an unschedulable node
 	r = getFakeReconciler(t, unschedulableNodeObj, osdPOD.DeepCopy(), &corev1.ConfigMap{})
-	expected, err = hasOSDNodeDrained(r.client, namespace, "0")
+	expected, err = hasOSDNodeDrained(ctx, r.client, namespace, "0")
 	assert.NoError(t, err)
 	assert.True(t, expected)
 
@@ -464,7 +465,7 @@ func TestHasNodeDrained(t *testing.T) {
 	osdPodObj := osdPOD.DeepCopy()
 	osdPodObj.Spec.NodeName = ""
 	r = getFakeReconciler(t, nodeObj, osdPodObj, &corev1.ConfigMap{})
-	expected, err = hasOSDNodeDrained(r.client, namespace, "0")
+	expected, err = hasOSDNodeDrained(ctx, r.client, namespace, "0")
 	assert.NoError(t, err)
 	assert.True(t, expected)
 }

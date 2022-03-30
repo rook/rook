@@ -70,7 +70,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 
 	// Fetch list of osd pods for the requested ceph cluster
 	pods := &corev1.PodList{}
-	err := r.client.List(context.TODO(), pods, client.InNamespace(request.Namespace),
+	err := r.client.List(r.options.OpManagerContext, pods, client.InNamespace(request.Namespace),
 		client.MatchingLabels{k8sutil.AppAttr: osd.AppName, k8sutil.ClusterAttr: request.Name})
 	if err != nil {
 		return reconcile.Result{}, err
@@ -78,7 +78,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 
 	// Fetching the cephCluster
 	cephClusterInstance := &cephv1.CephCluster{}
-	err = r.client.Get(context.TODO(), request.NamespacedName, cephClusterInstance)
+	err = r.client.Get(r.options.OpManagerContext, request.NamespacedName, cephClusterInstance)
 	if kerrors.IsNotFound(err) {
 		logger.Infof("cephCluster instance not found for %s", request.NamespacedName)
 		return reconcile.Result{}, nil
@@ -94,7 +94,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 
 	// Fetch list of machines available
 	machines := &mapiv1.MachineList{}
-	err = r.client.List(context.TODO(), machines, client.InNamespace(cephClusterInstance.Spec.DisruptionManagement.MachineDisruptionBudgetNamespace))
+	err = r.client.List(r.options.OpManagerContext, machines, client.InNamespace(cephClusterInstance.Spec.DisruptionManagement.MachineDisruptionBudgetNamespace))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed tp fetch machine list")
 	}
@@ -128,7 +128,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 			labels[MachineFencingLabelKey] = request.Name
 			labels[MachineFencingNamespaceLabelKey] = request.Namespace
 			machine.RawMachine.SetLabels(labels)
-			err = r.client.Update(context.TODO(), &machine.RawMachine)
+			err = r.client.Update(r.options.OpManagerContext, &machine.RawMachine)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to update machine %s", machine.RawMachine.GetName())
 			}
@@ -140,7 +140,7 @@ func (r *ReconcileMachineLabel) reconcile(request reconcile.Request) (reconcile.
 			labels[MachineFencingLabelKey] = ""
 			labels[MachineFencingNamespaceLabelKey] = ""
 			machine.RawMachine.SetLabels(labels)
-			err = r.client.Update(context.TODO(), &machine.RawMachine)
+			err = r.client.Update(r.options.OpManagerContext, &machine.RawMachine)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to update machine %s", machine.RawMachine.GetName())
 			}

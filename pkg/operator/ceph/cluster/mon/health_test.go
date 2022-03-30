@@ -63,7 +63,7 @@ func TestCheckHealth(t *testing.T) {
 		Executor:  executor,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	// clusterInfo is nil so we return err
 	err := c.checkHealth(ctx)
 	assert.NotNil(t, err)
@@ -151,7 +151,7 @@ func TestCheckHealth(t *testing.T) {
 }
 
 func TestSkipMonFailover(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
+	c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	monName := "arb"
 
@@ -196,7 +196,7 @@ func TestEvictMonOnSameNode(t *testing.T) {
 	}
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0}, "myversion")
 	c.maxMonID = 2
 	c.waitForStart = false
@@ -251,7 +251,7 @@ func TestScaleMonDeployment(t *testing.T) {
 	clientset := test.New(t, 1)
 	context := &clusterd.Context{Clientset: clientset}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 1, cephv1.MonSpec{Count: 0, AllowMultiplePerNode: true}, "myversion")
 
 	name := "a"
@@ -301,7 +301,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		Executor:  executor,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 
@@ -362,7 +362,7 @@ func TestAddRemoveMons(t *testing.T) {
 		Executor:  executor,
 	}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	c := New(context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
 	c.maxMonID = 0 // "a" is max mon id
 	c.waitForStart = false

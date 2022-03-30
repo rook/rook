@@ -30,9 +30,9 @@ import (
 )
 
 // updateStatus updates a pool CR with the given status
-func updateStatus(client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, info map[string]string, observedGeneration int64) {
+func updateStatus(ctx context.Context, client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, info map[string]string, observedGeneration int64) {
 	pool := &cephv1.CephBlockPool{}
-	err := client.Get(context.TODO(), poolName, pool)
+	err := client.Get(ctx, poolName, pool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")

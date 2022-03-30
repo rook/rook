@@ -17,7 +17,6 @@ limitations under the License.
 package clusterdisruption
 
 import (
-	"context"
 	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,7 +39,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	poolSpecs := make([]cephv1.PoolSpec, 0)
 	poolCount := 0
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
-	err := r.client.List(context.TODO(), cephBlockPoolList, namespaceListOpt)
+	err := r.client.List(r.context.OpManagerContext, cephBlockPoolList, namespaceListOpt)
 	if err != nil {
 		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephBlockpools %v", request.NamespacedName)
 	}
@@ -50,7 +49,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	}
 
 	cephFilesystemList := &cephv1.CephFilesystemList{}
-	err = r.client.List(context.TODO(), cephFilesystemList, namespaceListOpt)
+	err = r.client.List(r.context.OpManagerContext, cephFilesystemList, namespaceListOpt)
 	if err != nil {
 		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephFilesystems %v", request.NamespacedName)
 	}
@@ -64,7 +63,7 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	}
 
 	cephObjectStoreList := &cephv1.CephObjectStoreList{}
-	err = r.client.List(context.TODO(), cephObjectStoreList, namespaceListOpt)
+	err = r.client.List(r.context.OpManagerContext, cephObjectStoreList, namespaceListOpt)
 	if err != nil {
 		return nil, nil, "", poolCount, errors.Wrapf(err, "could not list the CephObjectStores %v", request.NamespacedName)
 	}

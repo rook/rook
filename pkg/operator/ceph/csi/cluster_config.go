@@ -155,8 +155,7 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 // CreateCsiConfigMap creates an empty config map that will be later used
 // to provide cluster configuration to ceph-csi. If a config map already
 // exists, it will return it.
-func CreateCsiConfigMap(namespace string, clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo) error {
-	ctx := context.TODO()
+func CreateCsiConfigMap(ctx context.Context, namespace string, clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo) error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ConfigName,
