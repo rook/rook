@@ -539,7 +539,7 @@ func (r *ReconcileCephObjectStore) startMonitoring(objectstore *cephv1.CephObjec
 	}
 
 	logger.Infof("starting rgw health checker for CephObjectStore %q", namespacedName.String())
-	go rgwChecker.checkObjectStore(r.objectStoreContexts[channelKey].internalCtx)
+	go rgwChecker.checkObjectStore(r.objectStoreContexts, channelKey)
 
 	// Set the monitoring flag so we don't start more than one go routine
 	r.objectStoreContexts[channelKey].started = true

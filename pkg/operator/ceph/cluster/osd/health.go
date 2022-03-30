@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"context"
 	"fmt"
 	"reflect"
 	"time"
@@ -26,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -69,16 +69,23 @@ func NewOSDHealthMonitor(context *clusterd.Context, clusterInfo *client.ClusterI
 }
 
 // Start runs monitoring logic for osds status at set intervals
-func (m *OSDHealthMonitor) Start(context context.Context) {
+func (m *OSDHealthMonitor) Start(monitoringRoutines map[string]*opcontroller.ClusterHealth, daemon string) {
 
 	for {
+		// We must perform this check otherwise the case will check an index that does not exist anymore and
+		// we will get an invalid pointer error and the go routine will panic
+		if _, ok := monitoringRoutines[daemon]; !ok {
+			logger.Infof("ceph cluster %q has been deleted. stopping monitoring of OSDs", m.clusterInfo.Namespace)
+			return
+		}
 		select {
 		case <-time.After(*m.interval):
 			logger.Debug("checking osd processes status.")
 			m.checkOSDHealth()
 
-		case <-context.Done():
+		case <-monitoringRoutines[daemon].InternalCtx.Done():
 			logger.Infof("stopping monitoring of OSDs in namespace %q", m.clusterInfo.Namespace)
+			delete(monitoringRoutines, daemon)
 			return
 		}
 	}

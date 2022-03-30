@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -102,9 +103,15 @@ func TestOSDHealthCheck(t *testing.T) {
 
 func TestMonitorStart(t *testing.T) {
 	context, cancel := context.WithCancel(context.TODO())
+	monitoringRoutines := make(map[string]*opcontroller.ClusterHealth)
+	monitoringRoutines["osd"] = &opcontroller.ClusterHealth{
+		InternalCtx:    context,
+		InternalCancel: cancel,
+	}
+
 	osdMon := NewOSDHealthMonitor(&clusterd.Context{}, client.AdminTestClusterInfo("ns"), true, cephv1.CephClusterHealthCheckSpec{})
 	logger.Infof("starting osd monitor")
-	go osdMon.Start(context)
+	go osdMon.Start(monitoringRoutines, "osd")
 	cancel()
 }
 
