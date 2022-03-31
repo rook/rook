@@ -17,7 +17,6 @@ limitations under the License.
 package object
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -88,20 +87,27 @@ func newBucketChecker(
 }
 
 // checkObjectStore periodically checks the health of the cluster
-func (c *bucketChecker) checkObjectStore(context context.Context) {
+func (c *bucketChecker) checkObjectStore(objectStoreContexts map[string]*objectStoreHealth, channelKey string) {
 	// check the object store health immediately before starting the loop
 	err := c.checkObjectStoreHealth()
 	if err != nil {
-		updateStatusBucket(context, c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
+		updateStatusBucket(c.objContext.clusterInfo.Context, c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
 		logger.Debugf("failed to check rgw health for object store %q. %v", c.namespacedName.Name, err)
 	}
 
 	for {
+		// We must perform this check otherwise the case will check an index that does not exist anymore and
+		// we will get an invalid pointer error and the go routine will panic
+		if _, ok := objectStoreContexts[channelKey]; !ok {
+			logger.Infof("object store %q has been deleted. stopping monitoring of rgw endpoints", c.namespacedName.Name)
+			return
+		}
 		select {
-		case <-context.Done():
+		case <-objectStoreContexts[channelKey].internalCtx.Done():
 			// purge bucket and s3 user
 			// Needed for external mode where in converged everything goes away with the CR deletion
 			c.cleanupHealthCheck()
+			delete(objectStoreContexts, channelKey)
 			logger.Infof("stopping monitoring of rgw endpoints for object store %q", c.namespacedName.Name)
 			return
 
@@ -109,7 +115,7 @@ func (c *bucketChecker) checkObjectStore(context context.Context) {
 			logger.Debugf("checking rgw health of object store %q", c.namespacedName.Name)
 			err := c.checkObjectStoreHealth()
 			if err != nil {
-				updateStatusBucket(context, c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
+				updateStatusBucket(c.objContext.clusterInfo.Context, c.client, c.namespacedName, cephv1.ConditionFailure, err.Error())
 				logger.Debugf("failed to check rgw health for object store %q. %v", c.namespacedName.Name, err)
 			}
 		}

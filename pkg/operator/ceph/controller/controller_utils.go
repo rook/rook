@@ -42,6 +42,12 @@ type OperatorConfig struct {
 	Parameters        map[string]string
 }
 
+// ClusterHealth is passed to the various monitoring go routines to stop them when the context is cancelled
+type ClusterHealth struct {
+	InternalCtx    context.Context
+	InternalCancel context.CancelFunc
+}
+
 const (
 	// OperatorSettingConfigMapName refers to ConfigMap that configures rook ceph operator
 	OperatorSettingConfigMapName string = "rook-ceph-operator-config"
