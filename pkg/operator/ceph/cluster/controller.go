@@ -375,8 +375,12 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 		// since the op manager context is cancelled.
 		// close the goroutines watching the health of the cluster (mons, osds, ceph status)
 		for _, daemon := range monitorDaemonList {
-			if monitoring, ok := cluster.monitoringRoutines[daemon]; ok && monitoring.internalCtx.Err() == nil { // if the context hasn't been cancelled
-				cluster.monitoringRoutines[daemon].internalCancel()
+			if monitoring, ok := cluster.monitoringRoutines[daemon]; ok && monitoring.InternalCtx.Err() == nil { // if the context hasn't been cancelled
+				// Stop the monitoring routine
+				cluster.monitoringRoutines[daemon].InternalCancel()
+
+				// Remove the monitoring routine from the map
+				delete(cluster.monitoringRoutines, daemon)
 			}
 		}
 	}
