@@ -15,57 +15,6 @@ pull_request_rules:
       comment:
         message: Hi @{{author}}, this pull request was opened against a release branch, is it expected? Normally patches should go in the master branch first and then be backported to release branches.
 
-  # automerge on master only under certain strict conditions
-  - name: automerge merge master with specific label and approvals with code change
-    conditions:
-      - author=mergify[bot]
-      - base=master
-      - "#approved-reviews-by>=1"
-      - "#changes-requested-reviews-by=0"
-      - label!=do-not-merge
-      - label=ready-to-merge
-      - 'check-success=DCO'
-      - 'check-success=canary'
-      - 'check-success=unittests'
-      - 'check-success=golangci-lint'
-      - 'check-success=codegen'
-      - 'check-success=lint'
-      - 'check-success=modcheck'
-      - 'check-success=pvc'
-      - 'check-success=pvc-db'
-      - 'check-success=pvc-db-wal'
-      - 'check-success=encryption-pvc'
-      - 'check-success=encryption-pvc-db'
-      - 'check-success=encryption-pvc-db-wal'
-      - 'check-success=encryption-pvc-kms-vault-token-auth'
-      - 'check-success=TestCephSmokeSuite'
-      - 'check-success=TestCephHelmSuite'
-      - 'check-success=TestCephMultiClusterDeploySuite'
-      - 'check-success=TestCephUpgradeSuite'
-      - 'check-success=TestCephObjectSuite'
-    actions:
-      merge:
-        method: merge
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
-  - name: automerge merge master with specific label and approvals without code change
-    conditions:
-      - author=mergify[bot]
-      - base=master
-      - "#approved-reviews-by>=1"
-      - "#changes-requested-reviews-by=0"
-      - label!=do-not-merge
-      - label=ready-to-merge
-      - 'check-success=lint'
-      - 'check-success=DCO'
-      - 'check-success=build'
-    actions:
-      merge:
-        method: merge
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
   # release-1.6 branch
   - name: automerge backport release-1.6
     conditions:
