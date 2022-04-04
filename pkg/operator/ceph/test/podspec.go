@@ -67,10 +67,10 @@ func NewPodSpecTester(t *testing.T, spec *v1.PodSpec) *PodSpecTester {
 func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 	daemonType, daemonID string,
 ) {
-	// #nosec because of the word `Secret`
+	//nolint:gosec // because of the word `Secret`
 	keyringSecretName := fmt.Sprintf("rook-ceph-%s-%s-keyring", daemonType, daemonID)
 	if daemonType == config.MonType {
-		// #nosec because of the word `Secret`
+		//nolint:gosec // because of the word `Secret`
 		keyringSecretName = "rook-ceph-mons-keyring"
 	}
 	// CephFS mirror has no index so the daemon name is just "rook-ceph-fs-mirror"

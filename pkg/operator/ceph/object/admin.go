@@ -95,7 +95,7 @@ func (c *debugHTTPClient) Do(req *http.Request) (*http.Response, error) {
 
 const (
 	// RGWAdminOpsUserSecretName is the secret name of the admin ops user
-	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret name
+	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the secret name
 	RGWAdminOpsUserSecretName = "rgw-admin-ops-user"
 	rgwAdminOpsUserAccessKey  = "accessKey"
 	rgwAdminOpsUserSecretKey  = "secretKey"
