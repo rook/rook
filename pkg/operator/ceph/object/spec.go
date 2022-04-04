@@ -40,7 +40,7 @@ import (
 
 const (
 	readinessProbePath = "/swift/healthcheck"
-	// #nosec G101 since this is not leaking any hardcoded details
+	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
 

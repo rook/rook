@@ -61,7 +61,7 @@ const (
 
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
-	// OperatorCreds is the name of the secret
+	//nolint:gosec // OperatorCreds is the name of the secret
 	OperatorCreds     = "rook-ceph-operator-creds"
 	monClusterAttr    = "mon_cluster"
 	fsidSecretNameKey = "fsid"

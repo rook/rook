@@ -59,7 +59,7 @@ func readManifestFromURL(url string) string {
 	var response *http.Response
 	var err error
 	for i := 1; i <= 3; i++ {
-		// #nosec G107 This is only test code and is expected to read from a url
+		//nolint:gosec // // This is only test code and is expected to read from a url
 		response, err = http.Get(url)
 		if err != nil {
 			if i == 3 {
