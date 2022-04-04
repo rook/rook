@@ -239,17 +239,18 @@ EOF
 
 ### PUT or GET an object
 
-Upload a file to the newly created bucket
+Upload a file to the newly created bucket. Since we defined the bucket name to be generated and not hardcoded we would need to fetch it before we upload the object.
 
 ```console
+export BUCKET_NAME=$(kubectl get objectbucketclaim ceph-bucket -o jsonpath='{.spec.bucketName}')
 echo "Hello Rook" > /tmp/rookObj
-s5cmd --endpoint-url http://$AWS_ENDPOINT cp /tmp/rookObj s3://rookbucket
+s5cmd --endpoint-url http://"$AWS_ENDPOINT" cp /tmp/rookObj s3://"$BUCKET_NAME"
 ```
 
 Download and verify the file from the bucket
 
 ```console
-s5cmd --endpoint-url http://$AWS_ENDPOINT cp s3://rookbucket/rookObj /tmp/rookObj-download
+s5cmd --endpoint-url http://"$AWS_ENDPOINT" cp s3://"$BUCKET_NAME"/rookObj /tmp/rookObj-download
 cat /tmp/rookObj-download
 ```
 
