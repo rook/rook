@@ -21,7 +21,7 @@ import (
 	"context"
 	"crypto/hmac"
 
-	// #nosec G505 sha1 is needed for v2 signatures
+	//nolint:gosec // sha1 is needed for v2 signatures
 	"crypto/sha1"
 	"encoding/base64"
 	"net/http"
