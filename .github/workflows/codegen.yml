@@ -19,6 +19,7 @@ defaults:
 jobs:
   codegen:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - uses: actions/setup-go@v2
       with:

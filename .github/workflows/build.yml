@@ -10,6 +10,7 @@ defaults:
 jobs:
   macos-build:
     runs-on: macos-10.15
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
     - name: checkout
       uses: actions/checkout@v2
@@ -69,6 +70,7 @@ jobs:
 
   linux-build-all:
     runs-on: ubuntu-18.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       fail-fast: false
       matrix:
