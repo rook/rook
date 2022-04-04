@@ -160,13 +160,13 @@ const (
 	ns = "rook-ceph-primary"
 )
 
-// #nosec G101 fake token for peer cluster "peer1"
+//nolint:gosec // fake token for peer cluster "peer1"
 var fakeTokenPeer1 = "eyJmc2lkIjoiOWY1MjgyZGItYjg5OS00NTk2LTgwOTgtMzIwYzFmYzM5NmYzIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBUnczOWQwdkhvQmhBQVlMM1I4RmR5dHNJQU50bkFTZ0lOTVE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMS4zOjY4MjAsdjE6MTkyLjE2OC4xLjM6NjgyMV0iLCAibmFtZXNwYWNlIjogInBlZXIxIn0="
 
-// #nosec G101 fake token for peer cluster "peer2"
+//nolint:gosec // fake token for peer cluster "peer2"
 var fakeTokenPeer2 = "eyJmc2lkIjoiOWY1MjgyZGItYjg5OS00NTk2LTgwOTgtMzIwYzFmYzM5NmYzIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBUnczOWQwdkhvQmhBQVlMM1I4RmR5dHNJQU50bkFTZ0lOTVE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMS4zOjY4MjAsdjE6MTkyLjE2OC4xLjM6NjgyMV0iLCAibmFtZXNwYWNlIjogInBlZXIyIn0="
 
-// #nosec G101 fake token for peer cluster "peer3"
+//nolint:gosec // fake token for peer cluster "peer3"
 var fakeTokenPeer3 = "eyJmc2lkIjoiOWY1MjgyZGItYjg5OS00NTk2LTgwOTgtMzIwYzFmYzM5NmYzIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBUnczOWQwdkhvQmhBQVlMM1I4RmR5dHNJQU50bkFTZ0lOTVE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMS4zOjY4MjAsdjE6MTkyLjE2OC4xLjM6NjgyMV0iLCAibmFtZXNwYWNlIjogInBlZXIzIn0="
 
 var peer1Secret = corev1.Secret{

@@ -235,7 +235,7 @@ func TerminateFatal(reason error) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
 	} else {
-		// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
+		//nolint:gosec // Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 		defer file.Close()
 		if _, err = file.WriteString(reason.Error()); err != nil {
 			fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))

@@ -39,7 +39,12 @@ import (
 
 const (
 	readinessProbePath = "/swift/healthcheck"
+<<<<<<< HEAD
 	// #nosec G101 since this is not leaking any hardcoded details
+=======
+	serviceAccountName = "rook-ceph-rgw"
+	//nolint:gosec // since this is not leaking any hardcoded details
+>>>>>>> 24802c559 (core: fix golangci linter)
 	setupVaultTokenFile = `
 set -e
 

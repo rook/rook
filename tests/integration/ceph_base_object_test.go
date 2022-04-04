@@ -41,6 +41,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+<<<<<<< HEAD
+=======
+const (
+	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the secret name
+	objectTLSSecretName = "rook-ceph-rgw-tls-test-store-csr"
+)
+
+>>>>>>> 24802c559 (core: fix golangci linter)
 var (
 	userid                 = "rook-user"
 	userdisplayname        = "A rook RGW user"

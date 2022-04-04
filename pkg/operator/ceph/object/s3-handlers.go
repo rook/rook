@@ -199,7 +199,7 @@ func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, err
 }
 
 func BuildTransportTLS(tlsCert []byte, insecure bool) *http.Transport {
-	// #nosec G402 is enabled only for testing
+	//nolint:gosec // is enabled only for testing
 	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: insecure}
 	if len(tlsCert) > 0 {
 		caCertPool := x509.NewCertPool()

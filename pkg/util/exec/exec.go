@@ -76,7 +76,7 @@ func (*CommandExecutor) ExecuteCommandWithEnv(env []string, command string, arg 
 // ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.
 func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
-	// #nosec G204 Rook controls the input to the exec arguments
+	//nolint:gosec // Rook controls the input to the exec arguments
 	cmd := exec.Command(command, arg...)
 
 	var b bytes.Buffer
@@ -129,7 +129,7 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command
 // ExecuteCommandWithOutput executes a command with output
 func (*CommandExecutor) ExecuteCommandWithOutput(command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
-	// #nosec G204 Rook controls the input to the exec arguments
+	//nolint:gosec // Rook controls the input to the exec arguments
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(cmd, false)
 }
@@ -137,7 +137,7 @@ func (*CommandExecutor) ExecuteCommandWithOutput(command string, arg ...string) 
 // ExecuteCommandWithCombinedOutput executes a command with combined output
 func (*CommandExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
-	// #nosec G204 Rook controls the input to the exec arguments
+	//nolint:gosec // Rook controls the input to the exec arguments
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(cmd, true)
 }
@@ -232,7 +232,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(command, outfileArg string,
 func startCommand(env []string, command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
 	logCommand(command, arg...)
 
-	// #nosec G204 Rook controls the input to the exec arguments
+	//nolint:gosec // Rook controls the input to the exec arguments
 	cmd := exec.Command(command, arg...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
