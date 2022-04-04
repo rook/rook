@@ -925,7 +925,7 @@ func readCVLogContent(cvLogFilePath string) string {
 		logger.Errorf("failed to open ceph-volume log file %q. %v", cvLogFilePath, err)
 		return ""
 	}
-	// #nosec G307 Calling defer to close the file without checking the error return is not a risk for a simple file open and close
+	//nolint:gosec // Calling defer to close the file without checking the error return is not a risk for a simple file open and close
 	defer cvLogFile.Close()
 
 	// Read c-v log file
