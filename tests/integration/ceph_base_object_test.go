@@ -39,7 +39,7 @@ import (
 )
 
 const (
-	// #nosec G101 since this is not leaking any hardcoded credentials, it's just the secret name
+	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the secret name
 	objectTLSSecretName = "rook-ceph-rgw-tls-test-store-csr"
 )
 

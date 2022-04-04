@@ -203,7 +203,7 @@ func put(v secrets.Secrets, secretName, secretValue string, keyContext map[strin
 	data := make(map[string]interface{})
 	data[secretName] = secretValue
 
-	// #nosec G104 Write the encryption key in Vault
+	//nolint:gosec // Write the encryption key in Vault
 	err = v.PutSecret(secretName, data, keyContext)
 	if err != nil {
 		return errors.Wrapf(err, "failed to put secret %q in vault", secretName)
@@ -213,7 +213,7 @@ func put(v secrets.Secrets, secretName, secretValue string, keyContext map[strin
 }
 
 func get(v secrets.Secrets, secretName string, keyContext map[string]string) (string, error) {
-	// #nosec G104 Write the encryption key in Vault
+	//nolint:gosec // Write the encryption key in Vault
 	s, err := v.GetSecret(secretName, keyContext)
 	if err != nil {
 		return "", err
@@ -223,7 +223,7 @@ func get(v secrets.Secrets, secretName string, keyContext map[string]string) (st
 }
 
 func deleteSecret(v secrets.Secrets, secretName string, keyContext map[string]string) error {
-	// #nosec G104 Write the encryption key in Vault
+	//nolint:gosec // Write the encryption key in Vault
 	err := v.DeleteSecret(secretName, keyContext)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete secret %q in vault", secretName)
