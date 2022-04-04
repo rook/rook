@@ -34,7 +34,7 @@ const (
 )
 
 var (
-	binPathsToCheck = []string{"/usr/sbin", "/sbin/"}
+	binPathsToCheck = []string{"/usr/sbin", "/sbin/", "/run/current-system/sw/bin", "/run/current-system/sw/sbin"}
 )
 
 // NSEnter is an nsenter object
