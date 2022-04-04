@@ -45,4 +45,16 @@ metadata:
   name: rook-ceph-purge-osd
   namespace: {{ .Release.Namespace }} # namespace:cluster
 {{ include "library.imagePullSecrets" . }}
+---
+# Service account for RGW server
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-rgw
+  namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+    {{- include "library.rook-ceph.labels" . | nindent 4 }}
+{{ include "library.imagePullSecrets" . }}
 {{ end }}
