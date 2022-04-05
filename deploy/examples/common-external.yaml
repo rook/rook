@@ -1,5 +1,5 @@
 ###################################################################################################################
-# Create the common resources that are necessary to start start an external Ceph cluster in a different namespace
+# Create the common resources that are necessary to start an external Ceph cluster in a different namespace
 # These resources can be created after an operator that is already running but assumes common.yaml has been injected
 # The samples all assume that your existing operator running "rook-ceph" namespace will also watch and have permissions
 # to interact with an external cluster configured in "rook-ceph-external" cluster.

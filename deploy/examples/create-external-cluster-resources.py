@@ -869,7 +869,7 @@ class RadosJSON:
             if self._arg_parser.dry_run:
                 self.create_rgw_admin_ops_user()
             else:
-                self.out_map['ACCESS_KEY'], self.out_map['SECRET_KEY'] = self.create_rgw_admin_ops_user()
+                self.out_map['RGW_ADMIN_OPS_USER_ACCESS_KEY'], self.out_map['RGW_ADMIN_OPS_USER_SECRET_KEY'] = self.create_rgw_admin_ops_user()
             if self._arg_parser.rgw_tls_cert_path:
                 self.out_map['RGW_TLS_CERT'] = self.validate_rgw_endpoint_tls_cert()
 
@@ -1077,8 +1077,8 @@ class RadosJSON:
                     "name": "rgw-admin-ops-user",
                     "kind": "Secret",
                     "data": {
-                        "accessKey": self.out_map['ACCESS_KEY'],
-                        "secretKey": self.out_map['SECRET_KEY']
+                        "accessKey": self.out_map['RGW_ADMIN_OPS_USER_ACCESS_KEY'],
+                        "secretKey": self.out_map['RGW_ADMIN_OPS_USER_SECRET_KEY']
                     }
                 })
         # if 'RGW_TLS_CERT' exists, then only add the "ceph-rgw-tls-cert" secret
