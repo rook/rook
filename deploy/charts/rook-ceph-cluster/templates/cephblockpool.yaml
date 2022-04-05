@@ -1,4 +1,5 @@
 {{- $root := . -}}
+{{- if .Values.service.cephBlockPools }}
 {{- range $blockpool := .Values.cephBlockPools -}}
 ---
 apiVersion: ceph.rook.io/v1
@@ -30,5 +31,6 @@ mountOptions:
   - {{ . }}
   {{- end }}
 {{- end }}
+{{ end }}
 {{ end }}
 {{ end }}

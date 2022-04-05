@@ -372,6 +372,12 @@ ingress:
     #   path: "/ceph-dashboard(/|$)(.*)"
     # tls:
 
+# Enable (true) or disable (false) Ceph Services
+service:
+  cephBlockPools: true
+  cephFileSystems: true
+  cephObjectStores: true
+
 cephBlockPools:
   - name: ceph-blockpool
     # see https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md#spec for available configuration

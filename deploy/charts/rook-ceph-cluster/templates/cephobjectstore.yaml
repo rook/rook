@@ -1,4 +1,5 @@
 {{- $root := . -}}
+{{- if .Values.service.cephObjectStores }}
 {{- range $objectstore := .Values.cephObjectStores -}}
 ---
 apiVersion: ceph.rook.io/v1
@@ -20,6 +21,7 @@ parameters:
   objectStoreNamespace: {{ $root.Release.Namespace }}
 {{ with $objectstore.storageClass.parameters }}
 {{ toYaml . | indent 2 }}
+{{ end }}
 {{ end }}
 {{ end }}
 {{ end }}
