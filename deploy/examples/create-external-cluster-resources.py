@@ -15,14 +15,19 @@ limitations under the License.
 '''
 
 import errno
+from inspect import signature
 import sys
 import json
 import argparse
 import re
+from tokenize import single_quoted
 import requests
 import subprocess
+import hmac
+from hashlib import sha1 as sha
 from os import linesep as LINESEP
 from os import path
+import urllib.parse
 
 ModuleNotFoundError = ImportError
 
@@ -52,6 +57,19 @@ except ModuleNotFoundError:
     # for 3.x
     from urllib.parse import urlparse
 
+py3k = False
+try:
+    from urlparse import urlparse, unquote
+    from base64 import encodestring
+except:
+    py3k = True
+    from urllib.parse import urlparse, unquote
+    from base64 import encodebytes as encodestring
+
+from email.utils import formatdate
+
+from requests.auth import AuthBase
+import requests
 
 class ExecutionFailureException(Exception):
     pass
@@ -149,6 +167,89 @@ class DummyRados(object):
     def Rados(conffile=None):
         return DummyRados()
 
+class S3Auth(AuthBase):
+
+    """Attaches AWS Authentication to the given Request object."""
+    service_base_url = 's3.amazonaws.com'
+    
+    def __init__(self, access_key, secret_key, service_url=None):
+        if service_url:
+            self.service_base_url = service_url
+        self.access_key = str(access_key)
+        self.secret_key = str(secret_key)
+
+    def __call__(self, r):
+        # Create date header if it is not created yet.
+        if 'date' not in r.headers and 'x-amz-date' not in r.headers:
+            r.headers['date'] = formatdate(
+                timeval=None,
+                localtime=False,
+                usegmt=True)
+        signature = self.get_signature(r)
+        if py3k:
+            signature = signature.decode('utf-8')
+        r.headers['Authorization'] = 'AWS %s:%s' % (self.access_key, signature)
+        return r
+
+    def get_signature(self, r):
+        canonical_string = self.get_canonical_string(
+            r.url, r.headers, r.method)
+        if py3k:
+            key = self.secret_key.encode('utf-8')
+            msg = canonical_string.encode('utf-8')
+        else:
+            key = self.secret_key
+            msg = canonical_string
+        h = hmac.new(key, msg, digestmod=sha)
+        return encodestring(h.digest()).strip()
+
+    def get_canonical_string(self, url, headers, method):
+        parsedurl = urlparse(url)
+        objectkey = parsedurl.path[1:]
+
+        bucket = parsedurl.netloc[:-len(self.service_base_url)]
+        if len(bucket) > 1:
+            # remove last dot
+            bucket = bucket[:-1]
+
+        interesting_headers = {
+            'content-md5': '',
+            'content-type': '',
+            'date': ''}
+        for key in headers:
+            lk = key.lower()
+            try:
+                lk = lk.decode('utf-8')
+            except:
+                pass
+            if headers[key] and (lk in interesting_headers.keys()
+                                 or lk.startswith('x-amz-')):
+                interesting_headers[lk] = headers[key].strip()
+
+        # If x-amz-date is used it supersedes the date header.
+        if not py3k:
+            if 'x-amz-date' in interesting_headers:
+                interesting_headers['date'] = ''
+        else:
+            if 'x-amz-date' in interesting_headers:
+                interesting_headers['date'] = ''
+
+        buf = '%s\n' % method
+        for key in sorted(interesting_headers.keys()):
+            val = interesting_headers[key]
+            if key.startswith('x-amz-'):
+                buf += '%s:%s\n' % (key, val)
+            else:
+                buf += '%s\n' % val
+
+        # append the bucket if it exists
+        if bucket != '':
+            buf += '/%s' % bucket
+
+        # add the objectkey. even if it doesn't exist, add the slash
+        buf += '/%s' % objectkey
+
+        return buf
 
 class RadosJSON:
     EXTERNAL_USER_NAME = "client.healthchecker"
@@ -331,7 +432,7 @@ class RadosJSON:
                 else:
                     r = requests.head(ep, timeout=timeout)
                 if r.status_code == 200:
-                    return
+                    return prefix
             except:
                 continue
         raise ExecutionFailureException(
@@ -768,7 +869,7 @@ class RadosJSON:
 
     def create_rgw_admin_ops_user(self):
         cmd = ['radosgw-admin', 'user', 'create', '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME, '--display-name',
-               'Rook RGW Admin Ops user', '--caps', 'buckets=*;users=*;usage=read;metadata=read;zone=read']
+               'Rook RGW Admin Ops user', '--caps', 'info=read;buckets=*;users=*;usage=read;metadata=read;zone=read']
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + " ".join(cmd))
         try:
@@ -791,9 +892,26 @@ class RadosJSON:
                 err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
                     cmd, execErr.output, execErr.returncode, execErr.stderr)
                 raise Exception(err_msg)
+        
 
+        # separately add info=read caps, because sometimes users already exited and the cap doesn't update
+        info_cap_supported = True
+        cmd = ['radosgw-admin', 'caps', 'add', '--uid', self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
+            '--caps', 'info=read']
+        try:
+            output = subprocess.check_output(cmd,
+                                            stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as execErr:
+            # if the ceph version not supported for adding `info=read` cap(rgw_validation)
+            if 'could not add caps: unable to add caps: info=read\n' in execErr.stderr.decode("utf-8") and execErr.returncode == 244:
+                info_cap_supported = False
+            else:
+                err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
+                        cmd, execErr.output, execErr.returncode, execErr.stderr)
+                raise Exception(err_msg)
+        
         jsonoutput = json.loads(output)
-        return jsonoutput["keys"][0]['access_key'], jsonoutput["keys"][0]['secret_key']
+        return jsonoutput["keys"][0]['access_key'], jsonoutput["keys"][0]['secret_key'], info_cap_supported
 
     def convert_fqdn_rgw_endpoint_to_ip(self,fqdn_rgw_endpoint):
         try:
@@ -839,7 +957,46 @@ class RadosJSON:
             raise ExecutionFailureException(
                 ("The provided rados Namespace, '{}', is not found in the pool '{}'").format(
                     rados_namespace, rbd_pool_name))
-
+    
+    def get_rgw_fsid(self):
+        access_key = self.out_map['RGW_ADMIN_OPS_USER_ACCESS_KEY']
+        secret_key = self.out_map['RGW_ADMIN_OPS_USER_SECRET_KEY']
+        rgw_endpoint = self._arg_parser.rgw_endpoint
+        cert = None
+        verify = None
+        if self._arg_parser.rgw_tls_cert_path and not self._arg_parser.rgw_skip_tls:
+            cert = self.validate_rgw_endpoint_tls_cert()
+            verify = True
+        if self._arg_parser.rgw_skip_tls:
+            verify = False
+        base_url =  self.endpoint_dial(rgw_endpoint,cert=cert) + "://"
+        base_url = base_url + rgw_endpoint + "/admin/info?"   
+        params = {'format': 'json'}
+        request_url = base_url + urllib.parse.urlencode(params)
+            
+        try:
+            r = requests.get(request_url, auth=S3Auth(access_key, secret_key,rgw_endpoint), cert=cert, verify=verify)
+        except requests.exceptions.Timeout:
+            raise ExecutionFailureException(
+                    "invalid endpoint:, not able to call admin-ops api{}".format(rgw_endpoint))
+        r1 = r.json()
+        if r1 is None or r1.get('info') is None:
+            return ""  # Invalid rgw-endpoint exception will returned by validate_rgw_endpoint()
+        
+        return r1['info']['storage_backends'][0]['cluster_id']
+            
+    def validate_rgw_endpoint(self):
+        # if the 'cluster' instance is a dummy one,
+        # don't try to reach out to the endpoint
+        if isinstance(self.cluster, DummyRados):
+            return
+        fsid = self.get_fsid()
+        rgw_fsid = self.get_rgw_fsid()
+        if fsid != rgw_fsid:
+            raise ExecutionFailureException(
+                ("The provided rgw Endpoint, '{}', is invalid. We are validating by calling the adminops api through rgw-endpoint and validating the cluster_id '{}' is equal to the ceph cluster fsid '{}'").format(
+                    self._arg_parser.rgw_endpoint,rgw_fsid,fsid))
+    
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -882,7 +1039,9 @@ class RadosJSON:
             if self._arg_parser.dry_run:
                 self.create_rgw_admin_ops_user()
             else:
-                self.out_map['RGW_ADMIN_OPS_USER_ACCESS_KEY'], self.out_map['RGW_ADMIN_OPS_USER_SECRET_KEY'] = self.create_rgw_admin_ops_user()
+                self.out_map['RGW_ADMIN_OPS_USER_ACCESS_KEY'], self.out_map['RGW_ADMIN_OPS_USER_SECRET_KEY'], info_cap_supported = self.create_rgw_admin_ops_user()
+                if info_cap_supported:
+                    self.validate_rgw_endpoint()
             if self._arg_parser.rgw_tls_cert_path:
                 self.out_map['RGW_TLS_CERT'] = self.validate_rgw_endpoint_tls_cert()
 
