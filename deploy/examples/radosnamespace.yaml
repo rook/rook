@@ -1,0 +1,9 @@
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPoolRadosNamespace
+metadata:
+  name: namespace-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # blockPoolName is the name of the CephBlockPool CR where the namespace will be created.
+  blockPoolName: replicapool

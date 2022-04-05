@@ -20,6 +20,8 @@ package v1
 
 type CephBlockPoolExpansion interface{}
 
+type CephBlockPoolRadosNamespaceExpansion interface{}
+
 type CephBucketNotificationExpansion interface{}
 
 type CephBucketTopicExpansion interface{}

@@ -92,6 +92,13 @@ jobs:
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
 
+    - name: test rados namespace
+      run: |
+        kubectl create -f deploy/examples/radosnamespace.yaml
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
+        kubectl delete -f deploy/examples/radosnamespace.yaml
+
     - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')

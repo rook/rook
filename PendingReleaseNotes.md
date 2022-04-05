@@ -17,3 +17,4 @@
 * Add support for custom ceph.conf for csi pods. See #9567
 * Added and updated many Ceph prometheus rules, picked up from the ceph repo
 * Added service account rook-ceph-rgw for the RGW pods.
+* Add support for rados namespace in a ceph blockpool. See #9733
