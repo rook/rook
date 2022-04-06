@@ -23,9 +23,10 @@ import (
 )
 
 var (
-	testMinVersion         = CephCSIVersion{3, 4, 0}
+	testMinVersion         = CephCSIVersion{3, 5, 0}
 	testReleaseV340        = CephCSIVersion{3, 4, 0}
 	testReleaseV350        = CephCSIVersion{3, 5, 0}
+	testReleaseV360        = CephCSIVersion{3, 6, 0}
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
 
@@ -39,13 +40,13 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testMinVersion.isAtLeast(&testMinVersion)
 	assert.Equal(t, true, ret)
 
-	// Test version which is equal
-	ret = testReleaseV340.isAtLeast(&testReleaseV340)
-	assert.Equal(t, true, ret)
-
 	// Test for 3.5.0
 	// Test version which is lesser
 	ret = testReleaseV350.isAtLeast(&testReleaseV340)
+	assert.Equal(t, true, ret)
+
+	// Test for 3.6.0
+	ret = testReleaseV360.isAtLeast(&testReleaseV360)
 	assert.Equal(t, true, ret)
 
 }
@@ -59,9 +60,12 @@ func TestSupported(t *testing.T) {
 	assert.Equal(t, false, ret)
 
 	ret = testReleaseV340.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testReleaseV350.Supported()
+	assert.Equal(t, true, ret)
+
+	ret = testReleaseV360.Supported()
 	assert.Equal(t, true, ret)
 }
 
@@ -97,11 +101,14 @@ func TestSupportsCustomCephConf(t *testing.T) {
 
 	AllowUnsupported = false
 	ret = testMinVersion.SupportsCustomCephConf()
-	assert.False(t, ret)
+	assert.True(t, ret)
 
 	ret = testReleaseV340.SupportsCustomCephConf()
 	assert.False(t, ret)
 
 	ret = testReleaseV350.SupportsCustomCephConf()
+	assert.True(t, ret)
+
+	ret = testReleaseV360.SupportsCustomCephConf()
 	assert.True(t, ret)
 }
