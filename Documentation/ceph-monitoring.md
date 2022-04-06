@@ -10,7 +10,7 @@ indent: true
 Each Rook Ceph cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 
 If you do not have Prometheus running, follow the steps below to enable monitoring of Rook. If your cluster already
-contains a Prometheus instance, it will automatically discover Rooks scrape endpoint using the standard
+contains a Prometheus instance, it will automatically discover Rook's scrape endpoint using the standard
 `prometheus.io/scrape` and `prometheus.io/port` annotations.
 
 > **NOTE**: This assumes that the Prometheus instances is searching all your Kubernetes namespaces for Pods with these annotations.
