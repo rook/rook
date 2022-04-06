@@ -1305,7 +1305,7 @@ To determine the size of the metadata block follow the [official Ceph sizing gui
 
 With the present configuration, each OSD will have its main block allocated a 10GB device as well a 5GB device to act as a bluestore database.
 
-### External cluster
+## External cluster
 
 **The minimum supported Ceph version for the External Cluster is Luminous 12.2.x.**
 
@@ -1319,144 +1319,72 @@ The features available from the external cluster will vary depending on the vers
 
 [^1]: Configure an object store, shared filesystem, or NFS resources in the local cluster to connect to the external Ceph cluster
 
-#### Pre-requisites
+### External Cluster configuration
 
-In order to configure an external Ceph cluster with Rook, we need to inject some information in order to connect to that cluster.
-You can use the `deploy/examples/import-external-cluster.sh` script to achieve that.
-The script will look for the following populated environment variables:
+- Source cluster: The cluster providing the data, usually configured by [cephadm](https://docs.ceph.com/en/pacific/cephadm/#cephadm)
 
-* `NAMESPACE`: the namespace where the configmap and secrets should be injected
-* `ROOK_EXTERNAL_FSID`: the fsid of the external Ceph cluster, it can be retrieved via the `ceph fsid` command
-* `ROOK_EXTERNAL_CEPH_MON_DATA`: is a common-separated list of running monitors IP address along with their ports, e.g: `a=172.17.0.4:3300,b=172.17.0.5:3300,c=172.17.0.6:3300`. You don't need to specify all the monitors, you can simply pass one and the Operator will discover the rest. The name of the monitor is the name that appears in the `ceph status` output.
+- Consumer cluster: The K8s cluster that will be consuming the external source cluster
 
-Now, we need to give Rook a key to connect to the cluster in order to perform various operations such as health cluster check, CSI keys management etc...
-It is recommended to generate keys with minimal access so the admin key does not need to be used by the external cluster.
-In this case, the admin key is only needed to generate the keys that will be used by the external cluster.
-But if the admin key is to be used by the external cluster, set the following variable:
+### Commands on the source Ceph cluster
 
-* `ROOK_EXTERNAL_ADMIN_SECRET`: **OPTIONAL:** the external Ceph cluster admin secret key, it can be retrieved via the `ceph auth get-key client.admin` command.
+In order to configure an external Ceph cluster with Rook, we need to extract some information in order to connect to that cluster.
 
-> **WARNING**: If you plan to create CRs (pool, rgw, mds, nfs) in the external cluster, you **MUST** inject the client.admin keyring as well as injecting `cluster-external-management.yaml`
-
-**Example**:
+1. Run the python script [create-external-cluster-resources.py](/deploy/examples/create-external-cluster-resources.py) for creating all users and keys.
 
 ```console
-export NAMESPACE=rook-ceph-external
-export ROOK_EXTERNAL_FSID=3240b4aa-ddbc-42ee-98ba-4ea7b2a61514
-export ROOK_EXTERNAL_CEPH_MON_DATA=a=172.17.0.4:3300
-export ROOK_EXTERNAL_ADMIN_SECRET=AQC6Ylxdja+NDBAAB7qy9MEAr4VLLq4dCIvxtg==
+python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --cephfs-filesystem-name <filesystem-name> --rgw-endpoint  <rgw-endpoint> --namespace <namespace> --rgw-pool-prefix <rgw-pool-prefix> --format bash
 ```
 
-If the Ceph admin key is not provided, the following script needs to be executed on a machine that can connect to the Ceph cluster using the Ceph admin key.
-On that machine, run:
+- `--namespace`: Namespace where CephCluster will run in the consumer cluster, for example `rook-ceph-external`
+- `--format bash`: The format of the output
+- `--rbd-data-pool-name`: The name of the RBD data pool
+- `--cephfs-filesystem-name`: (optional) The name of the filesystem
+- `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>`
+- `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`.
 
-```sh
-. deploy/examples/create-external-cluster-resources.sh
-```
+2. Copy the bash output.
 
-The script will source all the necessary environment variables for you. It assumes the namespace name is `rook-ceph-external`.
-This can be changed by running the script like (assuming namespace name is `foo` this time):
-
-```sh
-ns=foo . deploy/examples/create-external-cluster-resources.sh
-```
-
-When done you can execute: `import-external-cluster.sh` to inject them in your Kubernetes cluster.
-
-> **WARNING**: Since only Ceph admin key can create CRs in the external cluster, please make sure that rgw pools have been prepared. You can get existing pools by running `ceph osd pool ls`.
-
-**Example**:
-
+Example Output:
 ```console
-ceph osd pool ls
+export ROOK_EXTERNAL_FSID=797f411a-aafe-11ec-a254-fa163e1539f5
+export ROOK_EXTERNAL_USERNAME=client.healthchecker
+export ROOK_EXTERNAL_CEPH_MON_DATA=ceph-rados-upstream-w4pdvq-node1-installer=10.0.210.83:6789
+export ROOK_EXTERNAL_USER_SECRET=AQAdm0FilZDSJxAAMucfuu/j0ZYYP4Bia8Us+w==
+export ROOK_EXTERNAL_DASHBOARD_LINK=https://10.0.210.83:8443/
+export CSI_RBD_NODE_SECRET=AQC1iDxip45JDRAAVahaBhKz1z0WW98+ACLqMQ==
+export CSI_RBD_PROVISIONER_SECRET=AQC1iDxiMM+LLhAA0PucjNZI8sG9Eh+pcvnWhQ==
+export MONITORING_ENDPOINT=10.0.210.83
+export MONITORING_ENDPOINT_PORT=9283
+export RBD_POOL_NAME=replicated_2g
+export RGW_POOL_PREFIX=default
 ```
->```
->my-store.rgw.control
->my-store.rgw.meta
->my-store.rgw.log
->my-store.rgw.buckets.index
->my-store.rgw.buckets.non-ec
->my-store.rgw.buckets.data
->```
 
-In this example, you can simply export RGW_POOL_PREFIX before executing the script like this:
+### Commands on the K8s consumer cluster
 
+1. Deploy Rook-Ceph, create [common.yaml](/deploy/examples/common.yaml), [crds.yaml](/deploy/examples/crds.yaml) and [operator.yaml](/deploy/examples/operator.yaml) manifests.
+
+2. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+
+3. Run the [import](/deploy/examples/import-external-cluster.sh) script.
 ```console
-export RGW_POOL_PREFIX=my-store
+. import-external-cluster.sh
 ```
 
-The script will automatically create users and keys with the lowest possible privileges and populate the necessary environment variables for `deploy/examples/import-external-cluster.sh` to work correctly.
+4. Create [common-external.yaml](/deploy/examples/common-external.yaml) and [cluster-external.yaml](/deploy/examples/cluster-external.yaml)
 
-Finally, you can simply execute the script like this from a machine that has access to your Kubernetes cluster:
-
+5. Verify the consumer cluster is connected to the source ceph cluster:
 ```console
-bash deploy/examples/import-external-cluster.sh
+kubectl -n rook-ceph-external  get CephCluster
 ```
-
-#### CephCluster example (consumer)
-
-Assuming the above section has successfully completed, here is a CR example:
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: rook-ceph-external
-  namespace: rook-ceph-external
-spec:
-  external:
-    enable: true
-  crashCollector:
-    disable: true
-  # optionally, the ceph-mgr IP address can be pass to gather metric from the prometheus exporter
-  #monitoring:
-    #enabled: true
-    #rulesNamespace: rook-ceph
-    #externalMgrEndpoints:
-      #- ip: 192.168.39.182
-    #externalMgrPrometheusPort: 9283
-```
-
-Choose the namespace carefully, if you have an existing cluster managed by Rook, you have likely already injected `common.yaml`.
-Additionally, you now need to inject `common-external.yaml` too.
-
-You can now create it like this:
-
-```console
-kubectl create -f deploy/examples/cluster-external.yaml
-```
-
-If the previous section has not been completed, the Rook Operator will still acknowledge the CR creation but will wait forever to receive connection information.
-
-> **WARNING**: If no cluster is managed by the current Rook Operator, you need to inject `common.yaml`, then modify `cluster-external.yaml` and specify `rook-ceph` as `namespace`.
-
-If this is successful you will see the CepCluster status as connected.
-
-```console
-kubectl get CephCluster -n rook-ceph-external
-```
-
 >```
 >NAME                 DATADIRHOSTPATH   MONCOUNT   AGE    STATE       HEALTH
 >rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
 >```
 
-Before you create a StorageClass with this cluster you will need to create a Pool in your external Ceph Cluster.
+### Create StorageClass
 
-#### Example StorageClass based on external Ceph Pool
-
-In Ceph Cluster let us list the pools available:
-
-```console
-rados df
-```
-
->```
->POOL_NAME     USED OBJECTS CLONES COPIES MISSING_ON_PRIMARY UNFOUND DEGRADED RD_OPS  RD WR_OPS  WR USED COMPR UNDER COMPR
->replicated_2g  0 B       0      0      0                  0       0        0      0 0 B      0 0 B        0 B         0 B
-> ```
-
-Here is an example StorageClass configuration that uses the `replicated_2g` pool from the external cluster:
+Create a StorageClass based on the pool that was already created in the source Ceph cluster.
+In this example, the pool `replicated_2g` exists in the source cluster.
 
 ```console
 cat << EOF | kubectl apply -f -
@@ -1502,11 +1430,11 @@ cat << EOF | kubectl apply -f -
 
 You can now create a persistent volume based on this StorageClass.
 
-#### CephCluster example (management)
+### CephCluster example (management)
 
 The following CephCluster CR represents a cluster that will perform management tasks on the external cluster.
 It will not only act as a consumer but will also allow the deployment of other CRDs such as CephFilesystem or CephObjectStore.
-As mentioned above, you would need to inject the admin keyring for that.
+You would need to inject the admin keyring for that.
 
 The corresponding YAML example:
 
@@ -1524,7 +1452,7 @@ spec:
     image: quay.io/ceph/ceph:v16.2.7 # Should match external cluster version
 ```
 
-### Deleting a CephCluster
+## Deleting a CephCluster
 
 During deletion of a CephCluster resource, Rook protects against accidental or premature destruction
 of user data by blocking deletion if there are any other Rook-Ceph Custom Resources that reference
@@ -1534,7 +1462,7 @@ three ways until all blocking resources are deleted:
 1. A status condition will be added to the CephCluster resource
 1. An error will be added to the Rook-Ceph Operator log
 
-#### Cleanup policy
+### Cleanup policy
 
 Rook has the ability to cleanup resources and data that were deployed when a CephCluster is removed.
 The policy settings indicate which data should be forcibly deleted and in what way the data should be wiped.
