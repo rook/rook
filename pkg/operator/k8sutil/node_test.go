@@ -389,6 +389,114 @@ func TestGenerateNodeAffinity(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "GenerateNodeAffinityWithJSONInputUsingDoesNotExistOperator",
+			args: args{
+				nodeAffinity: `{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"myKey","operator":"DoesNotExist"}]}]}}`,
+			},
+			want: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "myKey",
+									Operator: v1.NodeSelectorOpDoesNotExist,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GenerateNodeAffinityWithJSONInputUsingNotInOperator",
+			args: args{
+				nodeAffinity: `{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"myKey","operator":"NotIn","values":["myValue"]}]}]}}`,
+			},
+			want: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "myKey",
+									Operator: v1.NodeSelectorOpNotIn,
+									Values: []string{
+										"myValue",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GenerateNodeAffinityWithYAMLInputUsingDoesNotExistOperator",
+			args: args{
+				nodeAffinity: `
+--- 
+requiredDuringSchedulingIgnoredDuringExecution: 
+  nodeSelectorTerms: 
+    - 
+      matchExpressions: 
+        - 
+          key: myKey
+          operator: DoesNotExist`,
+			},
+			want: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "myKey",
+									Operator: v1.NodeSelectorOpDoesNotExist,
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "GenerateNodeAffinityWithYAMLInputUsingNotInOperator",
+			args: args{
+				nodeAffinity: `
+--- 
+requiredDuringSchedulingIgnoredDuringExecution: 
+  nodeSelectorTerms: 
+    - 
+      matchExpressions: 
+        - 
+          key: myKey
+          operator: NotIn
+          values: 
+            - myValue`,
+			},
+			want: &v1.NodeAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+					NodeSelectorTerms: []v1.NodeSelectorTerm{
+						{
+							MatchExpressions: []v1.NodeSelectorRequirement{
+								{
+									Key:      "myKey",
+									Operator: v1.NodeSelectorOpNotIn,
+									Values: []string{
+										"myValue",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

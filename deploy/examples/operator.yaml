@@ -107,7 +107,7 @@ data:
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   # ROOK_CSI_RBD_POD_LABELS: "key1=value1,key2=value2"
 
-  # (Optional) CephCSI provisioner NodeAffinity(applied to both CephFS and RBD provisioner).
+  # (Optional) CephCSI provisioner NodeAffinity (applied to both CephFS and RBD provisioner).
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
   # (Optional) CephCSI provisioner tolerations list(applied to both CephFS and RBD provisioner).
   # Put here list of taints you want to tolerate in YAML format.
@@ -119,7 +119,7 @@ data:
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
   #     operator: Exists
-  # (Optional) CephCSI plugin NodeAffinity(applied to both CephFS and RBD plugin).
+  # (Optional) CephCSI plugin NodeAffinity (applied to both CephFS and RBD plugin).
   # CSI_PLUGIN_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
   # (Optional) CephCSI plugin tolerations list(applied to both CephFS and RBD plugin).
   # Put here list of taints you want to tolerate in YAML format.
@@ -132,7 +132,7 @@ data:
   #     key: node-role.kubernetes.io/etcd
   #     operator: Exists
 
-  # (Optional) CephCSI RBD provisioner NodeAffinity(if specified, overrides CSI_PROVISIONER_NODE_AFFINITY).
+  # (Optional) CephCSI RBD provisioner NodeAffinity (if specified, overrides CSI_PROVISIONER_NODE_AFFINITY).
   # CSI_RBD_PROVISIONER_NODE_AFFINITY: "role=rbd-node"
   # (Optional) CephCSI RBD provisioner tolerations list(if specified, overrides CSI_PROVISIONER_TOLERATIONS).
   # Put here list of taints you want to tolerate in YAML format.
@@ -140,7 +140,7 @@ data:
   # CSI_RBD_PROVISIONER_TOLERATIONS: |
   #   - key: node.rook.io/rbd
   #     operator: Exists
-  # (Optional) CephCSI RBD plugin NodeAffinity(if specified, overrides CSI_PLUGIN_NODE_AFFINITY).
+  # (Optional) CephCSI RBD plugin NodeAffinity (if specified, overrides CSI_PLUGIN_NODE_AFFINITY).
   # CSI_RBD_PLUGIN_NODE_AFFINITY: "role=rbd-node"
   # (Optional) CephCSI RBD plugin tolerations list(if specified, overrides CSI_PLUGIN_TOLERATIONS).
   # Put here list of taints you want to tolerate in YAML format.
@@ -149,7 +149,7 @@ data:
   #   - key: node.rook.io/rbd
   #     operator: Exists
 
-  # (Optional) CephCSI CephFS provisioner NodeAffinity(if specified, overrides CSI_PROVISIONER_NODE_AFFINITY).
+  # (Optional) CephCSI CephFS provisioner NodeAffinity (if specified, overrides CSI_PROVISIONER_NODE_AFFINITY).
   # CSI_CEPHFS_PROVISIONER_NODE_AFFINITY: "role=cephfs-node"
   # (Optional) CephCSI CephFS provisioner tolerations list(if specified, overrides CSI_PROVISIONER_TOLERATIONS).
   # Put here list of taints you want to tolerate in YAML format.
@@ -157,8 +157,16 @@ data:
   # CSI_CEPHFS_PROVISIONER_TOLERATIONS: |
   #   - key: node.rook.io/cephfs
   #     operator: Exists
-  # (Optional) CephCSI CephFS plugin NodeAffinity(if specified, overrides CSI_PLUGIN_NODE_AFFINITY).
+  # (Optional) CephCSI CephFS plugin NodeAffinity (if specified, overrides CSI_PLUGIN_NODE_AFFINITY).
   # CSI_CEPHFS_PLUGIN_NODE_AFFINITY: "role=cephfs-node"
+  # NOTE: Support for defining NodeAffinity for operators other than "In" and "Exists" requires the user to input a
+  # valid v1.NodeAffinity JSON or YAML string. For example, the following is valid YAML v1.NodeAffinity:
+  # CSI_CEPHFS_PLUGIN_NODE_AFFINITY: |
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: myKey
+  #           operator: DoesNotExist
   # (Optional) CephCSI CephFS plugin tolerations list(if specified, overrides CSI_PLUGIN_TOLERATIONS).
   # Put here list of taints you want to tolerate in YAML format.
   # CSI plugins need to be started on all the nodes where the clients need to mount the storage.

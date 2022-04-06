@@ -19,8 +19,10 @@ package k8sutil
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sigs.k8s.io/yaml"
 	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -321,6 +323,11 @@ func RookNodesMatchingKubernetesNodes(rookStorage cephv1.StorageScopeSpec, kuber
 
 // GenerateNodeAffinity will return v1.NodeAffinity or error
 func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
+	affinity, err := evaluateJSONOrYAMLInput(nodeAffinity)
+	if err == nil {
+		return affinity, nil
+	}
+	logger.Debugf("input not a valid JSON or YAML: %s, continuing", err)
 	newNodeAffinity := &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
@@ -377,4 +384,21 @@ func GenerateNodeAffinity(nodeAffinity string) (*v1.NodeAffinity, error) {
 		}
 	}
 	return newNodeAffinity, nil
+}
+
+func evaluateJSONOrYAMLInput(nodeAffinity string) (*v1.NodeAffinity, error) {
+	var err error
+	arr := []byte(nodeAffinity)
+	if !json.Valid(arr) {
+		arr, err = yaml.YAMLToJSON(arr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to process YAML node affinity input: %v", err)
+		}
+	}
+	var affinity *v1.NodeAffinity
+	unmarshalErr := json.Unmarshal(arr, &affinity)
+	if unmarshalErr != nil {
+		return nil, fmt.Errorf("cannot unmarshal affinity: %s", unmarshalErr)
+	}
+	return affinity, nil
 }
