@@ -2,7 +2,7 @@
 
 ## Overview
 
-An object store bucket is a container holding immutable objects. The Rook-Ceph [operator](https://github.com/yard-turkey/rook/blob/master/deploy/examples/operator.yaml) creates a controller which automates the provisioning of new and existing buckets.
+An object store bucket is a container holding immutable objects. The Rook-Ceph [operator](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) creates a controller which automates the provisioning of new and existing buckets.
 
 A user requests bucket storage by creating an _ObjectBucketClaim_ (OBC). Upon detecting a new OBC, the Rook-Ceph bucket provisioner does the following:
 
