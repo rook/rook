@@ -183,6 +183,8 @@ The following commands extract key pieces of information from the secret and con
 ```bash
 #config-map, secret, OBC will part of default if no specific name space mentioned
 export AWS_HOST=$(kubectl -n default get cm ceph-bucket -o jsonpath='{.data.BUCKET_HOST}')
+export PORT=$(kubectl -n default get cm ceph-bucket -o jsonpath='{.data.BUCKET_PORT}')
+export BUCKET_NAME=$(kubectl -n default get cm ceph-bucket -o jsonpath='{.data.BUCKET_NAME}')
 export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret ceph-bucket -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
 export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret ceph-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode)
 ```
@@ -202,21 +204,21 @@ See above for retrieving the variables for a bucket created by an `ObjectBucketC
 
 ```bash
 export AWS_HOST=<host>
-export AWS_ENDPOINT=<endpoint>
+export PORT=<port>
 export AWS_ACCESS_KEY_ID=<accessKey>
 export AWS_SECRET_ACCESS_KEY=<secretKey>
 ```
 
-* `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook-ceph` cluster, it will be `rook-ceph-rgw-my-store.rook-ceph`.
-* `Endpoint`: The endpoint where the rgw service is listening. Run `kubectl -n rook-ceph get svc rook-ceph-rgw-my-store`, then combine the clusterIP and the port.
+* `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook-ceph` cluster, it will be `rook-ceph-rgw-my-store.rook-ceph.svc`.
+* `Port`: The endpoint where the rgw service is listening. Run `kubectl -n rook-ceph get svc rook-ceph-rgw-my-store`, to get the port.
 * `Access key`: The user's `access_key` as printed above
 * `Secret key`: The user's `secret_key` as printed above
 
 The variables for the user generated in this example might be:
 
 ```bash
-export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph
-export AWS_ENDPOINT=10.104.35.31:80
+export AWS_HOST=rook-ceph-rgw-my-store.rook-ceph.svc
+export PORT=80
 export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
 export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
 ```
@@ -243,13 +245,13 @@ Upload a file to the newly created bucket
 
 ```console
 echo "Hello Rook" > /tmp/rookObj
-s5cmd --endpoint-url http://$AWS_ENDPOINT cp /tmp/rookObj s3://rookbucket
+s5cmd --endpoint-url http://$AWS_HOST:$PORT cp /tmp/rookObj s3://$BUCKET_NAME
 ```
 
 Download and verify the file from the bucket
 
 ```console
-s5cmd --endpoint-url http://$AWS_ENDPOINT cp s3://rookbucket/rookObj /tmp/rookObj-download
+s5cmd --endpoint-url http://$AWS_HOST:$PORT cp s3://$BUCKET_NAME/rookObj /tmp/rookObj-download
 cat /tmp/rookObj-download
 ```
 
