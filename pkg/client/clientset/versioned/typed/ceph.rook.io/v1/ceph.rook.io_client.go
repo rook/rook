@@ -27,6 +27,7 @@ import (
 type CephV1Interface interface {
 	RESTClient() rest.Interface
 	CephBlockPoolsGetter
+	CephBlockPoolRadosNamespacesGetter
 	CephBucketNotificationsGetter
 	CephBucketTopicsGetter
 	CephClientsGetter
@@ -50,6 +51,10 @@ type CephV1Client struct {
 
 func (c *CephV1Client) CephBlockPools(namespace string) CephBlockPoolInterface {
 	return newCephBlockPools(c, namespace)
+}
+
+func (c *CephV1Client) CephBlockPoolRadosNamespaces(namespace string) CephBlockPoolRadosNamespaceInterface {
+	return newCephBlockPoolRadosNamespaces(c, namespace)
 }
 
 func (c *CephV1Client) CephBucketNotifications(namespace string) CephBucketNotificationInterface {

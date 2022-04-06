@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -409,6 +410,32 @@ func WatchControllerPredicate() predicate.Funcs {
 					return true
 				}
 				logger.Debugf("no change in CR %q", objNew.Name)
+
+			case *cephv1.CephBlockPoolRadosNamespace:
+				objNew := e.ObjectNew.(*cephv1.CephBlockPoolRadosNamespace)
+				namespacedName := fmt.Sprintf("%s/%s", objNew.Namespace, objNew.Name)
+				logger.Debugf("update event on CephBlockPoolRadosNamespace %q CR", namespacedName)
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing", namespacedName, DoNotReconcileLabelName)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec, resourceQtyComparer)
+				if diff != "" {
+					logger.Infof("CephBlockPoolRadosNamespace CR has changed for %q. diff=%s", namespacedName, diff)
+					return true
+				} else if objectToBeDeleted(objOld, objNew) {
+					logger.Debugf("CephBlockPoolRadosNamespace CR %q is going be deleted", namespacedName)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping CephBlockPoolRadosNamespace resource %q update with unchanged spec", namespacedName)
+				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
 			}
 			return false
 		},

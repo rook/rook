@@ -686,7 +686,8 @@ type CephBlockPoolStatus struct {
 	Info map[string]string `json:"info,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	ObservedGeneration int64       `json:"observedGeneration,omitempty"`
+	Conditions         []Condition `json:"conditions,omitempty"`
 }
 
 // MirroringStatusSpec is the status of the pool mirroring
@@ -2432,4 +2433,47 @@ type CephFilesystemSubVolumeGroupStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephBlockPoolRadosNamespace represents a Ceph BlockPool Rados Namespace
+// +kubebuilder:subresource:status
+type CephBlockPoolRadosNamespace struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	// Spec represents the specification of a Ceph BlockPool Rados Namespace
+	Spec CephBlockPoolRadosNamespaceSpec `json:"spec"`
+	// Status represents the status of a CephBlockPool Rados Namespace
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +optional
+	Status *CephBlockPoolRadosNamespaceStatus `json:"status,omitempty"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephBlockPoolRadosNamespaceList represents a list of Ceph BlockPool Rados Namespace
+type CephBlockPoolRadosNamespaceList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []CephBlockPoolRadosNamespace `json:"items"`
+}
+
+// CephBlockPoolRadosNamespaceSpec represents the specification of a CephBlockPool Rados Namespace
+type CephBlockPoolRadosNamespaceSpec struct {
+	// BlockPoolName is the name of Ceph BlockPool. Typically it's the name of
+	// the CephBlockPool CR.
+	BlockPoolName string `json:"blockPoolName"`
+}
+
+// CephBlockPoolRadosNamespaceStatus represents the Status of Ceph BlockPool
+// Rados Namespace
+type CephBlockPoolRadosNamespaceStatus struct {
+	// +optional
+	Phase ConditionType `json:"phase,omitempty"`
+	// +optional
+	// +nullable
+	Info map[string]string `json:"info,omitempty"`
 }

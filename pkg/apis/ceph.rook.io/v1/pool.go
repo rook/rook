@@ -118,6 +118,10 @@ func (p *CephBlockPool) ValidateDelete() error {
 	return nil
 }
 
+func (p *CephBlockPool) GetStatusConditions() *[]Condition {
+	return &p.Status.Conditions
+}
+
 // SnapshotSchedulesEnabled returns whether snapshot schedules are desired
 func (p *MirroringSpec) SnapshotSchedulesEnabled() bool {
 	return len(p.SnapshotSchedules) > 0

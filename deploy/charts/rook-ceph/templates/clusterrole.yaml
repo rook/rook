@@ -136,6 +136,7 @@ rules:
   - cephrbdmirrors
   - cephfilesystemmirrors
   - cephfilesystemsubvolumegroups
+  - cephblockpoolradosnamespaces
   verbs:
   - get
   - list
@@ -160,6 +161,7 @@ rules:
   - cephrbdmirrors/status
   - cephfilesystemmirrors/status
   - cephfilesystemsubvolumegroups/status
+  - cephblockpoolradosnamespaces/status
   verbs: ["update"]
 # The "*/finalizers" permission may need to be strictly given for K8s clusters where
 # OwnerReferencesPermissionEnforcement is enabled so that Rook can set blockOwnerDeletion on
@@ -182,6 +184,7 @@ rules:
   - cephrbdmirrors/finalizers
   - cephfilesystemmirrors/finalizers
   - cephfilesystemsubvolumegroups/finalizers
+  - cephblockpoolradosnamespaces/finalizers
   verbs: ["update"]
 - apiGroups:
   - policy

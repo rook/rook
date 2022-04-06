@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// CephBlockPools returns a CephBlockPoolInformer.
 	CephBlockPools() CephBlockPoolInformer
+	// CephBlockPoolRadosNamespaces returns a CephBlockPoolRadosNamespaceInformer.
+	CephBlockPoolRadosNamespaces() CephBlockPoolRadosNamespaceInformer
 	// CephBucketNotifications returns a CephBucketNotificationInformer.
 	CephBucketNotifications() CephBucketNotificationInformer
 	// CephBucketTopics returns a CephBucketTopicInformer.
@@ -70,6 +72,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // CephBlockPools returns a CephBlockPoolInformer.
 func (v *version) CephBlockPools() CephBlockPoolInformer {
 	return &cephBlockPoolInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephBlockPoolRadosNamespaces returns a CephBlockPoolRadosNamespaceInformer.
+func (v *version) CephBlockPoolRadosNamespaces() CephBlockPoolRadosNamespaceInformer {
+	return &cephBlockPoolRadosNamespaceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephBucketNotifications returns a CephBucketNotificationInformer.
