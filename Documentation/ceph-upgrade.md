@@ -4,6 +4,8 @@ weight: 3800
 indent: true
 ---
 
+{% include_relative branch.liquid %}
+
 # Rook-Ceph Upgrades
 
 This guide will walk you through the steps to upgrade the software in a Rook-Ceph cluster from one
@@ -267,7 +269,7 @@ In the examples given in this guide, we will be upgrading a live Rook cluster ru
 the version `v1.9.0`. This upgrade should work from any official patch release of Rook v1.8 to any
 official patch release of v1.9.
 
-**Rook release from `master` are expressly unsupported.** It is strongly recommended that you use
+**Rook releases from `master` are expressly unsupported.** It is strongly recommended that you use
 [official releases](https://github.com/rook/rook/releases) of Rook. Unreleased versions from the
 master branch are subject to changes and incompatibilities that will not be supported in the
 official releases. Builds from the master branch can have functionality changed or removed at any
@@ -310,7 +312,7 @@ kubectl apply -f common.yaml -f crds.yaml
 
 #### **Updates for optional resources**
 
-##### **Prometheus**
+#### **Prometheus**
 
 If you have [Prometheus monitoring](ceph-monitoring.md) enabled, follow the
 step to upgrade the Prometheus RBAC resources as well.
@@ -328,7 +330,7 @@ alternately deploy the rules manually if you wish.
 To see the latest information about manually deploying rules, see the
 [Prometheus monitoring docs](ceph-monitoring.md#prometheus-alets).
 
-##### **MDS liveness and startup probes**
+#### **MDS liveness and startup probes**
 
 If you configure MDS probes in the CephCluster resource, copy them to the
 [CephFilesystem `metadataServer` settings](ceph-filesystem-crd.md#metadata-server-settings) at this
@@ -421,47 +423,8 @@ updated we wait for things to settle (monitors to be in a quorum, PGs to be clea
 MDSes, etc.), then only when the condition is met we move to the next daemon. We repeat this process
 until all the daemons have been updated.
 
-### **Disable `bluestore_fsck_quick_fix_on_mount`**
-> **WARNING: There is a notice from Ceph for users upgrading to Ceph Pacific v16.2.6 or lower from
-> an earlier major version of Ceph. If you are upgrading to Ceph Pacific (v16), please upgrade to
-> v16.2.7 or higher if possible.**
-
-If you must upgrade to a version lower than v16.2.7, ensure that all instances of
-`bluestore_fsck_quick_fix_on_mount` in Rook-Ceph configs are removed.
-
-First, Ensure no references to `bluestore_fsck_quick_fix_on_mount` are present in the
-`rook-config-override` [ConfigMap](ceph-advanced-configuration.md#custom-cephconf-settings). Remove
-them if they exist.
-
-Finally, ensure no references to `bluestore_fsck_quick_fix_on_mount` are present in Ceph's internal
-configuration. Run all commands below from the [toolbox](ceph-toolbox.md).
-
-In the example below, two instances of `bluestore_fsck_quick_fix_on_mount` are present and are
-commented, and some output text has been removed for brevity.
-```sh
-ceph config-key dump
-```
-```
-{
-    "config/global/bluestore_fsck_quick_fix_on_mount": "false",       # <-- FALSE
-    "config/global/osd_scrub_auto_repair": "true",
-    "config/mgr.a/mgr/dashboard/server_port": "7000",
-    "config/mgr/mgr/balancer/active": "true",
-    "config/osd/bluestore_fsck_quick_fix_on_mount": "true",           # <-- TRUE
-}
-```
-
-Remove the configs for both with the commands below. Note how the `config/...` paths correspond to
-the output above.
-```sh
-ceph config-key rm config/global/bluestore_fsck_quick_fix_on_mount
-ceph config-key rm config/osd/bluestore_fsck_quick_fix_on_mount
-```
-
-It's best to run `ceph config-key dump` again to verify references to
-`bluestore_fsck_quick_fix_on_mount` are gone after this.
-
-See for more information, see here: https://github.com/rook/rook/issues/9185
+We recommend updating to v16.2.7 or newer. If you require updating **to v16.2.0-v16.2.6**,
+please see the [v1.8 upgrade guide for a special upgrade consideration](https://rook.github.io/docs/rook/v1.8/ceph-upgrade.html#disable-bluestore_fsck_quick_fix_on_mount).
 
 ### **Rename CephBlockPool device_health_metrics pool when upgrading to Quincy v17**
 In Ceph Quincy (v17), the `device_health_metrics` pool was renamed to `.mgr`. Ceph will perform this
@@ -469,10 +432,10 @@ migration automatically. If you do not use CephBlockPool to customize the config
 `device_health_metrics` pool, you don't need to do anything further here.
 
 If you do use CephBlockPool to customize the configuration of the `device_health_metrics` pool, you
-will need to do a few steps after the Ceph upgrade is complete. Once upgrade is complete, create a
-new CephBlockPool to configure the `.mgr` built-in pool. You can reference the example
+will need two extra steps after the Ceph upgrade is complete. Once upgrade is complete:
+1. Create a new CephBlockPool to configure the `.mgr` built-in pool. You can reference the example
 [builtin mgr pool](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/pool-builtin-mgr.yaml).
-Also delete the old CephBlockPool that represents the `device_health_metrics` pool.
+2. Delete the old CephBlockPool that represents the `device_health_metrics` pool.
 
 ### **Important consideration for CephNFS users**
 Users of CephNFS need to take additional steps to upgrade Ceph versions. Please see the
@@ -537,11 +500,9 @@ If you have a cluster running with CSI drivers enabled and you want to configure
 to use non-default CSI images, the following settings will need to be applied for the desired
 version of CSI.
 
-The operator configuration variables have recently moved from the operator deployment to the
-`rook-ceph-operator-config` ConfigMap. The values in the operator deployment can still be set,
-but if the ConfigMap settings are applied, they will override the operator deployment settings.
-The ConfigMap must exist for the operator to work correctly, even if all configuration is
-supplied through the environment.
+The operator configuration variables are found in the `rook-ceph-operator-config` ConfigMap.
+These settings can also be specified as environment variables on the operator deployment, but
+the env vars will be overridden if configmap values are specified.
 
 ```console
 kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
@@ -575,13 +536,4 @@ which CSI features are enabled.
 kubectl --namespace rook-ceph get pod -o jsonpath='{range .items[*]}{range .spec.containers[*]}{.image}{"\n"}' -l 'app in (csi-rbdplugin,csi-rbdplugin-provisioner,csi-cephfsplugin,csi-cephfsplugin-provisioner)' | sort | uniq
 ```
 
-```
-k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
-k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
-k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
-k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
-k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1
-quay.io/cephcsi/cephcsi:v3.6.0
-quay.io/csiaddons/volumereplication-operator:v0.3.0
-quay.io/csiaddons/k8s-sidecar:v0.2.1
-```
+The default images can also be found with each release in the [images list](https://github.com/rook/rook/blob/{{ branchName }}/deploy/examples/images.txt)
