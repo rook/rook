@@ -157,8 +157,8 @@ Authoring a design document for big features has many advantages:
 
 Note that writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
-A design document should be written as a markdown file in the [design folder](/design).
-You can follow the process outlined in the [design template](/design/design_template.md).
+A design document should be written as a markdown file in the [design folder](https://github.com/rook/rook/tree/master/design).
+You can follow the process outlined in the [design template](https://github.com/rook/rook/tree/master/design/design_template.md).
 You will see many examples of previous design documents in that folder.
 Submit a pull request for the design to be discussed and approved by the community before being merged into master, just like any other change to the repository.
 
