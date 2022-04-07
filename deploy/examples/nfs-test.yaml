@@ -1,19 +1,16 @@
+# This example is for Ceph v16 and above only. If you are using Ceph v15, see Rook v1.8 examples
+# from the 'release-1.8' branch
+
 apiVersion: ceph.rook.io/v1
 kind: CephNFS
 metadata:
   name: my-nfs
   namespace: rook-ceph # namespace:cluster
 spec:
-  # this setting is ignored for Ceph v16+
-  rados:
-    pool: myfs-replicated
-    namespace: nfs-ns
   # Settings for the NFS server
   server:
-    # the number of active NFS servers
     active: 1
-    # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
-    logLevel: NIV_INFO
+    logLevel: NIV_DEBUG
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
