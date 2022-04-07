@@ -3,6 +3,7 @@ title: Block Pool CRD
 weight: 2700
 indent: true
 ---
+{% include_relative branch.liquid %}
 
 # Ceph Block Pool CRD
 
