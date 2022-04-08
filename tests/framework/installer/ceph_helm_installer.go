@@ -56,13 +56,12 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 	values := map[string]interface{}{
 		"enableDiscoveryDaemon": h.settings.EnableDiscovery,
 		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
-		"monitoring":            map[string]interface{}{"enabled": true},
 	}
 	values["csi"] = map[string]interface{}{
-		"csiRBDProvisionerResource": nil,
-		"csiRBDPluginResource": nil,
+		"csiRBDProvisionerResource":    nil,
+		"csiRBDPluginResource":         nil,
 		"csiCephFSProvisionerResource": nil,
-		"csiCephFSPluginResource": nil,
+		"csiCephFSPluginResource":      nil,
 	}
 
 	// create the operator namespace before the admission controller is created
@@ -116,8 +115,8 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 	values["operatorNamespace"] = h.settings.OperatorNamespace
 	values["configOverride"] = clusterCustomSettings
 	values["toolbox"] = map[string]interface{}{
-		"enabled": true,
-		"image":   "rook/ceph:" + h.settings.RookVersion,
+		"enabled":   true,
+		"image":     "rook/ceph:" + h.settings.RookVersion,
 		"resources": nil,
 	}
 	values["monitoring"] = map[string]interface{}{

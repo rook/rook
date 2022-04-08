@@ -1,5 +1,5 @@
+# RBAC for the cluster if in a different namespace from the operator
 {{- if ne .Release.Namespace .Values.operatorNamespace -}}
-
 {{/*
 serviceaccounts
 */}}
@@ -22,20 +22,18 @@ roles
 ---
 {{ include "library.cluster.roles" . }}
 
-{{- if .Values.monitoring.enabled }}
----
-{{ include "library.cluster.monitoring.roles" . }}
-{{- end }}
-
 {{/*
 rolebindings
 */}}
 ---
 {{ include "library.cluster.rolebindings" . }}
-
-{{- if .Values.monitoring.enabled }}
----
-{{ include "library.cluster.monitoring.rolebindings" . }}
 {{- end }}
 
+
+# RBAC for monitoring if enabled
+{{- if .Values.monitoring.enabled }}
+---
+{{ include "library.cluster.monitoring.roles" . }}
+---
+{{ include "library.cluster.monitoring.rolebindings" . }}
 {{- end }}

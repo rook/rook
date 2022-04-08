@@ -96,8 +96,6 @@ A guide to how you can write your own Prometheus consoles can be found on the of
 ## Prometheus Alerts
 
 To enable the Ceph Prometheus alerts via the helm charts, set the following properties in values.yaml:
-- rook-ceph chart:
-  `monitoring.enabled: true`
 - rook-ceph-cluster chart:
   `monitoring.enabled: true`
   `monitoring.createPrometheusRules: true`
