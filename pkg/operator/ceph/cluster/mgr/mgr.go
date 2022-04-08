@@ -523,9 +523,12 @@ func (c *Cluster) DeployPrometheusRule(name, namespace string) error {
 	}
 	prometheusRule.SetName(name)
 	prometheusRule.SetNamespace(namespace)
-	err = c.clusterInfo.OwnerInfo.SetControllerReference(prometheusRule)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference to prometheus rule %q", prometheusRule.Name)
+	if namespace == c.clusterInfo.Namespace {
+		// only set the ownerref if in the same namespace
+		err = c.clusterInfo.OwnerInfo.SetControllerReference(prometheusRule)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to prometheus rule %q", prometheusRule.Name)
+		}
 	}
 	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&prometheusRule.ObjectMeta)
 	if _, err := k8sutil.CreateOrUpdatePrometheusRule(c.clusterInfo.Context, prometheusRule); err != nil {
