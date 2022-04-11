@@ -1,5 +1,5 @@
 ---
-title: RBDMirror CRD
+title: RBD Mirror CRD
 weight: 3500
 indent: true
 ---
