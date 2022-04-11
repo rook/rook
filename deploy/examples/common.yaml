@@ -568,6 +568,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["create", "get", "delete"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1046,6 +1049,15 @@ rules:
     resources:
       - cronjobs
     verbs:
+      - delete
+  - apiGroups:
+      - cert-manager.io
+    resources:
+      - certificates
+      - issuers
+    verbs:
+      - get
+      - create
       - delete
 ---
 kind: RoleBinding

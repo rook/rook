@@ -18,11 +18,11 @@ package operator
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 
+	cs "github.com/jetstack/cert-manager/pkg/client/clientset/versioned/typed/certmanager/v1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -36,29 +36,71 @@ import (
 const (
 	admissionControllerAppName       = "rook-ceph-admission-controller"
 	tlsPort                    int32 = 443
+	webhookEnv                       = "ROOK_DISABLE_ADMISSION_CONTROLLER"
 )
 
 var (
-	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
+	namespace              = os.Getenv(k8sutil.PodNamespaceEnvVar)
+	certManagerWebhookName = "cert-manager-webhook"
 )
 
-func isSecretPresent(ctx context.Context, context *clusterd.Context) (bool, error) {
+func createWebhook(ctx context.Context, context *clusterd.Context) (bool, error) {
+	certMgrClient, err := cs.NewForConfig(context.KubeConfig)
+	if err != nil {
+		logger.Errorf("failed to set config for cert-manager. %v", err)
+		return false, nil
+	}
+
+	if os.Getenv(webhookEnv) == "true" {
+		logger.Info("delete Issuer and Certificate since secret is not found")
+		if err = deleteIssuerAndCetificate(ctx, certMgrClient, context); err != nil {
+			logger.Errorf("failed to delete issuer or certificate. %v", err)
+		}
+		return false, nil
+	}
+
+	logger.Infof("Fetching webhook %s to see if cert-manager is installed.", certManagerWebhookName)
+	_, err = context.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, certManagerWebhookName, metav1.GetOptions{})
+	if err != nil {
+		logger.Info("failed to get cert manager")
+		return false, nil
+	}
+
+	issuer, err := fetchorCreateIssuer(ctx, certMgrClient)
+	if err != nil {
+		logger.Errorf("issuer creation failed %v", err)
+		return false, nil
+	}
+
+	err = fetchorCreateCertificate(ctx, certMgrClient, issuer)
+	if err != nil {
+		logger.Errorf("certificate creation failed %v", err)
+		return false, nil
+	}
+
 	logger.Infof("looking for admission webhook secret %q", admissionControllerAppName)
 	s, err := context.Clientset.CoreV1().Secrets(namespace).Get(ctx, admissionControllerAppName, metav1.GetOptions{})
 	if err != nil {
-		// If secret is not found. All good ! Proceed with rook without admission controllers
 		if apierrors.IsNotFound(err) {
+			// If secret is not found. All good ! Proceed with rook without admission controllers
+			logger.Info("delete Issuer and Certificate since secret is not found")
+			if err = deleteIssuerAndCetificate(ctx, certMgrClient, context); err != nil {
+				logger.Infof("could not delete issuer or certificate. %v", err)
+			}
 			logger.Infof("admission webhook secret %q not found. proceeding without the admission controller", admissionControllerAppName)
 			return false, nil
 		}
 		return false, err
 	}
 
-	// Search for any previous admission controller deployment and if so removing it
-	logger.Debug("searching for old admission controller deployment")
-	removeOldAdmissionControllerDeployment(ctx, context)
-
 	logger.Infof("admission webhook secret %q found", admissionControllerAppName)
+
+	err = fetchValidatingWebhookConfig(ctx, context)
+	if err != nil {
+		logger.Errorf("webhook creation failed %v", err)
+		return false, nil
+	}
+
 	for k, data := range s.Data {
 		filePath := path.Join(certDir, k)
 		// We must use 0600 mode so that the files can be overridden each time the Secret is fetched
@@ -99,26 +141,4 @@ func createWebhookService(ctx context.Context, context *clusterd.Context) error 
 	}
 
 	return nil
-}
-
-func removeOldAdmissionControllerDeployment(ctx context.Context, context *clusterd.Context) {
-	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", admissionControllerAppName)}
-	d, err := context.Clientset.AppsV1().Deployments(namespace).List(ctx, opts)
-	if err != nil {
-		logger.Warningf("failed to get old admission controller deployment. %v", err)
-		return
-	}
-
-	if len(d.Items) > 0 {
-		for _, deploy := range d.Items {
-			var gracePeriod int64
-			propagation := metav1.DeletePropagationForeground
-			deleteOpts := metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-			if err = context.Clientset.AppsV1().Deployments(namespace).Delete(ctx, deploy.Name, deleteOpts); err != nil {
-				logger.Warningf("failed to delete admission controller deployment %q. %v", deploy.Name, err)
-				return
-			}
-		}
-		logger.Info("successfully removed old admission controller deployment. please remove old service account, cluster role and bindings manually")
-	}
 }

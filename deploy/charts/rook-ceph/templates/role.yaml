@@ -44,6 +44,15 @@ rules:
   - cronjobs
   verbs:
   - delete
+- apiGroups:
+  - cert-manager.io
+  resources:
+  - certificates
+  - issuers
+  verbs:
+  - get
+  - create
+  - delete
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1

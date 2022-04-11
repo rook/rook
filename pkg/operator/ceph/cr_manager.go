@@ -183,7 +183,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 	}
 
 	// Add webhook if needed
-	isPresent, err := isSecretPresent(context, o.context)
+	isPresent, err := createWebhook(context, o.context)
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to retrieve admission webhook secret")
 		return

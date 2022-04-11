@@ -18,6 +18,9 @@ rules:
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["create", "get", "delete"]
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1
