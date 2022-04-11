@@ -44,7 +44,7 @@ To deploy the Rook admission controllers, install the cert manager before Rook i
 
 ```console
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.yaml
-```.
+```
 
 ## LVM package
 
