@@ -22,7 +22,7 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 spec:
   name: .nfs
-  failureDomain: host
+  failureDomain: osd
   replicated:
     size: 1
     requireSafeReplicaSize: false

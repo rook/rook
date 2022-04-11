@@ -303,12 +303,13 @@ func (r *ReconcileCephNFS) configureNFSPool(n *cephv1.CephNFS) error {
 	poolName := n.Spec.RADOS.Pool
 	logger.Infof("configuring pool %q for nfs", poolName)
 
-	_, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, poolName)
+	args := []string{"osd", "pool", "create", poolName}
+	output, err := cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "pool %q could not be retrieved, ensure the pool is defined with a CephBlockPool", poolName)
+		return errors.Wrapf(err, "failed to create default NFS pool %q. %s", poolName, string(output))
 	}
 
-	args := []string{"osd", "pool", "application", "enable", poolName, "nfs", "--yes-i-really-mean-it"}
+	args = []string{"osd", "pool", "application", "enable", poolName, "nfs", "--yes-i-really-mean-it"}
 	_, err = cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable application 'nfs' on pool %q", poolName)
