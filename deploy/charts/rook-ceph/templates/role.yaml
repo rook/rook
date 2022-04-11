@@ -60,12 +60,6 @@ metadata:
   name: cephfs-external-provisioner-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
 rules:
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "watch", "list", "delete", "update", "create"]
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "create", "delete"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
@@ -88,12 +82,6 @@ metadata:
   name: rbd-external-provisioner-cfg
   namespace: {{ .Release.Namespace }} # namespace:operator
 rules:
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "watch", "list", "delete", "update", "create"]
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["get", "list", "watch", "create", "delete", "update"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
