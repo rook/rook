@@ -40,7 +40,7 @@ These are the options for converting a single PVC. For more options, see the [to
 
 1. `--pvc`: **required**: name of the pvc to migrate
 2. `--pvc-ns`: **required**: namespace in which the target PVC is present.
-3. `--destination-sc`: **required**: name of the ceph-csi storage class in which you want to migrate.
+3. `--destination-sc`: **required**: name of the ceph-csi storage class in which you want to migrate. The destination StroageClass pool name should be same as PVC you want to migrate.
 4. `--rook-ns`: **optional** namespace where the rook operator is running. **default: rook-ceph**.
 5. `--ceph-cluster-ns`: **optional** namespace where the ceph cluster is running. **default: rook-ceph**.
 
