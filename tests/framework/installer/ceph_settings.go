@@ -62,6 +62,10 @@ func (s *TestCephSettings) ApplyEnvVars() {
 	if os.Getenv("SKIP_CLEANUP_POLICY") == "false" {
 		s.SkipCleanupPolicy = false
 	}
+	err := os.Setenv("ROOK_DISABLE_ADMISSION_CONTROLLER", "false")
+	if err != nil {
+		logger.Errorf("failed to set ROOK_DISABLE_ADMISSION_CONTROLLER. %v", err)
+	}
 }
 
 func (s *TestCephSettings) readManifest(filename string) string {
