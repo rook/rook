@@ -23,6 +23,6 @@ jobs:
         severity: warning
         check_together: 'yes'
         disable_matcher: false
-        additional_files: build/run build/reset build/sed-in-place
+        additional_files: build/reset build/sed-in-place
         ignore: olm
         format: gcc

@@ -22,10 +22,6 @@ export TINI_VERSION = v0.19.0
 # ====================================================================================
 # Image Targets
 
-cross: cross.linux_amd64 ## Build images used for cross building.
-cross.%:
-	@$(MAKE) -C cross PLATFORM=$*
-
 ceph.%:
 	@$(MAKE) -C ceph PLATFORM=$*
 
