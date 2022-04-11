@@ -158,7 +158,8 @@ func configRawDevice(name string, context *clusterd.Context) (*sys.LocalDisk, er
 
 // Provision provisions an OSD
 func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity string) error {
-	if agent.pvcBacked {
+	if agent.pvcBacked && os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true" {
+		logger.Debug("encryption configuration detecting, populating kek to an env variable")
 		// Init KMS store, retrieve the KEK and store it as an env var for ceph-volume
 		err := setKEKinEnv(context, agent.clusterInfo)
 		if err != nil {
