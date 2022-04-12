@@ -194,6 +194,7 @@ crds: $(CONTROLLER_GEN) $(YQ)
 gen-rbac: $(HELM) $(YQ) ## generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
+	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 
 .PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
