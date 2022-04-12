@@ -1,7 +1,7 @@
 # Multus networking integration with Ceph (not finalized yet and subject to update)
 
 We have already explored and explained the benefit of multi-homed networking, so this document will not rehearse that but simply focus on the implementation for the Ceph backend.
-If you are interested in learning more about multi-homed networking you can read the [design documentation on that matter](../core/multi-homed-cluster.md).
+If you are interested in learning more about multi-homed networking you can read the [design documentation on that matter](../common/multi-homed-cluster.md).
 
 To make the story short, [Multus](https://github.com/intel/multus-cni) should allow us to get the same performance benefit as `HostNetworking` as well as increasing the security.
 Using `HostNetworking` results in exposing **all** the network interfaces (the entire stack) of the host inside the container where Multus allows you to pick the one you want.
