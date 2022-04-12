@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: csi-nfsplugin
+  namespace: {{ .Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: csi-nfsplugin
+  updateStrategy:
+    type: {{ .NFSPluginUpdateStrategy }}
+  template:
+    metadata:
+      labels:
+        app: csi-nfsplugin
+        {{ range $key, $value := .CSINFSPodLabels }}
+        {{ $key }}: "{{ $value }}"
+        {{ end }}
+    spec:
+      serviceAccountName: rook-csi-nfs-plugin-sa
+      hostNetwork: {{ .EnableCSIHostNetwork }}
+      {{ if .PluginPriorityClassName }}
+      priorityClassName: {{ .PluginPriorityClassName }}
+      {{ end }}
+      # to use e.g. Rook orchestrated cluster, and mons' FQDN is
+      # resolved through k8s service, set dns policy to cluster first
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: driver-registrar
+          # This is necessary only for systems with SELinux, where
+          # non-privileged sidecar containers cannot access unix domain socket
+          # created by privileged CSI driver container.
+          securityContext:
+            privileged: true
+          image: {{ .RegistrarImage }}
+          args:
+            - "--v={{ .LogLevel }}"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path={{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}nfs.csi.ceph.com/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: registration-dir
+              mountPath: /registration
+        - name: csi-nfsplugin
+          securityContext:
+            allowPrivilegeEscalation: true
+            capabilities:
+              add:
+              - SYS_ADMIN
+            privileged: true
+          args:
+          - "--v={{ .LogLevel }}"
+          - "--drivername={{ .DriverNamePrefix }}nfs.csi.ceph.com"
+          - --nodeid=$(NODE_ID)
+          - --endpoint=$(CSI_ENDPOINT)
+          env:
+          - name: NODE_ID
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: CSI_ENDPOINT
+            value: unix:///csi/csi.sock
+          image: {{ .NFSPluginImage }}
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: "{{ .KubeletDirPath }}/pods"
+              mountPropagation: "Bidirectional"
+      volumes:
+        - name: plugin-dir
+          hostPath:
+            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}nfs.csi.ceph.com/"
+            type: DirectoryOrCreate
+        - name: registration-dir
+          hostPath:
+            path: "{{ .KubeletDirPath }}/plugins_registry/"
+            type: Directory
+        - name: pods-mount-dir
+          hostPath:
+            path: "{{ .KubeletDirPath }}/pods"
+            type: Directory

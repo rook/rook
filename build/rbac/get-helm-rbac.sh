@@ -19,6 +19,7 @@ options=(
   --namespace rook-ceph
   --set crds.enabled=false
   --set csi.csiAddons.enabled=true
+  --set csi.nfs.enabled=true
 )
 if [[ -z "${DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES}" ]]; then
   options+=(--set pspEnable=true)

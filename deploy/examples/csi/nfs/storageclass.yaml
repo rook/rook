@@ -1,0 +1,48 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-nfs
+# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
+provisioner: rook-ceph.nfs.csi.ceph.com
+parameters:
+  # nfsCluster is the name of the NFS cluster as managed by Ceph (sometimes called the NFS cluster ID).
+  # With Rook, this should get the name of the CephNFS resource.
+  nfsCluster: my-nfs
+
+  # server is the host name, ip address, or Kubernetes Service that points to the Ceph NFS server
+  # used for mounting the NFS-export.
+  # With Rook, a Kubernetes Service named with the pattern "rook-ceph-<name-of-cephnfs>-a" will
+  # always be created and can be used here. This is where name-of-cephnfs refers to the name of the
+  # CephNFS resource used for nfsCluster above.
+  server: rook-ceph-nfs-my-nfs-a
+
+  # clusterID is the Kubernetes namespace where the CephCluster is running
+  # If you change this namespace, also change the namespace below where the secret namespaces are defined
+  clusterID: rook-ceph # namespace:cluster
+
+  # CephFS filesystem name into which the volume shall be created
+  # With Rook, this will be the name of the CephFilesystem resource used to back NFS exports.
+  fsName: myfs
+
+  # Ceph pool into which the volume shall be created
+  # Required for provisionVolume: "true"
+  # With Rook, this will be "<filesystem-name>-<pool-name>" where filesystem-name is the name of the
+  # CephFilesystem used in fsName and where pool-name refers to the name of a data pool defined for
+  # the CephFilesystem used for fsName above.
+  pool: myfs-replicated
+
+  # The secrets contain Ceph admin credentials. These are generated automatically by the Rook
+  # operator in the same namespace as the cluster. Note that the NFS provisioner shares its secrets
+  # with the CephFS CSI provisioner.
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph # namespace:cluster
+
+reclaimPolicy: Delete
+allowVolumeExpansion: false
+mountOptions:
+  # uncomment the following line for debugging
+  #- debug
