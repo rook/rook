@@ -33,13 +33,14 @@ import (
 )
 
 const (
-	issuerName                             = "selfsigned-issuer"
-	certificateName                        = "rook-admission-controller-cert"
-	webhookConfigName                      = "rook-ceph-webhook"
-	serviceCephClusterPath                 = "/validate-ceph-rook-io-v1-cephcluster"
-	serviceCephBlockPoolPath               = "/validate-ceph-rook-io-v1-cephblockpool"
-	serviceCephObjectStorePath             = "/validate-ceph-rook-io-v1-cephobjectstore"
-	serviceCephBlockPoolRadosNamespacePath = "/validate-ceph-rook-io-v1-cephblockpoolradosnamespace"
+	issuerName                              = "selfsigned-issuer"
+	certificateName                         = "rook-admission-controller-cert"
+	webhookConfigName                       = "rook-ceph-webhook"
+	serviceCephClusterPath                  = "/validate-ceph-rook-io-v1-cephcluster"
+	serviceCephBlockPoolPath                = "/validate-ceph-rook-io-v1-cephblockpool"
+	serviceCephObjectStorePath              = "/validate-ceph-rook-io-v1-cephobjectstore"
+	serviceCephBlockPoolRadosNamespacePath  = "/validate-ceph-rook-io-v1-cephblockpoolradosnamespace"
+	serviceCephFileSystemSubvolumeGroupPath = "/validate-ceph-rook-io-v1-cephfilesystemsubvolumegroup"
 )
 
 func fetchorCreateIssuer(ctx context.Context, certMgrClient *cs.CertmanagerV1Client) (*api.Issuer, error) {
@@ -162,6 +163,7 @@ func addValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.C
 		fmt.Sprintf("cephblockpool-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 		fmt.Sprintf("cephobjectstore-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 		fmt.Sprintf("cephblockpoolradosnamespace-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+		fmt.Sprintf("cephfilesystemsubvolumegroup-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 	}
 
 	resources := []string{
@@ -169,6 +171,7 @@ func addValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.C
 		"cephblockpools",
 		"cephobjectstores",
 		"cephblockpoolradosnamespaces",
+		"cephfilesystemsubvolumegroups",
 	}
 
 	resourcesServicePath := []string{
@@ -176,6 +179,7 @@ func addValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.C
 		serviceCephBlockPoolPath,
 		serviceCephObjectStorePath,
 		serviceCephBlockPoolRadosNamespacePath,
+		serviceCephFileSystemSubvolumeGroupPath,
 	}
 
 	logger.Infof("Creating webhook %s/%s.", namespace, webhookConfigName)
