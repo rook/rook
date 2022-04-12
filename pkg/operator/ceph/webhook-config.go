@@ -32,9 +32,12 @@ import (
 )
 
 const (
-	issuerName        = "selfsigned-issuer"
-	certificateName   = "rook-admission-controller-cert"
-	webhookConfigName = "rook-ceph-webhook"
+	issuerName                 = "selfsigned-issuer"
+	certificateName            = "rook-admission-controller-cert"
+	webhookConfigName          = "rook-ceph-webhook"
+	serviceCephClusterPath     = "/validate-ceph-rook-io-v1-cephcluster"
+	serviceCephBlockPoolPath   = "/validate-ceph-rook-io-v1-cephblockpool"
+	serviceCephObjectStorePath = "/validate-ceph-rook-io-v1-cephobjectstore"
 )
 
 func fetchorCreateIssuer(ctx context.Context, certMgrClient *cs.CertmanagerV1Client) (*api.Issuer, error) {
@@ -166,11 +169,15 @@ func fetchValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd
 }
 
 func createValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.Context) error {
-	sideEffects := admv1.SideEffectClassNone
-	var timeout int32 = 5
-	serviceCephClusterPath := "/validate-ceph-rook-io-v1-cephcluster"
-	serviceCephBlockPoolPath := "/validate-ceph-rook-io-v1-cephblockpool"
-	serviceCephObjectStorePath := "/validate-ceph-rook-io-v1-cephobjectstore"
+	resourcesWebhookName := []string{
+		fmt.Sprintf("cephcluster-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+		fmt.Sprintf("cephblockpool-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+		fmt.Sprintf("cephobjectstore-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+	}
+
+	resources := []string{"cephclusters", "cephblockpools", "cephobjectstores"}
+
+	resourcesServicePath := []string{serviceCephClusterPath, serviceCephBlockPoolPath, serviceCephObjectStorePath}
 
 	logger.Infof("Creating webhook %s/%s.", namespace, webhookConfigName)
 
@@ -182,89 +189,10 @@ func createValidatingWebhookConfig(ctx context.Context, clusterdContext *cluster
 				"cert-manager.io/inject-ca-from": fmt.Sprintf("%s/rook-admission-controller-cert", namespace),
 			},
 		},
-		Webhooks: []admv1.ValidatingWebhook{
-			{
-				Name: fmt.Sprintf("cephcluster-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
-				Rules: []admv1.RuleWithOperations{
-					{
-						Rule: admv1.Rule{
-							APIGroups:   []string{"ceph.rook.io"},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"cephclusters"},
-						},
-						Operations: []admv1.OperationType{
-							admv1.Update,
-							admv1.Create,
-							admv1.Delete,
-						},
-					},
-				},
-				ClientConfig: admv1.WebhookClientConfig{
-					Service: &admv1.ServiceReference{
-						Name:      admissionControllerAppName,
-						Namespace: namespace,
-						Path:      &serviceCephClusterPath,
-					},
-				},
-				AdmissionReviewVersions: []string{"v1", "v1beta1"},
-				SideEffects:             &sideEffects,
-				TimeoutSeconds:          &timeout,
-			},
-			{
-				Name: fmt.Sprintf("cephblockpool-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
-				Rules: []admv1.RuleWithOperations{
-					{
-						Rule: admv1.Rule{
-							APIGroups:   []string{"ceph.rook.io"},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"cephblockpools"},
-						},
-						Operations: []admv1.OperationType{
-							admv1.Update,
-							admv1.Create,
-							admv1.Delete,
-						},
-					},
-				},
-				ClientConfig: admv1.WebhookClientConfig{
-					Service: &admv1.ServiceReference{
-						Name:      admissionControllerAppName,
-						Namespace: namespace,
-						Path:      &serviceCephBlockPoolPath,
-					},
-				},
-				AdmissionReviewVersions: []string{"v1", "v1beta1"},
-				SideEffects:             &sideEffects,
-				TimeoutSeconds:          &timeout,
-			},
-			{
-				Name: fmt.Sprintf("cephobjectstore-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
-				Rules: []admv1.RuleWithOperations{
-					{
-						Rule: admv1.Rule{
-							APIGroups:   []string{"ceph.rook.io"},
-							APIVersions: []string{"v1"},
-							Resources:   []string{"cephobjectstores"},
-						},
-						Operations: []admv1.OperationType{
-							admv1.Update,
-							admv1.Create,
-							admv1.Delete,
-						},
-					},
-				},
-				ClientConfig: admv1.WebhookClientConfig{
-					Service: &admv1.ServiceReference{
-						Name:      admissionControllerAppName,
-						Namespace: namespace,
-						Path:      &serviceCephObjectStorePath,
-					},
-				},
-				AdmissionReviewVersions: []string{"v1", "v1beta1"},
-				SideEffects:             &sideEffects,
-				TimeoutSeconds:          &timeout,
-			},
-		},
+	}
+
+	for i := range resources {
+		validatingWebhook.Webhooks = append(validatingWebhook.Webhooks, webhookRules(resourcesWebhookName[i], resources[i], resourcesServicePath[i]))
 	}
 
 	_, err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, validatingWebhook, metav1.CreateOptions{})
@@ -273,6 +201,39 @@ func createValidatingWebhookConfig(ctx context.Context, clusterdContext *cluster
 	}
 
 	return nil
+}
+
+func webhookRules(name, resource, resourceServicePath string) admv1.ValidatingWebhook {
+	var timeout int32 = 5
+	sideEffects := admv1.SideEffectClassNone
+
+	return admv1.ValidatingWebhook{
+		Name: name,
+		Rules: []admv1.RuleWithOperations{
+			{
+				Rule: admv1.Rule{
+					APIGroups:   []string{"ceph.rook.io"},
+					APIVersions: []string{"v1"},
+					Resources:   []string{resource},
+				},
+				Operations: []admv1.OperationType{
+					admv1.Update,
+					admv1.Create,
+					admv1.Delete,
+				},
+			},
+		},
+		ClientConfig: admv1.WebhookClientConfig{
+			Service: &admv1.ServiceReference{
+				Name:      admissionControllerAppName,
+				Namespace: namespace,
+				Path:      &resourceServicePath,
+			},
+		},
+		AdmissionReviewVersions: []string{"v1", "v1beta1"},
+		SideEffects:             &sideEffects,
+		TimeoutSeconds:          &timeout,
+	}
 }
 
 func deleteIssuerAndCetificate(ctx context.Context, certMgrClient *cs.CertmanagerV1Client, clusterdContext *clusterd.Context) error {
