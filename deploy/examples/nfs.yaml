@@ -55,17 +55,21 @@ spec:
     #priorityClassName:
     # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
     logLevel: NIV_INFO
----
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: builtin-nfs
-  namespace: rook-ceph # namespace:cluster
-spec:
-  # The required pool name ".nfs" cannot be specified as a K8s resource name, thus we override
-  # the pool name created in Ceph with this name property
-  name: .nfs
-  failureDomain: host
-  replicated:
-    size: 3
-    requireSafeReplicaSize: true
+# ---
+# # The built-in Ceph pool ".nfs" is used for storing configuration for all CephNFS clusters. If this
+# # shared pool needs to be configured with alternate settings, create this pool (once) with any of
+# # the pool properties. Create this pool before creating any CephNFSes, or else some properties may
+# # not be applied when the pool is created by default. This pool must be replicated.
+# apiVersion: ceph.rook.io/v1
+# kind: CephBlockPool
+# metadata:
+#   name: builtin-nfs
+#   namespace: rook-ceph # namespace:cluster
+# spec:
+#   # The required pool name ".nfs" cannot be specified as a K8s resource name, thus we override
+#   # the pool name created in Ceph with this name property
+#   name: .nfs
+#   failureDomain: host
+#   replicated:
+#     size: 3
+#     requireSafeReplicaSize: true
