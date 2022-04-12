@@ -90,111 +90,52 @@ interface will be added to the host network namespace for all nodes that will ru
 This will allow Ceph CSI pods to run using host networking and still access Ceph's public multus
 network.
 
-The design for mitigating the issue is comprised of two components: a "holder" DaemonSet and a
-"mover" Daemonset.
+The design for mitigating the issue is to add a new DaemonSet that will own the network for all CephFS mounts
+as well as RBD mapped devices. The `csi-{cephfs,rbd}plugin` DaemonSet are left untouched.
 
-#### Holder DaemonSet and Pods
-The Rook-Ceph Operator's CSI controller creates a DaemonSet configured to use the
+#### New "holder" DaemonSet
+The Rook-Ceph Operator's CSI controller creates a `csi-plugin-holder` DaemonSet configured to use the
 `network.selectors.public` network specified for the CephCluster. This DaemonSet runs on all the
-nodes that will have CSI plugin pods. Its pods exist to "hold" a particular network interface that
-the CSI pods can reliably connect to for communication with the Ceph cluster. The process running
-will merely be an infinite sleep.
+nodes along side the `csi-{cephfs,rbd}plugin` DaemonSet.
 
-These Pods should only be stopped and restarted when a node is stopped so that volume operations do
+This Pod should only be stopped and restarted when a node is stopped so that volume operations do
 not become blocked. The Rook-Ceph Operator's CSI controller should set the DaemonSet's update
 strategy to `OnDelete` so that the pods do not get deleted if the DaemonSet is updated while also
 ensuring that the pods will be updated on the next node reboot (or node drain).
 
-#### Mover DaemonSet and Pods
-The Rook-Ceph Operator's CSI controller also creates a second DaemonSet configured to use host
-networking. This DaemonSet also runs on all nodes that will have CSI plugin pods (and holder pods).
-Mover pods exist to "move" the multus network interface being held by the holder pod on the node
-into the host's network namespace to provide user's volumes with uninterrupted access to the Ceph
-cluster, even when the CSI driver is restarted (or updated).
+The new holder DaemonSet only contains a single container called `holder`, the container
+responsible for pinning the network for filesystem mounts and mapped block devices. It is used as a passthrough by
+the Ceph-CSI plugin pod which when mounting or mapping will use the network namespace of that holder
+pod.
 
-The mover must:
-- be a privileged container
-- have `SYS_ADMIN` and `NET_ADMIN` capabilities
-- be on the host network namespace
-- have access to the `/var/run/netns` directory
-
-In order to not leave moved interfaces dangling in the host's network namespace, mover pods must
-move interfaces back to their original namespace when CSI is being terminated. The most
-straightforward way to accomplish this is to move interfaces back when the mover is being
-terminated. If an interface is moved without user applications also being removed, this will cause
-I/O disruption. Therefore, the DaemonSet should also use the `OnDelete` update strategy so that the
-pods can be updated on node reboots (or node drains).
-
-In order to better handle unexpected corner cases that leave moved interfaces in the host network
-namespace (e.g., a mover is killed abruptly rather than gracefully terminated), instead treat "move"
-operations as a disable-and-copy operation. To do this, disable the interface in the holder pod's
-network namespace, and create a copy of the interface in the host namespace with the same MAC
-address and IP config. From the user standpoint, the interface is still "moved" because the original
-is disabled, so we keep the "mover" terminology. This merely helps Rook ensure that it is not
-accidentally losing the original information.
-
-A previous iteration of this design specified the mover application as a sidecar to Ceph CSI plugin
-pods; however, this design would mean that the mover would need to be deleted and re-created
-whenever the CSI plugin is updated, possibly resulting in I/O hangs in user pods during the update.
-Keeping the mover independent allows CSI plugin updates to happen freely without complex
-interactions between it and the mover.
+One task of the Holder container is to pass the required PID into the `csi-plugin` pod. To
+solve this, the container will create a symlink to an equivalent of `/proc/$$/ns/net` in the
+`hostPath` volume shared with the `csi-plugin` pod. Then it will sleep forever.
+In order to support multiple Ceph-CSI consuming multiple Ceph clusters, the name of the symlink should be based on the Ceph
+cluster FSID. The complete name of the symlink can be decided during the implementation phase of the
+design.
+That symlink name will be stored in the Ceph-CSI configmap with a key name that we will define
+during the implementation.
 
 #### Interactions between components
-If a copied interface is left in the host network namespace after the holder pod is removed, multus
-may later give the address to a different application, and the CSI driver may try to connect to the
-different application with Ceph requests. We should try to avoid leaving interfaces on the host as
-much as possible. Killing the mover pod abruptly will leave copied interfaces, but there is no way
-to prevent this from happening.
+When the Ceph-CSI plugin mounts or maps a block device it will use the network namespace of the
+Holder pod. This is achieved by using `nsenter` to enter the network namespace of the Holder pod.
+Some changes are expected as part of the mounting/mapping method in today's `csi-plugin` pod.
+Instead of invoking `rbd map ...`, invoke `nsenter --net=<net
+ns file of pause in long-running pod> rbd map ...` (and same for `mount -t ceph ...`).  The `csi-plugin`
+pod is already privileged, it already adds `CAP_SYS_ADMIN`. The only missing piece is to expose the host
+PID namespace with `hostPID: true` on the `csi-cephfsplugin` DaemonSet (RBD already has it).
 
-If a holder pod is deleted, the interface hold will be lost. The mover must remove the
-interface from the host's network namespace because multus may reassign the address to a different
-application. We can document for users that they should not delete holder pods, but we cannot
-prevent users from manually stopping holder pods. However, to prevent the Kubernetes scheduler from
-terminating holder pods, the pods should be given the highest possible priority so that they are not
-un-scheduled except by users.
+Cleaning up the symlink is not a requirement nor a big issue. Once the Holder container stops, its
+network namespace goes away with it. So at worst, we end up with a broken symlink.
 
-There is a possible race condition where a mover pod is killed and where a holder is deleted before
-a new mover starts up. In this case, the copied interface for the holder pod will be left in the
-host network namespace, but the mover will not get a notification that the holder was removed. In
-order to clean up from this case, upon startup, the mover should delete all interface copies in the
-host network namespace that do not have a holder pod associated with them.
+When a new node is added, both DaemonSets are started, and the
+process described above occurs on the node.
 
-If the mover container is stopped, it should delete all copied interfaces in the host's
-network namespace under the assumption that the CSI plugin is being removed, possibly by a
-CephCluster being deleted or the node going down for maintenance. It might be possible to optimize
-for the case where only the mover pod is being restarted, but it is very difficult to detect the
-case where the mover is merely being restarted versus when the holder is also being removed without
-possible race conditions between which pod might be stopped first by the Kubernetes API server
-during a drain event. Therefore, focus on the simplest working implementation (described above)
-instead of risking leaving the interface copy in host net namespace which could cause issues.
-
-If an error occurs in the mover during network migration, it will fail and re-try migration until
-the operation succeeds. If necessary, the mover will try to remove a partially-copied interface.
-
-Restarting a node will cause the multus interface in the host namespace to go away. On restart, the
-holder pod will get a new interface, and the mover will copy it into the host networking namespace again.
-
-When a new node is added, holder and mover pods are added to it by their DaemonSets, and the
-move/copy process described above occurs on the node.
-
-The holder and mover DaemonSets should be deleted when the CSI driver components are removed. Both
-the termination of the holder pods as well as the mover pods triggers the mover to remove the multus
-interfaces from the host network namespace of a given node.
-
-The initial implementation of this design will be limited to supporting a single CephCluster with
-Multus until we can be sure that the CSI plugin can support multiple migrated interfaces as well as
-interfaces that are added and removed dynamically. This limitation will be enforced by allowing only
-a single instance of the holder DaemonSet. A possible (future) partial implementation may be
-possible by restarting the CSI plugin Pods when network interfaces are added or removed.
-
-**Known issue:** the Docker container runtime does not use Linux's native `/var/run/netns`
-directory. This mitigation is known to work on cri-o runtime but not Docker. Therefore, this feature
-will be disabled by default and enabled optionally by the
-`ROOK_CSI_MULTUS_USE_HOLDER_MOVER_PATTERN=true` variable in the Rook-Ceph operator's config.
-
-A previous version of the CSI proposal had the holder Pods creating "setup" and "teardown"
-Kubernetes Jobs for migrating/un-migrating the multus networks. This design was rejected since new
-Jobs wouldn't be able to be created if the Kubernetes namespace were in "Terminating" state.
+The initial implementation of this design is limited to supporting a single CephCluster with
+Multus.
+Until we stop using HostNetwork entirely it is impossible to support multiple CephClusters with and
+without Multus enabled.
 
 ## Accepted proposal
 
