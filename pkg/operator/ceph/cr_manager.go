@@ -75,6 +75,7 @@ var (
 		&cephv1.CephBlockPool{},
 		&cephv1.CephObjectStore{},
 		&cephv1.CephBlockPoolRadosNamespace{},
+		&cephv1.CephFilesystemSubVolumeGroup{},
 	}
 )
 
