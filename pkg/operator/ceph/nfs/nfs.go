@@ -19,6 +19,7 @@ package nfs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/pkg/errors"
@@ -305,7 +306,17 @@ func (r *ReconcileCephNFS) configureNFSPool(n *cephv1.CephNFS) error {
 
 	_, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, poolName)
 	if err != nil {
-		return errors.Wrapf(err, "pool %q could not be retrieved, ensure the pool is defined with a CephBlockPool", poolName)
+		// create default `.nfs` pool for versions >= ceph v16.2.7, if it does not exist.
+		if r.clusterInfo.CephVersion.IsAtLeast(cephNFSChangeVersion) && strings.Contains(err.Error(), "ENOENT") {
+			args := []string{"osd", "pool", "create", poolName}
+			output, err := cephclient.NewCephCommand(r.context, r.clusterInfo, args).Run()
+			if err != nil {
+				return errors.Wrapf(err, "failed to create default nfs pool %q. %s", poolName, string(output))
+			}
+		} else {
+			return errors.Wrapf(err, "pool %q could not be retrieved, ensure the pool is defined with a CephBlockPool",
+				poolName)
+		}
 	}
 
 	args := []string{"osd", "pool", "application", "enable", poolName, "nfs", "--yes-i-really-mean-it"}
