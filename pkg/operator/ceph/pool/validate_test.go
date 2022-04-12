@@ -34,20 +34,23 @@ func TestValidatePool(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "myns"}
 	clusterSpec := &cephv1.ClusterSpec{}
 
-	t.Run("not specifying some replication or EC settings is fine", func(t *testing.T) {
+	t.Run("not specifying replication or EC settings is invalid", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
 		err := validatePool(context, clusterInfo, clusterSpec, &p)
-		assert.NoError(t, err)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "either of erasurecoded or replicated fields should be set")
 	})
 
 	t.Run("must specify name", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 3
 		err := validatePool(context, clusterInfo, clusterSpec, &p)
 		assert.Error(t, err)
 	})
 
 	t.Run("must specify namespace", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool"}}
+		p.Spec.Replicated.Size = 3
 		err := validatePool(context, clusterInfo, clusterSpec, &p)
 		assert.Error(t, err)
 	})
@@ -156,6 +159,7 @@ func TestValidatePool(t *testing.T) {
 
 	t.Run("fail unrecognized mirroring mode", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 3
 		p.Spec.Mirroring.Enabled = true
 		p.Spec.Mirroring.Mode = "foo"
 		err := validatePool(context, clusterInfo, clusterSpec, &p)
@@ -165,6 +169,7 @@ func TestValidatePool(t *testing.T) {
 
 	t.Run("success known mirroring mode", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 3
 		p.Spec.Mirroring.Enabled = true
 		p.Spec.Mirroring.Mode = "pool"
 		err := validatePool(context, clusterInfo, clusterSpec, &p)
@@ -173,6 +178,7 @@ func TestValidatePool(t *testing.T) {
 
 	t.Run("fail mirroring mode no interval specified", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 3
 		p.Spec.Mirroring.Enabled = true
 		p.Spec.Mirroring.Mode = "pool"
 		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{StartTime: "14:00:00-05:00"}}
@@ -183,6 +189,7 @@ func TestValidatePool(t *testing.T) {
 
 	t.Run("fail mirroring mode we have a snap interval", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 3
 		p.Spec.Mirroring.Enabled = true
 		p.Spec.Mirroring.Mode = "pool"
 		p.Spec.Mirroring.SnapshotSchedules = []cephv1.SnapshotScheduleSpec{{Interval: "24h"}}
@@ -192,6 +199,7 @@ func TestValidatePool(t *testing.T) {
 
 	t.Run("failure and subfailure domains", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: clusterInfo.Namespace}}
+		p.Spec.Replicated.Size = 3
 		p.Spec.FailureDomain = "host"
 		p.Spec.Replicated.SubFailureDomain = "host"
 		err := validatePool(context, clusterInfo, clusterSpec, &p)
