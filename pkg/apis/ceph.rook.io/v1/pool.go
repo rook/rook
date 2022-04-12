@@ -53,34 +53,46 @@ func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
 func (p *CephBlockPool) ValidateCreate() error {
 	logger.Infof("validate create cephblockpool %v", p)
 
-	err := validatePoolSpec(p.Spec.ToNamedPoolSpec())
+	err := ValidateCephBlockPool(&p.Spec)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
+// ValidateCephBlockPool validates specifically a CephBlockPool's spec (not just any NamedPoolSpec)
+func ValidateCephBlockPool(s *NamedBlockPoolSpec) error {
+	if s.Name == "device_health_metrics" || s.Name == ".mgr" || s.Name == ".nfs" {
+		if s.IsErasureCoded() {
+			return errors.Errorf("invalid CephBlockPool spec: ceph built-in pool %q cannot be erasure coded", s.Name)
+		}
+	}
+
+	return validatePoolSpec(s.ToNamedPoolSpec())
+}
+
+// validate any NamedPoolSpec
 func validatePoolSpec(ps NamedPoolSpec) error {
 	// Checks if either ErasureCoded or Replicated fields are set
 	if ps.ErasureCoded.CodingChunks <= 0 && ps.ErasureCoded.DataChunks <= 0 && ps.Replicated.TargetSizeRatio <= 0 && ps.Replicated.Size <= 0 {
-		return errors.New("invalid create: either of erasurecoded or replicated fields should be set")
+		return errors.New("invalid pool spec: either of erasurecoded or replicated fields should be set")
 	}
 	// Check if any of the ErasureCoded fields are populated. Then check if replicated is populated. Both can't be populated at same time.
 	if ps.ErasureCoded.CodingChunks > 0 || ps.ErasureCoded.DataChunks > 0 || ps.ErasureCoded.Algorithm != "" {
 		if ps.Replicated.Size > 0 || ps.Replicated.TargetSizeRatio > 0 {
-			return errors.New("invalid create: both erasurecoded and replicated fields cannot be set at the same time")
+			return errors.New("invalid pool spec: both erasurecoded and replicated fields cannot be set at the same time")
 		}
 	}
 
 	if ps.Replicated.Size == 0 && ps.Replicated.TargetSizeRatio == 0 {
 		// Check if datachunks is set and has value less than 2.
 		if ps.ErasureCoded.DataChunks < 2 && ps.ErasureCoded.DataChunks != 0 {
-			return errors.New("invalid create: erasurecoded.datachunks needs minimum value of 2")
+			return errors.New("invalid pool spec: erasurecoded.datachunks needs minimum value of 2")
 		}
 
 		// Check if codingchunks is set and has value less than 1.
 		if ps.ErasureCoded.CodingChunks < 1 && ps.ErasureCoded.CodingChunks != 0 {
-			return errors.New("invalid create: erasurecoded.codingchunks needs minimum value of 1")
+			return errors.New("invalid pool spec: erasurecoded.codingchunks needs minimum value of 1")
 		}
 	}
 	return nil
@@ -96,7 +108,7 @@ func (p *NamedBlockPoolSpec) ToNamedPoolSpec() NamedPoolSpec {
 func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 	logger.Info("validate update cephblockpool")
 	ocbp := old.(*CephBlockPool)
-	err := validatePoolSpec(p.Spec.ToNamedPoolSpec())
+	err := ValidateCephBlockPool(&p.Spec)
 	if err != nil {
 		return err
 	}
