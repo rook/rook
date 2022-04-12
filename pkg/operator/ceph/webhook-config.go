@@ -33,12 +33,13 @@ import (
 )
 
 const (
-	issuerName                 = "selfsigned-issuer"
-	certificateName            = "rook-admission-controller-cert"
-	webhookConfigName          = "rook-ceph-webhook"
-	serviceCephClusterPath     = "/validate-ceph-rook-io-v1-cephcluster"
-	serviceCephBlockPoolPath   = "/validate-ceph-rook-io-v1-cephblockpool"
-	serviceCephObjectStorePath = "/validate-ceph-rook-io-v1-cephobjectstore"
+	issuerName                             = "selfsigned-issuer"
+	certificateName                        = "rook-admission-controller-cert"
+	webhookConfigName                      = "rook-ceph-webhook"
+	serviceCephClusterPath                 = "/validate-ceph-rook-io-v1-cephcluster"
+	serviceCephBlockPoolPath               = "/validate-ceph-rook-io-v1-cephblockpool"
+	serviceCephObjectStorePath             = "/validate-ceph-rook-io-v1-cephobjectstore"
+	serviceCephBlockPoolRadosNamespacePath = "/validate-ceph-rook-io-v1-cephblockpoolradosnamespace"
 )
 
 func fetchorCreateIssuer(ctx context.Context, certMgrClient *cs.CertmanagerV1Client) (*api.Issuer, error) {
@@ -160,11 +161,22 @@ func addValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.C
 		fmt.Sprintf("cephcluster-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 		fmt.Sprintf("cephblockpool-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 		fmt.Sprintf("cephobjectstore-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+		fmt.Sprintf("cephblockpoolradosnamespace-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 	}
 
-	resources := []string{"cephclusters", "cephblockpools", "cephobjectstores"}
+	resources := []string{
+		"cephclusters",
+		"cephblockpools",
+		"cephobjectstores",
+		"cephblockpoolradosnamespaces",
+	}
 
-	resourcesServicePath := []string{serviceCephClusterPath, serviceCephBlockPoolPath, serviceCephObjectStorePath}
+	resourcesServicePath := []string{
+		serviceCephClusterPath,
+		serviceCephBlockPoolPath,
+		serviceCephObjectStorePath,
+		serviceCephBlockPoolRadosNamespacePath,
+	}
 
 	logger.Infof("Creating webhook %s/%s.", namespace, webhookConfigName)
 
