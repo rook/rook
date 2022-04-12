@@ -1,5 +1,5 @@
 ---
-title: CephBlockPoolRadosNamespace CRD
+title: RADOS Namespace CRD
 weight: 3610
 indent: true
 ---

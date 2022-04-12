@@ -1,5 +1,5 @@
 ---
-title: FilesystemMirror CRD
+title: Filesystem Mirror CRD
 weight: 3600
 indent: true
 ---
