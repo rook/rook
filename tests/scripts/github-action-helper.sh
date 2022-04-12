@@ -379,6 +379,56 @@ function create_helm_tag() {
   docker tag "${build_image}" "rook/ceph:${helm_tag}"
 }
 
+function deploy_multus() {
+  # download the multus daemonset, and remove mem and cpu limits that cause it to crash on minikube
+  curl https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-thick-plugin.yml \
+    | sed -e 's/cpu: /# cpu: /g' -e 's/memory: /# memory: /g' \
+    | kubectl apply -f -
+
+  # install whereabouts
+  kubectl apply \
+    -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/daemonset-install.yaml \
+    -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/ip-reconciler-job.yaml \
+    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
+    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+
+  # create the rook-ceph namespace if it doesn't exist, the NAD will go in this namespace
+  kubectl create namespace rook-ceph || true
+
+  # install network attachment definitions
+  IFACE="eth0" # the runner has eth0 so we don't need any heureustics to find the interface
+  kubectl apply -f - <<EOF
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: public-net
+  namespace: rook-ceph
+  labels:
+  annotations:
+spec:
+  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.20.0/24" } }'
+---
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: cluster-net
+  namespace: rook-ceph
+  labels:
+  annotations:
+spec:
+  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.21.0/24" } }'
+EOF
+}
+
+function deploy_multus_cluster() {
+  cd deploy/examples
+  deploy_manifest_with_local_build operator.yaml
+  deploy_manifest_with_local_build toolbox.yaml
+  sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-multus-test.yaml
+  kubectl create -f cluster-multus-test.yaml
+}
+
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
 # call the function with the remainder of the user-provided args
