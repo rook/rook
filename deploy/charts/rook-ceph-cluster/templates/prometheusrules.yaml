@@ -11,13 +11,21 @@ metadata:
 spec:
 # Import the raw prometheus rules since they have descriptions that should not be processed with the helm templates
 {{- $root := . }}
+{{- if .Values.cephClusterSpec.external }}
 {{- if .Values.cephClusterSpec.external.enable }}
   {{- range $path, $bytes := .Files.Glob "prometheus/externalrules.yaml" }}
   {{ $root.Files.Get $path }}
   {{- end }}
 {{- else }}
+  # The local rules are included in two different else statements because helm does not short-circuit
+  # the checks to allow the check for external settings in a single if statement.
   {{- range $path, $bytes := .Files.Glob "prometheus/localrules.yaml" }}
-  {{ $root.Files.Get $path }}
+  {{ $root.Files.Get $path | indent 2 }}
+  {{- end }}
+{{- end }}
+{{- else }}
+  {{- range $path, $bytes := .Files.Glob "prometheus/localrules.yaml" }}
+  {{ $root.Files.Get $path | indent 2 }}
   {{- end }}
 {{- end }}
 {{- end }}
