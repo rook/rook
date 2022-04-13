@@ -70,7 +70,13 @@ var (
 )
 
 var (
-	webhookResources = []webhook.Validator{&cephv1.CephCluster{}, &cephv1.CephBlockPool{}, &cephv1.CephObjectStore{}}
+	webhookResources = []webhook.Validator{
+		&cephv1.CephCluster{},
+		&cephv1.CephBlockPool{},
+		&cephv1.CephObjectStore{},
+		&cephv1.CephBlockPoolRadosNamespace{},
+		&cephv1.CephFilesystemSubVolumeGroup{},
+	}
 )
 
 var (

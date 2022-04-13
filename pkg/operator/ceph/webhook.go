@@ -95,9 +95,9 @@ func createWebhook(ctx context.Context, context *clusterd.Context) (bool, error)
 
 	logger.Infof("admission webhook secret %q found", admissionControllerAppName)
 
-	err = fetchValidatingWebhookConfig(ctx, context)
+	err = addValidatingWebhookConfig(ctx, context)
 	if err != nil {
-		logger.Errorf("webhook creation failed %v", err)
+		logger.Errorf("adding webhook failed %v", err)
 		return false, nil
 	}
 
