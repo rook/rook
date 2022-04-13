@@ -145,7 +145,6 @@ pull_request_rules:
       - 'check-success=encryption-pvc-db-wal'
       - 'check-success=encryption-pvc-kms-vault-token-auth'
       - 'check-success=encryption-pvc-kms-vault-k8s-auth'
-      - 'check-success=encryption-pvc-kms-ibm-kp'
       - 'check-success=lvm-pvc'
       - 'check-success=multi-cluster-mirroring'
       - 'check-success=rgw-multisite-testing'
