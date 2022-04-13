@@ -1,5 +1,5 @@
 ---
-title: SubVolumeGroup CRD
+title: SubVolume Group CRD
 weight: 3610
 indent: true
 ---
