@@ -31,45 +31,16 @@ The `helm install` command deploys rook on the Kubernetes cluster in the default
 
 Rook currently publishes builds of the Ceph operator to the `release` and `master` channels.
 
-### Release
+### **Release**
 
 The release channel is the most recent release of Rook that is considered stable for the community.
 
 ```console
 helm repo add rook-release https://charts.rook.io/release
-helm install --create-namespace --namespace rook-ceph rook-ceph rook-release/rook-ceph
+helm install --create-namespace --namespace rook-ceph rook-ceph rook-release/rook-ceph -f values.yaml
 ```
 
-### Development Build
-
-To deploy from a local build from your development environment:
-
-1. Build the Rook docker image: `make`
-1. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
-1. Install the helm chart:
-
-```console
-cd deploy/charts/rook-ceph
-helm install --create-namespace --namespace rook-ceph rook-ceph .
-```
-
-## Uninstalling the Chart
-
-To see the currently installed Rook chart:
-
-```console
-helm ls --namespace rook-ceph
-```
-
-To uninstall/delete the `rook-ceph` deployment:
-
-```console
-helm delete --namespace rook-ceph rook-ceph
-```
-
-The command removes all the Kubernetes components associated with the chart and deletes the release.
-
-After uninstalling you may want to clean up the CRDs as described on the [teardown documentation](ceph-teardown.md#removing-the-cluster-crd-finalizer).
+For example settings, see the next section or [values.yaml](https://github.com/rook/rook/tree/{{ branchName }}/deploy/charts/rook-ceph/values.yaml)
 
 ## Configuration
 
@@ -154,17 +125,34 @@ The following tables lists the configurable parameters of the rook-operator char
 
 &ast; &ast; &ast; `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 
-### Command Line
 
-You can pass the settings with helm command line parameters. Specify each parameter using the
-`--set key=value[,key=value]` argument to `helm install`.
+### **Development Build**
 
-### Settings File
+To deploy from a local build from your development environment:
 
-Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
+1. Build the Rook docker image: `make`
+1. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
+1. Install the helm chart:
 
 ```console
-helm install --namespace rook-ceph rook-ceph rook-release/rook-ceph -f values.yaml
+cd deploy/charts/rook-ceph
+helm install --create-namespace --namespace rook-ceph rook-ceph .
 ```
 
-For example settings, see [values.yaml](https://github.com/rook/rook/tree/{{ branchName }}/deploy/charts/rook-ceph/values.yaml)
+## Uninstalling the Chart
+
+To see the currently installed Rook chart:
+
+```console
+helm ls --namespace rook-ceph
+```
+
+To uninstall/delete the `rook-ceph` deployment:
+
+```console
+helm delete --namespace rook-ceph rook-ceph
+```
+
+The command removes all the Kubernetes components associated with the chart and deletes the release.
+
+After uninstalling you may want to clean up the CRDs as described on the [teardown documentation](ceph-teardown.md#removing-the-cluster-crd-finalizer).
