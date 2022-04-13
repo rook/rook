@@ -91,7 +91,7 @@ data:
   # ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0"
   # ROOK_CSI_SNAPSHOTTER_IMAGE: "k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1"
   # ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
-  # ROOK_CSI_NFS_IMAGE: "mcr.microsoft.com/k8s/csi/nfs-csi:v3.1.0"
+  # ROOK_CSI_NFS_IMAGE: "k8s.gcr.io/sig-storage/nfsplugin:v3.1.0"
 
   # (Optional) set user created priorityclassName for csi plugin pods.
   # CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
