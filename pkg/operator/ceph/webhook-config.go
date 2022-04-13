@@ -24,6 +24,7 @@ import (
 	api "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	v1 "github.com/jetstack/cert-manager/pkg/apis/meta/v1"
 	cs "github.com/jetstack/cert-manager/pkg/client/clientset/versioned/typed/certmanager/v1"
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,12 +33,14 @@ import (
 )
 
 const (
-	issuerName                 = "selfsigned-issuer"
-	certificateName            = "rook-admission-controller-cert"
-	webhookConfigName          = "rook-ceph-webhook"
-	serviceCephClusterPath     = "/validate-ceph-rook-io-v1-cephcluster"
-	serviceCephBlockPoolPath   = "/validate-ceph-rook-io-v1-cephblockpool"
-	serviceCephObjectStorePath = "/validate-ceph-rook-io-v1-cephobjectstore"
+	issuerName                              = "selfsigned-issuer"
+	certificateName                         = "rook-admission-controller-cert"
+	webhookConfigName                       = "rook-ceph-webhook"
+	serviceCephClusterPath                  = "/validate-ceph-rook-io-v1-cephcluster"
+	serviceCephBlockPoolPath                = "/validate-ceph-rook-io-v1-cephblockpool"
+	serviceCephObjectStorePath              = "/validate-ceph-rook-io-v1-cephobjectstore"
+	serviceCephBlockPoolRadosNamespacePath  = "/validate-ceph-rook-io-v1-cephblockpoolradosnamespace"
+	serviceCephFileSystemSubvolumeGroupPath = "/validate-ceph-rook-io-v1-cephfilesystemsubvolumegroup"
 )
 
 func fetchorCreateIssuer(ctx context.Context, certMgrClient *cs.CertmanagerV1Client) (*api.Issuer, error) {
@@ -154,30 +157,30 @@ func createCertificate(ctx context.Context, certMgrClient *cs.CertmanagerV1Clien
 	return nil
 }
 
-func fetchValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.Context) error {
-
-	logger.Infof("Fetching webhook %s/%s.", namespace, webhookConfigName)
-	_, err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, webhookConfigName, metav1.GetOptions{})
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return createValidatingWebhookConfig(ctx, clusterdContext)
-		}
-		logger.Errorf("failed to get webhook %s. %v", webhookConfigName, err)
-	}
-
-	return nil
-}
-
-func createValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.Context) error {
+func addValidatingWebhookConfig(ctx context.Context, clusterdContext *clusterd.Context) error {
 	resourcesWebhookName := []string{
 		fmt.Sprintf("cephcluster-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 		fmt.Sprintf("cephblockpool-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 		fmt.Sprintf("cephobjectstore-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+		fmt.Sprintf("cephblockpoolradosnamespace-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
+		fmt.Sprintf("cephfilesystemsubvolumegroup-wh-%s-%s.rook.io", admissionControllerAppName, namespace),
 	}
 
-	resources := []string{"cephclusters", "cephblockpools", "cephobjectstores"}
+	resources := []string{
+		"cephclusters",
+		"cephblockpools",
+		"cephobjectstores",
+		"cephblockpoolradosnamespaces",
+		"cephfilesystemsubvolumegroups",
+	}
 
-	resourcesServicePath := []string{serviceCephClusterPath, serviceCephBlockPoolPath, serviceCephObjectStorePath}
+	resourcesServicePath := []string{
+		serviceCephClusterPath,
+		serviceCephBlockPoolPath,
+		serviceCephObjectStorePath,
+		serviceCephBlockPoolRadosNamespacePath,
+		serviceCephFileSystemSubvolumeGroupPath,
+	}
 
 	logger.Infof("Creating webhook %s/%s.", namespace, webhookConfigName)
 
@@ -195,9 +198,25 @@ func createValidatingWebhookConfig(ctx context.Context, clusterdContext *cluster
 		validatingWebhook.Webhooks = append(validatingWebhook.Webhooks, webhookRules(resourcesWebhookName[i], resources[i], resourcesServicePath[i]))
 	}
 
-	_, err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, validatingWebhook, metav1.CreateOptions{})
+	webhookConfig, err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Get(ctx, validatingWebhook.Name, metav1.GetOptions{})
 	if err != nil {
-		logger.Errorf("failed to create validating webhook %s. %v", webhookConfigName, err)
+		if apierrors.IsNotFound(err) {
+			_, err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Create(ctx, validatingWebhook, metav1.CreateOptions{})
+			if err != nil {
+				logger.Errorf("failed to create admission webhook %s. %v", webhookConfigName, err)
+				return errors.Wrapf(err, "failed to create admission webhook %q", validatingWebhook.Name)
+			}
+			return nil
+		}
+		return errors.Wrapf(err, "failed to get admission webhook config %q", validatingWebhook.Name)
+	}
+
+	validatingWebhook.SetResourceVersion(webhookConfig.GetResourceVersion())
+	logger.Info("admission webhook already exists. updating it")
+	_, err = clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Update(ctx, validatingWebhook, metav1.UpdateOptions{})
+	if err != nil {
+		logger.Errorf("failed to update admission webhook %s. %v", webhookConfigName, err)
+		return errors.Wrapf(err, "failed to update admission webhook %q", validatingWebhook.Name)
 	}
 
 	return nil
