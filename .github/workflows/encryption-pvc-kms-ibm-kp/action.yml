@@ -15,7 +15,7 @@ runs:
   using: "composite"
   steps:
     - name: fail if env no present
-      if: "env.IBM_KP_SERVICE_INSTANCE_ID == '' || env.IBM_KP_SERVICE_API_KEY == ''"
+      if: github.repository == 'rook/rook'
       env:
         IBM_KP_SERVICE_INSTANCE_ID: ${{ inputs.ibm-instance-id }}
         IBM_KP_SERVICE_API_KEY: ${{ inputs.ibm-service-api-key }}

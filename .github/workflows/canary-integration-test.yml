@@ -888,7 +888,7 @@ jobs:
 
     - name: run encryption KMS IBM Key Protect
       uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
-      if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
+      if: github.repository == 'rook/rook'
       env:
         IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
         IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
