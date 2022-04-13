@@ -57,6 +57,11 @@ those releases.
 * Rook no longer deploys Prometheus rules from the operator. If you have been relying on Rook to
   deploy prometheus rules in the past, please follow the upgrade instructions [below](#prometheus).
 
+* Due to a number of Ceph issues and changes, Rook officially only supports Ceph
+  v16.2.7 or higher for CephNFS. If you are using an earlier version, upgrade your Ceph version
+  following the advice given in Rook's
+  [v1.8 NFS docs](https://rook.github.io/docs/rook/v1.8/ceph-nfs-crd.html).
+
 ## Considerations
 
 With this upgrade guide, there are a few notes to consider:
@@ -438,8 +443,8 @@ will need two extra steps after the Ceph upgrade is complete. Once upgrade is co
 2. Delete the old CephBlockPool that represents the `device_health_metrics` pool.
 
 ### **Important consideration for CephNFS users**
-Users of CephNFS need to take additional steps to upgrade Ceph versions. Please see the
-[NFS documentation](ceph-nfs-crd.md#upgrading-from-ceph-v15-to-v16) for full details.
+Ceph Quincy v17.2.0 has a potentially breaking regression with CephNFS. See the NFS documentation's
+[known issue](ceph-nfs-crd.md#ceph-v1720) for more detail.
 
 ### **Ceph images**
 

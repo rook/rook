@@ -2,6 +2,9 @@
 # Create a Ceph pool with settings for replication in production environments. A minimum of 3 OSDs on
 # different hosts are required in this example.
 #  kubectl create -f nfs.yaml
+#
+# This example is for Ceph v16 and above only. If you are using Ceph v15, see Rook v1.8 examples
+# from the 'release-1.8' branch
 #################################################################################################################
 
 apiVersion: ceph.rook.io/v1
@@ -10,49 +13,49 @@ metadata:
   name: my-nfs
   namespace: rook-ceph # namespace:cluster
 spec:
-  # For Ceph v15, the rados block is required. It is ignored for Ceph v16.
-  rados:
-    # RADOS pool where NFS configs are stored.
-    # In this example the data pool for the "myfs" filesystem is used.
-    # If using the object store example, the data pool would be "my-store.rgw.buckets.data".
-    # Note that this has nothing to do with where exported file systems or object stores live.
-    pool: myfs-replicated
-    # RADOS namespace where NFS client recovery data is stored in the pool.
-    namespace: nfs-ns
-
   # Settings for the NFS server
   server:
-    # the number of active NFS servers
-    active: 3
+    # The number of active NFS servers
+    # Rook supports creating more than one active NFS server, but cannot guarantee high availability
+    active: 1
+
     # where to run the NFS server
     placement:
-    #  nodeAffinity:
-    #    requiredDuringSchedulingIgnoredDuringExecution:
-    #      nodeSelectorTerms:
-    #      - matchExpressions:
-    #        - key: role
-    #          operator: In
-    #          values:
-    #          - mds-node
-    #  topologySpreadConstraints:
-    #  tolerations:
-    #  - key: mds-node
-    #    operator: Exists
-    #  podAffinity:
-    #  podAntiAffinity:
-    # A key/value list of annotations
+      # nodeAffinity:
+      #   requiredDuringSchedulingIgnoredDuringExecution:
+      #     nodeSelectorTerms:
+      #     - matchExpressions:
+      #       - key: role
+      #         operator: In
+      #         values:
+      #         - nfs-node
+      # topologySpreadConstraints:
+      # tolerations:
+      # - key: nfs-node
+      #   operator: Exists
+      # podAffinity:
+      # podAntiAffinity:
+
+    # A key/value list of annotations to apply to NFS server pods
     annotations:
-    #  key: value
-    # The requests and limits set here allow the ganesha pod(s) to use half of one CPU core and 1 gigabyte of memory
+      # key: value
+
+    # A key/value list of labels to apply to NFS server pods
+    labels:
+      # key: value
+
+    # Resource equests and limits to apply to NFS server pods
     resources:
-    #  limits:
-    #    cpu: "500m"
-    #    memory: "1024Mi"
-    #  requests:
-    #    cpu: "500m"
-    #    memory: "1024Mi"
-    # the priority class to set to influence the scheduler's pod preemption
-    #priorityClassName:
+      # limits:
+      #   cpu: "500m"
+      #   memory: "1024Mi"
+      # requests:
+      #   cpu: "500m"
+      #   memory: "1024Mi"
+
+    # Set priority class to set to influence the scheduler's pod preemption
+    # priorityClassName:
+
     # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
     logLevel: NIV_INFO
 # ---
