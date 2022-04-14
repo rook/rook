@@ -12,6 +12,10 @@ fi
 # Empty string means DO include PSP resources. Any other value means do NOT include PSP resources.
 : "${DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES:=""}"
 
+# Supply additional CLI options to the helm command used for generating RBAC.
+# e.g., '--set key=value'
+: "${ADDITIONAL_HELM_CLI_OPTIONS:=""}"
+
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 pushd "$SCRIPT_DIR" &>/dev/stderr
 
@@ -19,13 +23,16 @@ options=(
   --namespace rook-ceph
   --set crds.enabled=false
   --set csi.csiAddons.enabled=true
-  --set csi.nfs.enabled=true
 )
 if [[ -z "${DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES}" ]]; then
   options+=(--set pspEnable=true)
 else
   options+=(--set pspEnable=false)
 fi
+
+for option in ${ADDITIONAL_HELM_CLI_OPTIONS}; do
+  options+=("$option")
+done
 
 echo "generating Helm template with options: ${options[*]}" &>/dev/stderr
 
