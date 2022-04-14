@@ -6,18 +6,19 @@ indent: true
 {% include_relative branch.liquid %}
 # Ceph CSI Drivers
 
-There are two CSI drivers integrated with Rook that will enable different scenarios:
+There are three CSI drivers integrated with Rook that will enable different scenarios:
 
-* RBD: This driver is optimized for RWO pod access where only one pod may access the storage
-* CephFS: This driver allows for RWX with one or more pods accessing the same storage
+* RBD: This block storage driver is optimized for RWO pod access where only one pod may access the
+  storage. [More information](ceph-block.md).
+* CephFS: This file storage driver allows for RWX with one or more pods accessing the same storage.
+  [More information](ceph-filesystem.md).
+* NFS (experimental): This file storage driver allows creating NFS exports that can be mounted to
+  pods, or the exports can be mounted directly via an NFS client from inside or outside the
+  Kubernetes cluster. [More information](ceph-nfs-crd.md#ceph-csi-nfs-provisioner-and-nfs-csi-driver).
 
-The drivers are enabled automatically with the Rook operator. They will be started
-in the same namespace as the operator when the first CephCluster CR is created.
-
-For documentation on consuming the storage:
-
-* RBD: See the [Block Storage](ceph-block.md) topic
-* CephFS: See the [Shared Filesystem](ceph-filesystem.md) topic
+The Ceph Filesysetem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically with
+the Rook operator. The NFS driver is disabled by default. All drivers will be started in the same
+namespace as the operator when the first CephCluster CR is created.
 
 ## Supported Versions
 The supported Ceph CSI version is 3.3.0 or greater with Rook. Refer to ceph csi [releases](https://github.com/ceph/ceph-csi/releases)
