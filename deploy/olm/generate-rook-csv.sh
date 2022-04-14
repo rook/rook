@@ -232,6 +232,8 @@ generate_operator_yaml "$@"
 # Do not include Pod Security Policy (PSP) resources for CSV generation since OLM uses
 # Security Context Constraints (SCC).
 export DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES=true
+# Generate csi nfs rbac too.
+export ADDITIONAL_HELM_CLI_OPTIONS="--set csi.nfs.enabled=true"
 ./build/rbac/get-helm-rbac.sh > "$OLM_RBAC_YAML_FILE"
 
 # TODO: do we need separate clusterrole/clusterrolebinding/role/rolebinding/servicaccount files, or
