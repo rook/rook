@@ -27,7 +27,7 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   mkdir "${NS_DIR}"
 
   # describe every one of the k8s resources in the namespace which rook commonly uses
-  for KIND in 'pod' 'deployment' 'job' 'daemonset'; do
+  for KIND in 'pod' 'deployment' 'job' 'daemonset' 'secret' 'cm'; do
     kubectl -n "$NAMESPACE" get "$KIND" -o wide > "${NS_DIR}"/"$KIND"-list.txt
     for resource in $(kubectl -n "$NAMESPACE" get "$KIND" -o jsonpath='{.items[*].metadata.name}'); do
       kubectl -n "$NAMESPACE" describe "$KIND" "$resource" > "${NS_DIR}"/"$KIND"-describe--"$resource".txt
