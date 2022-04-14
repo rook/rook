@@ -172,6 +172,9 @@ data:
 {{- if .Values.csi.logLevel }}
   CSI_LOG_LEVEL: {{ .Values.csi.logLevel | quote }}
 {{- end }}
+{{- if .Values.csi.grpcTimeoutInSeconds }}
+  CSI_GRPC_TIMEOUT_SECONDS: {{ .Values.csi.grpcTimeoutInSeconds | quote }}
+{{- end }}
 {{- if .Values.csi.provisionerReplicas }}
   CSI_PROVISIONER_REPLICAS: {{ .Values.csi.provisionerReplicas | quote }}
 {{- end }}
