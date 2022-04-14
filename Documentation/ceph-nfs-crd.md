@@ -177,16 +177,18 @@ handle NFS failover. CephNFS services are named with the pattern
 `rook-ceph-nfs-<cephnfs-name>-<id>` `<id>` is a unique letter ID (e.g., a, b, c, etc.) for a given
 NFS server. For example, `rook-ceph-nfs-my-nfs-a`.
 
-For each NFS client, choose an NFS service to use for the connection. With NFS v4, you can mount all
-exports at once to a mount location.
+For each NFS client, choose an NFS service to use for the connection. With NFS v4, you can mount an
+export by its path using a mount command like below. You can mount all exports at once by omitting
+the export path and leaving the directory as just `/`.
 ```
-mount -t nfs4 -o proto=tcp <nfs-service-ip>:/ <mount-location>
+mount -t nfs4 -o proto=tcp <nfs-service-address>:/<export-path> <mount-location>
 ```
 
 
 ## Exposing the NFS server outside of the Kubernetes cluster
 Use a LoadBalancer Service to expose an NFS server (and its exports) outside of the Kubernetes
-cluster. We provide an example here:
+cluster. The Service's endpoint can be used as the NFS service address when
+[mounting the export manually](#mounting-exports). We provide an example Service here:
 [`deploy/examples/nfs-load-balancer.yaml`](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples).
 
 
@@ -335,5 +337,9 @@ parameters:
 7. `csi.storage.k8s.io/*`: note that these values are shared with the Ceph CSI CephFS provisioner
 
 See `deploy/examples/csi/nfs/pvc.yaml` for an example of how to create a PVC that will create an NFS
-export. See `deploy/examples/csi/nfs/pod.yaml` for an example of how this can be connected to an
-application pod. Both are quite standard.
+export. The export will be created and a PV created for the PVC immediately, even without a Pod to
+mount the PVC. The `share` parameter set on the resulting PV contains the share path (`share`) which
+can be used as the export path when [mounting the export manually](#mounting-exports).
+
+See `deploy/examples/csi/nfs/pod.yaml` for an example of how a PVC can be connected to an
+application pod.
