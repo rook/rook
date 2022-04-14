@@ -42,11 +42,18 @@ type CsiClusterConfigEntry struct {
 	Monitors       []string       `json:"monitors"`
 	Namespace      string         `json:"namespace"`
 	CephFS         *CsiCephFSSpec `json:"cephFS,omitempty"`
+	RBD            *CsiRBDSpec    `json:"rbd,omitempty"`
 	RadosNamespace string         `json:"radosNamespace,omitempty"`
 }
 
 type CsiCephFSSpec struct {
-	SubvolumeGroup string `json:"subvolumeGroup,omitempty"`
+	NetNamespaceFilePath string `json:"netNamespaceFilePath,omitempty"`
+	SubvolumeGroup       string `json:"subvolumeGroup,omitempty"`
+}
+
+type CsiRBDSpec struct {
+	NetNamespaceFilePath string `json:"netNamespaceFilePath,omitempty"`
+	RadosNamespace       string `json:"radosNamespace,omitempty"`
 }
 
 type csiClusterConfig []CsiClusterConfigEntry
@@ -132,9 +139,14 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 				break
 			}
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
-			if newCsiClusterConfigEntry.CephFS != nil && newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" {
+			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
 				centry.CephFS = newCsiClusterConfigEntry.CephFS
 			}
+			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.RBD.NetNamespaceFilePath != "") {
+				centry.RBD = newCsiClusterConfigEntry.RBD
+			}
+			// This maintains backward compatibility for existing clusters, from now on the
+			// preferred way is to use RBD.RadosNamespace
 			if newCsiClusterConfigEntry.RadosNamespace != "" {
 				centry.RadosNamespace = newCsiClusterConfigEntry.RadosNamespace
 			}
@@ -150,12 +162,12 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			centry.ClusterID = clusterKey
 			centry.Namespace = newCsiClusterConfigEntry.Namespace
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
-			// Add a condition not to fill with empty values
-			if newCsiClusterConfigEntry.CephFS != nil && newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" {
-				centry.CephFS = newCsiClusterConfigEntry.CephFS
+			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
+				centry.RBD = newCsiClusterConfigEntry.RBD
 			}
-			if newCsiClusterConfigEntry.RadosNamespace != "" {
-				centry.RadosNamespace = newCsiClusterConfigEntry.RadosNamespace
+			// Add a condition not to fill with empty values
+			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
+				centry.CephFS = newCsiClusterConfigEntry.CephFS
 			}
 			cc = append(cc, centry)
 		}
@@ -215,6 +227,12 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, 
 	// fetch current ConfigMap contents
 	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context, ConfigName, metav1.GetOptions{})
 	if err != nil {
+		if k8serrors.IsNotFound(err) {
+			err = CreateCsiConfigMap(clusterInfo.Context, csiNamespace, clientset, clusterInfo.OwnerInfo)
+			if err != nil {
+				return errors.Wrap(err, "failed creating csi config map")
+			}
+		}
 		return errors.Wrap(err, "failed to fetch current csi config map")
 	}
 

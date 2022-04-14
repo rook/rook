@@ -67,22 +67,24 @@ type ReconcileCephBlockPoolRadosNamespace struct {
 	context          *clusterd.Context
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
+	opConfig         opcontroller.OperatorConfig
 }
 
 // Add creates a new CephBlockPoolRadosNamespace Controller and adds it to the
 // Manager. The Manager will set fields on the Controller and Start it when the
 // Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
-	return add(mgr, newReconciler(mgr, context, opManagerContext))
+	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephBlockPoolRadosNamespace{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
+		opConfig:         opConfig,
 	}
 }
 
@@ -204,7 +206,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	if cephCluster.Spec.External.Enable {
 		logger.Debugf("external rados namespace %q creation is not supported, create it manually, the controller will assume it's there", namespacedName)
-		err = r.updateClusterConfig(cephBlockPoolRadosNamespace)
+		err = r.updateClusterConfig(cephBlockPoolRadosNamespace, cephCluster)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -240,7 +242,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph pool rados namespace %q", cephBlockPoolRadosNamespace.Name)
 	}
 
-	err = r.updateClusterConfig(cephBlockPoolRadosNamespace)
+	err = r.updateClusterConfig(cephBlockPoolRadosNamespace, cephCluster)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
@@ -251,19 +253,34 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) error {
+func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace, cephCluster cephv1.CephCluster) error {
 	// Update CSI config map
 	// If the mon endpoints change, the mon health check go routine will take care of updating the
 	// config map, so no special care is needed in this controller
 	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
-		Namespace:      r.clusterInfo.Namespace,
-		Monitors:       csi.MonEndpoints(r.clusterInfo.Monitors),
+		Namespace: r.clusterInfo.Namespace,
+		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors),
+		RBD: &csi.CsiRBDSpec{
+			RadosNamespace: cephBlockPoolRadosNamespace.Name,
+		},
 		RadosNamespace: cephBlockPoolRadosNamespace.Name,
 	}
+
+	if cephCluster.Spec.Network.IsMultus() {
+		// Build the network namespace config to be injected into the csi config
+		netNamespaceFilePath, err := csi.GenerateNetNamespaceFilePath(r.opManagerContext, r.client, cephCluster.ClusterName, r.opConfig.OperatorNamespace, csi.RBDDriverShortName)
+		if err != nil {
+			return errors.Wrap(err, "failed to generate rbd net namespace file path")
+		}
+		csiClusterConfigEntry.RBD.NetNamespaceFilePath = netNamespaceFilePath
+	}
+
+	// Save cluster config in the csi config map
 	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephBlockPoolRadosNamespace), r.clusterInfo, &csiClusterConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to save cluster config")
 	}
+
 	return nil
 }
 

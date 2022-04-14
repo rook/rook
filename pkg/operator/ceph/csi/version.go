@@ -40,6 +40,9 @@ var (
 	// custom ceph.conf is supported in v3.5.0+
 	cephConfSupportedVersion = CephCSIVersion{3, 5, 0}
 
+	// multus fix with the extra holder pod is supported with at least v3.6.1
+	multusSupportedVersion = CephCSIVersion{3, 6, 1}
+
 	// for parsing the output of `cephcsi`
 	versionCSIPattern = regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)`)
 )
@@ -126,4 +129,15 @@ func (v *CephCSIVersion) SupportsCustomCephConf() bool {
 	}
 
 	return v.isAtLeast(&cephConfSupportedVersion)
+}
+
+// SupportsMultus checks if the csi image has support for calling "nsenter" while executing
+// mount/map commands. This is needed for Multus scenarios.
+func (v *CephCSIVersion) SupportsMultus() bool {
+	// if AllowUnsupported is set also a csi-image greater than the supported ones are allowed
+	if AllowUnsupported {
+		return true
+	}
+
+	return v.isAtLeast(&multusSupportedVersion)
 }

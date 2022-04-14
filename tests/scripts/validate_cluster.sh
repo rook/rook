@@ -88,11 +88,22 @@ function test_demo_pool {
 }
 
 function test_csi {
-  timeout 360 bash <<-'EOF'
-    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -ge 4 ]]; do
-      echo "waiting for csi pods to be ready"
-      sleep 5
-    done
+  timeout 360 bash -x <<-'EOF'
+    echo $IS_MULTUS
+    if [ -z $IS_MULTUS ]; then
+      until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 4 ]]; do
+        echo "waiting for csi pods to be ready"
+        sleep 5
+      done
+    else
+      until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
+        echo "waiting for csi pods to be ready with multus"
+        sleep 5
+      done
+      echo "verifying csi holder interfaces (multus ones must be present)"
+      kubectl -n rook-ceph exec -t ds/csi-rbdplugin-holder-my-cluster -- grep net /proc/net/dev
+      kubectl -n rook-ceph exec -t ds/csi-cephfsplugin-holder-my-cluster -- grep net /proc/net/dev
+    fi
 EOF
 }
 
@@ -103,6 +114,13 @@ function test_nfs {
       sleep 5
     done
 EOF
+}
+
+function test_multus_osd {
+  for i in $(seq 1 2); do
+    kubectl -n rook-ceph exec -t deploy/rook-ceph-osd-0 -c osd -- grep net"$i" /proc/net/dev
+    kubectl -n rook-ceph exec -t deploy/rook-ceph-osd-0 -c osd -- grep net"$i" /proc/net/dev
+  done
 }
 
 ########
@@ -135,6 +153,10 @@ for daemon in $daemons_list; do
       ;;
     osd)
       test_demo_osd
+      ;;
+    osd_multus)
+      test_demo_osd
+      test_multus_osd
       ;;
     mds)
       test_demo_mds
