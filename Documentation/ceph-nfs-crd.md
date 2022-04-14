@@ -177,17 +177,235 @@ handle NFS failover. CephNFS services are named with the pattern
 `rook-ceph-nfs-<cephnfs-name>-<id>` `<id>` is a unique letter ID (e.g., a, b, c, etc.) for a given
 NFS server. For example, `rook-ceph-nfs-my-nfs-a`.
 
-For each NFS client, choose an NFS service to use for the connection. With NFS v4, you can mount all
-exports at once to a mount location.
+For each NFS client, choose an NFS service to use for the connection. With NFS v4, you can mount an
+export by its path using a mount command like below. You can mount all exports at once by omitting
+the export path and leaving the directory as just `/`.
 ```
-mount -t nfs4 -o proto=tcp <nfs-service-ip>:/ <mount-location>
+mount -t nfs4 -o proto=tcp <nfs-service-address>:/<export-path> <mount-location>
 ```
 
 
+<<<<<<< HEAD
 ## Exposing the NFS server outside of the Kubernetes cluster
 Use a LoadBalancer Service to expose an NFS server (and its exports) outside of the Kubernetes
 cluster. We provide an example here:
 [`deploy/examples/nfs-load-balancer.yaml`](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples).
+=======
+<<<<<<< HEAD
+Enable the creation of NFS exports in the dashboard for a given cephfs or object gateway pool by
+running the following command in the toolbox container:
+* [For a single CephNFS cluster](https://docs.ceph.com/en/octopus/mgr/dashboard/#configuring-nfs-ganesha-in-the-dashboard)
+  ```console
+  ceph dashboard set-ganesha-clusters-rados-pool-namespace <pool>[/<namespace>]
+  ```
+* [For multiple CephNFS clusters](https://docs.ceph.com/en/octopus/mgr/dashboard/#support-for-multiple-nfs-ganesha-clusters)
+  ```console
+  ceph dashboard set-ganesha-clusters-rados-pool-namespace <cephnfs-name>:<pool>[/<namespace>](,<cephnfs-name>:<pool>[/<namespace>])*
+  ```
+  For each of the multiple entries above, `cephnfs-name` is the name given to CephNFS resource by the
+  manifest's `metadata.name`: `my-nfs` for the example earlier in this document. `pool` and
+  `namespace` are the same configured via the CephNFS spec's `rados` block.
+
+You should now be able to create exports from the
+[Ceph dashboard](https://docs.ceph.com/en/octopus/mgr/dashboard/#ceph-dashboard).
+
+**You may need to enable exports created by the dashboard before they will work!**
+
+Creating exports via the dashboard does not necessarily enable them. Newer versions of Ceph v15
+enable the exports automatically, but not all. To ensure the exports are created automatically, use
+Ceph v15.2.15 or higher. Otherwise, you must take the manual steps below to ensure the exports are
+enabled.
+
+To enable exports, we are going to modify the Ceph RADOS object (stored in Ceph) that defines the
+configuration shared by all NFS daemons.
+
+Please note that `<pool>` and `<namespace>` will continue to refer to the configured `rados` spec's
+`pool` and `namespace` for a particular CephNFS cluster.
+
+List the shared configuration objects in a Ceph pool with this command from the Ceph toolbox.
+```console
+rados --pool <pool> --namespace <namespace> ls
+```
+
+The output may look something like below after you have created two exports. Here we have used the
+`my-nfs` example CephNFS.
+```
+conf-nfs.my-nfs
+export-1
+export-2
+grace
+rec-0000000000000002:my-nfs.a
+```
+
+The configuration of NFS daemons, and enabling exports, is controlled by the `conf-nfs.my-nfs`
+object in this example. The object name follows the `conf-nfs.<cephnfs-name>` pattern.
+
+Get the contents of the config file, which may be empty as in this example.
+```console
+rados --pool <pool> --namespace <namespace> get conf-nfs.my-nfs my-nfs.conf
+cat my-nfs.conf
+```
+
+Modify the `my-nfs.conf` file above to add URLs for enabling exports.
+```
+%url "rados://<pool>/<namespace>/export-1"
+%url "rados://<pool>/<namespace>/export-2"
+```
+
+Then write the modified file to the RADOS config object.
+```console
+rados --pool <pool> --namespace <namespace> put conf-nfs.my-nfs my-nfs.conf
+```
+
+Verify the changes are saved by getting the config again, just as before.
+```console
+rados --pool <pool> --namespace <namespace> get conf-nfs.my-nfs my-nfs.conf
+cat my-nfs.conf
+```
+```
+%url "rados://<pool>/<namespace>/export-1"
+%url "rados://<pool>/<namespace>/export-2"
+```
+
+
+## Upgrading from Ceph v15 to v16
+We do not recommend using NFS in Ceph v16.2.0 through v16.2.6 due to bugs in Ceph's NFS
+implementation. If you are using Ceph v15, we encourage you to upgrade directly to Ceph v16.2.7.
+
+### Prep
+To upgrade, first follow the [usual Ceph upgrade steps](ceph-upgrade.md#ceph-version-upgrades). When
+the upgrade completes, this will result in NFS exports that no longer work. The dashboard's NFS
+management will also be broken. We must now migrate the NFS exports to Ceph's new management method.
+
+We will do all work from the toolbox pod. Exec into an interactive session there.
+
+First, unset the previous dashboard configuration with the below command.
+```sh
+ceph dashboard set-ganesha-clusters-rados-pool-namespace ""
+```
+
+Also ensure the necessary Ceph mgr modules are enabled and that the Ceph orchestrator backend is set
+to Rook.
+```console
+ceph mgr module enable rook
+ceph mgr module enable nfs
+ceph orch set backend rook
+```
+
+### Step 1
+Pick a CephNFS to work with and make a note of the `spec.rados.pool` and `spec.rados.namespace`. If
+the `pool` is not set, it is `.nfs`. We will refer to these as pool/`<pool>` and
+namespace/`<namespace>` for the remainder of the steps. Also note the name of the CephNFS resource,
+which will be referred to as CephNFS name or `<cephnfs-name>`.
+
+### Step 2
+List the exports defined in the pool.
+```sh
+rados --pool <pool> --namespace <namespace> ls
+```
+
+This may look something like below.
+```
+grace
+rec-0000000000000002:my-nfs.a
+export-1
+export-2
+conf-nfs.my-nfs
+```
+
+### Step 3
+For each export above, save the export to an `<export>.conf` file.
+```
+EXPORT="export-1" # "export-2", "export-3", etc.
+rados --pool <pool> --namespace <namespace> get "$EXPORT" "/tmp/$EXPORT.conf"
+```
+
+The file should contain content similar to what is shown here.
+```
+$ cat /tmp/export-1.conf
+EXPORT {
+    export_id = 1;
+    path = "/";
+    pseudo = "/test";
+    access_type = "RW";
+    squash = "no_root_squash";
+    protocols = 4;
+    transports = "TCP";
+    FSAL {
+        name = "CEPH";
+        user_id = "admin";
+        filesystem = "myfs";
+        secret_access_key = "AQAyr69hwddJERAAE9WdFCmY10fqehzK3kabFw==";
+    }
+
+}
+```
+
+### Step 4
+We will now import each export into Ceph's new format. Perform this step for each export you wish to
+migrate.
+
+First remove the `FSAL` configuration block's `user_id` and `secret_access_key` configuration items.
+It is sufficient to delete the lines in the `/tmp/<export>.conf` file using `vi` or some other
+editor. The file should look similar to below when the edit is finished.
+```
+$ cat /tmp/<export>.conf
+EXPORT {
+    export_id = 1;
+    path = "/";
+    pseudo = "/test";
+    access_type = "RW";
+    squash = "no_root_squash";
+    protocols = 4;
+    transports = "TCP";
+    FSAL {
+        name = "CEPH";
+        filesystem = "myfs";
+    }
+
+}
+```
+
+Now that the old user and access key are removed, import the export. There should be no errors, but
+if there are, follow the error message instructions to proceed.
+```sh
+ceph nfs export apply <cephnfs-name> -i /tmp/<export>.conf
+```
+
+### Step 5
+Once all exports have been migrated for the current CephNFS, it is good to verify the exports. Use
+`ceph nfs export ls <cephnfs-name>` to list all exports (identified by the pseudo path), and use
+`ceph nfs export info <cephnfs-name> <export-pseudo>` to inspect the configuration. An export
+configuration may look something like below. The [v16 CLI section above](#using-the-ceph-cli) shows
+this in more detail.
+
+### Step 6
+Repeat these [steps](#step-1) for each other CephNFS.
+
+Clean up all `<export>.conf` files before moving onto subsequent CephNFSes to avoid confusion.
+```
+rm -f /tmp/export-*.conf
+```
+
+### Wrap-up
+Once you are finished migrating all CephNFSes, the migration is complete. If you wish to use the
+Ceph dashboard to manage exports, you should now be able to find them all listed there.
+
+If you are done managing NFS exports via the CLI and don't need the Ceph orchestrator module enabled
+for anything else, it may be preferable to disable the Rook and NFS mgr modules to free up a small
+amount of RAM in the Ceph mgr Pod.
+```console
+ceph mgr module disable nfs
+ceph mgr module disable rook
+```
+=======
+## Exposing the NFS server outside of the Kubernetes cluster
+Use a LoadBalancer Service to expose an NFS server (and its exports) outside of the Kubernetes
+cluster. The Service's endpoint can be used as the NFS service address when
+[mounting the export manually](#mounting-exports). We provide an example Service here:
+[`deploy/examples/nfs-load-balancer.yaml`](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples).
+>>>>>>> fa27b994c (docs: add info about mounting NFS exports externally)
+>>>>>>> 9dd8e00c4 (docs: add info about mounting NFS exports externally)
 
 
 ## Scaling the active server count
@@ -257,6 +475,13 @@ rados --pool <pool> --namespace <namespace> get conf-nfs.<cephnfs-name> -
 `rados ls` and `rados put` are other commands you will want to work with the other shared
 configuration objects.
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+Of note, it is possible to pre-populate the NFS configuration and export objects prior to starting
+NFS servers.
+=======
+>>>>>>> 9dd8e00c4 (docs: add info about mounting NFS exports externally)
 Of note, it is possible to pre-populate the NFS configuration and export objects prior to creating
 CephNFS server clusters.
 
@@ -335,5 +560,15 @@ parameters:
 7. `csi.storage.k8s.io/*`: note that these values are shared with the Ceph CSI CephFS provisioner
 
 See `deploy/examples/csi/nfs/pvc.yaml` for an example of how to create a PVC that will create an NFS
+<<<<<<< HEAD
 export. See `deploy/examples/csi/nfs/pod.yaml` for an example of how this can be connected to an
 application pod. Both are quite standard.
+=======
+export. The export will be created and a PV created for the PVC immediately, even without a Pod to
+mount the PVC. The `share` parameter set on the resulting PV contains the share path (`share`) which
+can be used as the export path when [mounting the export manually](#mounting-exports).
+
+See `deploy/examples/csi/nfs/pod.yaml` for an example of how a PVC can be connected to an
+application pod.
+>>>>>>> fa27b994c (docs: add info about mounting NFS exports externally)
+>>>>>>> 9dd8e00c4 (docs: add info about mounting NFS exports externally)
