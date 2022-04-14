@@ -28,7 +28,7 @@ import (
 )
 
 type csiDriver interface {
-	createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string) error
+	createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string, attachRequired bool) error
 	reCreateCSIDriverInfo(ctx context.Context) error
 	deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name string) error
 }
@@ -39,8 +39,7 @@ type v1CsiDriver struct {
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func (d v1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string) error {
-	attach := true
+func (d v1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string, attachRequired bool) error {
 	mountInfo := false
 	// Create CSIDriver object
 	csiDriver := &v1k8scsi.CSIDriver{
@@ -48,7 +47,7 @@ func (d v1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kubernet
 			Name: name,
 		},
 		Spec: v1k8scsi.CSIDriverSpec{
-			AttachRequired: &attach,
+			AttachRequired: &attachRequired,
 			PodInfoOnMount: &mountInfo,
 		},
 	}
