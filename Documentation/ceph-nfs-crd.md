@@ -188,10 +188,11 @@ handle NFS failover. CephNFS services are named with the pattern
 `rook-ceph-nfs-<cephnfs-name>-<id>` `<id>` is a unique letter ID (e.g., a, b, c, etc.) for a given
 NFS server. For example, `rook-ceph-nfs-my-nfs-a`.
 
-For each NFS client, choose an NFS service to use for the connection. With NFS v4, you can mount all
-exports at once to a mount location.
+For each NFS client, choose an NFS service to use for the connection. With NFS v4, you can mount an
+export by its path using a mount command like below. You can mount all exports at once by omitting
+the export path and leaving the directory as just `/`.
 ```
-mount -t nfs4 -o proto=tcp <nfs-service-ip>:/ <mount-location>
+mount -t nfs4 -o proto=tcp <nfs-service-address>:/<export-path> <mount-location>
 ```
 
 ### For Ceph v15
@@ -199,6 +200,7 @@ Exports can be created via the
 [Ceph dashboard](https://docs.ceph.com/en/octopus/mgr/dashboard/#dashboard-nfs-ganesha-management)
 for Ceph v15. To enable and use the Ceph dashboard in Rook, see [here](ceph-dashboard.md).
 
+<<<<<<< HEAD
 Enable the creation of NFS exports in the dashboard for a given cephfs or object gateway pool by
 running the following command in the toolbox container:
 * [For a single CephNFS cluster](https://docs.ceph.com/en/octopus/mgr/dashboard/#configuring-nfs-ganesha-in-the-dashboard)
@@ -405,6 +407,13 @@ amount of RAM in the Ceph mgr Pod.
 ceph mgr module disable nfs
 ceph mgr module disable rook
 ```
+=======
+## Exposing the NFS server outside of the Kubernetes cluster
+Use a LoadBalancer Service to expose an NFS server (and its exports) outside of the Kubernetes
+cluster. The Service's endpoint can be used as the NFS service address when
+[mounting the export manually](#mounting-exports). We provide an example Service here:
+[`deploy/examples/nfs-load-balancer.yaml`](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples).
+>>>>>>> fa27b994c (docs: add info about mounting NFS exports externally)
 
 
 ## Scaling the active server count
@@ -440,5 +449,92 @@ rados --pool <pool> --namespace <namespace> get conf-nfs.<cephnfs-name> -
 `rados ls` and `rados put` are other commands you will want to work with the other shared
 configuration objects.
 
+<<<<<<< HEAD
 Of note, it is possible to pre-populate the NFS configuration and export objects prior to starting
 NFS servers.
+=======
+Of note, it is possible to pre-populate the NFS configuration and export objects prior to creating
+CephNFS server clusters.
+
+
+## Ceph CSI NFS provisioner and NFS CSI driver
+> **EXPERIMENTAL**: this feature is experimental, and we do not guarantee it is bug-free, nor will
+> we support upgrades to future versions
+
+In version 1.9.1, Rook is able to deploy the experimental NFS Ceph CSI driver. This requires Ceph
+CSI version 3.6.0 or above. We recommend Ceph v16.2.7 or above.
+
+For this section, we will refer to Rook's deployment examples in the
+[deploy/examples](https://github.com/rook/rook/tree/{{ branchName }}/deploy/examples) directory.
+
+The Ceph CSI NFS provisioner and driver require additional RBAC to operate. Apply the
+`deploy/examples/csi/nfs/rbac.yaml` manifest to deploy the additional resources.
+
+Rook will only deploy the Ceph CSI NFS provisioner and driver components when the
+`ROOK_CSI_ENABLE_NFS` config is set to `"true"` in the `rook-ceph-operator-config` configmap. Change
+the value in your manifest, or patch the resource as below.
+```sh
+kubectl --namespace rook-ceph patch configmap rook-ceph-operator-config --type merge --patch '{"data":{"ROOK_CSI_ENABLE_NFS": "true"}}'
+```
+
+> **NOTE:** The rook-ceph operator Helm chart will deploy the required RBAC and enable the driver
+> components if `csi.nfs.enabled` is set to `true`.
+
+In order to create NFS exports via the CSI driver, you must first create a CephFilesystem to serve
+as the underlying storage for the exports, and you must create a CephNFS to run an NFS server that
+will expose the exports.
+
+From the examples, `filesystem.yaml` creates a CephFilesystem called `myfs`, and `nfs.yaml` creates
+an NFS server called `my-nfs`.
+
+You may need to enable or disable the Ceph orchestrator. Follow the same steps documented
+[above](#enable-the-ceph-orchestrator-if-necessary) based on your Ceph version and desires.
+
+You must also create a storage class. Ceph CSI is designed to support any arbitrary Ceph cluster,
+but we are focused here only on Ceph clusters deployed by Rook. Let's take a look at a portion of
+the example storage class found at `deploy/examples/csi/nfs/storageclass.yaml` and break down how
+the values are determined.
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-nfs
+provisioner: rook-ceph.nfs.csi.ceph.com # [1]
+parameters:
+  nfsCluster: my-nfs # [2]
+  server: rook-ceph-nfs-my-nfs-a # [3]
+  clusterID: rook-ceph # [4]
+  fsName: myfs # [5]
+  pool: myfs-replicated # [6]
+
+  # [7] (entire csi.storage.k8s.io/* section immediately below)
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph
+
+# ... some fields omitted ...
+```
+
+1. `provisioner`: **rook-ceph**.nfs.csi.ceph.com because **rook-ceph** is the namespace where the
+   CephCluster is installed
+2. `nfsCluster`: **my-nfs** because this is the name of the CephNFS
+3. `server`: rook-ceph-nfs-**my-nfs**-a because Rook creates this Kubernetes Service for the CephNFS
+   named **my-nfs**
+4. `clusterID`: **rook-ceph** because this is the namespace where the CephCluster is installed
+5. `fsName`: **myfs** because this is the name of the CephFilesystem used to back the NFS exports
+6. `pool`: **myfs**-**replicated** because **myfs** is the name of the CephFilesystem defined in
+   `fsName` and because **replicated** is the name of a data pool defined in the CephFilesystem
+7. `csi.storage.k8s.io/*`: note that these values are shared with the Ceph CSI CephFS provisioner
+
+See `deploy/examples/csi/nfs/pvc.yaml` for an example of how to create a PVC that will create an NFS
+export. The export will be created and a PV created for the PVC immediately, even without a Pod to
+mount the PVC. The `share` parameter set on the resulting PV contains the share path (`share`) which
+can be used as the export path when [mounting the export manually](#mounting-exports).
+
+See `deploy/examples/csi/nfs/pod.yaml` for an example of how a PVC can be connected to an
+application pod.
+>>>>>>> fa27b994c (docs: add info about mounting NFS exports externally)
