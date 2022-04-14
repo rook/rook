@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Rook Authors. All rights reserved.
+Copyright 2022 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mon
+package controller
 
 import (
 	"context"
@@ -23,13 +23,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,8 +72,8 @@ func TestCreateClusterSecrets(t *testing.T) {
 
 	// For backward compatibility check that the admin secret can be loaded as previously specified
 	// Update the secret as if created in an old cluster
-	delete(secret.Data, cephUserSecretKey)
-	delete(secret.Data, cephUsernameKey)
+	delete(secret.Data, CephUserSecretKey)
+	delete(secret.Data, CephUsernameKey)
 	secret.Data[adminSecretNameKey] = []byte(adminSecret)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)

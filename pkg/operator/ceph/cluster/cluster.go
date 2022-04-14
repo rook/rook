@@ -182,9 +182,9 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 			return errors.Wrap(err, "failed to configure external ceph cluster")
 		}
 	} else {
-		clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.OpManagerCtx, cluster.Namespace)
+		clusterInfo, _, _, err := opcontroller.LoadClusterInfo(c.context, c.OpManagerCtx, cluster.Namespace)
 		if err != nil {
-			if errors.Is(err, mon.ClusterInfoNoClusterNoSecret) {
+			if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
 				logger.Info("clusterInfo not yet found, must be a new cluster.")
 			} else {
 				return errors.Wrap(err, "failed to load cluster info")

@@ -55,22 +55,11 @@ const (
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
 	EndpointDataKey = "data"
-	// MaxMonIDKey is the name of the max mon id used
-	MaxMonIDKey = "maxMonId"
-	// MappingKey is the name of the mapping for the mon->node and node->port
-	MappingKey = "mapping"
-
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
 	//nolint:gosec // OperatorCreds is the name of the secret
-	OperatorCreds     = "rook-ceph-operator-creds"
-	monClusterAttr    = "mon_cluster"
-	fsidSecretNameKey = "fsid"
-	monSecretNameKey  = "mon-secret"
-	// AdminSecretName is the name of the admin secret
-	adminSecretNameKey = "admin-secret"
-	cephUsernameKey    = "ceph-username"
-	cephUserSecretKey  = "ceph-secret"
+	OperatorCreds  = "rook-ceph-operator-creds"
+	monClusterAttr = "mon_cluster"
 
 	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
@@ -119,7 +108,7 @@ type Cluster struct {
 	maxMonID           int
 	waitForStart       bool
 	monTimeoutList     map[string]time.Time
-	mapping            *Mapping
+	mapping            *controller.Mapping
 	ownerInfo          *k8sutil.OwnerInfo
 	isUpgrade          bool
 	arbiterMon         string
@@ -142,21 +131,6 @@ type monConfig struct {
 	DataPathMap *config.DataPathMap
 }
 
-// Mapping is mon node and port mapping
-type Mapping struct {
-	// This isn't really node info since it could also be for zones, but we leave it as "node" for backward compatibility.
-	Schedule map[string]*MonScheduleInfo `json:"node"`
-}
-
-// MonScheduleInfo contains name and address of a node.
-type MonScheduleInfo struct {
-	// Name of the node. **json names are capitalized for backwards compat**
-	Name     string `json:"Name,omitempty"`
-	Hostname string `json:"Hostname,omitempty"`
-	Address  string `json:"Address,omitempty"`
-	Zone     string `json:"zone,omitempty"`
-}
-
 type SchedulingResult struct {
 	Node             *v1.Node
 	CanaryDeployment *apps.Deployment
@@ -172,8 +146,8 @@ func New(ctx context.Context, clusterdContext *clusterd.Context, namespace strin
 		maxMonID:       -1,
 		waitForStart:   true,
 		monTimeoutList: map[string]time.Time{},
-		mapping: &Mapping{
-			Schedule: map[string]*MonScheduleInfo{},
+		mapping: &controller.Mapping{
+			Schedule: map[string]*controller.MonScheduleInfo{},
 		},
 		ownerInfo: ownerInfo,
 		ClusterInfo: &cephclient.ClusterInfo{
@@ -490,7 +464,7 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 
 	context := c.ClusterInfo.Context
 	// get the cluster info from secret
-	c.ClusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, context, c.Namespace, c.ownerInfo)
+	c.ClusterInfo, c.maxMonID, c.mapping, err = controller.CreateOrLoadClusterInfo(c.context, context, c.Namespace, c.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get cluster info")
 	}
@@ -879,7 +853,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			// store nil in the node mapping to indicate that an explicit node
 			// placement is not being made. otherwise, the node choice will map
 			// directly to a node selector on the monitor pod.
-			var schedule *MonScheduleInfo
+			var schedule *controller.MonScheduleInfo
 			if c.spec.Network.IsHost() || c.monVolumeClaimTemplate(mon) == nil {
 				logger.Infof("mon %s assigned to node %s", mon.DaemonName, nodeChoice.Name)
 				schedule, err = getNodeInfoFromNode(*nodeChoice)
@@ -894,7 +868,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 			if c.spec.IsStretchCluster() {
 				if schedule == nil {
-					schedule = &MonScheduleInfo{}
+					schedule = &controller.MonScheduleInfo{}
 				}
 				logger.Infof("mon %q is assigned to zone %q", mon.DaemonName, mon.Zone)
 				schedule.Zone = mon.Zone
@@ -1094,9 +1068,9 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 		// actually been started. If the operator is restarted or the reconcile is otherwise restarted,
 		// we want to calculate the mon scheduling next time based on the committed maxMonID, rather
 		// than only a mon scheduling, which may not have completed.
-		MaxMonIDKey:   maxMonID,
-		MappingKey:    string(monMapping),
-		csi.ConfigKey: csiConfigValue,
+		controller.MaxMonIDKey: maxMonID,
+		controller.MappingKey:  string(monMapping),
+		csi.ConfigKey:          csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(c.ClusterInfo.Context, configMap, metav1.CreateOptions{}); err != nil {
@@ -1119,7 +1093,7 @@ func (c *Cluster) getStoredMaxMonID() (string, error) {
 		return "", errors.Wrap(err, "could not load maxMonId")
 	}
 	if err == nil {
-		if val, ok := configmap.Data[MaxMonIDKey]; ok {
+		if val, ok := configmap.Data[controller.MaxMonIDKey]; ok {
 			return val, nil
 		}
 	}
@@ -1143,7 +1117,7 @@ func (c *Cluster) commitMaxMonID(monName string) error {
 	}
 
 	// set the new max key if greater
-	existingMax, err := strconv.Atoi(configmap.Data[MaxMonIDKey])
+	existingMax, err := strconv.Atoi(configmap.Data[controller.MaxMonIDKey])
 	if err != nil {
 		return errors.Wrap(err, "failed to read existing maxMonId")
 	}
@@ -1154,7 +1128,7 @@ func (c *Cluster) commitMaxMonID(monName string) error {
 	}
 
 	logger.Infof("updating maxMonID from %d to %d after committing mon %q", existingMax, committedMonID, monName)
-	configmap.Data[MaxMonIDKey] = strconv.Itoa(committedMonID)
+	configmap.Data[controller.MaxMonIDKey] = strconv.Itoa(committedMonID)
 
 	if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(c.ClusterInfo.Context, configmap, metav1.UpdateOptions{}); err != nil {
 		return errors.Wrap(err, "failed to update mon endpoint config map for the maxMonID")
@@ -1220,7 +1194,7 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 //           - if HostPath -> leave node selector as is
 //           - if PVC      -> remove node selector, if present
 //
-func (c *Cluster) startMon(m *monConfig, schedule *MonScheduleInfo) error {
+func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) error {
 	// check if the monitor deployment already exists. if the deployment does
 	// exist, also determine if it using pvc storage.
 	pvcExists := false

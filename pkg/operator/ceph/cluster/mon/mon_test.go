@@ -34,6 +34,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -114,8 +115,8 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 		maxMonID:       -1,
 		waitForStart:   false,
 		monTimeoutList: map[string]time.Time{},
-		mapping: &Mapping{
-			Schedule: map[string]*MonScheduleInfo{},
+		mapping: &opcontroller.Mapping{
+			Schedule: map[string]*opcontroller.MonScheduleInfo{},
 		},
 		ownerInfo: ownerInfo,
 	}
@@ -151,7 +152,7 @@ func TestStartMonDeployment(t *testing.T) {
 
 	// Start mon a on a specific node since there is no volumeClaimTemplate
 	m := &monConfig{ResourceName: "rook-ceph-mon-a", DaemonName: "a", Port: 3300, PublicIP: "1.2.3.4", DataPathMap: &config.DataPathMap{}}
-	schedule := &MonScheduleInfo{Hostname: "host-a", Zone: "zonea"}
+	schedule := &opcontroller.MonScheduleInfo{Hostname: "host-a", Zone: "zonea"}
 	err = c.startMon(m, schedule)
 	assert.NoError(t, err)
 	deployment, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
@@ -160,7 +161,7 @@ func TestStartMonDeployment(t *testing.T) {
 
 	// Start mon b on any node in a zone since there is a volumeClaimTemplate
 	m = &monConfig{ResourceName: "rook-ceph-mon-b", DaemonName: "b", Port: 3300, PublicIP: "1.2.3.5", DataPathMap: &config.DataPathMap{}}
-	schedule = &MonScheduleInfo{Hostname: "host-b", Zone: "zoneb"}
+	schedule = &opcontroller.MonScheduleInfo{Hostname: "host-b", Zone: "zoneb"}
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
 	err = c.startMon(m, schedule)
 	assert.NoError(t, err)
@@ -308,13 +309,13 @@ func TestSaveMonEndpoints(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "a=1.2.3.1:3300", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{}}`, cm.Data[MappingKey])
-	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
+	assert.Equal(t, `{"node":{}}`, cm.Data[opcontroller.MappingKey])
+	assert.Equal(t, "-1", cm.Data[opcontroller.MaxMonIDKey])
 
 	// update the config map
 	c.ClusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6789"
 	c.maxMonID = 2
-	c.mapping.Schedule["a"] = &MonScheduleInfo{
+	c.mapping.Schedule["a"] = &opcontroller.MonScheduleInfo{
 		Name:     "node0",
 		Address:  "1.1.1.1",
 		Hostname: "myhost",
@@ -325,11 +326,11 @@ func TestSaveMonEndpoints(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.Equal(t, "a=2.3.4.5:6789", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{"a":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}}}`, cm.Data[MappingKey])
-	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
+	assert.Equal(t, `{"node":{"a":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}}}`, cm.Data[opcontroller.MappingKey])
+	assert.Equal(t, "-1", cm.Data[opcontroller.MaxMonIDKey])
 
 	// Update the maxMonID to some random value
-	cm.Data[MaxMonIDKey] = "23"
+	cm.Data[opcontroller.MaxMonIDKey] = "23"
 	_, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(ctx, cm, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	// Confirm the maxMonId will be persisted and not updated to anything else.
@@ -338,7 +339,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.NoError(t, err)
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
 	assert.NoError(t, err)
-	assert.Equal(t, "23", cm.Data[MaxMonIDKey])
+	assert.Equal(t, "23", cm.Data[opcontroller.MaxMonIDKey])
 }
 
 func TestMaxMonID(t *testing.T) {

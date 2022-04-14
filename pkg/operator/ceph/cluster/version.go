@@ -23,6 +23,7 @@ import (
 	daemonclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
@@ -143,7 +144,7 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 	// state we are in and if we should upgrade or not
 
 	// Try to load clusterInfo so we can compare the running version with the one from the spec image
-	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, c.ClusterInfo.Context, c.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(c.context, c.ClusterInfo.Context, c.Namespace)
 	if err == nil {
 		clusterInfo.Context = c.ClusterInfo.Context
 		// Write connection info (ceph config file and keyring) for ceph commands

@@ -49,7 +49,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 
-	cluster.ClusterInfo, err = mon.PopulateExternalClusterInfo(c.context, c.OpManagerCtx, c.namespacedName.Namespace, cluster.ownerInfo)
+	cluster.ClusterInfo, err = opcontroller.PopulateExternalClusterInfo(c.context, c.OpManagerCtx, c.namespacedName.Namespace, cluster.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to populate external cluster info")
 	}
