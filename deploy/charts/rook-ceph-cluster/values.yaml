@@ -325,6 +325,7 @@ ingress:
     #   name: example.com
     #   path: "/ceph-dashboard(/|$)(.*)"
     # tls:
+    # ingressClassName:
 
 cephBlockPools:
   - name: ceph-blockpool
