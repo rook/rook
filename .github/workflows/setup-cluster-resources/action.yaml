@@ -11,13 +11,13 @@ runs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.16
+        go-version: 1.17
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: 'v1.24.0'
-        kubernetes version: 'v1.23.0'
+        minikube version: "v1.24.0"
+        kubernetes version: "v1.23.0"
         start args: --memory 6g --cpus=2 --addons ingress --cni=flannel
         github token: ${{ inputs.github-token }}
 
@@ -27,7 +27,7 @@ runs:
 
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      run:  tests/scripts/github-action-helper.sh print_k8s_cluster_status
+      run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}
