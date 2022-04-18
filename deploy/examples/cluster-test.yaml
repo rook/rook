@@ -49,6 +49,9 @@ spec:
       mon:
         interval: 45s
         timeout: 600s
+  priorityClassNames:
+    all: system-node-critical
+    mgr: system-cluster-critical
   disruptionManagement:
     managePodBudgets: true
 ---

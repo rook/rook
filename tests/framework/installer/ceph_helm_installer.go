@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -58,12 +59,18 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
 		"monitoring":            map[string]interface{}{"enabled": true},
 	}
-	values["csi"] = map[string]interface{}{
-		"csiRBDProvisionerResource": nil,
-		"csiRBDPluginResource": nil,
+	csiValues := map[string]interface{}{
+		"csiRBDProvisionerResource":    nil,
+		"csiRBDPluginResource":         nil,
 		"csiCephFSProvisionerResource": nil,
-		"csiCephFSPluginResource": nil,
+		"csiCephFSPluginResource":      nil,
 	}
+	if !utils.VersionAtLeast(h.settings.KubernetesVersion, "v1.17.0") {
+		// Older than K8s 1.17 cannot apply priority classes
+		csiValues["pluginPriorityClassName"] = ""
+		csiValues["provisionerPriorityClassName"] = ""
+	}
+	values["csi"] = csiValues
 
 	// create the operator namespace before the admission controller is created
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {
@@ -116,8 +123,8 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 	values["operatorNamespace"] = h.settings.OperatorNamespace
 	values["configOverride"] = clusterCustomSettings
 	values["toolbox"] = map[string]interface{}{
-		"enabled": true,
-		"image":   "rook/ceph:" + h.settings.RookVersion,
+		"enabled":   true,
+		"image":     "rook/ceph:" + h.settings.RookVersion,
 		"resources": nil,
 	}
 	values["monitoring"] = map[string]interface{}{
@@ -135,6 +142,10 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 				"path": "/ceph-dashboard(/|$)(.*)",
 			},
 		},
+	}
+	if !utils.VersionAtLeast(h.settings.KubernetesVersion, "v1.17.0") {
+		values["cephFilesystems"] = map[string]interface{}{}
+		values["cephObjectStores"] = map[string]interface{}{}
 	}
 
 	if err := h.CreateBlockPoolConfiguration(values, BlockPoolName, BlockPoolSCName); err != nil {

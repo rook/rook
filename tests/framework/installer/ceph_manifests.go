@@ -126,8 +126,7 @@ func (m *CephManifestsMaster) GetCephCluster() string {
 	if m.settings.MultipleMgrs {
 		mgrCount = 2
 	}
-	if m.settings.UsePVC {
-		return `apiVersion: ceph.rook.io/v1
+	clusterSpec := `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
   # set the name to something different from the namespace
@@ -136,15 +135,6 @@ metadata:
 spec:
   resources: null
   dataDirHostPath: ` + m.settings.DataDirHostPath + `
-  mon:
-    count: ` + strconv.Itoa(m.settings.Mons) + `
-    allowMultiplePerNode: true
-    volumeClaimTemplate:
-      spec:
-        storageClassName: ` + m.settings.StorageClassName + `
-        resources:
-          requests:
-            storage: 5Gi
   cephVersion:
     image: ` + m.settings.CephVersion.Image + `
     allowUnsupported: ` + strconv.FormatBool(m.settings.CephVersion.AllowUnsupported) + `
@@ -153,6 +143,11 @@ spec:
   mgr:
     count: ` + strconv.Itoa(mgrCount) + `
     allowMultiplePerNode: true
+    modules:
+    - name: pg_autoscaler
+      enabled: true
+    - name: rook
+      enabled: true
   dashboard:
     enabled: true
   network:
@@ -165,6 +160,33 @@ spec:
   crashCollector:
     disable: false
     ` + pruner + `
+  disruptionManagement:
+    managePodBudgets: true
+    osdMaintenanceTimeout: 30
+    pgHealthCheckTimeout: 0
+    manageMachineDisruptionBudgets: false
+    machineDisruptionBudgetNamespace: openshift-machine-api
+  healthCheck:
+    daemonHealth:
+      mon:
+        interval: 10s
+        timeout: 15s
+      osd:
+        interval: 10s
+      status:
+        interval: 5s`
+
+	if m.settings.UsePVC {
+		clusterSpec += `
+  mon:
+    count: ` + strconv.Itoa(m.settings.Mons) + `
+    allowMultiplePerNode: true
+    volumeClaimTemplate:
+      spec:
+        storageClassName: ` + m.settings.StorageClassName + `
+        resources:
+          requests:
+            storage: 5Gi
   storage:
     config:
       ` + crushRoot + `
@@ -185,42 +207,12 @@ spec:
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
-  disruptionManagement:
-    managePodBudgets: true
-    osdMaintenanceTimeout: 30
-    pgHealthCheckTimeout: 0
-    manageMachineDisruptionBudgets: false
-    machineDisruptionBudgetNamespace: openshift-machine-api`
-	}
-
-	return `apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: ` + m.settings.ClusterName + `
-  namespace: ` + m.settings.Namespace + `
-spec:
-  resources: null
-  cephVersion:
-    image: ` + m.settings.CephVersion.Image + `
-    allowUnsupported: ` + strconv.FormatBool(m.settings.CephVersion.AllowUnsupported) + `
-  dataDirHostPath: ` + m.settings.DataDirHostPath + `
-  network:
-    hostNetwork: false
-    connections:
-      encryption:
-        enabled: ` + strconv.FormatBool(m.settings.ConnectionsEncrypted) + `
-      compression:
-        enabled: ` + strconv.FormatBool(m.settings.ConnectionsCompressed) + `
-  crashCollector:
-    disable: false
-    ` + pruner + `
+`
+	} else {
+		clusterSpec += `
   mon:
     count: ` + strconv.Itoa(m.settings.Mons) + `
     allowMultiplePerNode: true
-  dashboard:
-    enabled: true
-  skipUpgradeChecks: true
-  metadataDevice:
   storage:
     useAllNodes: ` + strconv.FormatBool(!m.settings.SkipOSDCreation) + `
     useAllDevices: ` + strconv.FormatBool(!m.settings.SkipOSDCreation) + `
@@ -228,23 +220,25 @@ spec:
     config:
       databaseSizeMB: "1024"
       journalSizeMB: "1024"
-  mgr:
-    count: ` + strconv.Itoa(mgrCount) + `
-    allowMultiplePerNode: true
-    modules:
-    - name: pg_autoscaler
-      enabled: true
-    - name: rook
-      enabled: true
-  healthCheck:
-    daemonHealth:
-      mon:
-        interval: 10s
-        timeout: 15s
-      osd:
-        interval: 10s
-      status:
-        interval: 5s`
+`
+	}
+	return clusterSpec + m.getClusterPriorityClasses()
+}
+
+func (m *CephManifestsMaster) getClusterPriorityClasses() string {
+	priorityClasses := `
+  priorityClassNames:
+`
+	// Priority classes are only supported on pods outside the kube-system namespace
+	// in versions of at least v1.17
+	if utils.VersionAtLeast(m.Settings().KubernetesVersion, "v1.17.0") {
+		priorityClasses += `
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
+`
+	}
+	return priorityClasses
 }
 
 func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {

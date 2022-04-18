@@ -70,5 +70,9 @@ spec:
                   values:
                     - b
                     - c
+  priorityClassNames:
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
   disruptionManagement:
     managePodBudgets: true
