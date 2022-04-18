@@ -214,12 +214,12 @@ spec:
 #    cleanup:
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
-#  priorityClassNames:
-#    all: rook-ceph-default-priority-class
-#    mon: rook-ceph-mon-priority-class
-#    osd: rook-ceph-osd-priority-class
-#    mgr: rook-ceph-mgr-priority-class
-#    crashcollector: rook-ceph-crashcollector-priority-class
+  priorityClassNames:
+    #all: rook-ceph-default-priority-class
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
+    #crashcollector: rook-ceph-crashcollector-priority-class
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: true

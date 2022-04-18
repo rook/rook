@@ -169,6 +169,12 @@ spec:
   #   requests:
   #      cpu: "200m"
   #      memory: "200Mi"
+  priorityClassNames:
+    # If there are multiple nodes available in a failure domain (e.g. zones), the
+    # mons and osds can be portable and set the system-cluster-critical priority class.
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
   disruptionManagement:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
