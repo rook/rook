@@ -176,3 +176,74 @@ CSI-Addons supports the following operations:
   - [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
 - Network Fencing
   - [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/networkfence.md)
+
+## Enable RBD Encryption Support
+
+Ceph-CSI supports encrypting individual RBD PersistentVolumeClaim with LUKS encryption. More details can be found
+[here](https://github.com/ceph/ceph-csi/blob/v3.6.0/docs/deploy-rbd.md#encryption-for-rbd-volumes)
+with full list of supported encryption configurations. A sample configmap can be found
+[here](https://github.com/ceph/ceph-csi/blob/v3.6.0/examples/kms/vault/kms-config.yaml).
+
+> NOTE: Rook also supports OSD encryption (see `encryptedDevice` option [here](ceph-cluster-crd.md#osd-configuration-settings)).
+Using both RBD PVC encryption and OSD encryption together will lead to double encryption and may reduce read/write performance.
+
+Unlike OSD encryption, existing ceph clusters can also enable Ceph-CSI RBD PVC encryption support and multiple kinds of encryption
+KMS can be used on the same ceph cluster using different storageclasses.
+
+Following steps demonstrate how to enable support for encryption:
+
+* Create the `rook-ceph-csi-kms-config` configmap with required encryption configuration in
+the same namespace where the Rook operator is deployed. An example is shown below:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-ceph-csi-kms-config
+  namespace: rook-ceph
+data:
+  config.json: |-
+    {
+      "user-secret-metadata": {
+        "encryptionKMSType": "metadata",
+        "secretName": "storage-encryption-secret"
+      }
+    }
+```
+
+* Update the `rook-ceph-operator-config` configmap and patch the
+ following configurations
+
+```bash
+kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_ENCRYPTION": "true"'
+```
+
+* Create necessary resources (secrets, configmaps etc) as required by the encryption type.
+In this case, create `storage-encryption-secret` secret in the namespace of pvc as shown:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: storage-encryption-secret
+  namespace: rook-ceph
+stringData:
+  encryptionPassphrase: test-encryption
+```
+
+* Create a new [storageclass](../deploy/examples/csi/rbd/storageclass.yaml) with additional parameters
+`encrypted: "true"` and `encryptionKMSID: "<key used in configmap>"`. An example is show below:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-block-encrypted
+parameters:
+  # additional parameters required for encryption
+  encrypted: "true"
+  encryptionKMSID: "user-secret-metadata"
+# ...
+```
+
+* PVCs created using the new storageclass will be encrypted.

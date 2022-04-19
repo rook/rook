@@ -70,6 +70,8 @@ csi:
   enableRBDSnapshotter: true
   # set to false if the selinux is not enabled or unavailable in cluster nodes.
   enablePluginSelinuxHostMount : false
+  # set to true to enable Ceph CSI pvc encryption support.
+  enableCSIEncryption: false
   # (Optional) set user created priorityclassName for csi plugin pods.
   # pluginPriorityClassName: system-node-critical
 

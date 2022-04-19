@@ -47,6 +47,15 @@ parameters:
   # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
   # unmapOptions: force
 
+   # (optional) Set it to true to encrypt each volume with encryption keys
+   # from a key management system (KMS)
+   # encrypted: "true"
+
+   # (optional) Use external key management system (KMS) for encryption key by
+   # specifying a unique ID matching a KMS ConfigMap. The ID is only used for
+   # correlation to configmap entry.
+   # encryptionKMSID: <kms-config-id>
+
   # RBD image format. Defaults to "2".
   imageFormat: "2"
 
