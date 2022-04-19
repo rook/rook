@@ -64,6 +64,7 @@ type Param struct {
 	EnableCSIAddonsSideCar         bool
 	MountCustomCephConf            bool
 	EnableOIDCTokenProjection      bool
+	EnableCSIEncryption            bool
 	LogLevel                       uint8
 	CephFSGRPCMetricsPort          uint16
 	CephFSLivenessMetricsPort      uint16
@@ -364,6 +365,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	tp.EnableCSIAddonsSideCar = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", "false"), "true") {
 		tp.EnableCSIAddonsSideCar = true
+	}
+
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_ENCRYPTION", "false"), "true") {
+		tp.EnableCSIEncryption = true
 	}
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
