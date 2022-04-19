@@ -780,49 +780,6 @@ groups:
           summary: MON/OSD operations are slow to complete
           description: >
             {{ $value }} OSD requests are taking too long to process (osd_op_complaint_time exceeded)
-  # cephadm alerts
-  - name: cephadm
-    rules:
-      - alert: CephadmUpgradeFailed
-        expr: ceph_health_detail{name="UPGRADE_EXCEPTION"} > 0
-        for: 30s
-        labels:
-          severity: critical
-          type: ceph_default
-          oid: 1.3.6.1.4.1.50495.1.2.1.11.2
-        annotations:
-          summary: Ceph version upgrade has failed
-          description: >
-            The cephadm cluster upgrade process has failed. The cluster remains in
-            an undetermined state.
-
-            Please review the cephadm logs, to understand the nature of the issue
-      - alert: CephadmDaemonFailed
-        expr: ceph_health_detail{name="CEPHADM_FAILED_DAEMON"} > 0
-        for: 30s
-        labels:
-          severity: critical
-          type: ceph_default
-          oid: 1.3.6.1.4.1.50495.1.2.1.11.1
-        annotations:
-          summary: A ceph daemon manged by cephadm is down
-          description: >
-            A daemon managed by cephadm is no longer active. Determine, which
-            daemon is down with 'ceph health detail'. you may start daemons with
-            the 'ceph orch daemon start <daemon_id>'
-      - alert: CephadmPaused
-        expr: ceph_health_detail{name="CEPHADM_PAUSED"} > 0
-        for: 1m
-        labels:
-          severity: warning
-          type: ceph_default
-        annotations:
-          documentation: https://docs.ceph.com/en/latest/cephadm/operations#cephadm-paused
-          summary: Orchestration tasks via cephadm are PAUSED
-          description: >
-            Cluster management has been paused manually. This will prevent the
-            orchestrator from service management and reconciliation. If this is
-            not intentional, resume cephadm operations with 'ceph orch resume'
 
   # Object related events
   - name: rados
