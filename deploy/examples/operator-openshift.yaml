@@ -286,7 +286,7 @@ data:
 
   # (Optional) CEPH CSI RBD provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
-  # CSI_RBD_PROVISIONER_RESOURCE: |
+  #CSI_RBD_PROVISIONER_RESOURCE: |
   #  - name : csi-provisioner
   #    resource:
   #      requests:
@@ -327,6 +327,14 @@ data:
   #      limits:
   #        memory: 1Gi
   #        cpu: 500m
+  #  - name : csi-omap-generator
+  #    resource:
+  #      requests:
+  #        memory: 512Mi
+  #        cpu: 250m
+  #      limits:
+  #        memory: 1Gi
+  #        cpu: 500m
   #  - name : liveness-prometheus
   #    resource:
   #      requests:
@@ -337,7 +345,7 @@ data:
   #        cpu: 100m
   # (Optional) CEPH CSI RBD plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
-  # CSI_RBD_PLUGIN_RESOURCE: |
+  #CSI_RBD_PLUGIN_RESOURCE: |
   #  - name : driver-registrar
   #    resource:
   #      requests:
@@ -364,7 +372,7 @@ data:
   #        cpu: 100m
   # (Optional) CEPH CSI CephFS provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
-  # CSI_CEPHFS_PROVISIONER_RESOURCE: |
+  #CSI_CEPHFS_PROVISIONER_RESOURCE: |
   #  - name : csi-provisioner
   #    resource:
   #      requests:
@@ -382,6 +390,14 @@ data:
   #        memory: 256Mi
   #        cpu: 200m
   #  - name : csi-attacher
+  #    resource:
+  #      requests:
+  #        memory: 128Mi
+  #        cpu: 100m
+  #      limits:
+  #        memory: 256Mi
+  #        cpu: 200m
+  #  - name : csi-snapshotter
   #    resource:
   #      requests:
   #        memory: 128Mi
@@ -407,7 +423,7 @@ data:
   #        cpu: 100m
   # (Optional) CEPH CSI CephFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
-  # CSI_CEPHFS_PLUGIN_RESOURCE: |
+  #CSI_CEPHFS_PLUGIN_RESOURCE: |
   #  - name : driver-registrar
   #    resource:
   #      requests:
