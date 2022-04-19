@@ -112,6 +112,9 @@ func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 	if err != nil {
 		return err
 	}
+	if ocbp.Spec.Name != p.Spec.Name {
+		return errors.New("invalid update: pool name cannot be changed")
+	}
 	if p.Spec.ErasureCoded.CodingChunks > 0 || p.Spec.ErasureCoded.DataChunks > 0 || p.Spec.ErasureCoded.Algorithm != "" {
 		if ocbp.Spec.Replicated.Size > 0 || ocbp.Spec.Replicated.TargetSizeRatio > 0 {
 			return errors.New("invalid update: replicated field is set already in previous object. cannot be changed to use erasurecoded")
