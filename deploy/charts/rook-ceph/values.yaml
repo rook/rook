@@ -110,6 +110,8 @@ csi:
   # CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #nfsPluginUpdateStrategy: OnDelete
+  # The CSI GRPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
+  grpcTimeoutInSeconds: 150
 
   # Allow starting unsupported ceph-csi image
   allowUnsupportedVersion: false

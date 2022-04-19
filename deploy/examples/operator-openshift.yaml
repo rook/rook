@@ -510,6 +510,8 @@ data:
   # Enable the csi addons sidecar.
   CSI_ENABLE_CSIADDONS: "false"
   # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.2.1"
+  # The GCSI RPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
+  CSI_GRPC_TIMEOUT_SECONDS: "150"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
