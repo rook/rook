@@ -157,7 +157,7 @@ func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 		"ceph --admin-daemon /run/ceph/ceph-osd.0.asok status",
 	}
 
-	assert.Equal(t, expectedCommand, probe.Handler.Exec.Command)
+	assert.Equal(t, expectedCommand, probe.ProbeHandler.Exec.Command)
 	assert.Equal(t, livenessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
 
 	// test with a mon so the delay should be 10
