@@ -72,7 +72,7 @@ func GetProbeWithDefaults(desiredProbe, currentProbe *v1.Probe) *v1.Probe {
 	//
 	// Let's always force the default handler, there is no reason to change it anyway since the underlying content is generated based on the daemon's name
 	// so we can not make it generic via the spec
-	newProbe.Handler = currentProbe.Handler
+	newProbe.ProbeHandler = currentProbe.ProbeHandler
 
 	// If the user has not specified thresholds and timeouts, set them to the same values as
 	// in the default liveness probe created by Rook.
