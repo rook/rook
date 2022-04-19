@@ -26,7 +26,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v={{ .LogLevel }}"
-            - "--timeout=150s"
+            - "--timeout={{ .GRPCTimeout }}"
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"

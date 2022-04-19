@@ -54,6 +54,7 @@ type Param struct {
 	ProvisionerPriorityClassName   string
 	VolumeReplicationImage         string
 	CSIAddonsImage                 string
+	GRPCTimeout                    time.Duration
 	EnablePluginSelinuxHostMount   bool
 	EnableCSIHostNetwork           bool
 	EnableOMAPGenerator            bool
@@ -197,6 +198,9 @@ const (
 	// default log level for csi containers
 	defaultLogLevel uint8 = 0
 
+	// GRPC timeout.
+	defaultGRPCTimeout = 150
+	grpcTimeout        = "CSI_GRPC_TIMEOUT_SECONDS"
 	// default provisioner replicas
 	defaultProvisionerReplicas int32 = 2
 
@@ -285,6 +289,19 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	} else {
 		tp.ForceCephFSKernelClient = "true"
 	}
+
+	// parese RPC timeout
+	timeout := k8sutil.GetValue(r.opConfig.Parameters, grpcTimeout, "150")
+	timeoutSeconds, err := strconv.Atoi(timeout)
+	if err != nil {
+		logger.Errorf("failed to parse %q. Defaulting to %d. %v", grpcTimeout, defaultGRPCTimeout, err)
+		timeoutSeconds = defaultGRPCTimeout
+	}
+	if timeoutSeconds < 120 {
+		logger.Warningf("%s is %q but it should be >= 120, setting the default value %d", grpcTimeout, timeout, defaultGRPCTimeout)
+		timeoutSeconds = defaultGRPCTimeout
+	}
+	tp.GRPCTimeout = time.Duration(timeoutSeconds) * time.Second
 
 	// parse GRPC and Liveness ports
 	tp.CephFSGRPCMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)

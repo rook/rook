@@ -28,7 +28,7 @@ spec:
             - "--v={{ .LogLevel }}"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
-            - "--timeout=150s"
+            - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election-namespace={{ .Namespace }}"
           env:
             - name: ADDRESS
@@ -43,7 +43,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v={{ .LogLevel }}"
-            - "--timeout=150s"
+            - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
           env:
@@ -59,7 +59,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v={{ .LogLevel }}"
-            - "--timeout=150s"
+            - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election"
             - "--leader-election-namespace={{ .Namespace }}"
             - "--handle-volume-inuse-error=false"
@@ -75,7 +75,7 @@ spec:
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v={{ .LogLevel }}"
-            - "--timeout=150s"
+            - "--timeout={{ .GRPCTimeout }}"
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
