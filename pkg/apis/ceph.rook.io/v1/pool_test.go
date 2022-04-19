@@ -61,6 +61,12 @@ func TestCephBlockPoolValidateUpdate(t *testing.T) {
 	up.Spec.ErasureCoded.CodingChunks = 1
 	err := up.ValidateUpdate(p)
 	assert.Error(t, err)
+
+	// validate with different name in Spec.Name
+	ip := p.DeepCopy()
+	ip.Spec.Name = "new-ec-pool"
+	err = ip.ValidateUpdate(p)
+	assert.Error(t, err)
 }
 
 func TestMirroringSpec_SnapshotSchedulesEnabled(t *testing.T) {
