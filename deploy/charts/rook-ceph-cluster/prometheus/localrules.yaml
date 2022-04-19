@@ -717,19 +717,6 @@ groups:
 
   - name: pools
     rules:
-      - alert: CephPoolGrowthWarning
-        expr: |
-          (predict_linear(ceph_pool_percent_used[2d], 3600 * 24 * 5) * on(pool_id)
-              group_right ceph_pool_metadata) >= 95
-        labels:
-          severity: warning
-          type: ceph_default
-          oid: 1.3.6.1.4.1.50495.1.2.1.9.2
-        annotations:
-          summary: Pool growth rate may soon exceed it's capacity
-          description: >
-            Pool '{{ $labels.name }}' will be full in less than 5 days
-            assuming the average fill-up rate of the past 48 hours.
       - alert: CephPoolBackfillFull
         expr: ceph_health_detail{name="POOL_BACKFILLFULL"} > 0
         labels:
@@ -793,7 +780,7 @@ groups:
           summary: MON/OSD operations are slow to complete
           description: >
             {{ $value }} OSD requests are taking too long to process (osd_op_complaint_time exceeded)
-# cephadm alerts
+  # cephadm alerts
   - name: cephadm
     rules:
       - alert: CephadmUpgradeFailed
@@ -837,25 +824,7 @@ groups:
             orchestrator from service management and reconciliation. If this is
             not intentional, resume cephadm operations with 'ceph orch resume'
 
-# prometheus alerts
-  - name: PrometheusServer
-    rules:
-      - alert: PrometheusJobMissing
-        expr: absent(up{job="ceph"})
-        for: 30s
-        labels:
-          severity: critical
-          type: ceph_default
-          oid: 1.3.6.1.4.1.50495.1.2.1.12.1
-        annotations:
-          summary: The scrape job for Ceph is missing from Prometheus
-          description: |
-            The prometheus job that scrapes from Ceph is no longer defined, this
-            will effectively mean you'll have no metrics or alerts for the cluster.
-
-            Please review the job definitions in the prometheus.yml file of the prometheus
-            instance.
-# Object related events
+  # Object related events
   - name: rados
     rules:
       - alert: CephObjectMissing
@@ -872,7 +841,7 @@ groups:
             A version of a RADOS object can not be found, even though all OSDs are up. I/O
             requests for this object from clients will block (hang). Resolving this issue may
             require the object to be rolled back to a prior version manually, and manually verified.
-# Generic
+  # Generic
   - name: generic
     rules:
       - alert: CephDaemonCrash
