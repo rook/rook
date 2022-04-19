@@ -735,13 +735,13 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 				logger.Warningf("failed to extract ceph version. %v", err)
 				return
 			}
-			// if the version of these OSDs is Octopus then we run the command
-			if osdVersion.IsOctopus() {
-				err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, "octopus")
-				if err != nil {
-					logger.Warningf("failed to enable new osd functionality. %v", err)
-					return
-				}
+			// Ensure the required version of OSDs is set to the current consistent version,
+			// enabling the latest osd functionality and also preventing downgrades to a
+			// previous major ceph version.
+			err = cephclient.EnableReleaseOSDFunctionality(c.context, c.clusterInfo, osdVersion.ReleaseName())
+			if err != nil {
+				logger.Warningf("failed to enable new osd functionality. %v", err)
+				return
 			}
 		}
 	}
