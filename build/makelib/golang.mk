@@ -48,7 +48,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.16|1.17
+GO_SUPPORTED_VERSIONS ?= 1.17
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -171,7 +171,7 @@ go.mod.update:
 .PHONY: go.mod.check
 go.mod.check:
 	@echo === ensuring modules are tidied
-	@$(GOHOST) mod tidy
+	@$(GOHOST) mod tidy -compat=1.17
 
 .PHONY: go.mod.clean
 go.mod.clean:
