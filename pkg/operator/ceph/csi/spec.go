@@ -112,7 +112,7 @@ var (
 var (
 	// image names
 	DefaultCSIPluginImage         = "quay.io/cephcsi/cephcsi:v3.6.0"
-	DefaultNFSPluginImage         = "mcr.microsoft.com/k8s/csi/nfs-csi:v3.1.0"
+	DefaultNFSPluginImage         = "k8s.gcr.io/sig-storage/nfsplugin:v3.1.0"
 	DefaultRegistrarImage         = "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0"
 	DefaultProvisionerImage       = "k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0"
 	DefaultAttacherImage          = "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
