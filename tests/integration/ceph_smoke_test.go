@@ -143,52 +143,45 @@ func (s *SmokeSuite) TestMonFailover() {
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), 3, len(deployments))
 
+	// Scale down a mon so the operator won't trigger a reconcile
 	monToKill := deployments[0].Name
-	logger.Infof("Killing mon %s", monToKill)
-	propagation := metav1.DeletePropagationForeground
-	delOptions := &metav1.DeleteOptions{PropagationPolicy: &propagation}
-	err = s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace).Delete(ctx, monToKill, *delOptions)
-	require.NoError(s.T(), err)
+	logger.Infof("Scaling down mon %s", monToKill)
+	scale, err := s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace).GetScale(ctx, monToKill, metav1.GetOptions{})
+	assert.NoError(s.T(), err)
+	scale.Spec.Replicas = 0
+	_, err = s.k8sh.Clientset.AppsV1().Deployments(s.settings.Namespace).UpdateScale(ctx, monToKill, scale, metav1.UpdateOptions{})
+	assert.NoError(s.T(), err)
 
 	// Wait for the health check to start a new monitor
-	originalMonDeleted := false
 	for i := 0; i < 30; i++ {
 		deployments, err := s.getNonCanaryMonDeployments()
 		require.NoError(s.T(), err)
 
-		// Make sure the old mon is not still alive
-		foundOldMon := false
-		for _, mon := range deployments {
+		var currentMons []string
+		var originalMonDeployment *appsv1.Deployment
+		for i, mon := range deployments {
+			currentMons = append(currentMons, mon.Name)
 			if mon.Name == monToKill {
-				foundOldMon = true
+				originalMonDeployment = &deployments[i]
 			}
 		}
+		logger.Infof("mon deployments: %v", currentMons)
 
-		// Check if we have three monitors
-		if foundOldMon {
-			if originalMonDeleted {
-				// Depending on the state of the orchestration, the operator might trigger
-				// re-creation of the deleted mon. In this case, consider the test successful
-				// rather than wait for the failover which will never occur.
-				logger.Infof("Original mon created again, no need to wait for mon failover")
-				return
-			}
-			logger.Infof("Waiting for old monitor to stop")
-		} else {
-			logger.Infof("Waiting for a new monitor to start")
-			originalMonDeleted = true
-			if len(deployments) == 3 {
-				var newMons []string
-				for _, mon := range deployments {
-					newMons = append(newMons, mon.Name)
-				}
-				logger.Infof("Found a new monitor! monitors=%v", newMons)
-				return
-			}
-
-			assert.Equal(s.T(), 2, len(deployments))
+		// Check if the original mon was scaled up again
+		// Depending on the state of the orchestration, the operator might trigger
+		// re-creation of the deleted mon. In this case, consider the test successful
+		// rather than wait for the failover which will never occur.
+		if originalMonDeployment != nil && *originalMonDeployment.Spec.Replicas > 0 {
+			logger.Infof("Original mon created again, no need to wait for mon failover")
+			return
 		}
 
+		if len(deployments) == 3 && originalMonDeployment == nil {
+			logger.Infof("Found a new monitor!")
+			return
+		}
+
+		logger.Infof("Waiting for a new monitor to start and previous one to be deleted")
 		time.Sleep(5 * time.Second)
 	}
 
