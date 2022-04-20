@@ -138,7 +138,7 @@ spec:
   cephVersion:
     image: ` + m.settings.CephVersion.Image + `
     allowUnsupported: ` + strconv.FormatBool(m.settings.CephVersion.AllowUnsupported) + `
-  skipUpgradeChecks: false
+  skipUpgradeChecks: true
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   mgr:
     count: ` + strconv.Itoa(mgrCount) + `
