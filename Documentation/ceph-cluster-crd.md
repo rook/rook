@@ -211,7 +211,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `labels`: [labels configuration settings](#annotations-and-labels)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
 * `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
-* `priorityClassNames`: [priority class names configuration settings](#priority-class-names-configuration-settings)
+* `priorityClassNames`: [priority class names configuration settings](#priority-class-names)
 * `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   * `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
   If individual nodes are specified under the `nodes` field, then `useAllNodes` must be set to `false`.
@@ -619,16 +619,16 @@ For more information on resource requests/limits see the official Kubernetes doc
   * `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
   * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
-### Priority Class Names Configuration Settings
+### Priority Class Names
 
 Priority class names can be specified so that the Rook components will have those priority class names added to them.
 
 You can set priority class names for Rook components for the list of key value pairs:
 
 * `all`: Set priority class names for MGRs, Mons, OSDs, and crashcollectors.
-* `mgr`: Set priority class names for MGRs.
-* `mon`: Set priority class names for Mons.
-* `osd`: Set priority class names for OSDs.
+* `mgr`: Set priority class names for MGRs. Examples default to system-cluster-critical.
+* `mon`: Set priority class names for Mons. Examples default to system-node-critical.
+* `osd`: Set priority class names for OSDs. Examples default to system-node-critical.
 * `crashcollector`: Set priority class names for crashcollectors.
 
 The specific component keys will act as overrides to `all`.

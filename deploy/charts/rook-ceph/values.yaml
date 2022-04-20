@@ -69,14 +69,15 @@ csi:
   # set to false to disable deployment of snapshotter container in RBD provisioner pod.
   enableRBDSnapshotter: true
   # set to false if the selinux is not enabled or unavailable in cluster nodes.
-  enablePluginSelinuxHostMount : false
+  enablePluginSelinuxHostMount: false
   # set to true to enable Ceph CSI pvc encryption support.
   enableCSIEncryption: false
+
   # (Optional) set user created priorityclassName for csi plugin pods.
-  # pluginPriorityClassName: system-node-critical
+  pluginPriorityClassName: system-node-critical
 
   # (Optional) set user created priorityclassName for csi provisioner pods.
-  # provisionerPriorityClassName: system-cluster-critical
+  provisionerPriorityClassName: system-cluster-critical
 
   # (Optional) policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
@@ -85,7 +86,7 @@ csi:
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   cephFSFSGroupPolicy: "ReadWriteOnceWithFSType"
-  
+
   # (Optional) policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   nfsFSGroupPolicy: "ReadWriteOnceWithFSType"
@@ -117,7 +118,7 @@ csi:
 
   # Allow starting unsupported ceph-csi image
   allowUnsupportedVersion: false
-    # CEPH CSI RBD provisioner resource requirement list, Put here list of resource
+  # CEPH CSI RBD provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
   # csi-omap-generator resources will be applied only if enableOMAPGenerator is set to true
   csiRBDProvisionerResource: |

@@ -288,12 +288,10 @@ cephClusterSpec:
   removeOSDsIfOutAndSafeToRemove: false
 
   # priority classes to apply to ceph resources
-  # priorityClassNames:
-  #   all: rook-ceph-default-priority-class
-  #   mon: rook-ceph-mon-priority-class
-  #   osd: rook-ceph-osd-priority-class
-  #   mgr: rook-ceph-mgr-priority-class
-  #   crashcollector: rook-ceph-crashcollector-priority-class
+  priorityClassNames:
+    mon: system-node-critical
+    osd: system-node-critical
+    mgr: system-cluster-critical
 
   storage: # cluster level storage configuration and selection
     useAllNodes: true
@@ -442,6 +440,7 @@ cephFileSystems:
           requests:
             cpu: "1000m"
             memory: "4Gi"
+        priorityClassName: system-cluster-critical
     storageClass:
       enabled: true
       isDefault: false
@@ -511,6 +510,7 @@ cephObjectStores:
         # securePort: 443
         # sslCertificateRef:
         instances: 1
+        priorityClassName: system-cluster-critical
       healthCheck:
         bucket:
           interval: 60s

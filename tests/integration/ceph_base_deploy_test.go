@@ -76,7 +76,7 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 
 func checkIfRookClusterHasHealthyIngress(s suite.Suite, k8sh *utils.K8sHelper, clusterNamespace string) {
 	logger.Infof("Testing ingress %s health", clusterNamespace)
-	_, err := k8sh.GetResourceStatus("Ingress", clusterNamespace + "-dashboard", clusterNamespace)
+	_, err := k8sh.GetResourceStatus("Ingress", clusterNamespace+"-dashboard", clusterNamespace)
 	assert.NoError(s.T(), err)
 }
 
@@ -93,6 +93,7 @@ func HandlePanics(r interface{}, uninstaller func(), t func() *testing.T) {
 func StartTestCluster(t func() *testing.T, settings *installer.TestCephSettings) (*installer.CephInstaller, *utils.K8sHelper) {
 	k8shelper, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
+	settings.KubernetesVersion = k8shelper.GetK8sServerVersion()
 
 	// Turn on DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
