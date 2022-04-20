@@ -182,10 +182,10 @@ data:
   # ROOK_CSI_NFS_IMAGE: "mcr.microsoft.com/k8s/csi/nfs-csi:v3.1.0"
 
   # (Optional) set user created priorityclassName for csi plugin pods.
-  # CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
+  CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
 
   # (Optional) set user created priorityclassName for csi provisioner pods.
-  # CSI_PROVISIONER_PRIORITY_CLASSNAME: "system-cluster-critical"
+  CSI_PROVISIONER_PRIORITY_CLASSNAME: "system-cluster-critical"
 
   # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
