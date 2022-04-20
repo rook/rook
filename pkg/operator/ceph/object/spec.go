@@ -376,7 +376,7 @@ func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketH
 
 func (c *clusterConfig) defaultLivenessProbe() *v1.Probe {
 	return &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			TCPSocket: &v1.TCPSocketAction{
 				Port: c.generateProbePort(),
 			},
@@ -387,7 +387,7 @@ func (c *clusterConfig) defaultLivenessProbe() *v1.Probe {
 
 func (c *clusterConfig) defaultReadinessProbe() *v1.Probe {
 	return &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Path:   readinessProbePath,
 				Port:   c.generateProbePort(),

@@ -308,7 +308,7 @@ func TestDefaultLivenessProbe(t *testing.T) {
 	}
 
 	desiredProbe := &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			TCPSocket: &v1.TCPSocketAction{
 				Port: intstr.FromInt(8080),
 			},
@@ -324,7 +324,7 @@ func TestDefaultLivenessProbe(t *testing.T) {
 	c.store.Spec.Gateway.SecurePort = 0
 	c.clusterSpec.Network.HostNetwork = true
 	p = c.defaultLivenessProbe()
-	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	desiredProbe.ProbeHandler.TCPSocket.Port = intstr.FromInt(123)
 	assert.Equal(t, desiredProbe, p)
 
 	// SSL - HostNetwork is enabled
@@ -332,7 +332,7 @@ func TestDefaultLivenessProbe(t *testing.T) {
 	c.store.Spec.Gateway.SecurePort = 321
 	c.store.Spec.Gateway.SSLCertificateRef = "foo"
 	p = c.defaultLivenessProbe()
-	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(321)
+	desiredProbe.ProbeHandler.TCPSocket.Port = intstr.FromInt(321)
 	assert.Equal(t, desiredProbe, p)
 
 	// Both Non-SSL and SSL are enabled
@@ -340,7 +340,7 @@ func TestDefaultLivenessProbe(t *testing.T) {
 	c.store.Spec.Gateway.Port = 123
 	c.store.Spec.Gateway.SecurePort = 321
 	p = c.defaultLivenessProbe()
-	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	desiredProbe.ProbeHandler.TCPSocket.Port = intstr.FromInt(123)
 	assert.Equal(t, desiredProbe, p)
 }
 
@@ -356,7 +356,7 @@ func TestDefaultStartupProbe(t *testing.T) {
 	}
 
 	desiredProbe := &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			TCPSocket: &v1.TCPSocketAction{
 				Port: intstr.FromInt(8080),
 			},
@@ -374,7 +374,7 @@ func TestDefaultStartupProbe(t *testing.T) {
 	c.store.Spec.Gateway.SecurePort = 0
 	c.clusterSpec.Network.HostNetwork = true
 	p = c.defaultStartupProbe()
-	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	desiredProbe.ProbeHandler.TCPSocket.Port = intstr.FromInt(123)
 	assert.Equal(t, desiredProbe, p)
 
 	// SSL - HostNetwork is enabled
@@ -382,7 +382,7 @@ func TestDefaultStartupProbe(t *testing.T) {
 	c.store.Spec.Gateway.SecurePort = 321
 	c.store.Spec.Gateway.SSLCertificateRef = "foo"
 	p = c.defaultStartupProbe()
-	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(321)
+	desiredProbe.ProbeHandler.TCPSocket.Port = intstr.FromInt(321)
 	assert.Equal(t, desiredProbe, p)
 
 	// Both Non-SSL and SSL are enabled
@@ -390,7 +390,7 @@ func TestDefaultStartupProbe(t *testing.T) {
 	c.store.Spec.Gateway.Port = 123
 	c.store.Spec.Gateway.SecurePort = 321
 	p = c.defaultStartupProbe()
-	desiredProbe.Handler.TCPSocket.Port = intstr.FromInt(123)
+	desiredProbe.ProbeHandler.TCPSocket.Port = intstr.FromInt(123)
 	assert.Equal(t, desiredProbe, p)
 }
 
@@ -406,7 +406,7 @@ func TestDefaultReadinessProbe(t *testing.T) {
 	}
 
 	desiredProbe := &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			HTTPGet: &v1.HTTPGetAction{
 				Path:   readinessProbePath,
 				Port:   intstr.FromInt(8080),
@@ -424,7 +424,7 @@ func TestDefaultReadinessProbe(t *testing.T) {
 	c.store.Spec.Gateway.SecurePort = 0
 	c.clusterSpec.Network.HostNetwork = true
 	p = c.defaultReadinessProbe()
-	desiredProbe.Handler.HTTPGet.Port = intstr.FromInt(123)
+	desiredProbe.ProbeHandler.HTTPGet.Port = intstr.FromInt(123)
 	assert.Equal(t, desiredProbe, p)
 
 	// SSL - HostNetwork is enabled
@@ -432,8 +432,8 @@ func TestDefaultReadinessProbe(t *testing.T) {
 	c.store.Spec.Gateway.SecurePort = 321
 	c.store.Spec.Gateway.SSLCertificateRef = "foo"
 	p = c.defaultReadinessProbe()
-	desiredProbe.Handler.HTTPGet.Port = intstr.FromInt(321)
-	desiredProbe.Handler.HTTPGet.Scheme = v1.URISchemeHTTPS
+	desiredProbe.ProbeHandler.HTTPGet.Port = intstr.FromInt(321)
+	desiredProbe.ProbeHandler.HTTPGet.Scheme = v1.URISchemeHTTPS
 	assert.Equal(t, desiredProbe, p)
 
 	// Both Non-SSL and SSL are enabled
@@ -441,8 +441,8 @@ func TestDefaultReadinessProbe(t *testing.T) {
 	c.store.Spec.Gateway.Port = 123
 	c.store.Spec.Gateway.SecurePort = 321
 	p = c.defaultReadinessProbe()
-	desiredProbe.Handler.HTTPGet.Port = intstr.FromInt(123)
-	desiredProbe.Handler.HTTPGet.Scheme = v1.URISchemeHTTP
+	desiredProbe.ProbeHandler.HTTPGet.Port = intstr.FromInt(123)
+	desiredProbe.ProbeHandler.HTTPGet.Scheme = v1.URISchemeHTTP
 	assert.Equal(t, desiredProbe, p)
 }
 

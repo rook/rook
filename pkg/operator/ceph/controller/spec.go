@@ -561,7 +561,7 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 	confDaemon := getDaemonConfig(daemonType, daemonID)
 
 	return &v1.Probe{
-		Handler: v1.Handler{
+		ProbeHandler: v1.ProbeHandler{
 			Exec: &v1.ExecAction{
 				// Run with env -i to clean env variables in the exec context
 				// This avoids conflict with the CEPH_ARGS env
