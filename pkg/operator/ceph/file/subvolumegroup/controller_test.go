@@ -273,7 +273,7 @@ func TestCephClientController(t *testing.T) {
 
 		err = r.client.Get(ctx, req.NamespacedName, cephFilesystemSubVolumeGroup)
 		assert.NoError(t, err)
-		assert.Equal(t, cephv1.ConditionConnected, cephFilesystemSubVolumeGroup.Status.Phase)
+		assert.Equal(t, cephv1.ConditionReady, cephFilesystemSubVolumeGroup.Status.Phase)
 		assert.NotEmpty(t, cephFilesystemSubVolumeGroup.Status.Info["clusterID"])
 
 		// test that csi configmap is created
