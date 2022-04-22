@@ -1050,7 +1050,7 @@ func (c *Cluster) saveMonConfig() error {
 		return errors.Wrap(err, "failed to write connection config for new mons")
 	}
 
-	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, &csi.CsiClusterConfigEntry{Monitors: csi.MonEndpoints(c.ClusterInfo.Monitors)}); err != nil {
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, &csi.CsiClusterConfigEntry{Namespace: c.ClusterInfo.Namespace, Monitors: csi.MonEndpoints(c.ClusterInfo.Monitors)}); err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
 
