@@ -8,6 +8,9 @@ metadata:
   annotations: {{- toYaml .Values.ingress.dashboard.annotations | nindent 4 }}
   {{- end }}
 spec:
+  {{- if .Values.ingress.dashboard.ingressClassName }}
+  ingressClassName: {{ .Values.ingress.dashboard.ingressClassName }}
+  {{- end }}
   rules:
     - host: {{ .Values.ingress.dashboard.host.name }}
       http:
@@ -31,9 +34,6 @@ spec:
               {{- else }}
               servicePort: http-dashboard
               {{- end }}
-  {{- if .Values.ingress.dashboard.ingressClassName }}
-  ingressClassName: {{ .Values.ingress.dashboard.ingressClassName }}
-  {{- end }}
 {{- end }}
   {{- if .Values.ingress.dashboard.tls }}
   tls: {{- toYaml .Values.ingress.dashboard.tls | nindent 4 }}
