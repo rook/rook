@@ -25,6 +25,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -36,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -212,12 +214,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
-		// Create CSI config map
-		ownerRef := &metav1.OwnerReference{}
-		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
-		err = csi.CreateCsiConfigMap(context.TODO(), namespace, c.Clientset, ownerInfo)
-		assert.NoError(t, err)
+		initializeTestCSI(t, c.Clientset, namespace)
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -258,12 +255,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
-		// Create CSI config map
-		ownerRef := &metav1.OwnerReference{}
-		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
-		err := csi.CreateCsiConfigMap(context.TODO(), namespace, c.Clientset, ownerInfo)
-		assert.NoError(t, err)
+		initializeTestCSI(t, c.Clientset, namespace)
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -281,6 +273,18 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
 		assert.Contains(t, cm.Data[csi.ConfigKey], name)
 	})
+}
+
+func initializeTestCSI(t *testing.T, clientset kubernetes.Interface, namespace string) {
+	os.Setenv("POD_NAMESPACE", namespace)
+	// Create CSI config map
+	ownerRef := &metav1.OwnerReference{}
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
+	err := csi.CreateCsiConfigMap(context.TODO(), namespace, clientset, ownerInfo)
+	assert.NoError(t, err)
+	clusterConfig := &csi.CsiClusterConfigEntry{ClusterID: namespace}
+	clusterInfo := &client.ClusterInfo{Context: context.TODO()}
+	csi.SaveClusterConfig(clientset, clusterInfo, clusterConfig)
 }
 
 func Test_buildClusterID(t *testing.T) {

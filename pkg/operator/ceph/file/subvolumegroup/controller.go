@@ -194,7 +194,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 			}
 		}
 
-		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, nil)
+		err = csi.RemoveSubvolumeGroup(r.context.Clientset, r.clusterInfo, cephFilesystemSubVolumeGroup)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -211,7 +211,8 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 
 	if cephCluster.Spec.External.Enable {
 		logger.Debug("external subvolume group creation is not supported, create it manually, the controller will assume it's there")
-		err = r.updateClusterConfig(cephFilesystemSubVolumeGroup)
+		// Update CSI config map
+		err = csi.AddSubvolumeGroup(r.context.Clientset, r.clusterInfo, cephFilesystemSubVolumeGroup)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -250,7 +251,8 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 	}
 
-	err = r.updateClusterConfig(cephFilesystemSubVolumeGroup)
+	// Update CSI config map
+	err = csi.AddSubvolumeGroup(r.context.Clientset, r.clusterInfo, cephFilesystemSubVolumeGroup)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
@@ -258,23 +260,6 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	// Return and do not requeue
 	logger.Debug("done reconciling cephFilesystemSubVolumeGroup %q", namespacedName)
 	return reconcile.Result{}, nil
-}
-
-func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) error {
-	// Update CSI config map
-	// If the mon endpoints change, the mon health check go routine will take care of updating the
-	// config map, so no special care is needed in this controller
-	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
-		Monitors: csi.MonEndpoints(r.clusterInfo.Monitors),
-		CephFS: &csi.CsiCephFSSpec{
-			SubvolumeGroup: cephFilesystemSubVolumeGroup.Name,
-		},
-	}
-	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, &csiClusterConfigEntry)
-	if err != nil {
-		return errors.Wrap(err, "failed to save cluster config")
-	}
-	return nil
 }
 
 // Create the ceph filesystem subvolume group

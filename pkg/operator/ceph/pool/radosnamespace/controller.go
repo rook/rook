@@ -189,7 +189,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 				return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph blockpool rados namespace %q", cephBlockPoolRadosNamespace.Name)
 			}
 		}
-		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephBlockPoolRadosNamespace), r.clusterInfo, nil)
+		err = csi.RemoveRadosNamespace(r.context.Clientset, r.clusterInfo, cephBlockPoolRadosNamespace)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -205,7 +205,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	if cephCluster.Spec.External.Enable {
 		logger.Debugf("external rados namespace %q creation is not supported, create it manually, the controller will assume it's there", namespacedName)
-		err = r.updateClusterConfig(cephBlockPoolRadosNamespace)
+		err := csi.AddRadosNamespace(r.context.Clientset, r.clusterInfo, cephBlockPoolRadosNamespace)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -241,7 +241,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph pool rados namespace %q", cephBlockPoolRadosNamespace.Name)
 	}
 
-	err = r.updateClusterConfig(cephBlockPoolRadosNamespace)
+	err = csi.AddRadosNamespace(r.context.Clientset, r.clusterInfo, cephBlockPoolRadosNamespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
@@ -250,21 +250,6 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	// Return and do not requeue
 	logger.Debug("done reconciling cephBlockPoolRadosNamespace %q", namespacedName)
 	return reconcile.Result{}, nil
-}
-
-func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) error {
-	// Update CSI config map
-	// If the mon endpoints change, the mon health check go routine will take care of updating the
-	// config map, so no special care is needed in this controller
-	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
-		Monitors:       csi.MonEndpoints(r.clusterInfo.Monitors),
-		RadosNamespace: cephBlockPoolRadosNamespace.Name,
-	}
-	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephBlockPoolRadosNamespace), r.clusterInfo, &csiClusterConfigEntry)
-	if err != nil {
-		return errors.Wrap(err, "failed to save cluster config")
-	}
-	return nil
 }
 
 // Create the ceph blockpool rados namespace
