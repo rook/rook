@@ -370,11 +370,11 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		client:      r.client,
 		ownerInfo:   ownerInfo,
 	}
-	objContext := NewContext(r.context, r.clusterInfo, cephObjectStore.Name)
-	objContext.UID = string(cephObjectStore.UID)
+	objContext, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
+	if err != nil {
+		return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to setup object store context", err)
+	}
 	objContext.CephClusterSpec = cluster
-
-	var err error
 
 	if cephObjectStore.Spec.IsExternal() {
 		logger.Info("reconciling external object store")

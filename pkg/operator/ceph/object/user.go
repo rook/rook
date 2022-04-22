@@ -134,6 +134,14 @@ func CreateUser(c *Context, user ObjectUser, force bool) (*ObjectUser, int, erro
 		args = append(args, "--caps", rgwAdminOpsUserCaps)
 	}
 
+	if user.AccessKey != nil {
+		args = append(args, "--access-key", *user.AccessKey)
+	}
+
+	if user.SecretKey != nil {
+		args = append(args, "--secret", *user.SecretKey)
+	}
+
 	if force {
 		args = append(args, "--yes-i-really-mean-it")
 	}
@@ -160,6 +168,27 @@ func CreateUser(c *Context, user ObjectUser, force bool) (*ObjectUser, int, erro
 		return nil, RGWErrorUnknown, errors.Wrapf(err, "failed to create s3 user. %s", result)
 	}
 	return decodeUser(result)
+}
+
+// CreateOrRecreateUserIfExists if the user doesn't exist, it is created, should it already exist it is deleted and re-created
+// It is called from the rgw dashboard setup logic.
+func CreateOrRecreateUserIfExists(c *Context, user ObjectUser, force bool) (*ObjectUser, int, error) {
+	objUser, errCode, err := CreateUser(c, user, force)
+	if err != nil || (errCode != ErrorCodeFileExists && errCode != RGWErrorNone) {
+		return nil, errCode, err
+	}
+
+	if errCode == RGWErrorNone {
+		return objUser, errCode, err
+	} else if errCode == ErrorCodeFileExists {
+		// If the user already exists, delete and re-create it
+		_, err := DeleteUser(c, user.UserID)
+		if err != nil {
+			return nil, RGWErrorUnknown, err
+		}
+	}
+
+	return CreateUser(c, user, force)
 }
 
 func ListUserBuckets(c *Context, id string, opts ...string) (string, error) {
