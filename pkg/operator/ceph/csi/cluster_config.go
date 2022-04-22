@@ -40,6 +40,7 @@ var (
 type CsiClusterConfigEntry struct {
 	ClusterID      string         `json:"clusterID"`
 	Monitors       []string       `json:"monitors"`
+	Namespace      string         `json:"namespace"`
 	CephFS         *CsiCephFSSpec `json:"cephFS,omitempty"`
 	RadosNamespace string         `json:"radosNamespace,omitempty"`
 }
@@ -112,6 +113,16 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 	// a lock is acquired for the update operation. So concurrent updates (rare event) will block and
 	// wait for the other update to complete. Monitors and Subvolumegroup will be updated
 	// independently and won't collide.
+	if newCsiClusterConfigEntry != nil {
+		for i, centry := range cc {
+			// If the clusterID belongs to the same cluster, update the entry.
+			// update default clusterID's entry
+			if clusterKey == centry.Namespace {
+				centry.Monitors = newCsiClusterConfigEntry.Monitors
+				cc[i] = centry
+			}
+		}
+	}
 	for i, centry := range cc {
 		if centry.ClusterID == clusterKey {
 			// If the new entry is nil, this means the entry is being deleted so remove it from the list
@@ -137,6 +148,7 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 		// will fail with a dangling pointer
 		if newCsiClusterConfigEntry != nil {
 			centry.ClusterID = clusterKey
+			centry.Namespace = newCsiClusterConfigEntry.Namespace
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
 			// Add a condition not to fill with empty values
 			if newCsiClusterConfigEntry.CephFS != nil && newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" {

@@ -257,6 +257,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 	// If the mon endpoints change, the mon health check go routine will take care of updating the
 	// config map, so no special care is needed in this controller
 	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
+		Namespace:      r.clusterInfo.Namespace,
 		Monitors:       csi.MonEndpoints(r.clusterInfo.Monitors),
 		RadosNamespace: cephBlockPoolRadosNamespace.Name,
 	}
