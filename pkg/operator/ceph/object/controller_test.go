@@ -19,17 +19,17 @@ package object
 
 import (
 	"context"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"os"
 	"reflect"
 	"testing"
 	"time"
 
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
@@ -334,7 +334,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		clientset := test.New(t, 3)
 		c := &clusterd.Context{
 			Executor:      executor,
-			RookClientset: rookclient.NewSimpleClientset(),
+			RookClientset: rookfake.NewSimpleClientset(),
 			Clientset:     clientset,
 		}
 
@@ -677,7 +677,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	clientset := test.New(t, 3)
 	c := &clusterd.Context{
 		Executor:      executor,
-		RookClientset: rookclient.NewSimpleClientset(),
+		RookClientset: rookfake.NewSimpleClientset(),
 		Clientset:     clientset,
 	}
 
@@ -843,7 +843,7 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 
 		c := &clusterd.Context{
 			Executor:      executor,
-			RookClientset: rookclient.NewSimpleClientset(),
+			RookClientset: rookfake.NewSimpleClientset(),
 			Clientset:     clientset,
 			Client:        cl,
 		}

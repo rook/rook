@@ -35,7 +35,6 @@ import (
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -183,7 +182,7 @@ func TestRemoveFinalizers(t *testing.T) {
 				tt.object,
 			}
 			s.AddKnownTypes(tt.schema, tt.object)
-			cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+			cl := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 			assert.NotEmpty(t, fakeObject.GetFinalizers())
 			name := types.NamespacedName{Name: fakeObject.GetName(), Namespace: fakeObject.GetNamespace()}

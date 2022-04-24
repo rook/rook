@@ -38,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	cntrlutil "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 func TestGenerateCrashEnvVar(t *testing.T) {
@@ -87,9 +86,9 @@ func TestCreateOrUpdateCephCron(t *testing.T) {
 	}
 
 	// check if v1beta1 cronJob is present and v1 cronJob is not
-	controllerutil, err := r.createOrUpdateCephCron(cephCluster, cephVersion, false)
+	cntrlutil, err := r.createOrUpdateCephCron(cephCluster, cephVersion, false)
 	assert.NoError(t, err)
-	assert.Equal(t, controllerutil, cntrlutil.OperationResult("created"))
+	assert.Equal(t, cntrlutil, controllerutil.OperationResult("created"))
 
 	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: prunerName}, cronV1Beta1)
 	assert.NoError(t, err)
@@ -99,9 +98,9 @@ func TestCreateOrUpdateCephCron(t *testing.T) {
 	assert.True(t, kerrors.IsNotFound(err))
 
 	// check if v1 cronJob is present and v1beta1 cronJob is not
-	controllerutil, err = r.createOrUpdateCephCron(cephCluster, cephVersion, true)
+	cntrlutil, err = r.createOrUpdateCephCron(cephCluster, cephVersion, true)
 	assert.NoError(t, err)
-	assert.Equal(t, controllerutil, cntrlutil.OperationResult("created"))
+	assert.Equal(t, cntrlutil, controllerutil.OperationResult("created"))
 
 	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: prunerName}, cronV1)
 	assert.NoError(t, err)

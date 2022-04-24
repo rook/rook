@@ -22,7 +22,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -134,7 +133,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 
 	if !c.clusterSpec.Network.IsHost() {
 		args = append(args,
-			config.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
+			cephconfig.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
 
 	container := v1.Container{
@@ -148,16 +147,16 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Env:             append(controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image), k8sutil.PodIPEnvVar(podIPEnvVar)),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: controller.PodSecurityContext(),
-		StartupProbe:    controller.GenerateStartupProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
-		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MdsType, mdsConfig.DaemonID),
-		WorkingDir:      config.VarLogCephDir,
+		StartupProbe:    controller.GenerateStartupProbeExecDaemon(cephconfig.MdsType, mdsConfig.DaemonID),
+		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(cephconfig.MdsType, mdsConfig.DaemonID),
+		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
 	return container
 }
 
 func (c *Cluster) podLabels(mdsConfig *mdsConfig, includeNewLabels bool) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, c.fs.Namespace, config.MdsType, mdsConfig.DaemonID, c.fs.Name, "cephfilesystems.ceph.rook.io", includeNewLabels)
+	labels := controller.CephDaemonAppLabels(AppName, c.fs.Namespace, cephconfig.MdsType, mdsConfig.DaemonID, c.fs.Name, "cephfilesystems.ceph.rook.io", includeNewLabels)
 	labels["rook_file_system"] = c.fs.Name
 	return labels
 }

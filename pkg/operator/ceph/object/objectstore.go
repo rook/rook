@@ -749,7 +749,7 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 // configurePoolsConcurrently checks if operator pod resources are set or not
 func configurePoolsConcurrently() bool {
 	// if operator resources are specified return false as it will lead to operator pod killed due to resource limit
-	// nolint #S1008, we can safely suppress this
+	// nolint S1008 (go-staticcheck), we can safely suppress this
 	if os.Getenv("OPERATOR_RESOURCES_SPECIFIED") == "true" {
 		return false
 	}

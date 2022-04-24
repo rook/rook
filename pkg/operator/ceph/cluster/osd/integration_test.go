@@ -18,7 +18,6 @@ package osd
 
 import (
 	"context"
-	contextStandard "context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -96,8 +95,8 @@ func TestOSDIntegration(t *testing.T) {
 
 // This is the actual test. If it hangs, we should consider that an error.
 func testOSDIntegration(t *testing.T) {
-	ctx := contextStandard.TODO()
-	contextCancel, cancel := contextStandard.WithCancel(ctx)
+	ctx := context.TODO()
+	contextCancel, cancel := context.WithCancel(ctx)
 	namespace := "osd-integration"
 	clusterName := "my-cluster"
 
@@ -195,7 +194,7 @@ func testOSDIntegration(t *testing.T) {
 	clusterInfo.Context = ctx
 	executor := osdIntegrationTestExecutor(t, clientset, namespace)
 
-	context := &clusterd.Context{
+	rootCtx := &clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: "/var/lib/rook",
 		Executor:  executor,
@@ -204,7 +203,7 @@ func testOSDIntegration(t *testing.T) {
 		CephVersion: cephv1.CephVersionSpec{
 			Image: "quay.io/ceph/ceph:v16.2.0",
 		},
-		DataDirHostPath: context.ConfigDir,
+		DataDirHostPath: rootCtx.ConfigDir,
 		// This storage spec should... (see inline)
 		Storage: cephv1.StorageScopeSpec{
 			UseAllNodes: true,
@@ -222,13 +221,13 @@ func testOSDIntegration(t *testing.T) {
 	}
 	osdsPerNode := 2 // vda and vdb
 
-	c := New(context, clusterInfo, spec, "myversion")
+	c := New(rootCtx, clusterInfo, spec, "myversion")
 
 	var startErr error
 	var done bool
-	runReconcile := func(ctx contextStandard.Context) {
+	runReconcile := func(ctx context.Context) {
 		// reset environment
-		c = New(context, clusterInfo, spec, "myversion")
+		c = New(rootCtx, clusterInfo, spec, "myversion")
 		clusterInfo.Context = ctx
 		statusMapWatcher.Reset()
 
@@ -327,7 +326,7 @@ func testOSDIntegration(t *testing.T) {
 				// while to make sure the watcher picks up the updated change
 				cancel()
 				// refresh the context so the rest of the test can continue
-				contextCancel = contextStandard.TODO()
+				contextCancel = context.TODO()
 				break
 			}
 			i++
@@ -552,7 +551,7 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 					// ceph osd ls returns an array of osd IDs like [0,1,2]
 					// build this based on the number of deployments since they should be equal
 					// for this test
-					l, err := clientset.AppsV1().Deployments(namespace).List(contextStandard.TODO(), metav1.ListOptions{})
+					l, err := clientset.AppsV1().Deployments(namespace).List(context.TODO(), metav1.ListOptions{})
 					if err != nil {
 						panic(fmt.Sprintf("failed to build 'ceph osd ls' output. %v", err))
 					}
@@ -620,7 +619,7 @@ func newDummyStorageClassDeviceSet(
 
 func waitForNumConfigMaps(clientset kubernetes.Interface, namespace string, count int) []corev1.ConfigMap {
 	for {
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(contextStandard.TODO(), metav1.ListOptions{})
+		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
 		if err != nil {
 			panic(err)
 		}

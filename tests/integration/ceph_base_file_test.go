@@ -21,7 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
@@ -440,7 +439,7 @@ spec:
 `
 }
 
-func waitForFilesystemActive(k8sh *utils.K8sHelper, clusterInfo *client.ClusterInfo, filesystemName string) error {
+func waitForFilesystemActive(k8sh *utils.K8sHelper, clusterInfo *cephclient.ClusterInfo, filesystemName string) error {
 	command, args := cephclient.FinalizeCephCommandArgs("ceph", clusterInfo, []string{"fs", "status", filesystemName}, k8sh.MakeContext().ConfigDir)
 	var stat string
 	var err error

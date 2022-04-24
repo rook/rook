@@ -30,7 +30,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -52,7 +51,7 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 	if includeNewLabels {
 		monVolumeClaimTemplate := c.monVolumeClaimTemplate(monConfig)
 		if monVolumeClaimTemplate != nil {
-			size := monVolumeClaimTemplate.Spec.Resources.Requests[v1.ResourceStorage]
+			size := monVolumeClaimTemplate.Spec.Resources.Requests[corev1.ResourceStorage]
 			labels["pvc_name"] = monConfig.ResourceName
 			labels["pvc_size"] = size.String()
 		}
@@ -320,10 +319,10 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 
 	if !c.spec.RequireMsgr2() {
 		// Add messenger 1 port
-		container.Ports = append(container.Ports, v1.ContainerPort{
+		container.Ports = append(container.Ports, corev1.ContainerPort{
 			Name:          "tcp-msgr1",
 			ContainerPort: DefaultMsgr1Port,
-			Protocol:      v1.ProtocolTCP,
+			Protocol:      corev1.ProtocolTCP,
 		})
 	}
 

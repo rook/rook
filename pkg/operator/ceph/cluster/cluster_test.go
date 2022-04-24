@@ -24,9 +24,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -42,27 +40,27 @@ func TestPreClusterStartValidation(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"no settings", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), Spec: &cephv1.ClusterSpec{}, context: &clusterd.Context{Clientset: testop.New(t, 3)}}}, false},
-		{"even mons", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 2}}}}, false},
-		{"missing stretch zones", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"no settings", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), Spec: &cephv1.ClusterSpec{}, context: &clusterd.Context{Clientset: testop.New(t, 3)}}}, false},
+		{"even mons", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 2}}}}, false},
+		{"missing stretch zones", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a"},
 		}}}}}}, true},
-		{"missing arbiter", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"missing arbiter", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a"},
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, true},
-		{"missing zone name", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"missing zone name", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Arbiter: true},
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, true},
-		{"valid stretch cluster", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 3, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"valid stretch cluster", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 3, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a", Arbiter: true},
 			{Name: "b"},
 			{Name: "c"},
 		}}}}}}, false},
-		{"not enough stretch nodes", args{&cluster{ClusterInfo: client.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 5, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+		{"not enough stretch nodes", args{&cluster{ClusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"), context: &clusterd.Context{Clientset: testop.New(t, 3)}, Spec: &cephv1.ClusterSpec{Mon: cephv1.MonSpec{Count: 5, StretchCluster: &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
 			{Name: "a", Arbiter: true},
 			{Name: "b"},
 			{Name: "c"},
@@ -156,19 +154,19 @@ func TestConfigureMsgr2(t *testing.T) {
 		encryptionExpected   bool
 		compressionExpected  bool
 		disabledBothExpected bool
-		cephVersion          version.CephVersion
+		cephVersion          cephver.CephVersion
 		Spec                 *cephv1.ClusterSpec
 	}
 	tests := []struct {
 		name   string
 		fields fields
 	}{
-		{"default settings", fields{false, false, false, version.CephVersion{Major: 15}, &cephv1.ClusterSpec{}}},
-		{"encryption enabled", fields{true, false, false, version.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}}}}}},
-		{"compression enabled old version", fields{false, false, false, version.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
-		{"compression enabled good version", fields{false, true, false, version.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
-		{"both enabled", fields{true, true, false, version.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}, Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
-		{"both disabled", fields{false, false, true, version.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: false}, Compression: &cephv1.CompressionSpec{Enabled: false}}}}}},
+		{"default settings", fields{false, false, false, cephver.CephVersion{Major: 15}, &cephv1.ClusterSpec{}}},
+		{"encryption enabled", fields{true, false, false, cephver.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}}}}}},
+		{"compression enabled old version", fields{false, false, false, cephver.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{"compression enabled good version", fields{false, true, false, cephver.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{"both enabled", fields{true, true, false, cephver.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}, Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{"both disabled", fields{false, false, true, cephver.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: false}, Compression: &cephv1.CompressionSpec{Enabled: false}}}}}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -200,7 +198,7 @@ func TestConfigureMsgr2(t *testing.T) {
 					return "", errors.Errorf("unrecognized command")
 				},
 			}
-			clusterInfo := client.AdminTestClusterInfo("rook-ceph")
+			clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
 			clusterInfo.CephVersion = tt.fields.cephVersion
 			context := &clusterd.Context{Clientset: testop.New(t, 3), Executor: executor}
 			c := &cluster{

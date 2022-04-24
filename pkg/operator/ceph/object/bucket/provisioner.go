@@ -36,12 +36,11 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
-	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 )
 
 type Provisioner struct {
 	context         *clusterd.Context
-	objectContext   *cephObject.Context
+	objectContext   *object.Context
 	clusterInfo     *client.ClusterInfo
 	bucketName      string
 	storeDomainName string
@@ -81,7 +80,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	s3svc, err := cephObject.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+	s3svc, err := object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -158,7 +157,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
 	}
 
-	s3svc, err := cephObject.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+	s3svc, err := object.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	if err != nil {
 		p.deleteOBCResourceLogError("")
 		return nil, err
@@ -175,15 +174,15 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		}
 	}
 
-	statement := cephObject.NewPolicyStatement().
+	statement := object.NewPolicyStatement().
 		WithSID(p.cephUserName).
 		ForPrincipals(p.cephUserName).
 		ForResources(p.bucketName).
 		ForSubResources(p.bucketName).
 		Allows().
-		Actions(cephObject.AllowedActions...)
+		Actions(object.AllowedActions...)
 	if policy == nil {
-		policy = cephObject.NewBucketPolicy(*statement)
+		policy = object.NewBucketPolicy(*statement)
 	} else {
 		policy = policy.ModifyBucketPolicy(*statement)
 	}
@@ -254,7 +253,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 
-		s3svc, err := cephObject.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+		s3svc, err := object.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 		if err != nil {
 			return err
 		}
@@ -274,15 +273,15 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		}
 
 		if bucket.Owner == p.cephUserName {
-			statement := cephObject.NewPolicyStatement().
+			statement := object.NewPolicyStatement().
 				WithSID(p.cephUserName).
 				ForPrincipals(p.cephUserName).
 				ForResources(p.bucketName).
 				ForSubResources(p.bucketName).
 				Denies().
-				Actions(cephObject.AllowedActions...)
+				Actions(object.AllowedActions...)
 			if policy == nil {
-				policy = cephObject.NewBucketPolicy(*statement)
+				policy = object.NewBucketPolicy(*statement)
 			} else {
 				policy = policy.ModifyBucketPolicy(*statement)
 			}
@@ -447,7 +446,7 @@ func (p *Provisioner) setObjectContext() error {
 	// In 1.3, OBC external is working with an Endpoint (from the SC param) and in 1.4 we have a CephObjectStore but we must keep backward compatibility
 	// In 1.4, the Endpoint from the SC is not expected and never used so we will enter the "else" condition which gets a CephObjectStore and it is present
 	if p.endpoint != "" {
-		p.objectContext = cephObject.NewContext(p.context, p.clusterInfo, p.objectStoreName)
+		p.objectContext = object.NewContext(p.context, p.clusterInfo, p.objectStoreName)
 	} else {
 		// Get CephObjectStore
 		store, err := p.getObjectStore()
@@ -456,7 +455,7 @@ func (p *Provisioner) setObjectContext() error {
 		}
 
 		// Set multisite context
-		p.objectContext, err = cephObject.NewMultisiteContext(p.context, p.clusterInfo, store)
+		p.objectContext, err = object.NewMultisiteContext(p.context, p.clusterInfo, store)
 		if err != nil {
 			return errors.Wrap(err, "failed to set multisite on provisioner's objectContext")
 		}
@@ -476,7 +475,7 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	if err != nil {
 		return err
 	}
-	p.storeDomainName = cephObject.BuildDomainName(name, namespace)
+	p.storeDomainName = object.BuildDomainName(name, namespace)
 	return nil
 }
 
@@ -599,7 +598,7 @@ func (p *Provisioner) setTlsCaCert() error {
 	}
 	p.tlsCert = make([]byte, 0)
 	if objStore.Spec.Gateway.SecurePort == p.storePort {
-		p.tlsCert, p.insecureTLS, err = cephObject.GetTlsCaCert(p.objectContext, &objStore.Spec)
+		p.tlsCert, p.insecureTLS, err = object.GetTlsCaCert(p.objectContext, &objStore.Spec)
 		if err != nil {
 			return err
 		}
@@ -611,10 +610,10 @@ func (p *Provisioner) setTlsCaCert() error {
 func (p *Provisioner) setAdminOpsAPIClient() error {
 	// Build TLS transport for the HTTP client if needed
 	httpClient := &http.Client{
-		Timeout: cephObject.HttpTimeOut,
+		Timeout: object.HttpTimeOut,
 	}
 	if p.tlsCert != nil {
-		httpClient.Transport = cephObject.BuildTransportTLS(p.tlsCert, p.insecureTLS)
+		httpClient.Transport = object.BuildTransportTLS(p.tlsCert, p.insecureTLS)
 	}
 
 	// Fetch the ceph object store
@@ -634,13 +633,13 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	p.objectContext.CephClusterSpec = cephCluster.Spec
 
 	// Fetch the object store admin ops user
-	accessKey, secretKey, err := cephObject.GetAdminOPSUserCredentials(p.objectContext, &cephObjectStore.Spec)
+	accessKey, secretKey, err := object.GetAdminOPSUserCredentials(p.objectContext, &cephObjectStore.Spec)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve rgw admin ops user")
 	}
 
 	// Build endpoint
-	s3endpoint := cephObject.BuildDNSEndpoint(cephObject.BuildDomainName(p.objectContext.Name, cephObjectStore.Namespace), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
+	s3endpoint := object.BuildDNSEndpoint(object.BuildDomainName(p.objectContext.Name, cephObjectStore.Namespace), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
 
 	// If DEBUG level is set we will mutate the HTTP client for printing request and response
 	if logger.LevelAt(capnslog.DEBUG) {

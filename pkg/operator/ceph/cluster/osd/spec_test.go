@@ -32,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -43,14 +42,14 @@ func TestPodContainer(t *testing.T) {
 	osdProps := osdProperties{
 		crushHostname: "node",
 		devices:       []cephv1.Device{},
-		resources:     v1.ResourceRequirements{},
+		resources:     corev1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 		schedulerName: "custom-scheduler",
 	}
 	dataPathMap := &provisionConfig{
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(cluster.clusterInfo.Namespace, "/var/lib/rook"),
 	}
-	c, err := cluster.provisionPodTemplateSpec(osdProps, v1.RestartPolicyAlways, dataPathMap)
+	c, err := cluster.provisionPodTemplateSpec(osdProps, corev1.RestartPolicyAlways, dataPathMap)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(c.Spec.InitContainers))
@@ -122,7 +121,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	osdProp := osdProperties{
 		crushHostname: n.Name,
 		selection:     n.Selection,
-		resources:     v1.ResourceRequirements{},
+		resources:     corev1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
 		schedulerName: "custom-scheduler",
 	}
@@ -139,8 +138,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, c.clusterInfo.Namespace, deployment.Namespace)
 	assert.Equal(t, serviceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
-	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[v1.LabelHostname])
-	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
+	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[corev1.LabelHostname])
+	assert.Equal(t, corev1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, "my-priority-class", deployment.Spec.Template.Spec.PriorityClassName)
 	if devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 8, len(deployment.Spec.Template.Spec.Volumes))
@@ -177,9 +176,9 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	osdProp = osdProperties{
 		crushHostname: n.Name,
 		selection:     n.Selection,
-		resources:     v1.ResourceRequirements{},
+		resources:     corev1.ResourceRequirements{},
 		storeConfig:   config.StoreConfig{},
-		pvc:           v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc"},
+		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc"},
 	}
 	// Not needed when running on PVC
 	osd = OSDInfo{
@@ -247,7 +246,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		ID:     0,
 		CVMode: "raw",
 	}
-	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
@@ -272,7 +271,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		CVMode: "raw",
 	}
 	osdProp.encrypted = true
-	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
@@ -303,8 +302,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		ID:     0,
 		CVMode: "raw",
 	}
-	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
-	osdProp.walPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-wal"}
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	osdProp.walPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-wal"}
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
@@ -330,8 +329,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		CVMode: "raw",
 	}
 	osdProp.encrypted = true
-	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
-	osdProp.walPVC = v1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-wal"}
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-metadata"}
+	osdProp.walPVC = corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc-wal"}
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
@@ -361,8 +360,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	// Test with encrypted OSD on PVC with RAW with KMS
 	osdProp.encrypted = true
-	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{}
-	osdProp.walPVC = v1.PersistentVolumeClaimVolumeSource{}
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{}
+	osdProp.walPVC = corev1.PersistentVolumeClaimVolumeSource{}
 	c.spec.Security.KeyManagementService.ConnectionDetails = map[string]string{"KMS_PROVIDER": "vault"}
 	c.spec.Security.KeyManagementService.TokenSecretName = "vault-token"
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
@@ -385,8 +384,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	// Test with encrypted OSD on PVC with RAW with KMS with TLS
 	osdProp.encrypted = true
-	osdProp.metadataPVC = v1.PersistentVolumeClaimVolumeSource{}
-	osdProp.walPVC = v1.PersistentVolumeClaimVolumeSource{}
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{}
+	osdProp.walPVC = corev1.PersistentVolumeClaimVolumeSource{}
 	c.spec.Security.KeyManagementService.ConnectionDetails = map[string]string{"KMS_PROVIDER": "vault", "VAULT_CACERT": "vault-ca-cert-secret", "VAULT_CLIENT_CERT": "vault-client-cert-secret", "VAULT_CLIENT_KEY": "vault-client-key-secret"}
 	c.spec.Security.KeyManagementService.TokenSecretName = "vault-token"
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
@@ -452,9 +451,9 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 
 	t.Run(("check osd ConfigureProbe"), func(t *testing.T) {
 		c.spec.HealthCheck.StartupProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
-		c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
+		c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD] = &cephv1.ProbeSpec{Disabled: false, Probe: &corev1.Probe{InitialDelaySeconds: 1000}}
 		c.spec.HealthCheck.LivenessProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
-		c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD] = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
+		c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD] = &cephv1.ProbeSpec{Disabled: false, Probe: &corev1.Probe{InitialDelaySeconds: 900}}
 		deployment, err := c.makeDeployment(osdProp, osd, dataPathMap)
 		assert.Nil(t, err)
 		assert.NotNil(t, deployment)
@@ -465,7 +464,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	})
 }
 
-func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
+func verifyEnvVar(t *testing.T, envVars []corev1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
 	found := false
 	for _, envVar := range envVars {
 		if envVar.Name == expectedName {
@@ -502,14 +501,14 @@ func TestStorageSpecConfig(t *testing.T) {
 						"metadataDevice": "nvme093",
 					},
 					Selection: cephv1.Selection{},
-					Resources: v1.ResourceRequirements{
-						Limits: v1.ResourceList{
-							v1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
-							v1.ResourceMemory: *resource.NewQuantity(4096.0, resource.BinarySI),
+					Resources: corev1.ResourceRequirements{
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    *resource.NewQuantity(1024.0, resource.BinarySI),
+							corev1.ResourceMemory: *resource.NewQuantity(4096.0, resource.BinarySI),
 						},
-						Requests: v1.ResourceList{
-							v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
-							v1.ResourceMemory: *resource.NewQuantity(2048.0, resource.BinarySI),
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
+							corev1.ResourceMemory: *resource.NewQuantity(2048.0, resource.BinarySI),
 						},
 					},
 				},
@@ -601,7 +600,7 @@ func TestHostNetwork(t *testing.T) {
 
 	assert.Equal(t, "rook-ceph-osd-0", r.ObjectMeta.Name)
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
-	assert.Equal(t, v1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
+	assert.Equal(t, corev1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
 }
 
 func TestOsdPrepareResources(t *testing.T) {
@@ -612,12 +611,12 @@ func TestOsdPrepareResources(t *testing.T) {
 	clusterInfo.SetName("test")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	spec := cephv1.ClusterSpec{
-		Resources: map[string]v1.ResourceRequirements{"prepareosd": {
-			Limits: v1.ResourceList{
-				v1.ResourceCPU: *resource.NewQuantity(2000.0, resource.BinarySI),
+		Resources: map[string]corev1.ResourceRequirements{"prepareosd": {
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU: *resource.NewQuantity(2000.0, resource.BinarySI),
 			},
-			Requests: v1.ResourceList{
-				v1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
+			Requests: corev1.ResourceList{
+				corev1.ResourceMemory: *resource.NewQuantity(250.0, resource.BinarySI),
 			},
 		},
 		},
@@ -634,7 +633,7 @@ func TestOsdPrepareResources(t *testing.T) {
 func TestClusterGetPVCEncryptionOpenInitContainerActivate(t *testing.T) {
 	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{OwnerInfo: &k8sutil.OwnerInfo{}}, cephv1.ClusterSpec{}, "rook/rook:myversion")
 	osdProperties := osdProperties{
-		pvc: v1.PersistentVolumeClaimVolumeSource{
+		pvc: corev1.PersistentVolumeClaimVolumeSource{
 			ClaimName: "pvc1",
 		},
 	}
@@ -658,10 +657,10 @@ func TestClusterGetPVCEncryptionOpenInitContainerActivate(t *testing.T) {
 func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
 	c := New(&clusterd.Context{}, &cephclient.ClusterInfo{OwnerInfo: &k8sutil.OwnerInfo{}}, cephv1.ClusterSpec{}, "rook/rook:myversion")
 	osdProperties := osdProperties{
-		pvc: v1.PersistentVolumeClaimVolumeSource{
+		pvc: corev1.PersistentVolumeClaimVolumeSource{
 			ClaimName: "pvc1",
 		},
-		resources: v1.ResourceRequirements{},
+		resources: corev1.ResourceRequirements{},
 	}
 	mountPath := "/var/lib/ceph/osd/ceph-0"
 
@@ -690,7 +689,7 @@ func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName stri
 	}
 	c.deviceSets = append(c.deviceSets, deviceSet{
 		Name: pvcName,
-		PVCSources: map[string]v1.PersistentVolumeClaimVolumeSource{
+		PVCSources: map[string]corev1.PersistentVolumeClaimVolumeSource{
 			bluestorePVCData: {ClaimName: pvcName},
 		},
 		Portable: true,
@@ -733,13 +732,13 @@ func TestOSDPlacement(t *testing.T) {
 	spec := cephv1.ClusterSpec{
 		Placement: cephv1.PlacementSpec{
 			"all": {
-				NodeAffinity: &v1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-						NodeSelectorTerms: []v1.NodeSelectorTerm{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
 							{
-								MatchExpressions: []v1.NodeSelectorRequirement{{
+								MatchExpressions: []corev1.NodeSelectorRequirement{{
 									Key:      "role",
-									Operator: v1.NodeSelectorOpIn,
+									Operator: corev1.NodeSelectorOpIn,
 									Values:   []string{"storage-node1"},
 								}},
 							},
@@ -748,13 +747,13 @@ func TestOSDPlacement(t *testing.T) {
 				},
 			},
 			"osd": {
-				NodeAffinity: &v1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-						NodeSelectorTerms: []v1.NodeSelectorTerm{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
 							{
-								MatchExpressions: []v1.NodeSelectorRequirement{{
+								MatchExpressions: []corev1.NodeSelectorRequirement{{
 									Key:      "role",
-									Operator: v1.NodeSelectorOpIn,
+									Operator: corev1.NodeSelectorOpIn,
 									Values:   []string{"storage-node1"},
 								}},
 							},
@@ -763,13 +762,13 @@ func TestOSDPlacement(t *testing.T) {
 				},
 			},
 			"prepareosd": {
-				NodeAffinity: &v1.NodeAffinity{
-					RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
-						NodeSelectorTerms: []v1.NodeSelectorTerm{
+				NodeAffinity: &corev1.NodeAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: &corev1.NodeSelector{
+						NodeSelectorTerms: []corev1.NodeSelectorTerm{
 							{
-								MatchExpressions: []v1.NodeSelectorRequirement{{
+								MatchExpressions: []corev1.NodeSelectorRequirement{{
 									Key:      "role",
-									Operator: v1.NodeSelectorOpIn,
+									Operator: corev1.NodeSelectorOpIn,
 									Values:   []string{"storage-node1"},
 								}},
 							},
@@ -784,7 +783,7 @@ func TestOSDPlacement(t *testing.T) {
 	}
 
 	osdProps := osdProperties{
-		pvc: v1.PersistentVolumeClaimVolumeSource{
+		pvc: corev1.PersistentVolumeClaimVolumeSource{
 			ClaimName: "pvc1",
 		},
 	}
@@ -795,7 +794,7 @@ func TestOSDPlacement(t *testing.T) {
 					MatchExpressions: []corev1.NodeSelectorRequirement{
 						{
 							Key:      "role",
-							Operator: v1.NodeSelectorOpIn,
+							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{"storage-node3"},
 						},
 					},
@@ -812,7 +811,7 @@ func TestOSDPlacement(t *testing.T) {
 					MatchExpressions: []corev1.NodeSelectorRequirement{
 						{
 							Key:      "role",
-							Operator: v1.NodeSelectorOpIn,
+							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{"storage-node3"},
 						},
 					},

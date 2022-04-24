@@ -27,7 +27,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,21 +49,21 @@ func New(t *testing.T, nodes int) *fake.Clientset {
 // AddReadyNode adds a new Node with status "Ready" and the given name and IP.
 func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 	t.Helper()
-	ready := v1.NodeCondition{Type: v1.NodeReady, Status: v1.ConditionTrue}
-	n := &v1.Node{
+	ready := corev1.NodeCondition{Type: corev1.NodeReady, Status: corev1.ConditionTrue}
+	n := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: map[string]string{
 				corev1.LabelHostname: name,
 			},
 			Name: name,
 		},
-		Status: v1.NodeStatus{
-			Conditions: []v1.NodeCondition{
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
 				ready,
 			},
-			Addresses: []v1.NodeAddress{
+			Addresses: []corev1.NodeAddress{
 				{
-					Type:    v1.NodeInternalIP,
+					Type:    corev1.NodeInternalIP,
 					Address: ip,
 				},
 			},
