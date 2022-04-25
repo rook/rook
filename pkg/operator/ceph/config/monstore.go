@@ -192,3 +192,18 @@ func (m *MonStore) DeleteAll(options ...Option) error {
 	}
 	return nil
 }
+
+// SetKeyValue sets an arbitrary key/value pair in Ceph's general purpose (as opposed to
+// configuration-specific) key/value store. Keys and values can be any arbitrary string including
+// spaces, underscores, dashes, and slashes.
+// See: https://docs.ceph.com/en/quincy/man/8/ceph/#config-key
+func (m *MonStore) SetKeyValue(key, value string) error {
+	logger.Debugf("setting %q=%q option in the mon config-key store", key, value)
+	args := []string{"config-key", "set", key, value}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set %q in the mon config-key store. output: %s", key, string(out))
+	}
+	return nil
+}
