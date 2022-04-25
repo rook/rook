@@ -27,7 +27,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
-	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -603,7 +602,7 @@ func addPortToEndpoint(endpoints *v1.Endpoints, name string, port int32) {
 }
 
 func getLabels(name, namespace string, includeNewLabels bool) map[string]string {
-	labels := controller.CephDaemonAppLabels(AppName, namespace, config.RgwType, name, name, "cephobjectstores.ceph.rook.io", includeNewLabels)
+	labels := controller.CephDaemonAppLabels(AppName, namespace, cephconfig.RgwType, name, name, "cephobjectstores.ceph.rook.io", includeNewLabels)
 	labels["rook_object_store"] = name
 	return labels
 }

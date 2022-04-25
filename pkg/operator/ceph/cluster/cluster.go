@@ -36,7 +36,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -59,7 +58,7 @@ type cluster struct {
 	mons               *mon.Cluster
 	ownerInfo          *k8sutil.OwnerInfo
 	isUpgrade          bool
-	monitoringRoutines map[string]*opcontroller.ClusterHealth
+	monitoringRoutines map[string]*controller.ClusterHealth
 	observedGeneration int64
 }
 
@@ -73,7 +72,7 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		Spec:               &c.Spec,
 		context:            context,
 		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
-		monitoringRoutines: make(map[string]*opcontroller.ClusterHealth),
+		monitoringRoutines: make(map[string]*controller.ClusterHealth),
 		ownerInfo:          ownerInfo,
 		mons:               mon.New(ctx, context, c.Namespace, c.Spec, ownerInfo),
 		// update observedGeneration with current generation value,
