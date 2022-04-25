@@ -59,18 +59,12 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
 		"monitoring":            map[string]interface{}{"enabled": true},
 	}
-	csiValues := map[string]interface{}{
+	values["csi"] = map[string]interface{}{
 		"csiRBDProvisionerResource":    nil,
 		"csiRBDPluginResource":         nil,
 		"csiCephFSProvisionerResource": nil,
 		"csiCephFSPluginResource":      nil,
 	}
-	if !utils.VersionAtLeast(h.settings.KubernetesVersion, "v1.17.0") {
-		// Older than K8s 1.17 cannot apply priority classes
-		csiValues["pluginPriorityClassName"] = ""
-		csiValues["provisionerPriorityClassName"] = ""
-	}
-	values["csi"] = csiValues
 
 	// create the operator namespace before the admission controller is created
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {

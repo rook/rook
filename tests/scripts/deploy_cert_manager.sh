@@ -17,15 +17,6 @@ function error_log() {
 
 trap error_log ERR
 
-# Minimum 1.16.0 kubernetes version is required to start the admission controller
-SERVER_VERSION=$(kubectl version --short | awk -F  "."  '/Server Version/ {print $2}')
-MINIMUM_VERSION=16
-
-if [ "${SERVER_VERSION}" -lt ${MINIMUM_VERSION} ]; then
-    echo "required minimum kubernetes version 1.$MINIMUM_VERSION.0"
-    exit
-fi
-
 # Set our known directories and parameters.
 BASE_DIR=$(cd "$(dirname "$0")"; pwd)
 CERT_VERSION="v1.3.1"
