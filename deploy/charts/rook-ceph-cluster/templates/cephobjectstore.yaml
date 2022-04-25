@@ -13,7 +13,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $objectstore.storageClass.name }}
-provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
+provisioner: {{ $root.Values.operatorNamespace }}.ceph.rook.io/bucket
 reclaimPolicy: {{ default "Delete" $objectstore.storageClass.reclaimPolicy }}
 parameters:
   objectStoreName: {{ $objectstore.name }}
