@@ -3,6 +3,8 @@ kind: ScaledObject
 metadata:
   name: rgw-scale
   namespace: rook-ceph
+  labels:
+    rook_object_store: my-store
 spec:
   scaleTargetRef:
     kind: Deployment

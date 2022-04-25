@@ -76,6 +76,19 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 			MaxSurge:       &intstr.IntOrString{IntVal: int32(0)},
 		}
 	}
+	hpas, err := c.context.Clientset.AutoscalingV1().HorizontalPodAutoscalers(c.store.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{LabelSelector: c.storeLabelSelector()})
+	if err == nil {
+		if len(hpas.Items) > 0 {
+			for _, hpa := range hpas.Items {
+				logger.Debugf("hpa found %v for object store %q. Hence changing the replica count", hpa, c.store.Name)
+				if replicas < hpa.Status.CurrentReplicas {
+					replicas = hpa.Status.CurrentReplicas
+				}
+			}
+		}
+	}
+
+	logger.Infof("replicas found %d", replicas)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      rgwConfig.ResourceName,

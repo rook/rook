@@ -53,6 +53,13 @@ rules:
   - get
   - create
   - delete
+- apiGroups:
+  - autoscaling
+  resources:
+  - horizontalpodautoscalers
+  verbs:
+  - get
+  - list
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1

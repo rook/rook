@@ -266,13 +266,15 @@ spec:
 
 Using metrics exported from the Prometheus service, the horizontal pod scaling can use the custom metrics other than CPU and memory consumption. It can be done with help of Prometheus Scaler provided by the [KEDA](https://keda.sh/docs/2.5/scalers/prometheus/). See the [KEDA deployment guide](https://keda.sh/docs/2.5/deploy/) for details.
 
-Following is an example to autoscale RGW:
+Following is an example to autoscale RGW, the label `rook_object_store: <store_name>` added here so that Rook Operator does not reset the value during reconciliation:
 ```YAML
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
  name: rgw-scale
  namespace: rook-ceph
+ labels:
+ rook_object_store: my-store
 spec:
  scaleTargetRef:
    kind: Deployment

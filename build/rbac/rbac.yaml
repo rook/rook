@@ -963,6 +963,13 @@ rules:
       - cronjobs
     verbs:
       - delete
+  - apiGroups:
+      - autoscaling
+    resources:
+      - horizontalpodautoscalers
+    verbs:
+      - get
+      - list
 ---
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
