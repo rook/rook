@@ -39,6 +39,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -479,6 +480,9 @@ func (c *cluster) skipMDSSanityChecks(skip bool) error {
 // It gets executed right after the main mon Start() method
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
+	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
+	c.setRookVersionInCephKVStore()
+
 	// Create CSI Kubernetes Secrets
 	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
 	if err != nil {
@@ -523,3 +527,60 @@ func (c *cluster) postMonStartupActions() error {
 
 	return nil
 }
+<<<<<<< HEAD
+=======
+
+func (c *cluster) configureMsgr2() error {
+	if c.Spec.Network.Connections == nil {
+		return nil
+	}
+
+	// Set network encryption
+	monStore := config.GetMonStore(c.context, c.ClusterInfo)
+	if c.Spec.Network.Connections.Encryption != nil {
+		encryptionSetting := "crc secure"
+		if c.Spec.Network.Connections.Encryption.Enabled {
+			encryptionSetting = "secure"
+		}
+		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
+
+		if err := monStore.Set("global", "ms_cluster_mode", encryptionSetting); err != nil {
+			return errors.Wrapf(err, "failed to set ms_cluster_mode to %q", encryptionSetting)
+		}
+		if err := monStore.Set("global", "ms_service_mode", encryptionSetting); err != nil {
+			return errors.Wrapf(err, "failed to set ms_service_mode to %q", encryptionSetting)
+		}
+		if err := monStore.Set("global", "ms_client_mode", encryptionSetting); err != nil {
+			return errors.Wrapf(err, "failed to set ms_client_mode to %q", encryptionSetting)
+		}
+	}
+
+	// Set network compression
+	if c.Spec.Network.Connections.Compression != nil {
+		if c.ClusterInfo.CephVersion.IsAtLeastQuincy() {
+			compressionSetting := "none"
+			if c.Spec.Network.Connections.Compression.Enabled {
+				compressionSetting = "force"
+			}
+			logger.Infof("setting msgr2 compression mode to %q", compressionSetting)
+			if err := monStore.Set("global", "ms_osd_compress_mode", compressionSetting); err != nil {
+				return errors.Wrapf(err, "failed to set ms_osd_compress_mode to %q", compressionSetting)
+			}
+		} else {
+			logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
+		}
+	}
+	return nil
+}
+
+// set the Rook version in Ceph's k/v store to allow Rook clusters that enable Ceph telemetry to be
+// identified easily as Rook clusters while additionally providing potentially useful information
+// about the version of Rook that is managing the cluster.
+// e.g., rook-version=v1.8.7
+func (c *cluster) setRookVersionInCephKVStore() {
+	ms := config.GetMonStore(c.context, c.ClusterInfo)
+	if err := ms.SetKeyValue(k8sutil.RookVersionLabelKey, rookversion.Version); err != nil {
+		logger.Warningf("failed to set telemetry key; this cluster may not be identifiable by ceph telemetry as a Rook cluster. %v", err)
+	}
+}
+>>>>>>> 94b622c30 (operator: set 'rook-version' in mon k/v store)
