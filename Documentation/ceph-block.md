@@ -82,7 +82,7 @@ parameters:
 # Delete the rbd volume when a PVC is deleted
 reclaimPolicy: Delete
 
-# Optional, if you want to add dynamic resize for PVC. Works for Kubernetes 1.14+
+# Optional, if you want to add dynamic resize for PVC.
 # For now only ext3, ext4, xfs resize support provided, like in Kubernetes itself.
 allowVolumeExpansion: true
 ```

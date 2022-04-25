@@ -317,7 +317,6 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 	clusterInfo.Context = context.TODO()
 
 	spec := cephv1.ClusterSpec{}
-	fakeK8sVersion := "v1.13.0"
 
 	var errs *provisionErrors
 	var c *Cluster
@@ -325,7 +324,6 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 	var awaitingStatusConfigMaps sets.String
 	var err error
 	doSetup := func() {
-		test.SetFakeKubernetesVersion(clientset, fakeK8sVersion) // PVCs require k8s version v1.13+
 		errs = newProvisionErrors()
 		ctx := &clusterd.Context{
 			Clientset: clientset,
@@ -406,21 +404,6 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 2) // still just 2 configmaps should exist (the same 2 from before)
-	})
-
-	t.Run("error if k8s version not high enough", func(t *testing.T) {
-		// spec = <working spec from prior test>
-		clientset = test.NewComplexClientset(t) // reset to empty fake k8s environment
-		fakeK8sVersion = "v1.12.7"
-		doSetup()
-		awaitingStatusConfigMaps, err = c.startProvisioningOverPVCs(config, errs)
-		assert.NoError(t, err)
-		assert.Equal(t, 0, awaitingStatusConfigMaps.Len())
-		assert.Equal(t, 1, errs.len())
-		cms, err := clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
-		assert.NoError(t, err)
-		assert.Len(t, cms.Items, 0)
-		fakeK8sVersion = "v1.13.0"
 	})
 
 	t.Run("error if no volume claim template", func(t *testing.T) {

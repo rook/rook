@@ -22,7 +22,6 @@ import (
 	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/tests/framework/utils"
 )
 
 // TestCephSettings struct for handling panic and test suite tear down
@@ -88,11 +87,6 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `# CSI_LOG_LEVEL: "0"`, `CSI_LOG_LEVEL: "5"`)
 	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_DISCOVERY_DAEMON: "false"`, fmt.Sprintf(`ROOK_ENABLE_DISCOVERY_DAEMON: "%t"`, s.EnableDiscovery))
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
-	if !utils.VersionAtLeast(s.KubernetesVersion, "v1.17.0") {
-		// Older than K8s 1.17 does not support priority classes
-		manifest = strings.ReplaceAll(manifest, `CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"`, `CSI_PLUGIN_PRIORITY_CLASSNAME: ""`)
-		manifest = strings.ReplaceAll(manifest, `CSI_PROVISIONER_PRIORITY_CLASSNAME: "system-cluster-critical"`, `CSI_PROVISIONER_PRIORITY_CLASSNAME: ""`)
-	}
 	return manifest
 }
 
