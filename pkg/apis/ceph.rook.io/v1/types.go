@@ -1568,13 +1568,13 @@ type CephObjectRealmList struct {
 
 // ObjectRealmSpec represent the spec of an ObjectRealm
 type ObjectRealmSpec struct {
-	Pull PullSpec `json:"pull"`
+	Pull PullSpec `json:"pull,omitempty"`
 }
 
 // PullSpec represents the pulling specification of a Ceph Object Storage Gateway Realm
 type PullSpec struct {
 	// +kubebuilder:validation:Pattern=`^https*://`
-	Endpoint string `json:"endpoint"`
+	Endpoint string `json:"endpoint,omitempty"`
 }
 
 // CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
