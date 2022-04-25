@@ -17,11 +17,9 @@ limitations under the License.
 package utils
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -136,13 +134,6 @@ func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	return v.AtLeast(version.MustParseSemantic(minVersion))
 }
 
-func (k8sh *K8sHelper) VersionMinorMatches(minVersion string) (string, bool) {
-	kubeVersion := k8sh.GetK8sServerVersion()
-	v := version.MustParseSemantic(kubeVersion)
-	requestedVersion := version.MustParseSemantic(minVersion)
-	return kubeVersion, v.Major() == requestedVersion.Major() && v.Minor() == requestedVersion.Minor()
-}
-
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
 }
@@ -213,75 +204,6 @@ func getManifestFromURL(url string) (string, error) {
 	return string(body), nil
 }
 
-func (k8sh *K8sHelper) Exec(namespace, podName, command string, commandArgs []string) (string, error) {
-	return k8sh.ExecWithRetry(1, namespace, podName, command, commandArgs)
-}
-
-func (k8sh *K8sHelper) ExecRemote(namespace, command string, commandArgs []string) (string, error) {
-	return k8sh.ExecRemoteWithRetry(1, namespace, command, commandArgs)
-}
-
-// ExecRemoteWithRetry will attempt to remotely (in toolbox) run a command "retries" times, waiting 3s between each call. Upon success, returns the output.
-func (k8sh *K8sHelper) ExecRemoteWithRetry(retries int, namespace, command string, commandArgs []string) (string, error) {
-	var err error
-	var output, stderr string
-	cliFinal := append([]string{command}, commandArgs...)
-	for i := 0; i < retries; i++ {
-		output, stderr, err = k8sh.remoteExecutor.ExecCommandInContainerWithFullOutput(context.TODO(), "rook-ceph-tools", "rook-ceph-tools", namespace, cliFinal...)
-		if err == nil {
-			return output, nil
-		}
-		if i < retries-1 {
-			logger.Warningf("remote command %v execution failed trying again... %v", cliFinal, kerrors.ReasonForError(err))
-			time.Sleep(3 * time.Second)
-		}
-	}
-	return "", fmt.Errorf("remote exec command %v failed on pod in namespace %s. %s. %s. %+v", cliFinal, namespace, output, stderr, err)
-}
-
-// ExecWithRetry will attempt to run a command "retries" times, waiting 3s between each call. Upon success, returns the output.
-func (k8sh *K8sHelper) ExecWithRetry(retries int, namespace, podName, command string, commandArgs []string) (string, error) {
-	var err error
-	for i := 0; i < retries; i++ {
-		args := []string{"exec", "-n", namespace, podName, "--", command}
-		args = append(args, commandArgs...)
-		var result string
-		result, err = k8sh.Kubectl(args...)
-		if err == nil {
-			return result, nil
-		}
-		if i < retries-1 {
-			time.Sleep(3 * time.Second)
-		}
-	}
-	return "", fmt.Errorf("%s exec command %s failed on pod %s in namespace %s. %+v", cmd, command, podName, namespace, err)
-}
-
-// ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context
-func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinition string, config map[string]string) (string, error) {
-
-	t := template.New("testTemplate")
-	t, err := t.Parse(podDefinition)
-	if err != nil {
-		return err.Error(), err
-	}
-	var tpl bytes.Buffer
-
-	if err := t.Execute(&tpl, config); err != nil {
-		return err.Error(), err
-	}
-
-	podDef := tpl.String()
-
-	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(podDef, args...)
-	if err == nil {
-		return result, nil
-	}
-	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
-	return "", fmt.Errorf("Could not %s resource in args : %v  %v-- %v", action, args, podDef, err)
-}
-
 // ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
@@ -306,16 +228,6 @@ func (k8sh *K8sHelper) DeletePod(namespace, name string) error {
 		args = append(args, []string{"-n", namespace}...)
 	}
 	return k8sh.DeleteResourceAndWait(true, args...)
-}
-
-// DeletePods performs a kubectl delete pod on the given pods
-func (k8sh *K8sHelper) DeletePods(pods ...string) (msg string, err error) {
-	for _, pod := range pods {
-		if perr := k8sh.DeletePod("", pod); perr != nil {
-			err = perr
-		}
-	}
-	return
 }
 
 // DeleteResource performs a kubectl delete on the given args
@@ -565,20 +477,6 @@ func (k8sh *K8sHelper) getPodDescribe(namespace string, args ...string) string {
 		return ""
 	}
 	return description
-}
-
-func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
-	ctx := context.TODO()
-	events, err := k8sh.Clientset.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{})
-	if err != nil {
-		logger.Warningf("failed to get events in namespace %s. %+v", namespace, err)
-		return
-	}
-	logger.Infof("DUMPING events in namespace %s", namespace)
-	for _, event := range events.Items {
-		logger.Infof("%+v", event)
-	}
-	logger.Infof("DONE DUMPING events in namespace %s", namespace)
 }
 
 // IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
@@ -1316,13 +1214,13 @@ spec:
 
 func (k8sh *K8sHelper) GetRGWServiceURL(storeName string, namespace string) (string, error) {
 	if k8sh.RunningInCluster {
-		return k8sh.GetInternalRGWServiceURL(storeName, namespace)
+		return k8sh.getInternalRGWServiceURL(storeName, namespace)
 	}
-	return k8sh.GetExternalRGWServiceURL(storeName, namespace)
+	return k8sh.getExternalRGWServiceURL(storeName, namespace)
 }
 
 // GetRGWServiceURL returns URL of ceph RGW service in the cluster
-func (k8sh *K8sHelper) GetInternalRGWServiceURL(storeName string, namespace string) (string, error) {
+func (k8sh *K8sHelper) getInternalRGWServiceURL(storeName string, namespace string) (string, error) {
 	name := "rook-ceph-rgw-" + storeName
 	svc, err := k8sh.GetService(name, namespace)
 	if err != nil {
@@ -1335,7 +1233,7 @@ func (k8sh *K8sHelper) GetInternalRGWServiceURL(storeName string, namespace stri
 }
 
 // GetRGWServiceURL returns URL of ceph RGW service in the cluster
-func (k8sh *K8sHelper) GetExternalRGWServiceURL(storeName string, namespace string) (string, error) {
+func (k8sh *K8sHelper) getExternalRGWServiceURL(storeName string, namespace string) (string, error) {
 	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", namespace)
 	if err != nil {
 		return "", fmt.Errorf("RGW pods not found. %+v", err)
@@ -1538,31 +1436,6 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 	}
 }
 
-func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
-	err := k8sh.DeleteResource("role", name, "-n", namespace)
-	if err != nil {
-		return err
-	}
-
-	err = k8sh.DeleteResource("rolebinding", name, "-n", namespace)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (k8sh *K8sHelper) DeleteRoleBinding(name, namespace string) error {
-	err := k8sh.DeleteResource("rolebinding", name, "-n", namespace)
-	return err
-}
-
-func (k8sh *K8sHelper) ScaleStatefulSet(statefulSetName, namespace string, replicationSize int) error {
-	args := []string{"-n", namespace, "scale", "statefulsets", statefulSetName, fmt.Sprintf("--replicas=%d", replicationSize)}
-	_, err := k8sh.Kubectl(args...)
-	return err
-}
-
 func IsKubectlErrorNotFound(output string, err error) bool {
 	return err != nil && strings.Contains(output, "Error from server (NotFound)")
 }
@@ -1570,13 +1443,13 @@ func IsKubectlErrorNotFound(output string, err error) bool {
 // WaitForDeploymentCount waits until the desired number of deployments with the label exist. The
 // deployments are not guaranteed to be running, only existing.
 func (k8sh *K8sHelper) WaitForDeploymentCount(label, namespace string, count int) error {
-	return k8sh.WaitForDeploymentCountWithRetries(label, namespace, count, RetryLoop)
+	return k8sh.waitForDeploymentCountWithRetries(label, namespace, count, RetryLoop)
 }
 
 // WaitForDeploymentCountWithRetries waits until the desired number of deployments with the label
 // exist, retrying the specified number of times. The deployments are not guaranteed to be running,
 // only existing.
-func (k8sh *K8sHelper) WaitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
+func (k8sh *K8sHelper) waitForDeploymentCountWithRetries(label, namespace string, count, retries int) error {
 	ctx := context.TODO()
 	options := metav1.ListOptions{LabelSelector: label}
 	for i := 0; i < retries; i++ {
