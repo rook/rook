@@ -7331,11 +7331,7 @@ spec:
                     endpoint:
                       pattern: ^https*://
                       type: string
-                  required:
-                    - endpoint
                   type: object
-              required:
-                - pull
               type: object
             status:
               description: Status represents the status of an object
