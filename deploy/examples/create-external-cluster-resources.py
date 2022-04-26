@@ -920,13 +920,13 @@ class RadosJSON:
             self._invalid_endpoint(self._arg_parser.rgw_endpoint)
             self.endpoint_dial(self._arg_parser.rgw_endpoint,
                                cert=self.validate_rgw_endpoint_tls_cert())
-            rgw_pool_to_validate = ["{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
-                                    ".rgw.root",
-                                    "{0}.rgw.control".format(
-                self._arg_parser.rgw_pool_prefix),
-                "{0}.rgw.log".format(
-                self._arg_parser.rgw_pool_prefix)]
-            pools_to_validate.extend(rgw_pool_to_validate)
+            # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
+            if self._arg_parser.rgw_pool_prefix != "default":
+                rgw_pool_to_validate = ["{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
+                                        ".rgw.root",
+                                        "{0}.rgw.control".format(self._arg_parser.rgw_pool_prefix),
+                                        "{0}.rgw.log".format(self._arg_parser.rgw_pool_prefix)]
+                pools_to_validate.extend(rgw_pool_to_validate)
 
         for pool in pools_to_validate:
             if not self.cluster.pool_exists(pool):
