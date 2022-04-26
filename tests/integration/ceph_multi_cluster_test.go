@@ -24,7 +24,6 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -95,12 +94,6 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 	}
 	externalSettings.ApplyEnvVars()
 	s.externalManifests = installer.NewCephManifests(externalSettings)
-
-	k8sh, err := utils.CreateK8sHelper(s.T)
-	assert.NoError(s.T(), err)
-	if !k8sh.VersionAtLeast("v1.16.0") {
-		s.T().Skip("requires at least k8s 1.16, no need to run on older versions")
-	}
 
 	// Start the core storage cluster
 	s.setupMultiClusterCore()

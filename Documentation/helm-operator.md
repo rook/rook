@@ -16,7 +16,7 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-* Kubernetes 1.13+
+* Kubernetes 1.17+
 * Helm 3.x
 
 See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for more details.

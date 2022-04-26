@@ -27,7 +27,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/version"
 )
 
 type createConfig struct {
@@ -130,17 +129,6 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 	// no valid VolumeSource is ready to run an osd
 	if len(c.deviceSets) == 0 {
 		logger.Info("no storageClassDeviceSets defined to configure OSDs on PVCs")
-		return sets.NewString(), nil
-	}
-
-	// Check k8s version
-	k8sVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
-	if err != nil {
-		errs.addError("failed to provision OSDs on PVCs. user has specified storageClassDeviceSets, but the Kubernetes version could not be determined. minimum Kubernetes version required: 1.13.0. %v", err)
-		return sets.NewString(), nil
-	}
-	if !k8sVersion.AtLeast(version.MustParseSemantic("v1.13.0")) {
-		errs.addError("failed to provision OSDs on PVCs. user has specified storageClassDeviceSets, but the Kubernetes version is not supported. user must update Kubernetes version. minimum Kubernetes version required: 1.13.0. version detected: %s", k8sVersion.String())
 		return sets.NewString(), nil
 	}
 

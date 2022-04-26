@@ -152,10 +152,6 @@ func (h *CephInstaller) CreateVolumeReplicationCRDs() (err error) {
 		logger.Info("volume replication CRDs skipped")
 		return nil
 	}
-	if !h.k8shelper.VersionAtLeast("v1.16.0") {
-		logger.Info("volume replication CRDs skipped on older than k8s 1.16")
-		return nil
-	}
 
 	logger.Info("Creating volume replication CRDs")
 	if _, err := h.k8shelper.KubectlWithStdin(readManifestFromURL(volumeReplicationCRDURL), createFromStdinArgs...); err != nil {

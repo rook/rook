@@ -49,8 +49,6 @@ In a "PVC-based cluster", the Ceph persistent data is stored on volumes requeste
 This type of cluster is recommended in a cloud environment where volumes can be dynamically created and also
 in clusters where a local PV provisioner is available.
 
-> **NOTE**: Kubernetes version 1.13.0 or greater is required to provision OSDs on PVCs.
-
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
@@ -960,8 +958,6 @@ For example, if the following labels were added to a node:
 kubectl label node mynode topology.kubernetes.io/zone=zone1
 kubectl label node mynode topology.rook.io/rack=zone1-rack1
 ```
-
-> For versions previous to K8s 1.17, use the topology key: failure-domain.beta.kubernetes.io/zone or region
 
 These labels would result in the following hierarchy for OSDs on that node (this command can be run in the Rook toolbox):
 
