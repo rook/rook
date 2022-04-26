@@ -30,6 +30,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
@@ -334,7 +335,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		clientset := test.New(t, 3)
 		c := &clusterd.Context{
 			Executor:      executor,
-			RookClientset: rookfake.NewSimpleClientset(),
+			RookClientset: rookclient.NewSimpleClientset(),
 			Clientset:     clientset,
 		}
 
