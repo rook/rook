@@ -290,8 +290,9 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		newMultisiteAdminOpsCtxFunc = func(objContext *cephobject.Context, spec *cephv1.ObjectStoreSpec) (*cephobject.AdminOpsContext, error) {
 			mockClient := &cephobject.MockClient{
 				MockDo: func(req *http.Request) (*http.Response, error) {
-					if (req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=1000&uid=my-user" && (req.Method == http.MethodGet || req.Method == http.MethodPost) && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") ||
-						(req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" && req.Method == http.MethodPut && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") {
+					if (req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=1000&uid=my-user" && req.Method == http.MethodPost && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") ||
+						(req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" && req.Method == http.MethodPut && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") ||
+						(req.URL.RawQuery == "format=json&uid=my-user" && req.Method == http.MethodGet && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") {
 						return &http.Response{
 							StatusCode: 200,
 							Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
@@ -361,7 +362,16 @@ func TestCreateorUpdateCephUser(t *testing.T) {
 				return nil, fmt.Errorf("unexpected url path %q", req.URL.Path)
 			}
 
-			if req.Method == http.MethodGet || req.Method == http.MethodPost {
+			if req.Method == http.MethodGet {
+				if req.URL.RawQuery == "format=json&uid=my-user" {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+					}, nil
+				}
+			}
+
+			if req.Method == http.MethodPost {
 				if req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=1000&uid=my-user" ||
 					req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=200&uid=my-user" ||
 					req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=1000&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" ||
