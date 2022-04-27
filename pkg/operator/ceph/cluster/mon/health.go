@@ -161,7 +161,7 @@ func (c *Cluster) checkHealth() error {
 		} else {
 			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			// enough mons, remove it else remove it on the next run
-			if inQuorum && len(quorumStatus.MonMap.Mons) > desiredMonCount {
+			if inQuorum && len(quorumStatus.Quorum) > desiredMonCount {
 				logger.Warningf("mon %q not in source of truth but in quorum, removing", mon.Name)
 				if err := c.removeMon(mon.Name); err != nil {
 					logger.Warningf("failed to remove mon %q. %v", mon.Name, err)
