@@ -68,7 +68,10 @@ const (
 		"max_objects": -1
 	}
 }`
+	//#nosec G101 -- The credentials are just for the unit tests
 	access_key = "VFKF8SSU9L3L2UR03Z8C"
+	//#nosec G101 -- The credentials are just for the unit tests
+	secret_key = "5U4e2MkXHgXstfWkxGZOI6AXDfVUkDDHM7Dwc3mY"
 )
 
 func TestReconcileRealm(t *testing.T) {
@@ -235,7 +238,7 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 	})
 }
 
-func TestDashboard(t *testing.T) {
+func TestCheckDashboardUser(t *testing.T) {
 	storeName := "myobject"
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -243,7 +246,9 @@ func TestDashboard(t *testing.T) {
 		},
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			if args[0] == "user" {
-				return dashboardAdminCreateJSON, nil
+				if args[1] == "info" {
+					return "no user info saved", nil
+				}
 			}
 			return "", nil
 		},
@@ -255,21 +260,131 @@ func TestDashboard(t *testing.T) {
 	},
 		storeName)
 
-	checkdashboard, err := checkDashboardUser(objContext)
+	// Scenario 1: No user exists yet
+	user, err := getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Nil(t, user.AccessKey)
+	assert.Nil(t, user.SecretKey)
+	checkdashboard, err := checkDashboardUser(objContext, user)
+	assert.NoError(t, err)
+	assert.False(t, checkdashboard)
+
+	// Scenario 2: User exists and the current dashboard credentials are the same
+	objContext.Context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "dashboard" {
+				if args[1] == "get-rgw-api-access-key" {
+					return access_key, nil
+				} else if args[1] == "get-rgw-api-secret-key" {
+					return secret_key, nil
+				}
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "user" {
+				if args[1] == "info" {
+					return dashboardAdminCreateJSON, nil
+				}
+			}
+			return "", nil
+		},
+	}
+
+	user, err = getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.NotNil(t, user.AccessKey)
+	assert.NotNil(t, user.SecretKey)
+
+	checkdashboard, err = checkDashboardUser(objContext, user)
+	assert.NoError(t, err)
+	assert.True(t, checkdashboard)
+
+	// Scenario 3: User exists but dashboard credentials differ from radosgw-admin user info credentials
+	objContext.Context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			if args[0] == "dashboard" {
+				if args[1] == "get-rgw-api-access-key" {
+					return "incorrect", nil
+				} else if args[1] == "get-rgw-api-secret-key" {
+					return "incorrect", nil
+				}
+			}
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "user" {
+				if args[1] == "info" {
+					return dashboardAdminCreateJSON, nil
+				}
+			}
+			return "", nil
+		},
+	}
+
+	user, err = getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.NotNil(t, user.AccessKey)
+	assert.NotNil(t, user.SecretKey)
+
+	checkdashboard, err = checkDashboardUser(objContext, user)
+	assert.NoError(t, err)
+	assert.False(t, checkdashboard)
+}
+
+func TestDashboard(t *testing.T) {
+	storeName := "myobject"
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "user" {
+				if args[1] == "info" {
+					return "no user info saved", nil
+				} else if args[1] == "create" {
+					return dashboardAdminCreateJSON, nil
+				}
+			}
+			return "", nil
+		},
+	}
+	objContext := NewContext(&clusterd.Context{Executor: executor}, &client.ClusterInfo{
+		Namespace:   "mycluster",
+		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9},
+		Context:     context.TODO(),
+	},
+		storeName)
+
+	user, err := getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	checkdashboard, err := checkDashboardUser(objContext, user)
 	assert.NoError(t, err)
 	assert.False(t, checkdashboard)
 	err = enableRGWDashboard(objContext)
-	assert.Nil(t, err)
+	assert.NoError(t, err)
+
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
-				return access_key, nil
+			return "", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "user" && args[1] == "info" {
+				return dashboardAdminCreateJSON, nil
 			}
 			return "", nil
 		},
 	}
 	objContext.Context.Executor = executor
-	checkdashboard, err = checkDashboardUser(objContext)
+
+	user, err = getDashboardUser(objContext)
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	checkdashboard, err = checkDashboardUser(objContext, user)
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
 	disableRGWDashboard(objContext)
@@ -281,17 +396,8 @@ func TestDashboard(t *testing.T) {
 	},
 		storeName)
 	err = enableRGWDashboard(objContext)
-	assert.Nil(t, err)
-	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if args[0] == "dashboard" && args[1] == "get-rgw-api-access-key" {
-				return access_key, nil
-			}
-			return "", nil
-		},
-	}
-	objContext.Context.Executor = executor
-	checkdashboard, err = checkDashboardUser(objContext)
+	assert.NoError(t, err)
+	checkdashboard, err = checkDashboardUser(objContext, user)
 	assert.NoError(t, err)
 	assert.True(t, checkdashboard)
 	disableRGWDashboard(objContext)

@@ -676,9 +676,14 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 
 	clientset := test.New(t, 3)
 	c := &clusterd.Context{
-		Executor:      executor,
-		RookClientset: rookfake.NewSimpleClientset(),
-		Clientset:     clientset,
+		Executor: executor,
+		RookClientset: rookfake.NewSimpleClientset(
+			objectRealm,
+			objectZoneGroup,
+			objectZone,
+			objectStore,
+		),
+		Clientset: clientset,
 	}
 
 	// Register operator types with the runtime scheme.

@@ -441,7 +441,7 @@ func GetAdminOPSUserCredentials(objContext *Context, spec *cephv1.ObjectStoreSpe
 		DisplayName:  &rgwAdminOpsUserDisplayName,
 		AdminOpsUser: true,
 	}
-	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, ns)
+	logger.Debugf("creating s3 user object %q for object store %q", userConfig.UserID, objContext.Name)
 
 	forceUserCreation := false
 	// If the cluster where we are running the rgw user create for the admin ops user is configured
