@@ -30,7 +30,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -148,11 +147,11 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := mon.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace)
 	if err != nil {
 		// This avoids a requeue with exponential backoff and allows the controller to reconcile
 		// more quickly when the cluster is ready.
-		if errors.Is(err, mon.ClusterInfoNoClusterNoSecret) {
+		if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
 			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 		}
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")

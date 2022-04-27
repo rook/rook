@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 )
@@ -34,18 +35,18 @@ func EndpointEnvVar() v1.EnvVar {
 
 // SecretEnvVar is the mon secret environment var
 func SecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: monSecretNameKey}
+	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: opcontroller.MonSecretNameKey}
 	return v1.EnvVar{Name: "ROOK_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
 // CephUsernameEnvVar is the ceph username environment var
 func CephUsernameEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: cephUsernameKey}
+	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: opcontroller.CephUsernameKey}
 	return v1.EnvVar{Name: "ROOK_CEPH_USERNAME", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
 // CephSecretEnvVar is the ceph secret environment var
 func CephSecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: cephUserSecretKey}
+	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: opcontroller.CephUserSecretKey}
 	return v1.EnvVar{Name: "ROOK_CEPH_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }

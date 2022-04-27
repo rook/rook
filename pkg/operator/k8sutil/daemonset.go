@@ -27,14 +27,17 @@ import (
 )
 
 // CreateDaemonSet creates
-func CreateDaemonSet(ctx context.Context, name, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
+func CreateDaemonSet(ctx context.Context, namespace string, clientset kubernetes.Interface, ds *appsv1.DaemonSet) error {
+	if ds == nil {
+		return fmt.Errorf("failed to create daemonset: daemonset is nil")
+	}
 	_, err := clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {
 		if k8serrors.IsAlreadyExists(err) {
 			_, err = clientset.AppsV1().DaemonSets(namespace).Update(ctx, ds, metav1.UpdateOptions{})
 		}
 		if err != nil {
-			return fmt.Errorf("failed to start %s daemonset: %+v\n%+v", name, err, ds)
+			return fmt.Errorf("failed to start %s daemonset: %+v\n%+v", ds.Name, err, ds)
 		}
 	}
 	return err

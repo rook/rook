@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -214,7 +215,7 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 	node.Status = v1.NodeStatus{}
 	node.Status.Addresses = []v1.NodeAddress{}
 
-	var info *MonScheduleInfo
+	var info *opcontroller.MonScheduleInfo
 	_, err = getNodeInfoFromNode(*node)
 	assert.NotNil(t, err)
 

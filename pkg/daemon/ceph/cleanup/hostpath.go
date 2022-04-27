@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 )
 
 // StartHostPathCleanup is the main entrypoint function to clean up dataDirHostPath and monitor store
@@ -78,7 +78,7 @@ func secretKeyMatch(monDir, monSecret string) (bool, error) {
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to read keyring %q for the mon directory %q", keyringDirPath, monDir)
 	}
-	extractedKey, err := mon.ExtractKey(string(contents))
+	extractedKey, err := opcontroller.ExtractKey(string(contents))
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to extract secret key from the keyring %q for the mon directory %q", keyringDirPath, monDir)
 	}

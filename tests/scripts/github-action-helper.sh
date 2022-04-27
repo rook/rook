@@ -427,6 +427,50 @@ function deploy_multus_cluster() {
   deploy_manifest_with_local_build toolbox.yaml
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-multus-test.yaml
   kubectl create -f cluster-multus-test.yaml
+  kubectl create -f filesystem-test.yaml
+}
+
+function wait_for_ceph_csi_configmap_to_be_updated {
+  timeout 60 bash <<EOF
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].rbd.netNamespaceFilePath) != "null" ]]; do
+  echo "waiting for ceph csi configmap to be updated with rbd.netNamespaceFilePath"
+  sleep 5
+done
+EOF
+  timeout 60 bash <<EOF
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].cephFS.netNamespaceFilePath) != "null" ]]; do
+  echo "waiting for ceph csi configmap to be updated with cephFS.netNamespaceFilePath"
+  sleep 5
+done
+EOF
+}
+
+function test_csi_rbd_workload {
+  cd deploy/examples/csi/rbd
+  sed -i 's|size: 3|size: 1|g' storageclass.yaml
+  sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
+  kubectl create -f storageclass.yaml
+  kubectl create -f pvc.yaml
+  kubectl create -f pod.yaml
+  timeout 45 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
+  kubectl -n rook-ceph logs ds/csi-rbdplugin -c csi-rbdplugin
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-rbdplugin --field-selector=status.phase=Running -o name)"
+  kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
+  kubectl exec -t pod/csirbd-demo-pod -- ls -alh /var/lib/www/html/
+}
+
+function test_csi_cephfs_workload {
+  cd deploy/examples/csi/cephfs
+  kubectl create -f storageclass.yaml
+  kubectl create -f pvc.yaml
+  kubectl create -f pod.yaml
+  timeout 45 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
+  kubectl -n rook-ceph logs ds/csi-cephfsplugin -c csi-cephfsplugin
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-cephfsplugin --field-selector=status.phase=Running -o name)"
+  kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
+  kubectl exec -t pod/csicephfs-demo-pod -- ls -alh /var/lib/www/html/
 }
 
 FUNCTION="$1"

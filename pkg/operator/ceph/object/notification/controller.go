@@ -27,7 +27,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
@@ -246,7 +245,7 @@ func getReadyCluster(client client.Client, opManagerContext context.Context, con
 		logger.Debug("Ceph cluster not yet present.")
 		return nil, nil, nil
 	}
-	clusterInfo, _, _, err := mon.LoadClusterInfo(&context, opManagerContext, cephCluster.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(&context, opManagerContext, cephCluster.Namespace)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to populate cluster info")
 	}

@@ -941,7 +941,16 @@ jobs:
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
-      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+      run: IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd_multus 2
+
+    - name: wait for ceph-csi configmap to be updated with network namespace
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
+
+    - name: test ceph-csi-rbd plugin restart
+      run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
+
+    - name: test ceph-csi-cephfs plugin restart
+      run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
 
     - name: collect common logs
       if: always()
