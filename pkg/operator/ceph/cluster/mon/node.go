@@ -18,11 +18,12 @@ package mon
 
 import (
 	"github.com/pkg/errors"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
 )
 
-func getNodeInfoFromNode(n v1.Node) (*MonScheduleInfo, error) {
-	nr := &MonScheduleInfo{
+func getNodeInfoFromNode(n v1.Node) (*opcontroller.MonScheduleInfo, error) {
+	nr := &opcontroller.MonScheduleInfo{
 		Name:     n.Name,
 		Hostname: n.Labels[v1.LabelHostname],
 	}

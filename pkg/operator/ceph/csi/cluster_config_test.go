@@ -27,6 +27,14 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		Namespace: "rook-ceph-1",
 		Monitors:  []string{"1.2.3.4:5000"},
 	}
+	csiClusterConfigEntryMultus := CsiClusterConfigEntry{
+		Namespace: "rook-ceph-1",
+		Monitors:  []string{"1.2.3.4:5000"},
+		RBD: &CsiRBDSpec{
+			NetNamespaceFilePath: "/var/run/netns/rook-ceph-1",
+			RadosNamespace:       "rook-ceph-1",
+		},
+	}
 	csiClusterConfigEntry2 := CsiClusterConfigEntry{
 		Namespace: "rook-ceph-2",
 		Monitors:  []string{"20.1.1.1:5000", "20.1.1.2:5000", "20.1.1.3:5000"},
@@ -35,7 +43,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		Namespace: "rook-ceph-3",
 		Monitors:  []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"},
 		CephFS: &CsiCephFSSpec{
-			SubvolumeGroup: "mygroup",
+			SubvolumeGroup: "my-group",
 		},
 	}
 
@@ -45,8 +53,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	t.Run("add a simple mons list", func(t *testing.T) {
 		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", &csiClusterConfigEntry)
 		assert.NoError(t, err)
-		assert.Equal(t, s,
-			`[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1"}]`)
+		assert.Equal(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1"}]`, s)
 	})
 
 	t.Run("add a 2nd mon to the current cluster", func(t *testing.T) {
@@ -114,7 +121,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, "baba", cc[2].ClusterID)
 		assert.Equal(t, "10.1.1.1:5000", cc[2].Monitors[0])
 		assert.Equal(t, 3, len(cc[2].Monitors))
-		assert.Equal(t, "mygroup", cc[2].CephFS.SubvolumeGroup)
+		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
 
 	})
 
@@ -126,7 +133,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(cc))
 		assert.Equal(t, 4, len(cc[2].Monitors))
-		assert.Equal(t, "mygroup", cc[2].CephFS.SubvolumeGroup)
+		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
 	})
 
 	t.Run("remove subvolumegroup", func(t *testing.T) {
@@ -141,7 +148,7 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	t.Run("add subvolumegroup and mons after", func(t *testing.T) {
 		csiClusterConfigEntry4 := CsiClusterConfigEntry{
 			CephFS: &CsiCephFSSpec{
-				SubvolumeGroup: "mygroup2",
+				SubvolumeGroup: "my-group2",
 			},
 		}
 		s, err = updateCsiClusterConfig(s, "quatre", &csiClusterConfigEntry4)
@@ -150,14 +157,14 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(cc), cc)
 		assert.Equal(t, 0, len(cc[2].Monitors))
-		assert.Equal(t, "mygroup2", cc[2].CephFS.SubvolumeGroup, cc)
+		assert.Equal(t, "my-group2", cc[2].CephFS.SubvolumeGroup, cc)
 
 		csiClusterConfigEntry4.Monitors = []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"}
 		s, err = updateCsiClusterConfig(s, "quatre", &csiClusterConfigEntry4)
 		assert.NoError(t, err)
 		cc, err = parseCsiClusterConfig(s)
 		assert.NoError(t, err)
-		assert.Equal(t, "mygroup2", cc[2].CephFS.SubvolumeGroup)
+		assert.Equal(t, "my-group2", cc[2].CephFS.SubvolumeGroup)
 		assert.Equal(t, 3, len(cc[2].Monitors))
 	})
 
@@ -200,6 +207,9 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			Namespace:      clusterIDofCluster1,
 			Monitors:       csiCluster1ConfigEntry.Monitors,
 			RadosNamespace: radosNSofCluster1,
+			RBD: &CsiRBDSpec{
+				RadosNamespace: radosNSofCluster1,
+			},
 		}
 		s, err = updateCsiClusterConfig(s, radosNSofCluster1, &radosNsCsiCluster1Config)
 		assert.NoError(t, err)
@@ -207,7 +217,9 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(cc), cc)
 		assert.Equal(t, 1, len(cc[2].Monitors))
-		assert.Equal(t, radosNSofCluster1, cc[2].RadosNamespace, cc)
+		// Now the configuration of new entries goes into RBD.RadosNamespace so it should be empty
+		assert.Empty(t, cc[2].RadosNamespace, cc)
+		assert.Equal(t, radosNSofCluster1, cc[2].RBD.RadosNamespace, cc)
 
 		// update mon IP's and check is it updating for all clusterID's
 		csiCluster1ConfigEntry.Monitors = append(csiCluster1ConfigEntry.Monitors, "1.2.3.10:5000")
@@ -304,6 +316,13 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			assert.Equal(t, 1, len(cc[i].Monitors))
 		}
 	})
+
+	t.Run("test multus cluster", func(t *testing.T) {
+		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", &csiClusterConfigEntryMultus)
+		assert.NoError(t, err)
+		assert.Equal(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1","rbd":{"netNamespaceFilePath":"/var/run/netns/rook-ceph-1","radosNamespace":"rook-ceph-1"}}]`, s)
+	})
+
 }
 
 func contains(src, dest []string) bool {

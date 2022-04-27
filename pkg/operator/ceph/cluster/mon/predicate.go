@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"sort"
 
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -62,14 +63,14 @@ func wereMonEndpointsUpdated(oldCMData, newCMData map[string]string) bool {
 	if oldMapping, ok := oldCMData["mapping"]; ok {
 		if newMapping, ok := newCMData["mapping"]; ok {
 			// Unmarshal both into a type
-			var oldMappingToGo Mapping
+			var oldMappingToGo opcontroller.Mapping
 			err := json.Unmarshal([]byte(oldMapping), &oldMappingToGo)
 			if err != nil {
 				logger.Debugf("failed to unmarshal new. %v", err)
 				return false
 			}
 
-			var newMappingToGo Mapping
+			var newMappingToGo opcontroller.Mapping
 			err = json.Unmarshal([]byte(newMapping), &newMappingToGo)
 			if err != nil {
 				logger.Debugf("failed to unmarshal new. %v", err)

@@ -38,7 +38,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
@@ -70,21 +69,23 @@ type ReconcileCephFilesystemSubVolumeGroup struct {
 	context          *clusterd.Context
 	clusterInfo      *cephclient.ClusterInfo
 	opManagerContext context.Context
+	opConfig         opcontroller.OperatorConfig
 }
 
 // Add creates a new CephFilesystemSubVolumeGroup Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
-	return add(mgr, newReconciler(mgr, context, opManagerContext))
+	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephFilesystemSubVolumeGroup{
 		client:           mgr.GetClient(),
 		scheme:           mgr.GetScheme(),
 		context:          context,
 		opManagerContext: opManagerContext,
+		opConfig:         opConfig,
 	}
 }
 
@@ -133,7 +134,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrap(err, "failed to get cephFilesystemSubVolumeGroup")
 	}
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephFilesystemSubVolumeGroup.ObjectMeta.Generation
 
@@ -171,7 +172,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = mon.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -211,7 +212,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 
 	if cephCluster.Spec.External.Enable {
 		logger.Debug("external subvolume group creation is not supported, create it manually, the controller will assume it's there")
-		err = r.updateClusterConfig(cephFilesystemSubVolumeGroup)
+		err = r.updateClusterConfig(cephFilesystemSubVolumeGroup, cephCluster)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -250,17 +251,17 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 	}
 
-	err = r.updateClusterConfig(cephFilesystemSubVolumeGroup)
+	err = r.updateClusterConfig(cephFilesystemSubVolumeGroup, cephCluster)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 	// Return and do not requeue
-	logger.Debug("done reconciling cephFilesystemSubVolumeGroup %q", namespacedName)
+	logger.Debugf("done reconciling cephFilesystemSubVolumeGroup %q", namespacedName)
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) error {
+func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup, cephCluster cephv1.CephCluster) error {
 	// Update CSI config map
 	// If the mon endpoints change, the mon health check go routine will take care of updating the
 	// config map, so no special care is needed in this controller
@@ -271,6 +272,17 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 			SubvolumeGroup: cephFilesystemSubVolumeGroup.Name,
 		},
 	}
+
+	// If the cluster has Multus enabled we need to append the network namespace of the driver's
+	// holder DaemonSet in the csi configmap
+	if cephCluster.Spec.Network.IsMultus() {
+		netNamespaceFilePath, err := csi.GenerateNetNamespaceFilePath(r.opManagerContext, r.client, cephCluster.ClusterName, r.opConfig.OperatorNamespace, csi.CephFSDriverShortName)
+		if err != nil {
+			return errors.Wrap(err, "failed to generate cephfs net namespace file path")
+		}
+		csiClusterConfigEntry.CephFS.NetNamespaceFilePath = netNamespaceFilePath
+	}
+
 	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, &csiClusterConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to save cluster config")

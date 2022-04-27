@@ -29,6 +29,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
@@ -77,7 +78,7 @@ func TestCheckHealth(t *testing.T) {
 	logger.Infof("initial mons: %v", c.ClusterInfo.Monitors)
 	c.waitForStart = false
 
-	c.mapping.Schedule["f"] = &MonScheduleInfo{
+	c.mapping.Schedule["f"] = &opcontroller.MonScheduleInfo{
 		Name:    "node0",
 		Address: "",
 	}
@@ -305,10 +306,10 @@ func TestCheckHealthNotFound(t *testing.T) {
 	setCommonMonProperties(c, 2, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "myversion")
 	c.waitForStart = false
 
-	c.mapping.Schedule["a"] = &MonScheduleInfo{
+	c.mapping.Schedule["a"] = &opcontroller.MonScheduleInfo{
 		Name: "node0",
 	}
-	c.mapping.Schedule["b"] = &MonScheduleInfo{
+	c.mapping.Schedule["b"] = &opcontroller.MonScheduleInfo{
 		Name: "node0",
 	}
 	c.maxMonID = 4

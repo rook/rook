@@ -283,6 +283,51 @@ func TestCephClientController(t *testing.T) {
 		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
 		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
 	})
+
+	t.Run("success - test with multus ceph cluster", func(t *testing.T) {
+		cephCluster.Spec.External.Enable = false
+		cephCluster.Spec.Network.Provider = "multus"
+		cephCluster.Status.Phase = cephv1.ConditionReady
+		cephCluster.Status.CephStatus.Health = "HEALTH_OK"
+		objects := []runtime.Object{
+			cephFilesystemSubVolumeGroup,
+			cephCluster,
+			cephFilesystem,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{}, &v1.ConfigMap{})
+		// Create a ReconcileCephFilesystemSubVolumeGroup object with the scheme and fake client.
+		r = &ReconcileCephFilesystemSubVolumeGroup{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: ctx,
+		}
+
+		// Enable CSI
+		csi.EnableRBD = true
+		os.Setenv("POD_NAMESPACE", namespace)
+		// Create CSI config map
+		ownerRef := &metav1.OwnerReference{}
+		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
+		err := csi.CreateCsiConfigMap(ctx, namespace, c.Clientset, ownerInfo)
+		assert.NoError(t, err)
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		// test that csi configmap is created
+		cm, err := c.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, csi.ConfigName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
+		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
+		assert.Contains(t, cm.Data[csi.ConfigKey], "group-a")
+		assert.Contains(t, cm.Data[csi.ConfigKey], "netNamespaceFilePath")
+	})
 }
 
 func Test_buildClusterID(t *testing.T) {
