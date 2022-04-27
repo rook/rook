@@ -74,6 +74,13 @@ kubectl create -f "${DIR}/"csr.yaml
 
 kubectl certificate approve "${CSR_NAME}"
 
+timeout 10 bash <<-'EOF'
+    until [ $(kubectl get csr "${CSR_NAME}" -o jsonpath='{.status.certificate}' | wc -c) -gt 1  ]; do
+      echo "waiting for certificate "${CSR_NAME}" to be filled"
+      sleep 1
+    done
+EOF
+
 serverCert=$(kubectl get csr "${CSR_NAME}" -o jsonpath='{.status.certificate}')
 echo "${serverCert}" | openssl base64 -d -A -out "${DIR}"/"${SERVICE}".crt
 kubectl config view --raw --minify --flatten -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d > "${DIR}"/"${SERVICE}".ca
