@@ -314,7 +314,7 @@ class RadosJSON:
 
         upgrade_group = argP.add_argument_group('upgrade')
         upgrade_group.add_argument("--upgrade", action='store_true', default=False,
-                                   help="Upgrades the 'csi-user'(For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied." +
+                                   help="Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied." +
                                    "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade`, this will upgrade all the default csi users(non-restricted)" +
                                    "For restricted users(For example: client.csi-cephfs-provisioner-openshift-storage-myfs), users created using --restricted-auth-permission flag need to pass mandatory flags" +
                                    "mandatory flags: '--rbd-data-pool-name, --rados-namespace, --cluster-name and --run-as-user' flags while upgrading" +
