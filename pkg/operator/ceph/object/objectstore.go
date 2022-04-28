@@ -817,22 +817,84 @@ func GetObjectBucketProvisioner(data map[string]string, namespace string) string
 	return provName
 }
 
-// CheckDashboardUser returns true if the user is configure else return false
-func checkDashboardUser(context *Context) (bool, error) {
-	args := []string{"dashboard", "get-rgw-api-access-key"}
-	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
-	out, err := cephCmd.Run()
+// CheckDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else return false
+func checkDashboardUser(context *Context, user ObjectUser) (bool, error) {
+	dUser, errId, err := GetUser(context, DashboardUser)
 
-	if string(out) != "" {
-		return true, err
+	// If not found or "none" error, all is good to not return the error
+	if errId == RGWErrorNone {
+		// If the access key or secret key is not the same as the given user, return false
+		if user.AccessKey != nil && *user.AccessKey != *dUser.AccessKey {
+			return false, nil
+		}
+		if user.SecretKey != nil && *user.SecretKey != *dUser.SecretKey {
+			return false, nil
+		}
+
+		return true, nil
+	} else if errId == RGWErrorNotFound {
+		return false, nil
 	}
 
 	return false, err
 }
 
+// retrieveDashboardAPICredentials Retrieves the dashboard's access and secret key and set it on the given ObjectUser
+func retrieveDashboardAPICredentials(context *Context, user *ObjectUser) error {
+	args := []string{"dashboard", "get-rgw-api-access-key"}
+	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
+	out, err := cephCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	if string(out) != "" {
+		accessKey := string(out)
+		user.AccessKey = &accessKey
+	}
+
+	args = []string{"dashboard", "get-rgw-api-secret-key"}
+	cephCmd = cephclient.NewCephCommand(context.Context, context.clusterInfo, args)
+	out, err = cephCmd.Run()
+	if err != nil {
+		return err
+	}
+
+	if string(out) != "" {
+		secretKey := string(out)
+		user.SecretKey = &secretKey
+	}
+
+	return nil
+}
+
+func getDashboardUser(context *Context) (ObjectUser, error) {
+	user := ObjectUser{
+		UserID:      DashboardUser,
+		DisplayName: &DashboardUser,
+		SystemUser:  true,
+	}
+
+	if !context.CephClusterSpec.External.Enable {
+		// Retrieve RGW Dashboard credentials if some are already set
+		if err := retrieveDashboardAPICredentials(context, &user); err != nil {
+			return user, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
+		}
+	}
+
+	return user, nil
+}
+
 func enableRGWDashboard(context *Context) error {
 	logger.Info("enabling rgw dashboard")
-	checkDashboard, err := checkDashboardUser(context)
+
+	user, err := getDashboardUser(context)
+	if err != nil {
+		logger.Debug("failed to get current dashboard user")
+		return err
+	}
+
+	checkDashboard, err := checkDashboardUser(context, user)
 	if err != nil {
 		logger.Debug("Unable to fetch dashboard user key for RGW, hence skipping")
 		return nil
@@ -841,19 +903,16 @@ func enableRGWDashboard(context *Context) error {
 		logger.Debug("RGW Dashboard is already enabled")
 		return nil
 	}
-	user := ObjectUser{
-		UserID:      DashboardUser,
-		DisplayName: &DashboardUser,
-		SystemUser:  true,
-	}
+
 	// TODO:
 	// Use admin ops user instead!
 	// It's safe to create the user with the force flag regardless if the cluster's dashboard is
 	// configured as a secondary rgw site. The creation will return the user already exists and we
 	// will just fetch it (it has been created by the primary cluster)
-	u, errCode, err := CreateUser(context, user, true)
-	if err != nil || errCode != 0 {
-		return errors.Wrapf(err, "failed to create user %q", DashboardUser)
+	u, errCode, err := CreateOrRecreateUserIfExists(context, user, true)
+	if err != nil || errCode != RGWErrorNone {
+		// Handle already exists ErrorCodeFileExists
+		return errors.Wrapf(err, "failed to create/ re-create user %q", DashboardUser)
 	}
 
 	var accessArgs, secretArgs []string

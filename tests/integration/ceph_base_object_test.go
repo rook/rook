@@ -29,6 +29,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,14 +63,14 @@ var (
 )
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool) {
+func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool) {
 	andDeleting := ""
 	if deleteStore {
 		andDeleting = "and deleting"
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
-	createCephObjectStore(t, helper, k8sh, namespace, storeName, replicaSize, enableTLS)
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS)
 
 	if deleteStore {
 		t.Run("delete object store", func(t *testing.T) {
@@ -80,7 +81,7 @@ func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.
 }
 
 // create a CephObjectStore and wait for it to report ready status
-func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string, replicaSize int, tlsEnable bool) {
+func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool) {
 	logger.Infof("Create Object Store %q with replica count %d", storeName, replicaSize)
 	rgwServiceName := "rook-ceph-rgw-" + storeName
 	if tlsEnable {
@@ -139,6 +140,17 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 
 	t.Run("verify RGW service is up", func(t *testing.T) {
 		assert.True(t, k8sh.IsServiceUp("rook-ceph-rgw-"+storeName, namespace))
+	})
+
+	t.Run("check if the dashboard-admin user exists in all existing object stores", func(t *testing.T) {
+		objectStores, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).List(ctx, metav1.ListOptions{})
+		assert.Nil(t, err)
+
+		for _, objectStore := range objectStores.Items {
+			err, output := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.GetName())}, namespace)
+			logger.Infof("output: %s", output)
+			assert.NoError(t, err)
+		}
 	})
 }
 

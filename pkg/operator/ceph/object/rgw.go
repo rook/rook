@@ -75,9 +75,13 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 		return errors.Wrap(err, "failed to start rgw pods")
 	}
 
-	objContext := NewContext(c.context, c.clusterInfo, c.store.Namespace)
-	err := enableRGWDashboard(objContext)
+	objContext, err := NewMultisiteContext(c.context, c.clusterInfo, c.store)
 	if err != nil {
+		logger.Warningf("failed to get object context for rgw %q. %v", c.store.Name, err)
+		return nil
+	}
+
+	if err = enableRGWDashboard(objContext); err != nil {
 		logger.Warningf("failed to enable dashboard for rgw. %v", err)
 	}
 
