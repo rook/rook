@@ -30,7 +30,7 @@
         "rgw",
         "security",
         "subvolumegroup",
-	"namespace",
+        "namespace",
         "test"
       ]
     ],
