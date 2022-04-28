@@ -365,6 +365,10 @@ ingress:
     #   kubernetes.io/ingress.class: nginx
     #   external-dns.alpha.kubernetes.io/hostname: example.com
     #   nginx.ingress.kubernetes.io/rewrite-target: /ceph-dashboard/$2
+    # If the dashboard has ssl: true the following will make sure the NGINX Ingress controller can expose the dashboard correctly
+    #   nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    #   nginx.ingress.kubernetes.io/server-snippet: |
+    #     proxy_ssl_verify off;
     # host:
     #   name: example.com
     #   path: "/ceph-dashboard(/|$)(.*)"
