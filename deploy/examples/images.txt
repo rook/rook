@@ -8,4 +8,4 @@
  quay.io/cephcsi/cephcsi:v3.6.1
  quay.io/csiaddons/k8s-sidecar:v0.2.1
  quay.io/csiaddons/volumereplication-operator:v0.3.0
- rook/ceph:v1.9.1
+ rook/ceph:v1.9.2
