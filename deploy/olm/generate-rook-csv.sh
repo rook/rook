@@ -191,6 +191,9 @@ function hack_csv() {
     $SED_IN_PLACE 's/cephfs-csi-nodeplugin/rook-csi-cephfs-plugin-sa/' "$CSV_FILE_NAME"
     $SED_IN_PLACE 's/cephfs-external-provisioner-runner/rook-csi-cephfs-provisioner-sa/' "$CSV_FILE_NAME"
 
+    $SED_IN_PLACE 's/ceph-nfs-csi-nodeplugin/rook-csi-nfs-plugin-sa/' "$CSV_FILE_NAME"
+    $SED_IN_PLACE 's/ceph-nfs-external-provisioner-runner/rook-csi-nfs-provisioner-sa/' "$CSV_FILE_NAME"
+
     $SED_IN_PLACE 's/rbd-csi-nodeplugin/rook-csi-rbd-plugin-sa/' "$CSV_FILE_NAME"
     $SED_IN_PLACE 's/rbd-external-provisioner-runner/rook-csi-rbd-provisioner-sa/' "$CSV_FILE_NAME"
     # The operator-sdk also does not properly respect when

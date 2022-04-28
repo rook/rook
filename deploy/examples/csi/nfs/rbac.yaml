@@ -2,6 +2,21 @@
 # These RBAC resources are required to allow Rook to run the NFS export CSI driver components.
 ####################################################################################################
 ---
+# TODO: remove this, once https://github.com/rook/rook/issues/10141
+# is resolved.
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ceph-nfs-csi-nodeplugin
+  labels:
+    operator: rook
+    storage-backend: ceph
+    app.kubernetes.io/part-of: rook-ceph-operator
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
+---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -31,6 +46,21 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get"]
+---
+# TODO: remove this, once https://github.com/rook/rook/issues/10141
+# is resolved.
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: ceph-nfs-csi-nodeplugin-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-nfs-plugin-sa
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: ceph-nfs-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
