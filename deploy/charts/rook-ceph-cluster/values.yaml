@@ -116,7 +116,8 @@ cephClusterSpec:
     # urlPrefix: /ceph-dashboard
     # serve the dashboard at the given port.
     # port: 8443
-    # serve the dashboard using SSL
+    # Serve the dashboard using SSL (if using ingress to expose the dashboard and `ssl: true` you need to set
+    # the corresponding "backend protocol" annotation(s) for your ingress controller of choice)
     ssl: true
 
   # Network configuration, see: https://github.com/rook/rook/blob/master/Documentation/ceph-cluster-crd.md#network-configuration-settings
@@ -362,18 +363,23 @@ cephClusterSpec:
 ingress:
   dashboard: {}
     # annotations:
-    #   kubernetes.io/ingress.class: nginx
-    #   external-dns.alpha.kubernetes.io/hostname: example.com
+    #   external-dns.alpha.kubernetes.io/hostname: dashboard.example.com
     #   nginx.ingress.kubernetes.io/rewrite-target: /ceph-dashboard/$2
+    #   kubernetes.io/ingress.class: nginx
     # If the dashboard has ssl: true the following will make sure the NGINX Ingress controller can expose the dashboard correctly
     #   nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     #   nginx.ingress.kubernetes.io/server-snippet: |
     #     proxy_ssl_verify off;
     # host:
-    #   name: example.com
+    #   name: dashboard.example.com
     #   path: "/ceph-dashboard(/|$)(.*)"
     # tls:
-    # ingressClassName:
+    # - hosts:
+    #     - dashboard.example.com
+    #   secretName: testsecret-tls
+    ## Note: Only one of ingress class annotation or the `ingressClassName:` can be used at a time
+    ## to set the ingress class
+    # ingressClassName: nginx
 
 cephBlockPools:
   - name: ceph-blockpool
