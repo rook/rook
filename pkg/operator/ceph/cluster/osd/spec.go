@@ -106,7 +106,7 @@ with open('/etc/ceph/ceph.conf', 'w') as configfile:
 "
 
 # create new keyring
-ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
+ceph -n client.rookoperator auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then

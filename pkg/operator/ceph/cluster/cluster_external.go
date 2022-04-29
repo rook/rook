@@ -49,7 +49,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	// loop until we find the secret necessary to connect to the external cluster
 	// then populate clusterInfo
 
-	cluster.ClusterInfo, err = opcontroller.PopulateExternalClusterInfo(c.context, c.OpManagerCtx, c.namespacedName.Namespace, cluster.ownerInfo)
+	cluster.ClusterInfo, err = opcontroller.PopulateExternalClusterInfo(c.context, c.OpManagerCtx, c.namespacedName.Namespace, cluster.ownerInfo, cluster.Spec.External.Enable)
 	if err != nil {
 		return errors.Wrap(err, "failed to populate external cluster info")
 	}
@@ -100,7 +100,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	logger.Info("external cluster identity established")
 
 	// Create CSI Secrets only if the user has provided the admin key
-	if cluster.ClusterInfo.CephCred.Username == client.AdminUsername {
+	if cluster.ClusterInfo.CephCred.Username == client.NonOperatorAdminUsername {
 		err = csi.CreateCSISecrets(c.context, cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to create csi kubernetes secrets")

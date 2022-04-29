@@ -22,19 +22,19 @@ KEYRING_FILE="/etc/ceph/keyring"
 # without specifying any arguments
 write_endpoints() {
   endpoints=$(cat ${MON_CONFIG})
-  
+
   # filter out the mon names
   # external cluster can have numbers or hyphens in mon names, handling them in regex
   # shellcheck disable=SC2001
   mon_endpoints=$(echo "${endpoints}"| sed 's/[a-z0-9_-]\+=//g')
-  
+
   DATE=$(date)
   echo "$DATE writing mon endpoints to ${CEPH_CONFIG}: ${endpoints}"
     cat <<EOF > ${CEPH_CONFIG}
 [global]
 mon_host = ${mon_endpoints}
 
-[client.admin]
+[client.rookoperator]
 keyring = ${KEYRING_FILE}
 EOF
 }
@@ -47,12 +47,12 @@ watch_endpoints() {
   while true; do
     real_path=$(realpath ${MON_CONFIG})
     latest_time=$(stat -c %Z "${real_path}")
-    
+
     if [[ "${latest_time}" != "${initial_time}" ]]; then
       write_endpoints
       initial_time=${latest_time}
     fi
-    
+
     sleep 10
   done
 }

@@ -54,6 +54,7 @@ func TestAdminKeyringStore(t *testing.T) {
 
 	// create key
 	clusterInfo.CephCred.Secret = "adminsecretkey"
+
 	err := k.Admin().CreateOrUpdate(clusterInfo, ctx, v1.AnnotationsSpec{v1.KeyClusterMetadata: v1.Annotations{"key": "value"}})
 	assert.NoError(t, err)
 	assertKeyringData(fmt.Sprintf(adminKeyringTemplate, "adminsecretkey"))

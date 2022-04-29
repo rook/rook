@@ -103,8 +103,8 @@ func TestCephNFSController(t *testing.T) {
 			MockExecuteCommand: func(command string, args ...string) error {
 				logger.Infof("mock execute: %s %v", command, args)
 				if command == "rados" {
-					assert.Equal(t, "stat", args[6])
-					assert.Contains(t, []string{"conf-nfs.my-nfs", "conf-nfs.nfs2"}, args[7])
+					assert.Equal(t, "stat", args[8])
+					assert.Contains(t, []string{"conf-nfs.my-nfs", "conf-nfs.nfs2"}, args[9])
 					return nil
 				}
 				panic(fmt.Sprintf("unhandled command %s %v", command, args))
@@ -112,11 +112,11 @@ func TestCephNFSController(t *testing.T) {
 			MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
 				logger.Infof("mock execute: %s %v", command, args)
 				if command == "ganesha-rados-grace" {
-					if args[4] == "add" {
+					if args[8] == "add" {
 						assert.Len(t, env, 1)
 						return nil
 					}
-					if args[4] == "remove" {
+					if args[8] == "remove" {
 						assert.Len(t, env, 1)
 						return nil
 					}

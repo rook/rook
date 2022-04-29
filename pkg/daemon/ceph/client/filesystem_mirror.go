@@ -154,7 +154,7 @@ func GetSnapshotScheduleStatus(context *clusterd.Context, clusterInfo *ClusterIn
 	var filesystemSnapshotSchedulesStatusSpec []cephv1.FilesystemSnapshotSchedulesSpec
 
 	/* Replace new line since the command outputs a new line first and breaks the json parsing...
-	[root@rook-ceph-operator-75c6d6bbfc-wqlnc /]# ceph --connect-timeout=15 --cluster=rook-ceph --conf=/var/lib/rook/rook-ceph/rook-ceph.config --name=client.admin --keyring=/var/lib/rook/rook-ceph/client.admin.keyring --format json fs snap-schedule status /
+	[root@rook-ceph-operator-75c6d6bbfc-wqlnc /]# ceph --connect-timeout=15 --cluster=rook-ceph --conf=/var/lib/rook/rook-ceph/rook-ceph.config --name=client.rookoperator --keyring=/var/lib/rook/rook-ceph/client.rookoperator.keyring --format json fs snap-schedule status /
 
 	[{"fs": "myfs", "subvol": null, "path": "/", "rel_path": "/", "schedule": "24h", "retention": {"h": 24}, "start": "2021-07-01T00:00:00", "created": "2021-07-01T12:19:12", "first": null, "last": null, "last_pruned": null, "created_count": 0, "pruned_count": 0, "active": true},{"fs": "myfs", "subvol": null, "path": "/", "rel_path": "/", "schedule": "25h", "retention": {"h": 24}, "start": "2021-07-01T00:00:00", "created": "2021-07-01T12:31:25", "first": null, "last": null, "last_pruned": null, "created_count": 0, "pruned_count": 0, "active": true}]
 	*/

@@ -95,7 +95,7 @@ func TestGenerateConfigFile(t *testing.T) {
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
 		CephVersion: cephver.Quincy,
-		CephCred:    CephCred{Username: "admin", Secret: "mysecret"},
+		CephCred:    CephCred{Username: "rookoperator", Secret: "mysecret"},
 		Context:     ctx,
 	}
 

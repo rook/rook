@@ -130,11 +130,11 @@ Likely you will see an error similar to the following that the operator is timin
 followed by a timeout message five minutes later.
 
 ```console
-2018-01-21 21:47:32.375833 I | exec: Running command: ceph mon_status --cluster=rook --conf=/var/lib/rook/rook-ceph/rook.config --keyring=/var/lib/rook/rook-ceph/client.admin.keyring --format json --out-file /tmp/442263890
+2018-01-21 21:47:32.375833 I | exec: Running command: ceph mon_status --cluster=rook --conf=/var/lib/rook/rook-ceph/rook.config --keyring=/var/lib/rook/rook-ceph/client.rookoperator.keyring --format json --out-file /tmp/442263890
 2018-01-21 21:52:35.370533 I | exec: 2018-01-21 21:52:35.071462 7f96a3b82700  0 monclient(hunting): authenticate timed out after 300
 2018-01-21 21:52:35.071462 7f96a3b82700  0 monclient(hunting): authenticate timed out after 300
-2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.admin authentication error (110) Connection timed out
-2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.admin authentication error (110) Connection timed out
+2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.rookoperator authentication error (110) Connection timed out
+2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.rookoperator authentication error (110) Connection timed out
 [errno 110] error connecting to the cluster
 ```
 

@@ -135,6 +135,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 
 	s.verifyOperatorImage(installer.LocalBuildTag)
 	s.verifyRookUpgrade(numOSDs)
+
 	err := s.installer.WaitForToolbox(s.namespace)
 	assert.NoError(s.T(), err)
 

@@ -135,6 +135,7 @@ func (r *MachineDisruptionReconciler) reconcile(request reconcile.Request) (reco
 	}
 	// Check if the cluster is clean or not
 	clusterInfo := cephClient.AdminClusterInfo(r.context.OpManagerContext, request.NamespacedName.Namespace, request.NamespacedName.Name)
+	clusterInfo.CephCred.Username = cephClient.OperatorAdminUsername
 	_, isClean, err := cephClient.IsClusterClean(r.context.ClusterdContext, clusterInfo)
 	if err != nil {
 		maxUnavailable := int32(0)

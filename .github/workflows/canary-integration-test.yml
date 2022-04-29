@@ -92,7 +92,7 @@ jobs:
     - name: wait for the subvolumegroup to be created
       run: |
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
+        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs |jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
 
     - name: test subvolumegroup validation
       run: |
@@ -111,7 +111,7 @@ jobs:
       run: |
         kubectl create -f deploy/examples/radosnamespace.yaml
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
+        timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool  --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
         kubectl delete -f deploy/examples/radosnamespace.yaml
 
     - name: test rados namespace validation
@@ -192,7 +192,7 @@ jobs:
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         kubectl -n rook-ceph exec $toolbox -- ceph status
         # wait until osd.1 is removed from the osd tree
-        timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
+        timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree |grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
         kubectl -n rook-ceph exec $toolbox -- ceph status
         kubectl -n rook-ceph exec $toolbox -- ceph osd tree
 
@@ -1195,12 +1195,12 @@ jobs:
     - name: verify image has been mirrored for replicapool
       run: |
         # let's wait a bit for the image to be present
-        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool" && sleep 1; done'
+        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool ls |grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool" && sleep 1; done'
 
     - name: verify image has been mirrored for replicapool2
       run: |
         # let's wait a bit for the image to be present
-        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool2 ls|grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool2" && sleep 1; done'
+        timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd -p replicapool2 ls |grep -c test)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool2" && sleep 1; done'
 
     - name: display cephblockpool and image status
       run: |

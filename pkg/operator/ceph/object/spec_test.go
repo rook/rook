@@ -281,7 +281,7 @@ func TestValidateSpec(t *testing.T) {
 		},
 		clusterInfo: &client.ClusterInfo{
 			CephCred: client.CephCred{
-				Username: "client.admin",
+				Username: "client.rookoperator",
 			},
 		},
 	}

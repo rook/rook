@@ -46,6 +46,9 @@ func TestCreateClusterSecrets(t *testing.T) {
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]
 				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
+			} else if command == "ceph" && args[0] == "auth" && args[1] == "get-or-create-key" {
+				return `{"key":"AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q=="}`, nil
+
 			}
 			return "", nil
 		},
@@ -56,11 +59,11 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	namespace := "ns"
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
 	assert.NoError(t, err)
 	assert.Equal(t, -1, maxID)
 	require.NotNil(t, info)
-	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, "client.rookoperator", info.CephCred.Username)
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
 	assert.NotEqual(t, "", info.FSID)
 	assert.NotNil(t, mapping)
@@ -72,26 +75,26 @@ func TestCreateClusterSecrets(t *testing.T) {
 
 	// For backward compatibility check that the admin secret can be loaded as previously specified
 	// Update the secret as if created in an old cluster
-	delete(secret.Data, CephUserSecretKey)
-	delete(secret.Data, CephUsernameKey)
+	delete(secret.Data, CephNonOperatorUsernameKey)
+	delete(secret.Data, CephNonOperatorUserSecretKey)
 	secret.Data[adminSecretNameKey] = []byte(adminSecret)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
 	// Check that the cluster info can now be loaded
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
 	assert.NoError(t, err)
-	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, "client.rookoperator", info.CephCred.Username)
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
 
 	// Fail to load the external cluster if the admin placeholder is specified
 	secret.Data[adminSecretNameKey] = []byte(adminSecretNameKey)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
 	assert.Error(t, err)
 
-	// Load the external cluster with the legacy external creds
+	// Load the external cluster with the new creds
 	secret.Name = OperatorCreds
 	secret.Data = map[string][]byte{
 		"userID":  []byte("testid"),
@@ -99,8 +102,22 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	_, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "testid", info.CephCred.Username)
 	assert.Equal(t, "testkey", info.CephCred.Secret)
+
+	// err = clientset.CoreV1().Secrets(namespace).Delete(ctx, AppName, metav1.DeleteOptions{})
+	// assert.NoError(t, err)
+	secret.Name = AppName
+	secret.Data = map[string][]byte{
+		string(CephNonOperatorUsernameKey):   []byte("client.admin"),
+		string(CephNonOperatorUserSecretKey): []byte("key"),
+	}
+	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "client.rookoperator", info.CephCred.Username)
+	assert.Equal(t, adminSecret, info.CephCred.Secret)
 }

@@ -261,7 +261,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 func validateStart(t *testing.T, c *Cluster) {
 	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(c.ClusterInfo.Context, AppName, metav1.GetOptions{})
 	assert.NoError(t, err) // there shouldn't be an error due the secret existing
-	assert.Equal(t, 4, len(s.Data))
+	assert.Equal(t, 6, len(s.Data))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
 	_, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, "rook-ceph-mon-a", metav1.GetOptions{})

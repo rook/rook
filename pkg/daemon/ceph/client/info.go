@@ -95,7 +95,7 @@ func AdminClusterInfo(ctx context.Context, namespace, name string) *ClusterInfo 
 	return &ClusterInfo{
 		Namespace: namespace,
 		CephCred: CephCred{
-			Username: AdminUsername,
+			Username: NonOperatorAdminUsername,
 		},
 		name:      name,
 		OwnerInfo: ownerInfo,

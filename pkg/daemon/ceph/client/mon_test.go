@@ -38,8 +38,8 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, "--connect-timeout=15", args[0])
 	assert.Equal(t, "--cluster=a", args[1])
 	assert.Equal(t, "--conf=/etc/a/a.config", args[2])
-	assert.Equal(t, "--name=client.admin", args[3])
-	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[4])
+	assert.Equal(t, "--name=client.rookoperator", args[3])
+	assert.Equal(t, "--keyring=/etc/a/client.rookoperator.keyring", args[4])
 
 	RunAllCephCommandsInToolboxPod = "rook-ceph-tools"
 	args = []string{}
@@ -64,8 +64,8 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, "myarg", args[0])
 	assert.Equal(t, "--cluster="+clusterInfo.Namespace, args[1])
 	assert.Equal(t, "--conf=/var/lib/rook/a/a.config", args[2])
-	assert.Equal(t, "--name=client.admin", args[3])
-	assert.Equal(t, "--keyring=/var/lib/rook/a/client.admin.keyring", args[4])
+	assert.Equal(t, "--name=client.rookoperator", args[3])
+	assert.Equal(t, "--keyring=/var/lib/rook/a/client.rookoperator.keyring", args[4])
 }
 
 func TestStretchElectionStrategy(t *testing.T) {

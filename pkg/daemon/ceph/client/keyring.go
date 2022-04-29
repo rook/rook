@@ -31,7 +31,7 @@ const (
 	// AdminKeyringTemplate is a string template of Ceph keyring settings which allow connection
 	// as admin. The key value must be filled in by the admin auth key for the cluster.
 	AdminKeyringTemplate = `
-[client.admin]
+[client.rookoperator]
 	key = %s
 	caps mds = "allow *"
 	caps mon = "allow *"
@@ -48,7 +48,7 @@ const (
 
 // CephKeyring returns the filled-out user keyring
 func CephKeyring(cred CephCred) string {
-	if cred.Username == AdminUsername {
+	if cred.Username == OperatorAdminUsername {
 		return fmt.Sprintf(AdminKeyringTemplate, cred.Secret)
 	}
 	return fmt.Sprintf(UserKeyringTemplate, cred.Username, cred.Secret)
