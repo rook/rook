@@ -79,7 +79,7 @@ func TestCloseEncryptedDevice(t *testing.T) {
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	err := closeEncryptedDevice(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt")
+	err := CloseEncryptedDevice(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt")
 	assert.NoError(t, err)
 }
 
