@@ -108,6 +108,7 @@ type OSDInfo struct {
 	Store         string `json:"store"`
 	// Ensure the OSD daemon has affinity with the same topology from the OSD prepare pod
 	TopologyAffinity string `json:"topologyAffinity"`
+	Encrypted        bool   `json:"encrypted"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
