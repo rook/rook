@@ -39,7 +39,7 @@ var (
 	luksLabelCephFSID = regexp.MustCompile("ceph_fsid=(.*)")
 )
 
-func closeEncryptedDevice(context *clusterd.Context, dmName string) error {
+func CloseEncryptedDevice(context *clusterd.Context, dmName string) error {
 	args := []string{"--verbose", "luksClose", dmName}
 	cryptsetupOut, err := context.Executor.ExecuteCommandWithCombinedOutput(cryptsetupBinary, args...)
 	if err != nil {
