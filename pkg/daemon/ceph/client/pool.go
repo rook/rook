@@ -447,6 +447,9 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		// Create the pool since it doesn't exist yet
 		// If there was some error other than ENOENT (not exists), go ahead and ensure the pool is created anyway
 		args := []string{"osd", "pool", "create", pool.Name, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
+		if strings.HasPrefix(pool.Name, ".") && clusterInfo.CephVersion.IsAtLeastReef() {
+			args = append(args, "--yes-i-really-mean-it")
+		}
 		output, err := NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
 			return errors.Wrapf(err, "failed to create replicated pool %s. %s", pool.Name, string(output))
