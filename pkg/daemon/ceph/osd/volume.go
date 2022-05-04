@@ -938,7 +938,12 @@ func readCVLogContent(cvLogFilePath string) string {
 	return string(b)
 }
 
-// GetCephVolumeRawOSDs list OSD prepared with raw mode
+// GetCephVolumeRawOSDs list OSD prepared with raw mode.
+// Sometimes this function called against a device, sometimes it's not. For instance, in the cleanup
+// scenario, we don't pass any block because we are looking for all the OSDs present on the machine.
+// On the other hand, the PVC scenario always uses the PVC block as a block to check whether the
+// disk is an OSD or not.
+// The same goes for "metadataBlock" and "walBlock" they are only used in the prepare job.
 func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, cephfsid, block, metadataBlock, walBlock string, lvBackedPV, skipDeviceClass bool) ([]oposd.OSDInfo, error) {
 	// lv can be a block device if raw mode is used
 	cvMode := "raw"
@@ -960,55 +965,57 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	//
 	// isCephEncryptedBlock() returns false if the disk is not a LUKS device with:
 	// Device /dev/sdc is not a valid LUKS device.
-	if isCephEncryptedBlock(context, cephfsid, block) {
-		childDevice, err := sys.ListDevicesChild(context.Executor, block)
-		if err != nil {
-			return nil, err
-		}
-
-		var encryptedBlock string
-		// Find the encrypted block as part of the output
-		// Most of the time we get 2 devices, the parent and the child but we don't want to guess
-		// which one is the child by looking at the index, instead the iterate over the list
-		// Our encrypted device **always** have "-dmcrypt" in the name.
-		for _, device := range childDevice {
-			if strings.Contains(device, "-dmcrypt") {
-				encryptedBlock = device
-				break
+	if block != "" {
+		if isCephEncryptedBlock(context, cephfsid, block) {
+			childDevice, err := sys.ListDevicesChild(context.Executor, block)
+			if err != nil {
+				return nil, err
 			}
-		}
-		if encryptedBlock == "" {
-			// The encrypted block is not opened, this is an extreme corner case
-			// The OSD deployment has been removed manually AND the node rebooted
-			// So we need to re-open the block to re-hydrate the OSDInfo.
-			//
-			// Handling this case would mean, writing the encryption key on a temporary file, then call
-			// luksOpen to open the encrypted block and then call ceph-volume to list against the opened
-			// encrypted block.
-			// We don't implement this, yet and return an error.
-			return nil, errors.Errorf("failed to find the encrypted block device for %q, not opened?", block)
-		}
 
-		// If we have one child device, it should be the encrypted block but still verifying it
-		isDeviceEncrypted, err := sys.IsDeviceEncrypted(context.Executor, encryptedBlock)
-		if err != nil {
-			return nil, err
-		}
+			var encryptedBlock string
+			// Find the encrypted block as part of the output
+			// Most of the time we get 2 devices, the parent and the child but we don't want to guess
+			// which one is the child by looking at the index, instead the iterate over the list
+			// Our encrypted device **always** have "-dmcrypt" in the name.
+			for _, device := range childDevice {
+				if strings.Contains(device, "-dmcrypt") {
+					encryptedBlock = device
+					break
+				}
+			}
+			if encryptedBlock == "" {
+				// The encrypted block is not opened, this is an extreme corner case
+				// The OSD deployment has been removed manually AND the node rebooted
+				// So we need to re-open the block to re-hydrate the OSDInfo.
+				//
+				// Handling this case would mean, writing the encryption key on a temporary file, then call
+				// luksOpen to open the encrypted block and then call ceph-volume to list against the opened
+				// encrypted block.
+				// We don't implement this, yet and return an error.
+				return nil, errors.Errorf("failed to find the encrypted block device for %q, not opened?", block)
+			}
 
-		// All good, now we set the right disk for ceph-volume to list against
-		// The ceph-volume will look like:
-		// [root@bde85e6b23ec /]# ceph-volume raw list /dev/mapper/ocs-deviceset-thin-1-data-0hmfgp-block-dmcrypt
-		// {
-		//     "4": {
-		//         "ceph_fsid": "fea59c09-2d35-4096-bc46-edb0fd39ab86",
-		//         "device": "/dev/mapper/ocs-deviceset-thin-1-data-0hmfgp-block-dmcrypt",
-		//         "osd_id": 4,
-		//         "osd_uuid": "fcff2062-e653-4d42-84e5-e8de639bed4b",
-		//         "type": "bluestore"
-		//     }
-		// }
-		if isDeviceEncrypted {
-			block = encryptedBlock
+			// If we have one child device, it should be the encrypted block but still verifying it
+			isDeviceEncrypted, err := sys.IsDeviceEncrypted(context.Executor, encryptedBlock)
+			if err != nil {
+				return nil, err
+			}
+
+			// All good, now we set the right disk for ceph-volume to list against
+			// The ceph-volume will look like:
+			// [root@bde85e6b23ec /]# ceph-volume raw list /dev/mapper/ocs-deviceset-thin-1-data-0hmfgp-block-dmcrypt
+			// {
+			//     "4": {
+			//         "ceph_fsid": "fea59c09-2d35-4096-bc46-edb0fd39ab86",
+			//         "device": "/dev/mapper/ocs-deviceset-thin-1-data-0hmfgp-block-dmcrypt",
+			//         "osd_id": 4,
+			//         "osd_uuid": "fcff2062-e653-4d42-84e5-e8de639bed4b",
+			//         "type": "bluestore"
+			//     }
+			// }
+			if isDeviceEncrypted {
+				block = encryptedBlock
+			}
 		}
 	}
 
@@ -1077,6 +1084,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
 			Store:         "bluestore",
+			Encrypted:     strings.Contains(blockPath, "-dmcrypt"),
 		}
 
 		if !skipDeviceClass {
@@ -1089,6 +1097,15 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		}
 
 		// If this is an encrypted OSD
+		// Always rely on the env variable and NOT what we find as a block name, this function is
+		// called by:
+		//   * the prepare job, which pass the env variable for encryption or not
+		//   * the cleanup job which lists **all** devices and cleans them up
+		// They do different things, in the case of the prepare job we want to close the encrypted
+		// device because the device is going to be detached from the pod and re-attached to the OSD
+		// pod
+		// For the cleanup pod we don't want to close the encrypted block since it will sanitize it
+		// first and then close it
 		if os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName) != "" {
 			// If label and subsystem are not set on the encrypted block let's set it
 			// They will be set if the OSD deployment has been removed manually and the prepare job
@@ -1104,7 +1121,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			}
 
 			// Close encrypted device
-			err = closeEncryptedDevice(context, block)
+			err = CloseEncryptedDevice(context, block)
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
 			}
@@ -1112,7 +1129,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			// If there is a metadata block
 			if metadataBlock != "" {
 				// Close encrypted device
-				err = closeEncryptedDevice(context, metadataBlock)
+				err = CloseEncryptedDevice(context, metadataBlock)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to close encrypted db device %q for osd %d", metadataBlock, osdID)
 				}
@@ -1121,7 +1138,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			// If there is a wal block
 			if walBlock != "" {
 				// Close encrypted device
-				err = closeEncryptedDevice(context, walBlock)
+				err = CloseEncryptedDevice(context, walBlock)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to close encrypted wal device %q for osd %d", walBlock, osdID)
 				}

@@ -250,6 +250,16 @@ function wait_for_prepare_pod() {
   kubectl -n rook-ceph describe deployment/rook-ceph-osd-0 || true
 }
 
+function wait_for_cleanup_pod() {
+  timeout 180 bash <<EOF
+until kubectl --namespace rook-ceph logs job/cluster-cleanup-job-$(uname -n); do
+  echo "waiting for cleanup up pod to be present"
+  sleep 1
+done
+EOF
+  kubectl --namespace rook-ceph logs --follow job/cluster-cleanup-job-"$(uname -n)"
+}
+
 function wait_for_ceph_to_be_ready() {
   DAEMONS=$1
   OSD_COUNT=$2
