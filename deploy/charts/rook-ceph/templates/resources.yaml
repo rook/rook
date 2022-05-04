@@ -8759,6 +8759,21 @@ spec:
                           description: TokenSecretName is the kubernetes secret containing the KMS token
                           type: string
                       type: object
+                    s3:
+                      description: The settings for supporting AWS-SSE:S3 with RGW
+                      nullable: true
+                      properties:
+                        connectionDetails:
+                          additionalProperties:
+                            type: string
+                          description: ConnectionDetails contains the KMS connection details (address, port etc)
+                          nullable: true
+                          type: object
+                          x-kubernetes-preserve-unknown-fields: true
+                        tokenSecretName:
+                          description: TokenSecretName is the kubernetes secret containing the KMS token
+                          type: string
+                      type: object
                   type: object
                 zone:
                   description: The multisite info

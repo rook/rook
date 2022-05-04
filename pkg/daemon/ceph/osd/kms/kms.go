@@ -209,29 +209,29 @@ func GetParam(kmsConfig map[string]string, param string) string {
 }
 
 // ValidateConnectionDetails validates mandatory KMS connection details
-func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Context, securitySpec *cephv1.SecuritySpec, ns string) error {
+func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Context, kms *cephv1.KeyManagementServiceSpec, ns string) error {
 	// Lookup mandatory connection details
 	for _, config := range kmsMandatoryConnectionDetails {
-		if GetParam(securitySpec.KeyManagementService.ConnectionDetails, config) == "" {
+		if GetParam(kms.ConnectionDetails, config) == "" {
 			return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
 		}
 	}
 
 	// A token must be specified if token-auth is used
-	if !securitySpec.KeyManagementService.IsK8sAuthEnabled() && securitySpec.KeyManagementService.TokenSecretName == "" {
-		if !securitySpec.KeyManagementService.IsTokenAuthEnabled() {
+	if !kms.IsK8sAuthEnabled() && kms.TokenSecretName == "" {
+		if !kms.IsTokenAuthEnabled() {
 			return errors.New("failed to validate kms configuration (missing token in spec)")
 		}
 	}
 
 	// KMS provider must be specified
-	provider := GetParam(securitySpec.KeyManagementService.ConnectionDetails, Provider)
+	provider := GetParam(kms.ConnectionDetails, Provider)
 
 	// Validate potential token Secret presence
-	if securitySpec.KeyManagementService.IsTokenAuthEnabled() {
-		kmsToken, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, securitySpec.KeyManagementService.TokenSecretName, metav1.GetOptions{})
+	if kms.IsTokenAuthEnabled() {
+		kmsToken, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, kms.TokenSecretName, metav1.GetOptions{})
 		if err != nil {
-			return errors.Wrapf(err, "failed to fetch kms token secret %q", securitySpec.KeyManagementService.TokenSecretName)
+			return errors.Wrapf(err, "failed to fetch kms token secret %q", kms.TokenSecretName)
 		}
 
 		switch provider {
@@ -239,7 +239,7 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 			// Check for empty token
 			token, ok := kmsToken.Data[KMSTokenSecretNameKey]
 			if !ok || len(token) == 0 {
-				return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", KMSTokenSecretNameKey, securitySpec.KeyManagementService.TokenSecretName)
+				return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", KMSTokenSecretNameKey, kms.TokenSecretName)
 			}
 
 			// Set the env variable
@@ -252,10 +252,10 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 			for _, config := range kmsIBMKeyProtectMandatoryTokenDetails {
 				v, ok := kmsToken.Data[config]
 				if !ok || len(v) == 0 {
-					return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", config, securitySpec.KeyManagementService.TokenSecretName)
+					return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", config, kms.TokenSecretName)
 				}
 				// Append the token secret details to the connection details
-				securitySpec.KeyManagementService.ConnectionDetails[config] = strings.TrimSuffix(strings.TrimSpace(string(v)), "\n")
+				kms.ConnectionDetails[config] = strings.TrimSuffix(strings.TrimSpace(string(v)), "\n")
 			}
 		}
 	}
@@ -263,27 +263,27 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 	// Validate KMS provider connection details for each provider
 	switch provider {
 	case secrets.TypeVault:
-		err := validateVaultConnectionDetails(ctx, clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
+		err := validateVaultConnectionDetails(ctx, clusterdContext, ns, kms.ConnectionDetails)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate vault connection details")
 		}
 
-		secretEngine := securitySpec.KeyManagementService.ConnectionDetails[VaultSecretEngineKey]
+		secretEngine := kms.ConnectionDetails[VaultSecretEngineKey]
 		switch secretEngine {
 		case VaultKVSecretEngineKey:
 			// Append Backend Version if not already present
-			if GetParam(securitySpec.KeyManagementService.ConnectionDetails, vault.VaultBackendKey) == "" {
-				backendVersion, err := BackendVersion(ctx, clusterdContext, ns, securitySpec.KeyManagementService.ConnectionDetails)
+			if GetParam(kms.ConnectionDetails, vault.VaultBackendKey) == "" {
+				backendVersion, err := BackendVersion(ctx, clusterdContext, ns, kms.ConnectionDetails)
 				if err != nil {
 					return errors.Wrap(err, "failed to get backend version")
 				}
-				securitySpec.KeyManagementService.ConnectionDetails[vault.VaultBackendKey] = backendVersion
+				kms.ConnectionDetails[vault.VaultBackendKey] = backendVersion
 			}
 		}
 
 	case TypeIBM:
 		for _, config := range kmsIBMKeyProtectMandatoryConnectionDetails {
-			if GetParam(securitySpec.KeyManagementService.ConnectionDetails, config) == "" {
+			if GetParam(kms.ConnectionDetails, config) == "" {
 				return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
 			}
 		}

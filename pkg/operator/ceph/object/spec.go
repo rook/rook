@@ -19,7 +19,6 @@ package object
 import (
 	"fmt"
 	"path"
-	"reflect"
 	"strings"
 
 	"github.com/hashicorp/vault/api"
@@ -40,19 +39,35 @@ import (
 const (
 	readinessProbePath = "/swift/healthcheck"
 	serviceAccountName = "rook-ceph-rgw"
+	sseKMS             = "ssekms"
+	sseS3              = "sses3"
+	vaultPrefix        = "/v1/"
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
 
 VAULT_TOKEN_OLD_PATH=%s
 VAULT_TOKEN_NEW_PATH=%s
-
-cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/..data/. $VAULT_TOKEN_NEW_PATH
-
-chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/*
+if [ -d $VAULT_TOKEN_OLD_PATH/ssekms ]
+then
+cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/ssekms/..data/. $VAULT_TOKEN_NEW_PATH/ssekms
+chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/ssekms/*
+chmod --verbose 700 $VAULT_TOKEN_NEW_PATH/ssekms
+fi
+if [ -d $VAULT_TOKEN_OLD_PATH/sses3 ]
+then
+cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/sses3/..data/. $VAULT_TOKEN_NEW_PATH/sses3
+chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/sses3/*
+chmod --verbose 700 $VAULT_TOKEN_NEW_PATH/sses3
+fi
 chmod --verbose 700 $VAULT_TOKEN_NEW_PATH
 chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 `
+)
+
+var (
+	cephVersionMinRGWSSES3     = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
+	cephVersionMinRGWSSEKMSTLS = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
 )
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
@@ -95,9 +110,9 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 }
 
 func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec, error) {
-	rgwDaemonContainer := c.makeDaemonContainer(rgwConfig)
-	if reflect.DeepEqual(rgwDaemonContainer, v1.Container{}) {
-		return v1.PodTemplateSpec{}, errors.New("got empty container for RGW daemon")
+	rgwDaemonContainer, err := c.makeDaemonContainer(rgwConfig)
+	if err != nil {
+		return v1.PodTemplateSpec{}, err
 	}
 
 	hostNetwork := c.store.Spec.IsHostNetwork(c.clusterSpec)
@@ -164,21 +179,32 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	if err != nil {
 		return v1.PodTemplateSpec{}, err
 	}
-	if kmsEnabled {
-		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-			vaultFileVol, _ := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
-				c.store.Spec.Security.KeyManagementService.TokenSecretName)
-			tmpvolume := v1.Volume{
-				Name: rgwVaultVolumeName,
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
-				},
-			}
-
-			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol, tmpvolume)
-			podSpec.InitContainers = append(podSpec.InitContainers,
-				c.vaultTokenInitContainer(rgwConfig))
+	s3Enabled, err := c.CheckRGWSSES3Enabled()
+	if err != nil {
+		return v1.PodTemplateSpec{}, err
+	}
+	if kmsEnabled || s3Enabled {
+		v := v1.Volume{
+			Name: rgwVaultVolumeName,
+			VolumeSource: v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{},
+			},
 		}
+		podSpec.Volumes = append(podSpec.Volumes, v)
+
+		if kmsEnabled && c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+			vaultFileVol, _ := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
+				c.store.Spec.Security.KeyManagementService.TokenSecretName, sseKMS)
+			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol)
+		}
+		if s3Enabled && c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
+			vaultFileVol, _ := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails,
+				c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName, sseS3)
+			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol)
+		}
+
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			c.vaultTokenInitContainer(rgwConfig, kmsEnabled, s3Enabled))
 	}
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
@@ -234,9 +260,19 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 // predefined value, so it won't work there. Hence the token file and certs (if present)
 // are copied to other volume from mounted secrets then ownership/permissions are changed
 // accordingly with help of an init container.
-func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Container {
-	_, srcVaultVolMount := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails, "")
+func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig, kmsEnabled, s3Enabled bool) v1.Container {
+	var vaultVolMounts []v1.VolumeMount
+
 	tmpVaultMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
+	vaultVolMounts = append(vaultVolMounts, tmpVaultMount)
+	if kmsEnabled {
+		_, ssekmsVaultVolMount := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.KeyManagementService.ConnectionDetails, "", sseKMS)
+		vaultVolMounts = append(vaultVolMounts, ssekmsVaultVolMount)
+	}
+	if s3Enabled {
+		_, sses3VaultVolMount := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, "", sseS3)
+		vaultVolMounts = append(vaultVolMounts, sses3VaultVolMount)
+	}
 	return v1.Container{
 		Name: "vault-initcontainer-token-file-setup",
 		Command: []string{
@@ -247,7 +283,7 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Contain
 		},
 		Image: c.clusterSpec.CephVersion.Image,
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), srcVaultVolMount, tmpVaultMount),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), vaultVolMounts...),
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 	}
@@ -263,7 +299,7 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 	)
 }
 
-func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
+func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container, error) {
 	// start the rgw daemon in the foreground
 	container := v1.Container{
 		Name:  "rgw",
@@ -312,47 +348,42 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
-		logger.Errorf("failed to enable KMS. %v", err)
-		return v1.Container{}
+		logger.Errorf("failed to enable SSE-KMS. %v", err)
+		return v1.Container{}, err
 	}
 	if kmsEnabled {
-		container.Args = append(container.Args,
-			cephconfig.NewFlag("rgw crypt s3 kms backend",
-				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
-			cephconfig.NewFlag("rgw crypt vault addr",
-				c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
-		)
+		logger.Debugf("enabliing SSE-KMS. %v", c.store.Spec.Security.KeyManagementService)
+		container.Args = append(container.Args, c.sseKMSDefaultOptions(kmsEnabled)...)
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-			container.Args = append(container.Args,
-				cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
-				cephconfig.NewFlag("rgw crypt vault token file",
-					path.Join(rgwVaultDirName, kms.VaultFileName)),
-				cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
-				cephconfig.NewFlag("rgw crypt vault secret engine",
-					c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
-			)
+			container.Args = append(container.Args, c.sseKMSVaultTokenOptions(kmsEnabled)...)
 		}
 		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() &&
-			c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}) {
-			container.Args = append(container.Args,
-				cephconfig.NewFlag("rgw crypt vault verify ssl", "true"))
-			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientCert) != "" {
-				container.Args = append(container.Args,
-					cephconfig.NewFlag("rgw crypt vault ssl clientcert", path.Join(rgwVaultDirName, kms.VaultCertFileName)))
-			}
-			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientKey) != "" {
-				container.Args = append(container.Args,
-					cephconfig.NewFlag("rgw crypt vault ssl clientkey", path.Join(rgwVaultDirName, kms.VaultKeyFileName)))
-			}
-			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultCACert) != "" {
-				container.Args = append(container.Args,
-					cephconfig.NewFlag("rgw crypt vault ssl cacert", path.Join(rgwVaultDirName, kms.VaultCAFileName)))
-			}
+			c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSEKMSTLS) {
+			container.Args = append(container.Args, c.sseKMSVaultTLSOptions(kmsEnabled)...)
 		}
+	}
+
+	s3Enabled, err := c.CheckRGWSSES3Enabled()
+	if err != nil {
+		return v1.Container{}, err
+	}
+	if s3Enabled {
+		logger.Debugf("enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
+
+		container.Args = append(container.Args, c.sseS3DefaultOptions(s3Enabled)...)
+		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
+			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3Enabled)...)
+		}
+		if c.store.Spec.Security.ServerSideEncryptionS3.IsTLSEnabled() {
+			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3Enabled)...)
+		}
+	}
+
+	if s3Enabled || kmsEnabled {
 		vaultVolMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
 		container.VolumeMounts = append(container.VolumeMounts, vaultVolMount)
 	}
-	return container
+	return container, nil
 }
 
 // configureReadinessProbe returns the desired readiness probe for a given daemon
@@ -525,14 +556,13 @@ func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore
 
 func (c *clusterConfig) vaultPrefixRGW() string {
 	secretEngine := c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
-	vaultPrefixPath := "/v1/"
-
+	var vaultPrefixPath string
 	switch secretEngine {
 	case kms.VaultKVSecretEngineKey:
-		vaultPrefixPath = path.Join(vaultPrefixPath,
+		vaultPrefixPath = path.Join(vaultPrefix,
 			c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey], "/data")
 	case kms.VaultTransitSecretEngineKey:
-		vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine)
+		vaultPrefixPath = path.Join(vaultPrefix, secretEngine)
 	}
 
 	return vaultPrefixPath
@@ -540,13 +570,13 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 
 func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 	if c.store.Spec.Security != nil && c.store.Spec.Security.KeyManagementService.IsEnabled() {
-		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, c.store.Spec.Security, c.store.Namespace)
+		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, &c.store.Spec.Security.KeyManagementService, c.store.Namespace)
 		if err != nil {
 			return false, err
 		}
 		secretEngine := c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
 
-		// currently RGW supports kv(version 2) and transit secret engines in vault
+		// currently RGW supports kv(version 2) and transit secret engines in vault for sse:kms
 		switch secretEngine {
 		case kms.VaultKVSecretEngineKey:
 			kvVers := c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]
@@ -566,6 +596,26 @@ func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 			return false, errors.New("failed to validate vault secret engine")
 
 		}
+	}
+
+	return false, nil
+}
+
+func (c *clusterConfig) CheckRGWSSES3Enabled() (bool, error) {
+	if c.store.Spec.Security != nil && c.store.Spec.Security.ServerSideEncryptionS3.IsEnabled() {
+		if !c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSES3) {
+			return false, errors.New("minimum ceph quincy is required for AWS-SSE:S3")
+		}
+		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, &c.store.Spec.Security.ServerSideEncryptionS3, c.store.Namespace)
+		if err != nil {
+			return false, err
+		}
+
+		// currently RGW supports only transit secret engines in vault for sse:s3
+		if c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey] != kms.VaultTransitSecretEngineKey {
+			return false, errors.New("vault secret engine is not transit")
+		}
+		return true, nil
 	}
 
 	return false, nil
@@ -671,4 +721,100 @@ func (c *clusterConfig) rgwTLSSecretType(secretName string) (v1.SecretType, erro
 
 func getDaemonName(rgwConfig *rgwConfig) string {
 	return fmt.Sprintf("ceph-%s", generateCephXUser(rgwConfig.ResourceName))
+}
+
+// Following apis set the RGW options if requested, since they are used in unit tests for validating different scenarios
+func (c *clusterConfig) sseKMSDefaultOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt s3 kms backend",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
+			cephconfig.NewFlag("rgw crypt vault addr",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseS3DefaultOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt sse s3 backend",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.Provider]),
+			cephconfig.NewFlag("rgw crypt sse s3 vault addr",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[api.EnvVaultAddress]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseKMSVaultTokenOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
+			cephconfig.NewFlag("rgw crypt vault token file",
+				path.Join(rgwVaultDirName, sseKMS, kms.VaultFileName)),
+			cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
+			cephconfig.NewFlag("rgw crypt vault secret engine",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseS3VaultTokenOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt sse s3 vault auth", kms.KMSTokenSecretNameKey),
+			cephconfig.NewFlag("rgw crypt sse s3 vault token file",
+				path.Join(rgwVaultDirName, sseS3, kms.VaultFileName)),
+			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
+				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
+			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseKMSVaultTLSOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt vault verify ssl", "true"))
+
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientCert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt vault ssl clientcert", path.Join(rgwVaultDirName, sseKMS, kms.VaultCertFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientKey) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt vault ssl clientkey", path.Join(rgwVaultDirName, sseKMS, kms.VaultKeyFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultCACert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt vault ssl cacert", path.Join(rgwVaultDirName, sseKMS, kms.VaultCAFileName)))
+		}
+	}
+	return rgwOptions
+}
+
+func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt sse s3 vault verify ssl", "true"))
+
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, api.EnvVaultClientCert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt sse s3 vault ssl clientcert", path.Join(rgwVaultDirName, sseS3, kms.VaultCertFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, api.EnvVaultClientKey) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt sse s3 vault ssl clientkey", path.Join(rgwVaultDirName, sseS3, kms.VaultKeyFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, api.EnvVaultCACert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt sse s3 vault ssl cacert", path.Join(rgwVaultDirName, sseS3, kms.VaultCAFileName)))
+		}
+	}
+	return rgwOptions
 }

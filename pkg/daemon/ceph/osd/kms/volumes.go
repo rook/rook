@@ -17,6 +17,8 @@ limitations under the License.
 package kms
 
 import (
+	"path"
+
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -68,8 +70,15 @@ func VaultSecretVolumeAndMount(kmsVaultConfigFiles map[string]string, tokenSecre
 
 // VaultVolumeAndMount returns Vault volume and volume mount
 func VaultVolumeAndMount(kmsVaultConfigFiles map[string]string, tokenSecretName string) (v1.Volume, v1.VolumeMount) {
+	return VaultVolumeAndMountWithCustomName(kmsVaultConfigFiles, tokenSecretName, "")
+}
+
+func VaultVolumeAndMountWithCustomName(kmsVaultConfigFiles map[string]string, tokenSecretName, customName string) (v1.Volume, v1.VolumeMount) {
+	if len(kmsVaultConfigFiles) == 0 && len(tokenSecretName) == 0 {
+		return v1.Volume{}, v1.VolumeMount{}
+	}
 	v := v1.Volume{
-		Name: secrets.TypeVault,
+		Name: secrets.TypeVault + customName,
 		VolumeSource: v1.VolumeSource{
 			Projected: &v1.ProjectedVolumeSource{
 				Sources: VaultSecretVolumeAndMount(kmsVaultConfigFiles, tokenSecretName),
@@ -77,15 +86,18 @@ func VaultVolumeAndMount(kmsVaultConfigFiles map[string]string, tokenSecretName 
 		},
 	}
 
+	mountPath := EtcVaultDir
+	if customName != "" {
+		mountPath = path.Join(mountPath, customName)
+	}
 	m := v1.VolumeMount{
-		Name:      secrets.TypeVault,
+		Name:      secrets.TypeVault + customName,
 		ReadOnly:  true,
-		MountPath: EtcVaultDir,
+		MountPath: mountPath,
 	}
 
 	return v, m
 }
-
 func tlsSecretPath(tlsOption string) string {
 	switch tlsOption {
 	case api.EnvVaultCACert:

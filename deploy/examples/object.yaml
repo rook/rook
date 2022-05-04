@@ -116,8 +116,8 @@ spec:
       disabled: false
   # security oriented settings
   # security:
-  # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file
-  #   kms:
+  # To enable the Server Side Encryption configuration properly don't forget to uncomment the Secret at the end of the file
+  #   kms: # configures RGW with AWS-SSE:KMS
   #     # name of the config map containing all the kms connection details
   #     connectionDetails:
   #        KMS_PROVIDER: "vault"
@@ -125,6 +125,15 @@ spec:
   #        VAULT_BACKEND_PATH: "rook"
   #        VAULT_SECRET_ENGINE: "kv"
   #        VAULT_BACKEND: v2
+  #     # name of the secret containing the kms authentication token
+  #     tokenSecretName: rook-vault-token
+  #   s3: # configures RGW with AWS-SSE:S3
+  #     # name of the config map containing all the kms connection details
+  #     connectionDetails:
+  #        KMS_PROVIDER: "vault"
+  #        VAULT_ADDR: VAULT_ADDR_CHANGE_ME # e,g: http://vault.my-domain.com:8200
+  #        VAULT_BACKEND_PATH: "rook"
+  #        VAULT_SECRET_ENGINE: "transit"
   #     # name of the secret containing the kms authentication token
   #     tokenSecretName: rook-vault-token
 # # UNCOMMENT THIS TO ENABLE A KMS CONNECTION
