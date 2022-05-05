@@ -37,6 +37,12 @@ function usage {
 function wipe_disk {
   sudo sgdisk --zap-all -- "$DISK"
   sudo dd if=/dev/zero of="$DISK" bs=1M count=10
+  if [ -n "$WIPE_ONLY" ]; then
+    # `parted "$DISK -s print" exits with 1 if the partition label doesn't exist.
+    # It's no problem in "--wipe-only" mode
+    sudo parted "$DISK" -s print || :
+    return
+  fi
   sudo parted -s "$DISK" mklabel gpt
   sudo partprobe "$DISK"
   sudo udevadm settle
@@ -82,6 +88,9 @@ while [ "$1" != "" ]; do
       shift
       OSD_COUNT="$1"
     ;;
+    --wipe-only)
+      WIPE_ONLY=1
+    ;;
     -h | --help)
       usage
       exit
@@ -96,22 +105,29 @@ done
 # First wipe the disk
 wipe_disk
 
-if [ -n "$BLUESTORE_TYPE" ]; then
-  case "$BLUESTORE_TYPE" in
-    block.db)
-      create_partition block.db
-    ;;
-    block.wal)
-      create_partition block.db
-      create_partition block.wal
-    ;;
-    *)
-      printf "invalid bluestore configuration %q" "$BLUESTORE_TYPE" >&2
-      exit 1
-  esac
+if [ -n "$WIPE_ONLY" ]; then
+  exit
 fi
-# Create final block partitions
-create_block_partition "$OSD_COUNT"
+
+if [ -z "$WIPE_ONLY" ]; then
+  if [ -n "$BLUESTORE_TYPE" ]; then
+    case "$BLUESTORE_TYPE" in
+      block.db)
+        create_partition block.db
+      ;;
+      block.wal)
+        create_partition block.db
+        create_partition block.wal
+      ;;
+      *)
+        printf "invalid bluestore configuration %q" "$BLUESTORE_TYPE" >&2
+        exit 1
+    esac
+  fi
+
+  # Create final block partitions
+  create_block_partition "$OSD_COUNT"
+fi
 
 # Inform the kernel of partition table changes
 sudo partprobe "$DISK"
