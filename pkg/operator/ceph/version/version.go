@@ -47,6 +47,8 @@ var (
 	Pacific = CephVersion{16, 0, 0, 0, ""}
 	// Quincy Ceph version
 	Quincy = CephVersion{17, 0, 0, 0, ""}
+	// Reef Ceph version
+	Reef = CephVersion{18, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
 	supportedVersions = []CephVersion{Octopus, Pacific, Quincy}
@@ -89,6 +91,8 @@ func (v *CephVersion) ReleaseName() string {
 		return "pacific"
 	case Quincy.Major:
 		return "quincy"
+	case Reef.Major:
+		return "reef"
 	default:
 		return unknownVersionString
 	}
@@ -179,6 +183,11 @@ func (v *CephVersion) IsQuincy() bool {
 	return v.isRelease(Quincy)
 }
 
+// IsReef checks if the Ceph version is Reef
+func (v *CephVersion) IsReef() bool {
+	return v.isRelease(Reef)
+}
+
 // IsAtLeast checks a given Ceph version is at least a given one
 func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	if v.Major > other.Major {
@@ -200,6 +209,11 @@ func (v *CephVersion) IsAtLeast(other CephVersion) bool {
 	}
 	// If we arrive here then both versions are identical
 	return true
+}
+
+// IsAtLeastReef check that the Ceph version is at least Reef
+func (v *CephVersion) IsAtLeastReef() bool {
+	return v.IsAtLeast(Reef)
 }
 
 // IsAtLeastQuincy check that the Ceph version is at least Quincy
