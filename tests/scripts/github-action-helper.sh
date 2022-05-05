@@ -49,7 +49,7 @@ function use_local_disk() {
     sudo wipefs --all --force "$BLOCK_DATA_PART"
   else
     # it's the hosted runner!
-    sudo sgdisk --zap-all --clear --mbrtogpt -g -- "${BLOCK}"
+    sudo sgdisk --zap-all -- "${BLOCK}"
     sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=10 oflag=direct,dsync
     sudo parted -s "${BLOCK}" mklabel gpt
   fi

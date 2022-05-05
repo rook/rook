@@ -35,7 +35,7 @@ function usage {
 }
 
 function wipe_disk {
-  sudo sgdisk --zap-all --clear --mbrtogpt -g -- "$DISK"
+  sudo sgdisk --zap-all -- "$DISK"
   sudo dd if=/dev/zero of="$DISK" bs=1M count=10
   sudo parted -s "$DISK" mklabel gpt
   sudo partprobe "$DISK"
