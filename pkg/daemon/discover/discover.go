@@ -245,7 +245,7 @@ func checkMatchingDevice(checkDev sys.LocalDisk, devices []sys.LocalDisk) *sys.L
 		// check if devices should be considered the same. the uuid can be
 		// unstable, so we also use the reported serial and device name, which
 		// appear to be more stable.
-		if checkDev.UUID == dev.UUID {
+		if checkDev.UUID != "" && dev.UUID != "" && checkDev.UUID == dev.UUID {
 			return &devices[i]
 		}
 

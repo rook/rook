@@ -23,6 +23,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/util/exec"
 )
@@ -255,8 +257,7 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 // GetDiskUUID look up the UUID for a disk.
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	if _, err := osexec.LookPath(sgdiskCmd); err != nil {
-		logger.Warningf("sgdisk not found. skipping disk UUID.")
-		return "sgdiskNotFound", nil
+		return "", errors.Wrap(err, "sgdisk not found")
 	}
 
 	devicePath := strings.Split(device, "/")
@@ -266,7 +267,7 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 
 	output, err := executor.ExecuteCommandWithOutput(sgdiskCmd, "--print", device)
 	if err != nil {
-		return "", err
+		return "", errors.Wrapf(err, "sgdisk failed. output=%s", output)
 	}
 
 	return parseUUID(device, output)
@@ -329,6 +330,11 @@ func parseUUID(device, output string) (string, error) {
 	// find the line with the uuid
 	lines := strings.Split(output, "\n")
 	for _, line := range lines {
+		// If GPT is not found in a disk, sgdisk creates a new GPT in memory and reports its UUID.
+		// This ID changes each call and is not appropriate to identify the device.
+		if strings.Contains(line, "Creating new GPT entries in memory.") {
+			break
+		}
 		if strings.Contains(line, "Disk identifier (GUID)") {
 			words := strings.Split(line, " ")
 			for _, word := range words {
