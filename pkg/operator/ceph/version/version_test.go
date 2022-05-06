@@ -101,14 +101,17 @@ func TestSupported(t *testing.T) {
 	for _, v := range supportedVersions {
 		assert.True(t, v.Supported())
 	}
+	assert.False(t, Reef.Supported())
 }
 
 func TestIsRelease(t *testing.T) {
 	assert.True(t, Octopus.isRelease(Octopus))
 	assert.True(t, Pacific.isRelease(Pacific))
 	assert.True(t, Quincy.isRelease(Quincy))
+	assert.True(t, Reef.isRelease(Reef))
 
 	assert.False(t, Pacific.isRelease(Octopus))
+	assert.False(t, Reef.isRelease(Quincy))
 
 	OctopusUpdate := Octopus
 	OctopusUpdate.Minor = 33
@@ -206,10 +209,11 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"supported", fields{Major: 16, Minor: 2, Extra: 1, Build: 0}, false},
-		{"supported", fields{Major: 15, Minor: 2, Extra: 1, Build: 0}, false},
-		{"supported", fields{Major: 15, Minor: 2, Extra: 6, Build: 0}, false},
-		{"unsupported", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
+		{"octopus", fields{Major: 15, Minor: 2, Extra: 1, Build: 0}, false},
+		{"octopus", fields{Major: 15, Minor: 2, Extra: 6, Build: 0}, false},
+		{"pacific", fields{Major: 16, Minor: 2, Extra: 1, Build: 0}, false},
+		{"quincy", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
+		{"reef", fields{Major: 18, Minor: 2, Extra: 0, Build: 0}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
