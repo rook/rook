@@ -14,6 +14,10 @@ contains a Prometheus instance, it will automatically discover Rook's scrape end
 `prometheus.io/scrape` and `prometheus.io/port` annotations.
 
 > **NOTE**: This assumes that the Prometheus instances is searching all your Kubernetes namespaces for Pods with these annotations.
+> If prometheus is already installed in a cluster, it may not be configured to watch for third-party service monitors such as for Rook.
+> Normally you should be able to add the prometheus annotations "prometheus.io/scrape=true" and prometheus.io/port={port} and
+> prometheus would automatically configure the scrape points and start gathering metrics. If prometheus isn't configured to do this, see the
+> [prometheus operator docs](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack#prometheusioscrape).
 
 ## Prometheus Operator
 
