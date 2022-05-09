@@ -195,9 +195,9 @@ class RadosJSON:
         output_group.add_argument("--rbd-data-pool-name", default="", required=False,
                                   help="Provides the name of the RBD datapool")
         output_group.add_argument("--rgw-endpoint", default="", required=False,
-                                  help="Rados GateWay endpoint (in <IP>:<PORT> format)")
+                                  help="RADOS Gateway endpoint (in <IP>:<PORT> format). Note: FQDN is also supported(in <FQDN>:<PORT> format)")
         output_group.add_argument("--rgw-tls-cert-path", default="", required=False,
-                                  help="Rados GateWay endpoint TLS certificate")
+                                  help="RADOS Gateway endpoint TLS certificate")
         output_group.add_argument("--rgw-skip-tls", required=False, default=False,
                                   help="Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED")
         output_group.add_argument("--monitoring-endpoint", default="", required=False,
@@ -795,12 +795,25 @@ class RadosJSON:
         jsonoutput = json.loads(output)
         return jsonoutput["keys"][0]['access_key'], jsonoutput["keys"][0]['secret_key']
 
+    def convert_fqdn_rgw_endpoint_to_ip(self,fqdn_rgw_endpoint):
+        try:
+            fqdn, port = fqdn_rgw_endpoint.split(':')
+        except ValueError:
+            raise ExecutionFailureException(
+            "Not a proper endpoint: {}, <FQDN>:<PORT>, format is expected".format(fqdn_rgw_endpoint))
+        rgw_endpoint_ip = self._convert_hostname_to_ip(fqdn)    
+        rgw_endpoint_port = port
+        rgw_endpoint = self._join_host_port(
+        rgw_endpoint_ip, rgw_endpoint_port)
+        return rgw_endpoint
+    
     def validate_pool(self):
         pools_to_validate = [self._arg_parser.rbd_data_pool_name]
         # if rgw_endpoint is provided, validate it
         if self._arg_parser.rgw_endpoint:
-            self._invalid_endpoint(self._arg_parser.rgw_endpoint)
-            self.endpoint_dial(self._arg_parser.rgw_endpoint,
+            rgw_endpoint = self.convert_fqdn_rgw_endpoint_to_ip(self._arg_parser.rgw_endpoint)
+            self._invalid_endpoint(rgw_endpoint)
+            self.endpoint_dial(rgw_endpoint,
                                cert=self.validate_rgw_endpoint_tls_cert())
             rgw_pool_to_validate = ["{0}.rgw.meta".format(self._arg_parser.rgw_pool_prefix),
                                     ".rgw.root",
