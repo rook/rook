@@ -173,6 +173,27 @@ func TestIsReadyToReconcile(t *testing.T) {
 		c, ready, clusterExists, _ := IsReadyToReconcile(ctx.TODO(), client, clusterName, controllerName)
 		assert.NotNil(t, c)
 		assert.False(t, ready)
+		assert.True(t, clusterExists)
+	})
+
+	t.Run("cephcluster with cleanup policy when deleted and allowed to uninstall with volumes", func(t *testing.T) {
+		cephCluster := &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              clusterName.Name,
+				Namespace:         clusterName.Namespace,
+				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			},
+			Spec: cephv1.ClusterSpec{
+				CleanupPolicy: cephv1.CleanupPolicySpec{
+					Confirmation:              cephv1.DeleteDataDirOnHostsConfirmation,
+					AllowUninstallWithVolumes: true,
+				},
+			}}
+		objects := []runtime.Object{cephCluster}
+		client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(objects...).Build()
+		c, ready, clusterExists, _ := IsReadyToReconcile(ctx.TODO(), client, clusterName, controllerName)
+		assert.NotNil(t, c)
+		assert.False(t, ready)
 		assert.False(t, clusterExists)
 	})
 }
