@@ -76,6 +76,14 @@ func TestCephClusterValidateUpdate(t *testing.T) {
 		},
 		Spec: ClusterSpec{
 			DataDirHostPath: "/var/lib/rook",
+			Storage: StorageScopeSpec{
+				StorageClassDeviceSets: []StorageClassDeviceSet{
+					{
+						Name:      "sc1",
+						Encrypted: true,
+					},
+				},
+			},
 		},
 	}
 	err := c.ValidateCreate()
@@ -84,6 +92,22 @@ func TestCephClusterValidateUpdate(t *testing.T) {
 	// Updating the CRD specs with invalid values
 	uc := c.DeepCopy()
 	uc.Spec.DataDirHostPath = "var/rook"
+	uc.Spec.Storage.StorageClassDeviceSets[0].Encrypted = false
 	err = uc.ValidateUpdate(c)
 	assert.Error(t, err)
+
+	// reverting the to older hostPath
+	uc.Spec.DataDirHostPath = "/var/lib/rook"
+	uc.Spec.Storage.StorageClassDeviceSets = []StorageClassDeviceSet{
+		{
+			Name:      "sc1",
+			Encrypted: true,
+		},
+		{
+			Name: "sc2",
+		},
+	}
+
+	err = uc.ValidateUpdate(c)
+	assert.NoError(t, err)
 }
