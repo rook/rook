@@ -171,6 +171,9 @@ func PopulateDeviceInfo(d string, executor exec.Executor) (*sys.LocalDisk, error
 	if val, ok := diskProps["FSTYPE"]; ok && val != "" {
 		disk.Filesystem = path.Base(val)
 	}
+	if val, ok := diskProps["MOUNTPOINT"]; ok && val != "" {
+		disk.Mountpoint = path.Base(val)
+	}
 
 	return disk, nil
 }

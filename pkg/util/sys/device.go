@@ -97,6 +97,8 @@ type LocalDisk struct {
 	Partitions []Partition
 	// Filesystem is the filesystem currently on the device
 	Filesystem string `json:"filesystem"`
+	// Mountpoint is the mountpoint of the filesystem's on the device
+	Mountpoint string `json:"mountpoint"`
 	// Vendor is the device vendor
 	Vendor string `json:"vendor"`
 	// Model is the device model

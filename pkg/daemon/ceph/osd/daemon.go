@@ -296,6 +296,12 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			continue
 		}
 
+		// Add detection for mounted device and skip if mounted
+		if device.Mountpoint != "" {
+			logger.Infof("skipping device %q with mountpoint %q", device.Name, device.Mountpoint)
+			continue
+		}
+
 		// Ignore device with filesystem signature since c-v inventory
 		// cannot detect that correctly
 		// see: https://tracker.ceph.com/issues/43585
