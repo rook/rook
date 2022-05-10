@@ -97,6 +97,8 @@ type LocalDisk struct {
 	Partitions []Partition
 	// Filesystem is the filesystem currently on the device
 	Filesystem string `json:"filesystem"`
+	// Mountpoint is the mountpoint of the filesystem's on the device
+	Mountpoint string `json:"mountpoint"`
 	// Vendor is the device vendor
 	Vendor string `json:"vendor"`
 	// Model is the device model
@@ -208,11 +210,12 @@ func GetDeviceProperties(device string, executor exec.Executor) (map[string]stri
 // GetDevicePropertiesFromPath gets a device property from a path
 func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
 	output, err := executor.ExecuteCommandWithOutput("lsblk", devicePath,
-		"--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME")
+		"--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME,MOUNTPOINT,FSTYPE")
 	if err != nil {
 		logger.Errorf("failed to execute lsblk. output: %s", output)
 		return nil, err
 	}
+	logger.Debugf("lsblk output: %q", output)
 
 	return parseKeyValuePairString(output), nil
 }
@@ -236,6 +239,7 @@ func GetUdevInfo(device string, executor exec.Executor) (map[string]string, erro
 	if err != nil {
 		return nil, err
 	}
+	logger.Debugf("udevadm info output: %q", output)
 
 	return parseUdevInfo(output), nil
 }
