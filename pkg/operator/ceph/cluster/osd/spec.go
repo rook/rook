@@ -213,7 +213,8 @@ if [ -b "$PVC_DEST" ]; then
 	PVC_SOURCE_MAJ_MIN=$(stat --format '%%t%%T' $PVC_SOURCE)
 	PVC_DEST_MAJ_MIN=$(stat --format '%%t%%T' $PVC_DEST)
 	if [[ "$PVC_SOURCE_MAJ_MIN" == "$PVC_DEST_MAJ_MIN" ]]; then
-		CP_ARGS+=(--no-clobber)
+		echo "PVC $PVC_DEST already exists and has the same major and minor as $PVC_SOURCE: "$PVC_SOURCE_MAJ_MIN""
+		exit 0
 	else
 		echo "PVC's source major/minor numbers changed"
 		CP_ARGS+=(--remove-destination)
