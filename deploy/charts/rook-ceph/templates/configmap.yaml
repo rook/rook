@@ -16,14 +16,12 @@ data:
   CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: {{ .Values.csi.enablePluginSelinuxHostMount | quote }}
   CSI_ENABLE_ENCRYPTION: {{ .Values.csi.enableCSIEncryption | quote }}
   CSI_ENABLE_OMAP_GENERATOR: {{ .Values.csi.enableOMAPGenerator | quote }}
+  CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
 {{- if .Values.csi.pluginPriorityClassName }}
   CSI_PLUGIN_PRIORITY_CLASSNAME: {{ .Values.csi.pluginPriorityClassName | quote }}
 {{- end }}
 {{- if .Values.csi.provisionerPriorityClassName }}
   CSI_PROVISIONER_PRIORITY_CLASSNAME: {{ .Values.csi.provisionerPriorityClassName | quote }}
-{{- end }}
-{{- if .Values.csi.enableCSIHostNetwork }}
-  CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
 {{- end }}
 {{- if .Values.csi.cephFSPluginUpdateStrategy }}
   CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}

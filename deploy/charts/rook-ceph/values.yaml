@@ -63,7 +63,7 @@ csi:
   # Set to true to enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance.
-  # enableCSIHostNetwork: true
+  enableCSIHostNetwork: true
   # set to false to disable deployment of snapshotter container in CephFS provisioner pod.
   enableCephfsSnapshotter: true
   # set to false to disable deployment of snapshotter container in RBD provisioner pod.
