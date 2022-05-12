@@ -1,0 +1,9 @@
+nav:
+    - Block-Storage-RBD
+    - Shared-Filesystem-CephFS
+    - Object-Storage-RGW
+    - Monitoring
+    - Ceph-CSI
+    - ceph-teardown.md
+    - Advanced
+    - ...

@@ -109,7 +109,7 @@ Daemons will only be restarted when necessary for the upgrade. The Rook upgrade 
 depending on if the pod spec changed. The Ceph upgrade will always require a restart of the daemons. In either case, a restart will be done in an orderly, rolling manner
 with one pod at a time along with health checks as the upgrade proceeds. The upgrade will be paused if the cluster becomes unhealthy.
 
-See the [Upgrade design doc](ceph-upgrade.md) for more details on the general upgrade approach.
+See the [Upgrade design doc](rook-upgrade.md) for more details on the general upgrade approach.
 
 #### Admin control of upgrades
 

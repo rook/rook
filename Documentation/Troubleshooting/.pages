@@ -1,0 +1,9 @@
+nav:
+    - ceph-toolbox.md
+    - common-issues.md
+    - ceph-common-issues.md
+    - ceph-csi-common-issues.md
+    - openshift-common-issues.md
+    - disaster-recovery.md
+    - direct-tools.md
+    - ...
