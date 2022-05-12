@@ -1,0 +1,116 @@
+site_name: Rook Ceph Documentation
+docs_dir: Documentation/
+site_url: 'https://rook.io'
+repo_url: https://github.com/rook/rook
+edit_uri: edit/master/Documentation/
+site_author: Rook Authors
+site_description: "Rook Ceph Documentation"
+use_directory_urls: true
+copyright: |
+  <a class="logo" href="/">
+    <img src="https://rook.io/images/rook-logo-small.svg" alt="rook.io logo" />
+  </a>
+  <p>
+    &#169; Rook Authors 2022. Documentation distributed under
+    <a href="https://creativecommons.org/licenses/by/4.0">CC-BY-4.0</a>.
+  </p>
+  <p>
+    &#169; 2022 The Linux Foundation. All rights reserved. The Linux Foundation has
+    registered trademarks and uses trademarks. For a list of trademarks of The Linux Foundation, please see our
+    <a href="https://www.linuxfoundation.org/trademark-usage/">Trademark Usage</a> page.
+  </p>
+theme:
+  name: material
+  custom_dir: .docs/overrides/
+  font: false
+  favicon: https://rook.io/images/favicon_192x192.png
+  logo: https://rook.io/images/rook-logo.svg
+  palette:
+    - scheme: 'default'
+      primary: 'rook-blue'
+      accent: 'deep orange'
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    - scheme: 'slate'
+      primary: 'rook-blue'
+      accent: 'red'
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - content.tabs.link
+    - instant
+    - navigation.expand
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.top
+    - navigation.tracking
+    - search.highlight
+    - search.share
+    - search.suggest
+    - tabs
+extra_css:
+  - stylesheets/extra.css
+plugins:
+  - search
+  - awesome-pages
+  - macros:
+      module_name: .docs/macros/includes/main
+  - minify:
+      minify_html: true
+      minify_js: true
+      htmlmin_opts:
+        remove_comments: true
+      #js_files: []
+  - redirects:
+      redirect_maps:
+        README.md: Getting-Started/intro.md
+  - mike:
+      # these fields are all optional; the defaults are as below...
+      version_selector: true   # set to false to leave out the version selector
+      css_dir: css             # the directory to put the version selector's CSS
+      javascript_dir: js       # the directory to put the version selector's JS
+      canonical_version: null  # the version for <link rel="canonical">; `null`
+                               # uses the version specified via `mike deploy`
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - meta
+  - toc:
+      permalink: true
+  - tables
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      use_pygments: true
+      linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.magiclink
+  - pymdownx.mark
+  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+extra:
+  version:
+    provider: mike
+    default: latest-release
+  social:
+    - icon: fontawesome/brands/slack
+      link: https://slack.rook.io/
+    - icon: fontawesome/brands/twitter 
+      link: https://twitter.com/rook_io
+    - icon: fontawesome/solid/envelopes-bulk
+      link: 'https://groups.google.com/forum/#!forum/rook-dev'
+    - icon: fontawesome/brands/medium
+      link: https://blog.rook.io/

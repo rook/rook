@@ -10,3 +10,8 @@
 # OLM related stuff
 deploy/olm/deploy/*
 deploy/olm/templates/*
+
+# mkdocs + mike
+site/
+public/
+__pycache__/
