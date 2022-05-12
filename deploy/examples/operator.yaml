@@ -130,7 +130,7 @@ data:
   # CSI provisioner would be best to start on the same nodes as other ceph daemons.
   # CSI_PROVISIONER_TOLERATIONS: |
   #   - effect: NoSchedule
-  #     key: node-role.kubernetes.io/controlplane
+  #     key: node-role.kubernetes.io/control-plane
   #     operator: Exists
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
@@ -142,7 +142,7 @@ data:
   # CSI plugins need to be started on all the nodes where the clients need to mount the storage.
   # CSI_PLUGIN_TOLERATIONS: |
   #   - effect: NoSchedule
-  #     key: node-role.kubernetes.io/controlplane
+  #     key: node-role.kubernetes.io/control-plane
   #     operator: Exists
   #   - effect: NoExecute
   #     key: node-role.kubernetes.io/etcd
@@ -497,7 +497,7 @@ spec:
             # - name: DISCOVER_TOLERATIONS
             #   value: |
             #     - effect: NoSchedule
-            #       key: node-role.kubernetes.io/controlplane
+            #       key: node-role.kubernetes.io/control-plane
             #       operator: Exists
             #     - effect: NoExecute
             #       key: node-role.kubernetes.io/etcd
