@@ -34,8 +34,7 @@ ext = importlib.import_module("create-external-cluster-resources")
 class TestRadosJSON(unittest.TestCase):
     def setUp(self):
         print("\nI am in setup")
-        self.rjObj = ext.RadosJSON(['--rbd-data-pool-name=abc',
-                                    '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
+        self.rjObj = ext.RadosJSON(['--rbd-data-pool-name=abc', '--rgw-endpoint=10.10.212.122:9000', '--format=json'])
         # for testing, we are using 'DummyRados' object
         self.rjObj.cluster = ext.DummyRados.Rados()
 
