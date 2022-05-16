@@ -44,6 +44,9 @@ monitoring:
   # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
   # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
   rulesNamespaceOverride:
+  # Monitoring settings for external clusters:
+  # externalMgrEndpoints: <list of endpoints>
+  # externalMgrPrometheusPort: <port>
 
 # If true, create & use PSP resources. Set this to the same value as the rook-ceph chart.
 pspEnable: true
