@@ -1,3 +1,4 @@
+{{- if .Values.monitoring }}
 {{- if .Values.monitoring.createPrometheusRules }}
 ---
 apiVersion: monitoring.coreos.com/v1
@@ -27,5 +28,6 @@ spec:
   {{- range $path, $bytes := .Files.Glob "prometheus/localrules.yaml" }}
   {{ $root.Files.Get $path | indent 2 }}
   {{- end }}
+{{- end }}
 {{- end }}
 {{- end }}

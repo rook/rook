@@ -4,6 +4,7 @@ kind: CephCluster
 metadata:
   name: {{ default .Release.Namespace .Values.clusterName }}
 spec:
+{{- if .Values.monitoring }}
   monitoring:
     enabled: {{ .Values.monitoring.enabled | default false }}
 {{- if .Values.monitoring.externalMgrEndpoints }}
@@ -12,6 +13,7 @@ spec:
 {{- end }}
 {{- if .Values.monitoring.externalMgrPrometheusPort }}
     externalMgrPrometheusPort: {{ toYaml .Values.monitoring.externalMgrPrometheusPort }}
+{{- end }}
 {{- end }}
 
 {{ toYaml .Values.cephClusterSpec | indent 2 }}
