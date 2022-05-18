@@ -1,3 +1,7 @@
+---
+title: Rook
+---
+
 # Rook
 
 Rook is an open source **cloud-native storage orchestrator**, providing the platform, framework, and support for a diverse set of storage solutions to natively integrate with cloud-native environments.
@@ -15,7 +19,7 @@ See our [Quickstart](quickstart.md) guide to get started with the Ceph operator!
 
 ## Designs
 
-[Ceph](https://docs.ceph.com/en/latest/) is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. See the [Ceph overview](ceph-storage.md).
+[Ceph](https://docs.ceph.com/en/latest/) is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. See the [Ceph overview](storage-architecture.md).
 
 For detailed design documentation, see also the [design docs](https://github.com/rook/rook/tree/master/design).
 

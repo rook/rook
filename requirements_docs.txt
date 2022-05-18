@@ -1,0 +1,9 @@
+mike
+mkdocs
+mkdocs-awesome-pages-plugin
+mkdocs-macros-plugin
+mkdocs-material==8.*
+mkdocs-material-extensions
+mkdocs-minify-plugin
+mkdocs-redirects
+pygit2

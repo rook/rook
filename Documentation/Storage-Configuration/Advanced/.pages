@@ -1,0 +1,7 @@
+nav:
+    - ceph-configuration.md
+    - configuration.md
+    - key-management-system.md
+    - ceph-osd-mgmt.md
+    - ceph-mon-health.md
+    - ...

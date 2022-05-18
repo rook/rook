@@ -47,6 +47,7 @@ jobs:
           pip install pylint
           pip install pylint --upgrade
           pip install requests
+          pip install pygit2
 
       - name: Lint Python files
         run: pylint $(git ls-files '*.py') -E

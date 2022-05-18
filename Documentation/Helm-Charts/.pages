@@ -1,0 +1,5 @@
+nav:
+    - helm-charts.md
+    - operator-chart.md
+    - ceph-cluster-chart.md
+    - ...
