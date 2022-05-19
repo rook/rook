@@ -34,12 +34,12 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -487,7 +487,7 @@ func (c *cluster) skipMDSSanityChecks(skip bool) error {
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
-	c.setRookVersionInCephKVStore()
+	telemetry.SetRookVersion(c.context, c.ClusterInfo)
 
 	// Create CSI Kubernetes Secrets
 	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
@@ -574,15 +574,4 @@ func (c *cluster) configureMsgr2() error {
 		}
 	}
 	return nil
-}
-
-// set the Rook version in Ceph's k/v store to allow Rook clusters that enable Ceph telemetry to be
-// identified easily as Rook clusters while additionally providing potentially useful information
-// about the version of Rook that is managing the cluster.
-// e.g., rook-version=v1.8.7
-func (c *cluster) setRookVersionInCephKVStore() {
-	ms := config.GetMonStore(c.context, c.ClusterInfo)
-	if err := ms.SetKeyValue(k8sutil.RookVersionLabelKey, rookversion.Version); err != nil {
-		logger.Warningf("failed to set telemetry key; this cluster may not be identifiable by ceph telemetry as a Rook cluster. %v", err)
-	}
 }
