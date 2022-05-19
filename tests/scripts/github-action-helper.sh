@@ -212,6 +212,8 @@ function deploy_cluster() {
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ] ; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+  elif [ "$1" = "osd_with_metadata_device" ] ; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   fi
   kubectl create -f cluster-test.yaml
   kubectl create -f object-test.yaml
@@ -280,15 +282,12 @@ function check_ownerreferences() {
 }
 
 function create_LV_on_disk() {
-  sudo sgdisk --zap-all "${BLOCK}"
+  DEVICE=$1
   VG=test-rook-vg
   LV=test-rook-lv
-  sudo pvcreate "$BLOCK"
-  sudo vgcreate "$VG" "$BLOCK" || sudo vgcreate "$VG" "$BLOCK" || sudo vgcreate "$VG" "$BLOCK"
+  sudo sgdisk --zap-all "${DEVICE}"
+  sudo vgcreate "$VG" "$DEVICE" || sudo vgcreate "$VG" "$DEVICE" || sudo vgcreate "$VG" "$DEVICE"
   sudo lvcreate -l 100%FREE -n "${LV}" "${VG}"
-  tests/scripts/localPathPV.sh /dev/"${VG}"/${LV}
-  kubectl create -f deploy/examples/crds.yaml
-  kubectl create -f deploy/examples/common.yaml
 }
 
 function deploy_first_rook_cluster() {
