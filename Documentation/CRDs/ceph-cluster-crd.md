@@ -556,7 +556,8 @@ In stretch clusters, if the `arbiter` placement is specified, that placement wil
 Neither will the `arbiter` placement be merged with the `all` placement to allow the arbiter to be fully independent of other daemon placement.
 The remaining mons will still use the `mon` and/or `all` sections.
 
-**NOTE:** Placement of OSD pods is controlled using the [Storage Class Device Set](#storage-class-device-sets), not the general `placement` configuration.
+!!! note
+    Placement of OSD pods is controlled using the [Storage Class Device Set](#storage-class-device-sets), not the general `placement` configuration.
 
 A Placement configuration is specified (according to the kubernetes PodSpec) as:
 
@@ -1329,34 +1330,74 @@ In order to configure an external Ceph cluster with Rook, we need to extract som
 
 1. Run the python script [create-external-cluster-resources.py](/deploy/examples/create-external-cluster-resources.py) for creating all users and keys.
 
+   ```console
+   python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --cephfs-filesystem-name <filesystem-name> --rgw-endpoint  <rgw-endpoint> --namespace <namespace> --format bash
+   ```
+
+- `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
+- `--format bash`: The format of the output
+- `--rbd-data-pool-name`: The name of the RBD data pool
+- `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool
+- `--rados-namespace`: (optional) Divides a pool into separate logical namespaces
+- `--cephfs-filesystem-name`: (optional) The name of the filesystem
+- `--cephfs-metadata-pool-name`: (optional) Provides the name of the cephfs metadata pool
+- `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool
+- `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>`
+- `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
+- `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
+- `--rgw-skip-tls`: (optional) Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED)
+- `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)
+- `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
+- `--ceph-conf`: (optional) Provide a Ceph conf file
+- `--cluster-name`: (optional) Ceph cluster name
+- `--output`: (optional) Output will be stored into the provided file
+- `--dry-run`: (optional) Prints the executed commands without running them
+- `--run-as-user`: (optional) Provides a user name to check the cluster's health status, must be prefixed by `client`.
+- `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
+
+  !!! note
+      Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users, so it can only be used for new deployments.
+
+    Sample run:
     ```console
-    python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --cephfs-filesystem-name <filesystem-name> --rgw-endpoint  <rgw-endpoint> --namespace <namespace> --rgw-pool-prefix <rgw-pool-prefix> --format bash
+    python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --cluster-name <cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoin> --namespace <rook-ceph-external>
     ```
 
-    * `--namespace`: Namespace where CephCluster will run in the consumer cluster, for example `rook-ceph-external`
-    * `--format bash`: The format of the output
-    * `--rbd-data-pool-name`: The name of the RBD data pool
-    * `--cephfs-filesystem-name`: (optional) The name of the filesystem
-    * `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>`
-    * `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`.
+- `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
+
+    Sample run:
+    ```console
+    python3 create-external-cluster-resources.py --upgrade
+    ```
+    This will upgrade all the default csi-users(non-restricted)
+
+    Restricted users created using --restricted-auth-permission flag (For example: client.csi-rbd-node-rookStorage-replicapool) need to pass mandatory flags: '--rbd-data-pool-name(if it is a rbd user), --cluster-name and --run-as-user' flags while upgrading, in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating csi-users then while upgrading it will be mandatory too
+
+    Sample run:
+    ```console
+    python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --cluster-name rookstorage --run-as-user client.csi-rbd-node-rookStorage-replicapool
+    ```
+
+  !!! note
+      An existing non-restricted user cannot be downgraded to a restricted user by upgrading. Admin needs to create a new restricted user for this by re-running the script.The upgrade flag should only be used to append new permissions to users. It shouldn't be used for changing a csi user already applied permissions. For example, you shouldn't change the pool(s) a user has access to.
 
 2. Copy the bash output.
 
-Example Output:
+    Example Output:
 
-```console
-export ROOK_EXTERNAL_FSID=797f411a-aafe-11ec-a254-fa163e1539f5
-export ROOK_EXTERNAL_USERNAME=client.healthchecker
-export ROOK_EXTERNAL_CEPH_MON_DATA=ceph-rados-upstream-w4pdvq-node1-installer=10.0.210.83:6789
-export ROOK_EXTERNAL_USER_SECRET=AQAdm0FilZDSJxAAMucfuu/j0ZYYP4Bia8Us+w==
-export ROOK_EXTERNAL_DASHBOARD_LINK=https://10.0.210.83:8443/
-export CSI_RBD_NODE_SECRET=AQC1iDxip45JDRAAVahaBhKz1z0WW98+ACLqMQ==
-export CSI_RBD_PROVISIONER_SECRET=AQC1iDxiMM+LLhAA0PucjNZI8sG9Eh+pcvnWhQ==
-export MONITORING_ENDPOINT=10.0.210.83
-export MONITORING_ENDPOINT_PORT=9283
-export RBD_POOL_NAME=replicated_2g
-export RGW_POOL_PREFIX=default
-```
+    ```console
+    export ROOK_EXTERNAL_FSID=797f411a-aafe-11ec-a254-fa163e1539f5
+    export ROOK_EXTERNAL_USERNAME=client.healthchecker
+    export ROOK_EXTERNAL_CEPH_MON_DATA=ceph-rados-upstream-w4pdvq-node1-installer=10.0.210.83:6789
+    export ROOK_EXTERNAL_USER_SECRET=AQAdm0FilZDSJxAAMucfuu/j0ZYYP4Bia8Us+w==
+    export ROOK_EXTERNAL_DASHBOARD_LINK=https://10.0.210.83:8443/
+    export CSI_RBD_NODE_SECRET=AQC1iDxip45JDRAAVahaBhKz1z0WW98+ACLqMQ==
+    export CSI_RBD_PROVISIONER_SECRET=AQC1iDxiMM+LLhAA0PucjNZI8sG9Eh+pcvnWhQ==
+    export MONITORING_ENDPOINT=10.0.210.83
+    export MONITORING_ENDPOINT_PORT=9283
+    export RBD_POOL_NAME=replicated_2g
+    export RGW_POOL_PREFIX=default
+    ```
 
 ### Commands on the K8s consumer cluster
 
@@ -1380,13 +1421,13 @@ export RGW_POOL_PREFIX=default
     rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
     ```
 
-6. StorageClass will also be created, verify its creation.
-```console
-kubectl -n rook-ceph-external get sc
-```
-`ceph-rbd` and `cephfs` StorageClass would be respective name for RBD and CephFS StorageClass.
+6. StorageClass will also be created, verify its creation. `ceph-rbd` and `cephfs` StorageClass would be respective name for RBD and CephFS StorageClass.
+    ```console
+    kubectl -n rook-ceph-external get sc
+    ```
 
-**NOTE:** For CephFS StorageClass you also need to export `CEPHFS_FS_NAME`, `CEPHFS_POOL_NAME` or you can pass these parameters with a CLI flag (--cephfs-data-pool-name,--cephfs-filesystem-name) while running the python script. For creating ECRBDStorageClass you need to pass --rbd-metadata-ec-pool-name CLI flag or export `RBD_METADATA_EC_POOL_NAME`.
+    !!! note
+        For CephFS StorageClass you also need to export `CEPHFS_FS_NAME`, `CEPHFS_POOL_NAME` or you can pass these parameters with a CLI flag (--cephfs-data-pool-name,--cephfs-filesystem-name) while running the python script. For creating ECRBDStorageClass you need to pass --rbd-metadata-ec-pool-name CLI flag or export `RBD_METADATA_EC_POOL_NAME`.
 
 7. Then you can now create a [persistent volume](/deploy/examples/csi) based on these StorageClass.
 
