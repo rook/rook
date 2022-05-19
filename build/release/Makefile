@@ -132,7 +132,7 @@ endif
 # ====================================================================================
 # docs
 build.docs:
-	pip install -r requirements_docs.txt
+	pip3 install -r requirements_docs.txt
 
 publish.docs:
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
