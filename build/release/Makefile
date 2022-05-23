@@ -59,7 +59,7 @@ REMOTE_NAME ?= origin
 PLATFORMS ?= $(ALL_PLATFORMS)
 
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
-FLAVORS ?= output images docs helm
+FLAVORS ?= output images helm
 else
 FLAVORS ?= output
 override BRANCH_NAME := pr/$(BRANCH_NAME)
