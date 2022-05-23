@@ -15,6 +15,10 @@ from other pods running in your cluster.
 
 Kubernetes **v1.17** or higher is supported by Rook.
 
+## CPU Architecture  
+
+Architectures released are `amd64 / x86_64` and `arm64`.  
+
 ## Prerequisites
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these instructions](Prerequisites/prerequisites.md).
