@@ -337,7 +337,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
 		command = []string{path.Join(rookBinariesMountPath, "rook")}
 		args = []string{
-			path.Join(rookBinariesMountPath, "rook"),
 			"ceph", "osd", "start",
 			"--",
 			"--foreground",
