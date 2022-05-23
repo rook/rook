@@ -9,6 +9,10 @@ and Rook is granted the required privileges (see below for more information).
 
 Kubernetes **v1.17** or higher is supported for the Ceph operator.
 
+## CPU Architecture  
+
+Architectures released are `amd64 / x86_64` and `arm64`.  
+
 ## Ceph Prerequisites
 
 In order to configure the Ceph storage cluster, at least one of these local storage options are required:
