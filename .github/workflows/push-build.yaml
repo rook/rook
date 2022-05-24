@@ -55,7 +55,7 @@ jobs:
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
           sudo apt-get -q update
-          sudo apt-get -q install -y libgit2-dev
+          sudo apt-get -q install -y python3-pygit2
       
       - name: Configure git user
         run: |
