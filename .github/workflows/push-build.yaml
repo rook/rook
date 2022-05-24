@@ -51,15 +51,17 @@ jobs:
           echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
           echo "GITHUB_REF"=${GITHUB_REF} >> $GITHUB_ENV
 
-      - name: install dependencies
+      - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
-          wget https://github.com/libgit2/libgit2/archive/refs/tags/v1.3.1.tar.gz -O libgit2-1.3.1.tar.gz
-          tar xzf libgit2-1.3.1.tar.gz
-          cd libgit2-1.3.1/
-          cmake .
-          make
-          sudo make install
+          sudo apt-get -q update
+          sudo apt-get -q install -y libgit2-dev
+      
+      - name: Configure git user
+        run: |
+          # Use our Rook "service account"
+          git config user.name Rook
+          git config user.email "cncf-rook-info@lists.cncf.io"
 
       - name: build and release
         env:
