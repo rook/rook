@@ -1,5 +1,5 @@
 site_name: Rook Ceph Documentation
-docs_dir: Documentation/
+docs_dir: ../../Documentation/
 site_url: 'https://rook.io'
 repo_url: https://github.com/rook/rook
 edit_uri: edit/master/Documentation/
