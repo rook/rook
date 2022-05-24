@@ -929,7 +929,7 @@ class RadosJSON:
         pools_to_validate = [self._arg_parser.rbd_data_pool_name]
         # if rgw_endpoint is provided, validate it
         if self._arg_parser.rgw_endpoint:
-            rgw_endpoint = self.convert_fqdn_rgw_endpoint_to_ip(self._arg_parser.rgw_endpoint)
+            rgw_endpoint = self._arg_parser.rgw_endpoint
             self._invalid_endpoint(rgw_endpoint)
             self.endpoint_dial(rgw_endpoint,
                                cert=self.validate_rgw_endpoint_tls_cert())
@@ -1000,6 +1000,8 @@ class RadosJSON:
     def _gen_output_map(self):
         if self.out_map:
             return
+        if self._arg_parser.rgw_endpoint:
+            self._arg_parser.rgw_endpoint = self.convert_fqdn_rgw_endpoint_to_ip(self._arg_parser.rgw_endpoint)
         self.validate_pool()
         self.validate_rados_namespace()
         self._excluded_keys.add('CLUSTER_NAME')
