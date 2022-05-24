@@ -19,6 +19,7 @@ kind: CephFilesystemMirror
 metadata:
   name: my-fs-mirror
   namespace: rook-ceph
+spec: {}
 ```
 
 ## Settings
