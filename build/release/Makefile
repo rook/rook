@@ -137,7 +137,7 @@ build.docs:
 publish.docs:
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
 	git fetch -u docs gh-pages
-	mike deploy --remote docs --push --rebase --branch gh-pages --update-aliases --prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
+	cd $(COMMON_SELF_DIR) && mike deploy --remote docs --push --rebase --branch gh-pages --update-aliases --prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
 
 # ====================================================================================
 # helm
