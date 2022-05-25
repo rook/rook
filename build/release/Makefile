@@ -31,11 +31,20 @@ ifneq ($(TAG_WITH_SUFFIX),true)
 override VERSION := $(shell echo "$(VERSION)" | sed -e 's/-alpha.0//' -e 's/-beta.0//' -e 's/-rc.0//')
 endif
 
+DOCS_PREFIX := docs/rook
+
 ifeq ($(shell echo $(BRANCH_NAME)),master)
 DOCS_VERSION := latest
 else
 DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+)$$/v\1.\2/g")
 endif
+
+ifeq ($(shell echo $(BRANCH_NAME)),$(shell git branch -r | grep 'origin/release-' | sort  | tail -n 1 | cut -d'/' -f2))
+DOCS_VERSION_ALIAS := latest-release
+else
+DOCS_VERSION_ALIAS :=
+endif
+
 DOCS_DIR ?= $(ROOT_DIR)/Documentation
 DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
 DOCS_VERSION_DIR := $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
@@ -122,17 +131,16 @@ endif
 
 # ====================================================================================
 # docs
-
 build.docs:
-	rm -rf $(DOCS_WORK_DIR)
-	mkdir -p $(DOCS_WORK_DIR)
-	git clone --depth=1 -b master $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
-	rm -rf $(DOCS_VERSION_DIR)
-	cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
-	cd $(DOCS_WORK_DIR) && DOCS_VERSION=$(DOCS_VERSION) $(MAKE) _data/projects.json
+	pip3 install -r requirements_docs.txt
 
 publish.docs:
-	cd $(DOCS_WORK_DIR) && DOCS_VERSION=$(DOCS_VERSION) $(MAKE) publish
+	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
+	# If we are running in GitHub actions, remove the extraheader so our custom GitHub API token is used
+	if test "$$GITHUB_ACTIONS" = "true"; then git config --unset 'http.https://github.com/.extraheader'; fi
+	git fetch -u docs gh-pages
+	# Switch to root of repo and then run the build and deploy of the documentation
+	cd $(ROOT_DIR) && mike deploy --remote docs --push --rebase --branch gh-pages --update-aliases --prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
 
 # ====================================================================================
 # helm

@@ -51,6 +51,18 @@ jobs:
           echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
           echo "GITHUB_REF"=${GITHUB_REF} >> $GITHUB_ENV
 
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
+          sudo apt-get -q update
+          sudo apt-get -q install -y python3-pygit2
+      
+      - name: Configure git user
+        run: |
+          # Use our Rook "service account"
+          git config user.name Rook
+          git config user.email "cncf-rook-info@lists.cncf.io"
+
       - name: build and release
         env:
           GIT_API_TOKEN: ${{ secrets.GIT_API_TOKEN }}

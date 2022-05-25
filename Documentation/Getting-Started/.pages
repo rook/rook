@@ -1,0 +1,7 @@
+nav:
+    - intro.md
+    - Prerequisites
+    - quickstart.md
+    - storage-architecture.md
+    - example-configurations.md
+    - ...

@@ -1,0 +1,6 @@
+nav:
+    - ceph-csi-drivers.md
+    - ceph-csi-snapshot.md
+    - ceph-csi-volume-clone.md
+    - custom-images.md
+    - ...
