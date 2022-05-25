@@ -1,0 +1,7 @@
+{
+  "editor.formatOnSave": true,
+  "go.buildOnSave": "package",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true
+}

@@ -52,25 +52,16 @@ the following settings in your IDE:
 * Trim trailing whitespace
 * Markdown Table of Contents is correctly updated automatically
 
-For example, in VS Code this translates to the following settings:
+#### VS Code
 
-```json
-{
-    "editor.formatOnSave": true,
-    "go.buildOnSave": "package",
-    "go.formatTool": "goreturns",
-    "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true,
-    "markdown.extension.toc.unorderedList.marker": "*",
-    "markdown.extension.toc.githubCompatibility": true,
-    "markdown.extension.toc.levels": "2..2"
-}
-```
+!!! tip
+    VS Code should prompt you automatically with some recommended extensions to install.
+    E.g., Markdown All in One, Go and YAML validator.
 
-In addition to that it is recommended to install the following extensions:
+A set of recommended settings when working on Rook, can be found [here](https://github.com/rook/rook/blob/master/.vscode/settings.json).
 
-* [Markdown All in One by Yu Zhang - Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=yzhang.markdown-all-in-one)
+!!! tip
+    VS Code should automatically use these settings through the `.vscode/settings.json` file.
 
 ### Add Upstream Remote
 
