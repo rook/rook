@@ -662,7 +662,7 @@ class RadosJSON:
             else:
                 entity = "{}-{}-{}".format(entity,
                                            cluster_name, cephfs_filesystem)
-                caps["osd"] = "allow rw tag cephfs data={}".format(
+                caps["osd"] = "allow rw tag cephfs *={}".format(
                     cephfs_filesystem)
 
         return caps, entity
