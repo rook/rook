@@ -15,9 +15,9 @@ from other pods running in your cluster.
 
 Kubernetes **v1.17** or higher is supported by Rook.
 
-## CPU Architecture  
+## CPU Architecture
 
-Architectures released are `amd64 / x86_64` and `arm64`.  
+Architectures released are `amd64 / x86_64` and `arm64`.
 
 ## Prerequisites
 
@@ -36,7 +36,7 @@ In order to configure the Ceph storage cluster, at least one of these local stor
 A simple Rook cluster can be created with the following kubectl commands and [example manifests](https://github.com/rook/rook/blob/master/deploy/examples).
 
 ```console
-$ git clone --single-branch --branch v1.9.3 https://github.com/rook/rook.git
+$ git clone --single-branch --branch v1.9.4 https://github.com/rook/rook.git
 cd rook/deploy/examples
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 kubectl create -f cluster.yaml
