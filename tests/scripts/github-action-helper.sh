@@ -214,6 +214,8 @@ function deploy_cluster() {
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_device" ] ; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+  elif [ "$1" = "encryption" ] ; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   fi
   kubectl create -f cluster-test.yaml
   kubectl create -f object-test.yaml

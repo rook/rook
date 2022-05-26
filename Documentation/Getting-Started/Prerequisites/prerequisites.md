@@ -50,7 +50,7 @@ kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7
 Ceph OSDs have a dependency on LVM in the following scenarios:
 
 * OSDs are created on raw devices or partitions
-* If encryption is enabled (`encryptedDevice: true` in the cluster CR)
+* If encryption is enabled (`encryptedDevice: "true"` in the cluster CR)
 * A `metadata` device is specified
 
 LVM is not required for OSDs in these scenarios:
