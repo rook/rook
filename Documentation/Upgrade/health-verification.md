@@ -26,12 +26,16 @@ kubectl -n $ROOK_CLUSTER_NAMESPACE get pods
 
 ### **Status Output**
 
-The Rook toolbox contains the Ceph tools that can give you status details of the cluster with the
+The [Rook toolbox](../Troubleshooting/ceph-toolbox.md) contains the Ceph tools that can give you status details of the cluster with the
 `ceph status` command. Let's look at an output sample and review some of the details:
 
 ```console
-$ TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}')
-$ kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
+TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}')
+kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
+```
+
+The output should look similar to the following:
+```
   cluster:
     id:     a3f4d647-9538-4aff-9fd1-b845873c3fe9
     health: HEALTH_OK
