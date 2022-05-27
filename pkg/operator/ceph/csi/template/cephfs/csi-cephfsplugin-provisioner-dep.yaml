@@ -46,6 +46,7 @@ spec:
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -79,6 +80,7 @@ spec:
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
