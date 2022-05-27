@@ -228,6 +228,23 @@ function deploy_cluster() {
   deploy_manifest_with_local_build toolbox.yaml
 }
 
+function deploy_csi_hostnetwork_disabled_cluster() {
+  create_cluster_prerequisites
+  cd deploy/examples
+  sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
+  deploy_manifest_with_local_build operator.yaml
+  if [ $# == 0 ]; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
+  elif [ "$1" = "two_osds_in_device" ] ; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+  elif [ "$1" = "osd_with_metadata_device" ] ; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+  fi
+  kubectl create -f cluster-test.yaml
+  kubectl create -f filesystem-test.yaml
+  deploy_manifest_with_local_build toolbox.yaml
+}
+
 function wait_for_prepare_pod() {
   get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
   timeout=450
