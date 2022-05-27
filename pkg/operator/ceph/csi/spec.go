@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
@@ -739,6 +740,10 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 		return nil, errors.Wrap(err, "failed to extract ceph CSI version")
 	}
 	logger.Infof("Detected ceph CSI image version: %q", version)
+
+	// Set the CSI version on a package variable so that each cluster reporting the
+	// telemetry can report the same CSI version
+	telemetry.CSIVersion = version.String()
 
 	if !version.Supported() {
 		return nil, errors.Errorf("ceph CSI image needs to be at least version %q", minimum.String())

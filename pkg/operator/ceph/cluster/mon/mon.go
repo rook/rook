@@ -156,6 +156,10 @@ func New(ctx context.Context, clusterdContext *clusterd.Context, namespace strin
 	}
 }
 
+func (c *Cluster) MaxMonID() int {
+	return c.maxMonID
+}
+
 // Start begins the process of running a cluster of Ceph mons.
 func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
 	// Only one goroutine can orchestrate the mons at a time
