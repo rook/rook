@@ -114,22 +114,22 @@ func TestSupportsCustomCephConf(t *testing.T) {
 	assert.True(t, ret)
 }
 
-func TestSupportsMultus(t *testing.T) {
+func TestSupportsNsenter(t *testing.T) {
 	t.Run("AllowUnsupported=true regardless of the version", func(t *testing.T) {
 		AllowUnsupported = true
-		ret := testMinVersion.SupportsMultus()
+		ret := testMinVersion.SupportsNsenter()
 		assert.True(t, ret)
 	})
 
 	t.Run("AllowUnsupported=false and version 3.5 is too old", func(t *testing.T) {
 		AllowUnsupported = false
-		ret := testMinVersion.SupportsMultus()
+		ret := testMinVersion.SupportsNsenter()
 		assert.False(t, ret)
 	})
 
 	t.Run("AllowUnsupported=false and version 3.6.1 is fine", func(t *testing.T) {
 		AllowUnsupported = false
-		ret := testReleaseV361.SupportsMultus()
+		ret := testReleaseV361.SupportsNsenter()
 		assert.True(t, ret)
 	})
 }

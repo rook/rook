@@ -19,6 +19,7 @@ package csi
 import (
 	"context"
 	"os"
+	"strconv"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -46,11 +47,11 @@ const (
 
 // ReconcileCSI reconciles a ceph-csi driver
 type ReconcileCSI struct {
-	client           client.Client
-	context          *clusterd.Context
-	opManagerContext context.Context
-	opConfig         opcontroller.OperatorConfig
-	multusClusters   []ClusterDetail
+	client             client.Client
+	context            *clusterd.Context
+	opManagerContext   context.Context
+	opConfig           opcontroller.OperatorConfig
+	clustersWithHolder []ClusterDetail
 }
 
 // ClusterDetail is a struct that holds the information of a cluster, it knows its internals (like
@@ -69,11 +70,11 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCSI{
-		client:           mgr.GetClient(),
-		context:          context,
-		opConfig:         opConfig,
-		opManagerContext: opManagerContext,
-		multusClusters:   []ClusterDetail{},
+		client:             mgr.GetClient(),
+		context:            context,
+		opConfig:           opConfig,
+		opManagerContext:   opManagerContext,
+		clustersWithHolder: []ClusterDetail{},
 	}
 }
 
@@ -153,41 +154,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 
 		return reconcile.Result{}, nil
 	}
-
-	for i, cluster := range cephClusters.Items {
-		if !cluster.DeletionTimestamp.IsZero() {
-			logger.Debugf("ceph cluster %q is being deleting, no need to reconcile the csi driver", request.NamespacedName)
-			return reconcile.Result{}, nil
-		}
-
-		if !cluster.Spec.External.Enable && cluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
-			logger.Debugf("ceph cluster %q has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver", cluster.Name)
-			return reconcile.Result{}, nil
-		}
-
-		// Do we have a multus cluster?
-		// If so deploy the plugin holder with the fsid attached
-		if cluster.Spec.Network.IsMultus() {
-			// Load cluster info for later use in updating the ceph-csi configmap
-			clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace)
-			if err != nil {
-				// This avoids a requeue with exponential backoff and allows the controller to reconcile
-				// more quickly when the cluster is ready.
-				if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
-					logger.Infof("cluster info for cluster %q is not ready yet, will retry in %s, proceeding with ready clusters", cluster.Name, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String())
-					reconcileResult = opcontroller.WaitForRequeueIfCephClusterNotReady
-					continue
-				}
-				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
-			}
-
-			logger.Debugf("cluster %q is running on multus, deploying the ceph-csi plugin holder", cluster.Name)
-			r.multusClusters = append(r.multusClusters, ClusterDetail{cluster: &cephClusters.Items[i], clusterInfo: clusterInfo})
-		} else {
-			logger.Debugf("not a multus cluster %q, not deploying the ceph-csi plugin holder", request.NamespacedName)
-		}
-	}
-
 	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
 	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
 	// CM won't be found
@@ -205,6 +171,47 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	} else {
 		// Populate the operator's config
 		r.opConfig.Parameters = opConfig.Data
+	}
+
+	csiHostNetworkEnabled, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true"))
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
+	}
+
+	for i, cluster := range cephClusters.Items {
+		if !cluster.DeletionTimestamp.IsZero() {
+			logger.Debugf("ceph cluster %q is being deleting, no need to reconcile the csi driver", request.NamespacedName)
+			return reconcile.Result{}, nil
+		}
+
+		if !cluster.Spec.External.Enable && cluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
+			logger.Debugf("ceph cluster %q has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver", cluster.Name)
+			return reconcile.Result{}, nil
+		}
+		holderEnabled := !csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()
+		// Do we have a multus cluster or csi host network disabled?
+		// If so deploy the plugin holder with the fsid attached
+		if holderEnabled {
+			// Load cluster info for later use in updating the ceph-csi configmap
+			clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace)
+			if err != nil {
+				// This avoids a requeue with exponential backoff and allows the controller to reconcile
+				// more quickly when the cluster is ready.
+				if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
+					logger.Infof("cluster info for cluster %q is not ready yet, will retry in %s, proceeding with ready clusters", cluster.Name, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String())
+					reconcileResult = opcontroller.WaitForRequeueIfCephClusterNotReady
+					continue
+				}
+				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
+			}
+
+			logger.Debugf("cluster %q is running on multus or CSI_ENABLE_HOST_NETWORK is false, deploying the ceph-csi plugin holder", cluster.Name)
+
+			r.clustersWithHolder = append(r.clustersWithHolder, ClusterDetail{cluster: &cephClusters.Items[i], clusterInfo: clusterInfo})
+
+		} else {
+			logger.Debugf("not a multus cluster %q or CSI_ENABLE_HOST_NETWORK is true, not deploying the ceph-csi plugin holder", request.NamespacedName)
+		}
 	}
 
 	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)

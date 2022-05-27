@@ -1,9 +1,9 @@
-# This DaemonSet is only active when the cluster is deployed with Multus enabled. Hopefully in the
-# future it will be part of every Ceph-CSI deployment. Its role is to "hold" the network RBD block
-# mapping that are created by the CSI driver. Essentially, it exposes its network namespace into the
-# Kubelet plugin directly and Ceph-CSI picks it up. When mapping an RBD image, the Ceph-CSI driver
-# will use the network namespace of the DaemonSet instead of its own (the plugin pod). This pod is
-# not expected to be updated nor restarted unless the node reboots.
+# This DaemonSet is only active when the cluster is deployed with Multus enabled or EnableCSIHostNetwork
+# is set to false. Hopefully in the future it will be part of every Ceph-CSI deployment. Its role is
+# to "hold" the network RBD block mapping that are created by the CSI driver. Essentially, it exposes
+# its network namespace into the Kubelet plugin directly and Ceph-CSI picks it up. When mapping an RBD
+# image, the Ceph-CSI driver will use the network namespace of the DaemonSet instead of its own (the plugin pod).
+# This pod is not expected to be updated nor restarted unless the node reboots.
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
