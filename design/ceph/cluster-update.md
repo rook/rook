@@ -1,7 +1,7 @@
 # Cluster Updates
 
 ## Background
-Currently, a Rook admin can declare how they want their cluster deployed by specifying values in the [Cluster CRD](../Documentation/ceph-cluster-crd.md).
+Currently, a Rook admin can declare how they want their cluster deployed by specifying values in the [Cluster CRD](/Documentation/CRDs/ceph-cluster-crd.md).
 However, after a cluster has been initially declared and deployed, it is not currently possible to update the Cluster CRD and have those desired changes reflected in the actual cluster state.
 This document will describe a design for how cluster updating can be implemented, along with considerations, trade-offs, and a suggested scope of work.
 

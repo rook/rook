@@ -9,7 +9,7 @@ Adding bucket policy support for ceph object store
 ## Summary
 The bucket policy is the feature in which permissions for specific user can be set on s3 bucket. Read more about it from [ceph documentation](https://docs.ceph.com/docs/master/radosgw/bucketpolicy/)
 
-Currently [ceph object store](/Documentation/ceph-object.md) can be consumed either via [OBC](/Documentation/ceph-object-bucket-claim.md) and [ceph object user](/Documentation/ceph-object-store-user-crd.md). As of now there is no direct way for ceph object user to access the OBC. The idea behind this feature to allow that functionality via Rook. Refer bucket policy examples from [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html).  Please note it is different from [IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html).
+Currently [ceph object store](/Documentation/Storage-Configuration/Object-Storage-RGW/object-storage.md) can be consumed either via [OBC](/Documentation/Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-claim.md) and [ceph object user](/Documentation/CRDs/Object-Storage/ceph-object-store-user-crd.md). As of now there is no direct way for ceph object user to access the OBC. The idea behind this feature to allow that functionality via Rook. Refer bucket policy examples from [here](https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html).  Please note it is different from [IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies.html).
 
 ## Proposal details
 

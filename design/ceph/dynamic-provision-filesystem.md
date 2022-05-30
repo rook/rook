@@ -114,7 +114,7 @@ parameters:
   fsName: myFS # Name of the filesystem to use.
 ```
 
-The referenced filesystem, `myFS`, would have to be also created by the admin using a [Filesystem CRD](/Documentation/ceph-filesystem-crd.md).
+The referenced filesystem, `myFS`, would have to be also created by the admin using a [Filesystem CRD](/Documentation//CRDs/Shared-Filesystem/ceph-filesystem-crd.md).
 
 The admin could also have created a more detailed StorageClass for more a durable filesystem as follows. Lets call it `rook-filesystem-gold`:
 

@@ -11,7 +11,7 @@ The whole process is described in the [official kubernetes documentation](https:
 
 ## Example setup for a ceph cluster
 
-To get you started, here's a quick rundown for the ceph example from the [quickstart guide](/Documentation/quickstart.md).
+To get you started, here's a quick rundown for the ceph example from the [quickstart guide](../quickstart.md).
 
 First, we'll create the secret for our registry as described [here](https://kubernetes.io/docs/concepts/containers/images/#specifying-imagepullsecrets-on-a-pod) (the secret will be created in the `rook-ceph` namespace, make sure to change it if your Rook Ceph Operator/Cluster is in another namespace):
 

@@ -4,7 +4,7 @@
 
 An object store is a collection of resources and services that work together to serve HTTP requests to PUT and GET objects. Rook will automate the configuration of the Ceph resources and services that are necessary to start and maintain a highly available, durable, and performant object store.
 
-The Ceph object store supports S3 and Swift APIs and a multitude of features such as replication of object stores between different zones. The Rook object store is designed to support all of these features, though will take some time to implement them. We welcome contributions! In the meantime, features that are not yet implemented can be configured by using the [Rook toolbox](/Documentation/ceph-toolbox.md) to run the `radosgw-admin` and other tools for advanced configuration.
+The Ceph object store supports S3 and Swift APIs and a multitude of features such as replication of object stores between different zones. The Rook object store is designed to support all of these features, though will take some time to implement them. We welcome contributions! In the meantime, features that are not yet implemented can be configured by using the [Rook toolbox](/Documentation/Troubleshooting/ceph-toolbox.md) to run the `radosgw-admin` and other tools for advanced configuration.
 
 ### Prerequisites
 
@@ -56,7 +56,7 @@ The object store settings are exposed to Rook as a Custom Resource Definition (C
 
 ### Pools
 
-The pools are the backing data store for the object store and are created with specific names to be private to an object store. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD. All metadata pools are created with the same settings, while the data pool can be created with independent settings. The metadata pools must use replication, while the data pool can use replication or erasure coding.
+The pools are the backing data store for the object store and are created with specific names to be private to an object store. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD. All metadata pools are created with the same settings, while the data pool can be created with independent settings. The metadata pools must use replication, while the data pool can use replication or erasure coding.
 
 If `preservePoolsOnDelete` is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
 
