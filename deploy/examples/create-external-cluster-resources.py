@@ -15,7 +15,6 @@ limitations under the License.
 '''
 
 import errno
-from inspect import signature
 import sys
 import json
 import argparse
@@ -171,7 +170,7 @@ class S3Auth(AuthBase):
 
     """Attaches AWS Authentication to the given Request object."""
     service_base_url = 's3.amazonaws.com'
-    
+
     def __init__(self, access_key, secret_key, service_url=None):
         if service_url:
             self.service_base_url = service_url
@@ -592,7 +591,7 @@ class RadosJSON:
         # rest of the ip-s are added to the 'standby_mgrs' list
         standby_mgrs.extend(monitoring_endpoint_ip_list_split[1:])
         failed_ip = monitoring_endpoint_ip
-        
+
         try:
             monitoring_endpoint_ip = self._convert_hostname_to_ip(
                 monitoring_endpoint_ip)
@@ -892,7 +891,7 @@ class RadosJSON:
                 err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
                     cmd, execErr.output, execErr.returncode, execErr.stderr)
                 raise Exception(err_msg)
-        
+
 
         # separately add info=read caps, because sometimes users already exited and the cap doesn't update
         info_cap_supported = True
@@ -909,7 +908,7 @@ class RadosJSON:
                 err_msg = "failed to execute command %s. Output: %s. Code: %s. Error: %s" % (
                         cmd, execErr.output, execErr.returncode, execErr.stderr)
                 raise Exception(err_msg)
-        
+
         jsonoutput = json.loads(output)
         return jsonoutput["keys"][0]['access_key'], jsonoutput["keys"][0]['secret_key'], info_cap_supported
 
@@ -919,12 +918,12 @@ class RadosJSON:
         except ValueError:
             raise ExecutionFailureException(
             "Not a proper endpoint: {}, <FQDN>:<PORT>, format is expected".format(fqdn_rgw_endpoint))
-        rgw_endpoint_ip = self._convert_hostname_to_ip(fqdn)    
+        rgw_endpoint_ip = self._convert_hostname_to_ip(fqdn)
         rgw_endpoint_port = port
         rgw_endpoint = self._join_host_port(
         rgw_endpoint_ip, rgw_endpoint_port)
         return rgw_endpoint
-    
+
     def validate_pool(self):
         pools_to_validate = [self._arg_parser.rbd_data_pool_name]
         # if rgw_endpoint is provided, validate it
@@ -957,7 +956,7 @@ class RadosJSON:
             raise ExecutionFailureException(
                 ("The provided rados Namespace, '{}', is not found in the pool '{}'").format(
                     rados_namespace, rbd_pool_name))
-    
+
     def get_rgw_fsid(self):
         access_key = self.out_map['RGW_ADMIN_OPS_USER_ACCESS_KEY']
         secret_key = self.out_map['RGW_ADMIN_OPS_USER_SECRET_KEY']
@@ -970,10 +969,10 @@ class RadosJSON:
         if self._arg_parser.rgw_skip_tls:
             verify = False
         base_url =  self.endpoint_dial(rgw_endpoint,cert=cert) + "://"
-        base_url = base_url + rgw_endpoint + "/admin/info?"   
+        base_url = base_url + rgw_endpoint + "/admin/info?"
         params = {'format': 'json'}
         request_url = base_url + urllib.parse.urlencode(params)
-            
+
         try:
             r = requests.get(request_url, auth=S3Auth(access_key, secret_key,rgw_endpoint), cert=cert, verify=verify)
         except requests.exceptions.Timeout:
@@ -982,9 +981,9 @@ class RadosJSON:
         r1 = r.json()
         if r1 is None or r1.get('info') is None:
             return ""  # Invalid rgw-endpoint exception will returned by validate_rgw_endpoint()
-        
+
         return r1['info']['storage_backends'][0]['cluster_id']
-            
+
     def validate_rgw_endpoint(self):
         # if the 'cluster' instance is a dummy one,
         # don't try to reach out to the endpoint
@@ -996,7 +995,7 @@ class RadosJSON:
             raise ExecutionFailureException(
                 ("The provided rgw Endpoint, '{}', is invalid. We are validating by calling the adminops api through rgw-endpoint and validating the cluster_id '{}' is equal to the ceph cluster fsid '{}'").format(
                     self._arg_parser.rgw_endpoint,rgw_fsid,fsid))
-    
+
     def _gen_output_map(self):
         if self.out_map:
             return
