@@ -27,6 +27,8 @@ from hashlib import sha1 as sha
 from os import linesep as LINESEP
 from os import path
 import urllib.parse
+from email.utils import formatdate
+from requests.auth import AuthBase
 
 ModuleNotFoundError = ImportError
 
@@ -64,11 +66,6 @@ except:
     py3k = True
     from urllib.parse import urlparse, unquote
     from base64 import encodebytes as encodestring
-
-from email.utils import formatdate
-
-from requests.auth import AuthBase
-import requests
 
 class ExecutionFailureException(Exception):
     pass
