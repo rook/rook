@@ -213,7 +213,7 @@ kubectl replace --force -f rook-ceph-mon-b-deployment.yaml
 !!! note
     Option `--force` will delete the deployment and create a new one
 
-Start the rook [toolbox](/Documentation/ceph-toolbox.md) and verify the status of the cluster.
+Start the rook [toolbox](ceph-toolbox.md) and verify the status of the cluster.
 
 ```console
 ceph -s

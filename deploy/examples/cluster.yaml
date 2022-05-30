@@ -116,7 +116,7 @@ spec:
   # logCollector:
   #   enabled: true
   #   periodicity: 24h # SUFFIX may be 'h' for hours or 'd' for days.
-  # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
+  # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/Storage-Configuration/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
   cleanupPolicy:
     # Since cluster cleanup is destructive to data, confirmation is required.
     # To destroy all Rook data on hosts during uninstall, confirmation must be set to "yes-really-destroy-data".

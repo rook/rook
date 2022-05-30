@@ -66,7 +66,7 @@ The order in which these resources are created is not important.
 
 When the storage admin is ready to sync data from another Ceph cluster with multisite set up (primary cluster) to a Rook Ceph cluster (pulling cluster), the pulling cluster will have a newly created in the zone group from the primary cluster.
 
-A [ceph-object-pull-realm](/design/object/ceph-object-pull-realm.md) resource must be created to pull the realm information from the primary cluster to the pulling cluster. 
+A [ceph-object-pull-realm](/design/object/ceph-object-pull-realm.md) resource must be created to pull the realm information from the primary cluster to the pulling cluster.
 
 Once the ceph-object-pull-realm is configured a ceph-object-zone must be created.
 
@@ -74,7 +74,7 @@ After an ceph-object-store is configured to be in this ceph-object-zone, the all
 
 ## Deleting and Reconfiguring the Ceph Object Zone
 
-At the moment creating an ceph-object-zone resource only handles Day 1 initial configuration for the zone. 
+At the moment creating an ceph-object-zone resource only handles Day 1 initial configuration for the zone.
 
 Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
 
@@ -96,7 +96,7 @@ In the other scenario, there are more than one zones in a zone group.
 
 Care must be taken when changing which zone is the master zone.
 
-Please read the following documentation before running the below commands: 
+Please read the following documentation before running the below commands:
 
 https://docs.ceph.com/docs/master/radosgw/multisite/#changing-the-metadata-master-zone
 
@@ -151,7 +151,7 @@ spec:
 
 The pools are the backing data store for the object stores in the zone and are created with specific names to be private to a zone.
 As long as the `zone` config option is specified in the object-store's config, the object-store will use pools defined in the ceph-zone's configuration.
-Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md).
+Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md).
 The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD.
 All metadata pools are created with the same settings, while the data pool can be created with independent settings.
 The metadata pools must use replication, while the data pool can use replication or erasure coding.

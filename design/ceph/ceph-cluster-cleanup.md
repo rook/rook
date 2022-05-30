@@ -11,7 +11,7 @@ If the user deletes a rook-ceph cluster and wants to start a new cluster on the 
 - Delete the dataDirHostPath on each host. Otherwise, stale keys and other configs will remain from the previous cluster and the new mons will fail to start.
 - Clean the OSD disks from the previous cluster before starting a new one.
 
-Read more about the manual clean up steps [here](https://github.com/rook/rook/blob/master/Documentation/ceph-teardown.md#delete-the-data-on-hosts)
+Read more about the manual clean up steps [here](https://github.com/rook/rook/blob/master/Documentation/Storage-Configuration/ceph-teardown.md#delete-the-data-on-hosts)
 
 This implementation aims to automate both of these manual steps.
 
