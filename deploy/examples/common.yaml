@@ -121,7 +121,11 @@ rules:
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
+<<<<<<< HEAD
     verbs: ["get", "list", "watch", "update"]
+=======
+    verbs: ["get", "list"]
+>>>>>>> 02b9f199d (csi: add volumeattachment list rbac)
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list"]
