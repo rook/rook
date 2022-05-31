@@ -123,22 +123,27 @@ func TestCreatePool(t *testing.T) {
 func TestCephPoolName(t *testing.T) {
 	t.Run("spec not set", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "metapool"}}
-		name := getCephName(p)
+		name := p.ToNamedPoolSpec().Name
 		assert.Equal(t, "metapool", name)
 	})
 	t.Run("same name already set", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "metapool"}, Spec: cephv1.NamedBlockPoolSpec{Name: "metapool"}}
-		name := getCephName(p)
+		name := p.ToNamedPoolSpec().Name
 		assert.Equal(t, "metapool", name)
 	})
 	t.Run("override device metrics", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "device-metrics"}, Spec: cephv1.NamedBlockPoolSpec{Name: "device_health_metrics"}}
-		name := getCephName(p)
+		name := p.ToNamedPoolSpec().Name
 		assert.Equal(t, "device_health_metrics", name)
+	})
+	t.Run("override mgr", func(t *testing.T) {
+		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "default-mgr"}, Spec: cephv1.NamedBlockPoolSpec{Name: ".mgr"}}
+		name := p.ToNamedPoolSpec().Name
+		assert.Equal(t, ".mgr", name)
 	})
 	t.Run("override nfs", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "default-nfs"}, Spec: cephv1.NamedBlockPoolSpec{Name: ".nfs"}}
-		name := getCephName(p)
+		name := p.ToNamedPoolSpec().Name
 		assert.Equal(t, ".nfs", name)
 	})
 }
