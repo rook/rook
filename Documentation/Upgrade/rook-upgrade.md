@@ -218,7 +218,7 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-cep
     If have not customized the CSI image versions, this is automatically updated.
 
 If you have specified custom CSI images, we recommended you
-update to use the latest Ceph-CSI drivers. See the [CSI Custom Images](../Ceph-CSI/custom-images.md) documentation.
+update to use the latest Ceph-CSI drivers. See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.
 
 !!! note
     If using snapshots, refer to the [Upgrade Snapshot API guide](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#upgrade-snapshot-api).
