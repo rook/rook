@@ -20,7 +20,6 @@ package pool
 import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -35,7 +34,7 @@ func validatePool(context *clusterd.Context, clusterInfo *client.ClusterInfo, cl
 		return errors.New("missing namespace")
 	}
 
-	if err := v1.ValidateCephBlockPool(&p.Spec); err != nil {
+	if err := cephv1.ValidateCephBlockPool(p); err != nil {
 		return err
 	}
 

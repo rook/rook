@@ -53,7 +53,7 @@ func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
 func (p *CephBlockPool) ValidateCreate() error {
 	logger.Infof("validate create cephblockpool %v", p)
 
-	err := ValidateCephBlockPool(&p.Spec)
+	err := ValidateCephBlockPool(p)
 	if err != nil {
 		return err
 	}
@@ -61,14 +61,14 @@ func (p *CephBlockPool) ValidateCreate() error {
 }
 
 // ValidateCephBlockPool validates specifically a CephBlockPool's spec (not just any NamedPoolSpec)
-func ValidateCephBlockPool(s *NamedBlockPoolSpec) error {
-	if s.Name == "device_health_metrics" || s.Name == ".mgr" || s.Name == ".nfs" {
-		if s.IsErasureCoded() {
-			return errors.Errorf("invalid CephBlockPool spec: ceph built-in pool %q cannot be erasure coded", s.Name)
+func ValidateCephBlockPool(p *CephBlockPool) error {
+	if p.Spec.Name == "device_health_metrics" || p.Spec.Name == ".mgr" || p.Spec.Name == ".nfs" {
+		if p.Spec.IsErasureCoded() {
+			return errors.Errorf("invalid CephBlockPool spec: ceph built-in pool %q cannot be erasure coded", p.Name)
 		}
 	}
 
-	return validatePoolSpec(s.ToNamedPoolSpec())
+	return validatePoolSpec(p.ToNamedPoolSpec())
 }
 
 // validate any NamedPoolSpec
@@ -98,17 +98,23 @@ func validatePoolSpec(ps NamedPoolSpec) error {
 	return nil
 }
 
-func (p *NamedBlockPoolSpec) ToNamedPoolSpec() NamedPoolSpec {
+func (p *CephBlockPool) ToNamedPoolSpec() NamedPoolSpec {
+	// If the name is not overridden in the pool spec.name, set it to the name of the pool CR
+	name := p.Spec.Name
+	if name == "" {
+		// Set the name of the pool CR since a name override wasn't specified in the spec
+		name = p.Name
+	}
 	return NamedPoolSpec{
-		Name:     p.Name,
-		PoolSpec: p.PoolSpec,
+		Name:     name,
+		PoolSpec: p.Spec.PoolSpec,
 	}
 }
 
 func (p *CephBlockPool) ValidateUpdate(old runtime.Object) error {
 	logger.Info("validate update cephblockpool")
 	ocbp := old.(*CephBlockPool)
-	err := ValidateCephBlockPool(&p.Spec)
+	err := ValidateCephBlockPool(p)
 	if err != nil {
 		return err
 	}
