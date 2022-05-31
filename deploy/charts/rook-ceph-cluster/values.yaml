@@ -56,7 +56,7 @@ pspEnable: true
 # - name: my-registry-secret
 
 # All values below are taken from the CephCluster CRD
-# More information can be found at [Ceph Cluster CRD](/Documentation/ceph-cluster-crd.md)
+# More information can be found at [Ceph Cluster CRD](/Documentation/CRDs/ceph-cluster-crd.md)
 cephClusterSpec:
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
@@ -123,7 +123,7 @@ cephClusterSpec:
     # the corresponding "backend protocol" annotation(s) for your ingress controller of choice)
     ssl: true
 
-  # Network configuration, see: https://github.com/rook/rook/blob/master/Documentation/ceph-cluster-crd.md#network-configuration-settings
+  # Network configuration, see: https://github.com/rook/rook/blob/master/Documentation/CRDs/ceph-cluster-crd.md#network-configuration-settings
   # network:
   #   # enable host networking
   #   provider: host
@@ -386,7 +386,7 @@ ingress:
 
 cephBlockPools:
   - name: ceph-blockpool
-    # see https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md#spec for available configuration
+    # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md#spec for available configuration
     spec:
       failureDomain: host
       replicated:
@@ -432,7 +432,7 @@ cephBlockPools:
 
 cephFileSystems:
   - name: ceph-filesystem
-    # see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem-crd.md#filesystem-settings for available configuration
+    # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Shared-Filesystem/ceph-filesystem-crd.md#filesystem-settings for available configuration
     spec:
       metadataPool:
         replicated:
@@ -441,7 +441,7 @@ cephFileSystems:
         - failureDomain: host
           replicated:
             size: 3
-          # Optional and highly recommended, 'data0' by default, see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem-crd.md#pools
+          # Optional and highly recommended, 'data0' by default, see https://github.com/rook/rook/blob/master/Documentation/CRDs/Shared-Filesystem/ceph-filesystem-crd.md#pools
           name: data0
       metadataServer:
         activeCount: 1
@@ -499,7 +499,7 @@ cephBlockPoolsVolumeSnapshotClass:
 
 cephObjectStores:
   - name: ceph-objectstore
-    # see https://github.com/rook/rook/blob/master/Documentation/ceph-object-store-crd.md#object-store-settings for available configuration
+    # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Object-Storage/ceph-object-store-crd.md#object-store-settings for available configuration
     spec:
       metadataPool:
         failureDomain: host
