@@ -99,7 +99,7 @@ rules:
     verbs: ["get", "list"]
   - apiGroups: ["storage.k8s.io"]
     resources: ["volumeattachments"]
-    verbs: ["get"]
+    verbs: ["get", "list"]
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get"]
