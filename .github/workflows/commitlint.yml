@@ -22,5 +22,5 @@ jobs:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v2.0.3
         with:
-          configFile: './.commitlintrc.json'
-          helpURL: https://rook.io/docs/rook/latest/development-flow.html#commit-structure
+          configFile: "./.commitlintrc.json"
+          helpURL: https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure
