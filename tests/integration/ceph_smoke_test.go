@@ -92,6 +92,7 @@ func (s *SmokeSuite) SetupSuite() {
 		ConnectionsCompressed:     true,
 		UseCrashPruner:            true,
 		EnableVolumeReplication:   true,
+		EnableCSINFS:              true,
 		ChangeHostName:            true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.ReturnCephVersion(),
@@ -116,6 +117,10 @@ func (s *SmokeSuite) TestBlockStorage_SmokeTest() {
 func (s *SmokeSuite) TestFileStorage_SmokeTest() {
 	preserveFilesystemOnDelete := true
 	runFileE2ETest(s.helper, s.k8sh, s.Suite, s.settings, "smoke-test-fs", preserveFilesystemOnDelete)
+}
+
+func (s *SmokeSuite) TestNetworkFileStorage_SmokeTest() {
+	runNFSFileE2ETest(s.helper, s.k8sh, s.Suite, s.settings, "smoke-test-nfs")
 }
 
 func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
