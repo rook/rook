@@ -263,9 +263,6 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	err = writeAndReadToFilesystem(helper, k8sh, s, settings.Namespace, filePodName, "test_file")
 	assert.NoError(s.T(), err)
 
-	// Start the NFS daemons
-	testNFSDaemons(helper, k8sh, s, settings, filesystemName)
-
 	t := s.T()
 	ctx := context.TODO()
 
@@ -402,15 +399,6 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 		err = helper.FSClient.Delete(filesystemName, settings.Namespace)
 		assert.NoError(s.T(), err)
 	}
-}
-
-func testNFSDaemons(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
-	name := "my-nfs"
-	err := helper.NFSClient.Create(settings.Namespace, name, 2)
-	require.Nil(s.T(), err)
-
-	err = helper.NFSClient.Delete(settings.Namespace, name)
-	assert.Nil(s.T(), err)
 }
 
 func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName, storageClassName string) {

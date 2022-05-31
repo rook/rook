@@ -41,6 +41,10 @@ func (m *CephManifestsPreviousVersion) GetCRDs(k8shelper *utils.K8sHelper) strin
 	return m.settings.readManifestFromGitHub("crds.yaml")
 }
 
+func (m *CephManifestsPreviousVersion) GetCSINFSRBAC() string {
+	return m.settings.readManifestFromGitHub("/csi/nfs/rbac.yaml")
+}
+
 // GetRookOperator returns rook Operator manifest
 func (m *CephManifestsPreviousVersion) GetOperator() string {
 	var manifest string
@@ -103,6 +107,10 @@ func (m *CephManifestsPreviousVersion) GetBlockStorageClass(poolName, storageCla
 
 func (m *CephManifestsPreviousVersion) GetFileStorageClass(fsName, storageClassName string) string {
 	return m.latest.GetFileStorageClass(fsName, storageClassName)
+}
+
+func (m *CephManifestsPreviousVersion) GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName string) string {
+	return m.latest.GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName)
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
