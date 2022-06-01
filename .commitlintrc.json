@@ -15,6 +15,7 @@
         "core",
         "csi",
         "docs",
+        "external",
         "file",
         "helm",
         "mds",
