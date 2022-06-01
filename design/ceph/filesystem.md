@@ -52,7 +52,7 @@ The file system settings are exposed to Rook as a Custom Resource Definition (CR
 
 ### Pools
 
-The pools are the backing data store for the file system and are created with specific names to be private to a file system. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` element and the `dataPools` elements of the file system CRD.
+The pools are the backing data store for the file system and are created with specific names to be private to a file system. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` element and the `dataPools` elements of the file system CRD.
 
 ```yaml
   metadataPool:

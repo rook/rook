@@ -19,7 +19,7 @@ The cluster should be maintained in a healthy state the entire time.
 ## **User Guide**
 Until automated upgrade support is available in Rook, we have authored a user guide that walks you through the steps to upgrade the software in a Rook cluster.
 Consideration is also provided in the guide for how to verify the cluster remains healthy during and after the upgrade process.
-Please refer to the [Rook Upgrade User Guide](../Documentation/rook-upgrade.md) to learn more about the current Rook upgrade process.
+Please refer to the [Rook Upgrade User Guide](/Documentation/Upgrade/rook-upgrade.md) to learn more about the current Rook upgrade process.
 
 ## **Detailed Design**
 The responsibility for performing and orchestrating an upgrade will be handled by an upgrade controller that runs as part of the Rook operator, in the same pod and process (similar to how the Rook volume provisioner is run).
@@ -34,7 +34,7 @@ The upgrade controller should not begin an upgrade if the cluster is currently u
 
 ### **General Sequence**
 This section describes in a broad sense the general sequence of steps for upgrading a Rook cluster after a new Rook software version is released, e.g. `v0.6.1`.
-Note that this sequence is modeled after the [Rook Upgrade User Guide](../Documentation/rook-upgrade.md), including the cluster health checks described in the [health verification section](../Documentation/rook-upgrade.md#health-verification).
+Note that this sequence is modeled after the [Rook Upgrade User Guide](/Documentation/Upgrade/rook-upgrade.md), including the cluster health checks described in the [health verification section](/Documentation/Upgrade/rook-upgrade.md#health-verification).
 
 #### **Rook System Namespace**
 The Rook system namespace contains the single control plane for all Rook clusters in the environment.
@@ -80,7 +80,7 @@ They are both managed by deployments, so the upgrade controller will update the 
     1.  Cluster health and object/file functionality will be verified before the upgrade controller moves on to the next instances.
 
 ### **Upgrade Health Verification**
-As mentioned previously, the manual health verification steps found in the [upgrade user guide](../Documentation/rook-upgrade.md#health-verification) will be used by the upgrade controller, in an automated fashion, to ensure the cluster is healthy before proceeding with the upgrade process.
+As mentioned previously, the manual health verification steps found in the [upgrade user guide](/Documentation/Upgrade/rook-upgrade.md#health-verification) will be used by the upgrade controller, in an automated fashion, to ensure the cluster is healthy before proceeding with the upgrade process.
 This approach of upgrading one component, verifying health and stability, then upgrading the next component can be viewed as a form of [canary deployment](https://kubernetes.io/docs/concepts/cluster-administration/manage-deployment/#canary-deployments).
 
 Here is a quick summary of the standard health checks the upgrade controller should perform:
@@ -160,7 +160,7 @@ Listed below are a few techniques for accessing debugging artifacts from pods th
   * All health check status and output it encountered
 
 ## **Next Steps**
-We have demonstrated that Rook is upgradable with the manual process outlined in the [Rook Upgrade User Guide](../Documentation/rook-upgrade.md).
+We have demonstrated that Rook is upgradable with the manual process outlined in the [Rook Upgrade User Guide](/Documentation/Upgrade/rook-upgrade.md).
 Fully automated upgrade support has been described within this design proposal, but will likely need to be implemented in an iterative process, with lessons learned along the way from pre-production field experience.
 
 The next step will be to implement the happy path where the upgrade controller automatically updates all Rook components in the [described sequence](#general-sequence) and stops immediately if any health checks fail and the cluster does not return to a healthy functional state.
