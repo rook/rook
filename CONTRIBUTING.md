@@ -55,7 +55,7 @@ This is a rough outline of what a contributor's workflow looks like:
 1. Make sure all tests pass, and add any new tests as appropriate.
 1. Submit a pull request to the original repository.
 
-For detailed contribution instructions, refer to the [development flow](Documentation/development-flow.md).
+For detailed contribution instructions, refer to the [development flow](Documentation/Contributing/development-flow.md).
 
 ## Coding Style
 

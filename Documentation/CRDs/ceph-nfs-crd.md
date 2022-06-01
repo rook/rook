@@ -14,7 +14,7 @@ earlier protocols can inhibit responsiveness after a server restart.
     Due to a number of Ceph issues and changes, Rook officially only supports Ceph
     v16.2.7 or higher for CephNFS. If you are using an earlier version, upgrade your Ceph version
     following the advice given in Rook's
-    [v1.9 NFS docs](https://rook.github.io/docs/rook/v1.9/ceph-nfs-crd.html).
+    [v1.9 NFS docs](https://rook.github.io/docs/rook/latest/CRDs/ceph-nfs-crd/).
 
 ## Examples
 
