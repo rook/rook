@@ -221,10 +221,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
-	// Set the name of the Ceph pool to be reconciled internally, which
-	// may be different from the pool CR name.
-	cephBlockPool.Spec.Name = getCephName(*cephBlockPool)
-
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
 		deps, err := cephBlockPoolDependents(r.context, r.clusterInfo, cephBlockPool)
@@ -242,8 +238,8 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		r.recorder.Event(cephBlockPool, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), "starting blockpool deletion")
 
-		logger.Infof("deleting pool %q", cephBlockPool.Name)
-		poolSpec := cephBlockPool.Spec.ToNamedPoolSpec()
+		poolSpec := cephBlockPool.ToNamedPoolSpec()
+		logger.Infof("deleting pool %q", poolSpec.Name)
 		err = deletePool(r.context, clusterInfo, &poolSpec)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
@@ -299,7 +295,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return reconcile.Result{}, *cephBlockPool, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
 
-	poolSpec := cephBlockPool.Spec.ToNamedPoolSpec()
+	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &poolSpec)
 	// ADD PEERS
 	logger.Debug("reconciling create rbd mirror peer configuration")
@@ -361,7 +357,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 }
 
 func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.ClusterInfo, cephCluster *cephv1.ClusterSpec, cephBlockPool *cephv1.CephBlockPool) (reconcile.Result, error) {
-	poolSpec := cephBlockPool.Spec.ToNamedPoolSpec()
+	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	err := createPool(r.context, clusterInfo, cephCluster, &poolSpec)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
@@ -369,19 +365,6 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.Clu
 
 	// Let's return here so that on the initial creation we don't check for update right away
 	return reconcile.Result{}, nil
-}
-
-func getCephName(pool cephv1.CephBlockPool) string {
-	// If the name is not overridden in the pool spec.name, set it to the name of the pool CR
-	if pool.Spec.Name == "" {
-		return pool.Name
-	}
-	if pool.Spec.Name == pool.Name {
-		// The same pool name is set, nothing is being overridden
-		return pool.Name
-	}
-	// The pool names that can be allowed to be overridden are enforced in the crd schema
-	return pool.Spec.Name
 }
 
 // Create the pool
@@ -445,7 +428,7 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	for _, cephBlockPool := range cephBlockPoolList.Items {
 		if cephBlockPool.GetDeletionTimestamp() == nil && cephBlockPool.Spec.EnableRBDStats {
 			// add to list of CephBlockPool with enableRBDStats set to true and not marked for deletion
-			enableStatsForPools = append(enableStatsForPools, getCephName(cephBlockPool))
+			enableStatsForPools = append(enableStatsForPools, cephBlockPool.ToNamedPoolSpec().Name)
 		}
 	}
 	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)

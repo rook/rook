@@ -33,7 +33,7 @@ func validatePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo
 		return errors.New("missing namespace")
 	}
 
-	if err := cephv1.ValidateCephBlockPool(&p.Spec); err != nil {
+	if err := cephv1.ValidateCephBlockPool(p); err != nil {
 		return err
 	}
 

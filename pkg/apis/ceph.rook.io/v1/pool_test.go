@@ -37,11 +37,11 @@ func TestValidatePoolSpec(t *testing.T) {
 			},
 		},
 	}
-	err := validatePoolSpec(p.Spec.ToNamedPoolSpec())
+	err := validatePoolSpec(p.ToNamedPoolSpec())
 	assert.NoError(t, err)
 
 	p.Spec.ErasureCoded.DataChunks = 1
-	err = validatePoolSpec(p.Spec.ToNamedPoolSpec())
+	err = validatePoolSpec(p.ToNamedPoolSpec())
 	assert.Error(t, err)
 }
 
