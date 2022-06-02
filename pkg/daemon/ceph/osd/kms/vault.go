@@ -267,7 +267,7 @@ func validateVaultConnectionDetails(ctx context.Context, clusterdContext *cluste
 			// Fetch the secret
 			s, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Get(ctx, tlsSecretName, v1.GetOptions{})
 			if err != nil {
-				return errors.Errorf("failed to find TLS connection details k8s secret %q", tlsSecretName)
+				return errors.Wrapf(err, "failed to find TLS connection details k8s secret %q", tlsSecretName)
 			}
 
 			// Check the Secret key and its content

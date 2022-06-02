@@ -108,7 +108,7 @@ func TestValidateConnectionDetails(t *testing.T) {
 		securitySpec.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		err := ValidateConnectionDetails(ctx, clusterdContext, securitySpec, ns)
 		assert.Error(t, err, "")
-		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"vault-ca-secret\"")
+		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"vault-ca-secret\": secrets \"vault-ca-secret\" not found")
 	})
 
 	t.Run("vault - TLS secret exists but empty key", func(t *testing.T) {
