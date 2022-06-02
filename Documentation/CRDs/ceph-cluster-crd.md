@@ -734,7 +734,7 @@ kubectl -n rook-ceph get CephCluster -o yaml
       - name: hdd
     version:
       image: quay.io/ceph/ceph:v16.2.9
-      version: 16.2.8-0
+      version: 16.2.9-0
     conditions:
     - lastHeartbeatTime: "2021-03-02T21:22:11Z"
       lastTransitionTime: "2021-03-02T21:21:09Z"
