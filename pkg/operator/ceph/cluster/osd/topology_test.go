@@ -134,4 +134,14 @@ func TestTopologyLabels(t *testing.T) {
 	topology, affinity = extractTopologyFromLabels(nodeLabels)
 	assert.Equal(t, 0, len(topology))
 	assert.Equal(t, "", affinity)
+
+	// ignore the region k8s topology label when it has the same value as the k8s zone label
+	nodeLabels = map[string]string{
+		corev1.LabelZoneRegionStable:        "zone",
+		corev1.LabelZoneFailureDomainStable: "zone",
+	}
+	topology, affinity = extractTopologyFromLabels(nodeLabels)
+	assert.Equal(t, 1, len(topology))
+	assert.Equal(t, "zone", topology["zone"])
+	assert.Equal(t, "topology.kubernetes.io/zone=zone", affinity)
 }
