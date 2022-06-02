@@ -93,6 +93,11 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomainStable, zone)
 	}
 
+	// ignore the region k8s topology label when it has the same value as the k8s zone label
+	if topology[regionLabel] == topology[zoneLabel] {
+		delete(topology, regionLabel)
+	}
+
 	// get host
 	host, ok := labels[corev1.LabelHostname]
 	if ok {
