@@ -116,6 +116,9 @@ func (r *ReconcileCSI) Reconcile(context context.Context, request reconcile.Requ
 }
 
 func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, error) {
+	// reconcileResult is used to communicate the result of the reconciliation back to the caller
+	var reconcileResult reconcile.Result
+
 	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
@@ -150,6 +153,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 
 		return reconcile.Result{}, nil
 	}
+
 	for i, cluster := range cephClusters.Items {
 		if !cluster.DeletionTimestamp.IsZero() {
 			logger.Debugf("ceph cluster %q is being deleting, no need to reconcile the csi driver", request.NamespacedName)
@@ -170,9 +174,11 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				// This avoids a requeue with exponential backoff and allows the controller to reconcile
 				// more quickly when the cluster is ready.
 				if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
-					return opcontroller.WaitForRequeueIfCephClusterNotReady, nil
+					logger.Infof("cluster info for cluster %q is not ready yet, will retry in %s, proceeding with ready clusters", cluster.Name, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String())
+					reconcileResult = opcontroller.WaitForRequeueIfCephClusterNotReady
+					continue
 				}
-				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to populate cluster info for cluster %q", cluster.Name)
+				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 			}
 
 			logger.Debugf("cluster %q is running on multus, deploying the ceph-csi plugin holder", cluster.Name)
@@ -234,5 +240,5 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
 	}
 
-	return reconcile.Result{}, nil
+	return reconcileResult, nil
 }
