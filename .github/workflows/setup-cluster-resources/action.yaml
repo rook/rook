@@ -18,7 +18,7 @@ runs:
       with:
         minikube version: "v1.24.0"
         kubernetes version: "v1.23.0"
-        start args: --memory 6g --cpus=2 --addons ingress
+        start args: --memory 6g --cpus=2 --addons ingress --cni=calico
         github token: ${{ inputs.github-token }}
 
     - name: install deps
