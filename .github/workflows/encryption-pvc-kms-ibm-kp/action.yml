@@ -23,7 +23,7 @@ runs:
       run: echo "IBM_KP_SERVICE_INSTANCE_ID and IBM_KP_SERVICE_API_KEY must be set in the environment" && exit 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ inputs.github-token }}
 

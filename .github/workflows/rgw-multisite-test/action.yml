@@ -12,7 +12,7 @@ runs:
   using: "composite"
   steps:
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ inputs.github-token }}
 
