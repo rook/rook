@@ -166,6 +166,7 @@ spec:
 # or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
 # preferred rule with weight: 50.
 #    osd:
+#    prepareosd:
 #    mgr:
 #    cleanup:
   annotations:
