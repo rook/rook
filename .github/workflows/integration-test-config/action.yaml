@@ -28,6 +28,7 @@ runs:
     shell: bash --noprofile --norc -eo pipefail -x {0}
     run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
+  # This step is required for all the integration tests except the canary tests
   - name: use local disk
     shell: bash --noprofile --norc -eo pipefail -x {0}
     run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test

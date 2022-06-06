@@ -32,7 +32,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -116,7 +116,7 @@ jobs:
           echo $output
         else
           echo "script failed because wrong rados namespace was passed"
-        fi  
+        fi
 
     - name: test external script with restricted_auth_permission flag
       run: |
@@ -184,9 +184,9 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    
+
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
       env:
@@ -207,10 +207,10 @@ jobs:
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
-      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2 
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
 
     - name: validate-rgw-endpoint
-      run: | 
+      run: |
         rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
@@ -218,13 +218,13 @@ jobs:
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
         kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
         # pass the valid rgw-endpoint of same ceph cluster
-        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"        
+        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
         # pass the invalid rgw-endpoint of different ceph cluster
         if output=$(timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"); then
           echo $output
         else
           echo "validation failed because wrong endpoint was provided"
-        fi    
+        fi
         # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
         # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
@@ -251,7 +251,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -297,7 +297,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -343,7 +343,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -396,7 +396,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -461,7 +461,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -509,7 +509,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -560,7 +560,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -628,7 +628,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -678,7 +678,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -729,7 +729,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -807,7 +807,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -868,7 +868,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -921,7 +921,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -1169,7 +1169,7 @@ jobs:
         fetch-depth: 0
 
     - name: setup cluster resources
-      uses: ./.github/workflows/setup-cluster-resources
+      uses: ./.github/workflows/canary-test-config
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
 

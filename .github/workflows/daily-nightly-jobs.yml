@@ -98,7 +98,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -132,7 +132,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -166,7 +166,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -200,7 +200,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -234,7 +234,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -268,7 +268,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -302,7 +302,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-setup
+        uses: ./.github/workflows/integration-test-config
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
