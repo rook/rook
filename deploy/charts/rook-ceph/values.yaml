@@ -349,15 +349,15 @@ csi:
   #cephcsi:
     #image: quay.io/cephcsi/cephcsi:v3.6.1
   #registrar:
-    #image: k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.0
+    #image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.0
   #provisioner:
-    #image: k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0
+    #image: registry.k8s.io/sig-storage/csi-provisioner:v3.1.0
   #snapshotter:
-    #image: k8s.gcr.io/sig-storage/csi-snapshotter:v5.0.1
+    #image: registry.k8s.io/sig-storage/csi-snapshotter:v5.0.1
   #attacher:
-    #image: k8s.gcr.io/sig-storage/csi-attacher:v3.4.0
+    #image: registry.k8s.io/sig-storage/csi-attacher:v3.4.0
   #resizer:
-    #image: k8s.gcr.io/sig-storage/csi-resizer:v1.4.0
+    #image: registry.k8s.io/sig-storage/csi-resizer:v1.4.0
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI NFS Deployments and DaemonSets Pods.
@@ -377,7 +377,7 @@ csi:
   # Enable the nfs csi driver.
   nfs:
     enabled: false
-    #image: "k8s.gcr.io/sig-storage/nfsplugin:v3.1.0"
+    #image: "registry.k8s.io/sig-storage/nfsplugin:v3.1.0"
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
