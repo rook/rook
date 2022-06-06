@@ -244,7 +244,7 @@ func (m *CephManifestsMaster) getClusterPriorityClasses() string {
 func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
 	// Create a CSI driver snapshotclass
 	return `
-apiVersion: snapshot.storage.k8s.io/v1beta1
+apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
   name: ` + snapshotClassName + `
@@ -260,7 +260,7 @@ parameters:
 func (m *CephManifestsMaster) GetFileStorageSnapshotClass(snapshotClassName, reclaimPolicy string) string {
 	// Create a CSI driver snapshotclass
 	return `
-apiVersion: snapshot.storage.k8s.io/v1beta1
+apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshotClass
 metadata:
   name: ` + snapshotClassName + `
