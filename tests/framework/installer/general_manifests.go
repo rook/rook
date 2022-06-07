@@ -98,7 +98,7 @@ spec:
 }
 
 func GetSnapshot(snapshotName, claimName, snapshotClassName, namespace string) string {
-	return `apiVersion: snapshot.storage.k8s.io/v1beta1
+	return `apiVersion: snapshot.storage.k8s.io/v1
 kind: VolumeSnapshot
 metadata:
   name: ` + snapshotName + `
