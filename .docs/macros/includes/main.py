@@ -10,13 +10,15 @@ GitHub branch/tag URL replacer
 regex = r"(github\.com/.+/rook/.+)/master/"
 subst = "\\1/%s/"
 
+
 def define_env(env):
 
-    repo = Repository('.')
+    repo = Repository(".")
     if repo is not None:
         target = repo.head.shorthand
 
-    env.variables['current_branch'] = target
+    env.variables["current_branch"] = target
+
 
 def on_post_page_macros(env):
     """
@@ -24,8 +26,8 @@ def on_post_page_macros(env):
     with the correct one that is currently active.
     """
 
-    target = env.variables['current_branch']
-    if target == 'master':
+    target = env.variables["current_branch"]
+    if target == "master":
         return
 
     env.raw_markdown = re.sub(regex, subst % target, env.raw_markdown, 0)
