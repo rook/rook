@@ -33,7 +33,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: quay.io/ceph/ceph:v16.2.7
+    image: quay.io/ceph/ceph:v17.2.0
     allowUnsupported: false
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false

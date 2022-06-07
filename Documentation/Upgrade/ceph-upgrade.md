@@ -64,15 +64,15 @@ Official Ceph container images can be found on [Quay](https://quay.io/repository
 
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v16.2.7-20220216`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v17.2.0-20220420`).
   These tags are recommended for production clusters, as there is no possibility for the cluster to
   be heterogeneous with respect to the version of Ceph running in containers.
-* Ceph major version tags (e.g., `v16`) are useful for development and test clusters so that the
+* Ceph major version tags (e.g., `v17`) are useful for development and test clusters so that the
   latest version of Ceph is always available.
 
 **Ceph containers other than the official images from the registry above will not be supported.**
 
-### Example Upgrade to Ceph Pacific
+### Example Upgrade to Ceph Quincy
 
 #### **1. Update the Ceph daemons**
 
@@ -81,7 +81,7 @@ in the cluster CRD (`spec.cephVersion.image`).
 
 ```console
 ROOK_CLUSTER_NAMESPACE=rook-ceph
-NEW_CEPH_IMAGE='quay.io/ceph/ceph:v16.2.7-20220216'
+NEW_CEPH_IMAGE='quay.io/ceph/ceph:v17.2.0-20220420'
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
@@ -100,9 +100,9 @@ Confirm the upgrade is completed when the versions are all on the desired Ceph v
 kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
     ceph-version=15.2.13-0
-    ceph-version=16.2.6-0
+    ceph-version=v17.2.0-0
 This cluster is finished:
-    ceph-version=16.2.6-0
+    ceph-version=v17.2.0-0
 ```
 
 #### **3. Verify cluster health**
