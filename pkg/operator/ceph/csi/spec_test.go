@@ -42,9 +42,9 @@ func TestReconcileCSI_configureHolders(t *testing.T) {
 			Clientset:     testop.New(t, 1),
 			RookClientset: rookclient.NewSimpleClientset(),
 		},
-		opManagerContext: context.TODO(),
-		opConfig:         opcontroller.OperatorConfig{},
-		multusClusters:   []ClusterDetail{},
+		opManagerContext:   context.TODO(),
+		opConfig:           opcontroller.OperatorConfig{},
+		clustersWithHolder: []ClusterDetail{},
 	}
 
 	t.Run("no clusters, noop", func(t *testing.T) {
@@ -68,7 +68,7 @@ func TestReconcileCSI_configureHolders(t *testing.T) {
 			Namespace: r.opConfig.OperatorNamespace,
 		}
 
-		r.multusClusters = []ClusterDetail{
+		r.clustersWithHolder = []ClusterDetail{
 			{
 				cluster: &cephv1.CephCluster{
 					ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: "my-cluster"},

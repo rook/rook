@@ -370,8 +370,15 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrap(err, "failed to load nfs provisioner deployment template")
 		}
 	}
-	multusApplied := len(r.multusClusters) > 0
 
+	holderEnabled := !CSIParam.EnableCSIHostNetwork
+
+	for i := range r.clustersWithHolder {
+		if r.clustersWithHolder[i].cluster.Spec.Network.IsMultus() {
+			holderEnabled = true
+			break
+		}
+	}
 	// get common provisioner tolerations and node affinity
 	provisionerTolerations := getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{})
 	provisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{})
@@ -380,11 +387,12 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	pluginTolerations := getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{})
 	pluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
 
-	if multusApplied && !v.SupportsMultus() {
-		return errors.Errorf("multus is applied but the csi version %q does not support it, need at least %q", v.String(), multusSupportedVersion.String())
+	if holderEnabled && !v.SupportsNsenter() {
+		return errors.Errorf("multus/csi pod networking is applied but the csi version %q does not support it, need at least %q", v.String(), nsenterSupportedVersion.String())
 	}
 
-	// Deploy the CSI Holder DaemonSet if Multus is enabled
+	// Deploy the CSI Holder DaemonSet if Multus is enabled or
+	// EnableCSIHostNetwork is disabled.
 	err = r.configureHolders(enabledDrivers, tp, pluginTolerations, pluginNodeAffinity)
 	if err != nil {
 		return errors.Wrap(err, "failed to configure holder")
@@ -402,11 +410,11 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to rbd plugin daemonset %q", rbdPlugin.Name)
 		}
-		_, err := r.applyCephClusterNetworkConfig(r.opManagerContext, &rbdPlugin.Spec.Template.ObjectMeta)
+		err = r.applyCephClusterNetworkConfig(r.opManagerContext, &rbdPlugin.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset %q", rbdPlugin.Name)
 		}
-		if multusApplied {
+		if holderEnabled {
 			rbdPlugin.Spec.Template.Spec.HostNetwork = false
 		}
 		err = k8sutil.CreateDaemonSet(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
@@ -434,7 +442,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = r.applyCephClusterNetworkConfig(r.opManagerContext, &rbdProvisionerDeployment.Spec.Template.ObjectMeta)
+		err = r.applyCephClusterNetworkConfig(r.opManagerContext, &rbdProvisionerDeployment.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin provisioner deployment %q", rbdProvisionerDeployment.Name)
 		}
@@ -470,11 +478,11 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}
-		multusApplied, err := r.applyCephClusterNetworkConfig(r.opManagerContext, &cephfsPlugin.Spec.Template.ObjectMeta)
+		err = r.applyCephClusterNetworkConfig(r.opManagerContext, &cephfsPlugin.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}
-		if multusApplied {
+		if holderEnabled {
 			cephfsPlugin.Spec.Template.Spec.HostNetwork = false
 			// HostPID is used to communicate with the network namespace
 			cephfsPlugin.Spec.Template.Spec.HostPID = true
@@ -506,7 +514,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = r.applyCephClusterNetworkConfig(r.opManagerContext, &cephfsProvisionerDeployment.Spec.Template.ObjectMeta)
+		err = r.applyCephClusterNetworkConfig(r.opManagerContext, &cephfsProvisionerDeployment.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin provisioner deployment %q", cephfsProvisionerDeployment.Name)
 		}
@@ -541,11 +549,11 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to nfs plugin daemonset %q", nfsPlugin.Name)
 		}
-		multusApplied, err := r.applyCephClusterNetworkConfig(r.opManagerContext, &nfsPlugin.Spec.Template.ObjectMeta)
+		err = r.applyCephClusterNetworkConfig(r.opManagerContext, &nfsPlugin.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to nfs plugin daemonset %q", nfsPlugin.Name)
 		}
-		if multusApplied {
+		if holderEnabled {
 			nfsPlugin.Spec.Template.Spec.HostNetwork = false
 		}
 		err = k8sutil.CreateDaemonSet(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, nfsPlugin)
@@ -574,7 +582,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			Type: apps.RecreateDeploymentStrategyType,
 		}
 
-		_, err = r.applyCephClusterNetworkConfig(r.opManagerContext, &nfsProvisionerDeployment.Spec.Template.ObjectMeta)
+		err = r.applyCephClusterNetworkConfig(r.opManagerContext, &nfsProvisionerDeployment.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to nfs provisioner deployment %q", nfsProvisionerDeployment.Name)
 		}
@@ -670,23 +678,21 @@ func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, de
 	return nil
 }
 
-func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.ObjectMeta) (bool, error) {
-	var isMultusApplied bool
+func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, objectMeta *metav1.ObjectMeta) error {
 	cephClusters, err := r.context.RookClientset.CephV1().CephClusters(objectMeta.Namespace).List(ctx, metav1.ListOptions{})
 	if err != nil {
-		return false, errors.Wrap(err, "failed to find CephClusters")
+		return errors.Wrap(err, "failed to find CephClusters")
 	}
 	for _, cephCluster := range cephClusters.Items {
 		if cephCluster.Spec.Network.IsMultus() {
 			err = k8sutil.ApplyMultus(cephCluster.Spec.Network, objectMeta)
 			if err != nil {
-				return false, errors.Wrapf(err, "failed to apply multus configuration to CephCluster %q", cephCluster.Name)
+				return errors.Wrapf(err, "failed to apply multus configuration to CephCluster %q", cephCluster.Name)
 			}
-			isMultusApplied = true
 		}
 	}
 
-	return isMultusApplied, nil
+	return nil
 }
 
 // ValidateCSIVersion checks if the configured ceph-csi image is supported
@@ -741,11 +747,11 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 }
 
 func (r *ReconcileCSI) configureHolders(enabledDrivers []driverDetails, tp templateParam, pluginTolerations []corev1.Toleration, pluginNodeAffinity *corev1.NodeAffinity) error {
-	for _, multusCluster := range r.multusClusters {
+	for _, cluster := range r.clustersWithHolder {
 		for _, driver := range enabledDrivers {
-			err := r.configureHolder(driver, multusCluster, tp, pluginTolerations, pluginNodeAffinity)
+			err := r.configureHolder(driver, cluster, tp, pluginTolerations, pluginNodeAffinity)
 			if err != nil {
-				return errors.Wrapf(err, "failed to configure holder %q for %q/%q", driver.name, multusCluster.cluster.Name, multusCluster.cluster.Namespace)
+				return errors.Wrapf(err, "failed to configure holder %q for %q/%q", driver.name, cluster.cluster.Name, cluster.cluster.Namespace)
 			}
 		}
 	}
@@ -753,7 +759,7 @@ func (r *ReconcileCSI) configureHolders(enabledDrivers []driverDetails, tp templ
 	return nil
 }
 
-func (r *ReconcileCSI) configureHolder(driver driverDetails, multusCluster ClusterDetail, tp templateParam, pluginTolerations []corev1.Toleration, pluginNodeAffinity *corev1.NodeAffinity) error {
+func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp templateParam, pluginTolerations []corev1.Toleration, pluginNodeAffinity *corev1.NodeAffinity) error {
 	cephPluginHolder, err := templateToDaemonSet("cephpluginholder", driver.holderTemplate, tp)
 	if err != nil {
 		return errors.Wrapf(err, "failed to load ceph %q plugin holder template", driver.fullName)
@@ -775,7 +781,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, multusCluster Clust
 		cephPluginHolder.Spec.Template.Spec.Containers[0].Env,
 		corev1.EnvVar{
 			Name:  "CEPH_CLUSTER_NAMESPACE",
-			Value: multusCluster.cluster.Namespace,
+			Value: c.cluster.Namespace,
 		},
 	)
 
@@ -790,35 +796,37 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, multusCluster Clust
 	)
 
 	// Make the DS name unique per Ceph cluster
-	cephPluginHolder.Name = fmt.Sprintf("%s-%s", cephPluginHolder.Name, multusCluster.cluster.Name)
-	cephPluginHolder.Spec.Template.Name = fmt.Sprintf("%s-%s", cephPluginHolder.Spec.Template.Name, multusCluster.cluster.Name)
-	cephPluginHolder.Spec.Template.Spec.Containers[0].Name = fmt.Sprintf("%s-%s", cephPluginHolder.Spec.Template.Spec.Containers[0].Name, multusCluster.cluster.Name)
+	cephPluginHolder.Name = fmt.Sprintf("%s-%s", cephPluginHolder.Name, c.cluster.Name)
+	cephPluginHolder.Spec.Template.Name = fmt.Sprintf("%s-%s", cephPluginHolder.Spec.Template.Name, c.cluster.Name)
+	cephPluginHolder.Spec.Template.Spec.Containers[0].Name = fmt.Sprintf("%s-%s", cephPluginHolder.Spec.Template.Spec.Containers[0].Name, c.cluster.Name)
 
 	// Add default labels
 	k8sutil.AddRookVersionLabelToDaemonSet(cephPluginHolder)
 
-	// Apply Multus annotations to daemonset spec
-	err = k8sutil.ApplyMultus(multusCluster.cluster.Spec.Network, &cephPluginHolder.Spec.Template.ObjectMeta)
-	if err != nil {
-		return errors.Wrapf(err, "failed to apply multus configuration for holder %q in cluster %q", cephPluginHolder.Name, multusCluster.cluster.Namespace)
+	// If multus is enabled, add the multus plugin label
+	if c.cluster.Spec.Network.IsMultus() {
+		// Apply Multus annotations to daemonset spec
+		err = k8sutil.ApplyMultus(c.cluster.Spec.Network, &cephPluginHolder.Spec.Template.ObjectMeta)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply multus configuration for holder %q in cluster %q", cephPluginHolder.Name, c.cluster.Namespace)
+		}
 	}
-
 	// Finally create the DaemonSet
 	_, err = r.context.Clientset.AppsV1().DaemonSets(r.opConfig.OperatorNamespace).Create(r.opManagerContext, cephPluginHolder, metav1.CreateOptions{})
 	if err != nil {
 		if kerrors.IsAlreadyExists(err) {
-			logger.Debugf("holder %q already exists for cluster %q, it should never be updated", cephPluginHolder.Name, multusCluster.cluster.Namespace)
+			logger.Debugf("holder %q already exists for cluster %q, it should never be updated", cephPluginHolder.Name, c.cluster.Namespace)
 		} else {
 			return errors.Wrapf(err, "failed to start ceph plugin holder daemonset %q", cephPluginHolder.Name)
 		}
 	}
 
 	clusterConfigEntry := &CsiClusterConfigEntry{
-		Monitors: MonEndpoints(multusCluster.clusterInfo.Monitors),
+		Monitors: MonEndpoints(c.clusterInfo.Monitors),
 		RBD:      &CsiRBDSpec{},
 		CephFS:   &CsiCephFSSpec{},
 	}
-	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, multusCluster.cluster.Namespace)
+	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, c.cluster.Namespace)
 	if driver.name == RBDDriverShortName {
 		clusterConfigEntry.RBD.NetNamespaceFilePath = netNamespaceFilePath
 	}
@@ -826,7 +834,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, multusCluster Clust
 		clusterConfigEntry.CephFS.NetNamespaceFilePath = netNamespaceFilePath
 	}
 	// Save the path of the network namespace file for ceph-csi to use
-	err = SaveClusterConfig(r.context.Clientset, multusCluster.cluster.Namespace, multusCluster.clusterInfo, clusterConfigEntry)
+	err = SaveClusterConfig(r.context.Clientset, c.cluster.Namespace, c.clusterInfo, clusterConfigEntry)
 	if err != nil {
 		return errors.Wrapf(err, "failed to save cluster config for csi holder %q", driver.fullName)
 	}
