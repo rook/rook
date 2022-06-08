@@ -1367,15 +1367,15 @@ export RGW_POOL_PREFIX=default
 
 1. Deploy Rook-Ceph, create [common.yaml](/deploy/examples/common.yaml), [crds.yaml](/deploy/examples/crds.yaml) and [operator.yaml](/deploy/examples/operator.yaml) manifests.
 
-2. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+2. Create [common-external.yaml](/deploy/examples/common-external.yaml) and [cluster-external.yaml](/deploy/examples/cluster-external.yaml)
 
-3. Run the [import](/deploy/examples/import-external-cluster.sh) script.
+3. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+
+4. Run the [import](/deploy/examples/import-external-cluster.sh) script.
 
     ```console
     . import-external-cluster.sh
     ```
-
-4. Create [common-external.yaml](/deploy/examples/common-external.yaml) and [cluster-external.yaml](/deploy/examples/cluster-external.yaml)
 
 5. Verify the consumer cluster is connected to the source ceph cluster:
 
@@ -1385,54 +1385,15 @@ export RGW_POOL_PREFIX=default
     rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
     ```
 
-### Create StorageClass
-
-Create a StorageClass based on the pool that was already created in the source Ceph cluster.
-In this example, the pool `replicated_2g` exists in the source cluster.
-
+6. StorageClass will also be created, verify its creation.
 ```console
-cat << EOF | kubectl apply -f -
+kubectl -n rook-ceph-external get sc
 ```
+`ceph-rbd` and `cephfs` StorageClass would be respective name for RBD and CephFS StorageClass.
 
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: rook-ceph-block-ext
-# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-provisioner: rook-ceph.rbd.csi.ceph.com
-parameters:
-    # clusterID is the namespace where the rook cluster is running
-    clusterID: rook-ceph-external
-    # Ceph pool into which the RBD image shall be created
-    pool: replicated_2g
+**NOTE:** For CephFS StorageClass you also need to export `CEPHFS_FS_NAME`, `CEPHFS_POOL_NAME` or you can pass these parameters with a CLI flag (--cephfs-data-pool-name,--cephfs-filesystem-name) while running the python script. For creating ECRBDStorageClass you need to pass --rbd-metadata-ec-pool-name CLI flag or export `RBD_METADATA_EC_POOL_NAME`.
 
-    # RBD image format. Defaults to "2".
-    imageFormat: "2"
-
-    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
-    imageFeatures: layering
-
-    # The secrets contain Ceph admin credentials.
-    csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph-external
-    csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
-    csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph-external
-    csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
-    csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph-external
-
-    # Specify the filesystem type of the volume. If not specified, csi-provisioner
-    # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
-    # in hyperconverged settings where the volume is mounted on the same node as the osds.
-    csi.storage.k8s.io/fstype: ext4
-
-# Delete the rbd volume when a PVC is deleted
-reclaimPolicy: Delete
-allowVolumeExpansion: true
-EOF
-```
-
-You can now create a persistent volume based on this StorageClass.
+7. Then you can now create a [persistent volume](/deploy/examples/csi) based on these StorageClass.
 
 ### CephCluster example (management)
 
