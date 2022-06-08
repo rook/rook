@@ -22,6 +22,8 @@ import (
 	"fmt"
 	"os/exec"
 	"path"
+	"strconv"
+	"sync"
 	"syscall"
 
 	"github.com/pkg/errors"
@@ -41,6 +43,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +53,8 @@ import (
 const (
 	detectVersionName = "rook-ceph-detect-version"
 )
+
+var telemetryMutex sync.Mutex
 
 type cluster struct {
 	ClusterInfo        *client.ClusterInfo
@@ -218,6 +223,10 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 	// Start the monitoring if not already started
 	c.configureCephMonitoring(cluster, cluster.ClusterInfo)
+
+	// Asynchronously report the telemetry to allow another reconcile to proceed if needed
+	go cluster.reportTelemetry()
+
 	return nil
 }
 
@@ -487,9 +496,6 @@ func (c *cluster) skipMDSSanityChecks(skip bool) error {
 // It gets executed right after the main mon Start() method
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
-	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
-	telemetry.SetRookVersion(c.context, c.ClusterInfo)
-
 	// Create CSI Kubernetes Secrets
 	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
 	if err != nil {
@@ -532,6 +538,62 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	return nil
+}
+
+func (c *cluster) reportTelemetry() {
+	// In the corner case that reconciles are started in quick succession and the telemetry
+	// hasn't had a chance to complete yet from a previous reconcile, simply allow
+	// a single goroutine to report telemetry at a time.
+	telemetryMutex.Lock()
+	defer telemetryMutex.Unlock()
+
+	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
+	logger.Info("reporting cluster telemetry")
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.RookVersionKey, rookversion.Version)
+
+	// Report the K8s version
+	serverVersion, err := c.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		logger.Warningf("failed to report the K8s server version. %v", err)
+	} else {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.K8sVersionKey, serverVersion.String())
+	}
+
+	// Report the CSI version if it has been detected
+	if telemetry.CSIVersion != "" {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.CSIVersionKey, telemetry.CSIVersion)
+	}
+
+	// Report the max mon id
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.MonMaxIDKey, strconv.Itoa(c.mons.MaxMonID()))
+
+	// Report the telemetry for mon settings
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.MonCountKey, strconv.Itoa(c.Spec.Mon.Count))
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.MonAllowMultiplePerNodeKey, strconv.FormatBool(c.Spec.Mon.AllowMultiplePerNode))
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.MonPVCEnabledKey, strconv.FormatBool(c.Spec.Mon.VolumeClaimTemplate != nil))
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.MonStretchEnabledKey, strconv.FormatBool(c.Spec.IsStretchCluster()))
+
+	// Set the telemetry for device sets
+	deviceSets := 0
+	portableDeviceSets := 0
+	nonportableDeviceSets := 0
+	for _, deviceSet := range c.Spec.Storage.StorageClassDeviceSets {
+		deviceSets++
+		if deviceSet.Portable {
+			portableDeviceSets++
+		} else {
+			nonportableDeviceSets++
+		}
+	}
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.DeviceSetTotalKey, strconv.Itoa(deviceSets))
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.DeviceSetPortableKey, strconv.Itoa(portableDeviceSets))
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.DeviceSetNonPortableKey, strconv.Itoa(nonportableDeviceSets))
+
+	// Set the telemetry for network settings
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NetworkProviderKey, c.Spec.Network.Provider)
+
+	// Set the telemetry for external cluster settings
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.ExternalModeEnabledKey, strconv.FormatBool(c.Spec.External.Enable))
 }
 
 func (c *cluster) configureMsgr2() error {
