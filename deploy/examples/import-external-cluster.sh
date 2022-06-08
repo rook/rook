@@ -5,10 +5,6 @@ set -e
 # VARIABLES #
 #############
 MON_SECRET_NAME=rook-ceph-mon
-CSI_RBD_NODE_SECRET_NAME=rook-csi-rbd-node
-CSI_RBD_PROVISIONER_SECRET_NAME=rook-csi-rbd-provisioner
-CSI_CEPHFS_NODE_SECRET_NAME=rook-csi-cephfs-node
-CSI_CEPHFS_PROVISIONER_SECRET_NAME=rook-csi-cephfs-provisioner
 RGW_ADMIN_OPS_USER_SECRET_NAME=rgw-admin-ops-user
 MON_SECRET_CLUSTER_NAME_KEYNAME=cluster-name
 MON_SECRET_FSID_KEYNAME=fsid
@@ -20,7 +16,12 @@ MON_ENDPOINT_CONFIGMAP_NAME=rook-ceph-mon-endpoints
 ROOK_EXTERNAL_CLUSTER_NAME=$NAMESPACE
 ROOK_EXTERNAL_MAX_MON_ID=2
 ROOK_EXTERNAL_MAPPING={}
+RBD_STORAGE_CLASS_NAME=ceph-rbd
+CEPHFS_STORAGE_CLASS_NAME=cephfs
 ROOK_EXTERNAL_MONITOR_SECRET=mon-secret
+OPERATOR_NAMESPACE=rook-ceph # default set to rook-ceph
+RBD_PROVISIONER=$OPERATOR_NAMESPACE".rbd.csi.ceph.com" # driver:namespace:operator
+CEPHFS_PROVISIONER=$OPERATOR_NAMESPACE".cephfs.csi.ceph.com" # driver:namespace:operator
 : "${ROOK_EXTERNAL_ADMIN_SECRET:=admin-secret}"
 
 #############
@@ -30,6 +31,26 @@ ROOK_EXTERNAL_MONITOR_SECRET=mon-secret
 function checkEnvVars() {
   if [ -z "$NAMESPACE" ]; then
     echo "Please populate the environment variable NAMESPACE"
+    exit 1
+  fi
+   if [ -z "$RBD_POOL_NAME" ]; then
+    echo "Please populate the environment variable RBD_POOL_NAME"
+    exit 1
+  fi
+  if [ -z "$CSI_RBD_NODE_SECRET_NAME" ]; then
+    echo "Please populate the environment variable CSI_RBD_NODE_SECRET_NAME"
+    exit 1
+  fi
+  if [ -z "$CSI_RBD_PROVISIONER_SECRET_NAME" ]; then
+    echo "Please populate the environment variable CSI_RBD_PROVISIONER_SECRET_NAME"
+    exit 1
+  fi
+  if [ -z "$CSI_CEPHFS_NODE_SECRET_NAME" ]; then
+    echo "Please populate the environment variable CSI_CEPHFS_NODE_SECRET_NAME"
+    exit 1
+  fi
+  if [ -z "$CSI_CEPHFS_PROVISIONER_SECRET_NAME" ]; then
+    echo "Please populate the environment variable CSI_CEPHFS_PROVISIONER_SECRET_NAME"
     exit 1
   fi
   if [ -z "$ROOK_EXTERNAL_FSID" ]; then
@@ -103,8 +124,8 @@ function importCsiRBDNodeSecret() {
   secret \
   generic \
   --type="kubernetes.io/rook" \
-  "$CSI_RBD_NODE_SECRET_NAME" \
-  --from-literal=userID=csi-rbd-node \
+  "rook-""$CSI_RBD_NODE_SECRET_NAME" \
+  --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
   --from-literal=userKey="$CSI_RBD_NODE_SECRET"
 }
 
@@ -114,8 +135,8 @@ function importCsiRBDProvisionerSecret() {
   secret \
   generic \
   --type="kubernetes.io/rook" \
-  "$CSI_RBD_PROVISIONER_SECRET_NAME" \
-  --from-literal=userID=csi-rbd-provisioner \
+  "rook-""$CSI_RBD_PROVISIONER_SECRET_NAME" \
+  --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
   --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
 }
 
@@ -125,8 +146,8 @@ function importCsiCephFSNodeSecret() {
   secret \
   generic \
   --type="kubernetes.io/rook" \
-  "$CSI_CEPHFS_NODE_SECRET_NAME" \
-  --from-literal=adminID=csi-cephfs-node \
+  "rook-""$CSI_CEPHFS_NODE_SECRET_NAME" \
+  --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
   --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
 }
 
@@ -136,8 +157,8 @@ function importCsiCephFSProvisionerSecret() {
   secret \
   generic \
   --type="kubernetes.io/rook" \
-  "$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-  --from-literal=adminID=csi-cephfs-provisioner \
+  "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+  --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
   --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
 }
 
@@ -152,6 +173,77 @@ function importRGWAdminOpsUser() {
   --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY"
 }
 
+function createECRBDStorageClass() {
+cat <<eof | kubectl create -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: $RBD_STORAGE_CLASS_NAME
+provisioner: $RBD_PROVISIONER
+parameters:
+  clusterID: $NAMESPACE
+  pool: $RBD_POOL_NAME
+  dataPool: $RBD_METADATA_EC_POOL_NAME
+  imageFormat: "2"
+  imageFeatures: layering
+  csi.storage.k8s.io/provisioner-secret-name: $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-expand-secret-name:  $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: $CSI_RBD_NODE_SECRET_NAME
+  csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+eof
+}
+
+function createRBDStorageClass() {
+cat <<eof | kubectl create -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: $RBD_STORAGE_CLASS_NAME
+provisioner: $RBD_PROVISIONER
+parameters:
+  clusterID: $NAMESPACE
+  pool: $RBD_POOL_NAME
+  imageFormat: "2"
+  imageFeatures: layering
+  csi.storage.k8s.io/provisioner-secret-name: $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-expand-secret-name:  $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: $CSI_RBD_NODE_SECRET_NAME
+  csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+eof
+}
+
+function createCephFSStorageClass() {
+cat <<eof | kubectl create -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: $CEPHFS_STORAGE_CLASS_NAME
+provisioner: $CEPHFS_PROVISIONER
+parameters:
+  clusterID: $NAMESPACE
+  fsName: $CEPHFS_FS_NAME
+  pool: $CEPHFS_POOL_NAME
+  csi.storage.k8s.io/provisioner-secret-name: $CSI_CEPHFS_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-expand-secret-name: $CSI_CEPHFS_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: $CSI_CEPHFS_NODE_SECRET_NAME
+  csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+eof
+}
+
 ########
 # MAIN #
 ########
@@ -163,3 +255,11 @@ importCsiRBDProvisionerSecret
 importCsiCephFSNodeSecret
 importCsiCephFSProvisionerSecret
 importRGWAdminOpsUser
+if [ -n "$RBD_METADATA_EC_POOL_NAME" ]; then
+  createECRBDStorageClass
+else
+  createRBDStorageClass
+fi
+if [ -n "$CEPHFS_FS_NAME" ] && [ -n "$CEPHFS_POOL_NAME" ]; then
+  createCephFSStorageClass
+fi
