@@ -262,6 +262,7 @@ class RadosJSON:
     def gen_arg_parser(cls, args_to_parse=None):
         argP = argparse.ArgumentParser()
 
+<<<<<<< HEAD
         common_group = argP.add_argument_group('common')
         common_group.add_argument("--verbose", "-v",
                                   action='store_true', default=False)
@@ -322,6 +323,137 @@ class RadosJSON:
                                    "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --rados-namespace radosNamespace --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool-radosNamespace`" +
                                    "PS: An existing non-restricted user cannot be downgraded to a restricted user by upgrading. Admin need to create a new restricted user for this by re-running the script." +
                                    "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access")
+=======
+        common_group = argP.add_argument_group("common")
+        common_group.add_argument("--verbose", "-v", action="store_true", default=False)
+        common_group.add_argument(
+            "--ceph-conf", "-c", help="Provide a ceph conf file.", type=str
+        )
+        common_group.add_argument(
+            "--run-as-user",
+            "-u",
+            default="",
+            type=str,
+            help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'",
+        )
+        common_group.add_argument(
+            "--cluster-name", default="", help="Ceph cluster name"
+        )
+        common_group.add_argument(
+            "--namespace", default="", help="Namespace where CephCluster is running"
+        )
+        common_group.add_argument(
+            "--rgw-pool-prefix", default="", help="RGW Pool prefix"
+        )
+        common_group.add_argument(
+            "--restricted-auth-permission",
+            default=False,
+            help="Restricted cephCSIKeyrings auth permissions to specific pools, cluster."
+            + "Mandatory flags that need to be set are --rbd-data-pool-name, and --cluster-name."
+            + "--cephfs-filesystem-name flag can also be passed in case of cephfs user restriction, so it can restrict user to particular cephfs filesystem"
+            + "sample run: `python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --cluster-name rookStorage --restricted-auth-permission true`"
+            + "Note: Restricting the users per pool, and per cluster will require to create new users and new secrets for that users.",
+        )
+
+        output_group = argP.add_argument_group("output")
+        output_group.add_argument(
+            "--format",
+            "-t",
+            choices=["json", "bash"],
+            default="json",
+            help="Provides the output format (json | bash)",
+        )
+        output_group.add_argument(
+            "--output",
+            "-o",
+            default="",
+            help="Output will be stored into the provided file",
+        )
+        output_group.add_argument(
+            "--cephfs-filesystem-name",
+            default="",
+            help="Provides the name of the Ceph filesystem",
+        )
+        output_group.add_argument(
+            "--cephfs-metadata-pool-name",
+            default="",
+            help="Provides the name of the cephfs metadata pool",
+        )
+        output_group.add_argument(
+            "--cephfs-data-pool-name",
+            default="",
+            help="Provides the name of the cephfs data pool",
+        )
+        output_group.add_argument(
+            "--rbd-data-pool-name",
+            default="",
+            required=False,
+            help="Provides the name of the RBD datapool",
+        )
+        output_group.add_argument(
+            "--rgw-endpoint",
+            default="",
+            required=False,
+            help="RADOS Gateway endpoint (in <IP>:<PORT> format). Note: FQDN is also supported(in <FQDN>:<PORT> format)",
+        )
+        output_group.add_argument(
+            "--rgw-tls-cert-path",
+            default="",
+            required=False,
+            help="RADOS Gateway endpoint TLS certificate",
+        )
+        output_group.add_argument(
+            "--rgw-skip-tls",
+            required=False,
+            default=False,
+            help="Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED",
+        )
+        output_group.add_argument(
+            "--monitoring-endpoint",
+            default="",
+            required=False,
+            help="Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)",
+        )
+        output_group.add_argument(
+            "--monitoring-endpoint-port",
+            default="",
+            required=False,
+            help="Ceph Manager prometheus exporter port",
+        )
+        output_group.add_argument(
+            "--rbd-metadata-ec-pool-name",
+            default="",
+            required=False,
+            help="Provides the name of erasure coded RBD metadata pool",
+        )
+        output_group.add_argument(
+            "--dry-run",
+            default=False,
+            action="store_true",
+            help="Dry run prints the executed commands without running them",
+        )
+        output_group.add_argument(
+            "--rados-namespace",
+            default="",
+            required=False,
+            help="divides a pool into separate logical namespaces",
+        )
+
+        upgrade_group = argP.add_argument_group("upgrade")
+        upgrade_group.add_argument(
+            "--upgrade",
+            action="store_true",
+            default=False,
+            help="Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied."
+            + "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade`, this will upgrade all the default csi users(non-restricted)"
+            + "For restricted users(For example: client.csi-cephfs-provisioner-openshift-storage-myfs), users created using --restricted-auth-permission flag need to pass mandatory flags"
+            + "mandatory flags: '--rbd-data-pool-name, --cluster-name and --run-as-user' flags while upgrading"
+            + "in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating user then while upgrading it will be mandatory too"
+            + "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --cluster-name rookStorage  --run-as-user client.csi-rbd-node-rookStorage-replicapool`"
+            + "PS: An existing non-restricted user cannot be downgraded to a restricted user by upgrading. Admin need to create a new restricted user for this by re-running the script."
+            + "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access",
+        )
+>>>>>>> dcba68912 (csi: update restricted auth flag)
 
         if args_to_parse:
             assert type(args_to_parse) == list, \
@@ -675,12 +807,19 @@ class RadosJSON:
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
-            rados_namespace = self._arg_parser.rados_namespace
-            if rbd_pool_name == "" or cluster_name == "" or rados_namespace == "":
+            if rbd_pool_name == "" or cluster_name == "":
                 raise ExecutionFailureException(
+<<<<<<< HEAD
                     "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' and --rados-namespace flags")
             entity = "{}-{}-{}-{}".format(entity, cluster_name,
                                           rbd_pool_name, rados_namespace)
+=======
+                    "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
+                )
+            entity = "{}-{}-{}".format(
+                entity, cluster_name, rbd_pool_name
+            )
+>>>>>>> dcba68912 (csi: update restricted auth flag)
             caps["osd"] = "profile rbd pool={}".format(rbd_pool_name)
 
         return caps, entity
@@ -692,12 +831,19 @@ class RadosJSON:
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
-            rados_namespace = self._arg_parser.rados_namespace
-            if rbd_pool_name == "" or cluster_name == "" or rados_namespace == "":
+            if rbd_pool_name == "" or cluster_name == "":
                 raise ExecutionFailureException(
+<<<<<<< HEAD
                     "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' and --rados-namespace flags")
             entity = "{}-{}-{}-{}".format(entity, cluster_name,
                                           rbd_pool_name, rados_namespace)
+=======
+                    "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
+                )
+            entity = "{}-{}-{}".format(
+                entity, cluster_name, rbd_pool_name
+            )
+>>>>>>> dcba68912 (csi: update restricted auth flag)
             caps["osd"] = "profile rbd pool={}".format(rbd_pool_name)
 
         return caps, entity
@@ -1120,6 +1266,7 @@ class RadosJSON:
             cluster_name = self._arg_parser.cluster_name
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
+<<<<<<< HEAD
             rados_namespace = self._arg_parser.rados_namespace
             json_out.append({
                 "name": "rook-csi-rbd-node-{}-{}-{}".format(cluster_name, rbd_pool_name, rados_namespace),
@@ -1139,6 +1286,38 @@ class RadosJSON:
                         "userKey": self.out_map['CSI_RBD_PROVISIONER_SECRET']
                     },
                 })
+=======
+            json_out.append(
+                {
+                    "name": "rook-csi-rbd-node-{}-{}".format(
+                        cluster_name, rbd_pool_name
+                    ),
+                    "kind": "Secret",
+                    "data": {
+                        "userID": "csi-rbd-node-{}-{}".format(
+                            cluster_name, rbd_pool_name
+                        ),
+                        "userKey": self.out_map["CSI_RBD_NODE_SECRET"],
+                    },
+                }
+            )
+            # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
+            if self.out_map["CSI_RBD_PROVISIONER_SECRET"]:
+                json_out.append(
+                    {
+                        "name": "rook-csi-rbd-provisioner-{}-{}".format(
+                            cluster_name, rbd_pool_name
+                        ),
+                        "kind": "Secret",
+                        "data": {
+                            "userID": 'csi-rbd-provisioner-{}-{}'.format(
+                                cluster_name, rbd_pool_name
+                            ),
+                            "userKey": self.out_map["CSI_RBD_PROVISIONER_SECRET"],
+                        },
+                    }
+                )
+>>>>>>> dcba68912 (csi: update restricted auth flag)
             # if 'CSI_CEPHFS_PROVISIONER_SECRET' exists, then only add 'rook-csi-cephfs-provisioner' Secret
             if self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] and cephfs_filesystem != "":
                 json_out.append({
