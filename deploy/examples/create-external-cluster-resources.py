@@ -900,11 +900,11 @@ class RadosJSON:
                 + cmd_json["entity"]
                 + " "
                 + " ".join(cmd_json["caps"])
-            )
+            ), ""
         # check if user already exist
         user_key = self.check_user_exist(entity)
         if user_key != "":
-            return user_key
+            return user_key, "{}".format(entity.split('.',1)[1])  # entity.split('.',1)[1] to rename entity(client.csi-rbd-node) as csi-rbd-node
 
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
@@ -915,7 +915,7 @@ class RadosJSON:
                     err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST
                 )
             )
-        return str(json_out[0]["key"])
+        return str(json_out[0]["key"]), "{}".format(entity.split('.',1)[1])  # entity.split('.',1)[1] to rename entity(client.csi-rbd-node) as csi-rbd-node
 
     def get_cephfs_data_pool_details(self):
         cmd_json = {"prefix": "fs ls", "format": "json"}
@@ -1255,6 +1255,7 @@ class RadosJSON:
     def _gen_output_map(self):
         if self.out_map:
             return
+        self._arg_parser.cluster_name = self._arg_parser.cluster_name.lower() # always convert cluster name to lowercase characters
         if self._arg_parser.rgw_endpoint:
             self._arg_parser.rgw_endpoint = self.convert_fqdn_rgw_endpoint_to_ip(
                 self._arg_parser.rgw_endpoint
@@ -1270,10 +1271,10 @@ class RadosJSON:
         self.out_map["ROOK_EXTERNAL_CEPH_MON_DATA"] = self.get_ceph_external_mon_data()
         self.out_map["ROOK_EXTERNAL_USER_SECRET"] = self.create_checkerKey()
         self.out_map["ROOK_EXTERNAL_DASHBOARD_LINK"] = self.get_ceph_dashboard_link()
-        self.out_map["CSI_RBD_NODE_SECRET"] = self.create_cephCSIKeyring_user(
+        self.out_map["CSI_RBD_NODE_SECRET"], self.out_map['CSI_RBD_NODE_SECRET_NAME'] = self.create_cephCSIKeyring_user(
             "client.csi-rbd-node"
         )
-        self.out_map["CSI_RBD_PROVISIONER_SECRET"] = self.create_cephCSIKeyring_user(
+        self.out_map["CSI_RBD_PROVISIONER_SECRET"], self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME'] = self.create_cephCSIKeyring_user(
             "client.csi-rbd-provisioner"
         )
         self.out_map["CEPHFS_POOL_NAME"] = self._arg_parser.cephfs_data_pool_name
@@ -1289,12 +1290,10 @@ class RadosJSON:
         self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"] = ""
         # create CephFS node and provisioner keyring only when MDS exists
         if self.out_map["CEPHFS_FS_NAME"] and self.out_map["CEPHFS_POOL_NAME"]:
-            self.out_map["CSI_CEPHFS_NODE_SECRET"] = self.create_cephCSIKeyring_user(
+            self.out_map["CSI_CEPHFS_NODE_SECRET"], self.out_map['CSI_CEPHFS_NODE_SECRET_NAME'] = self.create_cephCSIKeyring_user(
                 "client.csi-cephfs-node"
             )
-            self.out_map[
-                "CSI_CEPHFS_PROVISIONER_SECRET"
-            ] = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
+            self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"], self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME'] = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         self.out_map["RGW_ENDPOINT"] = self._arg_parser.rgw_endpoint
         self.out_map["RGW_TLS_CERT"] = ""
         (
@@ -1371,167 +1370,46 @@ class RadosJSON:
             },
         ]
 
-        if self.out_map["RBD_METADATA_EC_POOL_NAME"]:
-            json_out.append(
-                {
-                    "name": "ceph-rbd",
-                    "kind": "StorageClass",
-                    "data": {
-                        "dataPool": self.out_map["RBD_POOL_NAME"],
-                        "pool": self.out_map["RBD_METADATA_EC_POOL_NAME"],
-                    },
+        # if 'CSI_RBD_NODE_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
+        if self.out_map['CSI_RBD_NODE_SECRET'] and self.out_map["CSI_RBD_NODE_SECRET_NAME"]:
+            json_out.append({
+                "name": "rook-{}".format(self.out_map["CSI_RBD_NODE_SECRET_NAME"]),
+                "kind": "Secret",
+                "data": {
+                    "userID": self.out_map["CSI_RBD_NODE_SECRET_NAME"],
+                    "userKey": self.out_map['CSI_RBD_NODE_SECRET']
                 }
-            )
-        else:
-            json_out.append(
-                {
-                    "name": "ceph-rbd",
-                    "kind": "StorageClass",
-                    "data": {"pool": self.out_map["RBD_POOL_NAME"]},
+            })
+        # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
+        if self.out_map['CSI_RBD_PROVISIONER_SECRET'] and self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]:
+            json_out.append({
+                "name": "rook-{}".format(self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]),
+                "kind": "Secret",
+                "data": {
+                    "userID": self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"],
+                    "userKey": self.out_map['CSI_RBD_PROVISIONER_SECRET']
+                },
+            })
+        # if 'CSI_CEPHFS_PROVISIONER_SECRET' exists, then only add 'rook-csi-cephfs-provisioner' Secret
+        if self.out_map['CSI_CEPHFS_PROVISIONER_SECRET'] and self.out_map['CSI_CEPHFS_PROVISIONER_SECRET_NAME']:
+            json_out.append({
+                "name": "rook-{}".format(self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]),
+                "kind": "Secret",
+                "data": {
+                    "adminID": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"],
+                    "adminKey": self.out_map['CSI_CEPHFS_PROVISIONER_SECRET']
+                },
+            })
+        # if 'CSI_CEPHFS_NODE_SECRET' exists, then only add 'rook-csi-cephfs-node' Secret
+        if self.out_map['CSI_CEPHFS_NODE_SECRET'] and self.out_map['CSI_CEPHFS_NODE_SECRET_NAME']:
+            json_out.append({
+                "name": "rook-{}".format(self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"]),
+                "kind": "Secret",
+                "data": {
+                    "adminID": self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"],
+                    "adminKey": self.out_map['CSI_CEPHFS_NODE_SECRET']
                 }
-            )
-
-        if self._arg_parser.restricted_auth_permission:
-            cluster_name = self._arg_parser.cluster_name
-            rbd_pool_name = self._arg_parser.rbd_data_pool_name
-            cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
-            json_out.append(
-                {
-                    "name": "rook-csi-rbd-node-{}-{}".format(
-                        cluster_name, rbd_pool_name
-                    ),
-                    "kind": "Secret",
-                    "data": {
-                        "userID": "csi-rbd-node-{}-{}".format(
-                            cluster_name, rbd_pool_name
-                        ),
-                        "userKey": self.out_map["CSI_RBD_NODE_SECRET"],
-                    },
-                }
-            )
-            # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
-            if self.out_map["CSI_RBD_PROVISIONER_SECRET"]:
-                json_out.append(
-                    {
-                        "name": "rook-csi-rbd-provisioner-{}-{}".format(
-                            cluster_name, rbd_pool_name
-                        ),
-                        "kind": "Secret",
-                        "data": {
-                            "userID": 'csi-rbd-provisioner-{}-{}'.format(
-                                cluster_name, rbd_pool_name
-                            ),
-                            "userKey": self.out_map["CSI_RBD_PROVISIONER_SECRET"],
-                        },
-                    }
-                )
-            # if 'CSI_CEPHFS_PROVISIONER_SECRET' exists, then only add 'rook-csi-cephfs-provisioner' Secret
-            if (
-                self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"]
-                and cephfs_filesystem != ""
-            ):
-                json_out.append(
-                    {
-                        "name": "rook-csi-cephfs-provisioner-{}-{}".format(
-                            cluster_name, cephfs_filesystem
-                        ),
-                        "kind": "Secret",
-                        "data": {
-                            "adminID": "csi-cephfs-provisioner-{}-{}".format(
-                                cluster_name, cephfs_filesystem
-                            ),
-                            "adminKey": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"],
-                        },
-                    }
-                )
-            if (
-                self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"]
-                and cephfs_filesystem == ""
-            ):
-                json_out.append(
-                    {
-                        "name": "rook-csi-cephfs-provisioner-{}".format(cluster_name),
-                        "kind": "Secret",
-                        "data": {
-                            "adminID": "csi-cephfs-provisioner-{}".format(cluster_name),
-                            "adminKey": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"],
-                        },
-                    }
-                )
-            # if 'CSI_CEPHFS_NODE_SECRET' exists, then only add 'rook-csi-cephfs-node' Secret
-            if self.out_map["CSI_CEPHFS_NODE_SECRET"] and cephfs_filesystem != "":
-                json_out.append(
-                    {
-                        "name": "rook-csi-cephfs-node-{}-{}".format(
-                            cluster_name, cephfs_filesystem
-                        ),
-                        "kind": "Secret",
-                        "data": {
-                            "adminID": "csi-cephfs-node-{}-{}".format(
-                                cluster_name, cephfs_filesystem
-                            ),
-                            "adminKey": self.out_map["CSI_CEPHFS_NODE_SECRET"],
-                        },
-                    }
-                )
-            if self.out_map["CSI_CEPHFS_NODE_SECRET"] and cephfs_filesystem == "":
-                json_out.append(
-                    {
-                        "name": "rook-csi-cephfs-node-{}".format(cluster_name),
-                        "kind": "Secret",
-                        "data": {
-                            "adminID": "csi-cephfs-node-{}".format(cluster_name),
-                            "adminKey": self.out_map["CSI_CEPHFS_NODE_SECRET"],
-                        },
-                    }
-                )
-        else:
-            json_out.append(
-                {
-                    "name": "rook-csi-rbd-node",
-                    "kind": "Secret",
-                    "data": {
-                        "userID": "csi-rbd-node",
-                        "userKey": self.out_map["CSI_RBD_NODE_SECRET"],
-                    },
-                }
-            )
-            # if 'CSI_RBD_PROVISIONER_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
-            if self.out_map["CSI_RBD_PROVISIONER_SECRET"]:
-                json_out.append(
-                    {
-                        "name": "rook-csi-rbd-provisioner",
-                        "kind": "Secret",
-                        "data": {
-                            "userID": "csi-rbd-provisioner",
-                            "userKey": self.out_map["CSI_RBD_PROVISIONER_SECRET"],
-                        },
-                    }
-                )
-            # if 'CSI_CEPHFS_PROVISIONER_SECRET' exists, then only add 'rook-csi-cephfs-provisioner' Secret
-            if self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"]:
-                json_out.append(
-                    {
-                        "name": "rook-csi-cephfs-provisioner",
-                        "kind": "Secret",
-                        "data": {
-                            "adminID": "csi-cephfs-provisioner",
-                            "adminKey": self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"],
-                        },
-                    }
-                )
-            # if 'CSI_CEPHFS_NODE_SECRET' exists, then only add 'rook-csi-cephfs-node' Secret
-            if self.out_map["CSI_CEPHFS_NODE_SECRET"]:
-                json_out.append(
-                    {
-                        "name": "rook-csi-cephfs-node",
-                        "kind": "Secret",
-                        "data": {
-                            "adminID": "csi-cephfs-node",
-                            "adminKey": self.out_map["CSI_CEPHFS_NODE_SECRET"],
-                        },
-                    }
-                )
+            })
         # if 'ROOK_EXTERNAL_DASHBOARD_LINK' exists, then only add 'rook-ceph-dashboard-link' Secret
         if self.out_map["ROOK_EXTERNAL_DASHBOARD_LINK"]:
             json_out.append(
@@ -1544,18 +1422,42 @@ class RadosJSON:
                     },
                 }
             )
+        if self.out_map['RBD_METADATA_EC_POOL_NAME']:
+            json_out.append({
+                "name": "ceph-rbd",
+                "kind": "StorageClass",
+                "data": {
+                    "dataPool": self.out_map['RBD_METADATA_EC_POOL_NAME'],
+                    "pool": self.out_map['RBD_POOL_NAME'],
+                    "csi.storage.k8s.io/provisioner-secret-name": "rook-{}".format(self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]),
+                    "csi.storage.k8s.io/controller-expand-secret-name": "rook-{}".format(self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]),
+                    "csi.storage.k8s.io/node-stage-secret-name": "rook-{}".format(self.out_map["CSI_RBD_NODE_SECRET_NAME"])
+                },
+            })
+        else:
+            json_out.append({
+                "name": "ceph-rbd",
+                "kind": "StorageClass",
+                "data": {
+                    "pool": self.out_map['RBD_POOL_NAME'],
+                    "csi.storage.k8s.io/provisioner-secret-name": "rook-{}".format(self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]),
+                    "csi.storage.k8s.io/controller-expand-secret-name": "rook-{}".format(self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]),
+                    "csi.storage.k8s.io/node-stage-secret-name": "rook-{}".format(self.out_map["CSI_RBD_NODE_SECRET_NAME"])
+                },
+            })
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
-        if self.out_map["CEPHFS_FS_NAME"]:
-            json_out.append(
-                {
-                    "name": "cephfs",
-                    "kind": "StorageClass",
-                    "data": {
-                        "fsName": self.out_map["CEPHFS_FS_NAME"],
-                        "pool": self.out_map["CEPHFS_POOL_NAME"],
-                    },
+        if self.out_map['CEPHFS_FS_NAME']:
+            json_out.append({
+                "name": "cephfs",
+                "kind": "StorageClass",
+                "data": {
+                    "fsName": self.out_map['CEPHFS_FS_NAME'],
+                    "pool": self.out_map['CEPHFS_POOL_NAME'],
+                    "csi.storage.k8s.io/provisioner-secret-name": "rook-{}".format(self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]),
+                    "csi.storage.k8s.io/controller-expand-secret-name": "rook-{}".format(self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"]),
+                    "csi.storage.k8s.io/node-stage-secret-name": "rook-{}".format(self.out_map["CSI_CEPHFS_NODE_SECRET_NAME"])
                 }
-            )
+            })
         # if 'RGW_ENDPOINT' exists, then only add 'ceph-rgw' StorageClass
         if self.out_map["RGW_ENDPOINT"]:
             json_out.append(
