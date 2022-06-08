@@ -25,6 +25,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -215,4 +217,78 @@ func TestConfigureMsgr2(t *testing.T) {
 			assert.Equal(t, tt.fields.disabledBothExpected, disabledEncryption)
 		})
 	}
+}
+
+func TestTelemetry(t *testing.T) {
+	var expectedSettings map[string]string
+	context := &clusterd.Context{Clientset: testop.New(t, 3)}
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "config-key" && args[1] == "set" {
+				key := args[2]
+				if key == telemetry.RookVersionKey {
+					// the rook version will vary depending on the build, so it just shouldn't be blank
+					assert.NotEqual(t, "", args[3])
+				} else {
+					assert.Equal(t, expectedSettings[key], args[3], key)
+				}
+				return "", nil
+			}
+			return "", errors.New("mock error to simulate failure of mon store config")
+		},
+	}
+	c := cluster{
+		context:     context,
+		ClusterInfo: cephclient.AdminTestClusterInfo("cluster"),
+		mons:        &mon.Cluster{},
+	}
+
+	t.Run("normal cluster", func(t *testing.T) {
+		c.Spec = &cephv1.ClusterSpec{
+			Mon: cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			Storage: cephv1.StorageScopeSpec{
+				StorageClassDeviceSets: []cephv1.StorageClassDeviceSet{
+					{Name: "one", Count: 3, Portable: true},
+					{Name: "two", Count: 3, Portable: true},
+					{Name: "three", Count: 3, Portable: false},
+				},
+			},
+			Network: cephv1.NetworkSpec{Provider: "host"},
+		}
+		expectedSettings = map[string]string{
+			telemetry.K8sVersionKey:              "v0.0.0-master+$Format:%H$",
+			telemetry.MonMaxIDKey:                "0",
+			telemetry.MonCountKey:                "3",
+			telemetry.MonAllowMultiplePerNodeKey: "true",
+			telemetry.MonPVCEnabledKey:           "false",
+			telemetry.MonStretchEnabledKey:       "false",
+			telemetry.DeviceSetTotalKey:          "3",
+			telemetry.DeviceSetPortableKey:       "2",
+			telemetry.DeviceSetNonPortableKey:    "1",
+			telemetry.NetworkProviderKey:         "host",
+			telemetry.ExternalModeEnabledKey:     "false",
+		}
+		c.reportTelemetry()
+	})
+
+	t.Run("external cluster", func(t *testing.T) {
+		c.Spec = &cephv1.ClusterSpec{
+			External: cephv1.ExternalSpec{Enable: true},
+		}
+		expectedSettings = map[string]string{
+			telemetry.K8sVersionKey:              "v0.0.0-master+$Format:%H$",
+			telemetry.MonMaxIDKey:                "0",
+			telemetry.MonCountKey:                "0",
+			telemetry.MonAllowMultiplePerNodeKey: "false",
+			telemetry.MonPVCEnabledKey:           "false",
+			telemetry.MonStretchEnabledKey:       "false",
+			telemetry.DeviceSetTotalKey:          "0",
+			telemetry.DeviceSetPortableKey:       "0",
+			telemetry.DeviceSetNonPortableKey:    "0",
+			telemetry.NetworkProviderKey:         "",
+			telemetry.ExternalModeEnabledKey:     "true",
+		}
+		c.reportTelemetry()
+	})
 }

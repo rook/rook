@@ -23,22 +23,33 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	rookversion "github.com/rook/rook/pkg/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "telemetry")
 
 const (
-	RookVersionKey = `rook/version`
+	RookVersionKey             = "rook/version"
+	K8sVersionKey              = "rook/kubernetes/version"
+	CSIVersionKey              = "rook/csi/version"
+	MonMaxIDKey                = "rook/cluster/mon/max-id"
+	MonCountKey                = "rook/cluster/mon/count"
+	MonAllowMultiplePerNodeKey = "rook/cluster/mon/allow-multiple-per-node"
+	MonPVCEnabledKey           = "rook/cluster/mon/pvc/enabled"
+	MonStretchEnabledKey       = "rook/cluster/mon/stretch/enabled"
+	DeviceSetTotalKey          = "rook/cluster/storage/device-set/count/total"
+	DeviceSetPortableKey       = "rook/cluster/storage/device-set/count/portable"
+	DeviceSetNonPortableKey    = "rook/cluster/storage/device-set/count/non-portable"
+	NetworkProviderKey         = "rook/cluster/network/provider"
+	ExternalModeEnabledKey     = "rook/cluster/external-mode"
 )
 
-// SetRookVersion sets the Rook version in Ceph's config-key store to allow Rook clusters that
-// enable Ceph telemetry to be identified easily as Rook clusters while additionally providing
-// useful information about the version of Rook that is managing the cluster.
-// e.g., rook/version=v1.8.7
-func SetRookVersion(context *clusterd.Context, clusterInfo *client.ClusterInfo) {
+var CSIVersion string
+
+func ReportKeyValue(context *clusterd.Context, clusterInfo *client.ClusterInfo, key, value string) {
 	ms := config.GetMonStore(context, clusterInfo)
-	if err := ms.SetKeyValue(RookVersionKey, rookversion.Version); err != nil {
-		logger.Warningf("failed to set telemetry key; this cluster may not be identifiable by ceph telemetry as a Rook cluster. %v", err)
+	if err := ms.SetKeyValue(key, value); err != nil {
+		logger.Warningf("failed to set telemetry key %q. %v", key, err)
+		return
 	}
+	logger.Debugf("set telemetry key: %s=%s", key, value)
 }
