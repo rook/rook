@@ -226,7 +226,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 func (c *clusterConfig) deleteStore() {
 	logger.Infof("deleting object store %q from namespace %q", c.store.Name, c.store.Namespace)
 
-	if !c.clusterSpec.External.Enable {
+	if !c.store.Spec.IsExternal() {
 		// Delete rgw CephX keys and configuration in centralized mon database
 		for i := 0; i < int(c.store.Spec.Gateway.Instances); i++ {
 			daemonLetterID := k8sutil.IndexToName(i)

@@ -874,11 +874,9 @@ func getDashboardUser(context *Context) (ObjectUser, error) {
 		SystemUser:  true,
 	}
 
-	if !context.CephClusterSpec.External.Enable {
-		// Retrieve RGW Dashboard credentials if some are already set
-		if err := retrieveDashboardAPICredentials(context, &user); err != nil {
-			return user, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
-		}
+	// Retrieve RGW Dashboard credentials if some are already set
+	if err := retrieveDashboardAPICredentials(context, &user); err != nil {
+		return user, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
 	}
 
 	return user, nil
