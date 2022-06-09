@@ -18,7 +18,7 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE edit configmap rook-ceph-operator-config
 The default upstream images are included below, which you can change to your desired images.
 
 ```yaml
-ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.6.1"
+ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.6.2"
 ROOK_CSI_REGISTRAR_IMAGE: "k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.1"
 ROOK_CSI_PROVISIONER_IMAGE: "k8s.gcr.io/sig-storage/csi-provisioner:v3.1.0"
 ROOK_CSI_ATTACHER_IMAGE: "k8s.gcr.io/sig-storage/csi-attacher:v3.4.0"
