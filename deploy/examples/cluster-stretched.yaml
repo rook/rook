@@ -54,10 +54,13 @@ spec:
   placement:
     # The arbiter mon can have its own placement settings that will be different from the mons.
     # If the arbiter section is not included in the placement, the arbiter will use the same placement
-    # settings as other mons. In this example, the arbiter has a toleration to run on a master node.
+    # settings as other mons. In this example, the arbiter has a toleration to run on a control-plane node.
     arbiter:
       tolerations:
-        - key: node-role.kubernetes.io/master
+        # kubernetes v1.24 clusters would need the taint `node-role.kubernetes.io/control-plane`
+        # configuration. For earlier versions you may use `node-role.kubernetes.io/master` if
+        # available in your cluster.
+        - key: node-role.kubernetes.io/control-plane
           operator: Exists
           effect: NoSchedule
     osd:
