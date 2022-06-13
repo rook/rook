@@ -130,6 +130,23 @@ jobs:
         # print ugraded client auth
         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
 
+    - name: validate-rgw-endpoint
+      run: |
+        rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # pass the valid rgw-endpoint of same ceph cluster
+        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+        # pass the invalid rgw-endpoint of different ceph cluster
+        if output=$(timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"); then
+          echo $output
+        else
+          echo "validation failed because wrong endpoint was provided"
+        fi
+        # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
+        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+        # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
+        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"    
+
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences
 
@@ -160,6 +177,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
+<<<<<<< HEAD
   external-rgw-quincy-test:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -225,6 +243,8 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
+=======
+>>>>>>> dc0447a88 (ci: remove the seprate quincy test)
   raw-disk:
     runs-on: ubuntu-18.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
