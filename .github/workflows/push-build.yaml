@@ -12,6 +12,9 @@ defaults:
     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
+permissions:
+  contents: read
+
 jobs:
   push-image-to-container-registry:
     runs-on: ubuntu-18.04
