@@ -293,3 +293,6 @@ spec:
        sum(rate(ceph_rgw_put[2m])) # promethues query used for autoscaling
      threshold: "90"
 ```
+
+!!! warning
+    During reconciliation of a `CephObjectStore`, the Rook Operator will reset the replica count for RGW which was set by horizontal pod scaler. The horizontal pod autoscaler will change the again once it re-evaluates the rule. This can result in a performance hiccup of several seconds after a reconciliation. This is briefly discussed (here)[https://github.com/rook/rook/issues/10001]
