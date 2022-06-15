@@ -71,7 +71,6 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID, lvPath string,
 		// It's fine to continue if deactivate fails since we will return error if activate fails
 		if op, err := context.Executor.ExecuteCommandWithCombinedOutput("vgchange", "-an", "-vv", volumeGroupName); err != nil {
 			logger.Errorf("failed to deactivate volume group for lv %q. output: %s. %v", lvPath, op, err)
-			return nil
 		}
 
 		if op, err := context.Executor.ExecuteCommandWithCombinedOutput("vgchange", "-ay", "-vv", volumeGroupName); err != nil {
