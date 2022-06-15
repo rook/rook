@@ -1,4 +1,4 @@
- quay.io/ceph/ceph:v17.2.0
+ quay.ceph.io/ceph-ci/ceph:9c59f57df6b60922a0810152a42e8734514d99c7
  quay.io/cephcsi/cephcsi:v3.6.2
  quay.io/csiaddons/k8s-sidecar:v0.2.1
  quay.io/csiaddons/volumereplication-operator:v0.3.0

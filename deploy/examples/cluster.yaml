@@ -21,7 +21,7 @@ spec:
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
     # If you want to be more precise, you can always use a timestamp tag such quay.io/ceph/ceph:v17.2.0-20220420
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
-    image: quay.io/ceph/ceph:v17.2.0
+    image: quay.ceph.io/ceph-ci/ceph:9c59f57df6b60922a0810152a42e8734514d99c7
     # Whether to allow unsupported versions of Ceph. Currently `octopus` and `pacific` are supported.
     # Future versions such as `pacific` would require this to be set to `true`.
     # Do not set to true in production.
@@ -93,15 +93,15 @@ spec:
     # enable the Multus network provider
     #provider: multus
     #selectors:
-      # The selector keys are required to be `public` and `cluster`.
-      # Based on the configuration, the operator will do the following:
-      #   1. if only the `public` selector key is specified both public_network and cluster_network Ceph settings will listen on that interface
-      #   2. if both `public` and `cluster` selector keys are specified the first one will point to 'public_network' flag and the second one to 'cluster_network'
-      #
-      # In order to work, each selector value must match a NetworkAttachmentDefinition object in Multus
-      #
-      #public: public-conf --> NetworkAttachmentDefinition object name in Multus
-      #cluster: cluster-conf --> NetworkAttachmentDefinition object name in Multus
+    # The selector keys are required to be `public` and `cluster`.
+    # Based on the configuration, the operator will do the following:
+    #   1. if only the `public` selector key is specified both public_network and cluster_network Ceph settings will listen on that interface
+    #   2. if both `public` and `cluster` selector keys are specified the first one will point to 'public_network' flag and the second one to 'cluster_network'
+    #
+    # In order to work, each selector value must match a NetworkAttachmentDefinition object in Multus
+    #
+    #public: public-conf --> NetworkAttachmentDefinition object name in Multus
+    #cluster: cluster-conf --> NetworkAttachmentDefinition object name in Multus
     # Provide internet protocol version. IPv6, IPv4 or empty string are valid options. Empty string would mean IPv4
     #ipFamily: "IPv6"
     # Ceph daemons to listen on both IPv4 and Ipv6 networks
@@ -143,76 +143,76 @@ spec:
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node' and
   # tolerate taints with a key of 'storage-node'.
-#  placement:
-#    all:
-#      nodeAffinity:
-#        requiredDuringSchedulingIgnoredDuringExecution:
-#          nodeSelectorTerms:
-#          - matchExpressions:
-#            - key: role
-#              operator: In
-#              values:
-#              - storage-node
-#      podAffinity:
-#      podAntiAffinity:
-#      topologySpreadConstraints:
-#      tolerations:
-#      - key: storage-node
-#        operator: Exists
-# The above placement information can also be specified for mon, osd, and mgr components
-#    mon:
-# Monitor deployments may contain an anti-affinity rule for avoiding monitor
-# collocation on the same node. This is a required rule when host network is used
-# or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
-# preferred rule with weight: 50.
-#    osd:
-#    prepareosd:
-#    mgr:
-#    cleanup:
+  #  placement:
+  #    all:
+  #      nodeAffinity:
+  #        requiredDuringSchedulingIgnoredDuringExecution:
+  #          nodeSelectorTerms:
+  #          - matchExpressions:
+  #            - key: role
+  #              operator: In
+  #              values:
+  #              - storage-node
+  #      podAffinity:
+  #      podAntiAffinity:
+  #      topologySpreadConstraints:
+  #      tolerations:
+  #      - key: storage-node
+  #        operator: Exists
+  # The above placement information can also be specified for mon, osd, and mgr components
+  #    mon:
+  # Monitor deployments may contain an anti-affinity rule for avoiding monitor
+  # collocation on the same node. This is a required rule when host network is used
+  # or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
+  # preferred rule with weight: 50.
+  #    osd:
+  #    prepareosd:
+  #    mgr:
+  #    cleanup:
   annotations:
-#    all:
-#    mon:
-#    osd:
-#    cleanup:
-#    prepareosd:
-# clusterMetadata annotations will be applied to only `rook-ceph-mon-endpoints` configmap and the `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets.
-# And clusterMetadata annotations will not be merged with `all` annotations.
-#    clusterMetadata:
-#       kubed.appscode.com/sync: "true"
-# If no mgr annotations are set, prometheus scrape annotations will be set by default.
-#    mgr:
+  #    all:
+  #    mon:
+  #    osd:
+  #    cleanup:
+  #    prepareosd:
+  # clusterMetadata annotations will be applied to only `rook-ceph-mon-endpoints` configmap and the `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets.
+  # And clusterMetadata annotations will not be merged with `all` annotations.
+  #    clusterMetadata:
+  #       kubed.appscode.com/sync: "true"
+  # If no mgr annotations are set, prometheus scrape annotations will be set by default.
+  #    mgr:
   labels:
-#    all:
-#    mon:
-#    osd:
-#    cleanup:
-#    mgr:
-#    prepareosd:
-# monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
-# These labels can be passed as LabelSelector to Prometheus
-#    monitoring:
-#    crashcollector:
+  #    all:
+  #    mon:
+  #    osd:
+  #    cleanup:
+  #    mgr:
+  #    prepareosd:
+  # monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
+  # These labels can be passed as LabelSelector to Prometheus
+  #    monitoring:
+  #    crashcollector:
   resources:
-# The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
-#    mgr:
-#      limits:
-#        cpu: "500m"
-#        memory: "1024Mi"
-#      requests:
-#        cpu: "500m"
-#        memory: "1024Mi"
-# The above example requests/limits can also be added to the other components
-#    mon:
-#    osd:
-# For OSD it also is a possible to specify requests/limits based on device class
-#    osd-hdd:
-#    osd-ssd:
-#    osd-nvme:
-#    prepareosd:
-#    mgr-sidecar:
-#    crashcollector:
-#    logcollector:
-#    cleanup:
+  # The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
+  #    mgr:
+  #      limits:
+  #        cpu: "500m"
+  #        memory: "1024Mi"
+  #      requests:
+  #        cpu: "500m"
+  #        memory: "1024Mi"
+  # The above example requests/limits can also be added to the other components
+  #    mon:
+  #    osd:
+  # For OSD it also is a possible to specify requests/limits based on device class
+  #    osd-hdd:
+  #    osd-ssd:
+  #    osd-nvme:
+  #    prepareosd:
+  #    mgr-sidecar:
+  #    crashcollector:
+  #    logcollector:
+  #    cleanup:
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
   priorityClassNames:
@@ -232,8 +232,8 @@ spec:
       # journalSizeMB: "1024"  # uncomment if the disks are 20 GB or smaller
       # osdsPerDevice: "1" # this value can be overridden at the node or device level
       # encryptedDevice: "true" # the default value for this option is "false"
-# Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
-# nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
+    # Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
+    # nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
     # nodes:
     #   - name: "172.17.4.201"
     #     devices: # specific devices to use for storage can be specified for each node

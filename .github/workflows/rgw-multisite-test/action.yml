@@ -33,7 +33,7 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh replace_ceph_image \
-          "deploy/examples/cluster-test.yaml" "${{ inputs.ceph-image }}"
+          "deploy/examples/cluster-test.yaml" "quay.ceph.io/ceph-ci/ceph:9c59f57df6b60922a0810152a42e8734514d99c7 "
 
     - name: deploy first cluster rook
       shell: bash --noprofile --norc -eo pipefail -x {0}

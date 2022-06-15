@@ -47,7 +47,7 @@ const (
 	// test with the latest pacific build
 	pacificTestImage = "quay.io/ceph/ceph:v16"
 	// test with the latest pacific build
-	quincyTestImage = "quay.io/ceph/ceph:v17"
+	quincyTestImage = "quay.ceph.io/ceph-ci/ceph:9c59f57df6b60922a0810152a42e8734514d99c7 "
 	// test with the current development version of Pacific
 	octopusDevelTestImage = "quay.io/ceph/daemon-base:latest-octopus-devel"
 	pacificDevelTestImage = "quay.io/ceph/daemon-base:latest-pacific-devel"
