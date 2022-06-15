@@ -419,11 +419,6 @@ allowing the daemon to communicate with the rest of the cluster. There is work i
 this issue in the [multus-service](https://github.com/k8snetworkplumbingwg/multus-service)
 repository. At the time of writing it's unclear when this will be supported.
 
-#### Known issues with Multus
-
-When a CephFS/RBD volume is mounted in a Pod using cephcsi and then the CSI CephFS/RBD plugin is restarted or terminated (e.g. by restarting or deleting its DaemonSet), all operations on the volume become blocked, even after restarting the CSI pods. The only workaround is to restart the node where the cephcsi plugin pod was restarted.
-This issue is tracked [here](https://github.com/rook/rook/issues/8085).
-
 #### IPFamily
 
 Provide single-stack IPv4 or IPv6 protocol to assign corresponding addresses to pods and services. This field is optional. Possible inputs are IPv6 and IPv4. Empty value will be treated as IPv4. Kubernetes version should be at least v1.13 to run IPv6. Dual-stack is supported as of ceph Pacific.
