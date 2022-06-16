@@ -53,6 +53,7 @@ const (
 	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
 	ServiceExternalMetricName               = "http-external-metrics"
+	livenessProbeTimeoutSeconds       int32 = 2
 	livenessProbeInitialDelaySeconds  int32 = 10
 	startupProbeFailuresDaemonDefault int32 = 6 // multiply by 10 = effective startup timeout
 	// The OSD requires a long timeout in case the OSD is taking extra time to
@@ -583,6 +584,7 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 			},
 		},
 		InitialDelaySeconds: livenessProbeInitialDelaySeconds,
+		TimeoutSeconds:      livenessProbeTimeoutSeconds,
 	}
 }
 
