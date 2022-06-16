@@ -131,7 +131,7 @@ var (
 	DefaultSnapshotterImage       = "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
 	DefaultResizerImage           = "registry.k8s.io/sig-storage/csi-resizer:v1.4.0"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.3.0"
-	DefaultCSIAddonsImage         = "quay.io/csiaddons/k8s-sidecar:v0.2.1"
+	DefaultCSIAddonsImage         = "quay.io/csiaddons/k8s-sidecar:v0.4.0"
 
 	// Local package template path for RBD
 	//go:embed template/rbd/csi-rbdplugin.yaml
