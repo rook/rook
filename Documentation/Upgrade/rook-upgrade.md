@@ -45,7 +45,7 @@ those releases.
 
 ## Breaking changes in v1.9
 
-* Helm charts now define default resource requests and limits for Rook-Ceph Pods. If you use Helm,
+* Helm charts now define default resource requests and limits for Rook Pods. If you use Helm,
   ensure you have defined an override for these in your `values.yaml` if you don't wish to use the
   recommended defaults. Setting resource requests and limits could mean that Kubernetes will not
   allow Pods to be scheduled in some cases. If sufficient resources are not available, you can
@@ -100,7 +100,7 @@ kubectl apply -f common.yaml -f crds.yaml
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.9.3
 ```
 
-As exemplified above, it is a good practice to update Rook-Ceph common resources from the example
+As exemplified above, it is a good practice to update Rook common resources from the example
 manifests before any update. The common resources and CRDs might not be updated with every
 release, but K8s will only apply updates to the ones that changed.
 
@@ -152,7 +152,7 @@ export ROOK_CLUSTER_NAMESPACE=rook-ceph
 !!! hint
     If you are upgrading via the Helm chart, the common resources and CRDs are automatically updated.
 
-First apply updates to Rook-Ceph common resources. This includes modified privileges (RBAC) needed
+First apply updates to Rook common resources. This includes modified privileges (RBAC) needed
 by the Operator. Also update the Custom Resource Definitions (CRDs).
 
 Get the latest common resources manifests that contain the latest changes.
