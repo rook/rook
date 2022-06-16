@@ -373,7 +373,7 @@ csi:
   # Enable the CSIAddons sidecar.
   csiAddons:
     enabled: false
-    #image: "quay.io/csiaddons/k8s-sidecar:v0.2.1"
+    #image: "quay.io/csiaddons/k8s-sidecar:v0.4.0"
   # Enable the nfs csi driver.
   nfs:
     enabled: false
