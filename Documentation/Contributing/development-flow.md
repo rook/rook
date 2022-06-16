@@ -35,7 +35,7 @@ cd rook
 
 ### Build
 
-Building Rook-Ceph is simple.
+Building Rook Ceph is simple.
 
 ```console
 make build

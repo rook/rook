@@ -458,7 +458,7 @@ ceph osd tree
 
 ### To scale OSDs Vertically
 
-Run the following script to auto-grow the size of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
+Run the following script to auto-grow the size of OSDs on a PVC-based Rook cluster whenever the OSDs have reached the storage near-full threshold.
 
 ```console
 tests/scripts/auto-grow-storage.sh size  --max maxSize --growth-rate percent
@@ -474,7 +474,7 @@ For example, if you need to increase the size of OSD by 30% and max disk size is
 
 ### To scale OSDs Horizontally
 
-Run the following script to auto-grow the number of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
+Run the following script to auto-grow the number of OSDs on a PVC-based Rook cluster whenever the OSDs have reached the storage near-full threshold.
 
 ```console
 tests/scripts/auto-grow-storage.sh count --max maxCount --count rate

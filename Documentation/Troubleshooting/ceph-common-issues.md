@@ -667,7 +667,7 @@ as well as a second corrupted disk `/dev/sde` with one unexpected partition (`/d
    use `/dev/sdb` for data recovery and replication while the next OSDs are removed.
 5. Now Repeat steps 1-4 for `/dev/sde` and `/dev/sde2`, and continue for any other corrupted disks.
 
-If your Rook-Ceph cluster does not have any critical data stored in it, it may be simpler to
+If your Rook cluster does not have any critical data stored in it, it may be simpler to
 uninstall Rook completely and redeploy with v1.6.8 or higher.
 
 ## Operator environment variables are ignored

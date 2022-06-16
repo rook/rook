@@ -158,7 +158,7 @@ created anew.
 
 ## Health settings
 
-Rook-Ceph will be default monitor the state of the object store endpoints.
+Rook will be default monitor the state of the object store endpoints.
 The following CRD settings are available:
 
 * `healthCheck`: main object store health monitoring section
@@ -197,7 +197,7 @@ The endpoint health check procedure is the following:
 5. Verify object consistency
 6. Update CR health status check
 
-Rook-Ceph always keeps the bucket and the user for the health check, it just does a PUT and GET of an s3 object since creating a bucket is an expensive operation.
+The Rook Ceph operator always keeps the bucket and the user for the health check, it just does a PUT and GET of an s3 object since creating a bucket is an expensive operation.
 
 ## Security settings
 
@@ -259,4 +259,4 @@ Rook will warn about which buckets are blocking deletion in three ways:
 
 1. An event will be registered on the CephObjectStore resource
 1. A status condition will be added to the CephObjectStore resource
-1. An error will be added to the Rook-Ceph Operator log
+1. An error will be added to the Rook Ceph Operator log
