@@ -80,10 +80,10 @@ func (d *Discover) Start(ctx context.Context, namespace, discoverImage, security
 }
 
 func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
-	discovery_parameters := []string{"discover",
+	discoveryParameters := []string{"discover",
 		"--discover-interval", getEnvVar(discoverIntervalEnv, defaultDiscoverInterval)}
 	if useCephVolume {
-		discovery_parameters = append(discovery_parameters, "--use-ceph-volume")
+		discoveryParameters = append(discoveryParameters, "--use-ceph-volume")
 	}
 
 	ds := &apps.DaemonSet{
@@ -110,7 +110,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 						{
 							Name:            discoverDaemonsetName,
 							Image:           discoverImage,
-							Args:            discovery_parameters,
+							Args:            discoveryParameters,
 							SecurityContext: controller.PrivilegedContext(true),
 							VolumeMounts: []v1.VolumeMount{
 								{
