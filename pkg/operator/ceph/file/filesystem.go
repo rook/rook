@@ -108,6 +108,13 @@ func deleteFilesystem(
 		logger.Warningf("continuing to remove filesystem CR even though downing the filesystem failed. %v", err)
 	}
 
+	// TODO: should we move the `RemoveFilesystem()` call to be before removing MDSes? If the below
+	// fails because the FS isn't empty, is it better to leave the filesystem active in case admins
+	// want to recover data from it?
+	//
+	// Additionally, if PreserveFilesystemOnDelete is set, we won't have Ceph's safety net to do one
+	// last check to see if the FS is in use before we delete it.
+
 	// Permanently remove the filesystem if it was created by rook and the spec does not prevent it.
 	if len(fs.Spec.DataPools) != 0 && !fs.Spec.PreserveFilesystemOnDelete {
 		if err := cephclient.RemoveFilesystem(context, clusterInfo, fs.Name, fs.Spec.PreservePoolsOnDelete); err != nil {

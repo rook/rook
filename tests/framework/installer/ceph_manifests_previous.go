@@ -164,3 +164,7 @@ func (m *CephManifestsPreviousVersion) GetExternalCephCluster() string {
 func (m *CephManifestsPreviousVersion) GetRBDMirror(name string, count int) string {
 	return m.latest.GetRBDMirror(name, count)
 }
+
+func (m *CephManifestsPreviousVersion) GetFilesystemSubvolumeGroup(fsName, groupName string) string {
+	return m.latest.GetFilesystemSubvolumeGroup(fsName, groupName)
+}

@@ -19,12 +19,15 @@ package clients
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
+	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -96,7 +99,7 @@ func (f *FilesystemOperation) DeleteStorageClass(storageClassName string) error 
 	ctx := context.TODO()
 	logger.Infof("deleting storage class %q", storageClassName)
 	err := f.k8sh.Clientset.StorageV1().StorageClasses().Delete(ctx, storageClassName, metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return fmt.Errorf("failed to delete storage class %q. %v", storageClassName, err)
 	}
 
@@ -134,7 +137,7 @@ func (f *FilesystemOperation) Delete(name, namespace string) error {
 	options := &metav1.DeleteOptions{}
 	logger.Infof("Deleting filesystem %s in namespace %s", name, namespace)
 	err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Delete(ctx, name, *options)
-	if err != nil && !errors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
 
@@ -156,4 +159,58 @@ func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, e
 		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
 	return filesystems, nil
+}
+
+func (f *FilesystemOperation) CreateSubvolumeGroup(fsName, groupName string) error {
+	namespace := f.manifests.Settings().Namespace
+
+	logger.Infof("creating CephFilesystemSubVolumeGroup %q for CephFilesystem %q in namespace %q", groupName, fsName, namespace)
+	err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystemSubvolumeGroup(fsName, groupName))
+	if err != nil {
+		return err
+	}
+
+	err = f.k8sh.WaitForStatusPhase(namespace, "CephFilesystemSubVolumeGroup", groupName, "Ready", 15*time.Second)
+	if err != nil {
+		return err
+	}
+
+	svgs, err := f.k8sh.ExecToolboxWithRetry(3, namespace, "ceph", []string{"fs", "subvolumegroup", "ls", fsName})
+	if err != nil {
+		return errors.Wrapf(err, "failed to list raw ceph subvolumegroups for fs %q in namespace %q", fsName, namespace)
+	}
+	if !strings.Contains(svgs, fmt.Sprintf("%q", groupName)) {
+		return errors.Errorf("cephfs %q in namespace %q does not contain subvolumegroup %q: %v", fsName, namespace, groupName, svgs)
+	}
+
+	return nil
+}
+
+func (f *FilesystemOperation) DeleteSubvolumeGroup(fsName, groupName string) error {
+	namespace := f.manifests.Settings().Namespace
+	ctx := context.TODO()
+
+	logger.Infof("deleting CephFilesystemSubVolumeGroup %q in namespace %q", groupName, namespace)
+	err := f.k8sh.RookClientset.CephV1().CephFilesystemSubVolumeGroups(namespace).Delete(ctx, groupName, metav1.DeleteOptions{})
+	if err != nil {
+		return err
+	}
+
+	err = f.k8sh.WaitForCustomResourceDeletion(namespace, groupName, func() error {
+		_, err := f.k8sh.RookClientset.CephV1().CephFilesystemSubVolumeGroups(namespace).Get(ctx, groupName, metav1.GetOptions{})
+		return err
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed to fully delete CephFilesystemSubVolumeGroup %q in namespace %q", groupName, namespace)
+	}
+
+	svgs, err := f.k8sh.ExecToolboxWithRetry(3, namespace, "ceph", []string{"fs", "subvolumegroup", "ls", fsName})
+	if err != nil {
+		return errors.Wrapf(err, "failed to list raw ceph subvolumegroups for fs %q in namespace %q", fsName, namespace)
+	}
+	if strings.Contains(svgs, fmt.Sprintf("%q", groupName)) {
+		return errors.Errorf("cephfs %q in namespace %q still contains subvolumegroup %q: %v", fsName, namespace, groupName, svgs)
+	}
+
+	return nil
 }
