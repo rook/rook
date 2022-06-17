@@ -158,10 +158,12 @@ func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 
 	assert.Equal(t, expectedCommand, probe.ProbeHandler.Exec.Command)
 	assert.Equal(t, livenessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, livenessProbeTimeoutSeconds, probe.TimeoutSeconds)
 
 	// test with a mon so the delay should be 10
 	probe = GenerateLivenessProbeExecDaemon(config.MonType, "a")
 	assert.Equal(t, livenessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
+	assert.Equal(t, livenessProbeTimeoutSeconds, probe.TimeoutSeconds)
 }
 
 func TestDaemonFlags(t *testing.T) {
