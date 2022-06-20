@@ -132,9 +132,9 @@ The CSI-Addons Controller handles the requests from users to initiate an operati
 Users can deploy the controller by running the following commands:
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.3.0/deploy/controller/crds.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.3.0/deploy/controller/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.3.0/deploy/controller/setup-controller.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/crds.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/setup-controller.yaml
 ```
 
 This creates the required crds and configure permissions.
