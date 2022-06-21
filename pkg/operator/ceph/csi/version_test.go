@@ -83,7 +83,7 @@ func Test_extractCephCSIVersion(t *testing.T) {
 	assert.Equal(t, &expectedVersion, version)
 	assert.Nil(t, err)
 
-	csiString = []byte(`Cephcsi Version: rubish
+	csiString = []byte(`Cephcsi Version: rubbish
 	Git Commit: e58d537a07ca0184f67d33db85bf6b4911624b44
 	Go Version: go1.12.15
 	Compiler: gc

@@ -411,7 +411,7 @@ data:
   #        memory: 1Gi
   #        cpu: 500m
 
-  # Configure CSI CSI Ceph FS grpc and liveness metrics port
+  # Configure CSI Ceph FS grpc and liveness metrics port
   # CSI_CEPHFS_GRPC_METRICS_PORT: "9091"
   # CSI_CEPHFS_LIVENESS_METRICS_PORT: "9081"
   # Configure CSI RBD grpc and liveness metrics port

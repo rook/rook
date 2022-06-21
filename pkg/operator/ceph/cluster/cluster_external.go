@@ -228,7 +228,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 		return errors.Wrap(err, "failed to configure external metrics endpoint")
 	}
 
-	// Deploy external ServiceMonittor
+	// Deploy external ServiceMonitor
 	logger.Info("creating external service monitor")
 	// servicemonitor takes some metadata from the service for easy mapping
 	err = manager.EnableServiceMonitor("")

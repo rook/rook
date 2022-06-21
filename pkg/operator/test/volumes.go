@@ -62,7 +62,7 @@ func VolumeIsHostPath(volumeName, path string, volumes []v1.Volume) error {
 	return err
 }
 
-// VolumeMountExists returns returns a descriptive error if the volume mount does not exist.
+// VolumeMountExists returns a descriptive error if the volume mount does not exist.
 func VolumeMountExists(mountName string, mounts []v1.VolumeMount) error {
 	_, err := getMount(mountName, mounts)
 	return err

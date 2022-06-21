@@ -167,7 +167,7 @@ kubectl create -f realm-a-keys.yaml
 Once the admin knows the endpoint and the secret for the keys has been created, the admin should create:
 
 1. A [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-realm-settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
-1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-group-settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the the realm was pulled from.
+1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-group-settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the realm was pulled from.
 1. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-settings) referring to the CephObjectZoneGroup created above.
 1. A CephObjectStore referring to the new CephObjectZone resource.
 

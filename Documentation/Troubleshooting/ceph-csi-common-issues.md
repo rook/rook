@@ -301,7 +301,7 @@ The external-attacher is a sidecar container that attaches volumes to nodes by c
 running in Kubernetes controller-manager does not have any direct interfaces to CSI drivers. More details can
 be found [here](https://github.com/kubernetes-csi/external-attacher).
 
-If any issue exists in attaching the PVC to the application pod first check the volumettachment object created
+If any issue exists in attaching the PVC to the application pod first check the volumeattachment object created
 and also log from csi-attacher sidecar container in provisioner pod.
 
 ```console

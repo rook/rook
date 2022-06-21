@@ -293,7 +293,7 @@ spec:
             description: |
               The device health module has determined that the number of devices predicted to
               fail can not be remediated automatically, since it would take too many osd's out of
-              the cluster, impacting performance and potentially availabililty. You should add new
+              the cluster, impacting performance and potentially availability. You should add new
               OSDs to the cluster to allow data to be relocated to avoid the data integrity issues.
         - alert: CephDeviceFailureRelocationIncomplete
           expr: ceph_health_detail{name="DEVICE_HEALTH_IN_USE"} == 1
@@ -309,7 +309,7 @@ spec:
               soon, but the normal process of relocating the data on the device to other
               OSDs in the cluster is blocked.
 
-              Check the the cluster has available freespace. It may be necessary to add
+              Check the cluster has available freespace. It may be necessary to add
               more disks to the cluster to allow the data from the failing device to
               successfully migrate.
 
@@ -525,7 +525,7 @@ spec:
             type: ceph_default
             oid: 1.3.6.1.4.1.50495.1.2.1.7.2
           annotations:
-            summary: One or more platcment groups are marked unclean
+            summary: One or more placement groups are marked unclean
             description: >
               {{ $value }} PGs haven't been clean for more than 15 minutes in pool {{ $labels.name }}.
               Unclean PGs haven't been able to completely recover from a previous failure.
@@ -559,7 +559,7 @@ spec:
             description: >
               Data redundancy may be reduced, or is at risk, since one or more OSDs are at or above their
               'full' threshold. Add more capacity to the cluster, or delete unwanted data.
-        - alert: CephPGUnavilableBlockingIO
+        - alert: CephPGUnavailableBlockingIO
           # PG_AVAILABILITY, but an OSD is not in a DOWN state
           expr: ((ceph_health_detail{name="PG_AVAILABILITY"} == 1) - scalar(ceph_health_detail{name="OSD_DOWN"})) == 1
           for: 1m
@@ -597,7 +597,7 @@ spec:
             summary: Placement group(s) have not been scrubbed
             description: |
               One or more PGs have not been scrubbed recently. The scrub process is a data integrity
-              feature, protectng against bit-rot. It checks that objects and their metadata (size and
+              feature, protecting against bit-rot. It checks that objects and their metadata (size and
               attributes) match across object replicas. When PGs miss their scrub window, it may
               indicate the scrub window is too small, or PGs were not in a 'clean' state during the
               scrub window.
@@ -630,7 +630,7 @@ spec:
             summary: Placement group(s) have not been deep scrubbed
             description: |
               One or more PGs have not been deep scrubbed recently. Deep scrub is a data integrity
-              feature, protectng against bit-rot. It compares the contents of objects and their
+              feature, protecting against bit-rot. It compares the contents of objects and their
               replicas for inconsistency. When PGs miss their deep scrub window, it may indicate
               that the window is too small or PGs were not in a 'clean' state during the deep-scrub
               window.
@@ -767,7 +767,7 @@ spec:
           annotations:
             summary: One or more Ceph pools are getting full
             description: |
-              A pool has exceeeded it warning (percent full) threshold, or the OSDs
+              A pool has exceeded it warning (percent full) threshold, or the OSDs
               supporting the pool have reached their NEARFULL thresholds. Writes may
               continue, but you are at risk of the pool going read only if more capacity
               isn't made available.

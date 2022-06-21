@@ -257,7 +257,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 		volumeGroupName := getVolumeGroupName(deviceOSDs[0].BlockPath)
 
 		// If empty the osd is using the ceph-volume raw mode
-		// so it's consumming a raw block device and LVM is not used
+		// so it's consuming a raw block device and LVM is not used
 		// so there is nothing to de-activate
 		if volumeGroupName != "" {
 			if err := releaseLVMDevice(context, volumeGroupName); err != nil {

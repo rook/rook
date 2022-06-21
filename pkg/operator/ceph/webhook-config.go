@@ -255,7 +255,7 @@ func webhookRules(name, resource, resourceServicePath string) admv1.ValidatingWe
 	}
 }
 
-func deleteIssuerAndCetificate(ctx context.Context, certMgrClient *cs.CertmanagerV1Client, clusterdContext *clusterd.Context) error {
+func deleteIssuerAndCertificate(ctx context.Context, certMgrClient *cs.CertmanagerV1Client, clusterdContext *clusterd.Context) error {
 
 	err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(ctx, webhookConfigName, metav1.DeleteOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {

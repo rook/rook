@@ -180,7 +180,7 @@ function creatingPrerequisites(){
    echo "creating Prerequisites deployments - Prometheus Operator and Prometheus Instances"
    # creating Prometheus operator
    kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
-   # waitng for Prometheus operator to get ready
+   # waiting for Prometheus operator to get ready
    timeout 30 sh -c "until [ $(kubectl get pod -l app.kubernetes.'io/name'=prometheus-operator -o json | jq -r '.items[0].status.phase') = Running ]; do echo 'waiting for prometheus-operator to get created' && sleep 1; done"
    # creating a service monitor that will watch the Rook cluster and collect metrics regularly
    kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/service-monitor.yaml
@@ -190,7 +190,7 @@ function creatingPrerequisites(){
    kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/prometheus.yaml
    # create prometheus-service
    kubectl create -f https://raw.githubusercontent.com/rook/rook/master/deploy/examples/monitoring/prometheus-service.yaml
-   # waitng for prometheus-rook-prometheus-0 pod to get ready
+   # waiting for prometheus-rook-prometheus-0 pod to get ready
    timeout 60 sh -c "until [ $(kubectl get pod -l prometheus=rook-prometheus -nrook-ceph -o json | jq -r '.items[0].status.phase') = Running ]; do echo 'waiting for prometheus-rook-prometheus-0 pod to get created' && sleep 1; done"
    if [ "$(kubectl get pod -l prometheus=rook-prometheus -nrook-ceph)" == "" ]
    then

@@ -271,7 +271,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		}
 	}
 
-	// create the filesystem ('fs new' needs to be forced in order to reuse pre-existing pools)
+	// create the filesystem ('fs new' needs to be forced in order to reuse preexisting pools)
 	// if only one pool is created new it won't work (to avoid inconsistencies).
 	if err := cephclient.CreateFilesystem(context, clusterInfo, f.Name, metadataPool.Name, dataPoolNames); err != nil {
 		return err

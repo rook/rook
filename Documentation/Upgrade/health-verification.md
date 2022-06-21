@@ -4,7 +4,7 @@ title: Health Verification
 
 Rook and Ceph upgrades are designed to ensure data remains available even while
 the upgrade is proceeding. Rook will perform the upgrades in a rolling fashion
-such that application pods are are not disrupted. To ensure the upgrades are
+such that application pods are not disrupted. To ensure the upgrades are
 seamless, it is important to begin the upgrades with Ceph in a fully healthy state.
 Let's first review some ways that you can verify the health of your cluster.
 

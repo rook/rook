@@ -167,7 +167,7 @@ func TestGetOSDFailureDomains(t *testing.T) {
 			expectedDrainingFailureDomains: []string{},
 		},
 		{
-			name: "case 2: osd in zone-1 is pending and node is unscheduable",
+			name: "case 2: osd in zone-1 is pending and node is unschedulable",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
 				fakeOSDDeployment(3, 1)},
 			osdPods: []corev1.Pod{fakeOSDPod(1, ""), fakeOSDPod(2, nodeName),
@@ -178,7 +178,7 @@ func TestGetOSDFailureDomains(t *testing.T) {
 			expectedDrainingFailureDomains: []string{"zone-1"},
 		},
 		{
-			name: "case 3: osd in zone-1 and zone-2 are pending and node is unscheduable",
+			name: "case 3: osd in zone-1 and zone-2 are pending and node is unschedulable",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 0),
 				fakeOSDDeployment(3, 1)},
 			osdPods: []corev1.Pod{fakeOSDPod(1, ""), fakeOSDPod(2, ""),
@@ -189,7 +189,7 @@ func TestGetOSDFailureDomains(t *testing.T) {
 			expectedDrainingFailureDomains: []string{"zone-1", "zone-2"},
 		},
 		{
-			name: "case 4: osd in zone-1 is pending but osd node is scheduable",
+			name: "case 4: osd in zone-1 is pending but osd node is schedulable",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
 				fakeOSDDeployment(3, 1)},
 			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),
@@ -200,7 +200,7 @@ func TestGetOSDFailureDomains(t *testing.T) {
 			expectedDrainingFailureDomains: []string{},
 		},
 		{
-			name: "case 5: osd in zone-1 is pending but osd node is not scheduable",
+			name: "case 5: osd in zone-1 is pending but osd node is not schedulable",
 			osds: []appsv1.Deployment{fakeOSDDeployment(1, 0), fakeOSDDeployment(2, 1),
 				fakeOSDDeployment(3, 1)},
 			osdPods: []corev1.Pod{fakeOSDPod(1, nodeName), fakeOSDPod(2, nodeName),

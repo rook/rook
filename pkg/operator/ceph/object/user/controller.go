@@ -148,7 +148,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to get CephObjectStoreUser")
 	}
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephObjectStoreUser.ObjectMeta.Generation
 
@@ -268,7 +268,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 }
 
 func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {
-	err := r.createorUpdateCephUser(cephObjectStoreUser)
+	err := r.createOrUpdateCephUser(cephObjectStoreUser)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
 	}
@@ -276,7 +276,7 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectStoreUser) createorUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
+func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)

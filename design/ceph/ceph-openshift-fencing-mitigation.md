@@ -38,7 +38,7 @@ else, maxUnavailable = 0.
 
 We can share a ceph health cache with the other controller-runtime reconcilers that have to watch the PG "cleanliness".
 
-The MDB will target `Machine`s selected by a label maintainted by the `machine-controller`. The label is `fencegroup.rook.io/<cluster-name>`. 
+The MDB will target `Machine`s selected by a label maintained by the `machine-controller`. The label is `fencegroup.rook.io/<cluster-name>`. 
 
 ## machine-controller
 This controller watches OSDs and `Machine`s. It ensures that each `Machine` with OSDs from a `CephCluster` have the label `fencegroup.rook.io/<cluster-name>`, and those that do not have running OSDs do not have label.
@@ -68,5 +68,5 @@ This will ensure that no `Machine` without running OSDs will be protected by the
  - MachineHealthCheck fences the Node.
  - Ceph resources on the node go down.
  - Some Ceph PGs are now not active+clean.
- - machinedisruptionbudget-controller sets maxUnavailble to 0 on the MachineDisruptionBudget.
+ - machinedisruptionbudget-controller sets maxUnavailable to 0 on the MachineDisruptionBudget.
  - If another labeled node needs to be fenced, it will only happen after the Ceph PGs become active+clean again when the OSDs are rescheduled and backfilled.

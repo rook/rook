@@ -648,7 +648,7 @@ workaround are still at risk for OSD failures in the future.
 
 To resolve the issue, immediately update to v1.6.8 or higher. After the update, no corruption should
 occur on OSDs created in the future. Next, to get back to a healthy Ceph cluster state, focus on one
-corruped disk at a time and [remove all OSDs on each corrupted disk](../Storage-Configuration/Advanced/ceph-osd-mgmt.md#remove-an-osd)
+corrupted disk at a time and [remove all OSDs on each corrupted disk](../Storage-Configuration/Advanced/ceph-osd-mgmt.md#remove-an-osd)
 one disk at a time.
 
 As an example, you may have `/dev/sdb` with two unexpected partitions (`/dev/sdb2` and `/dev/sdb3`)
@@ -665,7 +665,7 @@ as well as a second corrupted disk `/dev/sde` with one unexpected partition (`/d
    See [the teardown document](../Storage-Configuration/ceph-teardown.md#zapping-devices) for details.
 4. After this, scale up the Rook operator to deploy a new OSD to `/dev/sdb`. This will allow Ceph to
    use `/dev/sdb` for data recovery and replication while the next OSDs are removed.
-5. Now Repeat steps 1-4 for `/dev/sde` and `/dev/sde2`, and continue for any other corruped disks.
+5. Now Repeat steps 1-4 for `/dev/sde` and `/dev/sde2`, and continue for any other corrupted disks.
 
 If your Rook-Ceph cluster does not have any critical data stored in it, it may be simpler to
 uninstall Rook completely and redeploy with v1.6.8 or higher.

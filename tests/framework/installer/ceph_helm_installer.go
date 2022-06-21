@@ -122,8 +122,8 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 		"resources": nil,
 	}
 	values["monitoring"] = map[string]interface{}{
-		"enabled":              true,
-		"createPromtheusRules": true,
+		"enabled":               true,
+		"createPrometheusRules": true,
 	}
 	values["ingress"] = map[string]interface{}{
 		"dashboard": map[string]interface{}{
