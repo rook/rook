@@ -164,14 +164,12 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 
 	// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
 	if useCronJobV1 {
-		// delete v1beta1 cronJob if it already exists
-		err := r.client.Delete(r.opManagerContext, &v1beta1.CronJob{ObjectMeta: objectMeta})
-		if err != nil && !apierrors.IsNotFound(err) {
-			return controllerutil.OperationResultNone, errors.Wrapf(err, "failed to delete CronJob v1Beta1 %q", prunerName)
+		if err := r.deletev1betaJob(objectMeta); err != nil {
+			return controllerutil.OperationResultNone, err
 		}
 
 		cronJob := &v1.CronJob{ObjectMeta: objectMeta}
-		err = controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
+		err := controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
 		if err != nil {
 			return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", cronJob.Name)
 		}
@@ -202,6 +200,20 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 	}
 
 	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, cronJob, mutateFunc)
+}
+
+func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) error {
+	// delete v1beta1 cronJob on an update to v1 job,only if v1 job is not created yet
+	if _, err := r.context.Clientset.BatchV1().CronJobs(objectMeta.Namespace).Get(r.opManagerContext, prunerName, metav1.GetOptions{}); err != nil {
+		if apierrors.IsNotFound(err) {
+			err = r.client.Delete(r.opManagerContext, &v1beta1.CronJob{ObjectMeta: objectMeta})
+			if err != nil && !apierrors.IsNotFound(err) {
+				return errors.Wrapf(err, "failed to delete CronJob v1Beta1 %q", prunerName)
+			}
+		}
+	}
+
+	return nil
 }
 
 func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
