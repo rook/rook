@@ -179,7 +179,7 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		}
 	}
 
-	// Depending on the cluster type choose the correct orchestation
+	// Depending on the cluster type choose the correct orchestration
 	if cluster.Spec.External.Enable {
 		err := c.configureExternalCephCluster(cluster)
 		if err != nil {

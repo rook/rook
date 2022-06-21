@@ -10,7 +10,7 @@ The CPU limits would merely limit the "throughput" of the component when reachin
 
 ## Application of Resource Constraints
 The resource constraints are defined in the rook Cluster, Filesystem and RGW CRDs.
-The default is to not set resource requirements, this translates to the `qosClasss: BestEffort` (`qosClasss` will be later on explained in [Automatic Algorithm](#automatic-algorithm)).
+The default is to not set resource requirements, this translates to the `qosClass: BestEffort` (`qosClass` will be later on explained in [Automatic Algorithm](#automatic-algorithm)).
 
 ### Automatic Algorithm
 The user is able to enable and disable the automatic resource algorithm as he wants.

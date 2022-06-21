@@ -64,7 +64,7 @@ func (o *ObjectUserOperation) UserSecretExists(namespace string, store string, u
 	//GetResource(blah) returns success if blah is or is not found.
 	//err = success and found_sec not "No resources found." means it was found
 	//err = success and found_sec contains "No resources found." means it was not found
-	//err != success is an other error
+	//err != success is another error
 	if err == nil && !strings.Contains(message, "No resources found") {
 		logger.Infof("Object User Secret Exists")
 		return true

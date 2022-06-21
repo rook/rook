@@ -271,7 +271,7 @@ func placementTestGetTopologySpreadConstraints(topologyKey string) []v1.Topology
 		{
 			MaxSkew:           1,
 			TopologyKey:       topologyKey,
-			WhenUnsatisfiable: "DoNotScheudule",
+			WhenUnsatisfiable: "DoNotSchedule",
 			LabelSelector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{"foo": "bar"},
 			},

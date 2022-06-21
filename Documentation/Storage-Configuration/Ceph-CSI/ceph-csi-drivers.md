@@ -12,7 +12,7 @@ There are three CSI drivers integrated with Rook that will enable different scen
   pods, or the exports can be mounted directly via an NFS client from inside or outside the
   Kubernetes cluster. [More information](../../CRDs/ceph-nfs-crd.md#ceph-csi-nfs-provisioner-and-nfs-csi-driver).
 
-The Ceph Filesysetem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically with
+The Ceph Filesystem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically with
 the Rook operator. The NFS driver is disabled by default. All drivers will be started in the same
 namespace as the operator when the first CephCluster CR is created.
 

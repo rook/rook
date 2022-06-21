@@ -239,7 +239,7 @@ export DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES=true
 export ADDITIONAL_HELM_CLI_OPTIONS="--set csi.nfs.enabled=true"
 ./build/rbac/get-helm-rbac.sh > "$OLM_RBAC_YAML_FILE"
 
-# TODO: do we need separate clusterrole/clusterrolebinding/role/rolebinding/servicaccount files, or
+# TODO: do we need separate clusterrole/clusterrolebinding/role/rolebinding/serviceaccount files, or
 # can these just stay in rbac.yaml? If they need to be separate, we can do that here with YQ.
 
 generate_csv "$@"

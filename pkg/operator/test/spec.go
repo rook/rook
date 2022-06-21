@@ -71,7 +71,7 @@ func ArgumentsMatchExpected(actualArgs []string, expectedArgs [][]string) error 
 	return nil
 }
 
-// AssertLabelsContainRookRequirements asserts that the the labels under test contain the labels
+// AssertLabelsContainRookRequirements asserts that the labels under test contain the labels
 // which all Rook pods should have. This can be used with labels for Kubernetes Deployments,
 // DaemonSets, etc.
 func AssertLabelsContainRookRequirements(t *testing.T, labels map[string]string, appName string) {

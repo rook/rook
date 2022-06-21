@@ -54,7 +54,7 @@ func TestNodeExists(t *testing.T) {
 }
 
 func TestResolveNodeNotExist(t *testing.T) {
-	// a non existing node should return nil
+	// a nonexistent node should return nil
 	storageSpec := StorageScopeSpec{}
 	node := storageSpec.ResolveNode("fake node")
 	assert.Nil(t, node)

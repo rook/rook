@@ -66,7 +66,7 @@ func TestNewS3Agent(t *testing.T) {
 		assert.NotNil(t, s3Agent.Client.Config.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs)
 		assert.False(t, *s3Agent.Client.Config.DisableSSL)
 	})
-	t.Run("test with insesure tls client cert", func(t *testing.T) {
+	t.Run("test with insecure tls client cert", func(t *testing.T) {
 		debug := true
 		insecure := true
 		tlsCert := []byte("tlsCert")

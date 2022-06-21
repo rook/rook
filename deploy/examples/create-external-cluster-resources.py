@@ -667,9 +667,9 @@ class RadosJSON:
     def _join_host_port(self, endpoint, port):
         port = "{}".format(port)
         # regex to check the given endpoint is enclosed in square brackets
-        ipv6_regx = re.compile(r"^\[[^]]*\]$")
+        ipv6_regex = re.compile(r"^\[[^]]*\]$")
         # endpoint has ':' in it and if not (already) enclosed in square brackets
-        if endpoint.count(":") and not ipv6_regx.match(endpoint):
+        if endpoint.count(":") and not ipv6_regex.match(endpoint):
             endpoint = "[{}]".format(endpoint)
         if not port:
             return endpoint

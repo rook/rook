@@ -5,7 +5,7 @@ title: Ceph Upgrades
 This guide will walk you through the steps to upgrade the version of Ceph in a Rook cluster.
 Rook and Ceph upgrades are designed to ensure data remains available even while
 the upgrade is proceeding. Rook will perform the upgrades in a rolling fashion
-such that application pods are are not disrupted.
+such that application pods are not disrupted.
 
 Rook is cautious when performing upgrades. When an upgrade is requested (the Ceph image has been
 updated in the CR), Rook will go through all the daemons one by one and will individually perform
