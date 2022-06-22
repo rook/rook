@@ -17,11 +17,9 @@ limitations under the License.
 package utils
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -46,6 +44,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 )
@@ -213,16 +212,8 @@ func getManifestFromURL(url string) (string, error) {
 	return string(body), nil
 }
 
-func (k8sh *K8sHelper) Exec(namespace, podName, command string, commandArgs []string) (string, error) {
-	return k8sh.ExecWithRetry(1, namespace, podName, command, commandArgs)
-}
-
-func (k8sh *K8sHelper) ExecRemote(namespace, command string, commandArgs []string) (string, error) {
-	return k8sh.ExecRemoteWithRetry(1, namespace, command, commandArgs)
-}
-
-// ExecRemoteWithRetry will attempt to remotely (in toolbox) run a command "retries" times, waiting 3s between each call. Upon success, returns the output.
-func (k8sh *K8sHelper) ExecRemoteWithRetry(retries int, namespace, command string, commandArgs []string) (string, error) {
+// ExecToolboxWithRetry will attempt to run a toolbox command "retries" times, waiting 3s between each call. Upon success, returns the output.
+func (k8sh *K8sHelper) ExecToolboxWithRetry(retries int, namespace, command string, commandArgs []string) (string, error) {
 	var err error
 	var output, stderr string
 	cliFinal := append([]string{command}, commandArgs...)
@@ -237,49 +228,6 @@ func (k8sh *K8sHelper) ExecRemoteWithRetry(retries int, namespace, command strin
 		}
 	}
 	return "", fmt.Errorf("remote exec command %v failed on pod in namespace %s. %s. %s. %+v", cliFinal, namespace, output, stderr, err)
-}
-
-// ExecWithRetry will attempt to run a command "retries" times, waiting 3s between each call. Upon success, returns the output.
-func (k8sh *K8sHelper) ExecWithRetry(retries int, namespace, podName, command string, commandArgs []string) (string, error) {
-	var err error
-	for i := 0; i < retries; i++ {
-		args := []string{"exec", "-n", namespace, podName, "--", command}
-		args = append(args, commandArgs...)
-		var result string
-		result, err = k8sh.Kubectl(args...)
-		if err == nil {
-			return result, nil
-		}
-		if i < retries-1 {
-			time.Sleep(3 * time.Second)
-		}
-	}
-	return "", fmt.Errorf("%s exec command %s failed on pod %s in namespace %s. %+v", cmd, command, podName, namespace, err)
-}
-
-// ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context
-func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinition string, config map[string]string) (string, error) {
-
-	t := template.New("testTemplate")
-	t, err := t.Parse(podDefinition)
-	if err != nil {
-		return err.Error(), err
-	}
-	var tpl bytes.Buffer
-
-	if err := t.Execute(&tpl, config); err != nil {
-		return err.Error(), err
-	}
-
-	podDef := tpl.String()
-
-	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(podDef, args...)
-	if err == nil {
-		return result, nil
-	}
-	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
-	return "", fmt.Errorf("Could not %s resource in args : %v  %v-- %v", action, args, podDef, err)
 }
 
 // ResourceOperation performs a kubectl action on a pod definition
@@ -411,6 +359,28 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 		time.Sleep(RetryInterval * time.Second)
 	}
 	return fmt.Errorf("Giving up waiting for pods with label %s in namespace %s", label, namespace)
+}
+
+func (k8sh *K8sHelper) WaitForStatusPhase(namespace, kind, name, desiredPhase string, timeout time.Duration) error {
+	baseErr := fmt.Sprintf("waiting for resource %q %q in namespace %q to have status.phase %q", kind, name, namespace, desiredPhase)
+	err := wait.Poll(3*time.Second, timeout, func() (done bool, err error) {
+		phase, err := k8sh.GetResource("--namespace", namespace, kind, name, "--output", "jsonpath={.status.phase}")
+		if err != nil {
+			logger.Warningf("error %s. %v", baseErr, err)
+		}
+
+		if phase == desiredPhase {
+			return true, nil
+		}
+
+		logger.Infof(baseErr)
+		return false, nil
+	})
+	if err != nil {
+		return errors.Wrapf(err, "failed %s", baseErr)
+	}
+
+	return nil
 }
 
 // IsPodWithLabelPresent return true if there is at least one Pod with the label is present.

@@ -24,6 +24,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -380,4 +381,73 @@ func GetMDSDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*MDSDump, 
 		return nil, errors.Wrapf(err, "failed to unmarshal fs dump. %s", buf)
 	}
 	return &dump, nil
+}
+
+// SubvolumeGroup is a representation of a Ceph filesystem subvolume group.
+type SubvolumeGroup struct {
+	Name string `json:"name"`
+}
+
+// SubvolumeGroupList is the representation Ceph returns when listing Ceph filesystem subvolume groups.
+type SubvolumeGroupList []SubvolumeGroup
+
+// ListSubvolumeGroups lists all subvolume groups in a given filesystem by name.
+// Times out after 5 seconds.
+var ListSubvolumeGroups = listSubvolumeGroups
+
+// with above, allow this to be overridden for unit testing
+func listSubvolumeGroups(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) (SubvolumeGroupList, error) {
+	svgs := SubvolumeGroupList{}
+
+	args := []string{"fs", "subvolumegroup", "ls", fsName}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	buf, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return svgs, errors.Wrapf(err, "failed to list subvolumegroups in filesystem %q", fsName)
+	}
+
+	if err := json.Unmarshal(buf, &svgs); err != nil {
+		return svgs, errors.Wrapf(err, "failed to unmarshal subvolumegroup list for filesystem %q", fsName)
+	}
+
+	return svgs, nil
+}
+
+// Subvolume is a representation of a Ceph filesystem subvolume.
+type Subvolume struct {
+	Name string `json:"name"`
+}
+
+// SubvolumeList is the representation Ceph returns when listing Ceph filesystem subvolumes.
+type SubvolumeList []Subvolume
+
+// NoSubvolumeGroup can be passed to commands that operate on filesystem subvolume groups to
+// indicate the case where there is no subvolume group.
+const NoSubvolumeGroup = ""
+
+// ListSubvolumesInGroup lists all subvolumes present in the given filesystem's subvolume group by
+// name. If groupName is empty, list subvolumes that are not in any group. Times out after 5 seconds.
+var ListSubvolumesInGroup = listSubvolumesInGroup
+
+// with above, allow this to be overridden for unit testing
+func listSubvolumesInGroup(context *clusterd.Context, clusterInfo *ClusterInfo, fsName, groupName string) (SubvolumeList, error) {
+	svs := SubvolumeList{}
+
+	args := []string{"fs", "subvolume", "ls", fsName}
+	if groupName != NoSubvolumeGroup {
+		args = append(args, groupName)
+	}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	// if the command takes a long time to run, this is a good indication that there are *many*
+	// subvolumes present
+	buf, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return svs, errors.Wrapf(err, "failed to list subvolumes in filesystem %q subvolume group %q", fsName, groupName)
+	}
+
+	if err := json.Unmarshal(buf, &svs); err != nil {
+		return svs, errors.Wrapf(err, "failed to unmarshal subvolume list for filesystem %q subvolume group %q", fsName, groupName)
+	}
+
+	return svs, nil
 }

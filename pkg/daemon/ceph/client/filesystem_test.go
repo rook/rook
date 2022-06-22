@@ -23,9 +23,8 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	exectest "github.com/rook/rook/pkg/util/exec/test"
-
 	"github.com/rook/rook/pkg/clusterd"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -586,4 +585,151 @@ func TestWaitForNoStandbys(t *testing.T) {
 	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), 6*time.Second)
 	assert.NoError(t, err)
 
+}
+
+func TestListSubvolumeGroups(t *testing.T) {
+	fsName := "myfs"
+
+	newContext := func(retString string, retErr error) *clusterd.Context {
+		t.Helper()
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				t.Logf("Command: %s %v", command, args)
+				if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "ls" && args[3] == fsName {
+					return retString, retErr
+				}
+				panic(fmt.Sprintf("unhandled command %q %v", command, args))
+			},
+		}
+
+		return &clusterd.Context{Executor: executor}
+	}
+
+	t.Run("no groups", func(t *testing.T) {
+		ctx := newContext("[]", nil)
+		ret, err := ListSubvolumeGroups(ctx, AdminTestClusterInfo("mycluster"), fsName)
+		assert.NoError(t, err)
+		assert.Empty(t, ret)
+	})
+
+	t.Run("one group", func(t *testing.T) {
+		ctx := newContext(`[
+    {
+        "name": "csi"
+    }
+]
+`, nil)
+		ret, err := ListSubvolumeGroups(ctx, AdminTestClusterInfo("mycluster"), fsName)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, ret, SubvolumeGroupList{
+			SubvolumeGroup{Name: "csi"},
+		})
+	})
+
+	t.Run("multiple groups", func(t *testing.T) {
+		ctx := newContext(`[
+    {
+        "name": "group-a"
+    },
+    {
+        "name": "csi"
+    }
+]
+`, nil)
+		ret, err := ListSubvolumeGroups(ctx, AdminTestClusterInfo("mycluster"), fsName)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, ret, SubvolumeGroupList{
+			SubvolumeGroup{Name: "group-a"},
+			SubvolumeGroup{Name: "csi"},
+		})
+	})
+
+	t.Run("cli return error", func(t *testing.T) {
+		ctx := newContext(`[
+    {
+        "name": "csi"
+    }
+]`, errors.New("induced error"))
+		ret, err := ListSubvolumeGroups(ctx, AdminTestClusterInfo("mycluster"), fsName)
+		assert.Error(t, err)
+		t.Log("error return", err.Error())
+		assert.Contains(t, err.Error(), `induced error`)
+		assert.Contains(t, err.Error(), `failed to list subvolumegroups in filesystem "myfs"`)
+		assert.Empty(t, ret)
+	})
+}
+
+func TestListSubvolumesInGroup(t *testing.T) {
+	fsName := "myfs"
+	groupName := "csi"
+
+	newContext := func(retString string, retErr error) *clusterd.Context {
+		t.Helper()
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				t.Logf("Command: %s %v", command, args)
+				if args[0] == "fs" && args[1] == "subvolume" && args[2] == "ls" && args[3] == fsName && args[4] == groupName {
+					return retString, retErr
+				}
+				panic(fmt.Sprintf("unhandled command %q %v", command, args))
+			},
+		}
+
+		return &clusterd.Context{Executor: executor}
+	}
+
+	t.Run("no subvolumes", func(t *testing.T) {
+		ctx := newContext("[]", nil)
+		ret, err := ListSubvolumesInGroup(ctx, AdminTestClusterInfo("mycluster"), fsName, groupName)
+		assert.NoError(t, err)
+		assert.Empty(t, ret)
+	})
+
+	t.Run("one subvolume", func(t *testing.T) {
+		ctx := newContext(`[
+    {
+        "name": "csi-vol-hash"
+    }
+]
+`, nil)
+		ret, err := ListSubvolumesInGroup(ctx, AdminTestClusterInfo("mycluster"), fsName, groupName)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, ret, SubvolumeList{
+			Subvolume{Name: "csi-vol-hash"},
+		})
+	})
+
+	t.Run("multiple groups", func(t *testing.T) {
+		ctx := newContext(`[
+    {
+        "name": "csi-vol-hash"
+    },
+    {
+        "name": "csi-nfs-vol-hash"
+    }
+]
+`, nil)
+		ret, err := ListSubvolumesInGroup(ctx, AdminTestClusterInfo("mycluster"), fsName, groupName)
+		assert.NoError(t, err)
+		assert.ElementsMatch(t, ret, SubvolumeList{
+			Subvolume{Name: "csi-vol-hash"},
+			Subvolume{Name: "csi-nfs-vol-hash"},
+		})
+	})
+
+	t.Run("cli return error", func(t *testing.T) {
+		ctx := newContext(`[
+    {
+        "name": "csi-vol-hash"
+    }
+]`, errors.New("induced error"))
+		ret, err := ListSubvolumesInGroup(ctx, AdminTestClusterInfo("mycluster"), fsName, groupName)
+		assert.Error(t, err)
+		t.Log("error return", err.Error())
+		assert.Contains(t, err.Error(), `induced error`)
+		assert.Contains(t, err.Error(), `failed to list subvolumes in filesystem "myfs" subvolume group "csi"`)
+		assert.Empty(t, ret)
+	})
 }

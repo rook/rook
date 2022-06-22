@@ -71,9 +71,6 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
 
-// allow this to be overridden for unit tests
-var cephFilesystemDependents = CephFilesystemDependents
-
 // ReconcileCephFilesystem reconciles a CephFilesystem object
 type ReconcileCephFilesystem struct {
 	client           client.Client
@@ -248,7 +245,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// DELETE: the CR was deleted
 	if !cephFilesystem.GetDeletionTimestamp().IsZero() {
-		deps, err := cephFilesystemDependents(r.context, r.clusterInfo, cephFilesystem)
+		deps, err := CephFilesystemDependents(r.context, r.clusterInfo, cephFilesystem)
 		if err != nil {
 			return reconcile.Result{}, *cephFilesystem, err
 		}
