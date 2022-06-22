@@ -80,3 +80,10 @@ func (n *NFSOperation) Delete(namespace, name string) error {
 	logger.Infof("Deleted nfs %s in namespace %s", name, namespace)
 	return nil
 }
+
+// CreateStorageClass creates a storage class for NFS clients
+func (f *NFSOperation) CreateStorageClass(fsName, nfsClusterName, systemNamespace, namespace, storageClassName string) error {
+	server := fmt.Sprintf("rook-ceph-nfs-%s-a.%s.svc.cluster.local", nfsClusterName, namespace)
+
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName))
+}
