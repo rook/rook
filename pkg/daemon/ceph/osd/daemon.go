@@ -277,6 +277,16 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 	return nil
 }
 
+func matchDevLinks(devLinks, deviceName string) bool {
+	for _, link := range strings.Split(devLinks, " ") {
+		if link == deviceName {
+			logger.Infof("%q found in the desired devices (matched by link: %q)", deviceName, link)
+			return true
+		}
+	}
+	return false
+}
+
 func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsdMapping, error) {
 	desiredDevices := agent.devices
 	logger.Debugf("desiredDevices are %+v", desiredDevices)
@@ -413,18 +423,11 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 							break
 						}
 					}
-				} else if device.Name == desiredDevice.Name {
+				} else if device.Name == desiredDevice.Name || filepath.Join("/dev", device.Name) == desiredDevice.Name {
 					logger.Infof("%q found in the desired devices", device.Name)
 					matched = true
 				} else if strings.HasPrefix(desiredDevice.Name, "/dev/") {
-					devLinks := strings.Split(device.DevLinks, " ")
-					for _, link := range devLinks {
-						if link == desiredDevice.Name {
-							logger.Infof("%q found in the desired devices (matched by link: %q)", device.Name, link)
-							matched = true
-							break
-						}
-					}
+					matched = matchDevLinks(device.DevLinks, desiredDevice.Name)
 				}
 				matchedDevice = desiredDevice
 
