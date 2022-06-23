@@ -382,6 +382,12 @@ parameters:
 mountOptions:
   - "nolock"
 `
+	// "nolock" mountOptions has been added to prevent the following error in ci environment:
+	// rpc error: code = Internal desc = mount failed: exit status 32
+	// Mounting command: mount
+	// Mounting arguments: -t nfs <src> <dest>
+	// Output: mount.nfs: rpc.statd is not running but is required for remote locking.
+	// mount.nfs: Either use '-o nolock' to keep locks local, or start statd.
 	return sc
 }
 
