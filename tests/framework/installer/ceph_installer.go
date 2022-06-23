@@ -129,7 +129,7 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 		return errors.Errorf("Failed to create rook-operator pod: %v ", err)
 	}
 
-	if h.settings.EnableCSINFS {
+	if h.settings.TestNFSCSI {
 		csiNFSRBAC := h.Manifests.GetCSINFSRBAC()
 		if _, err = h.k8shelper.KubectlWithStdin(csiNFSRBAC, createFromStdinArgs...); err != nil {
 			return err
@@ -768,7 +768,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			} else {
 				logger.Infof("done deleting all the resources in the common manifest")
 			}
-			if h.settings.EnableCSINFS {
+			if h.settings.TestNFSCSI {
 				_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetCSINFSRBAC(), deleteFromStdinArgs...)
 				if err != nil {
 					logger.Errorf("failed to remove csi nfs rbac manifest. %v", err)
