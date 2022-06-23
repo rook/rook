@@ -609,6 +609,27 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 				if device.Config.MetadataDevice != "" {
 					md = device.Config.MetadataDevice
 				}
+
+				var metadataDevice *sys.LocalDisk
+				for _, localDevice := range context.Devices {
+					if localDevice.Name == md || filepath.Join("/dev", localDevice.Name) == md {
+						logger.Infof("%s found in the desired metadata devices", md)
+						metadataDevice = localDevice
+						break
+					}
+					if strings.HasPrefix(md, "/dev/") && matchDevLinks(localDevice.DevLinks, md) {
+						metadataDevice = localDevice
+						break
+					}
+				}
+				if metadataDevice == nil {
+					return errors.Errorf("metadata device %s is not found", md)
+				}
+				// lvm device format is /dev/<vg>/<lv>
+				if metadataDevice.Type != sys.LVMType {
+					md = metadataDevice.Name
+				}
+
 				logger.Infof("using %s as metadataDevice for device %s and let ceph-volume lvm batch decide how to create volumes", md, deviceArg)
 				if _, ok := metadataDevices[md]; ok {
 					// Fail when two devices using the same metadata device have different values for osdsPerDevice
