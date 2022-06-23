@@ -27,6 +27,7 @@ import (
 type CephManifests interface {
 	Settings() *TestCephSettings
 	GetCRDs(k8shelper *utils.K8sHelper) string
+	GetCSINFSRBAC() string
 	GetOperator() string
 	GetCommon() string
 	GetCommonExternal() string
@@ -36,6 +37,7 @@ type CephManifests interface {
 	GetBlockPool(poolName, replicaSize string) string
 	GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string
 	GetFileStorageClass(fsName, storageClassName string) string
+	GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName string) string
 	GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string
 	GetFileStorageSnapshotClass(snapshotClassName, reclaimPolicy string) string
 	GetFilesystem(name string, activeCount int) string
@@ -75,6 +77,10 @@ func (m *CephManifestsMaster) Settings() *TestCephSettings {
 
 func (m *CephManifestsMaster) GetCRDs(k8shelper *utils.K8sHelper) string {
 	return m.settings.readManifest("crds.yaml")
+}
+
+func (m *CephManifestsMaster) GetCSINFSRBAC() string {
+	return m.settings.readManifest("/csi/nfs/rbac.yaml")
 }
 
 func (m *CephManifestsMaster) GetOperator() string {
@@ -350,6 +356,32 @@ parameters:
 		// kernel is available in minikube, we need to test with fuse.
 		sc += "  mounter: fuse"
 	}
+	return sc
+}
+
+func (m *CephManifestsMaster) GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName string) string {
+	// Create a CSI driver storage class
+	csiCephFSNodeSecret := "rook-csi-cephfs-node"               //nolint:gosec // We safely suppress gosec in tests file
+	csiCephFSProvisionerSecret := "rook-csi-cephfs-provisioner" //nolint:gosec // We safely suppress gosec in tests file
+	sc := `
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ` + storageClassName + `
+provisioner: ` + m.settings.OperatorNamespace + `.nfs.csi.ceph.com
+parameters:
+  clusterID: ` + m.settings.Namespace + `
+  fsName: ` + fsName + `
+  nfsCluster: ` + nfsClusterName + `
+  server: ` + server + `
+  pool: ` + fsName + `-data0
+  csi.storage.k8s.io/provisioner-secret-name: ` + csiCephFSProvisionerSecret + `
+  csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/node-stage-secret-name: ` + csiCephFSNodeSecret + `
+  csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.Namespace + `
+mountOptions:
+  - "nolock"
+`
 	return sc
 }
 
