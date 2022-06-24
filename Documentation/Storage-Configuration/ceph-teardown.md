@@ -44,7 +44,7 @@ kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"clea
 
 Once the cleanup policy is enabled, any new configuration changes in the CephCluster will be blocked. Nothing will happen until the deletion of the CR is requested, so this `cleanupPolicy` change can still be reverted if needed.
 
-Checkout more details about the `cleanupPolicy` [here](../CRDs/ceph-cluster-crd.md#cleanup-policy)
+Checkout more details about the `cleanupPolicy` [here](../CRDs/Cluster/ceph-cluster-crd.md#cleanup-policy)
 
 Delete the `CephCluster` CR.
 
