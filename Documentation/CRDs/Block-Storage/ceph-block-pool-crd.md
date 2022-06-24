@@ -81,7 +81,7 @@ spec:
 High performance applications typically will not use erasure coding due to the performance overhead of creating and distributing the chunks in the cluster.
 
 When creating an erasure-coded pool, it is highly recommended to create the pool when you have **bluestore OSDs** in your cluster
-(see the [OSD configuration settings](../ceph-cluster-crd.md#osd-configuration-settings). Filestore OSDs have
+(see the [OSD configuration settings](../Cluster/ceph-cluster-crd.md#osd-configuration-settings). Filestore OSDs have
 [limitations](http://docs.ceph.com/docs/master/rados/operations/erasure-code/#erasure-coding-with-overwrites) that are unsafe and lower performance.
 
 ### Mirroring
@@ -191,7 +191,7 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 * `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified. See below for more details on [erasure coding](#erasure-coding).
   * `dataChunks`: Number of chunks to divide the original object into
   * `codingChunks`: Number of coding chunks to generate
-* `failureDomain`: The failure domain across which the data will be spread. This can be set to a value of either `osd` or `host`, with `host` being the default setting. A failure domain can also be set to a different type (e.g. `rack`), if the OSDs are created on nodes with the supported [topology labels](../ceph-cluster-crd.md#osd-topology). If the `failureDomain` is changed on the pool, the operator will create a new CRUSH rule and update the pool.
+* `failureDomain`: The failure domain across which the data will be spread. This can be set to a value of either `osd` or `host`, with `host` being the default setting. A failure domain can also be set to a different type (e.g. `rack`), if the OSDs are created on nodes with the supported [topology labels](../Cluster/ceph-cluster-crd.md#osd-topology). If the `failureDomain` is changed on the pool, the operator will create a new CRUSH rule and update the pool.
     If a `replicated` pool of size `3` is configured and the `failureDomain` is set to `host`, all three copies of the replicated data will be placed on OSDs located on `3` different Ceph hosts. This case is guaranteed to tolerate a failure of two hosts without a loss of data. Similarly, a failure domain set to `osd`, can tolerate a loss of two OSD devices.
 
     If erasure coding is used, the data and coding chunks are spread across the configured failure domain.
@@ -274,4 +274,4 @@ The `failureDomain` must be also be taken into account when determining the numb
 
 If you do not have a sufficient number of hosts or OSDs for unique placement the pool can be created, writing to the pool will hang.
 
-Rook currently only configures two levels in the CRUSH map. It is also possible to configure other levels such as `rack` with by adding [topology labels](../ceph-cluster-crd.md#osd-topology) to the nodes.
+Rook currently only configures two levels in the CRUSH map. It is also possible to configure other levels such as `rack` with by adding [topology labels](../Cluster/ceph-cluster-crd.md#osd-topology) to the nodes.

@@ -180,7 +180,7 @@ with full list of supported encryption configurations. A sample configmap can be
 [here](https://github.com/ceph/ceph-csi/blob/v3.6.0/examples/kms/vault/kms-config.yaml).
 
 !!! note
-    Rook also supports OSD encryption (see `encryptedDevice` option [here](../../CRDs/ceph-cluster-crd.md#osd-configuration-settings)).
+    Rook also supports OSD encryption (see `encryptedDevice` option [here](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings)).
 
 Using both RBD PVC encryption and OSD encryption together will lead to double encryption and may reduce read/write performance.
 

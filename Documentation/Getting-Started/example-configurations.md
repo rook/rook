@@ -38,12 +38,12 @@ the cluster. These examples represent a very small set of the different ways to 
 * [`cluster.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml): This file contains common settings for a production storage cluster. Requires at least three worker nodes.
 * [`cluster-test.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-test.yaml): Settings for a test cluster where redundancy is not configured. Requires only a single node.
 * [`cluster-on-pvc.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-on-pvc.yaml): This file contains common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
-* [`cluster-external.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml): Connect to an [external Ceph cluster](../CRDs/ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
-* [`cluster-external-management.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external-management.yaml): Connect to an [external Ceph cluster](../CRDs/ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
+* [`cluster-external.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml): Connect to an [external Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
+* [`cluster-external-management.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external-management.yaml): Connect to an [external Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
   remote creation of pools and configure services such as an [Object Store](../Storage-Configuration/Object-Storage-RGW/object-storage.md) or a [Shared Filesystem](../Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md).
-* [`cluster-stretched.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-stretched.yaml): Create a cluster in "stretched" mode, with five mons stretched across three zones, and the OSDs across two zones. See the [Stretch documentation](../CRDs/ceph-cluster-crd.md#stretch-cluster).
+* [`cluster-stretched.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-stretched.yaml): Create a cluster in "stretched" mode, with five mons stretched across three zones, and the OSDs across two zones. See the [Stretch documentation](../CRDs/Cluster/ceph-cluster-crd.md#stretch-cluster).
 
-See the [Cluster CRD](../CRDs/ceph-cluster-crd.md) topic for more details and more examples for the settings.
+See the [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md) topic for more details and more examples for the settings.
 
 ## Setting up consumable storage
 

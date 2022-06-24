@@ -228,7 +228,7 @@ cluster's namespace is created before the cluster is created, the daemons will p
 at first launch.
 
 To automate the restart of the Ceph daemon pods, you will need to trigger an update to the pod specs.
-The simplest way to trigger the update is to add [annotations or labels](../../CRDs/ceph-cluster-crd.md#annotations-and-labels)
+The simplest way to trigger the update is to add [annotations or labels](../../CRDs/Cluster/ceph-cluster-crd.md#annotations-and-labels)
 to the CephCluster CR for the daemons you want to restart. The operator will then proceed with a rolling
 update, similar to any other update to the cluster.
 
@@ -379,7 +379,7 @@ Two changes are necessary to the configuration to enable this capability:
 
 ### Use hostNetwork in the rook ceph cluster configuration
 
-Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](../../CRDs/ceph-cluster-crd.md#samples).
+Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](../../CRDs/Cluster/ceph-cluster-crd.md#samples).
 For example,
 
 ```yaml
@@ -455,7 +455,7 @@ ceph osd tree
 
 ### Prerequisites for Auto Expansion of OSDs
 
-1) A [PVC-based cluster](../../CRDs/ceph-cluster-crd.md#pvc-based-cluster) deployed in dynamic provisioning environment with a `storageClassDeviceSet`.
+1) A [PVC-based cluster](../../CRDs/Cluster/ceph-cluster-crd.md#pvc-based-cluster) deployed in dynamic provisioning environment with a `storageClassDeviceSet`.
 
 2) Create the Rook [Toolbox](../../Troubleshooting/ceph-toolbox.md).
 

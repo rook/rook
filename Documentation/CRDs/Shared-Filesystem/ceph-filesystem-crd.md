@@ -13,7 +13,7 @@ Rook allows creation and customization of shared filesystems through the custom 
 
 Each OSD must be located on a different node, because both of the defined pools set the [`failureDomain`](../Block-Storage/ceph-block-pool-crd.md#spec) to `host` and the `replicated.size` to `3`.
 
-The `failureDomain` can also be set to another location type (e.g. `rack`), if it has been added as a `location` in the [Storage Selection Settings](../ceph-cluster-crd.md#storage-selection-settings).
+The `failureDomain` can also be set to another location type (e.g. `rack`), if it has been added as a `location` in the [Storage Selection Settings](../Cluster/ceph-cluster-crd.md#storage-selection-settings).
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -66,7 +66,7 @@ spec:
 
 ### Erasure Coded
 
-Erasure coded pools require the OSDs to use `bluestore` for the configured [`storeType`](../ceph-cluster-crd.md#osd-configuration-settings). Additionally, erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
+Erasure coded pools require the OSDs to use `bluestore` for the configured [`storeType`](../Cluster/ceph-cluster-crd.md#osd-configuration-settings). Additionally, erasure coded pools can only be used with `dataPools`. The `metadataPool` must use a replicated pool.
 !!! note
     This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
 
@@ -222,7 +222,7 @@ The metadata server settings correspond to the MDS daemon settings.
 
 ### MDS Resources Configuration Settings
 
-The format of the resource requests/limits structure is the same as described in the [Ceph Cluster CRD documentation](../ceph-cluster-crd.md#resource-requirementslimits).
+The format of the resource requests/limits structure is the same as described in the [Ceph Cluster CRD documentation](../Cluster/ceph-cluster-crd.md#resource-requirementslimits).
 
 If the memory resource limit is declared Rook will automatically set the MDS configuration `mds_cache_memory_limit`. The configuration value is calculated with the aim that the actual MDS memory consumption remains consistent with the MDS pods' resource declaration.
 

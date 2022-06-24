@@ -72,7 +72,7 @@ The following tables lists the configurable parameters of the rook-operator char
 ### **Ceph Cluster Spec**
 
 The `CephCluster` CRD takes its spec from `cephClusterSpec.*`. This is not an exhaustive list of parameters.
-For the full list, see the [Cluster CRD](../CRDs/ceph-cluster-crd.md) topic.
+For the full list, see the [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md) topic.
 
 ### **Ceph Block Pools**
 

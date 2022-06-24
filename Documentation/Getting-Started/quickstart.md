@@ -15,9 +15,9 @@ from other pods running in your cluster.
 
 Kubernetes **v1.17** or higher is supported by Rook.
 
-## CPU Architecture  
+## CPU Architecture
 
-Architectures released are `amd64 / x86_64` and `arm64`.  
+Architectures released are `amd64 / x86_64` and `arm64`.
 
 ## Prerequisites
 
@@ -81,7 +81,7 @@ See the [Ceph example configurations](example-configurations.md) for more detail
 ## Create a Ceph Cluster
 
 Now that the Rook operator is running we can create the Ceph cluster. For the cluster to survive reboots,
-make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](../CRDs/ceph-cluster-crd.md).
+make sure you set the `dataDirHostPath` property that is valid for your hosts. For more settings, see the documentation on [configuring the cluster](../CRDs/Cluster/ceph-cluster-crd.md).
 
 Create the cluster:
 
