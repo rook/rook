@@ -19,6 +19,8 @@ package config
 import (
 	"testing"
 
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,4 +30,17 @@ func TestNewFlag(t *testing.T) {
 	assert.Equal(t, NewFlag("b_key", "b"), "--b-key=b")
 	assert.Equal(t, NewFlag("c key", "c"), "--c-key=c")
 	assert.Equal(t, NewFlag("quotes", "\"quoted\""), "--quotes=\"quoted\"")
+}
+
+func TestInsecureGlobalIDVersion(t *testing.T) {
+	c := &client.ClusterInfo{CephVersion: version.CephVersion{Major: 17, Minor: 2, Extra: 0}}
+	assert.True(t, canDisableInsecureGlobalID(c))
+	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 16, Minor: 2, Extra: 0}}
+	assert.False(t, canDisableInsecureGlobalID(c))
+	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 16, Minor: 2, Extra: 1}}
+	assert.True(t, canDisableInsecureGlobalID(c))
+	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 15, Minor: 2, Extra: 10}}
+	assert.False(t, canDisableInsecureGlobalID(c))
+	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 15, Minor: 2, Extra: 11}}
+	assert.True(t, canDisableInsecureGlobalID(c))
 }
