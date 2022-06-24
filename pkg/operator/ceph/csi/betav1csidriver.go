@@ -52,6 +52,11 @@ func (d beta1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kuber
 		},
 	}
 	if fsGroupPolicy != "" {
+		if fsGroupPolicy == "File" {
+			// fsGroupPolicy: File was added in Kubernetes 1.19, considering beta1CsiDriver
+			// life exist before 1.19, we are falling back to `ReadWriteOnceWithFStype`.
+			fsGroupPolicy = "ReadWriteOnceWithFSType"
+		}
 		policy := betav1k8scsi.FSGroupPolicy(fsGroupPolicy)
 		csiDriver.Spec.FSGroupPolicy = &policy
 	}

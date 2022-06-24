@@ -85,7 +85,7 @@ csi:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  cephFSFSGroupPolicy: "ReadWriteOnceWithFSType"
+  cephFSFSGroupPolicy: "File"
 
   # (Optional) policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
