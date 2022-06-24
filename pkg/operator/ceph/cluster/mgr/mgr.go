@@ -160,6 +160,12 @@ func (c *Cluster) Start() error {
 		}
 	}
 
+	// Insecure global IDs should be disabled for new clusters immediately.
+	// If we're waiting for the mgr deployments to start, it is a clean deployment
+	if len(deploymentsToWaitFor) > 0 {
+		config.DisableInsecureGlobalID(c.context, c.clusterInfo)
+	}
+
 	// If the mgr is newly created, wait for it to start before continuing with the service and
 	// module configuration
 	for _, d := range deploymentsToWaitFor {

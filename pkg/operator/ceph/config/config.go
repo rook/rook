@@ -29,6 +29,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-config")
@@ -160,4 +161,32 @@ func SetOrRemoveDefaultConfigs(
 	}
 
 	return nil
+}
+
+func DisableInsecureGlobalID(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) {
+	if !canDisableInsecureGlobalID(clusterInfo) {
+		logger.Infof("cannot disable insecure global id on ceph version %v", clusterInfo.CephVersion.String())
+		return
+	}
+
+	monStore := GetMonStore(context, clusterInfo)
+	if err := monStore.Set("mon", "auth_allow_insecure_global_id_reclaim", "false"); err != nil {
+		logger.Warningf("failed to disable the insecure global ID. %v", err)
+	} else {
+		logger.Info("insecure global ID is now disabled")
+	}
+}
+
+func canDisableInsecureGlobalID(clusterInfo *cephclient.ClusterInfo) bool {
+	cephver := clusterInfo.CephVersion
+	if cephver.IsAtLeastQuincy() {
+		return true
+	}
+	if cephver.IsPacific() && cephver.IsAtLeast(version.CephVersion{Major: 16, Minor: 2, Extra: 1}) {
+		return true
+	}
+	if cephver.IsOctopus() && cephver.IsAtLeast(version.CephVersion{Major: 15, Minor: 2, Extra: 11}) {
+		return true
+	}
+	return false
 }
