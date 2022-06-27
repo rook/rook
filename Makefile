@@ -190,10 +190,16 @@ crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 
-gen-rbac: $(HELM) $(YQ) ## generate RBAC from Helm charts
+gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
+
+docs-preview: ## Preview the documentation through mkdocs
+	mkdocs serve
+
+docs-build:  ## Build the documentation to the `site/` directory
+	mkdocs build --strict
 
 .PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
