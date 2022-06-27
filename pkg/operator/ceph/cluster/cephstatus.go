@@ -166,12 +166,7 @@ func (c *cephStatusChecker) configureHealthSettings(status cephclient.CephStatus
 	if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM_ALLOWED"]; ok {
 		if _, ok := status.Health.Checks["AUTH_INSECURE_GLOBAL_ID_RECLAIM"]; !ok {
 			logger.Info("Disabling the insecure global ID as no legacy clients are currently connected. If you still require the insecure connections, see the CVE to suppress the health warning and re-enable the insecure connections. https://docs.ceph.com/en/latest/security/CVE-2021-20288/")
-			monStore := config.GetMonStore(c.context, c.clusterInfo)
-			if err := monStore.Set("mon", "auth_allow_insecure_global_id_reclaim", "false"); err != nil {
-				logger.Warningf("failed to disable the insecure global ID. %v", err)
-			} else {
-				logger.Info("insecure global ID is now disabled")
-			}
+			config.DisableInsecureGlobalID(c.context, c.clusterInfo)
 		} else {
 			logger.Warning("insecure clients are connected to the cluster, to resolve the AUTH_INSECURE_GLOBAL_ID_RECLAIM health warning please refer to the upgrade guide to ensure all Ceph daemons are updated.")
 		}

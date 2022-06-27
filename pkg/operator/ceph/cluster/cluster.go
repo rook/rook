@@ -517,7 +517,7 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	if err := c.configureMsgr2(); err != nil {
-		return errors.Wrap(err, "failed to configured msgr2")
+		return errors.Wrap(err, "failed to configure msgr2")
 	}
 
 	crushRoot := client.GetCrushRootFromSpec(c.Spec)
