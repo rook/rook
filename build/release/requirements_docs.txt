@@ -1,6 +1,7 @@
 mike
 mkdocs
 mkdocs-awesome-pages-plugin
+mkdocs-exclude
 mkdocs-macros-plugin
 mkdocs-material==8.*
 mkdocs-material-extensions

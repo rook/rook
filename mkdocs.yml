@@ -56,6 +56,9 @@ extra_css:
   - stylesheets/extra.css
 plugins:
   - search
+  - exclude:
+      glob:
+        - README.md
   - awesome-pages
   - macros:
       module_name: .docs/macros/includes/main
