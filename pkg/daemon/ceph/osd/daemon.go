@@ -288,13 +288,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range context.Devices {
-		// Ignore 'dm' device since they are not handled by c-v properly
-		// see: https://tracker.ceph.com/issues/43209
-		if strings.HasPrefix(device.Name, sys.DeviceMapperPrefix) && device.Type == sys.LVMType {
-			logger.Infof("skipping 'dm' device %q", device.Name)
-			continue
-		}
-
 		// Add detection for mounted device and skip if mounted
 		if device.Mountpoint != "" {
 			logger.Infof("skipping device %q with mountpoint %q", device.Name, device.Mountpoint)
@@ -378,6 +371,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}, DeviceInfo: device}
 		} else if len(desiredDevices) == 1 && desiredDevices[0].Name == "all" {
 			// user has specified all devices, use the current one for data
+			if device.Type == sys.LVMType {
+				logger.Infof("logical volume %q is not picked by `useAllDevices: true`", device.Name)
+				continue
+			}
 			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, DeviceInfo: device}
 		} else if len(desiredDevices) > 0 {
 			var matched bool
@@ -385,6 +382,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			for _, desiredDevice := range desiredDevices {
 				if desiredDevice.IsFilter {
 					// the desired devices is a regular expression
+					if device.Type == sys.LVMType {
+						logger.Infof("logical volume %q is not picked by `deviceFilter`", device.Name)
+						continue
+					}
 					matched, err = regexp.Match(desiredDevice.Name, []byte(device.Name))
 					if err != nil {
 						logger.Errorf("regex failed on device %q and filter %q. %v", device.Name, desiredDevice.Name, err)
@@ -395,6 +396,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 						logger.Infof("device %q matches device filter %q", device.Name, desiredDevice.Name)
 					}
 				} else if desiredDevice.IsDevicePathFilter {
+					if device.Type == sys.LVMType {
+						logger.Infof("logical volume %q is not picked by `devicePathFilter`", device.Name)
+						continue
+					}
 					pathnames := append(strings.Fields(device.DevLinks), filepath.Join("/dev", device.Name))
 					for _, pathname := range pathnames {
 						matched, err = regexp.Match(desiredDevice.Name, []byte(pathname))
