@@ -153,8 +153,6 @@ spec:
     modules:
     - name: pg_autoscaler
       enabled: true
-    - name: rook
-      enabled: true
   dashboard:
     enabled: true
   network:
@@ -503,7 +501,7 @@ spec:
     user: ` + usercaps
 }
 
-//GetBucketStorageClass returns the manifest to create object bucket
+// GetBucketStorageClass returns the manifest to create object bucket
 func (m *CephManifestsMaster) GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string {
 	return `apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -516,7 +514,7 @@ parameters:
     objectStoreNamespace: ` + m.settings.Namespace
 }
 
-//GetOBC returns the manifest to create object bucket claim
+// GetOBC returns the manifest to create object bucket claim
 func (m *CephManifestsMaster) GetOBC(claimName string, storageClassName string, objectBucketName string, maxObject string, varBucketName bool) string {
 	bucketParameter := "generateBucketName"
 	if varBucketName {
@@ -533,7 +531,7 @@ spec:
     maxObjects: "` + maxObject + `"`
 }
 
-//GetOBCNotification returns the manifest to create object bucket claim
+// GetOBCNotification returns the manifest to create object bucket claim
 func (m *CephManifestsMaster) GetOBCNotification(claimName string, storageClassName string, objectBucketName string, notificationName string, varBucketName bool) string {
 	bucketParameter := "generateBucketName"
 	if varBucketName {
@@ -550,7 +548,7 @@ spec:
   storageClassName: ` + storageClassName
 }
 
-//GetBucketNotification returns the manifest to create ceph bucket notification
+// GetBucketNotification returns the manifest to create ceph bucket notification
 func (m *CephManifestsMaster) GetBucketNotification(notificationName string, topicName string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephBucketNotification
@@ -564,7 +562,7 @@ spec:
 `
 }
 
-//GetBucketTopic returns the manifest to create ceph bucket topic
+// GetBucketTopic returns the manifest to create ceph bucket topic
 func (m *CephManifestsMaster) GetBucketTopic(topicName string, storeName string, httpEndpointService string) string {
 	return `apiVersion: ceph.rook.io/v1
 kind: CephBucketTopic

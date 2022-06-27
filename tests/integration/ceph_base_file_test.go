@@ -439,6 +439,10 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 	if !isdeleted {
 		assert.Fail(s.T(), fmt.Sprintf("Failed to delete PVC %q", podName))
 	}
+	isPVListZero := k8sh.WaitUntilZeroPVs()
+	if !isPVListZero {
+		assert.Fail(s.T(), fmt.Sprintf("PV list is not zero"))
+	}
 	logger.Infof("File system consumer deleted")
 }
 
