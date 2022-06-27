@@ -56,3 +56,6 @@ jobs:
 
       - name: Lint Python files
         run: pylint $(git ls-files '*.py') -E
+
+      - name: Setup black for py
+        uses: psf/black@stable
