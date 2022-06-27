@@ -4,3 +4,5 @@
 
 
 ## Features
+
+- The toolbox pod now uses the Ceph image directly instead of the Rook image

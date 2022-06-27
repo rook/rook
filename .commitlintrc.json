@@ -18,6 +18,7 @@
         "external",
         "file",
         "helm",
+        "manifest",
         "mds",
         "mgr",
         "mon",
