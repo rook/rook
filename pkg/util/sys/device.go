@@ -297,9 +297,6 @@ func CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked
 		return false, "", fmt.Errorf("failed to determine if the device was LV. %v", err)
 	}
 	if isLV {
-		if !pvcBacked {
-			return false, "LV is not supported for non-PVC backed device", nil
-		}
 		checker = isLVAvailable
 	}
 

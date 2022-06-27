@@ -231,6 +231,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 					}
 
 					return cvInventoryOutputAvailable, nil
+				} else if args[0] == "lvm" && args[1] == "list" {
+					return `{}`, nil
 				}
 
 			} else if command == "stdbuf" {
@@ -260,7 +262,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "rda", RealPath: "/dev/rda"},
 		{Name: "rdb", RealPath: "/dev/rdb"},
 		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
-		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
+		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"},                       // has filesystem
+		{Name: "dm-0", RealPath: "/dev/mapper/vg1-lv1", DevLinks: "/dev/mapper/vg1-lv1", Type: sys.LVMType}, // `useAllDevices` and  `device{,Path}Filter` don't pick up logical volumes
 	}
 
 	version := cephver.Octopus
@@ -289,6 +292,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.NotContains(t, mapping.Entries, "sdb")  // sdb is in use (has a partition)
 	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
 	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
+	assert.NotContains(t, mapping.Entries, "dm-0")
 
 	// Do not skip partition anymore
 	agent.clusterInfo.CephVersion = cephver.Octopus
@@ -312,12 +316,25 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
+	// select a logical volume by deviceFilter
+	agent.devices = []DesiredDevice{{Name: "dm-0", IsFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
 	// select an exact device
 	agent.devices = []DesiredDevice{{Name: "sdd"}}
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+
+	// select an exact logical volume
+	agent.devices = []DesiredDevice{{Name: "/dev/mapper/vg1-lv1"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["dm-0"].Data)
 
 	// select all devices except those that have a prefix of "s"
 	agent.devices = []DesiredDevice{{Name: "^[^s]", IsFilter: true}}
@@ -335,6 +352,12 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+
+	// select a logical volume by devicePathFilter
+	agent.devices = []DesiredDevice{{Name: "dm-0", IsDevicePathFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the devices that have udev persistent names by devicePathFilter
 	agent.devices = []DesiredDevice{{Name: "^/dev/disk/by-path/.*-scsi-.*", IsDevicePathFilter: true}}

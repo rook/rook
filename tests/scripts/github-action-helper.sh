@@ -216,6 +216,11 @@ function deploy_cluster() {
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   elif [ "$1" = "encryption" ] ; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
+  elif [ "$1" = "lvm" ] ; then
+    sed -i "s|#deviceFilter:|devices:\n      - name: \"/dev/test-rook-vg/test-rook-lv\"|g" cluster-test.yaml
+  else
+    echo "invalid argument: $*" >&2
+    exit 1
   fi
   kubectl create -f cluster-test.yaml
   kubectl create -f object-test.yaml
