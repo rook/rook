@@ -105,7 +105,7 @@ backend is set to Rook.
 
 * Required for Ceph v16.2.7 and below
 * Optional for Ceph v16.2.8 and above
-* Must be disabled for Ceph v17.2.0 due to a [Ceph regression](#ceph-v1720)
+* Must be disabled for Ceph v17.2.1 due to a [Ceph regression](#ceph-v1720)
 
 ```console
 ceph mgr module enable rook
@@ -220,10 +220,10 @@ the size of the cluster.
   * Workaround: It is safest to run only a single NFS server, but we do not limit this if it
     benefits your use case.
 
-### Ceph v17.2.0
+### Ceph v17.2.1
 
 * Ceph NFS management with the Rook mgr module enabled has a breaking regression with the Ceph
-  Quincy v17.2.0 release.
+  Quincy v17.2.1 release.
   * Workaround: Leave Ceph's Rook orchestrator mgr module disabled. If you have enabled it, you must
     disable it using the snippet below from the toolbox.
 

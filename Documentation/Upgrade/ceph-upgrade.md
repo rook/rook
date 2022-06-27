@@ -55,7 +55,7 @@ will need two extra steps after the Ceph upgrade is complete. Once upgrade is co
 
 ### CephNFS User Consideration
 
-Ceph Quincy v17.2.0 has a potentially breaking regression with CephNFS. See the NFS documentation's
+Ceph Quincy v17.2.1 has a potentially breaking regression with CephNFS. See the NFS documentation's
 [known issue](../CRDs/ceph-nfs-crd.md#ceph-v1720) for more detail.
 
 ### Ceph Images
@@ -64,7 +64,7 @@ Official Ceph container images can be found on [Quay](https://quay.io/repository
 
 These images are tagged in a few ways:
 
-* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v17.2.0-20220420`).
+* The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v17.2.1-20220623`).
   These tags are recommended for production clusters, as there is no possibility for the cluster to
   be heterogeneous with respect to the version of Ceph running in containers.
 * Ceph major version tags (e.g., `v17`) are useful for development and test clusters so that the
@@ -81,7 +81,7 @@ in the cluster CRD (`spec.cephVersion.image`).
 
 ```console
 ROOK_CLUSTER_NAMESPACE=rook-ceph
-NEW_CEPH_IMAGE='quay.io/ceph/ceph:v17.2.0-20220420'
+NEW_CEPH_IMAGE='quay.io/ceph/ceph:v17.2.1-20220623'
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
@@ -100,9 +100,9 @@ Confirm the upgrade is completed when the versions are all on the desired Ceph v
 kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"ceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
     ceph-version=15.2.13-0
-    ceph-version=v17.2.0-0
+    ceph-version=v17.2.1-0
 This cluster is finished:
-    ceph-version=v17.2.0-0
+    ceph-version=v17.2.1-0
 ```
 
 #### **3. Verify cluster health**
