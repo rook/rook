@@ -100,10 +100,10 @@ These are general purpose Ceph container with all necessary daemons and dependen
 
 | TAG                  | MEANING                                                   |
 | -------------------- | --------------------------------------------------------- |
-| vRELNUM              | Latest release in this series (e.g., *v17* = Quincy)     |
+| vRELNUM              | Latest release in this series (e.g., *v17* = Quincy)      |
 | vRELNUM.Y            | Latest stable release in this stable series (e.g., v17.2) |
 | vRELNUM.Y.Z          | A specific release (e.g., v17.2.1)                        |
-| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v17.2.1-20220623)                |
+| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v17.2.1-20220623)                 |
 
 A specific will contain a specific release of Ceph as well as security fixes from the Operating System.
 

@@ -423,6 +423,12 @@ class RadosJSON:
             required=False,
             help="divides a pool into separate logical namespaces",
         )
+        output_group.add_argument(
+            "--subvolume-group",
+            default="",
+            required=False,
+            help="provides the name of the subvolume group",
+        )
 
         upgrade_group = argP.add_argument_group("upgrade")
         upgrade_group.add_argument(
@@ -1208,6 +1214,31 @@ class RadosJSON:
                 ).format(rados_namespace, rbd_pool_name)
             )
 
+    def validate_subvolume_group(self):
+        cephfs_filesystem_name = self._arg_parser.cephfs_filesystem_name
+        subvolume_group = self._arg_parser.subvolume_group
+        if subvolume_group == "":
+            return
+        if cephfs_filesystem_name == "":
+            raise ExecutionFailureException(
+                "if subvolume group is passed cephfs filesystem name is mandatory to pass"
+            )
+
+        cmd = [
+            "ceph",
+            "fs",
+            "subvolumegroup",
+            "getpath",
+            cephfs_filesystem_name,
+            subvolume_group,
+        ]
+        try:
+            _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as execErr:
+            raise ExecutionFailureException(
+                "subvolume group {} passed doesn't exist".format(subvolume_group)
+            )
+
     def get_rgw_fsid(self):
         access_key = self.out_map["RGW_ADMIN_OPS_USER_ACCESS_KEY"]
         secret_key = self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"]
@@ -1269,6 +1300,7 @@ class RadosJSON:
             )
         self.validate_pool()
         self.validate_rados_namespace()
+        self.validate_subvolume_group()
         self._excluded_keys.add("CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
@@ -1295,6 +1327,7 @@ class RadosJSON:
             "RESTRICTED_AUTH_PERMISSION"
         ] = self._arg_parser.restricted_auth_permission
         self.out_map["RADOS_NAMESPACE"] = self._arg_parser.rados_namespace
+        self.out_map["SUBVOLUME_GROUP"] = self._arg_parser.subvolume_group
         self.out_map["CSI_CEPHFS_NODE_SECRET"] = ""
         self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"] = ""
         # create CephFS node and provisioner keyring only when MDS exists

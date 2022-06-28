@@ -22,6 +22,8 @@ ROOK_EXTERNAL_MONITOR_SECRET=mon-secret
 OPERATOR_NAMESPACE=rook-ceph # default set to rook-ceph
 RBD_PROVISIONER=$OPERATOR_NAMESPACE".rbd.csi.ceph.com" # driver:namespace:operator
 CEPHFS_PROVISIONER=$OPERATOR_NAMESPACE".cephfs.csi.ceph.com" # driver:namespace:operator
+CLUSTER_ID_RBD=$NAMESPACE
+CLUSTER_ID_CEPHFS=$NAMESPACE
 : "${ROOK_EXTERNAL_ADMIN_SECRET:=admin-secret}"
 
 #############
@@ -90,6 +92,15 @@ function checkEnvVars() {
   if [[ "$ROOK_EXTERNAL_ADMIN_SECRET" != "admin-secret" ]] && [ -n "$ROOK_EXTERNAL_USER_SECRET" ] ; then
     echo "Providing both ROOK_EXTERNAL_ADMIN_SECRET and ROOK_EXTERNAL_USER_SECRET is not supported, choose one only."
     exit 1
+  fi
+}
+
+function importClusterID() {
+  if [ -n "$RADOS_NAMESPACE_CLUSTER_ID" ]; then
+    CLUSTER_ID_RBD=$(kubectl -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE_CLUSTER_ID" -o jsonpath='{.status.info.clusterID}')
+  fi
+  if [ -n "$SUBVOLUME_GROUP_CLUSTER_ID" ]; then
+    CLUSTER_ID_CEPHFS=$(kubectl -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP_CLUSTER_ID" -o jsonpath='{.status.info.clusterID}')
   fi
 }
 
@@ -181,7 +192,7 @@ metadata:
   name: $RBD_STORAGE_CLASS_NAME
 provisioner: $RBD_PROVISIONER
 parameters:
-  clusterID: $NAMESPACE
+  clusterID: $CLUSTER_ID_RBD
   pool: $RBD_POOL_NAME
   dataPool: $RBD_METADATA_EC_POOL_NAME
   imageFormat: "2"
@@ -206,7 +217,7 @@ metadata:
   name: $RBD_STORAGE_CLASS_NAME
 provisioner: $RBD_PROVISIONER
 parameters:
-  clusterID: $NAMESPACE
+  clusterID: $CLUSTER_ID_RBD
   pool: $RBD_POOL_NAME
   imageFormat: "2"
   imageFeatures: layering
@@ -230,7 +241,7 @@ metadata:
   name: $CEPHFS_STORAGE_CLASS_NAME
 provisioner: $CEPHFS_PROVISIONER
 parameters:
-  clusterID: $NAMESPACE
+  clusterID: $CLUSTER_ID_CEPHFS
   fsName: $CEPHFS_FS_NAME
   pool: $CEPHFS_POOL_NAME
   csi.storage.k8s.io/provisioner-secret-name: $CSI_CEPHFS_PROVISIONER_SECRET_NAME
@@ -248,6 +259,7 @@ eof
 # MAIN #
 ########
 checkEnvVars
+importClusterID
 importSecret
 importConfigMap
 importCsiRBDNodeSecret
