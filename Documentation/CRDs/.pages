@@ -1,6 +1,6 @@
 title: Custom Resources
 nav:
-    - ceph-cluster-crd.md
+    - Cluster
     - Block-Storage
     - Shared-Filesystem
     - Object-Storage

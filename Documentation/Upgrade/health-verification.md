@@ -79,7 +79,7 @@ details on the health of the system, such as `ceph osd status`. See the
 Rook will prevent the upgrade of the Ceph daemons if the health is in a `HEALTH_ERR` state.
 If you desired to proceed with the upgrade anyway, you will need to set either
 `skipUpgradeChecks: true` or `continueUpgradeAfterChecksEvenIfNotHealthy: true` as described in the
-[cluster CR settings](../CRDs/ceph-cluster-crd.md#cluster-settings).
+[cluster CR settings](../CRDs/Cluster/ceph-cluster-crd.md#cluster-settings).
 
 ### **Container Versions**
 

@@ -33,7 +33,7 @@ for more information about this module.
 
 In Octopus (v15.2.x) and newer, module `pg_autoscaler` is enabled by default without the above-mentioned setting.
 
-To disable this module, in the [CephCluster CR](../../CRDs/ceph-cluster-crd.md#mgr-settings):
+To disable this module, in the [CephCluster CR](../../CRDs/Cluster/ceph-cluster-crd.md#mgr-settings):
 
 ```yaml
 spec:

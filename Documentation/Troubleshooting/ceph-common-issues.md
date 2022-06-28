@@ -282,7 +282,7 @@ In this case, restart the operator pod to get things going again.
 ### Solution
 
 If the "osd prepare" logs didn't give you enough clues about why the OSDs were not being created,
-please review your [cluster.yaml](../CRDs/ceph-cluster-crd.md#storage-selection-settings) configuration.
+please review your [cluster.yaml](../CRDs/Cluster/ceph-cluster-crd.md#storage-selection-settings) configuration.
 The common misconfigurations include:
 
 * If `useAllDevices: true`, Rook expects to find local devices attached to the nodes. If no devices are found, no OSDs will be created.
@@ -339,7 +339,7 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 ### Investigation
 
 First, ensure that you have specified the devices correctly in the CRD.
-The [Cluster CRD](../CRDs/ceph-cluster-crd.md#storage-selection-settings) has several ways to specify the devices that are to be consumed by the Rook storage:
+The [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md#storage-selection-settings) has several ways to specify the devices that are to be consumed by the Rook storage:
 
 * `useAllDevices: true`: Rook will consume all devices it determines to be available
 * `deviceFilter`: Consume all devices that match this regular expression

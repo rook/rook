@@ -12,7 +12,7 @@ For environments that only have two failure domains available where data can be 
 also support the case where one failure domain is lost and the data is still fully available in the
 remaining failure domain.
 
-To support this scenario, Ceph has recently integrated support for stretch clusters with an arbiter mon
+To support this scenario, Ceph has integrated support for stretch clusters with an arbiter mon
 as seen in [this PR](https://github.com/ceph/ceph/pull/35906) and in the following design docs:
 - [Stretch clusters](https://github.com/ceph/ceph/blob/master/doc/rados/operations/stretch-mode.rst)
 - Mon election [strategies](https://github.com/ceph/ceph/blob/master/doc/rados/operations/change-mon-elections.rst) and [design](https://github.com/ceph/ceph/blob/master/doc/dev/mon-elections.rst)
