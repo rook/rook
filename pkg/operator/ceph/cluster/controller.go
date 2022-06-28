@@ -256,6 +256,18 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	// Do reconcile here!
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
 	if err := r.clusterController.reconcileCephCluster(cephCluster, ownerInfo); err != nil {
+		// If the error has a context cancelled let's return a success result so that the controller can
+		// exit gracefully and the goroutine (the one the manager runs in) won't block retrying even if the parent context has been
+		// cancelled.
+		// Normally this should not happen but in some circumstances if the context is cancelled we will
+		// error-loop (backoff) and the controller will never exit (even though a new one has been
+		// started). So we would get messages from the other go routine printing a message
+		// repeatedly that the context is cancelled.
+		if errors.Is(r.opManagerContext.Err(), context.Canceled) {
+			logger.Info("context cancelled, exiting reconcile")
+			return reconcile.Result{}, *cephCluster, nil
+		}
+
 		return reconcile.Result{}, *cephCluster, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
