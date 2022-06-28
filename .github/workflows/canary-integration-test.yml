@@ -94,12 +94,39 @@ jobs:
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
 
-    - name: test rados namespace
+    - name: test subvolumegroup validation
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # pass the correct subvolumegroup and cephfs_filesystem flag name
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
+        # pass the wrong subvolumegroup name
+        if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group); then
+          echo "unexpectedly succeeded after passing the wrong subvolumegroup name: $output"
+          exit 1
+        else
+          echo "script failed because wrong subvolumegroup name was passed"
+        fi
+
+    - name: test of rados namespace
       run: |
         kubectl create -f deploy/examples/radosnamespace.yaml
         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
         kubectl delete -f deploy/examples/radosnamespace.yaml
+
+    - name: test rados namespace validation
+      run: |
+        toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+        # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
+        kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace1
+        kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosNamespace1
+         # test the rados namespace which not exit for replicapool(false testing)
+        if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
+          echo "unexpectedly succeeded after passing the wrong rados namespace: $output"
+          exit 1
+        else
+          echo "script failed because wrong rados namespace was passed"
+        fi
 
     - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
       run: |
@@ -140,14 +167,15 @@ jobs:
         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
         # pass the invalid rgw-endpoint of different ceph cluster
         if output=$(timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"); then
-          echo $output
+          echo "unexpectedly succeeded after passing the wrong rgw-endpoint: $output"
+          exit 1
         else
           echo "validation failed because wrong endpoint was provided"
         fi
         # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
         # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
-        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"    
+        timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
 
     - name: check-ownerreferences
       run: tests/scripts/github-action-helper.sh check_ownerreferences

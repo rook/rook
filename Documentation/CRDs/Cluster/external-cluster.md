@@ -37,15 +37,11 @@ In order to configure an external Ceph cluster with Rook, we need to extract som
 - `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
 - `--format bash`: The format of the output
 - `--rbd-data-pool-name`: The name of the RBD data pool
-- `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool
-- `--rados-namespace`: (optional) Divides a pool into separate logical namespaces
-- `--cephfs-filesystem-name`: (optional) The name of the filesystem
-- `--cephfs-metadata-pool-name`: (optional) Provides the name of the cephfs metadata pool
-- `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool
 - `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>`
 - `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
 - `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
 - `--rgw-skip-tls`: (optional) Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED)
+- `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool, used for creating ECRBDStorageClass.
 - `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)
 - `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
 - `--ceph-conf`: (optional) Provide a Ceph conf file
@@ -53,6 +49,11 @@ In order to configure an external Ceph cluster with Rook, we need to extract som
 - `--output`: (optional) Output will be stored into the provided file
 - `--dry-run`: (optional) Prints the executed commands without running them
 - `--run-as-user`: (optional) Provides a user name to check the cluster's health status, must be prefixed by `client`.
+- `--cephfs-metadata-pool-name`: (optional) Provides the name of the cephfs metadata pool
+- `--cephfs-filesystem-name`: (optional) The name of the filesystem, used for creating CephFS StorageClass
+- `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool, used for creating CephFS StorageClass
+- `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a RadosNamespaces
+- `--subvolume-group`: (optional) Provides the name of the subvolume group, used for creating CephFS PVC in a subvolumeGroup
 - `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 
 !!! note
@@ -125,9 +126,6 @@ In order to configure an external Ceph cluster with Rook, we need to extract som
     ```console
     kubectl -n rook-ceph-external get sc
     ```
-
-    !!! note
-        For CephFS StorageClass you also need to export `CEPHFS_FS_NAME`, `CEPHFS_POOL_NAME` or you can pass these parameters with a CLI flag (--cephfs-data-pool-name,--cephfs-filesystem-name) while running the python script. For creating ECRBDStorageClass you need to pass --rbd-metadata-ec-pool-name CLI flag or export `RBD_METADATA_EC_POOL_NAME`.
 
 7. Then you can now create a [persistent volume](/deploy/examples/csi) based on these StorageClass.
 
