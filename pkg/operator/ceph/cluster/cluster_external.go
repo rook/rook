@@ -94,8 +94,8 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	// The cluster Identity must be established at this point
-	if !cluster.ClusterInfo.IsInitialized(true) {
-		return errors.New("the cluster identity was not established")
+	if err := cluster.ClusterInfo.IsInitialized(); err != nil {
+		return errors.Wrap(err, "the cluster identity was not established")
 	}
 	logger.Info("external cluster identity established")
 

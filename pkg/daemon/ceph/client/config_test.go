@@ -99,8 +99,8 @@ func TestGenerateConfigFile(t *testing.T) {
 		Context:     ctx,
 	}
 
-	isInitialized := clusterInfo.IsInitialized(true)
-	assert.True(t, isInitialized)
+	isInitialized := clusterInfo.IsInitialized()
+	assert.NoError(t, isInitialized)
 
 	// generate the config file to disk now
 	configFilePath, err := generateConfigFile(context, clusterInfo, configDir, filepath.Join(configDir, "mykeyring"), nil, nil)
