@@ -68,8 +68,16 @@ jobs:
       working-directory: /Users/runner/go/src/github.com/rook/rook
       run: tests/scripts/validate_modified_files.sh gen-rbac
 
-    - name: setup tmate session for debugging
+    - name: consider debugging
       if: failure()
+      run: |
+        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+          echo USE_TMATE=1 >> $GITHUB_ENV
+        fi
+
+    - name: set up tmate session for debugging
+      if: failure() && env.USE_TMATE
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
 
@@ -100,7 +108,15 @@ jobs:
       run: |
         tests/scripts/github-action-helper.sh build_rook_all
 
-    - name: setup tmate session for debugging
+    - name: consider debugging
       if: failure()
+      run: |
+        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+          echo USE_TMATE=1 >> $GITHUB_ENV
+        fi
+
+    - name: set up tmate session for debugging
+      if: failure() && env.USE_TMATE
       uses: mxschmitt/action-tmate@v3
       timeout-minutes: 60
