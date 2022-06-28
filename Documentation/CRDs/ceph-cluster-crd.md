@@ -237,10 +237,17 @@ These are general purpose Ceph container with all necessary daemons and dependen
 
 | TAG                  | MEANING                                                   |
 | -------------------- | --------------------------------------------------------- |
+<<<<<<< HEAD:Documentation/CRDs/ceph-cluster-crd.md
 | vRELNUM              | Latest release in this series (e.g., *v15* = Octopus)     |
 | vRELNUM.Y            | Latest stable release in this stable series (e.g., v15.2) |
 | vRELNUM.Y.Z          | A specific release (e.g., v15.2.5)                        |
 | vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v15.2.11-20200419)                |
+=======
+| vRELNUM              | Latest release in this series (e.g., *v17* = Quincy)      |
+| vRELNUM.Y            | Latest stable release in this stable series (e.g., v17.2) |
+| vRELNUM.Y.Z          | A specific release (e.g., v17.2.1)                        |
+| vRELNUM.Y.Z-YYYYMMDD | A specific build (e.g., v17.2.1-20220623)                 |
+>>>>>>> c9a864ccd (external: add support for subvolumegroup and rados namespace):Documentation/CRDs/Cluster/ceph-cluster-crd.md
 
 A specific will contain a specific release of Ceph as well as security fixes from the Operating System.
 
