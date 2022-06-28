@@ -148,8 +148,8 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	defer c.releaseOrchestrationLock()
 
 	// If cluster details are not initialized
-	if !c.ClusterInfo.IsInitialized(true) {
-		return errors.New("skipping mon health check since cluster details are not initialized")
+	if err := c.ClusterInfo.IsInitialized(); err != nil {
+		return errors.Wrap(err, "skipping mon health check since cluster details are not initialized")
 	}
 
 	// If the cluster is converged and no mons were specified
