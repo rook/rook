@@ -133,6 +133,12 @@ func (hc *HealthChecker) Check(monitoringRoutines map[string]*controller.Cluster
 			delete(monitoringRoutines, daemon)
 			return
 
+		// Since c.ClusterInfo.IsInitialized() below uses a different context, we need to check if the context is done
+		case <-hc.monCluster.ClusterInfo.Context.Done():
+			logger.Infof("stopping monitoring of mons in namespace %q", hc.monCluster.Namespace)
+			delete(monitoringRoutines, daemon)
+			return
+
 		case <-time.After(hc.interval):
 			logger.Debugf("checking health of mons")
 			err := hc.monCluster.checkHealth(monitoringRoutines[daemon].InternalCtx)

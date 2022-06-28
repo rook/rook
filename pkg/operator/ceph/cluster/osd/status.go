@@ -268,13 +268,14 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			updateConfig.updateExistingOSDs(errs)
 
 		case <-minuteTicker.C:
-			if c.clusterInfo.Context.Err() != nil {
-				return false, c.clusterInfo.Context.Err()
-			}
 			// Log progress
 			c, cExp := createConfig.progress()
 			u, uExp := updateConfig.progress()
 			logger.Infof("waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
+
+		case <-c.clusterInfo.Context.Done():
+			logger.Infof("context cancelled, exiting OSD update and create loop")
+			return false, c.clusterInfo.Context.Err()
 		}
 	}
 
