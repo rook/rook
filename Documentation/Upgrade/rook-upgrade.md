@@ -62,6 +62,9 @@ those releases.
   following the advice given in Rook's
   [v1.8 NFS docs](https://rook.github.io/docs/rook/v1.8/ceph-nfs-crd.html).
 
+* If you use Helm and your operator is in a different namespace from the cluster and object storage class is enabled
+  you have to delete the object storage class before upgrading. [#10153](https://github.com/rook/rook/issues/10153)
+
 ## Considerations
 
 With this upgrade guide, there are a few notes to consider:

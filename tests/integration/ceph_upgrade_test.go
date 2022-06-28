@@ -122,6 +122,9 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 		objectStoreCleanUp(s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
 
+	// Delete Object-SC before upgrade test (https://github.com/rook/rook/issues/10153)
+	_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
+
 	//
 	// Upgrade Rook from v1.8 to master
 	//
