@@ -137,7 +137,7 @@ deps.docs:
 
 build.docs: deps.docs
 	# Build the docs once before they are published to ensure they are correctly building
-	mkdocs build --strict
+	cd $(ROOT_DIR) && mkdocs build --strict
 
 publish.docs:
 	if ! git remote show docs > /dev/null 2>&1; then git remote add docs $(DOCS_GIT_REPO); fi
