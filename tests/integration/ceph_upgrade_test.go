@@ -447,6 +447,7 @@ func (s *UpgradeSuite) verifyFilesAfterUpgrade(newFileToWrite string, rbdFilesTo
 func (s *UpgradeSuite) upgradeToMaster() {
 	// Apply the CRDs for the latest master
 	s.settings.RookVersion = installer.LocalBuildTag
+	s.installer.Manifests = installer.NewCephManifests(s.settings)
 
 	if s.settings.UseHelm {
 		// Upgrade the operator chart
@@ -458,13 +459,12 @@ func (s *UpgradeSuite) upgradeToMaster() {
 		return
 	}
 
-	m := installer.NewCephManifests(s.settings)
-	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", m.GetCRDs(s.k8sh)))
+	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCRDs(s.k8sh)))
 
-	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", m.GetCommon()))
+	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCommon()))
 
 	require.NoError(s.T(),
 		s.k8sh.SetDeploymentVersion(s.settings.OperatorNamespace, operatorContainer, operatorContainer, installer.LocalBuildTag))
 
-	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", m.GetToolbox()))
+	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetToolbox()))
 }
