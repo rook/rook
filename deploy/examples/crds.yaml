@@ -1296,8 +1296,16 @@ spec:
                     enabled:
                       description: Enabled represents whether the log collector is enabled
                       type: boolean
+                    maxLogSize:
+                      anyOf:
+                        - type: integer
+                        - type: string
+                      description: MaxLogSize is the maximum size of the log per ceph daemons. Must be at least 1M.
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
                     periodicity:
-                      description: Periodicity is the periodicity of the log rotation
+                      description: Periodicity is the periodicity of the log rotation.
+                      pattern: ^$|^(hourly|daily|weekly|monthly|1h|24h|1d)$
                       type: string
                   type: object
                 mgr:

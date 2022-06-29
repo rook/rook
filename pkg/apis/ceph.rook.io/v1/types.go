@@ -227,9 +227,13 @@ type LogCollectorSpec struct {
 	// Enabled represents whether the log collector is enabled
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
-	// Periodicity is the periodicity of the log rotation
+	// Periodicity is the periodicity of the log rotation.
+	// +kubebuilder:validation:Pattern=`^$|^(hourly|daily|weekly|monthly|1h|24h|1d)$`
 	// +optional
 	Periodicity string `json:"periodicity,omitempty"`
+	// MaxLogSize is the maximum size of the log per ceph daemons. Must be at least 1M.
+	// +optional
+	MaxLogSize *resource.Quantity `json:"maxLogSize,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms

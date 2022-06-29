@@ -158,7 +158,7 @@ cephClusterSpec:
   # enable log collector, daemons will log on files and rotate
   # logCollector:
   #   enabled: true
-  #   periodicity: 24h # SUFFIX may be 'h' for hours or 'd' for days.
+  #   periodicity: daily # one of: hourly, daily, weekly, monthly
 
   # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
   cleanupPolicy:
