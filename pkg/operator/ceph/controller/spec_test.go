@@ -369,3 +369,71 @@ func TestConfigureExternalMetricsEndpoint(t *testing.T) {
 		assert.Equal(t, "192.168.0.1", currentEndpoints.Subsets[0].Addresses[0].IP, currentEndpoints)
 	})
 }
+
+func TestLogCollectorContainer(t *testing.T) {
+	daemonId := "ceph-mon-a"
+	ns := "rook-ceph"
+
+	t.Run("Periodicity 1d and no MaxlogSize", func(t *testing.T) {
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "1d"}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "0")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("Periodicity 1h and MaxlogSize 1M", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("1M")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "1h", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "hourly", "1M")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("Periodicity weekly and 1G MaxlogSize", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("1Gi")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "weekly", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "weekly", "1073M")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("MaxlogSize 1M and no Periodicity", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("1Mi")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "1M")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("10G MaxlogSize and Periodicity 1d", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("10G")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "1d", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "10G")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("10M MaxlogSize and Periodicity weekly", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("10Mi")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "weekly", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "weekly", "10M")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("1M MaxlogSize and Periodicity 1d", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("1M")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "1d", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "1M")
+		assert.Equal(t, want, got.Command[5])
+	})
+
+	t.Run("500k MaxlogSize and Periodicity 1d", func(t *testing.T) {
+		maxsize, _ := resource.ParseQuantity("500K")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "1d", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c)
+		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "1M")
+		assert.Equal(t, want, got.Command[5])
+	})
+}

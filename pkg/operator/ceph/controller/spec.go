@@ -76,21 +76,25 @@ var (
 CEPH_CLIENT_ID=%s
 PERIODICITY=%s
 LOG_ROTATE_CEPH_FILE=/etc/logrotate.d/ceph
-
-if [ -z "$PERIODICITY" ]; then
-	PERIODICITY=24h
-fi
+LOG_MAX_SIZE=%s
 
 # edit the logrotate file to only rotate a specific daemon log
 # otherwise we will logrotate log files without reloading certain daemons
 # this might happen when multiple daemons run on the same machine
 sed -i "s|*.log|$CEPH_CLIENT_ID.log|" "$LOG_ROTATE_CEPH_FILE"
 
+# replace default daily with given user input
+sed --in-place "s/daily/$PERIODICITY/g" "$LOG_ROTATE_CEPH_FILE"
+
+if [ "$LOG_MAX_SIZE" -ne 0 ]; then
+	# adding maxsize $LOG_MAX_SIZE at the 4th line of the logrotate config file with 4 spaces to maintain indentation
+	sed --in-place "4i \ \ \ \ maxsize $LOG_MAX_SIZE" "$LOG_ROTATE_CEPH_FILE"
+fi
+
 while true; do
-	sleep "$PERIODICITY"
-	echo "starting log rotation"
-	logrotate --verbose --force "$LOG_ROTATE_CEPH_FILE"
-	echo "I am going to sleep now, see you in $PERIODICITY"
+	# we don't force the logrorate but we let the logrotate binary handle the rotation based on user's input for periodicity and size
+	logrotate --verbose "$LOG_ROTATE_CEPH_FILE"
+	sleep 15m
 done
 `
 )
@@ -653,8 +657,28 @@ func PrivilegedContext(runAsRoot bool) *v1.SecurityContext {
 	return sec
 }
 
-// LogCollectorContainer runs a cron job to rotate logs
+// LogCollectorContainer rotate logs
 func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Container {
+
+	var maxLogSize resource.Quantity
+	if c.LogCollector.MaxLogSize != nil {
+		size := c.LogCollector.MaxLogSize.Value() / 1000 / 1000
+		if size == 0 {
+			size = 1
+			logger.Info("maxLogSize is 0M setting to minimum of 1M")
+		}
+		maxLogSize = resource.MustParse(fmt.Sprintf("%dM", size))
+	}
+
+	periodicity := "daily"
+	if c.LogCollector.Periodicity == "1h" {
+		periodicity = "hourly"
+	} else if strings.Contains(c.LogCollector.Periodicity, "h") || strings.Contains(c.LogCollector.Periodicity, "d") {
+		periodicity = "daily"
+	} else if c.LogCollector.Periodicity != "" {
+		periodicity = c.LogCollector.Periodicity
+	}
+
 	return &v1.Container{
 		Name: logCollector,
 		Command: []string{
@@ -663,7 +687,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 			"-e", // Exit immediately if a command exits with a non-zero status.
 			"-m", // Terminal job control, allows job to be terminated by SIGTERM
 			"-c", // Command to run
-			fmt.Sprintf(cronLogRotate, daemonID, c.LogCollector.Periodicity),
+			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String()),
 		},
 		Image:           c.CephVersion.Image,
 		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), ""),
