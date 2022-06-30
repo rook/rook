@@ -87,6 +87,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 		UsePVC:                      false,
 		Mons:                        1,
 		EnableDiscovery:             true,
+		SkipClusterCleanup:          true,
 		RookVersion:                 installer.Version1_8,
 		CephVersion:                 initialCephVersion,
 	}
