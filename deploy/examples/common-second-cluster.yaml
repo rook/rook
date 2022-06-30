@@ -37,6 +37,20 @@ subjects:
     name: rook-ceph-cmd-reporter
     namespace: $NAMESPACE
 ---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-mgr-system
+  namespace: $NAMESPACE
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-mgr-system
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-mgr
+    namespace: $NAMESPACE
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
