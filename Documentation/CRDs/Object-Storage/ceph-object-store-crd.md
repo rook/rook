@@ -104,6 +104,7 @@ The gateway settings correspond to the RGW daemon settings.
 * `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
   contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
   cluster. Rook will look in the secret provided at the `cabundle` key name.
+* `hostNetwork`: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.

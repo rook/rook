@@ -597,3 +597,54 @@ func TestGetDaemonName(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeRGWPodSpec(t *testing.T) {
+	store := simpleStore()
+	info := clienttest.CreateTestClusterInfo(1)
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+	c := &clusterConfig{
+		store:       store,
+		rookVersion: "rook/rook:myversion",
+		clusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
+			Network: cephv1.NetworkSpec{
+				HostNetwork: true,
+			},
+		},
+		clusterInfo: info,
+		DataPathMap: data,
+	}
+
+	resourceName := fmt.Sprintf("%s-%s", AppName, c.store.Name)
+	rgwConfig := &rgwConfig{
+		ResourceName: resourceName,
+		DaemonID:     "default",
+	}
+	tests := []struct {
+		name    string
+		isSet   bool
+		enabled bool
+	}{
+		{"host networking is not set to rgw daemon", false, false},
+		{"host networking is set to rgw daemon but not enabled", true, false},
+		{"host networking is enabled for the rgw daemon", true, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.isSet {
+				if tt.enabled {
+					c.store.Spec.HostNetwork = func(hostNetwork bool) *bool { return &hostNetwork }(true)
+				} else {
+					c.store.Spec.HostNetwork = new(bool)
+				}
+			}
+			podTemplateSpec, _ := c.makeRGWPodSpec(rgwConfig)
+
+			if tt.isSet {
+				assert.Equal(t, *c.store.Spec.HostNetwork, podTemplateSpec.Spec.HostNetwork)
+			} else {
+				assert.Equal(t, c.clusterSpec.Network.IsHost(), podTemplateSpec.Spec.HostNetwork)
+			}
+		})
+	}
+}
