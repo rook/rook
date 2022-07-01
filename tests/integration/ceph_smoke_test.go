@@ -92,10 +92,11 @@ func (s *SmokeSuite) SetupSuite() {
 		ConnectionsCompressed:     true,
 		UseCrashPruner:            true,
 		EnableVolumeReplication:   true,
-		TestNFSCSI:                true,
-		ChangeHostName:            true,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.ReturnCephVersion(),
+		// TODO: uncomment once issue https://github.com/rook/rook/issues/10518 is resolved.
+		// TestNFSCSI:                true,
+		ChangeHostName: true,
+		RookVersion:    installer.LocalBuildTag,
+		CephVersion:    installer.ReturnCephVersion(),
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
