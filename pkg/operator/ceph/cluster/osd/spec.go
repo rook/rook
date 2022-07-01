@@ -279,8 +279,6 @@ func deploymentName(osdID int) string {
 }
 
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
-	// If running on Octopus, we don't need to use the host PID namespace
-	var hostPID = !c.clusterInfo.CephVersion.IsAtLeastOctopus()
 	deploymentName := deploymentName(osd.ID)
 	replicaCount := int32(1)
 	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
@@ -564,7 +562,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			RestartPolicy:      v1.RestartPolicyAlways,
 			ServiceAccountName: serviceAccountName,
 			HostNetwork:        c.spec.Network.IsHost(),
-			HostPID:            hostPID,
 			HostIPC:            hostIPC,
 			PriorityClassName:  cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 			InitContainers:     initContainers,

@@ -185,8 +185,5 @@ func canDisableInsecureGlobalID(clusterInfo *cephclient.ClusterInfo) bool {
 	if cephver.IsPacific() && cephver.IsAtLeast(version.CephVersion{Major: 16, Minor: 2, Extra: 1}) {
 		return true
 	}
-	if cephver.IsOctopus() && cephver.IsAtLeast(version.CephVersion{Major: 15, Minor: 2, Extra: 11}) {
-		return true
-	}
 	return false
 }

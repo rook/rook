@@ -24,19 +24,19 @@ import (
 )
 
 func TestToString(t *testing.T) {
-	assert.Equal(t, "15.0.0-0 octopus", Octopus.String())
-	received := CephVersion{-1, 0, 0, 0, ""}
+	assert.Equal(t, "17.0.0-0 quincy", Quincy.String())
 
+	received := CephVersion{-1, 0, 0, 0, ""}
 	expected := fmt.Sprintf("-1.0.0-0 %s", unknownVersionString)
 	assert.Equal(t, expected, received.String())
 }
 
 func TestCephVersionFormatted(t *testing.T) {
-	assert.Equal(t, "ceph version 15.0.0-0 octopus", Octopus.CephVersionFormatted())
+	assert.Equal(t, "ceph version 17.0.0-0 quincy", Quincy.CephVersionFormatted())
 }
 
 func TestReleaseName(t *testing.T) {
-	assert.Equal(t, "octopus", Octopus.ReleaseName())
+	assert.Equal(t, "quincy", Quincy.ReleaseName())
 	ver := CephVersion{-1, 0, 0, 0, ""}
 	assert.Equal(t, unknownVersionString, ver.ReleaseName())
 }
@@ -79,7 +79,7 @@ ceph version 16.1.33-403-g7ba6bece41
 	v2d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version Development (no_version) octopus (rc)
+ceph version Development (no_version) quincy (rc)
 `
 	v, err := ExtractCephVersion(v2c)
 	assert.Error(t, err)
@@ -105,26 +105,25 @@ func TestSupported(t *testing.T) {
 }
 
 func TestIsRelease(t *testing.T) {
-	assert.True(t, Octopus.isRelease(Octopus))
 	assert.True(t, Pacific.isRelease(Pacific))
 	assert.True(t, Quincy.isRelease(Quincy))
 	assert.True(t, Reef.isRelease(Reef))
 
-	assert.False(t, Pacific.isRelease(Octopus))
+	assert.False(t, Pacific.isRelease(Reef))
 	assert.False(t, Reef.isRelease(Quincy))
 
-	OctopusUpdate := Octopus
-	OctopusUpdate.Minor = 33
-	OctopusUpdate.Extra = 4
-	assert.True(t, OctopusUpdate.isRelease(Octopus))
+	QuincyUpdate := Quincy
+	QuincyUpdate.Minor = 33
+	QuincyUpdate.Extra = 4
+	assert.True(t, QuincyUpdate.isRelease(Quincy))
 }
 
 func TestIsReleaseX(t *testing.T) {
-	assert.False(t, Pacific.IsOctopus())
+	assert.False(t, Pacific.IsQuincy())
 }
 
 func TestVersionAtLeast(t *testing.T) {
-	assert.True(t, Octopus.IsAtLeast(Octopus))
+	assert.True(t, Quincy.IsAtLeast(Quincy))
 
 	assert.True(t, (&CephVersion{1, 0, 0, 0, ""}).IsAtLeast(CephVersion{0, 0, 0, 0, ""}))
 	assert.False(t, (&CephVersion{0, 0, 0, 0, ""}).IsAtLeast(CephVersion{1, 0, 0, 0, ""}))
@@ -136,9 +135,8 @@ func TestVersionAtLeast(t *testing.T) {
 }
 
 func TestVersionAtLeastX(t *testing.T) {
-	assert.True(t, Octopus.IsAtLeastOctopus())
-	assert.True(t, Pacific.IsAtLeastPacific())
-	assert.False(t, Octopus.IsAtLeastPacific())
+	assert.True(t, Quincy.IsAtLeastQuincy())
+	assert.False(t, Pacific.IsAtLeastQuincy())
 }
 
 func TestIsIdentical(t *testing.T) {
@@ -209,8 +207,6 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"octopus", fields{Major: 15, Minor: 2, Extra: 1, Build: 0}, false},
-		{"octopus", fields{Major: 15, Minor: 2, Extra: 6, Build: 0}, false},
 		{"pacific", fields{Major: 16, Minor: 2, Extra: 1, Build: 0}, false},
 		{"quincy", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
 		{"reef", fields{Major: 18, Minor: 2, Extra: 0, Build: 0}, false},

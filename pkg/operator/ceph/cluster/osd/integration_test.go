@@ -545,7 +545,7 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 						panic(err)
 					}
 					t.Logf("returning ok for OSD %d", id)
-					return cephclientfake.OsdOkToStopOutput(id, []int{id}, true), nil
+					return cephclientfake.OsdOkToStopOutput(id, []int{id}), nil
 				}
 				if args[1] == "ls" {
 					// ceph osd ls returns an array of osd IDs like [0,1,2]
@@ -568,7 +568,7 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 			}
 			if args[0] == "versions" {
 				// the update deploy code only cares about the mons from the ceph version command results
-				v := `{"mon":{"ceph version 16.2.2 (somehash) octopus (stable)":3}}`
+				v := `{"mon":{"ceph version 17.2.1 (somehash) quincy (stable)":3}}`
 				return v, nil
 			}
 			return "", errors.Errorf("unexpected ceph command %q", args)

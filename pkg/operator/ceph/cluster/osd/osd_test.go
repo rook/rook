@@ -67,7 +67,7 @@ func TestStart(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 		Context:     context.TODO(),
 	}
 	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
@@ -150,7 +150,7 @@ func TestAddRemoveNode(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 		Context:     ctx,
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -253,7 +253,7 @@ func TestAddRemoveNode(t *testing.T) {
 					return `{"crush_location":{"host":"my-host"}}`, nil
 				}
 				if args[1] == "ok-to-stop" {
-					return cephclientfake.OsdOkToStopOutput(1, []int{1}, true), nil
+					return cephclientfake.OsdOkToStopOutput(1, []int{1}), nil
 				}
 			}
 			if args[0] == "df" && args[1] == "detail" {
@@ -323,7 +323,7 @@ func TestAddNodeFailure(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns-add-remove",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("testcluster")

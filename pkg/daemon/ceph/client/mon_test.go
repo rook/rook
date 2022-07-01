@@ -128,8 +128,8 @@ func TestMonDump(t *testing.T) {
 		logger.Infof("Command: %s %v", command, args)
 		switch {
 		case args[0] == "mon" && args[1] == "dump":
-			return `{"epoch":3,"fsid":"6a31a264-9090-4048-8d95-4b8c3cde909d","modified":"2020-12-09T18:13:36.346150Z","created":"2020-12-09T18:13:13.014270Z","min_mon_release":15,"min_mon_release_name":"octopus",
-		"features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},
+			return `{"epoch":3,"fsid":"6a31a264-9090-4048-8d95-4b8c3cde909d","modified":"2020-12-09T18:13:36.346150Z","created":"2020-12-09T18:13:13.014270Z","min_mon_release":15,"min_mon_release_name":"pacific",
+		"features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus","pacific","quincy"],"optional":[]},
 		"election_strategy":1,"mons":[
 		{"rank":0,"name":"a","crush_location":"{zone=a}","public_addrs":{"addrvec":[{"type":"v2","addr":"10.109.80.104:3300","nonce":0},{"type":"v1","addr":"10.109.80.104:6789","nonce":0}]},"addr":"10.109.80.104:6789/0","public_addr":"10.109.80.104:6789/0","priority":0,"weight":0},
 		{"rank":1,"name":"b","crush_location":"{zone=b}","public_addrs":{"addrvec":[{"type":"v2","addr":"10.107.12.199:3300","nonce":0},{"type":"v1","addr":"10.107.12.199:6789","nonce":0}]},"addr":"10.107.12.199:6789/0","public_addr":"10.107.12.199:6789/0","priority":0,"weight":0},

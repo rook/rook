@@ -98,11 +98,8 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 	}
 
 	// start a new deployment and scale up
-	desiredRgwInstances := int(c.store.Spec.Gateway.Instances)
-	// If running on Pacific we force a single deployment and later set the deployment replica to the "instances" value
-	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-		desiredRgwInstances = 1
-	}
+	// We force a single deployment and later set the deployment replica to the "instances" value
+	desiredRgwInstances := 1
 	for i := 0; i < desiredRgwInstances; i++ {
 		var err error
 

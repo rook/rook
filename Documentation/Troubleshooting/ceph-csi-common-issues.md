@@ -429,18 +429,9 @@ After the force delete, wait for a timeout of about 8-10 minutes. If the pod sti
 
 To shorten the timeout, you can mark the node as "blocklisted" from the [Rook toolbox](ceph-toolbox.md) so Rook can safely failover the pod sooner.
 
-If the Ceph version is at least Pacific(v16.2.x), run the following command:
-
 ```console
 $ ceph osd blocklist add <NODE_IP> # get the node IP you want to blocklist
 blocklisting <NODE_IP>
-```
-
-If the Ceph version is Octopus(v15.2.x) or older, run the following command:
-
-```console
-$ ceph osd blacklist add <NODE_IP> # get the node IP you want to blacklist
-blacklisting <NODE_IP>
 ```
 
 After running the above command within a few minutes the pod will be running.
@@ -449,16 +440,7 @@ After running the above command within a few minutes the pod will be running.
 
 After you are absolutely sure the node is permanently offline and that the node no longer needs to be blocklisted, remove the node from the blocklist.
 
-If the Ceph version is at least Pacific(v16.2.x), run:
-
 ```console
 $ ceph osd blocklist rm <NODE_IP>
 un-blocklisting <NODE_IP>
-```
-
-If the Ceph version is Octopus(v15.2.x) or older, run:
-
-```console
-$ ceph osd blacklist rm <NODE_IP> # get the node IP you want to blacklist
-un-blacklisting <NODE_IP>
 ```

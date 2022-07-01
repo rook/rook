@@ -97,7 +97,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 }
 
 func (s *UpgradeSuite) TestUpgradeRook() {
-	s.testUpgrade(false, installer.OctopusVersion)
+	s.testUpgrade(false, installer.PacificVersion)
 }
 
 func (s *UpgradeSuite) TestUpgradeHelm() {
@@ -158,20 +158,6 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	}
 
 	//
-	// Upgrade from octopus to pacific
-	//
-	logger.Infof("*** UPGRADING CEPH FROM OCTOPUS TO PACIFIC ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")
-	s.upgradeCephVersion(installer.PacificVersion.Image, numOSDs)
-	// Verify reading and writing to the test clients
-	newFile = "post-pacific-upgrade-file"
-	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from octopus to pacific")
-
-	rbdFilesToRead = append(rbdFilesToRead, newFile)
-	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
-
-	//
 	// Upgrade from pacific to quincy
 	//
 	logger.Infof("*** UPGRADING CEPH FROM PACIFIC TO QUINCY ***")
@@ -185,12 +171,12 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
 
-func (s *UpgradeSuite) TestUpgradeCephToOctopusDevel() {
-	s.baseSetup(false, installer.OctopusVersion)
+func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
+	s.baseSetup(false, installer.QuincyVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
-	s.settings.CephVersion = installer.OctopusVersion
+	s.settings.CephVersion = installer.QuincyVersion
 	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
@@ -205,15 +191,15 @@ func (s *UpgradeSuite) TestUpgradeCephToOctopusDevel() {
 	}()
 
 	//
-	// Upgrade from octopus to octopus
+	// Upgrade from quincy to quincy devel
 	//
-	logger.Infof("*** UPGRADING CEPH FROM OCTOPUS STABLE TO OCTOPUS DEVEL ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")
-	s.upgradeCephVersion(installer.OctopusDevelVersion.Image, numOSDs)
+	logger.Infof("*** UPGRADING CEPH FROM QUINCY STABLE TO QUINCY DEVEL ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_quincy_upgrade")
+	s.upgradeCephVersion(installer.QuincyDevelVersion.Image, numOSDs)
 	// Verify reading and writing to the test clients
-	newFile := "post-octopus-upgrade-file"
+	newFile := "post-quincy-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from octopus stable to octopus devel")
+	logger.Infof("Verified upgrade from quincy stable to quincy devel")
 
 	checkCephObjectUser(s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
@@ -238,7 +224,7 @@ func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
 	}()
 
 	//
-	// Upgrade from octopus to pacific
+	// Upgrade from pacific to pacific devel
 	//
 	logger.Infof("*** UPGRADING CEPH FROM PACIFIC STABLE TO PACIFIC DEVEL ***")
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")

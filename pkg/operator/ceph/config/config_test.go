@@ -39,8 +39,4 @@ func TestInsecureGlobalIDVersion(t *testing.T) {
 	assert.False(t, canDisableInsecureGlobalID(c))
 	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 16, Minor: 2, Extra: 1}}
 	assert.True(t, canDisableInsecureGlobalID(c))
-	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 15, Minor: 2, Extra: 10}}
-	assert.False(t, canDisableInsecureGlobalID(c))
-	c = &client.ClusterInfo{CephVersion: version.CephVersion{Major: 15, Minor: 2, Extra: 11}}
-	assert.True(t, canDisableInsecureGlobalID(c))
 }

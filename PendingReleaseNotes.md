@@ -2,6 +2,7 @@
 
 ## Breaking Changes
 
+- Remove support for Ceph Octopus (v15)
 
 ## Features
 

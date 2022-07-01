@@ -223,10 +223,6 @@ func TestNetworkBindingFlags(t *testing.T) {
 		args args
 		want []string
 	}{
-		{"octopus-ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
-		{"octopus-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
-		{"octopus-dualstack-unsupported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4, DualStack: true}}}, []string{}},
-		{"octopus-dualstack-unsupported-by-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Octopus}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv6FlagTrue}},
 		{"pacific-ipv4", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv4}}}, []string{ipv4FlagTrue, ipv6FlagFalse}},
 		{"pacific-ipv6", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6}}}, []string{ipv4FlagFalse, ipv6FlagTrue}},
 		{"pacific-dualstack-supported", args{cluster: &cephclient.ClusterInfo{CephVersion: version.Pacific}, spec: &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{IPFamily: cephv1.IPv6, DualStack: true}}}, []string{ipv4FlagTrue, ipv6FlagTrue}},

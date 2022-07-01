@@ -211,11 +211,6 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	}
 	r.clusterInfo.CephVersion = *runningCephVersion
 
-	// Validate Ceph version
-	if !r.clusterInfo.CephVersion.IsAtLeastPacific() {
-		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Errorf("ceph pacific version is required to deploy cephfs mirroring, current cluster runs %q", r.clusterInfo.CephVersion.String())
-	}
-
 	// CREATE/UPDATE
 	logger.Debug("reconciling ceph filesystem mirror deployments")
 	reconcileResponse, err = r.reconcileFilesystemMirror(filesystemMirror)

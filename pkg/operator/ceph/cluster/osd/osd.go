@@ -45,8 +45,7 @@ import (
 )
 
 var (
-	logger                                           = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
-	cephVolumeRawEncryptionModeMinOctopusCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 )
 
 const (

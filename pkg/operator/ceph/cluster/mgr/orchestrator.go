@@ -26,14 +26,11 @@ import (
 )
 
 const (
-	rookModuleName         = "rook"
-	orchestratorOldCLIName = "orchestrator"
-	orchestratorNewCLIName = "orch"
+	rookModuleName = "rook"
 )
 
 var (
 	orchestratorInitWaitTime = 5 * time.Second
-	orchestratorCLIName      = orchestratorOldCLIName
 )
 
 // Ceph docs about the orchestrator modules: http://docs.ceph.com/docs/master/mgr/orchestrator_cli/
@@ -48,12 +45,9 @@ func (c *Cluster) configureOrchestratorModules() error {
 }
 
 func (c *Cluster) setRookOrchestratorBackend() error {
-	if c.clusterInfo.CephVersion.IsAtLeastOctopus() {
-		orchestratorCLIName = orchestratorNewCLIName
-	}
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
-		args := []string{orchestratorCLIName, "set", "backend", "rook"}
+		args := []string{"orch", "set", "backend", "rook"}
 		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 		return "set rook backend", output, err
 	}, c.exitCode, 5, invalidArgErrorCode, orchestratorInitWaitTime)

@@ -22,13 +22,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 )
 
 const (
-	beforeOctopusTime   = "2006-01-02 15:04:05.999999999Z"
-	octopusAndAfterTime = "2006-01-02T15:04:05.999999999Z"
+	timeParser = "2006-01-02T15:04:05.999999999Z"
 )
 
 type ObjectBucketMetadata struct {
@@ -152,17 +149,6 @@ func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, 
 	}
 	if err := json.Unmarshal([]byte(match), &s); err != nil {
 		return nil, false, errors.Wrapf(err, "failed to read buckets list result=%s", match)
-	}
-
-	timeParser := octopusAndAfterTime
-	version, err := cephver.ExtractCephVersion(opcontroller.OperatorCephBaseImageVersion)
-	if err != nil {
-		logger.Errorf("failed to extract ceph version. %v", err)
-	} else {
-		vv := *version
-		if !vv.IsAtLeastOctopus() {
-			timeParser = beforeOctopusTime
-		}
 	}
 
 	createdAt, err := time.Parse(timeParser, s.Data.CreationTime)

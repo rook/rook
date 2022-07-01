@@ -29,7 +29,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -918,31 +917,24 @@ func enableRGWDashboard(context *Context) error {
 	var accessArgs, secretArgs []string
 	var secretFile *os.File
 
-	// for latest Ceph versions
-	if mgr.FileBasedPasswordSupported(context.clusterInfo) {
-		accessFile, err := util.CreateTempFile(*u.AccessKey)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a temporary dashboard access-key file")
-		}
-
-		accessArgs = []string{"dashboard", "set-rgw-api-access-key", "-i", accessFile.Name()}
-		defer func() {
-			if err := os.Remove(accessFile.Name()); err != nil {
-				logger.Errorf("failed to clean up dashboard access-key file. %v", err)
-			}
-		}()
-
-		secretFile, err = util.CreateTempFile(*u.SecretKey)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a temporary dashboard secret-key file")
-		}
-
-		secretArgs = []string{"dashboard", "set-rgw-api-secret-key", "-i", secretFile.Name()}
-	} else {
-		// for older Ceph versions
-		accessArgs = []string{"dashboard", "set-rgw-api-access-key", *u.AccessKey}
-		secretArgs = []string{"dashboard", "set-rgw-api-secret-key", *u.SecretKey}
+	accessFile, err := util.CreateTempFile(*u.AccessKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a temporary dashboard access-key file")
 	}
+
+	accessArgs = []string{"dashboard", "set-rgw-api-access-key", "-i", accessFile.Name()}
+	defer func() {
+		if err := os.Remove(accessFile.Name()); err != nil {
+			logger.Errorf("failed to clean up dashboard access-key file. %v", err)
+		}
+	}()
+
+	secretFile, err = util.CreateTempFile(*u.SecretKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a temporary dashboard secret-key file")
+	}
+
+	secretArgs = []string{"dashboard", "set-rgw-api-secret-key", "-i", secretFile.Name()}
 
 	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, accessArgs)
 	_, err = cephCmd.Run()
@@ -960,10 +952,8 @@ func enableRGWDashboard(context *Context) error {
 		if err != nil {
 			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
 		}
-		if mgr.FileBasedPasswordSupported(context.clusterInfo) {
-			if err := os.Remove(secretFile.Name()); err != nil {
-				logger.Errorf("failed to clean up dashboard secret-key file. %v", err)
-			}
+		if err := os.Remove(secretFile.Name()); err != nil {
+			logger.Errorf("failed to clean up dashboard secret-key file. %v", err)
 		}
 
 		logger.Info("done setting the dashboard api secret key")

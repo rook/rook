@@ -54,9 +54,6 @@ var (
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
 
-	// The Ceph Octopus to include a retry to acquire device lock
-	cephFlockFixOctopusMinCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}
-
 	// The mitigation of phantom ATARI partition problem is fixed in Ceph v16.2.6. Quincy doesn't have this problem from the beginning
 	// See https://github.com/ceph/ceph/pull/42469
 	cephIgnorePhantomAtariPartitionCephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
@@ -87,33 +84,12 @@ type osdTags struct {
 	CrushDeviceClass string `json:"ceph.crush_device_class"`
 }
 
-type cephVolReport struct {
-	Changed bool      `json:"changed"`
-	Vg      cephVolVg `json:"vg"`
-}
-
-type cephVolVg struct {
-	Devices string `json:"devices"`
-}
-
 type cephVolReportV2 struct {
 	BlockDB      string `json:"block_db"`
 	Encryption   string `json:"encryption"`
 	Data         string `json:"data"`
 	DatabaseSize string `json:"data_size"`
 	BlockDbSize  string `json:"block_db_size"`
-}
-
-func isNewStyledLvmBatch(version cephver.CephVersion) bool {
-	if version.IsOctopus() && version.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 8}) {
-		return true
-	}
-
-	if version.IsAtLeastPacific() {
-		return true
-	}
-
-	return false
 }
 
 func (a *OsdAgent) configureCVDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
@@ -436,16 +412,8 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 }
 
 func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
-	var allowRawMode bool
-	if a.clusterInfo.CephVersion.IsOctopus() && a.clusterInfo.CephVersion.IsAtLeast(cephFlockFixOctopusMinCephVersion) {
-		logger.Debugf("will use raw mode since cluster version is at least %v", cephFlockFixOctopusMinCephVersion)
-		allowRawMode = true
-	}
-
-	if a.clusterInfo.CephVersion.IsAtLeastPacific() {
-		logger.Debug("will use raw mode since cluster version is at least pacific")
-		allowRawMode = true
-	}
+	// by default assume raw mode
+	allowRawMode := true
 
 	// ceph-volume raw mode does not support encryption yet
 	if a.storeConfig.EncryptedDevice {
@@ -765,31 +733,18 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 
 		logger.Debugf("ceph-volume reports: %+v", cvOut)
 
-		// ceph version v14.2.13 and v15.2.8 changed the changed output format of `lvm batch --prepare --report`
-		// use previous logic if ceph version does not fall into this range
-		if !isNewStyledLvmBatch(a.clusterInfo.CephVersion) {
-			var cvReport cephVolReport
-			if err = json.Unmarshal([]byte(cvOut), &cvReport); err != nil {
-				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
-			}
+		var cvReports []cephVolReportV2
+		if err = json.Unmarshal([]byte(cvOut), &cvReports); err != nil {
+			return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
+		}
 
-			if mdPath != cvReport.Vg.Devices {
-				return errors.Errorf("ceph-volume did not use the expected metadataDevice [%s]", mdPath)
-			}
-		} else {
-			var cvReports []cephVolReportV2
-			if err = json.Unmarshal([]byte(cvOut), &cvReports); err != nil {
-				return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
-			}
+		if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
+			return errors.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
+		}
 
-			if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
-				return errors.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
-			}
-
-			for _, report := range cvReports {
-				if report.BlockDB != mdPath && !strings.HasSuffix(mdPath, report.BlockDB) {
-					return errors.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
-				}
+		for _, report := range cvReports {
+			if report.BlockDB != mdPath && !strings.HasSuffix(mdPath, report.BlockDB) {
+				return errors.Errorf("wrong db device for %s, required: %s, actual: %s", report.Data, mdPath, report.BlockDB)
 			}
 		}
 

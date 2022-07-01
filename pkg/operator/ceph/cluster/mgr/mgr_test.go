@@ -235,7 +235,6 @@ func validateServiceActiveDaemon(t *testing.T, c *Cluster, activeDaemon string, 
 func TestMgrSidecarReconcile(t *testing.T) {
 	activeMgr := "a"
 	calledMgrStat := false
-	calledMgrDump := false
 	spec := cephv1.ClusterSpec{
 		Mgr: cephv1.MgrSpec{Count: 1},
 		Dashboard: cephv1.DashboardSpec{
@@ -246,9 +245,7 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
-			if args[1] == "dump" {
-				calledMgrDump = true
-			} else if args[1] == "stat" {
+			if args[1] == "stat" {
 				calledMgrStat = true
 			}
 			return fmt.Sprintf(`{"active_name":"%s"}`, activeMgr), nil
@@ -266,21 +263,19 @@ func TestMgrSidecarReconcile(t *testing.T) {
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 
 	// Update services according to the active mgr
-	clusterInfo.CephVersion = cephver.CephVersion{Major: 15, Minor: 2, Build: 0}
+	calledMgrStat = false
+	clusterInfo.CephVersion = cephver.CephVersion{Major: 17, Minor: 2, Build: 0}
 	err := c.ReconcileActiveMgrServices(activeMgr)
 	assert.NoError(t, err)
-	assert.False(t, calledMgrStat)
-	assert.True(t, calledMgrDump)
+	assert.True(t, calledMgrStat)
 	validateServices(t, c)
 	validateServiceMatches(t, c, "a")
 
 	// nothing is created or updated when the requested mgr is not the active mgr
-	calledMgrDump = false
 	clusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Build: 5}
 	err = c.ReconcileActiveMgrServices("b")
 	assert.NoError(t, err)
 	assert.True(t, calledMgrStat)
-	assert.False(t, calledMgrDump)
 	_, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
 	assert.True(t, kerrors.IsNotFound(err))
 
@@ -366,8 +361,7 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 1, modulesEnabled)
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
-	assert.Equal(t, 2, len(configSettings))
-	assert.Equal(t, "on", configSettings["osd_pool_default_pg_autoscale_mode"])
+	assert.Equal(t, 1, len(configSettings))
 	assert.Equal(t, "0", configSettings["mon_pg_warn_min_per_osd"])
 
 	// disable the module
@@ -439,30 +433,6 @@ func TestCluster_enableBalancerModule(t *testing.T) {
 		context:     &clusterd.Context{Executor: &exectest.MockExecutor{}, Clientset: testop.New(t, 3)},
 		clusterInfo: cephclient.AdminTestClusterInfo("mycluster"),
 	}
-
-	t.Run("on octopus we configure the balancer AND enable the upmap mode", func(t *testing.T) {
-		c.clusterInfo.CephVersion = cephver.Octopus
-		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-				logger.Infof("Command: %s %v", command, args)
-				if command == "ceph" {
-					if args[0] == "osd" && args[1] == "set-require-min-compat-client" {
-						return "", nil
-					}
-					if args[0] == "balancer" && args[1] == "mode" {
-						return "", nil
-					}
-					if args[0] == "balancer" && args[1] == "on" {
-						return "", nil
-					}
-				}
-				return "", errors.New("unknown command")
-			},
-		}
-		c.context.Executor = executor
-		err := c.enableBalancerModule()
-		assert.NoError(t, err)
-	})
 
 	t.Run("on pacific we configure the balancer ONLY and don't set a mode", func(t *testing.T) {
 		c.clusterInfo.CephVersion = cephver.Pacific

@@ -42,14 +42,11 @@ import (
 )
 
 const (
-	// test with the latest octopus build
-	octopusTestImage = "quay.io/ceph/ceph:v15"
 	// test with the latest pacific build
 	pacificTestImage = "quay.io/ceph/ceph:v16"
 	// test with the latest pacific build
 	quincyTestImage = "quay.io/ceph/ceph:v17"
 	// test with the current development version of Pacific
-	octopusDevelTestImage = "quay.io/ceph/daemon-base:latest-octopus-devel"
 	pacificDevelTestImage = "quay.io/ceph/daemon-base:latest-pacific-devel"
 	quincyDevelTestImage  = "quay.io/ceph/daemon-base:latest-quincy-devel"
 	// test with the latest master image
@@ -66,8 +63,6 @@ bdev_flock_retry = 20
 )
 
 var (
-	OctopusVersion               = cephv1.CephVersionSpec{Image: octopusTestImage}
-	OctopusDevelVersion          = cephv1.CephVersionSpec{Image: octopusDevelTestImage}
 	PacificVersion               = cephv1.CephVersionSpec{Image: pacificTestImage}
 	PacificDevelVersion          = cephv1.CephVersionSpec{Image: pacificDevelTestImage}
 	QuincyVersion                = cephv1.CephVersionSpec{Image: quincyTestImage}

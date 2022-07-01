@@ -215,7 +215,7 @@ func TestCephNFSController(t *testing.T) {
 	}
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-		return &version.Octopus, &version.Octopus, nil
+		return &version.Quincy, &version.Quincy, nil
 	}
 
 	t.Run("error - no ceph cluster", func(t *testing.T) {
@@ -483,9 +483,5 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 
 	res := getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 16}, nodeid)
 	logger.Infof("Config Object for Pacific is %s", res)
-	assert.Equal(t, expectedName, res)
-
-	res = getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 15, Minor: 2, Extra: 1}, nodeid)
-	logger.Infof("Config Object for Octopus is %s", res)
 	assert.Equal(t, expectedName, res)
 }

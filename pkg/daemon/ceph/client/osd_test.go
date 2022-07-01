@@ -170,7 +170,7 @@ func TestOSDOkToStop(t *testing.T) {
 	t.Run("pacific output ok to stop", func(t *testing.T) {
 		doSetup()
 		clusterInfo.CephVersion = version.Pacific
-		returnString = fake.OsdOkToStopOutput(1, []int{1, 2}, true)
+		returnString = fake.OsdOkToStopOutput(1, []int{1, 2})
 		returnOkResult = true
 		osds, err := OSDOkToStop(context, clusterInfo, 1, 2)
 		assert.NoError(t, err)
@@ -182,7 +182,7 @@ func TestOSDOkToStop(t *testing.T) {
 	t.Run("pacific output not ok to stop", func(t *testing.T) {
 		doSetup()
 		clusterInfo.CephVersion = version.Pacific
-		returnString = fake.OsdOkToStopOutput(3, []int{}, true)
+		returnString = fake.OsdOkToStopOutput(3, []int{})
 		returnOkResult = false
 		_, err := OSDOkToStop(context, clusterInfo, 3, 5)
 		assert.Error(t, err)
@@ -193,7 +193,7 @@ func TestOSDOkToStop(t *testing.T) {
 	t.Run("pacific handles maxReturned=0", func(t *testing.T) {
 		doSetup()
 		clusterInfo.CephVersion = version.Pacific
-		returnString = fake.OsdOkToStopOutput(4, []int{4, 8}, true)
+		returnString = fake.OsdOkToStopOutput(4, []int{4, 8})
 		returnOkResult = true
 		osds, err := OSDOkToStop(context, clusterInfo, 4, 0)
 		assert.NoError(t, err)
@@ -201,28 +201,5 @@ func TestOSDOkToStop(t *testing.T) {
 		assert.Equal(t, "4", seenArgs[2])
 		// should just pass through as --max=0; don't do any special processing
 		assert.Equal(t, "--max=0", seenArgs[3])
-	})
-
-	t.Run("octopus output not ok to stop", func(t *testing.T) {
-		doSetup()
-		clusterInfo.CephVersion = version.Octopus
-		returnString = fake.OsdOkToStopOutput(3, []int{}, false)
-		returnOkResult = false
-		_, err := OSDOkToStop(context, clusterInfo, 3, 5)
-		assert.Error(t, err)
-		assert.Equal(t, "3", seenArgs[2])
-		assert.NotContains(t, seenArgs[3], "--max") // do not issue the "--max" flag below pacific
-	})
-
-	t.Run("octopus output ok to stop", func(t *testing.T) {
-		doSetup()
-		clusterInfo.CephVersion = version.Octopus
-		returnString = fake.OsdOkToStopOutput(50, []int{50}, false)
-		returnOkResult = true
-		osds, err := OSDOkToStop(context, clusterInfo, 50, 2)
-		assert.NoError(t, err)
-		assert.ElementsMatch(t, osds, []int{50})
-		assert.Equal(t, "50", seenArgs[2])
-		assert.NotContains(t, seenArgs[3], "--max") // do not issue the "--max" flag below pacific
 	})
 }

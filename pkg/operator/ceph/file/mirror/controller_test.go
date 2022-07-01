@@ -58,9 +58,8 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
 
 	// Mock cmd reporter
-	// pacific := &version.CephVersion{Major: 16, Minor: 2, Extra: 1, Build: 0, CommitID: ""}
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-		return &version.Octopus, &version.Octopus, nil
+		return &version.CephVersion{Major: 16}, &version.CephVersion{Major: 16}, nil
 	}
 
 	fsMirror := &cephv1.CephFilesystemMirror{
@@ -212,7 +211,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
-		assert.True(t, res.Requeue)
+		assert.False(t, res.Requeue)
 	})
 
 	t.Run("error - cluster is upgrading", func(t *testing.T) {
@@ -229,7 +228,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-			return &version.Octopus, &version.Pacific, nil
+			return &version.Pacific, &version.Quincy, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)

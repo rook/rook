@@ -32,7 +32,6 @@ import (
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -203,7 +202,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 					versionStr, _ := json.Marshal(
 						map[string]map[string]int{
 							"mds": {
-								"ceph version 16.0.0-4-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) pacific (stable)": 2,
+								"ceph version 17.0.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
 							},
 						})
 					return string(versionStr), nil
@@ -250,6 +249,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return "", nil
 			} else if contains(args, "config") && contains(args, "mds_join_fs") {
 				return "", nil
+			} else if contains(args, "flag") && contains(args, "enable_multiple") {
+				return "", nil
 			} else if contains(args, "config") && contains(args, "get") {
 				return "{}", nil
 			} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data1"}) {
@@ -278,7 +279,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				versionStr, _ := json.Marshal(
 					map[string]map[string]int{
 						"mds": {
-							"ceph version 16.0.0-4-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) pacific (stable)": 2,
+							"ceph version 17.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
 						},
 					})
 				return string(versionStr), nil
@@ -332,7 +333,7 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus, Context: ctx}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Quincy, Context: ctx}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 
 	t.Run("start basic filesystem", func(t *testing.T) {
@@ -375,20 +376,7 @@ func TestCreateFilesystem(t *testing.T) {
 		testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 	})
 
-	t.Run("multiple filesystem creation", func(t *testing.T) {
-		context = &clusterd.Context{
-			Executor:  fsExecutor(t, fsName, configDir, true, &createDataPoolCount, &addDataPoolCount),
-			ConfigDir: configDir,
-			Clientset: clientset,
-		}
-
-		// Create another filesystem which should fail
-		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, &k8sutil.OwnerInfo{}, "/var/lib/rook/")
-		assert.Error(t, err)
-		assert.Equal(t, fmt.Sprintf("failed to create filesystem %q: multiple filesystems are only supported as of ceph pacific", fsName), err.Error())
-	})
-
-	t.Run("multi filesystem creation now works since ceph version is pacific", func(t *testing.T) {
+	t.Run("multi filesystem creation should succeed", func(t *testing.T) {
 		clusterInfo.CephVersion = version.Pacific
 		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 		assert.NoError(t, err)
@@ -411,7 +399,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Octopus, Context: ctx}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Pacific, Context: ctx}
 
 	// start a basic cluster for upgrade
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -497,7 +485,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 			versionStr, _ := json.Marshal(
 				map[string]map[string]int{
 					"mds": {
-						"ceph version 16.0.0-4-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) pacific (stable)": 2,
+						"ceph version 16.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) pacific (stable)": 2,
 					},
 				})
 			return string(versionStr), nil
