@@ -9,14 +9,15 @@ on:
 
 jobs:
   security:
+    if: github.repository == 'rook/rook'
     runs-on: ubuntu-latest
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: run Snyk to check for code vulnerabilities
-      uses: snyk/actions/golang@master
-      env:
-        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      - name: run Snyk to check for code vulnerabilities
+        uses: snyk/actions/golang@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
