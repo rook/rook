@@ -30,7 +30,7 @@ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-t
 ## Add an OSD
 
 The [QuickStart Guide](../../Getting-Started/quickstart.md) will provide the basic steps to create a cluster and start some OSDs. For more details on the OSD
-settings also see the [Cluster CRD](../../CRDs/ceph-cluster-crd.md) documentation. If you are not seeing OSDs created, see the [Ceph Troubleshooting Guide](../../Troubleshooting/ceph-common-issues.md).
+settings also see the [Cluster CRD](../../CRDs/Cluster/ceph-cluster-crd.md) documentation. If you are not seeing OSDs created, see the [Ceph Troubleshooting Guide](../../Troubleshooting/ceph-common-issues.md).
 
 To add more OSDs, Rook will automatically watch for new nodes and devices being added to your cluster.
 If they match the filters or other settings in the `storage` section of the cluster CR, the operator
@@ -39,7 +39,7 @@ will create new OSDs.
 ## Add an OSD on a PVC
 
 In more dynamic environments where storage can be dynamically provisioned with a raw block storage provider, the OSDs can be backed
-by PVCs. See the `storageClassDeviceSets` documentation in the [Cluster CRD](../../CRDs/ceph-cluster-crd.md#storage-class-device-sets) topic.
+by PVCs. See the `storageClassDeviceSets` documentation in the [Cluster CRD](../../CRDs/Cluster/ceph-cluster-crd.md#storage-class-device-sets) topic.
 
 To add more OSDs, you can either increase the `count` of the OSDs in an existing device set or you can
 add more device sets to the cluster CR. The operator will then automatically create new OSDs according

@@ -107,11 +107,11 @@ The gateway settings correspond to the RGW daemon settings.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.
-* `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways (works with external mode). This setting will be ignored if the `CephCluster` does not have `external` spec enabled. Refer to the [external cluster section](../ceph-cluster-crd.md#external-cluster) for more details.
+* `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways (works with external mode). This setting will be ignored if the `CephCluster` does not have `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster) for more details.
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
 * `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
-* `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](../ceph-cluster-crd.md#resource-requirementslimits).
+* `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](../Cluster/ceph-cluster-crd.md#resource-requirementslimits).
 * `priorityClassName`: Set priority class name for the Gateway Pod(s)
 * `service`: The annotations to set on to the Kubernetes Service of RGW. The [service serving cert](https://docs.openshift.com/container-platform/4.6/security/certificates/service-serving-certificate.html) feature supported in Openshift is enabled by the following example:
 
@@ -200,7 +200,7 @@ Rook-Ceph always keeps the bucket and the user for the health check, it just doe
 
 ## Security settings
 
-Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](../ceph-cluster-crd.md#vault-kms) for detailed explanation.
+Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](../Cluster/ceph-cluster-crd.md#vault-kms) for detailed explanation.
 If these settings are defined, then RGW establish a connection between Vault and whenever S3 client sends a request with Server Side Encryption,
 it encrypts that using the key specified by the client. For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
 
