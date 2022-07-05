@@ -1171,7 +1171,7 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
 		_, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(ctx, pvcname, getOpts)
-		if err != nil {
+		if err != nil && kerrors.IsNotFound(err) {
 			return true
 		}
 		logger.Infof("waiting for PVC %s to be deleted.", pvcname)
