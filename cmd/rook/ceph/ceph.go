@@ -75,7 +75,7 @@ func addCephFlags(command *cobra.Command) {
 	command.Flags().StringVar(&clusterInfo.CephCred.Username, "ceph-username", "", "ceph username")
 	command.Flags().StringVar(&clusterInfo.CephCred.Secret, "ceph-secret", "", "secret for the ceph user (random if not specified)")
 	command.Flags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
-	command.Flags().StringVar(&cfg.dataDir, "config-dir", "/var/lib/rook", "directory for storing configuration")
+	command.Flags().StringVar(&cfg.dataDir, "config-dir", k8sutil.DataDir, "directory for storing configuration")
 	command.Flags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
 
 	clusterInfo.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)

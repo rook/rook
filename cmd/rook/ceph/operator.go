@@ -57,7 +57,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	logger.Info("starting Rook-Ceph operator")
 	context := createContext()
-	context.ConfigDir = k8sutil.DataDir
 
 	// Fail if operator namespace is not provided
 	if os.Getenv(k8sutil.PodNamespaceEnvVar) == "" {
