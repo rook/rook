@@ -2,6 +2,17 @@
 {{- range $filesystem := .Values.cephFileSystems -}}
 ---
 apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: {{ $filesystem.name }}-csi    # lets keep the svg crd name same as `filesystem name + csi` for the default csi svg
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
+spec:
+  # The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
+  name: csi
+  # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
+  filesystemName: {{ $filesystem.name }}
+---
+apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
   name: {{ $filesystem.name }}
