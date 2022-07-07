@@ -455,6 +455,8 @@ spec:
   selector:
     matchLabels:
       app: rook-ceph-operator
+  strategy:
+    type: Recreate
   replicas: 1
   template:
     metadata:
