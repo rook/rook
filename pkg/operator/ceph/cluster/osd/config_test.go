@@ -20,10 +20,6 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/clusterd"
-	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -55,40 +51,4 @@ func TestEncryptionDMPath(t *testing.T) {
 
 func TestEncryptionDMName(t *testing.T) {
 	assert.Equal(t, "set1-data-0-6rqdn-block-dmcrypt", encryptionDMName("set1-data-0-6rqdn", DmcryptBlockType))
-}
-
-func TestClusterIsCephVolumeRAwModeSupported(t *testing.T) {
-	type fields struct {
-		context      *clusterd.Context
-		clusterInfo  *cephclient.ClusterInfo
-		rookVersion  string
-		spec         cephv1.ClusterSpec
-		ValidStorage cephv1.StorageScopeSpec
-		kv           *k8sutil.ConfigMapKVStore
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   bool
-	}{
-		{"nok-15.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
-		{"ok-15.2.5", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
-		{"nok-16.2.4", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 4}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, false},
-		{"ok-16.2.5", fields{&clusterd.Context{}, &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}}, "", cephv1.ClusterSpec{}, cephv1.StorageScopeSpec{}, &k8sutil.ConfigMapKVStore{}}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			c := &Cluster{
-				context:      tt.fields.context,
-				clusterInfo:  tt.fields.clusterInfo,
-				rookVersion:  tt.fields.rookVersion,
-				spec:         tt.fields.spec,
-				ValidStorage: tt.fields.ValidStorage,
-				kv:           tt.fields.kv,
-			}
-			if got := c.clusterInfo.CephVersion.IsAtLeast(cephVolumeRawEncryptionModeMinOctopusCephVersion); got != tt.want {
-				t.Errorf("Cluster.isCephVolumeRAwModeSupported() = %v, want %v", got, tt.want)
-			}
-		})
-	}
 }

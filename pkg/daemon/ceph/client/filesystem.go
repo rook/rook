@@ -134,18 +134,15 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 	logger.Infof("creating filesystem %q with metadata pool %q and data pools %v", name, metadataPool, dataPools)
 	var err error
 
-	// Always enable multiple fs when running on Pacific
-	if clusterInfo.CephVersion.IsAtLeastPacific() {
-		// enable multiple file systems in case this is not the first
-		args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
-		_, err = NewCephCommand(context, clusterInfo, args).Run()
-		if err != nil {
-			return errors.Wrap(err, "failed to enable multiple file systems")
-		}
+	// enable multiple file systems in case this is not the first
+	args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to enable multiple file systems")
 	}
 
 	// create the filesystem
-	args := []string{"fs", "new", name, metadataPool, dataPools[0]}
+	args = []string{"fs", "new", name, metadataPool, dataPools[0]}
 
 	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -192,7 +189,7 @@ func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo
 	}
 	for _, info := range fs.MDSMap.Info {
 		if info.State == "up:standby-replay" {
-			if err := FailMDS(context, clusterInfo, info.GID); err != nil {
+			if err := failMDS(context, clusterInfo, info.GID); err != nil {
 				return errors.Wrapf(err, "failed to fail MDS %q for filesystem %q in up:standby-replay state", info.Name, fsName)
 			}
 		}
@@ -274,8 +271,8 @@ func MarkFilesystemAsDown(context *clusterd.Context, clusterInfo *ClusterInfo, f
 	return nil
 }
 
-// FailMDS instructs Ceph to fail an mds daemon.
-func FailMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error {
+// failMDS instructs Ceph to fail an mds daemon.
+func failMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error {
 	args := []string{"mds", "fail", strconv.Itoa(gid)}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {

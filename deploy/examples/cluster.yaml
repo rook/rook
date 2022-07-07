@@ -16,14 +16,14 @@ metadata:
 spec:
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
-    # v15 is octopus, v16 is pacific, and v17 is quincy.
+    # v16 is Pacific, and v17 is Quincy.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v17 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
     # If you want to be more precise, you can always use a timestamp tag such quay.io/ceph/ceph:v17.2.1-20220623
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
     image: quay.io/ceph/ceph:v17.2.1
-    # Whether to allow unsupported versions of Ceph. Currently `octopus` and `pacific` are supported.
-    # Future versions such as `pacific` would require this to be set to `true`.
+    # Whether to allow unsupported versions of Ceph. Currently `pacific` and `quincy` are supported.
+    # Future versions such as `reef` (v18) would require this to be set to `true`.
     # Do not set to true in production.
     allowUnsupported: false
   # The path on the host where configuration files will be persisted. Must be specified.

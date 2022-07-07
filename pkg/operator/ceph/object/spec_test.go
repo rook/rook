@@ -52,7 +52,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := clienttest.CreateTestClusterInfo(1)
-	info.CephVersion = cephver.Octopus
+	info.CephVersion = cephver.Quincy
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
 	c := &clusterConfig{
@@ -120,7 +120,7 @@ func TestSSLPodSpec(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := clienttest.CreateTestClusterInfo(1)
-	info.CephVersion = cephver.Octopus
+	info.CephVersion = cephver.Quincy
 	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SecurePort = 443

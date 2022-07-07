@@ -356,16 +356,8 @@ func NetworkBindingFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec) 
 			args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
 		}
 	} else {
-		if cluster.CephVersion.IsAtLeastPacific() {
-			args = append(args, config.NewFlag("ms-bind-ipv4", "true"))
-			args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
-		} else {
-			logger.Info("dual-stack is only supported on ceph pacific")
-			// Still acknowledge IPv6, nothing to do for IPv4 since it will always be "on"
-			if spec.Network.IPFamily == cephv1.IPv6 {
-				args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
-			}
-		}
+		args = append(args, config.NewFlag("ms-bind-ipv4", "true"))
+		args = append(args, config.NewFlag("ms-bind-ipv6", "true"))
 	}
 
 	return args

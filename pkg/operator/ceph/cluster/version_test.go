@@ -33,7 +33,7 @@ import (
 func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 
 	// 1st test
-	fakeImageVersion := cephver.Octopus
+	fakeImageVersion := cephver.Quincy
 	fakeRunningVersions := []byte(`
 	{
 		"mon": {
@@ -69,7 +69,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 15.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) octopus (stable)": 2
+				"ceph version 16.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) pacific (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions3 cephv1.CephDaemonsVersions
@@ -82,11 +82,11 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 4 test - spec version is higher than running cluster --> we upgrade
-	fakeImageVersion = cephver.Pacific
+	fakeImageVersion = cephver.Quincy
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
-			"ceph version 15.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) octopus (stable)": 2
+			"ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 2
 		}
 	}`)
 	var dummyRunningVersions4 cephv1.CephDaemonsVersions
@@ -154,16 +154,16 @@ func TestMinVersion(t *testing.T) {
 	c.Spec.CephVersion.AllowUnsupported = true
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
-	// All versions less than 15.2.0 or invalid tag are invalid
-	v := &cephver.CephVersion{Major: 15, Minor: 1, Extra: 999}
+	// All versions less than 16.2.0 or invalid tag are invalid
+	v := &cephver.CephVersion{Major: 16, Minor: 1, Extra: 999}
 	assert.Error(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 14}
+	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 11}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// All versions at least 15.2.0 are valid
-	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}
+	// All versions at least 16.2.0 are valid
+	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 16}
+	v = &cephver.CephVersion{Major: 17}
 	assert.NoError(t, c.validateCephVersion(v))
 }
 
@@ -171,9 +171,9 @@ func TestSupportedVersion(t *testing.T) {
 	c := testSpec(t)
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
-	// Octopus is supported
+	// lower version is not supported
 	v := &cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
-	assert.NoError(t, c.validateCephVersion(v))
+	assert.Error(t, c.validateCephVersion(v))
 
 	// Pacific is supported
 	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
@@ -183,7 +183,7 @@ func TestSupportedVersion(t *testing.T) {
 	v = &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
 
-	// v18 is not supported
+	// Reef is not supported
 	v = &cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
 	assert.Error(t, c.validateCephVersion(v))
 

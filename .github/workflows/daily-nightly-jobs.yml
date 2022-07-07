@@ -299,7 +299,7 @@ jobs:
           name: ceph-upgrade-suite-pacific-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  upgrade-from-octopus-stable-to-octopus-devel:
+  upgrade-from-quincy-stable-to-quincy-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-18.04
     steps:
@@ -317,7 +317,7 @@ jobs:
       - name: TestCephUpgradeSuite
         run: |
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToOctopusDevel github.com/rook/rook/tests/integration
+          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToQuincyDevel github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
@@ -331,7 +331,7 @@ jobs:
         uses: actions/upload-artifact@v2
         if: failure()
         with:
-          name: ceph-upgrade-suite-octopus-artifact
+          name: ceph-upgrade-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   rgw-multisite-test-with-ceph-devel:
@@ -342,7 +342,7 @@ jobs:
         ceph-image-tag:
           [
             "latest-master-devel",
-            "latest-octopus-devel",
+            "latest-quincy-devel",
             "latest-pacific-devel",
           ]
 

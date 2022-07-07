@@ -253,22 +253,11 @@ func (c *Cluster) ReconcileActiveMgrServices(daemonNameToUpdate string) error {
 }
 
 func (c *Cluster) getActiveMgr() (string, error) {
-	// The preferred way to query the active mgr is "ceph mgr stat", which is only available in pacific or newer
-	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-		mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
-		if err != nil {
-			return "", errors.Wrap(err, "failed to get mgr stat for the active mgr")
-		}
-		return mgrStat.ActiveName, nil
-	}
-
-	// The legacy way to query the active mgr is with the verbose "ceph mgr dump"
-	mgrMap, err := cephclient.CephMgrMap(c.context, c.clusterInfo)
+	mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to get mgr map for the active mgr")
+		return "", errors.Wrap(err, "failed to get mgr stat for the active mgr")
 	}
-
-	return mgrMap.ActiveName, nil
+	return mgrStat.ActiveName, nil
 }
 
 // reconcile the services, if the active mgr is not detected, use the default mgr
@@ -328,15 +317,10 @@ func (c *Cluster) configureModules(daemonIDs []string) {
 	// Configure the modules asynchronously so we can complete all the configuration much sooner.
 	startModuleConfiguration("prometheus", c.enablePrometheusModule)
 	startModuleConfiguration("dashboard", c.configureDashboardModules)
-	// "crash" is part of the "always_on_modules" list as of Octopus
-	if !c.clusterInfo.CephVersion.IsAtLeastOctopus() {
-		startModuleConfiguration("crash", c.enableCrashModule)
-	} else {
-		// The balancer module must be configured on Octopus
-		// It is a bit confusing but as of Octopus modules that are in the "always_on_modules" list
-		// are "just" enabled, but still they must be configured to work properly
-		startModuleConfiguration("balancer", c.enableBalancerModule)
-	}
+
+	// It is a bit confusing but modules that are in the "always_on_modules" list
+	// are "just" enabled, but still they must be configured to work properly
+	startModuleConfiguration("balancer", c.enableBalancerModule)
 	startModuleConfiguration("mgr module(s) from the spec", c.configureMgrModules)
 }
 
@@ -359,26 +343,7 @@ func (c *Cluster) enablePrometheusModule() error {
 	return nil
 }
 
-// Ceph docs about the crash module: https://docs.ceph.com/docs/master/mgr/crash/
-func (c *Cluster) enableCrashModule() error {
-	if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, crashModuleName, true); err != nil {
-		return errors.Wrap(err, "failed to enable mgr crash module")
-	}
-	return nil
-}
-
 func (c *Cluster) enableBalancerModule() error {
-	// The order MATTERS, always configure this module first, then turn it on
-
-	// This enables the balancer module mode only in versions older than Pacific
-	// This let's the user change the default mode if desired
-	if !c.clusterInfo.CephVersion.IsAtLeastPacific() {
-		// This sets min compat client to luminous and the balancer module mode
-		err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
-		if err != nil {
-			return errors.Wrapf(err, "failed to configure module %q", balancerModuleName)
-		}
-	}
 
 	// This turns "on" the balancer
 	err := cephclient.MgrEnableModule(c.context, c.clusterInfo, balancerModuleName, false)
@@ -420,12 +385,7 @@ func (c *Cluster) configureMgrModules() error {
 			switch module.Name {
 			case PgautoscalerModuleName:
 				monStore := config.GetMonStore(c.context, c.clusterInfo)
-				// Ceph Octopus will have that option enabled
-				err := monStore.Set("global", "osd_pool_default_pg_autoscale_mode", "on")
-				if err != nil {
-					return errors.Wrap(err, "failed to enable pg autoscale mode for newly created pools")
-				}
-				err = monStore.Set("global", "mon_pg_warn_min_per_osd", "0")
+				err := monStore.Set("global", "mon_pg_warn_min_per_osd", "0")
 				if err != nil {
 					return errors.Wrap(err, "failed to set minimal number PGs per (in) osd before we warn the admin to")
 				}

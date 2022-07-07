@@ -263,7 +263,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
 	}
 
-	version := cephver.Octopus
+	version := cephver.Quincy
 
 	// select all devices, including nvme01 for metadata
 	pvcBackedOSD := false
@@ -289,9 +289,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.NotContains(t, mapping.Entries, "sdb")  // sdb is in use (has a partition)
 	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
 	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
-
-	// Do not skip partition anymore
-	agent.clusterInfo.CephVersion = cephver.Octopus
 
 	// select no devices both using and not using a filter
 	agent.metadataDevice = ""

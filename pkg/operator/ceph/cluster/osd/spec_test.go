@@ -85,7 +85,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("test")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -412,7 +412,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	}
 
 	// Test shareProcessNamespace presence
-	// If running on Octopus or higher, we don't need to use the host PID namespace
+	// We don't need to use the host PID namespace anymore
 	assert.False(t, deployment.Spec.Template.Spec.HostPID)
 	if deployment.Spec.Template.Spec.ShareProcessNamespace != nil {
 		panic("ShareProcessNamespace should be nil")
@@ -427,12 +427,10 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		panic("ShareProcessNamespace should be nil")
 	}
 
-	// Test hostPID and ShareProcessNamespace
-	{
-		// now set ceph version to octopus
+	t.Run(("check hostpid and shareprocessnamespace"), func(t *testing.T) {
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   "ns",
-			CephVersion: cephver.Octopus,
+			CephVersion: cephver.Quincy,
 		}
 		clusterInfo.SetName("test")
 		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -447,7 +445,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		assert.NoError(t, err)
 		shareProcessNamespace := *deployment.Spec.Template.Spec.ShareProcessNamespace
 		assert.True(t, shareProcessNamespace)
-	}
+	})
 
 	t.Run(("check osd ConfigureProbe"), func(t *testing.T) {
 		c.spec.HealthCheck.StartupProbe = make(map[cephv1.KeyType]*cephv1.ProbeSpec)
@@ -481,7 +479,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("testing")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -564,7 +562,7 @@ func TestHostNetwork(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("test")
 
@@ -723,7 +721,7 @@ func TestOSDPlacement(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("testing")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

@@ -155,9 +155,9 @@ func Test_updateExistingOSDs(t *testing.T) {
 						return "", err
 					}
 					if len(returnOkToStopIDs) > 0 {
-						return cephclientfake.OsdOkToStopOutput(osdToBeQueried, returnOkToStopIDs, true), nil
+						return cephclientfake.OsdOkToStopOutput(osdToBeQueried, returnOkToStopIDs), nil
 					}
-					return cephclientfake.OsdOkToStopOutput(osdToBeQueried, []int{}, true), errors.Errorf("induced error")
+					return cephclientfake.OsdOkToStopOutput(osdToBeQueried, []int{}), errors.Errorf("induced error")
 				}
 				if args[1] == "crush" && args[2] == "get-device-class" {
 					return cephclientfake.OSDDeviceClassOutput(args[3]), nil
@@ -493,7 +493,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -525,7 +525,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 		// osd.1 and 3 in another namespace (another Rook cluster)
 		clusterInfo2 := &cephclient.ClusterInfo{
 			Namespace:   "other-namespace",
-			CephVersion: cephver.Octopus,
+			CephVersion: cephver.Quincy,
 		}
 		clusterInfo2.SetName("other-cluster")
 		clusterInfo2.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

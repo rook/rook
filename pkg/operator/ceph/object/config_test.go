@@ -29,7 +29,7 @@ import (
 
 func newConfig(t *testing.T) *clusterConfig {
 	clusterInfo := &cephclient.ClusterInfo{
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterSpec := &cephv1.ClusterSpec{
 		Network: cephv1.NetworkSpec{

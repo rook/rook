@@ -113,7 +113,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "myns",
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 		OwnerInfo:   ownerInfo,
 		Context:     ctx,
 	}
@@ -157,25 +157,4 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
 	assert.Nil(t, svc)
-}
-
-func TestFileBasedPasswordSupported(t *testing.T) {
-	clusterInfo := &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}}
-	value := FileBasedPasswordSupported(clusterInfo)
-	assert.False(t, value)
-
-	// for Ceph version Octopus 15.2.10
-	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}}
-	value = FileBasedPasswordSupported(clusterInfo)
-	assert.True(t, value)
-
-	// for Ceph version Pacific
-	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 0, Extra: 0}}
-	value = FileBasedPasswordSupported(clusterInfo)
-	assert.True(t, value)
-
-	// for Ceph version Quincy
-	clusterInfo = &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}}
-	value = FileBasedPasswordSupported(clusterInfo)
-	assert.True(t, value)
 }

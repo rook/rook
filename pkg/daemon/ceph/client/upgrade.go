@@ -131,7 +131,7 @@ func OkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, deployment, d
 			// if we have less than 3 mons we skip the check and do best-effort
 			// we do less than 3 because during the initial bootstrap the mon sequence is updated too
 			// so running running the check on 2/3 mon fails
-			// versions.Mon looks like this map[ceph version 15.0.0-12-g6c8fb92 (6c8fb920cb1d862f36ee852ed849a15f9a50bd68) octopus (dev):1]
+			// versions.Mon looks like this map[ceph version 17.0.0-12-g6c8fb92 (6c8fb920cb1d862f36ee852ed849a15f9a50bd68) quincy (dev):1]
 			// now looping over a single element since we can't address the key directly (we don't know its name)
 			for _, monCount := range versions.Mon {
 				if monCount < 3 {

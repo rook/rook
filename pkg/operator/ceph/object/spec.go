@@ -60,20 +60,16 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 	if err != nil {
 		return nil, err
 	}
-	replicas := int32(1)
 	strategy := apps.DeploymentStrategy{
 		Type: apps.RecreateDeploymentStrategyType,
 	}
-	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-		// On Pacific, we can use the same keyring and have dedicated rgw instances reflected in the service map
-		replicas = c.store.Spec.Gateway.Instances
+	// Use the same keyring and have dedicated rgw instances reflected in the service map
+	replicas := c.store.Spec.Gateway.Instances
 
-		// On Pacific, rgw gateway deployments rolling update
-		strategy.Type = apps.RollingUpdateDeploymentStrategyType
-		strategy.RollingUpdate = &apps.RollingUpdateDeployment{
-			MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
-			MaxSurge:       &intstr.IntOrString{IntVal: int32(0)},
-		}
+	strategy.Type = apps.RollingUpdateDeploymentStrategyType
+	strategy.RollingUpdate = &apps.RollingUpdateDeployment{
+		MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
+		MaxSurge:       &intstr.IntOrString{IntVal: int32(0)},
 	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -534,11 +530,7 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 		vaultPrefixPath = path.Join(vaultPrefixPath,
 			c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey], "/data")
 	case kms.VaultTransitSecretEngineKey:
-		if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine)
-		} else {
-			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/export/encryption-key")
-		}
+		vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine)
 	}
 
 	return vaultPrefixPath

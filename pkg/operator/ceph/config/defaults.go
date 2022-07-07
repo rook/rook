@@ -61,13 +61,7 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
 	overrides := []Option{
 		configOverride("global", "mon allow pool delete", "true"),
 		configOverride("global", "mon cluster log file", ""),
-	}
-
-	// For Pacific
-	if cephVersion.IsAtLeastPacific() {
-		overrides = append(overrides, []Option{
-			configOverride("global", "mon allow pool size one", "true"),
-		}...)
+		configOverride("global", "mon allow pool size one", "true"),
 	}
 
 	// Every release before Quincy will enable PG auto repair on Bluestore OSDs

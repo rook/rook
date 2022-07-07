@@ -24,14 +24,13 @@ until all the daemons have been updated.
 
 ## Supported Versions
 
-Rook v1.9 supports the following Ceph versions:
+Rook v1.10 supports the following Ceph versions:
 
 * Ceph Quincy v17.2.0 or newer
 * Ceph Pacific v16.2.0 or newer
-* Ceph Octopus v15.2.0 or newer
 
-Rook v1.10 is planning to drop support for Ceph Octopus (15.2.x),
-so please consider upgrading your Ceph cluster.
+Support for Ceph Octopus (15.2.x) was removed. If you are running Octopus you must upgrade the Ceph version
+before upgrading to Rook v1.10.
 
 !!! important
     When an update is requested, the operator will check Ceph's status,

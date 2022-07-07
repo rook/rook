@@ -93,8 +93,8 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
 			logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
-			err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(r.opManagerContext, cephRBDMirror.Name, metav1.DeleteOptions{})
-			if err != nil {
+			err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(r.opManagerContext, d.Name, metav1.DeleteOptions{})
+			if err != nil && !kerrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete rbd-mirror %q during del-and-recreate update attempt", resourceName)
 			}
 			if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(r.opManagerContext, d, metav1.CreateOptions{}); err != nil {
