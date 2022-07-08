@@ -70,9 +70,29 @@ rules:
   - apiGroups:
       - ceph.rook.io
     resources:
-      - "*"
+      - cephclients
+      - cephclusters
+      - cephblockpools
+      - cephfilesystems
+      - cephnfses
+      - cephobjectstores
+      - cephobjectstoreusers
+      - cephobjectrealms
+      - cephobjectzonegroups
+      - cephobjectzones
+      - cephbuckettopics
+      - cephbucketnotifications
+      - cephrbdmirrors
+      - cephfilesystemmirrors
+      - cephfilesystemsubvolumegroups
+      - cephblockpoolradosnamespaces
     verbs:
-      - "*"
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - delete
   - apiGroups:
       - apps
     resources:
