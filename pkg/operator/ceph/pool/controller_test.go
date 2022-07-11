@@ -347,7 +347,7 @@ func TestCephBlockPoolController(t *testing.T) {
 				if args[0] == "status" {
 					return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 				}
-				if args[0] == "config" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" {
+				if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
 					return "", nil
 				}
 
@@ -559,7 +559,7 @@ func TestConfigureRBDStats(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
-			if args[0] == "config" && args[2] == "mgr." && args[3] == "mgr/prometheus/rbd_stats_pools" {
+			if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
 				if args[1] == "set" && args[4] != "" {
 					return "", nil
 				}
