@@ -307,6 +307,9 @@ func (c *Cluster) updateServiceSelectors(activeDaemon string) error {
 		return errors.Wrap(err, "failed to query mgr services to update")
 	}
 	for i, service := range services.Items {
+		if service.Spec.Selector == nil {
+			service.Spec.Selector = map[string]string{}
+		}
 		// Update the selector on the service to point to the active mgr
 		if service.Spec.Selector[controller.DaemonIDLabel] == activeDaemon {
 			logger.Infof("no need to update service %q", service.Name)
