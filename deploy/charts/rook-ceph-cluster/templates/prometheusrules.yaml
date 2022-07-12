@@ -7,6 +7,13 @@ metadata:
   labels:
     prometheus: rook-prometheus
     role: alert-rules
+{{- if  .Values.monitoring.prometheusRule.labels }}
+{{ toYaml .Values.monitoring.prometheusRule.labels | indent 4 }}
+{{- end }}
+{{- if .Values.monitoring.prometheusRule.annotations }}
+  annotations:
+{{ toYaml .Values.monitoring.prometheusRule.annotations | indent 4 }}
+{{- end }}
   name: prometheus-ceph-rules
   namespace: {{ default .Release.Namespace .Values.monitoring.rulesNamespaceOverride }}
 spec:
