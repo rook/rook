@@ -194,8 +194,12 @@ func (c *Cluster) Start() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get information about currently-running OSD Deployments in namespace %q", namespace)
 	}
+	osdsToSkipReconcile, err := c.getOSDsToSkipReconcile()
+	if err != nil {
+		logger.Warningf("failed to get osds to skip reconcile. %v", err)
+	}
 	logger.Debugf("%d of %d OSD Deployments need updated", updateQueue.Len(), deployments.Len())
-	updateConfig := c.newUpdateConfig(config, updateQueue, deployments)
+	updateConfig := c.newUpdateConfig(config, updateQueue, deployments, osdsToSkipReconcile)
 
 	// prepare for creating new OSDs
 	statusConfigMaps := sets.NewString()
@@ -250,6 +254,24 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
 	for _, deployment := range deployments.Items {
 		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
 			result.Insert(pvcID)
+		}
+	}
+
+	return result, nil
+}
+
+func (c *Cluster) getOSDsToSkipReconcile() (sets.String, error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
+
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query OSDs to skip reconcile")
+	}
+
+	result := sets.NewString()
+	for _, deployment := range deployments.Items {
+		if osdID, ok := deployment.Labels[OsdIdLabelKey]; ok {
+			result.Insert(osdID)
 		}
 	}
 

@@ -38,6 +38,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -110,7 +111,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		}
 		c = New(ctx, clusterInfo, spec, "rook/rook:master")
 		config := c.newProvisionConfig()
-		updateConfig = c.newUpdateConfig(config, updateQueue, existingDeployments)
+		updateConfig = c.newUpdateConfig(config, updateQueue, existingDeployments, sets.NewString())
 
 		// prepare outputs
 		deploymentsUpdated = []string{}
@@ -479,6 +480,26 @@ func Test_updateExistingOSDs(t *testing.T) {
 		assert.ElementsMatch(t, osdsOnPVCs, []int{})
 
 		assert.Equal(t, 0, updateQueue.Len()) // should be done with updates
+	})
+
+	t.Run("skip osd reconcile", func(t *testing.T) {
+		clientset = fake.NewSimpleClientset()
+		updateQueue = newUpdateQueueWithIDs(0, 1)
+		existingDeployments = newExistenceListWithIDs(0)
+		forceUpgradeIfUnhealthy = true
+		updateInjectFailures = k8sutil.Failures{}
+		doSetup()
+		addDeploymentOnNode("node0", 0)
+
+		osdToBeQueried = 0
+		updateConfig.osdsToSkipReconcile.Insert("0")
+		updateConfig.updateExistingOSDs(errs)
+		assert.Zero(t, errs.len())
+		assert.Equal(t, 1, updateQueue.Len())
+		osdIDUpdated, ok := updateQueue.Pop()
+		assert.True(t, ok)
+		assert.Equal(t, 1, osdIDUpdated)
+		updateConfig.osdsToSkipReconcile.Delete("0")
 	})
 }
 
