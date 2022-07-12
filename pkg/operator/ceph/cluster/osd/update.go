@@ -28,6 +28,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // THE LIBRARY PROVIDED BY THIS FILE IS NOT THREAD SAFE
@@ -42,17 +43,19 @@ var (
 )
 
 type updateConfig struct {
-	cluster          *Cluster
-	provisionConfig  *provisionConfig
-	queue            *updateQueue   // these OSDs need updated
-	numUpdatesNeeded int            // the number of OSDs that needed updating
-	deployments      *existenceList // these OSDs have existing deployments
+	cluster             *Cluster
+	provisionConfig     *provisionConfig
+	queue               *updateQueue   // these OSDs need updated
+	numUpdatesNeeded    int            // the number of OSDs that needed updating
+	deployments         *existenceList // these OSDs have existing deployments
+	osdsToSkipReconcile sets.String    // these OSDs should not be updated during reconcile
 }
 
 func (c *Cluster) newUpdateConfig(
 	provisionConfig *provisionConfig,
 	queue *updateQueue,
 	deployments *existenceList,
+	osdsToSkipReconcile sets.String,
 ) *updateConfig {
 	return &updateConfig{
 		c,
@@ -60,6 +63,7 @@ func (c *Cluster) newUpdateConfig(
 		queue,
 		queue.Len(),
 		deployments,
+		osdsToSkipReconcile,
 	}
 }
 
@@ -126,6 +130,11 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			continue
 		}
 
+		if c.osdsToSkipReconcile.Has(strconv.Itoa(osdID)) {
+			logger.Warningf("Skipping update for OSD %d since labeled with %s", osdID, cephv1.SkipReconcileLabelKey)
+			continue
+		}
+
 		// backward compatibility for old deployments
 		// Checking DeviceClass with None too, because ceph-volume lvm list return crush device class as None
 		// Tracker https://tracker.ceph.com/issues/53425
@@ -154,7 +163,6 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		} else {
 			if !c.cluster.ValidStorage.NodeExists(nodeOrPVCName) {
 				// node will not reconcile, so don't update the deployment
-				// allow the OSD health checker to remove the OSD
 				logger.Warningf(
 					"not updating OSD %d on node %q. node no longer exists in the storage spec. "+
 						"if the user wishes to remove OSDs from the node, they must do so manually. "+

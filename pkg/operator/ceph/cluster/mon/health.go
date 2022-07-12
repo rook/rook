@@ -163,6 +163,15 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		return errors.New("skipping mon health check since there are no monitors")
 	}
 
+	monsToSkipReconcile, err := c.getMonsToSkipReconcile()
+	if err != nil {
+		return errors.Wrap(err, "failed to check for mons to skip reconcile")
+	}
+	if monsToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping mon health check since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, monsToSkipReconcile.List())
+		return nil
+	}
+
 	logger.Debugf("Checking health for mons in cluster %q", c.ClusterInfo.Namespace)
 
 	// For an external connection we use a special function to get the status
