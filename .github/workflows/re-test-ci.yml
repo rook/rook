@@ -1,0 +1,22 @@
+on:
+  pull_request:
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Bot actions
+        uses: zymap/bot@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          repo_owner: rook
+          repo_name: rook
+          rerun_cmd: /rerun
+          comments: sdfsd
+          comment: ${{ github.event.comment.body }}
