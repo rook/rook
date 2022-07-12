@@ -20,6 +20,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// SkipReconcileLabelKey is a label indicating that the pod should not be reconciled
+	SkipReconcileLabelKey = "ceph.rook.io/do-not-reconcile"
+)
+
 // LabelsSpec is the main spec label for all daemons
 type LabelsSpec map[KeyType]Labels
 
