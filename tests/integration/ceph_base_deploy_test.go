@@ -56,11 +56,14 @@ func checkIfRookClusterIsInstalled(s *suite.Suite, k8sh *utils.K8sHelper, opName
 
 func checkIfRookClusterIsHealthy(s *suite.Suite, testClient *clients.TestClient, clusterNamespace string) {
 	logger.Infof("Testing cluster %s health", clusterNamespace)
-	var err error
+	var (
+		err     error
+		healthy bool
+	)
 
 	retryCount := 0
 	for retryCount < utils.RetryLoop {
-		healthy, err := clients.IsClusterHealthy(testClient, clusterNamespace)
+		healthy, err = clients.IsClusterHealthy(testClient, clusterNamespace)
 		if healthy {
 			logger.Infof("cluster %s is healthy", clusterNamespace)
 			return
