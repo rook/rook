@@ -26,11 +26,27 @@ security:
       VAULT_ADDR: https://vault.default.svc.cluster.local:8200
       VAULT_SECRET_ENGINE: transit
       VAULT_AUTH_METHOD: token
+      ENCRYPT_ALL_OBC: true
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rook-vault-token
 ```
 The values for this configuration will be available in [Security field](Documentation/CRDs/Object-Storage/ceph-object-store-crd.md#security-settings) of `CephObjectStoreSpec`, so depending on the above option RGW can be configured with `SSE-KMS` and `SSE-S3` options. These two options can be configured independently and they both are mutually exclusive in Rook and Ceph level.
 
+The `ENCRYPT_ALL_OBC` will set [PutBucketEncryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/default-bucket-encryption.html) on all the bucket provisioned via obc by the Rook. So the all objects in that obc will encyrpt using `SSE-S3`. This can done manually via
+s3 api using following:
+```
+aws s3api put-bucket-encryption --no-verify-ssl --endpoint-url http://$BUCKET_HOST:$BUCKET_PORT --bucket $BUCKET_NAME  --server-side-encryption-configuration '{
+    "Rules": [
+        {
+            "ApplyServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+            }
+        }
+    ]
+}'
+
+When this option is set then `Provision()` and `Grant()` will set above policy for the OBC controller. Similarly remove this policy when it is `Revoked()`. All the existing/old object won't be encrypted unless user overwrites it and while fetching this data RGW won't use decryption. An extended attribute will be set on encrypted objects in a bucket.
+```
 ## Config options
 Before this design is implemented, the user could manually set below options from the toolbox pod to configure with `SSE-S3` options for RGW.
 ```
