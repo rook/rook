@@ -77,6 +77,11 @@ git remote -v
 
 Now you should have at least `origin` and `upstream` remotes. You can also add other remotes to collaborate with other contributors.
 
+### Self assign Issue
+
+You can self-assign any issue that is open and not assigned to anyone in Rook upstream repo, by adding
+an issue comment with `/assign` in the body.
+
 ## Layout
 
 A source code layout is shown below, annotated with comments about the use of each important directory:
