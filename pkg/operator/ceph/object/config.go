@@ -65,7 +65,7 @@ func (c *clusterConfig) portString() string {
 
 	port := c.store.Spec.Gateway.Port
 	if port != 0 {
-		if !c.clusterSpec.Network.IsHost() {
+		if !c.store.Spec.IsHostNetwork(c.clusterSpec) {
 			port = rgwPortInternalPort
 		}
 		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))

@@ -2988,6 +2988,11 @@ func (in *ObjectStoreSpec) DeepCopyInto(out *ObjectStoreSpec) {
 		*out = new(SecuritySpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.HostNetwork != nil {
+		in, out := &in.HostNetwork, &out.HostNetwork
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
