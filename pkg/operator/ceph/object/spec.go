@@ -99,6 +99,8 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	if reflect.DeepEqual(rgwDaemonContainer, v1.Container{}) {
 		return v1.PodTemplateSpec{}, errors.New("got empty container for RGW daemon")
 	}
+
+	hostNetwork := c.store.Spec.IsHostNetwork(c.clusterSpec)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(rgwConfig),
@@ -109,7 +111,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
 			c.mimeTypesVolume(),
 		),
-		HostNetwork:        c.clusterSpec.Network.IsHost(),
+		HostNetwork:        hostNetwork,
 		PriorityClassName:  c.store.Spec.Gateway.PriorityClassName,
 		ServiceAccountName: serviceAccountName,
 	}
@@ -194,7 +196,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 	c.store.Spec.Gateway.Labels.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
-	if c.clusterSpec.Network.IsHost() {
+	if hostNetwork {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.clusterSpec.Network.IsMultus() {
 		if err := k8sutil.ApplyMultus(c.clusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
