@@ -370,7 +370,8 @@ func TestConfigureCVDevices(t *testing.T) {
 		}
 		executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithCombinedOutput] %s %v", command, args)
-			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[6] == mapperDev {
+			if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[6] == mapperDev ||
+				args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[8] == mapperDev {
 				return "", nil
 			}
 			if contains(args, "lvm") && contains(args, "list") {
@@ -814,7 +815,12 @@ func TestInitializeBlock(t *testing.T) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}}, nodeName: "node1"}
-		context := &clusterd.Context{Executor: executor}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"}, {Name: "sdb"},
+			},
+		}
 
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed metadata test")
@@ -823,9 +829,11 @@ func TestInitializeBlock(t *testing.T) {
 
 	// Test with metadata devices with dev by-id
 	{
+		metadataDeviceByIDPath := "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX"
+		metadataDevicePath := "/dev/nvme0n1"
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
-				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX"}},
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: metadataDeviceByIDPath}},
 			},
 		}
 
@@ -840,12 +848,12 @@ func TestInitializeBlock(t *testing.T) {
 			}
 
 			// First command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX" {
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
 				return nil
 			}
 
 			// Second command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX" && args[14] == "--report" {
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath && args[14] == "--report" {
 				return nil
 			}
 
@@ -862,17 +870,236 @@ func TestInitializeBlock(t *testing.T) {
 			}
 
 			// First command
-			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX" {
-				return `{"vg": {"devices": "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX"}}`, nil
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+				return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}]`, metadataDevicePath, "/dev/sda"), nil
 			}
 
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}}, nodeName: "node1"}
-		context := &clusterd.Context{Executor: executor}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1"}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "nvme0n1",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX /dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
+				},
+			},
+		}
 
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed metadata device by-id test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test with metadata devices with dev by-path
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {
+					Data:     -1,
+					Metadata: nil,
+					Config: DesiredDevice{
+						Name:           "/dev/sda",
+						MetadataDevice: "/dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
+					},
+				},
+			},
+		}
+		metadataDevicePath := "/dev/nvme0n1"
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath && args[14] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return "", err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+				return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}]`, metadataDevicePath, "/dev/sda"), nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		agent := &OsdAgent{
+			clusterInfo: &cephclient.ClusterInfo{
+				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
+			},
+			nodeName: "node1",
+		}
+		context := &clusterd.Context{Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "nvme0n1",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/nvme-WUS4CB016D7P3E3_A069B634 /dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
+				},
+			},
+		}
+
+		err := agent.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed metadata device by-path test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test with metadata devices with lvm
+	{
+		metadataDevicePath := "/dev/test-rook-vg/test-rook-lv"
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {
+					Data:     -1,
+					Metadata: nil,
+					Config: DesiredDevice{
+						Name:           "/dev/sda",
+						MetadataDevice: metadataDevicePath,
+					},
+				},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath && args[14] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return "", err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+				return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}]`, metadataDevicePath, "/dev/sda"), nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		agent := &OsdAgent{
+			clusterInfo: &cephclient.ClusterInfo{
+				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
+			},
+			nodeName: "node1",
+		}
+		context := &clusterd.Context{Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "nvme0n1",
+					Type:     "lvm",
+					DevLinks: "/dev/mapper/test--rook--vg-test--rook--lv /dev/test-rook-vg/test-rook-lv",
+				},
+			},
+		}
+
+		err := agent.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed metadata device lvm test")
+		logger.Info("success, go to next test")
+	}
+
+	// Test with metadata devices with dev by-path not found
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {
+					Data:     -1,
+					Metadata: nil,
+					Config: DesiredDevice{
+						Name:           "/dev/sda",
+						MetadataDevice: "/dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
+					},
+				},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+
+		agent := &OsdAgent{
+			clusterInfo: &cephclient.ClusterInfo{
+				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
+			},
+			nodeName: "node1",
+		}
+		context := &clusterd.Context{Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "nvme1n1",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/nvme-WUS4CB016D7P3E3_A069B634 /dev/disk/by-path/pci-0000:d8:00.0-nvme-xxxx",
+				},
+			},
+		}
+
+		err := agent.initializeDevicesLVMMode(context, devices)
+		assert.Error(t, err, "metadata device by-path is not found")
 		logger.Info("success, go to next test")
 	}
 }
@@ -881,7 +1108,8 @@ func TestInitializeBlockPVC(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" {
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" {
 			return initializeBlockPVCTestResult, nil
 		}
 
@@ -908,8 +1136,13 @@ func TestInitializeBlockPVC(t *testing.T) {
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" {
-			assert.Equal(t, "foo", args[8])
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[9] == "--crush-device-class" {
+			if len(args) > 9 {
+				assert.Equal(t, "foo", args[10])
+			} else {
+				assert.Equal(t, "foo", args[8])
+			}
 			return initializeBlockPVCTestResult, nil
 		}
 
@@ -952,7 +1185,8 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--block.db" {
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--block.db" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[9] == "--block.db" {
 			return initializeBlockPVCTestResult, nil
 		}
 		return "", errors.Errorf("unknown command %s %s", command, args)
@@ -981,7 +1215,8 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" && args[9] == "--block.db" {
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--crush-device-class" && args[9] == "--block.db" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[9] == "--crush-device-class" && args[11] == "--block.db" {
 			return initializeBlockPVCTestResult, nil
 		}
 
@@ -1229,7 +1464,21 @@ func TestInitializeBlockWithMD(t *testing.T) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}}, nodeName: "node1"}
-		context := &clusterd.Context{Executor: executor}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "sdd",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX /dev/disk/by-path/pci-0000:d8:00.0-nvme-1",
+				},
+			},
+		}
 
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed default behavior test")
@@ -1268,7 +1517,20 @@ func TestInitializeBlockWithMD(t *testing.T) {
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
 		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 4}}, nodeName: "node1"}
-		context := &clusterd.Context{Executor: executor}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name: "vg0/lv0",
+					Type: "lvm",
+				},
+			},
+		}
 
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed LV as metadataDevice test")
