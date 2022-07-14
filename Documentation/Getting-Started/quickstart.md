@@ -164,6 +164,19 @@ Create a toolbox pod for full access to a ceph admin client for debugging and tr
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](../Storage-Configuration/Monitoring/ceph-monitoring.md).
 
+## Telemetry
+
+To allow us to understand usage, the maintainers for Rook and Ceph would like to receive telemetry reports for Rook clusters.
+The data is anonymous and does not include any identifying information.
+We invite you to enable the telemetry reporting feature with the following command in the toolbox:
+
+```
+ceph telemetry on
+```
+
+The telemetry is disabled by default. For more details on what is reported and how your privacy is protected,
+see the [Ceph Telemetry Documentation](https://docs.ceph.com/en/latest/mgr/telemetry/).
+
 ## Teardown
 
 When you are done with the test cluster, see [these instructions](../Storage-Configuration/ceph-teardown.md) to clean up the cluster.
