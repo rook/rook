@@ -364,6 +364,6 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpa
 
 Multisite is a feature of Ceph that allows object stores to replicate its data over multiple Ceph clusters.
 
-Multisite also allows object stores to be independent and isloated from other object stores in a cluster.
+Multisite also allows object stores to be independent and isolated from other object stores in a cluster.
 
 For more information on multisite please read the [ceph multisite overview](ceph-object-multisite.md) for how to run it.

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package telemetry codifes the Rook telemetry spec used to record Rook information for Ceph
+// Package telemetry codifies the Rook telemetry spec used to record Rook information for Ceph
 // telemetry. See: https://docs.ceph.com/en/latest/mgr/telemetry/
 package telemetry
 

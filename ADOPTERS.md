@@ -31,7 +31,7 @@ to share the details of their usage publicly at this time.
   to accelerate the growth of the Canadian Information and Communications Technology (ICT) sector.
   The Rook Ceph operator is key to the Kubernetes clusters frequently set up for projects by
   small-medium enterprises in the CENGN labs.
-* [Avisi](https://www.avisi.nl/) develops and operates software for organizations like the the Dutch
+* [Avisi](https://www.avisi.nl/) develops and operates software for organizations like the Dutch
   Notary Association. They have survived multiple disaster scenarios already with Rook and it has
   made their cloud native journey in the private cloud so much easier by providing a powerful tool
   that lets them take advantage of a mature storage product with ease and peace of mind.

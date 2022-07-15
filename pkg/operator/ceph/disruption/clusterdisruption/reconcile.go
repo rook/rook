@@ -232,7 +232,7 @@ func (c *ClusterMap) GetCluster(namespace string) (*cephv1.CephCluster, bool) {
 	return cluster, true
 }
 
-// GetClusterNamespaces returns the internal clustermap for iteration purporses
+// GetClusterNamespaces returns the internal clustermap for iteration purposes
 func (c *ClusterMap) GetClusterNamespaces() []string {
 	defer c.mux.Unlock()
 	c.mux.Lock()

@@ -109,7 +109,7 @@ By default, the object store will be created independently from any other object
 
 If desired to configure the object store to replicate and sync data amongst object-store or Ceph clusters, the `zone` section would be required.
 
-This section enables the the object store to be part of a specified ceph-object-zone.
+This section enables the object store to be part of a specified ceph-object-zone.
 
 Specifying this section also ensures that the pool section in the ceph-object-zone is used for the object-store. If pools are specified for the object-store they are neither created nor deleted.
 

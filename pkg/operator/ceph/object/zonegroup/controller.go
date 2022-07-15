@@ -132,7 +132,7 @@ func (r *ReconcileObjectZoneGroup) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, errors.Wrap(err, "failed to get CephObjectZoneGroup")
 	}
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephObjectZoneGroup.ObjectMeta.Generation
 

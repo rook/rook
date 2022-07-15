@@ -58,7 +58,7 @@ func TestNodeAffinity(t *testing.T) {
 	},
 	}
 
-	// label nodes so they appear as not scheduable / invalid
+	// label nodes so they appear as not schedulable / invalid
 	node, _ := clientset.CoreV1().Nodes().Get(ctx, "node0", metav1.GetOptions{})
 	node.Labels = map[string]string{"label": "foo"}
 	_, err := clientset.CoreV1().Nodes().Update(ctx, node, metav1.UpdateOptions{})

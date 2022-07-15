@@ -16,7 +16,7 @@ docs](https://docs.ceph.com/en/latest/man/8/rbd/)
 
 Having multiple namespaces in a pool would allow multiple Kubernetes clusters
 to share one unique ceph cluster without creating a pool per kubernetes cluster
-and it will also allow to have tenant isolation between multiple tenenats in a
+and it will also allow to have tenant isolation between multiple tenants in a
 single Kubernetes cluster without creating multiple pools for tenants.
 
 Rook allows creation of Ceph BlockPool

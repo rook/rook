@@ -44,7 +44,7 @@ spec:
     labels:
       # key: value
 
-    # Resource equests and limits to apply to NFS server pods
+    # Resource requests and limits to apply to NFS server pods
     resources:
       # limits:
       #   cpu: "500m"

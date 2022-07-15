@@ -70,7 +70,7 @@ A [ceph-object-pull-realm](/design/object/ceph-object-pull-realm.md) resource mu
 
 Once the ceph-object-pull-realm is configured a ceph-object-zone must be created.
 
-After an ceph-object-store is configured to be in this ceph-object-zone, the all Cehph multisite resources will be running and data between the two clusters will start syncing.
+After an ceph-object-store is configured to be in this ceph-object-zone, the all Ceph multisite resources will be running and data between the two clusters will start syncing.
 
 ## Deleting and Reconfiguring the Ceph Object Zone
 
