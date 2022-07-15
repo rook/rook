@@ -19,7 +19,6 @@ package discover
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -38,14 +37,9 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 3)
 
-	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
-	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
-
-	os.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
-	defer os.Unsetenv(k8sutil.PodNameEnvVar)
-
-	os.Setenv(discoverDaemonsetPriorityClassNameEnv, "my-priority-class")
-	defer os.Unsetenv(discoverDaemonsetPriorityClassNameEnv)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	t.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
+	t.Setenv(discoverDaemonsetPriorityClassNameEnv, "my-priority-class")
 
 	namespace := "ns"
 	a := New(clientset)
@@ -97,11 +91,8 @@ func TestGetAvailableDevices(t *testing.T) {
 	pvcBackedOSD := false
 	ns := "rook-system"
 	nodeName := "node123"
-	os.Setenv(k8sutil.PodNamespaceEnvVar, ns)
-	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
-
-	os.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
-	defer os.Unsetenv(k8sutil.PodNameEnvVar)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+	t.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
 
 	data := make(map[string]string, 1)
 	data[discoverDaemon.LocalDiskCMData] = `[{"name":"sdd","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-36001405f826bd553d8c4dbf9f41c18be    /dev/disk/by-id/wwn-0x6001405f826bd553d8c4dbf9f41c18be /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-1","size":10737418240,"uuid":"","serial":"36001405f826bd553d8c4dbf9f41c18be","type":"disk","rotational":true,"readOnly":false,"ownPartition":true,"filesystem":"","vendor":"LIO-ORG","model":"disk02","wwn":"0x6001405f826bd553","wwnVendorExtension":"0x6001405f826bd553d8c4dbf9f41c18be","empty":true},{"name":"sdb","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-3600140577f462d9908b409d94114e042   /dev/disk/by-id/wwn-0x600140577f462d9908b409d94114e042 /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-3","size":5368709120,"uuid":"","serial":"3600140577f462d9908b409d94114e042","type":"disk","rotational":true,"readOnly":false,"ownPartition":false,"filesystem":"","vendor":"LIO-ORG","model":"disk04","wwn":"0x600140577f462d99","wwnVendorExtension":"0x600140577f462d9908b409d94114e042","empty":true},{"name":"sdc","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-3600140568c0bd28d4ee43769387c9f02    /dev/disk/by-id/wwn-0x600140568c0bd28d4ee43769387c9f02 /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-2","size":5368709120,"uuid":"","serial":"3600140568c0bd28d4ee43769387c9f02","type":"disk","rotational":true,"readOnly":false,"ownPartition":true,"filesystem":"","vendor":"LIO-ORG","model":"disk03","wwn":"0x600140568c0bd28d","wwnVendorExtension":"0x600140568c0bd28d4ee43769387c9f02","empty":true},{"name":"sda","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-36001405fc00c75fb4c243aa9d61987bd    /dev/disk/by-id/wwn-0x6001405fc00c75fb4c243aa9d61987bd /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-0","size":10737418240,"uuid":"","serial":"36001405fc00c75fb4c243aa9d61987bd","type":"disk","rotational":true,"readOnly":false,"ownPartition":false,"filesystem":"","vendor":"LIO-ORG","model":"disk01","wwn":"0x6001405fc00c75fb","wwnVendorExtension":"0x6001405fc00c75fb4c243aa9d61987bd","empty":true},{"name":"nvme0n1","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/nvme-eui.002538c5710091a7","size":512110190592,"uuid":"","serial":"","type":"disk","rotational":false,"readOnly":false,"ownPartition":false,"filesystem":"","vendor":"","model":"","wwn":"","wwnVendorExtension":"","empty":true}]`

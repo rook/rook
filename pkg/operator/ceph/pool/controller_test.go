@@ -401,10 +401,8 @@ func TestCephBlockPoolController(t *testing.T) {
 		assert.True(t, res.Requeue)
 	})
 
-	os.Setenv("POD_NAME", "test")
-	defer os.Setenv("POD_NAME", "")
-	os.Setenv("POD_NAMESPACE", namespace)
-	defer os.Setenv("POD_NAMESPACE", "")
+	t.Setenv("POD_NAME", "test")
+	t.Setenv("POD_NAMESPACE", namespace)
 	p := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test",

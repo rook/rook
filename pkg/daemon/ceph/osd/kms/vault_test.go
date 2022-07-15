@@ -233,7 +233,7 @@ func Test_configTLS(t *testing.T) {
 					}
 				}
 			}
-			os.Setenv("ROOK_TMP_FILE", ff.Name())
+			t.Setenv("ROOK_TMP_FILE", ff.Name())
 
 			return ff, errors.New("error creating tmp file")
 		}
@@ -250,7 +250,6 @@ func Test_configTLS(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to generate temp file for k8s secret \"vault-ca-cert\" content: error creating tmp file")
 		assert.NoFileExists(t, os.Getenv("ROOK_TMP_FILE"))
-		os.Unsetenv("ROOK_TMP_FILE")
 	})
 }
 

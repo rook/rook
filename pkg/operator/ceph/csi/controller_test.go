@@ -47,10 +47,10 @@ func TestCephCSIController(t *testing.T) {
 	// Set DEBUG logging
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
-	os.Setenv(k8sutil.PodNameEnvVar, "rook-ceph-operator")
-	os.Setenv(k8sutil.PodNamespaceEnvVar, namespace)
+	t.Setenv(k8sutil.PodNameEnvVar, "rook-ceph-operator")
+	t.Setenv(k8sutil.PodNamespaceEnvVar, namespace)
 
-	os.Setenv("ROOK_CSI_ALLOW_UNSUPPORTED_VERSION", "true")
+	t.Setenv("ROOK_CSI_ALLOW_UNSUPPORTED_VERSION", "true")
 	CSIParam = Param{
 		CSIPluginImage:   "image",
 		RegistrarImage:   "image",

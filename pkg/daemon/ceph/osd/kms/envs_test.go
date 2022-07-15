@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -83,20 +82,15 @@ func TestConfigEnvsToMapString(t *testing.T) {
 	assert.Equal(t, 0, len(envs))
 
 	// Single KMS value
-	os.Setenv("KMS_PROVIDER", "vault")
-	defer os.Unsetenv("KMS_PROVIDER")
+	t.Setenv("KMS_PROVIDER", "vault")
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 1, len(envs))
 
 	// Some more Vault KMS with one intruder
-	os.Setenv("KMS_PROVIDER", "vault")
-	defer os.Unsetenv("KMS_PROVIDER")
-	os.Setenv("VAULT_ADDR", "1.1.1.1")
-	defer os.Unsetenv("VAULT_ADDR")
-	os.Setenv("VAULT_SKIP_VERIFY", "true")
-	defer os.Unsetenv("VAULT_SKIP_VERIFY")
-	os.Setenv("foo", "bar")
-	defer os.Unsetenv("foo")
+	t.Setenv("KMS_PROVIDER", "vault")
+	t.Setenv("VAULT_ADDR", "1.1.1.1")
+	t.Setenv("VAULT_SKIP_VERIFY", "true")
+	t.Setenv("foo", "bar")
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 3, len(envs))
 	assert.True(t, envs["KMS_PROVIDER"] == "vault")

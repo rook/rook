@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -120,8 +119,7 @@ func testOSDIntegration(t *testing.T) {
 	test.PrependComplexJobReactor(t, clientset, assignPodToNode)
 	test.SetFakeKubernetesVersion(clientset, "v1.13.2") // v1.13 or higher is required for OSDs on PVC
 
-	os.Setenv(k8sutil.PodNamespaceEnvVar, namespace)
-	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, namespace)
 
 	statusMapWatcher := watch.NewRaceFreeFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))

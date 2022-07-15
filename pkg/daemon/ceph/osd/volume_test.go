@@ -1155,8 +1155,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 		return "", errors.Errorf("unknown command %s %s", command, args)
 	}
 	// Test with flag --crush-device-class.
-	os.Setenv(oposd.CrushDeviceClassVarName, "foo")
-	defer os.Unsetenv(oposd.CrushDeviceClassVarName)
+	t.Setenv(oposd.CrushDeviceClassVarName, "foo")
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
@@ -1230,8 +1229,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	}
 
 	// Test with flag --block.db and --crush-device-class flag.
-	os.Setenv(oposd.CrushDeviceClassVarName, "foo")
-	defer os.Unsetenv(oposd.CrushDeviceClassVarName)
+	t.Setenv(oposd.CrushDeviceClassVarName, "foo")
 	context = &clusterd.Context{Executor: executor}
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},

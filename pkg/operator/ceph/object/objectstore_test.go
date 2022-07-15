@@ -19,7 +19,6 @@ package object
 import (
 	"context"
 	"fmt"
-	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -223,7 +222,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 
 func TestGetObjectBucketProvisioner(t *testing.T) {
 	testNamespace := "test-namespace"
-	os.Setenv(k8sutil.PodNamespaceEnvVar, testNamespace)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, testNamespace)
 
 	t.Run("watch single namespace", func(t *testing.T) {
 		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true"}

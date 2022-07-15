@@ -18,12 +18,10 @@ package peermap
 
 import (
 	"context"
-	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -363,10 +361,8 @@ func TestDecodePeerToken(t *testing.T) {
 }
 
 func TestCreateOrUpdateConfig(t *testing.T) {
-	os.Setenv("POD_NAME", "rook-ceph-operator")
-	defer os.Setenv("POD_NAME", "")
-	os.Setenv("POD_NAMESPACE", ns)
-	defer os.Setenv("POD_NAMESPACE", "")
+	t.Setenv("POD_NAME", "rook-ceph-operator")
+	t.Setenv("POD_NAMESPACE", ns)
 
 	scheme := scheme.Scheme
 	err := cephv1.AddToScheme(scheme)

@@ -110,8 +110,7 @@ func TestOperatorController(t *testing.T) {
 				ServiceAccount:    "foo",
 			},
 		}
-		os.Setenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "10")
-		defer os.Unsetenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS")
+		t.Setenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "10")
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
@@ -189,8 +188,7 @@ func TestOperatorController(t *testing.T) {
 				ServiceAccount:    "foo",
 			},
 		}
-		os.Setenv("ROOK_ENABLE_DISCOVERY_DAEMON", "true")
-		defer os.Unsetenv("ROOK_ENABLE_DISCOVERY_DAEMON")
+		t.Setenv("ROOK_ENABLE_DISCOVERY_DAEMON", "true")
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
