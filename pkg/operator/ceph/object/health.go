@@ -187,7 +187,7 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 
 	logger.Debugf("successfully checked object store endpoint for object store %q", c.namespacedName.String())
 
-	// Update the EndpointStatus in the CR to reflect the healthyness
+	// Update the EndpointStatus in the CR to reflect the healthiness
 	updateStatusBucket(c.objContext.clusterInfo.Context, c.client, c.namespacedName, cephv1.ConditionConnected, "")
 
 	return nil

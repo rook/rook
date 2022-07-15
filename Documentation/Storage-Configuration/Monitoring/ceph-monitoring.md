@@ -240,7 +240,7 @@ a service and service monitor.
 kubectl create -f csi-metrics-service-monitor.yaml
 ```
 
-This will create the service monitor to have promethues monitor CSI
+This will create the service monitor to have prometheus monitor CSI
 
 ### Collecting RBD per-image IO statistics
 
@@ -290,6 +290,6 @@ spec:
      serverAddress: http://rook-prometheus.rook-ceph.svc:9090
      metricName: collecting_ceph_rgw_put
      query: |
-       sum(rate(ceph_rgw_put[2m])) # promethues query used for autoscaling
+       sum(rate(ceph_rgw_put[2m])) # prometheus query used for autoscaling
      threshold: "90"
 ```

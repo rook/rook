@@ -113,7 +113,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 				logger.Debug(opcontroller.OperatorNotInitializedMessage)
 				return false
 			}
-			// If it fails, this might be due to the the operator just starting and catching an add event for that node
+			// If it fails, this might be due to the operator just starting and catching an add event for that node
 			logger.Debugf("failed to get osds on node %q, assume reconcile is necessary", nodeName)
 			return true
 		}

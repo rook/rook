@@ -70,7 +70,7 @@ func VerifyPodLabels(appName, namespace, daemonType, daemonID string, labels map
 	return combineErrors(errA, errB, errC)
 }
 
-// AssertLabelsContainCephRequirements asserts that the the labels under test contain the labels
+// AssertLabelsContainCephRequirements asserts that the labels under test contain the labels
 // which all Ceph pods should have. This can be used with labels for Kubernetes Deployments,
 // DaemonSets, etc.
 func AssertLabelsContainCephRequirements(

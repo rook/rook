@@ -479,7 +479,7 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 
 	logger.Infof("added object store %q to realm %q, zonegroup %q, zone %q", objContext.Name, objContext.Realm, objContext.ZoneGroup, objContext.Zone)
 
-	// create system user for realm for master zone in master zonegorup for multisite scenario
+	// create system user for realm for master zone in master zonegroup for multisite scenario
 	if zoneIsMaster && zoneGroupIsMaster {
 		err = createSystemUser(objContext, namespace)
 		if err != nil {

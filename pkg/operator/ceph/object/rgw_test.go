@@ -182,17 +182,17 @@ func TestGetTlsCaCert(t *testing.T) {
 	objectStore := simpleStore()
 
 	t.Run("no gateway cert ref", func(t *testing.T) {
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.NoError(t, err)
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 	})
 
 	t.Run("gateway cert ref but secret no found", func(t *testing.T) {
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.Error(t, err)
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 	})
 
@@ -207,10 +207,10 @@ func TestGetTlsCaCert(t *testing.T) {
 		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to get TLS certificate from secret, unknown secret type \"Yolo\"")
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
@@ -227,10 +227,10 @@ func TestGetTlsCaCert(t *testing.T) {
 		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to get TLS certificate from secret, token is \"Opaque\" but key \"cert\" does not exist")
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
@@ -256,9 +256,9 @@ BvjQDN6didwQ
 		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.NoError(t, err)
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.NotNil(t, tlsCert)
 		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)

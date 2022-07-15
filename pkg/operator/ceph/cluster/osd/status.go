@@ -162,7 +162,7 @@ func (c *Cluster) updateAndCreateOSDs(
 	updateConfig *updateConfig,
 	errs *provisionErrors, // add errors here
 ) error {
-	// tick every mintue to check-in on housekeeping stuff and report overall progress
+	// tick every minute to check-in on housekeeping stuff and report overall progress
 	minuteTicker := time.NewTicker(minuteTickerDuration)
 	defer minuteTicker.Stop()
 

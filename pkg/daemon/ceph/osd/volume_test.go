@@ -1374,7 +1374,7 @@ func TestPrintCVLogContent(t *testing.T) {
 	cvLogFilePath := path.Join(cvLogDir, "ceph-volume.log")
 	assert.Equal(t, path.Join(cvLogDir, "ceph-volume.log"), cvLogFilePath)
 
-	// Print c-v log, it is empty so this is similating a failure (e,g: the file does not exist)
+	// Print c-v log, it is empty so this is simulating a failure (e,g: the file does not exist)
 	cvLog := readCVLogContent(tmp.Name())
 	assert.Empty(t, cvLog, cvLog)
 

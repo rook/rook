@@ -433,7 +433,7 @@ function deploy_multus() {
   kubectl create namespace rook-ceph || true
 
   # install network attachment definitions
-  IFACE="eth0" # the runner has eth0 so we don't need any heureustics to find the interface
+  IFACE="eth0" # the runner has eth0 so we don't need any heuristics to find the interface
   kubectl apply -f - <<EOF
 ---
 apiVersion: k8s.cni.cncf.io/v1

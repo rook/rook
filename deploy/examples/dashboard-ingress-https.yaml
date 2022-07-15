@@ -1,5 +1,5 @@
 #
-# This example is for Kubernetes running an ngnix-ingress
+# This example is for Kubernetes running an nginx-ingress
 # and an ACME (e.g. Let's Encrypt) certificate service
 #
 # The nginx-ingress annotations support the dashboard

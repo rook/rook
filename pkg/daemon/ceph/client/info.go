@@ -51,7 +51,7 @@ type ClusterInfo struct {
 	// A context to cancel the context it is used to determine whether the reconcile loop should
 	// exist (if the context has been cancelled). This cannot be in main clusterd context since this
 	// is a pointer passed through the entire life cycle or the operator. If the context is
-	// cancelled it will immedialy be re-created, thus existing reconciles loops will not be
+	// cancelled it will immediately be re-created, thus existing reconciles loops will not be
 	// cancelled.
 	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
 	// re-hydrated when a context is cancelled.

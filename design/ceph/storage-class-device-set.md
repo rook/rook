@@ -130,7 +130,7 @@ were originally designed to be ephemeral, but it turns out that orchestrators
 like DeepSea store them permanently in order to have a source of truth when
 (re-)provisioning OSDs. Also, Drive Groups were originally designed to be host
 specific. But the concept of hosts is not really required for the Drive Group
-data structure make sense, as they only select a subset of a set of aviailble
+data structure make sense, as they only select a subset of a set of available
 drives.
 
 DeepSea has a documentation of [some example drive

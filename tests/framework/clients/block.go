@@ -124,7 +124,7 @@ func (b *BlockOperation) DeleteStorageClass(storageClassName string) error {
 
 // BlockDelete Function to delete a Block using Rook
 // Input parameters -
-// manifest - pod definition  where pvc is described - delete is run on the the yaml definition
+// manifest - pod definition  where pvc is described - delete is run on the yaml definition
 // Output  - k8s delete pvc operation output and/or error
 func (b *BlockOperation) DeleteBlock(manifest string) (string, error) {
 	args := []string{"delete", "-f", "-"}

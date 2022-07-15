@@ -39,7 +39,7 @@ type WaitOptions struct {
 
 	// ErrorOnTimeout defines whether the operation should time out with an error. If ErrorOnTimeout
 	// is true and the operation times out, the operation is considered a failure. If ErrorOnTimeout
-	// is false and the operation times out, the operation should log a warning but not not report
+	// is false and the operation times out, the operation should log a warning but not report
 	// failure.
 	ErrorOnTimeout bool
 }

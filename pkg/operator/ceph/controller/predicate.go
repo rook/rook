@@ -48,7 +48,7 @@ const (
 )
 
 // WatchControllerPredicate is a special update filter for update events
-// do not reconcile if the the status changes, this avoids a reconcile storm loop
+// do not reconcile if the status changes, this avoids a reconcile storm loop
 //
 // returning 'true' means triggering a reconciliation
 // returning 'false' means do NOT trigger a reconciliation

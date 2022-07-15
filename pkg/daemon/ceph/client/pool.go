@@ -214,20 +214,20 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	var err error
-	logger.Debugf("checking any images/snapshosts present in pool %q", name)
+	logger.Debugf("checking any images/snapshots present in pool %q", name)
 	stats, err := GetPoolStatistics(context, clusterInfo, name)
 	if err != nil {
 		if strings.Contains(err.Error(), "No such file or directory") {
 			return nil
 		}
-		return errors.Wrapf(err, "failed to list images/snapshosts in pool %s", name)
+		return errors.Wrapf(err, "failed to list images/snapshots in pool %s", name)
 	}
 	if stats.Images.Count == 0 && stats.Images.SnapCount == 0 {
-		logger.Infof("no images/snapshosts present in pool %q", name)
+		logger.Infof("no images/snapshots present in pool %q", name)
 		return nil
 	}
 
-	return errors.Errorf("pool %q contains images/snapshosts", name)
+	return errors.Errorf("pool %q contains images/snapshots", name)
 }
 
 // DeletePool purges a pool from Ceph

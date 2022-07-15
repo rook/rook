@@ -322,7 +322,7 @@ csi:
          memory: 1Gi
          cpu: 500m
 
-  # Set provisonerTolerations and provisionerNodeAffinity for provisioner pod.
+  # Set provisionerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
   # provisionerTolerations:
   #    - key: key
