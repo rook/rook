@@ -19,7 +19,6 @@ package mon
 import (
 	"context"
 	"fmt"
-	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -509,8 +508,7 @@ func TestUpdateMonTimeout(t *testing.T) {
 		assert.Equal(t, time.Minute*10, MonOutTimeout)
 	})
 	t.Run("using env var mon timeout", func(t *testing.T) {
-		os.Setenv("ROOK_MON_OUT_TIMEOUT", "10s")
-		defer os.Unsetenv("ROOK_MON_OUT_TIMEOUT")
+		t.Setenv("ROOK_MON_OUT_TIMEOUT", "10s")
 		m := &Cluster{}
 		updateMonTimeout(m)
 		assert.Equal(t, time.Second*10, MonOutTimeout)
@@ -530,8 +528,7 @@ func TestUpdateMonInterval(t *testing.T) {
 		assert.Equal(t, time.Second*45, HealthCheckInterval)
 	})
 	t.Run("using env var mon timeout", func(t *testing.T) {
-		os.Setenv("ROOK_MON_HEALTHCHECK_INTERVAL", "10s")
-		defer os.Unsetenv("ROOK_MON_HEALTHCHECK_INTERVAL")
+		t.Setenv("ROOK_MON_HEALTHCHECK_INTERVAL", "10s")
 		m := &Cluster{}
 		h := &HealthChecker{m, HealthCheckInterval}
 		updateMonInterval(m, h)

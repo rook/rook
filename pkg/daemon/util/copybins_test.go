@@ -62,10 +62,7 @@ func TestCopyBinary(t *testing.T) {
 	// create a test PATH="testRootDir/bin"
 	envPath := path.Join(testRootDir, "bin")
 	mkdir(envPath)
-	oPath := os.Getenv("PATH")
-	defer os.Setenv("PATH", oPath)
-	err := os.Setenv("PATH", envPath)
-	assert.NoError(t, err)
+	t.Setenv("PATH", envPath)
 	// create initial copy-to-dir
 	copyToDir := path.Join(testRootDir, "copy-to-dir")
 	mkdir(copyToDir)
@@ -82,7 +79,7 @@ func TestCopyBinary(t *testing.T) {
 	createTestBinary(path.Join(envPath, "rook"))
 	cleanDir(copyToDir)
 
-	err = CopyBinaries(copyToDir)
+	err := CopyBinaries(copyToDir)
 	assert.NoError(t, err)
 	r := fileText(path.Join(copyToDir, "rook"))
 	assert.Contains(t, r, path.Join(testRootDir, "bin/rook"))

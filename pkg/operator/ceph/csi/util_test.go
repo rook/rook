@@ -54,26 +54,19 @@ func TestGetPortFromConfig(t *testing.T) {
 	assert.Equal(t, port, defaultPort)
 
 	// valid port is set in env
-	err = os.Setenv(key, "9000")
-	assert.Nil(t, err)
+	t.Setenv(key, "9000")
 	port, err = getPortFromConfig(data, key, defaultPort)
 	assert.Nil(t, err)
 	assert.Equal(t, port, uint16(9000))
 
-	err = os.Unsetenv(key)
-	assert.Nil(t, err)
 	// higher port value is set in env
-	err = os.Setenv(key, "65536")
-	assert.Nil(t, err)
+	t.Setenv(key, "65536")
 	port, err = getPortFromConfig(data, key, defaultPort)
 	assert.Error(t, err)
 	assert.Equal(t, port, defaultPort)
 
-	err = os.Unsetenv(key)
-	assert.Nil(t, err)
 	// negative port is set in env
-	err = os.Setenv(key, "-1")
-	assert.Nil(t, err)
+	t.Setenv(key, "-1")
 	port, err = getPortFromConfig(data, key, defaultPort)
 	assert.Error(t, err)
 	assert.Equal(t, port, defaultPort)

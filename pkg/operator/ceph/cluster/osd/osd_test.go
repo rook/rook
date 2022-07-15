@@ -18,7 +18,6 @@ package osd
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -138,8 +137,7 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
-	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
-	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 
 	test.AddReadyNode(t, clientset, nodeName, "23.23.23.23")
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
@@ -315,8 +313,7 @@ func TestAddNodeFailure(t *testing.T) {
 	nodeErr := createNode(nodeName, corev1.NodeReady, clientset)
 	assert.Nil(t, nodeErr)
 
-	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
-	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
 	assert.Nil(t, cmErr)

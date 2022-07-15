@@ -19,7 +19,6 @@ package csi
 import (
 	"context"
 	_ "embed"
-	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -78,7 +77,7 @@ func TestReconcileCSI_configureHolders(t *testing.T) {
 			},
 		}
 
-		os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-ceph")
+		t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-ceph")
 		_, err := r.context.Clientset.CoreV1().ConfigMaps("rook-ceph").Create(r.opManagerContext, &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: ConfigName, Namespace: "rook-ceph"}, Data: map[string]string{}}, metav1.CreateOptions{})
 		assert.NoError(t, err)
 

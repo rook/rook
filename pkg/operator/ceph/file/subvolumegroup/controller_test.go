@@ -213,7 +213,7 @@ func TestCephClientController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
+		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
@@ -260,7 +260,7 @@ func TestCephClientController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
+		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
@@ -309,7 +309,7 @@ func TestCephClientController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
+		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")

@@ -88,14 +88,13 @@ func TestGetOperatorSetting(t *testing.T) {
 	// Env Var doesn't exist
 	assert.Equal(t, defaultValue, setting)
 	// Env Var exists
-	err = os.Setenv(nodeAffinity, envSettingValue)
-	assert.NoError(t, err)
+	t.Setenv(nodeAffinity, envSettingValue)
 	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
 	assert.NoError(t, err)
 	assert.Equal(t, envSettingValue, setting)
 
 	// ConfigMap is found
-	os.Setenv("POD_NAMESPACE", testNamespace)
+	t.Setenv("POD_NAMESPACE", testNamespace)
 	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
@@ -115,8 +114,7 @@ func TestGetOperatorSetting(t *testing.T) {
 	// Env Var doesn't exist
 	assert.Equal(t, defaultValue, setting)
 	// Env Var exists
-	err = os.Setenv(podAffinity, envSettingValue)
-	assert.NoError(t, err)
+	t.Setenv(podAffinity, envSettingValue)
 	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
 	assert.NoError(t, err)
 	assert.Equal(t, envSettingValue, setting)
