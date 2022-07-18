@@ -119,8 +119,8 @@ func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.Cep
 	c.ClusterInfo.NetworkSpec = c.Spec.Network
 
 	// The cluster Identity must be established at this point
-	if !c.ClusterInfo.IsInitialized(true) {
-		return errors.New("the cluster identity was not established")
+	if err := c.ClusterInfo.IsInitialized(); err != nil {
+		return errors.Wrap(err, "the cluster identity was not established")
 	}
 
 	if c.ClusterInfo.Context.Err() != nil {
