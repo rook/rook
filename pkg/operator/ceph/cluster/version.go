@@ -153,9 +153,9 @@ func (c *cluster) validateCephVersion(version *cephver.CephVersion) error {
 		}
 	}
 
-	if !clusterInfo.IsInitialized(false) {
+	if err := clusterInfo.IsInitialized(); err != nil {
 		// If not initialized, this is likely a new cluster so there is nothing to do
-		logger.Debug("cluster not initialized, nothing to validate")
+		logger.Debugf("cluster not initialized, nothing to validate. %v", err)
 		return nil
 	}
 

@@ -400,6 +400,9 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 
 	err = r.client.Update(clusterInfo.Context, pdbStateMap)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update configMap %q in cluster %q", pdbStateMapName, request)
 	}
 

@@ -133,6 +133,12 @@ func (hc *HealthChecker) Check(monitoringRoutines map[string]*controller.Cluster
 			delete(monitoringRoutines, daemon)
 			return
 
+		// Since c.ClusterInfo.IsInitialized() below uses a different context, we need to check if the context is done
+		case <-hc.monCluster.ClusterInfo.Context.Done():
+			logger.Infof("stopping monitoring of mons in namespace %q", hc.monCluster.Namespace)
+			delete(monitoringRoutines, daemon)
+			return
+
 		case <-time.After(hc.interval):
 			logger.Debugf("checking health of mons")
 			err := hc.monCluster.checkHealth(monitoringRoutines[daemon].InternalCtx)
@@ -148,8 +154,8 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	defer c.releaseOrchestrationLock()
 
 	// If cluster details are not initialized
-	if !c.ClusterInfo.IsInitialized(true) {
-		return errors.New("skipping mon health check since cluster details are not initialized")
+	if err := c.ClusterInfo.IsInitialized(); err != nil {
+		return errors.Wrap(err, "skipping mon health check since cluster details are not initialized")
 	}
 
 	// If the cluster is converged and no mons were specified

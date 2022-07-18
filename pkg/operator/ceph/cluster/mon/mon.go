@@ -1320,6 +1320,11 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 	retryCount := 0
 	retryMax := 30
 	for {
+		// Return immediately if the context has been canceled
+		if clusterInfo.Context.Err() != nil {
+			return clusterInfo.Context.Err()
+		}
+
 		retryCount++
 		if retryCount > retryMax {
 			return errors.New("exceeded max retry count waiting for monitors to reach quorum")

@@ -213,7 +213,7 @@ func TestOperatorRestart(t *testing.T) {
 	// start a basic cluster
 	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true))
+	assert.NoError(t, info.IsInitialized())
 
 	validateStart(t, c)
 
@@ -223,7 +223,7 @@ func TestOperatorRestart(t *testing.T) {
 	// starting again should be a no-op, but will not result in an error
 	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true))
+	assert.NoError(t, info.IsInitialized())
 
 	validateStart(t, c)
 }
@@ -241,7 +241,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	// start a basic cluster
 	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true))
+	assert.NoError(t, info.IsInitialized())
 
 	validateStart(t, c)
 
@@ -253,7 +253,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	// starting again should be a no-op, but still results in an error
 	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true), info)
+	assert.NoError(t, info.IsInitialized(), info)
 
 	validateStart(t, c)
 }
