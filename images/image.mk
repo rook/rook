@@ -32,7 +32,7 @@ include $(SELF_DIR)/../build/makelib/common.mk
 CACHE_REGISTRY := cache
 
 # the base image to use
-OSBASE ?= centos:7
+OSBASE ?= rockylinux:9
 
 ifeq ($(GOARCH),amd64)
 PLATFORM_ARCH = x86_64
