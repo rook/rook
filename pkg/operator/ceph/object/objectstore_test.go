@@ -509,7 +509,7 @@ func Test_createMultisite(t *testing.T) {
 						}
 					}
 				}
-				t.Fatalf("unhandled command: %s %v", command, arg)
+				t.Errorf("unhandled command: %s %v", command, arg)
 				panic("unhandled command")
 			},
 		}

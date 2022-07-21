@@ -216,7 +216,7 @@ func TestCommitConfigChanges(t *testing.T) {
 					}
 				}
 
-				t.Fatalf("unhandled command: %s %v", command, args)
+				t.Errorf("unhandled command: %s %v", command, args)
 				panic("unhandled command")
 			},
 		}
