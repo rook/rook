@@ -36,6 +36,10 @@ spec:
       requireSafeReplicaSize: true
     parameters:
       compression_mode: none
+  # recommended to set this value if ingress used for exposing rgw endpoints
+  # customEndpoints:
+  #   - "http://rgw-a.fqdn"
+  #   - "http://rgw-b.fqdn"
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore

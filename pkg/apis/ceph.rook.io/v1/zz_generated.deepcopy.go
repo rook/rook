@@ -3207,6 +3207,11 @@ func (in *ObjectZoneSpec) DeepCopyInto(out *ObjectZoneSpec) {
 	*out = *in
 	in.MetadataPool.DeepCopyInto(&out.MetadataPool)
 	in.DataPool.DeepCopyInto(&out.DataPool)
+	if in.CustomEndpoints != nil {
+		in, out := &in.CustomEndpoints, &out.CustomEndpoints
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
