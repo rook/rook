@@ -68,7 +68,7 @@ const (
 		"api_name": "my-store",
 		"is_master": "true",
 		"endpoints": [
-			":80"
+			"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 		],
 		"hostnames": [],
 		"hostnames_s3website": [],
@@ -78,7 +78,7 @@ const (
 				"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
 				"name": "my-store",
 				"endpoints": [
-					":80"
+					"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 				],
 				"log_meta": "false",
 				"log_data": "false",
@@ -197,14 +197,50 @@ const (
 		"current_period": "df665ecb-1762-47a9-9c66-f938d251c02a",
 		"epoch": 2
 	}`
-	zoneGroupGetMultisiteJSON = `{
+	zoneGroupGetMultisiteJSONWithoutEndpoint = `{
+		"id": "fd8ff110-d3fd-49b4-b24f-f6cd3dddfedf",
+		"name": "zonegroup-a",
+		"api_name": "zonegroup-a",
+		"is_master": "true",
+		"endpoints": [],
+		"hostnames": [],
+		"hostnames_s3website": [],
+		"master_zone": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
+		"zones": [
+			{
+				"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
+				"name": "zone-a",
+				"endpoints": [],
+				"log_meta": "false",
+				"log_data": "false",
+				"bucket_index_max_shards": 0,
+				"read_only": "false",
+				"tier_type": "",
+				"sync_from_all": "true",
+				"sync_from": [],
+				"redirect_zone": ""
+			}
+		],
+		"placement_targets": [
+			{
+				"name": "default-placement",
+				"tags": [],
+				"storage_classes": [
+					"STANDARD"
+				]
+			}
+		],
+		"default_placement": "default-placement",
+		"realm_id": "237e6250-5f7d-4b85-9359-8cb2b1848507"
+	}`
+	zoneGroupGetMultisiteJSONWithEndpoint = `{
 		"id": "fd8ff110-d3fd-49b4-b24f-f6cd3dddfedf",
 		"name": "zonegroup-a",
 		"api_name": "zonegroup-a",
 		"is_master": "true",
 		"endpoints": [
-			":80"
-		],
+			"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
+        ],
 		"hostnames": [],
 		"hostnames_s3website": [],
 		"master_zone": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
@@ -213,7 +249,7 @@ const (
 				"id": "6cb39d2c-3005-49da-9be3-c1a92a97d28a",
 				"name": "zone-a",
 				"endpoints": [
-					":80"
+					"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 				],
 				"log_meta": "false",
 				"log_data": "false",
@@ -619,7 +655,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 
 	objectStore.Spec.Zone.Name = zoneName
 	objectStore.Spec.Gateway.Port = 80
-
+	zoneGroupGetMultisiteJSON := zoneGroupGetMultisiteJSONWithoutEndpoint
 	object := []runtime.Object{
 		objectZone,
 		objectStore,
@@ -651,8 +687,13 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 			if args[0] == "realm" && args[1] == "get" {
 				return realmGetMultisiteJSON, nil
 			}
-			if args[0] == "zonegroup" && args[1] == "get" {
-				return zoneGroupGetMultisiteJSON, nil
+			if args[0] == "zonegroup" {
+				if args[1] == "get" {
+					return zoneGroupGetMultisiteJSON, nil
+				} else if args[1] == "modify" {
+					zoneGroupGetMultisiteJSON = zoneGroupGetMultisiteJSONWithEndpoint
+					return zoneGroupGetMultisiteJSON, nil
+				}
 			}
 			if args[0] == "zone" && args[1] == "get" {
 				return zoneGetMultisiteJSON, nil
@@ -724,7 +765,6 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		err = r.client.Get(ctx, req.NamespacedName, objectStore)
 		assert.NoError(t, err)
 	})
-
 	t.Run("delete the same store", func(t *testing.T) {
 		calledCommitConfigChanges = false
 
