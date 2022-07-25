@@ -52,22 +52,24 @@ helm install --create-namespace --namespace rook-ceph rook-ceph-cluster \
 
 The following tables lists the configurable parameters of the rook-operator chart and their default values.
 
-| Parameter                          | Description                                                                                | Default         |
-| ---------------------------------- | ------------------------------------------------------------------------------------------ | --------------- |
-| `operatorNamespace`                | Namespace of the Rook Operator                                                             | `rook-ceph`     |
-| `kubeVersion`                      | Optional override of the target kubernetes version                                         | ``              |
-| `configOverride`                   | Cluster ceph.conf override                                                                 | `<none>`        |
-| `toolbox.enabled`                  | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false`         |
-| `toolbox.tolerations`              | Toolbox tolerations                                                                        | `[]`            |
-| `toolbox.affinity`                 | Toolbox affinity                                                                           | `{}`            |
-| `toolbox.resources`                | Toolbox resources                                                                          | see values.yaml |
-| `monitoring.enabled`               | Enable Prometheus integration, will also create necessary RBAC rules                       | `false`         |
-| `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts                                     | `false`         |
-| `cephClusterSpec.*`                | Cluster configuration, see below                                                           | See below       |
-| `ingress.dashboard`                | Enable an ingress for the ceph-dashboard                                                   | `{}`            |
-| `cephBlockPools.[*]`               | A list of CephBlockPool configurations to deploy                                           | See below       |
-| `cephFileSystems.[*]`              | A list of CephFileSystem configurations to deploy                                          | See below       |
-| `cephObjectStores.[*]`             | A list of CephObjectStore configurations to deploy                                         | See below       |
+| Parameter                               | Description                                                                                | Default         |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ | --------------- |
+| `operatorNamespace`                     | Namespace of the Rook Operator                                                             | `rook-ceph`     |
+| `kubeVersion`                           | Optional override of the target kubernetes version                                         | ``              |
+| `configOverride`                        | Cluster ceph.conf override                                                                 | `<none>`        |
+| `toolbox.enabled`                       | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)    | `false`         |
+| `toolbox.tolerations`                   | Toolbox tolerations                                                                        | `[]`            |
+| `toolbox.affinity`                      | Toolbox affinity                                                                           | `{}`            |
+| `toolbox.resources`                     | Toolbox resources                                                                          | see values.yaml |
+| `monitoring.enabled`                    | Enable Prometheus integration, will also create necessary RBAC rules                       | `false`         |
+| `monitoring.createPrometheusRules`      | Whether to create the Prometheus rules for Ceph alerts                                     | `false`         |
+| `monitoring.prometheusRule.labels`      | Labels applied to PrometheusRule                                                           | `false`         |
+| `monitoring.prometheusRule.annotations` | Annotations applied to PrometheusRule                                                      | `false`         |
+| `cephClusterSpec.*`                     | Cluster configuration, see below                                                           | See below       |
+| `ingress.dashboard`                     | Enable an ingress for the ceph-dashboard                                                   | `{}`            |
+| `cephBlockPools.[*]`                    | A list of CephBlockPool configurations to deploy                                           | See below       |
+| `cephFileSystems.[*]`                   | A list of CephFileSystem configurations to deploy                                          | See below       |
+| `cephObjectStores.[*]`                  | A list of CephObjectStore configurations to deploy                                         | See below       |
 
 ### **Ceph Cluster Spec**
 
