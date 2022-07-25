@@ -344,7 +344,7 @@ Here, we take a backup of PVC and PV object on one site, so that they can be res
 * Create storageclass on the secondary cluster
 
 ```console
-[cluster-2]$ kubectl create -f examples/rbd/storageclass.yaml
+[cluster-2]$ kubectl create -f deploy/examples/csi/rbd/storageclass.yaml
 ```
 
 * Create VolumeReplicationClass on the secondary cluster
