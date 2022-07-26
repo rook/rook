@@ -40,7 +40,7 @@ var (
 )
 
 // Test to make sure all rook components are installed and Running
-func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
+func checkIfRookClusterIsInstalled(s *suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-operator", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
@@ -54,7 +54,7 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 		"Make sure there is at lest 1 rook-ceph-crash present in Running state")
 }
 
-func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, clusterNamespace string) {
+func checkIfRookClusterIsHealthy(s *suite.Suite, testClient *clients.TestClient, clusterNamespace string) {
 	logger.Infof("Testing cluster %s health", clusterNamespace)
 	var err error
 
@@ -74,7 +74,7 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
-func checkIfRookClusterHasHealthyIngress(s suite.Suite, k8sh *utils.K8sHelper, clusterNamespace string) {
+func checkIfRookClusterHasHealthyIngress(s *suite.Suite, k8sh *utils.K8sHelper, clusterNamespace string) {
 	logger.Infof("Testing ingress %s health", clusterNamespace)
 	_, err := k8sh.GetResourceStatus("Ingress", clusterNamespace+"-dashboard", clusterNamespace)
 	assert.NoError(s.T(), err)

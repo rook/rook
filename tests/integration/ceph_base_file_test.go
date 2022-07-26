@@ -42,7 +42,7 @@ const (
 	filePodName = "file-test"
 )
 
-func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName, systemNamespace string) {
+func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, systemNamespace string) {
 	// create pvc and app
 	pvcSize := "1Gi"
 	pvcName := "parent-pvc"
@@ -116,7 +116,7 @@ func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
 }
 
-func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName, namespace string) {
+func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string) {
 	logger.Infof("install snapshot CRD")
 	err := k8sh.CreateSnapshotCRD()
 	require.NoError(s.T(), err)
@@ -241,7 +241,7 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 
 // Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
 // Create,Mount,Write,Read,Unmount and Delete.
-func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string, preserveFilesystemOnDelete bool) {
+func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName string, preserveFilesystemOnDelete bool) {
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, settings.Namespace, filesystemName)
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
@@ -401,7 +401,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	}
 }
 
-func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName, storageClassName string) {
+func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName, storageClassName string) {
 	err := createPodWithFilesystem(k8sh, s, settings, filePodName, filesystemName, storageClassName, false)
 	require.NoError(s.T(), err)
 	filePodRunning := k8sh.IsPodRunning(filePodName, settings.Namespace)
@@ -409,7 +409,7 @@ func createFilesystemConsumerPod(helper *clients.TestClient, k8sh *utils.K8sHelp
 	logger.Infof("File system mounted successfully")
 }
 
-func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, podName, filename string) error {
+func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, namespace, podName, filename string) error {
 	logger.Infof("Write to file system")
 	message := "Test Data for file system storage"
 	if err := k8sh.WriteToPod(namespace, podName, filename, message); err != nil {
@@ -425,7 +425,7 @@ func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper,
 // 	require.Nil(t, err)
 // }
 
-func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, podName string) {
+func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, namespace string, podName string) {
 	logger.Infof("Delete file System consumer")
 	err := k8sh.DeletePod(namespace, podName)
 	assert.Nil(s.T(), err)
@@ -443,7 +443,7 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 }
 
 // cleanupFilesystem cleans up the filesystem and checks if all mds pods are terminated before continuing
-func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("Deleting file system")
 	err := helper.FSClient.Delete(filesystemName, namespace)
 	assert.Nil(s.T(), err)
@@ -451,7 +451,7 @@ func cleanupFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 }
 
 // Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook" and delete it again
-func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
+func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	activeCount := 1
@@ -473,7 +473,7 @@ func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s sui
 	assertNoErrorUnlessNotFound(s, err)
 }
 
-func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string, activeCount int) {
+func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName string, activeCount int) {
 	logger.Infof("Create file System")
 	fscErr := helper.FSClient.Create(filesystemName, settings.Namespace, activeCount)
 	require.Nil(s.T(), fscErr)
@@ -498,7 +498,7 @@ func createFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), 1, len(filesystemList), "There should be one shared file system present")
 }
 
-func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podName string, namespace string, filesystemName string) {
+func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, podName string, namespace string, filesystemName string) {
 	logger.Infof("Cleaning up file system")
 	err := k8sh.DeletePod(namespace, podName)
 	assert.NoError(s.T(), err)
@@ -506,7 +506,7 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	assert.NoError(s.T(), err)
 }
 
-func createPodWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, podName, filesystemName, storageClassName string, mountUser bool) error {
+func createPodWithFilesystem(k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, podName, filesystemName, storageClassName string, mountUser bool) error {
 	testPodManifest := getFilesystemCSITestPod(settings, podName, storageClassName)
 	if err := k8sh.ResourceOperation("create", testPodManifest); err != nil {
 		return fmt.Errorf("failed to create pod -- %s. %+v", testPodManifest, err)

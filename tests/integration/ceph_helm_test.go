@@ -88,18 +88,18 @@ func (h *HelmSuite) AfterTest(suiteName, testName string) {
 
 // Test to make sure all rook components are installed and Running
 func (h *HelmSuite) TestARookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
-	checkIfRookClusterHasHealthyIngress(h.Suite, h.k8shelper, h.settings.Namespace)
+	checkIfRookClusterIsInstalled(&h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
+	checkIfRookClusterHasHealthyIngress(&h.Suite, h.k8shelper, h.settings.Namespace)
 }
 
 // Test BlockCreation on Rook that was installed via Helm
 func (h *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
-	runBlockCSITestLite(h.helper, h.k8shelper, h.Suite, h.settings)
+	runBlockCSITestLite(h.helper, h.k8shelper, &h.Suite, h.settings)
 }
 
 // Test File System Creation on Rook that was installed via helm
 func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
-	runFileE2ETestLite(h.helper, h.k8shelper, h.Suite, h.settings, "testfs")
+	runFileE2ETestLite(h.helper, h.k8shelper, &h.Suite, h.settings, "testfs")
 }
 
 // Test Object StoreCreation on Rook that was installed via helm

@@ -97,7 +97,7 @@ func (s *ObjectSuite) TestWithTLS() {
 
 	tls := true
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, s.Suite, s.settings.Namespace, tls)
+	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls)
 	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -114,14 +114,14 @@ func (s *ObjectSuite) TestWithoutTLS() {
 
 	tls := false
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, s.Suite, s.settings.Namespace, tls)
+	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls)
 }
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
 // Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
-func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s suite.Suite, namespace string, tlsEnable bool) {
+func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, namespace string, tlsEnable bool) {
 	storeName := "test-store"
 	if tlsEnable {
 		storeName = objectStoreTLSName
@@ -159,7 +159,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
 }
 
-func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
+func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	ctx := context.TODO()
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()

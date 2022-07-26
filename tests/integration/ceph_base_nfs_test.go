@@ -28,7 +28,7 @@ import (
 
 // Smoke Test for File System Storage for CephNFS - Test check the following operations on Filesystem Storage in order
 // Create,Mount,Write,Read,Unmount and Delete.
-func runNFSFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
+func runNFSFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings, filesystemName string) {
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, settings.Namespace, filesystemName)
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	logger.Infof("File Storage End To End Integration Test for CephNFS- create, mount, write to, read from, and unmount")
