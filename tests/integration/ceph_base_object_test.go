@@ -202,7 +202,7 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 }
 
 func createCephObjectUser(
-	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool) {
 
@@ -223,7 +223,7 @@ func createCephObjectUser(
 }
 
 func checkCephObjectUser(
-	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool,
 ) {
@@ -254,7 +254,7 @@ func checkCephObjectUser(
 	}
 }
 
-func objectStoreCleanUp(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
+func objectStoreCleanUp(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	logger.Infof("Delete Object Store (will fail if users and buckets still exist)")
 	err := helper.ObjectClient.Delete(namespace, storeName)
 	assert.Nil(s.T(), err)

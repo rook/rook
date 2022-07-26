@@ -136,13 +136,13 @@ func (s *MultiClusterDeploySuite) TearDownSuite() {
 func (s *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 	// Check if Rook cluster 1 is deployed successfully
 	client.RunAllCephCommandsInToolboxPod = s.coreToolbox
-	checkIfRookClusterIsInstalled(s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 1)
-	checkIfRookClusterIsHealthy(s.Suite, s.testClient, s.settings.Namespace)
+	checkIfRookClusterIsInstalled(&s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 1)
+	checkIfRookClusterIsHealthy(&s.Suite, s.testClient, s.settings.Namespace)
 
 	// Check if Rook external cluster is deployed successfully
 	// Checking health status is enough to validate the connection
 	client.RunAllCephCommandsInToolboxPod = s.externalToolbox
-	checkIfRookClusterIsHealthy(s.Suite, s.testClient, s.externalManifests.Settings().Namespace)
+	checkIfRookClusterIsHealthy(&s.Suite, s.testClient, s.externalManifests.Settings().Namespace)
 }
 
 // Setup is wrapper for setting up multiple rook clusters.
