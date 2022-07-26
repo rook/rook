@@ -114,16 +114,16 @@ func (s *SmokeSuite) TearDownSuite() {
 }
 
 func (s *SmokeSuite) TestBlockStorage_SmokeTest() {
-	runBlockCSITest(s.helper, s.k8sh, s.Suite, s.settings.Namespace)
+	runBlockCSITest(s.helper, s.k8sh, &s.Suite, s.settings.Namespace)
 }
 
 func (s *SmokeSuite) TestFileStorage_SmokeTest() {
 	preserveFilesystemOnDelete := true
-	runFileE2ETest(s.helper, s.k8sh, s.Suite, s.settings, "smoke-test-fs", preserveFilesystemOnDelete)
+	runFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-fs", preserveFilesystemOnDelete)
 }
 
 func (s *SmokeSuite) TestNetworkFileStorage_SmokeTest() {
-	runNFSFileE2ETest(s.helper, s.k8sh, s.Suite, s.settings, "smoke-test-nfs")
+	runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
 }
 
 func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
@@ -138,7 +138,7 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 
 // Test to make sure all rook components are installed and Running
 func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
-	checkIfRookClusterIsInstalled(s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
+	checkIfRookClusterIsInstalled(&s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
 }
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order

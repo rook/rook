@@ -39,7 +39,7 @@ const (
 	deleteEvent         = "ObjectRemoved:Delete"
 )
 
-func testBucketNotifications(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
+func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	if utils.IsPlatformOpenShift() {
 		s.T().Skip("bucket notification tests skipped on openshift")
 	}
