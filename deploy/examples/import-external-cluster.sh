@@ -197,11 +197,11 @@ parameters:
   dataPool: $RBD_METADATA_EC_POOL_NAME
   imageFormat: "2"
   imageFeatures: layering
-  csi.storage.k8s.io/provisioner-secret-name: $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
-  csi.storage.k8s.io/controller-expand-secret-name:  $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/controller-expand-secret-name:  "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
-  csi.storage.k8s.io/node-stage-secret-name: $CSI_RBD_NODE_SECRET_NAME
+  csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/fstype: ext4
 allowVolumeExpansion: true
@@ -221,11 +221,11 @@ parameters:
   pool: $RBD_POOL_NAME
   imageFormat: "2"
   imageFeatures: layering
-  csi.storage.k8s.io/provisioner-secret-name: $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
-  csi.storage.k8s.io/controller-expand-secret-name:  $CSI_RBD_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/controller-expand-secret-name:  "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
-  csi.storage.k8s.io/node-stage-secret-name: $CSI_RBD_NODE_SECRET_NAME
+  csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/fstype: ext4
 allowVolumeExpansion: true
@@ -244,11 +244,11 @@ parameters:
   clusterID: $CLUSTER_ID_CEPHFS
   fsName: $CEPHFS_FS_NAME
   pool: $CEPHFS_POOL_NAME
-  csi.storage.k8s.io/provisioner-secret-name: $CSI_CEPHFS_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
-  csi.storage.k8s.io/controller-expand-secret-name: $CSI_CEPHFS_PROVISIONER_SECRET_NAME
+  csi.storage.k8s.io/controller-expand-secret-name: "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
-  csi.storage.k8s.io/node-stage-secret-name: $CSI_CEPHFS_NODE_SECRET_NAME
+  csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_CEPHFS_NODE_SECRET_NAME"
   csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
 allowVolumeExpansion: true
 reclaimPolicy: Delete
