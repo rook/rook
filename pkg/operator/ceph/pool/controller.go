@@ -434,9 +434,9 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
 	monStore := config.GetMonStore(clusterContext, clusterInfo)
 	if len(enableStatsForPools) == 0 {
-		err = monStore.Delete("mgr.", "mgr/prometheus/rbd_stats_pools")
+		err = monStore.Delete("mgr", "mgr/prometheus/rbd_stats_pools")
 	} else {
-		err = monStore.Set("mgr.", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","))
+		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","))
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
