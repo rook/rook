@@ -785,6 +785,7 @@ func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv
 		Name:     poolName(ctx.Name, requestedName),
 		PoolSpec: poolSpec,
 	}
+
 	if err := cephclient.CreatePoolWithPGs(ctx.Context, ctx.clusterInfo, clusterSpec, pool, AppName, pgCount); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", pool.Name)
 	}
