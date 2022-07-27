@@ -70,6 +70,7 @@ type Param struct {
 	EnableCSIEncryption            bool
 	EnableLiveness                 bool
 	LogLevel                       uint8
+	SidecarLogLevel                uint8
 	CephFSGRPCMetricsPort          uint16
 	CephFSLivenessMetricsPort      uint16
 	RBDGRPCMetricsPort             uint16
@@ -214,7 +215,8 @@ const (
 
 	detectCSIVersionName = "rook-ceph-csi-detect-version"
 	// default log level for csi containers
-	defaultLogLevel uint8 = 0
+	defaultLogLevel        uint8 = 0
+	defaultSidecarLogLevel uint8 = 0
 
 	// GRPC timeout.
 	defaultGRPCTimeout = 150
