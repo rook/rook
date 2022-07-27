@@ -25,7 +25,7 @@ spec:
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
