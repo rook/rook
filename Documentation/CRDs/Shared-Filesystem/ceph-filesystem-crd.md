@@ -133,15 +133,19 @@ spec:
     enabled: true
     # list of Kubernetes Secrets containing the peer token
     # for more details see: https://docs.ceph.com/en/latest/dev/cephfs-mirroring/#bootstrap-peers
+    # Add the secret name if it already exists else specify the empty list here.
     peers:
       secretNames:
-        - secondary-cluster-peer
+        #- secondary-cluster-peer
     # specify the schedule(s) on which snapshots should be taken
     # see the official syntax here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-schedules
     snapshotSchedules:
       - path: /
         interval: 24h # daily snapshots
-        startTime: 11:55
+        # The startTime should be mentioned in the format YYYY-MM-DDTHH:MM:SS
+        # If startTime is not specified, then by default the start time is considered as midnight UTC.
+        # see usage here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#usage
+        # startTime: 2022-07-15T11:55:00
     # manage retention policies
     # see syntax duration here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-retention-policies
     snapshotRetention:
