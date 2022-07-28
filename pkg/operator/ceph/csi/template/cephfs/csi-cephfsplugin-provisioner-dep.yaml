@@ -149,6 +149,7 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+        {{ if .EnableLiveness }}
         - name: liveness-prometheus
           image: {{ .CSIPluginImage }}
           args:
@@ -169,6 +170,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
           imagePullPolicy: "IfNotPresent"
+        {{ end }}
       volumes:
         - name: socket-dir
           emptyDir: {
