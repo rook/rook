@@ -478,15 +478,15 @@ func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *
 }
 
 func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
-	_, err := r.getObjectStore(cephObjectStoreUser.Spec.Store)
+	cephObjectStore, err := r.getObjectStore(cephObjectStoreUser.Spec.Store)
 	if err != nil {
 		return err
 	}
 	logger.Debug("CephObjectStore exists")
 
-	// If the cluster is external just return
+	// If the rgw is external just return
 	// since there are no pods running
-	if r.cephClusterSpec.External.Enable {
+	if cephObjectStore.Spec.IsExternal() {
 		return nil
 	}
 
@@ -571,10 +571,8 @@ func (r *ReconcileObjectStoreUser) validateUser(u *cephv1.CephObjectStoreUser) e
 	if u.Namespace == "" {
 		return errors.New("missing namespace")
 	}
-	if !r.cephClusterSpec.External.Enable {
-		if u.Spec.Store == "" {
-			return errors.New("missing store")
-		}
+	if u.Spec.Store == "" {
+		return errors.New("missing store")
 	}
 	return nil
 }
