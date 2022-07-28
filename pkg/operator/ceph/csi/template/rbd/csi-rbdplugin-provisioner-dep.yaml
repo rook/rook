@@ -247,6 +247,7 @@ spec:
             - name: rook-ceph-csi-kms-config
               mountPath: /etc/ceph-csi-encryption-kms-config/
             {{ end }}
+        {{ if .EnableLiveness }}
         - name: liveness-prometheus
           image: {{ .CSIPluginImage }}
           args:
@@ -267,6 +268,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
           imagePullPolicy: "IfNotPresent"
+        {{ end }}
       volumes:
         - name: host-dev
           hostPath:

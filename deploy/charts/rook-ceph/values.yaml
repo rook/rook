@@ -336,6 +336,8 @@ csi:
   #      operator: Exists
   #      effect: NoSchedule
   # pluginNodeAffinity: key1=value1,value2; key2=value3
+  # Set to true to enable Ceph CSI liveness container.
+  enableLiveness: false
   #cephfsGrpcMetricsPort: 9091
   #cephfsLivenessMetricsPort: 9081
   #rbdGrpcMetricsPort: 9090
