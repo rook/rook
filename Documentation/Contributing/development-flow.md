@@ -38,11 +38,13 @@ cd rook
 Building Rook-Ceph is simple.
 
 ```console
-make
+make build
 ```
 
 If you want to use `podman` instead of `docker` then uninstall `docker` packages from your machine, make will automatically pick up `podman`.
 
+!!! tip
+    If you are in linux environment and `make build` command throws an error like `unknown revision` for some imports, try adding `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc` and then run `source ~/.bashrc` or to a similar file to update your environment and confirm with `go env` that `GOPROXY` is updated.
 ### Development Settings
 
 To provide consistent whitespace and other formatting in your `go` and other source files (e.g., Markdown), it is recommended you apply
