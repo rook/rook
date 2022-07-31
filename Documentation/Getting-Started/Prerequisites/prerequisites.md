@@ -11,18 +11,18 @@ Kubernetes **v1.19** or higher is supported for the Ceph operator.
 
 ## CPU Architecture
 
-Architectures released are `amd64 / x86_64` and `arm64`.
+Architectures supported are `amd64 / x86_64` and `arm64`.
 
 ## Ceph Prerequisites
 
-In order to configure the Ceph storage cluster, at least one of these local storage options are required:
+In order to configure the Ceph storage cluster, at least one of these local storage types is required:
 
 * Raw devices (no partitions or formatted filesystems)
 * Raw partitions (no formatted filesystem)
 * LVM Logical Volumes (no formatted filesystem)
 * Persistent Volumes available from a storage class in `block` mode
 
-You can confirm whether your partitions or devices are formatted with filesystems with the following command.
+You can confirm whether your partitions or devices are formatted with filesystems with the following command:
 
 ```console
 $ lsblk -f
@@ -89,12 +89,22 @@ runcmd:
 
 ### RBD
 
-Ceph requires a Linux kernel built with the RBD module. Many Linux distributions have this module, but not all distributions.
+Ceph requires a Linux kernel built with the RBD module. Many Linux distributions
+have this module, but not all.
 For example, the GKE Container-Optimised OS (COS) does not have RBD.
 
 You can test your Kubernetes nodes by running `modprobe rbd`.
-If it says 'not found', you may have to rebuild your kernel and include at least the `rbd` module
-or choose a different Linux distribution.
+If it says 'not found', you may have to rebuild your kernel and include at least
+the `rbd` module, install a newer kernel, or choose a different Linux distribution.
+
+Rook's default RBD configuration specifies only the `layering` feature, for
+broad compatibility with older kernels. If your Kubernetes nodes run a 5.4
+or later kernel you may wish to enable additional feature flags. The `fast-diff`
+and `object-map` features are especially useful.
+
+```yaml
+imageFeatures: layering,fast-diff,object-map,deep-flatten,exclusive-lock
+```
 
 ### CephFS
 

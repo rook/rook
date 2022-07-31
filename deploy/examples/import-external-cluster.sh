@@ -14,6 +14,7 @@ MON_SECRET_CEPH_USERNAME_KEYNAME=ceph-username
 MON_SECRET_CEPH_SECRET_KEYNAME=ceph-secret
 MON_ENDPOINT_CONFIGMAP_NAME=rook-ceph-mon-endpoints
 ROOK_EXTERNAL_CLUSTER_NAME=$NAMESPACE
+ROOK_RBD_FEATURES=${ROOK_RBD_FEATURES:-"layering"}
 ROOK_EXTERNAL_MAX_MON_ID=2
 ROOK_EXTERNAL_MAPPING={}
 RBD_STORAGE_CLASS_NAME=ceph-rbd
@@ -33,6 +34,12 @@ CLUSTER_ID_CEPHFS=$NAMESPACE
 function checkEnvVars() {
   if [ -z "$NAMESPACE" ]; then
     echo "Please populate the environment variable NAMESPACE"
+    exit 1
+  fi
+  if [ -z "$ROOK_RBD_FEATURES" ] || [[ ! "$ROOK_RBD_FEATURES" =~ .*"layering".* ]]; then
+    echo "Please populate the environment variable ROOK_RBD_FEATURES"
+    echo "For a kernel earlier than 5.4 use a value of 'layering'; for 5.4 or later"
+    echo "use 'layering,fast-diff,object-map,deep-flatten,exclusive-lock'"
     exit 1
   fi
    if [ -z "$RBD_POOL_NAME" ]; then
@@ -196,7 +203,7 @@ parameters:
   pool: $RBD_POOL_NAME
   dataPool: $RBD_METADATA_EC_POOL_NAME
   imageFormat: "2"
-  imageFeatures: layering
+  imageFeatures: $ROOK_RBD_FEATURES
   csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/controller-expand-secret-name:  "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
@@ -220,7 +227,7 @@ parameters:
   clusterID: $CLUSTER_ID_RBD
   pool: $RBD_POOL_NAME
   imageFormat: "2"
-  imageFeatures: layering
+  imageFeatures: $ROOK_RBD_FEATURES
   csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
   csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
   csi.storage.k8s.io/controller-expand-secret-name:  "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
