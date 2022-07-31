@@ -120,6 +120,8 @@ export RGW_POOL_PREFIX=default
 3. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
 
 4. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
+   Note that if your Rook cluster nodes are running a kernel earlier than 5.4 or equivalent you may need to
+   remove `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
 
     ```console
     . import-external-cluster.sh
