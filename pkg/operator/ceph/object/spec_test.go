@@ -33,10 +33,40 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
+
+func configureSSE(t *testing.T, c *clusterConfig, kms bool, s3 bool) {
+	c.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
+	if kms {
+		c.store.Spec.Security.KeyManagementService = cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}
+		c.store.Spec.Security.KeyManagementService.TokenSecretName = "vault-token"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
+	}
+	if s3 {
+		c.store.Spec.Security.ServerSideEncryptionS3 = cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}
+		c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName = "vault-token"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["KMS_PROVIDER"] = "vault"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
+	}
+	s := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vault-token",
+			Namespace: c.store.Namespace,
+		},
+		Data: map[string][]byte{
+			"token": []byte("myt-otkenbenvqrev"),
+		},
+	}
+	_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(c.clusterInfo.Context, s, metav1.CreateOptions{})
+	if err != nil && !k8serrors.IsAlreadyExists(err) {
+		assert.Error(t, err)
+	}
+}
 
 func TestPodSpecs(t *testing.T) {
 	store := simpleStore()
@@ -93,8 +123,8 @@ func TestPodSpecs(t *testing.T) {
 	t.Run(("check rgw ConfigureProbe"), func(t *testing.T) {
 		c.store.Spec.HealthCheck.StartupProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
 		c.store.Spec.HealthCheck.LivenessProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
-		deployment := c.makeDaemonContainer(rgwConfig)
-		assert.NotNil(t, deployment)
+		deployment, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
 		assert.NotNil(t, c.store.Spec.HealthCheck.LivenessProbe)
 		assert.NotNil(t, c.store.Spec.HealthCheck.StartupProbe)
 		assert.Equal(t, int32(900), deployment.LivenessProbe.InitialDelaySeconds)
@@ -131,7 +161,7 @@ func TestSSLPodSpec(t *testing.T) {
 		context:     context,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.2.3"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -229,7 +259,6 @@ func TestSSLPodSpec(t *testing.T) {
 
 	assert.True(t, s.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)
-
 }
 
 func TestValidateSpec(t *testing.T) {
@@ -451,28 +480,11 @@ func TestCheckRGWKMS(t *testing.T) {
 	setupTest := func() *clusterConfig {
 		context := &clusterd.Context{Clientset: test.New(t, 3)}
 		store := simpleStore()
-		store.Spec.Security = &cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}}
 		return &clusterConfig{
 			context:     context,
 			store:       store,
 			clusterInfo: &client.ClusterInfo{Context: ctx},
 		}
-	}
-	configureKMS := func(c *clusterConfig) {
-		c.store.Spec.Security.KeyManagementService.TokenSecretName = "vault-token"
-		c.store.Spec.Security.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
-		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
-		s := &v1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      c.store.Spec.Security.KeyManagementService.TokenSecretName,
-				Namespace: c.store.Namespace,
-			},
-			Data: map[string][]byte{
-				"token": []byte("myt-otkenbenvqrev"),
-			},
-		}
-		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(ctx, s, metav1.CreateOptions{})
-		assert.NoError(t, err)
 	}
 
 	t.Run("KMS is disabled", func(t *testing.T) {
@@ -484,7 +496,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is missing", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		b, err := c.CheckRGWKMS()
 		assert.False(t, b)
 		assert.Error(t, err)
@@ -492,7 +504,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is kv with v1", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
 		b, err := c.CheckRGWKMS()
 		assert.False(t, b)
@@ -501,7 +513,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is kv with v2", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v2"
 		b, err := c.CheckRGWKMS()
@@ -511,7 +523,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is transit", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		b, err := c.CheckRGWKMS()
 		assert.True(t, b)
@@ -520,7 +532,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("TLS is configured but secrets do not exist", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		b, err := c.CheckRGWKMS()
@@ -531,7 +543,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("TLS secret exists but empty key", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		tlsSecret := &v1.Secret{
@@ -550,7 +562,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("TLS config is valid", func(t *testing.T) {
 		c := setupTest()
-		configureKMS(c)
+		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		tlsSecret := &v1.Secret{
@@ -563,6 +575,114 @@ func TestCheckRGWKMS(t *testing.T) {
 		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		b, err := c.CheckRGWKMS()
+		assert.True(t, b)
+		assert.NoError(t, err, "")
+	})
+}
+
+func TestCheckRGWSSES3Enabled(t *testing.T) {
+	ctx := context.TODO()
+	setupTest := func() *clusterConfig {
+		context := &clusterd.Context{Clientset: test.New(t, 3)}
+		store := simpleStore()
+		return &clusterConfig{
+			context:     context,
+			store:       store,
+			clusterInfo: &client.ClusterInfo{Context: ctx, CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}},
+			clusterSpec: &cephv1.ClusterSpec{
+				CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.2.3"},
+			},
+		}
+	}
+
+	t.Run("KMS is disabled", func(t *testing.T) {
+		c := setupTest()
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.False(t, b)
+		assert.NoError(t, err)
+	})
+
+	t.Run("Vault Secret Engine is missing", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.False(t, b)
+		assert.Error(t, err)
+	})
+
+	t.Run("Vault Secret Engine is kv with v1", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.False(t, b)
+		assert.Error(t, err)
+	})
+
+	t.Run("Vault Secret Engine is kv with v2", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_BACKEND"] = "v2"
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.False(t, b)
+		assert.Error(t, err)
+	})
+
+	t.Run("Vault Secret Engine is transit", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.True(t, b)
+		assert.NoError(t, err)
+	})
+
+	t.Run("TLS is configured but secrets do not exist", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.False(t, b)
+		assert.Error(t, err, "")
+		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection details k8s secret \"vault-ca-secret\": secrets \"vault-ca-secret\" not found")
+	})
+
+	t.Run("TLS secret exists but empty key", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		tlsSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vault-ca-secret",
+				Namespace: c.store.Namespace,
+			},
+		}
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		b, err := c.CheckRGWSSES3Enabled()
+		assert.False(t, b)
+		assert.Error(t, err, "")
+		assert.EqualError(t, err, "failed to validate vault connection details: failed to find TLS connection key \"cert\" for \"VAULT_CACERT\" in k8s secret \"vault-ca-secret\"")
+	})
+
+	t.Run("TLS config is valid", func(t *testing.T) {
+		c := setupTest()
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		tlsSecret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vault-ca-secret",
+				Namespace: c.store.Namespace,
+			},
+		}
+		tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
+		_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(context.TODO(), tlsSecret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		b, err := c.CheckRGWSSES3Enabled()
 		assert.True(t, b)
 		assert.NoError(t, err, "")
 	})
@@ -647,4 +767,169 @@ func TestMakeRGWPodSpec(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAWSServerSideEncryption(t *testing.T) {
+	ctx := context.TODO()
+	// Placeholder
+	context := &clusterd.Context{Clientset: test.New(t, 3)}
+
+	store := simpleStore()
+	info := clienttest.CreateTestClusterInfo(1)
+	info.CephVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
+	info.Namespace = store.Namespace
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		context:     context,
+		rookVersion: "rook/rook:myversion",
+		clusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.3"},
+			Network: cephv1.NetworkSpec{
+				HostNetwork: true,
+			},
+		},
+		DataPathMap: data,
+	}
+
+	resourceName := fmt.Sprintf("%s-%s", AppName, c.store.Name)
+	rgwConfig := &rgwConfig{
+		ResourceName: resourceName,
+		DaemonID:     "default",
+	}
+	checkRGWOptions := func(allRGWOptions, optionsNeeded []string) bool {
+		if len(optionsNeeded) == 0 {
+			return false
+		}
+		optionMap := make(map[string]bool)
+		for _, option := range allRGWOptions {
+			optionMap[option] = true
+		}
+
+		for _, option := range optionsNeeded {
+			if _, found := optionMap[option]; !found {
+				return false
+			}
+		}
+
+		return true
+	}
+
+	t.Run("SecuritySpec is not configured no options will be configured", func(t *testing.T) {
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	configureSSE(t, c, true, false)
+	t.Run("Invalid Security Spec configured, no options will be configured", func(t *testing.T) {
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.Error(t, err)
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	t.Run("Security Spec configured with kms only,so kms options will be configured", func(t *testing.T) {
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	t.Run("Security Spec configured with s3 only, so s3 options will be configured", func(t *testing.T) {
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	t.Run("Security Spec configured with both kms and s3 settings, so both kms and s3 options will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, true)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	tlsSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "vault-ca-secret",
+			Namespace: c.store.Namespace,
+		},
+	}
+	tlsSecret.Data = map[string][]byte{"cert": []byte("envnrevbnbvsbjkrtn")}
+	_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(ctx, tlsSecret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	t.Run("Security Spec configured with kms along with TLS, so kms including TLS options will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, false)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+	})
+
+	t.Run("Security Spec configured with s3 along with TLS, so s3 including TLS options will be configured", func(t *testing.T) {
+		configureSSE(t, c, false, true)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(true)))
+	})
+
+	t.Run("Security Spec configured both kms and s3 aloong with TLS, all the serverr side encryption related options will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, true)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(true)))
+	})
 }

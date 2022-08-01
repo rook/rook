@@ -244,6 +244,18 @@ type SecuritySpec struct {
 	KeyManagementService KeyManagementServiceSpec `json:"kms,omitempty"`
 }
 
+// ObjectStoreSecuritySpec is spec to define security features like encryption
+type ObjectStoreSecuritySpec struct {
+	// +optional
+	// +nullable
+	SecuritySpec `json:""`
+
+	// The settings for supporting AWS-SSE:S3 with RGW
+	// +optional
+	// +nullable
+	ServerSideEncryptionS3 KeyManagementServiceSpec `json:"s3,omitempty"`
+}
+
 // KeyManagementServiceSpec represent various details of the KMS server
 type KeyManagementServiceSpec struct {
 	// ConnectionDetails contains the KMS connection details (address, port etc)
@@ -1324,7 +1336,7 @@ type ObjectStoreSpec struct {
 	// Security represents security settings
 	// +optional
 	// +nullable
-	Security *SecuritySpec `json:"security,omitempty"`
+	Security *ObjectStoreSecuritySpec `json:"security,omitempty"`
 
 	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 	// +kubebuilder:pruning:PreserveUnknownFields

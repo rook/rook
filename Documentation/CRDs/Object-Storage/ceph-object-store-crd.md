@@ -201,9 +201,9 @@ Rook-Ceph always keeps the bucket and the user for the health check, it just doe
 
 ## Security settings
 
-Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](../Cluster/ceph-cluster-crd.md#vault-kms) for detailed explanation.
-If these settings are defined, then RGW establish a connection between Vault and whenever S3 client sends a request with Server Side Encryption,
-it encrypts that using the key specified by the client. For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
+Ceph RGW supports Server Side Encryption as defined in [AWS S3 protocol](https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html) with three different modes: AWS-SSE:C, AWS-SSE:KMS and AWS-SSE:S3. The last two modes require a Key Management System (KMS) like HashiCorp Vault. Currently, Vault is the only supported KMS backend for CephObjectStore.
+
+Refer to the [Vault KMS section](../../Storage-Configuration/Advanced/key-management-system.md#vault) for details about Vault. If these settings are defined, then RGW will establish a connection between Vault and whenever S3 client sends request with Server Side Encryption. [Ceph's Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/) has more details.
 
 The `security` section contains settings related to KMS encryption of the RGW.
 
@@ -217,13 +217,21 @@ security:
       VAULT_SECRET_ENGINE: kv
       VAULT_BACKEND: v2
     # name of the k8s secret containing the kms authentication token
-    tokenSecretName: rgw-vault-token
+    tokenSecretName: rgw-vault-kms-token
+  s3:
+    connectionDetails:
+      KMS_PROVIDER: vault
+      VAULT_ADDR: http://vault.default.svc.cluster.local:8200
+      VAULT_BACKEND_PATH: rgw
+      VAULT_SECRET_ENGINE: transit
+    # name of the k8s secret containing the kms authentication token
+    tokenSecretName: rgw-vault-s3-token
 ```
 
 For RGW, please note the following:
 
-* `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). And for kv engine only version 2 is supported.
-* The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
+* `VAULT_SECRET_ENGINE`: the secret engine which Vault should use. Currently supports [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). AWS-SSE:KMS supports `transit` engine and `kv` engine version 2. AWS-SSE:S3 only supports `transit` engine.
+* The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption for AWS-SSE:KMS
 
 ```console
 vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
@@ -231,6 +239,10 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 ```
 
 * TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
+
+* `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
+
+* `AWS-SSE:S3` requires Ceph Quincy (v17.2.3) and later.
 
 ## Deleting a CephObjectStore
 
