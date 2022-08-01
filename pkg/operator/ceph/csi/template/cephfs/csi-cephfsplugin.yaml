@@ -115,6 +115,7 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+        {{ if .EnableLiveness }}
         - name: liveness-prometheus
           securityContext:
             privileged: true
@@ -137,6 +138,7 @@ spec:
             - name: plugin-dir
               mountPath: /csi
           imagePullPolicy: "IfNotPresent"
+        {{ end }}
       volumes:
         - name: plugin-dir
           hostPath:

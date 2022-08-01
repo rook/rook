@@ -159,6 +159,9 @@ data:
 {{- if .Values.csi.cephfsLivenessMetricsPort }}
   CSI_CEPHFS_LIVENESS_METRICS_PORT: {{ .Values.csi.cephfsLivenessMetricsPort | quote }}
 {{- end }}
+{{- if .Values.csi.enableLiveness }}
+  CSI_ENABLE_LIVENESS: {{ .Values.csi.enableLiveness | quote }}
+{{- end }}
 {{- if .Values.csi.rbdGrpcMetricsPort }}
   CSI_RBD_GRPC_METRICS_PORT: {{ .Values.csi.rbdGrpcMetricsPort | quote }}
 {{- end }}

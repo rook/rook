@@ -131,6 +131,11 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
 	}
 
+	CSIParam.EnableLiveness, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_LIVENESS", "false"))
+	if err != nil {
+		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_LIVENESS'")
+	}
+
 	// default value `system-node-critical` is the highest available priority
 	CSIParam.PluginPriorityClassName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
 
