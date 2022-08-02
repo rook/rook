@@ -289,7 +289,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 		assert.NoError(t, err)
 
 		var cond *cephv1.Condition
-		err = wait.Poll(2*time.Second, 15*time.Second, func() (done bool, err error) {
+		err = wait.Poll(2*time.Second, 45*time.Second, func() (done bool, err error) {
 			logger.Infof("waiting for CephFilesystem %q in namespace %q to have condition %q",
 				filesystemName, settings.Namespace, cephv1.ConditionDeletionIsBlocked)
 			fs, err := k8sh.RookClientset.CephV1().CephFilesystems(settings.Namespace).Get(
