@@ -260,3 +260,7 @@ Rook will warn about which buckets are blocking deletion in three ways:
 1. An event will be registered on the CephObjectStore resource
 1. A status condition will be added to the CephObjectStore resource
 1. An error will be added to the Rook Ceph Operator log
+
+If the CephObjectStore is configured in a [multisite setup](ceph-object-multisite-crd.md) the above conditions are applicable only to stores that belong to a single master zone.
+Otherwise the conditions are ignored. Even if the store is removed the user can access the
+data from a peer object store.

@@ -27,7 +27,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const bucketDependentType = "buckets in the object store (could be from ObjectBucketClaims or COSI Buckets)"
+const (
+	bucketDependentType                = "buckets in the object store (could be from ObjectBucketClaims or COSI Buckets)"
+	zoneIsMasterWithPeersDependentType = "zone is master and has peers"
+)
 
 // CephObjectStoreDependents returns the buckets which exist in the object store that should block
 // deletion.
@@ -43,6 +46,34 @@ func CephObjectStoreDependents(
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephObjectStore %q", nsName)
 
 	deps := dependents.NewDependentList()
+
+	if store.Spec.IsMultisite() {
+		// stores in multisite configs have different conditions that change what dependents should be checked
+		zoneIsMaster, err := CheckZoneIsMaster(objCtx)
+		if err != nil {
+			return deps, errors.Wrapf(err, baseErrMsg)
+		}
+		if !zoneIsMaster {
+			// zone is a peer, and the master is the source of truth
+			// we assume master is up-to-date and this peer can be deleted safely
+			// without checking for bucket dependents
+			return deps, nil
+		}
+
+		// check whether any peer zone exists
+		err = getMasterZoneDependents(deps, clusterdCtx, clusterInfo, store, objCtx)
+		if err != nil {
+			return deps, errors.Wrapf(err, "%s. failed to check multisite dependents", baseErrMsg)
+		}
+		if !deps.Empty() {
+			// zone is master with peers; require user intervention
+			logger.Errorf("%s. Either change the master or remove its peers before the deletion", zoneIsMasterWithPeersDependentType)
+			return deps, errors.Errorf("%s: %q\nall peer zones must be deleted, or a peer zone must be manually set as the master zone after that peer has all necessary data synched to it", zoneIsMasterWithPeersDependentType, deps.OfKind(zoneIsMasterWithPeersDependentType))
+		}
+
+		// this is a master zone with NO peers. it is the last store  that has this data,
+		// so we should prevent users from accidentally deleting it by continuing to check for buckets
+	}
 
 	// NOTE: we should still check for buckets when the RGW connection is external since we have no
 	// way of knowing if the bucket was created due to an ObjectBucketClaim or COSI Bucket.
@@ -104,5 +135,33 @@ func getBucketDependents(
 		deps.Add(bucketDependentType, b)
 	}
 
+	return nil
+}
+
+func getMasterZoneDependents(
+	deps *dependents.DependentList,
+	clusterdCtx *clusterd.Context,
+	clusterInfo *client.ClusterInfo,
+	store *v1.CephObjectStore,
+	objContext *Context,
+) error {
+	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch zonegroup %q", objContext.ZoneGroup)
+	}
+	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
+	if err != nil {
+		return errors.Wrapf(err, "failed to decode zonegroup %q", objContext.ZoneGroup)
+	}
+	// if only master zone remains then it is okay delete
+	if len(zoneGroupJson.Zones) > 1 {
+		for _, zone := range zoneGroupJson.Zones {
+			if zone.Name != store.Spec.Zone.Name {
+				deps.Add(zoneIsMasterWithPeersDependentType, zone.Name)
+			}
+		}
+	}
 	return nil
 }

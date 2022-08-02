@@ -864,7 +864,8 @@ type Status struct {
 	Phase string `json:"phase,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
-	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	ObservedGeneration int64       `json:"observedGeneration,omitempty"`
+	Conditions         []Condition `json:"conditions,omitempty"`
 }
 
 // ReplicatedSpec represents the spec for replication in a pool
@@ -1673,6 +1674,11 @@ type ObjectZoneSpec struct {
 	// +nullable
 	// +optional
 	CustomEndpoints []string `json:"customEndpoints,omitempty"`
+
+	// Preserve pools on object zone deletion
+	// +optional
+	// +kubebuilder:default=true
+	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 }
 
 // CephBucketTopic represents a Ceph Object Topic for Bucket Notifications

@@ -19,6 +19,7 @@ package zone
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -27,7 +28,6 @@ import (
 
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -54,6 +54,10 @@ import (
 const (
 	controllerName = "ceph-object-zone-controller"
 )
+
+type domainRootType struct {
+	DomainRoot string `json:"domain_root"`
+}
 
 var waitForRequeueIfObjectZoneGroupNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
@@ -135,11 +139,16 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to get CephObjectZone")
 	}
+
 	// update observedGeneration local variable with current generation value,
 	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephObjectZone.ObjectMeta.Generation
-
+	// Set a finalizer so we can do cleanup before the object goes away
+	err = opcontroller.AddFinalizerIfNotPresent(r.opManagerContext, r.client, cephObjectZone)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to add finalizer")
+	}
 	// The CR was just created, initializing status fields
 	if cephObjectZone.Status == nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
@@ -151,21 +160,17 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		//
 		if !cephObjectZone.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// Remove finalizer
+			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectZone)
+			if err != nil {
+				return reconcile.Result{}, *cephObjectZone, errors.Wrap(err, "failed to remove finalizer")
+			}
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, *cephObjectZone, nil
 		}
 		return reconcileResponse, *cephObjectZone, nil
 	}
 	r.clusterSpec = &cephCluster.Spec
-
-	// DELETE: the CR was deleted
-	if !cephObjectZone.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting zone CR %q", cephObjectZone.Name)
-		r.recorder.Eventf(cephObjectZone, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectZOne %q", cephObjectZone.Name)
-
-		// Return and do not requeue. Successful deletion.
-		return reconcile.Result{}, *cephObjectZone, nil
-	}
 
 	// Populate clusterInfo during each reconcile
 	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
@@ -180,14 +185,20 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, *cephObjectZone, errors.Wrapf(err, "invalid CephObjectZone CR %q", cephObjectZone.Name)
 	}
 
-	// Start object reconciliation, updating status for this
-	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus)
-
 	// Make sure an ObjectZoneGroup is present
-	realmName, reconcileResponse, err := r.reconcileObjectZoneGroup(cephObjectZone)
+	realmName, reconcileResponse, err := r.getCephObjectZoneGroup(cephObjectZone)
 	if err != nil {
 		return reconcileResponse, *cephObjectZone, err
 	}
+
+	// DELETE: the CR was deleted
+	if !cephObjectZone.GetDeletionTimestamp().IsZero() {
+		res, err := r.deleteCephObjectZone(cephObjectZone, realmName)
+		return res, *cephObjectZone, err
+	}
+
+	// Start object reconciliation, updating status for this
+	r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcilingStatus)
 
 	// Make sure zone group has been created in Ceph Cluster
 	reconcileResponse, err = r.reconcileCephZoneGroup(cephObjectZone, realmName)
@@ -313,7 +324,7 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 	return nil
 }
 
-func (r *ReconcileObjectZone) reconcileObjectZoneGroup(zone *cephv1.CephObjectZone) (string, reconcile.Result, error) {
+func (r *ReconcileObjectZone) getCephObjectZoneGroup(zone *cephv1.CephObjectZone) (string, reconcile.Result, error) {
 	// empty zoneGroup gets filled by r.client.Get()
 	zoneGroup := &cephv1.CephObjectZoneGroup{}
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: zone.Spec.ZoneGroup, Namespace: zone.Namespace}, zoneGroup)
@@ -395,4 +406,132 @@ func (r *ReconcileObjectZone) updateStatus(observedGeneration int64, name types.
 		return
 	}
 	logger.Debugf("object zone %q status updated to %q", name, status)
+}
+func (r *ReconcileObjectZone) deleteZone(objContext *object.Context) error {
+	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
+	//	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
+
+	args := []string{"zone", "delete", realmArg, zoneArg}
+	output, err := object.RunAdminCommandNoMultisite(objContext, false, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete ceph zone %q for reason %q", objContext.Zone, output)
+	}
+	return nil
+}
+
+func (r *ReconcileObjectZone) removeZoneFromZonegroup(objContext *object.Context) error {
+	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
+
+	args := []string{"zonegroup", "remove", realmArg, zoneGroupArg, zoneArg}
+	output, err := object.RunAdminCommandNoMultisite(objContext, false, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete ceph zone %q for reason %q", objContext.Zone, output)
+	}
+
+	args = []string{"period", "update", "--commit", realmArg, zoneGroupArg}
+	output, err = object.RunAdminCommandNoMultisite(objContext, false, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to commit updates in ceph zonegroup %q for reason %q", objContext.ZoneGroup, output)
+	}
+	return nil
+}
+
+func (r *ReconcileObjectZone) deleteZonePools(objContext *object.Context, zone *cephv1.CephObjectZone, realmName string) error {
+	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
+
+	zoneOutput, err := object.RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get zone %q", zone.Name)
+	}
+	poolPrefix, err := decodePoolPrefixfromZone(zoneOutput)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse pool prefix for zone json %v", zoneOutput)
+	}
+
+	logger.Debugf("deleting pools for ceph zone %q with prefix %q", zone.Name, poolPrefix)
+
+	if object.EmptyPool(zone.Spec.DataPool) && object.EmptyPool(zone.Spec.MetadataPool) {
+		logger.Info("skipping removal of pools since not specified in the object zone")
+		return nil
+	}
+	err = object.DeletePools(objContext, false, poolPrefix)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete rgw pools")
+	}
+
+	return nil
+}
+
+func decodePoolPrefixfromZone(data string) (string, error) {
+	var domain domainRootType
+	err := json.Unmarshal([]byte(data), &domain)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to unmarshal json")
+	}
+	s := strings.Split(domain.DomainRoot, ".rgw.")
+	return s[0], err
+}
+func (r *ReconcileObjectZone) deleteCephObjectZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
+	logger.Debugf("deleting zone CR %q", zone.Name)
+	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
+	objContext.Realm = realmName
+	objContext.ZoneGroup = zone.Spec.ZoneGroup
+	objContext.Zone = zone.Name
+	zonePresent, err := object.CheckIfZonePresentInZoneGroup(objContext)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	zoneIsMaster, err := object.CheckZoneIsMaster(objContext)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	if zonePresent {
+		deps, err := CephObjectZoneDependentStores(r.context, r.clusterInfo, zone, objContext)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if !deps.Empty() {
+			err := reporting.ReportDeletionBlockedDueToDependents(r.opManagerContext, logger, r.client, zone, deps)
+			return opcontroller.WaitForRequeueIfFinalizerBlocked, err
+		}
+		reporting.ReportDeletionNotBlockedDueToDependents(r.opManagerContext, logger, r.client, r.recorder, zone)
+		if !zoneIsMaster {
+			err = r.removeZoneFromZonegroup(objContext)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+			zonePresent = false
+		}
+	}
+
+	// zone successfully removed from zonegroup proceed with delete
+	// master zone cannot be removed from zonegroup, it will be always present
+	if !zonePresent || zoneIsMaster {
+		if !zone.Spec.PreservePoolsOnDelete {
+			// This case zone is removed only after the successful pool deletion
+			err = r.deleteZonePools(objContext, zone, realmName)
+			if err != nil {
+				res, _, err := r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, zone, types.NamespacedName{Namespace: zone.Namespace, Name: zone.Name}, "failed to delete ceph zone", err)
+				return res, err
+			}
+		} else {
+			logger.Infof("PreservePoolsOnDelete is set in object zone %s. Pools is not deleted, but Zone is not removed", objContext.Name)
+		}
+		err = r.deleteZone(objContext)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to delete zone %s", objContext.Name)
+		}
+		// Remove finalizer
+		err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, zone)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
+	}
+	// Return and do not requeue. Successful deletion.
+	return reconcile.Result{}, nil
 }

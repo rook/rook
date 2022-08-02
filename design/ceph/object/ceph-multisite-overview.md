@@ -48,6 +48,9 @@ To enable Ceph's multisite, the following steps need to happen.
 3. A master zone in the master zone group needs to be created
 4. An object store needs to be added to the master zone
 
+### Master Zone/Zonegroup
+The master zone of the master zonegroup is designated as the 'metadata master zone', and all changes to user and bucket metadata are written through that zone first before replicating to other zones via metadata sync. This is different from data sync, where objects can be written to any zone and replicated to its peers in the zonegroup.
+
 ## Rook Ceph Multisite Steps
 
 1. If an admin is creating a new realm on a Rook Ceph cluster, the admin should create:
