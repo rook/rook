@@ -746,17 +746,17 @@ spec:
             description: >
               Pool '{{ $labels.name }}' will be full in less than 5 days
               assuming the average fill-up rate of the past 48 hours.
-      - alert: CephPoolBackfillFull
-        expr: ceph_health_detail{name="POOL_BACKFILLFULL"} > 0
-        labels:
-          severity: warning
-          type: ceph_default
-        annotations:
-          summary: Free space in a pool is too low for recovery/backfill
-          description: >
-            A pool is approaching the near full threshold, which will
-            prevent recovery/backfill from completing.
-            Consider adding more capacity.
+        - alert: CephPoolBackfillFull
+          expr: ceph_health_detail{name="POOL_BACKFILLFULL"} > 0
+          labels:
+            severity: warning
+            type: ceph_default
+          annotations:
+            summary: Free space in a pool is too low for recovery/backfill
+            description: >
+              A pool is approaching the near full threshold, which will
+              prevent recovery/backfill from completing.
+              Consider adding more capacity.
         - alert: CephPoolFull
           expr: ceph_health_detail{name="POOL_FULL"} > 0
           for: 1m
