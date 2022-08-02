@@ -101,9 +101,12 @@ csi:
   # Set replicas for csi provisioner deployment.
   provisionerReplicas: 2
 
-  # Set logging level for csi containers.
+  # Set logging level for cephCSI containers maintained by the cephCSI.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0
+  # Set logging level for Kubernetes-csi sidecar containers.
+  # Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity.
+  #sidecarLogLevel: 0
   # CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   #rbdPluginUpdateStrategy: OnDelete
