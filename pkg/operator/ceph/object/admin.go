@@ -250,7 +250,6 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 			fmt.Sprintf("--rgw-zonegroup=%s", c.ZoneGroup),
 			fmt.Sprintf("--rgw-zone=%s", c.Zone),
 		}
-
 		args = append(args, options...)
 	}
 

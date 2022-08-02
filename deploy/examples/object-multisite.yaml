@@ -40,6 +40,8 @@ spec:
   # customEndpoints:
   #   - "http://rgw-a.fqdn"
   #   - "http://rgw-b.fqdn"
+  # if the pools need to be removed from backend enable following setting
+  # preservePoolsOnDelete: false
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore

@@ -573,6 +573,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -5105,6 +5127,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -8277,6 +8321,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -8344,6 +8410,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -10048,6 +10136,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -10439,6 +10549,10 @@ spec:
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                   type: object
+                preservePoolsOnDelete:
+                  default: true
+                  description: Preserve pools on object zone deletion
+                  type: boolean
                 zoneGroup:
                   description: The display name for the ceph users
                   type: string
@@ -10450,6 +10564,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
@@ -11111,6 +11247,28 @@ spec:
             status:
               description: Status represents the status of an object
               properties:
+                conditions:
+                  items:
+                    description: Condition represents a status condition on any Rook-Ceph Custom Resource.
+                    properties:
+                      lastHeartbeatTime:
+                        format: date-time
+                        type: string
+                      lastTransitionTime:
+                        format: date-time
+                        type: string
+                      message:
+                        type: string
+                      reason:
+                        description: ConditionReason is a reason for a condition
+                        type: string
+                      status:
+                        type: string
+                      type:
+                        description: ConditionType represent a resource's status
+                        type: string
+                    type: object
+                  type: array
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.
                   format: int64
