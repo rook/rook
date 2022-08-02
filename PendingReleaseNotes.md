@@ -9,3 +9,4 @@
 - The toolbox pod now uses the Ceph image directly instead of the Rook image
 - Add support for AWS Server Side Encryption with (AWS-SSE:S3)[https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html] for RGW.
 - Remove Attacher sidecar from CephFS Rook deployment.
+- Enable Pod networking by default for csi plugin pods.

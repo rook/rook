@@ -89,25 +89,63 @@ function test_demo_pool {
 
 function test_csi {
   timeout 360 bash -x <<-'EOF'
-    echo $IS_POD_NETWORK
-    echo $IS_MULTUS
-    if [ -z "$IS_POD_NETWORK" ]; then
-      until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 4 ]]; do
-        echo "waiting for csi pods to be ready"
-        sleep 5
-      done
-    else
-      until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
-        echo "waiting for csi pods to be ready with multus or pod networking"
-        sleep 5
-      done
-    fi
+    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
+      echo "waiting for csi pods to be ready with multus or pod networking"
+      sleep 5
+    done
+    
     if [ -n "$IS_MULTUS" ]; then
       echo "verifying csi holder interfaces (multus ones must be present)"
       kubectl -n rook-ceph exec -t ds/csi-rbdplugin-holder-my-cluster -- grep net /proc/net/dev
       kubectl -n rook-ceph exec -t ds/csi-cephfsplugin-holder-my-cluster -- grep net /proc/net/dev
     fi
 EOF
+}
+
+function wait_for_ceph_csi_configmap_to_be_updated {
+  timeout 60 bash <<EOF
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].rbd.netNamespaceFilePath) != "null" ]]; do
+  echo "waiting for ceph csi configmap to be updated with rbd.netNamespaceFilePath"
+  sleep 5
+done
+EOF
+  timeout 60 bash <<EOF
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].cephFS.netNamespaceFilePath) != "null" ]]; do
+  echo "waiting for ceph csi configmap to be updated with cephFS.netNamespaceFilePath"
+  sleep 5
+done
+EOF
+}
+
+function test_csi_rbd_workload {
+  pushd deploy/examples/csi/rbd
+  sed -i 's|size: 3|size: 1|g' storageclass.yaml
+  sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
+  # Using kubectl apply to avoid already exists error as storageclass.yaml has the pool spec
+  kubectl apply -f storageclass.yaml
+  kubectl create -f pvc.yaml
+  kubectl create -f pod.yaml
+  timeout 45 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
+  kubectl -n rook-ceph logs ds/csi-rbdplugin -c csi-rbdplugin
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-rbdplugin --field-selector=status.phase=Running -o name)"
+  kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
+  kubectl exec -t pod/csirbd-demo-pod -- ls -alh /var/lib/www/html/
+  popd
+}
+
+function test_csi_cephfs_workload {
+  pushd deploy/examples/csi/cephfs
+  kubectl create -f storageclass.yaml
+  kubectl create -f pvc.yaml
+  kubectl create -f pod.yaml
+  timeout 45 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
+  kubectl -n rook-ceph logs ds/csi-cephfsplugin -c csi-cephfsplugin
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-cephfsplugin --field-selector=status.phase=Running -o name)"
+  kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
+  kubectl exec -t pod/csicephfs-demo-pod -- ls -alh /var/lib/www/html/
+  popd
 }
 
 function test_nfs {
@@ -130,6 +168,9 @@ function test_multus_osd {
 # MAIN #
 ########
 test_csi
+wait_for_ceph_csi_configmap_to_be_updated
+test_csi_rbd_workload
+test_csi_cephfs_workload
 test_demo_mon
 test_demo_mgr
 

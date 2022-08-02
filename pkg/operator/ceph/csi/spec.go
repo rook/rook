@@ -242,6 +242,9 @@ const (
 	CephFSDriverShortName = "cephfs"
 	rbdDriverSuffix       = "rbd.csi.ceph.com"
 	cephFSDriverSuffix    = "cephfs.csi.ceph.com"
+
+	// default host networking is set to false for the csi plugin pods.
+	useHostNetworkDefault = "false"
 )
 
 func CSIEnabled() bool {

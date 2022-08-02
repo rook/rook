@@ -1389,7 +1389,7 @@ jobs:
       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
     - name: wait for ceph to be ready
-      run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd_multus 2
+      run: IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd_multus 2
 
     - name: wait for ceph-csi configmap to be updated with network namespace
       run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
@@ -1405,63 +1405,6 @@ jobs:
       uses: ./.github/workflows/collect-logs
       with:
         name: canary-multus
-
-    - name: consider debugging
-      if: failure() && github.event_name == 'pull_request'
-      run: |
-        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
-        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-          echo USE_TMATE=1 >> $GITHUB_ENV
-        fi
-
-    - name: set up tmate session for debugging
-      if: failure() && env.USE_TMATE
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60
-
-  csi-hostnetwork-disabled:
-    runs-on: ubuntu-18.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
-
-    - name: setup cluster resources
-      uses: ./.github/workflows/canary-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-
-
-    - name: use local disk and create partitions for osds
-      run: |
-        tests/scripts/github-action-helper.sh use_local_disk
-        tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-    - name: deploy CSI hostNetworking disabled cluster
-      run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
-
-    - name: wait for prepare pod
-      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-    - name: wait for ceph to be ready
-      run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
-    - name: wait for ceph-csi configmap to be updated with network namespace
-      run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
-
-    - name: test ceph-csi-rbd plugin restart
-      run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
-
-    - name: test ceph-csi-cephfs plugin restart
-      run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
-
-    - name: collect common logs
-      if: always()
-      uses: ./.github/workflows/collect-logs
-      with:
-        name: csi-hostnetwork-disabled
 
     - name: consider debugging
       if: failure() && github.event_name == 'pull_request'

@@ -425,22 +425,36 @@ kubectl -n rook-ceph delete pod my-app-69cd495f9b-nl6hf --grace-period 0 --force
 
 After the force delete, wait for a timeout of about 8-10 minutes. If the pod still not in the running state, continue with the next section to blocklist the node.
 
-### Blocklisting a node
+### Holder Pod IP
+
+```console
+kubectl get po -nrook-ceph -owide -l='app in (csi-rbdplugin-holder,csi-cephfsplugin-holder)'
+NAME                                       READY   STATUS    RESTARTS   AGE     IP            NODE       NOMINATED NODE   READINESS GATES
+csi-cephfsplugin-holder-my-cluster-2cjl8   1/1     Running   0          2m48s   10.244.0.40   minikube   <none>           <none>
+csi-rbdplugin-holder-my-cluster-2msh8      1/1     Running   0          2m48s   10.244.0.39   minikube   <none>           <none>
+```
+
+Holder Pod will be deployed per ceph cluster and its a daemonset. Holder Pod name starts with `csi-cephfsplugin-<cephclusterName>-xxx` for CephFS
+and `csi-rbdplugin-<cephclusterName>-xxx` for RBD.
+
+### Blocklisting a node or holder Pod
+
+If csi host networking is enabled, we can blocklist the Node IP. If not, we need to blocklist the holder pod IP running on the faulty node.
 
 To shorten the timeout, you can mark the node as "blocklisted" from the [Rook toolbox](ceph-toolbox.md) so Rook can safely failover the pod sooner.
 
 ```console
-$ ceph osd blocklist add <NODE_IP> # get the node IP you want to blocklist
-blocklisting <NODE_IP>
+$ ceph osd blocklist add <IP> # get the node/holder pod IP you want to blocklist
+blocklisting <IP>
 ```
 
 After running the above command within a few minutes the pod will be running.
 
-### Removing a node blocklist
+### Removing a node or holder pod blocklist
 
-After you are absolutely sure the node is permanently offline and that the node no longer needs to be blocklisted, remove the node from the blocklist.
+After you are absolutely sure the node is permanently offline and that the node no longer needs to be blocklisted, remove the node or holder pod from the blocklist.
 
 ```console
-$ ceph osd blocklist rm <NODE_IP>
-un-blocklisting <NODE_IP>
+$ ceph osd blocklist rm <IP>
+un-blocklisting <IP>
 ```

@@ -127,6 +127,23 @@ func TestCephCSIController(t *testing.T) {
 				},
 			},
 		}
+		// Mock clusterInfo
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
 		s := scheme.Scheme
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 
@@ -153,7 +170,7 @@ func TestCephCSIController(t *testing.T) {
 
 		ds, err := c.Clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
 		assert.NoError(t, err)
-		assert.Equal(t, 2, len(ds.Items), ds)
+		assert.Equal(t, 4, len(ds.Items), ds)
 	})
 
 	t.Run("success ceph csi deployment with multus", func(t *testing.T) {
