@@ -26,7 +26,7 @@ spec:
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
@@ -47,7 +47,7 @@ spec:
           image: {{ .ResizerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
@@ -65,7 +65,7 @@ spec:
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
@@ -85,7 +85,7 @@ spec:
           image:  {{ .SnapshotterImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"

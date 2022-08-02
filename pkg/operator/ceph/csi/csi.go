@@ -217,6 +217,17 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		}
 	}
 
+	sidecarLogLevel := k8sutil.GetValue(r.opConfig.Parameters, "CSI_SIDECAR_LOG_LEVEL", "")
+	CSIParam.SidecarLogLevel = defaultSidecarLogLevel
+	if sidecarLogLevel != "" {
+		l, err := strconv.ParseUint(sidecarLogLevel, 10, 8)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_SIDECAR_LOG_LEVEL. Defaulting to %d. %v", defaultSidecarLogLevel, err)
+		} else {
+			CSIParam.SidecarLogLevel = uint8(l)
+		}
+	}
+
 	CSIParam.ProvisionerReplicas = defaultProvisionerReplicas
 	nodes, err := r.context.Clientset.CoreV1().Nodes().List(r.opManagerContext, metav1.ListOptions{})
 	if err == nil {
