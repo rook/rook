@@ -20,69 +20,69 @@ jobs:
     runs-on: macos-10.15
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: 1.18
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
 
-    - name: copy working directory to GOPATH
-      run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
+      - name: copy working directory to GOPATH
+        run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
 
-    - name: build rook
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: |
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+      - name: build rook
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: |
+          GOPATH=$(go env GOPATH) make clean && go get -u golang.org/x/sys && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
 
-    - name: validate build
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh build
+      - name: validate build
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh build
 
-    - name: run codegen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make codegen
+      - name: run codegen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: GOPATH=$(go env GOPATH) make codegen
 
-    - name: validate codegen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh codegen
+      - name: validate codegen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh codegen
 
-    - name: run mod check
-      run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
+      - name: run mod check
+        run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
 
-    - name: validate modcheck
-      run: tests/scripts/validate_modified_files.sh modcheck
+      - name: validate modcheck
+        run: tests/scripts/validate_modified_files.sh modcheck
 
-    - name: run crds-gen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: make csv-clean && GOPATH=$(go env GOPATH) make crds
+      - name: run crds-gen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: make csv-clean && GOPATH=$(go env GOPATH) make crds
 
-    - name: validate crds-gen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh crd
+      - name: validate crds-gen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh crd
 
-    - name: run gen-rbac
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make gen-rbac
+      - name: run gen-rbac
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: GOPATH=$(go env GOPATH) make gen-rbac
 
-    - name: validate gen-rbac
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh gen-rbac
+      - name: validate gen-rbac
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh gen-rbac
 
-    - name: consider debugging
-      if: failure()
-      run: |
-        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
-        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-          echo USE_TMATE=1 >> $GITHUB_ENV
-        fi
+      - name: consider debugging
+        if: failure()
+        run: |
+          # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+          if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+            echo USE_TMATE=1 >> $GITHUB_ENV
+          fi
 
-    - name: set up tmate session for debugging
-      if: failure() && env.USE_TMATE
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60
+      - name: set up tmate session for debugging
+        if: failure() && env.USE_TMATE
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60
 
   linux-build-all:
     runs-on: ubuntu-18.04
@@ -90,37 +90,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Add go 1.19 when available
-        go-version: ["1.18"] #, "1.19"]
+        go-version: ["1.18", "1.19"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup golang ${{ matrix.go-version }}
-      uses: actions/setup-go@v2
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: setup golang ${{ matrix.go-version }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: set up QEMU
-      uses: docker/setup-qemu-action@master
-      with:
-        platforms: all
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@master
+        with:
+          platforms: all
 
-    - name: build.all rook with go ${{ matrix.go-version }}
-      run: |
-        tests/scripts/github-action-helper.sh build_rook_all
+      - name: build.all rook with go ${{ matrix.go-version }}
+        run: |
+          tests/scripts/github-action-helper.sh build_rook_all
 
-    - name: consider debugging
-      if: failure()
-      run: |
-        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
-        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-          echo USE_TMATE=1 >> $GITHUB_ENV
-        fi
+      - name: consider debugging
+        if: failure()
+        run: |
+          # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+          if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+            echo USE_TMATE=1 >> $GITHUB_ENV
+          fi
 
-    - name: set up tmate session for debugging
-      if: failure() && env.USE_TMATE
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60
+      - name: set up tmate session for debugging
+        if: failure() && env.USE_TMATE
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60
