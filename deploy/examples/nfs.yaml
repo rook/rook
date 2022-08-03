@@ -47,11 +47,11 @@ spec:
     # Resource requests and limits to apply to NFS server pods
     resources:
       # limits:
-      #   cpu: "500m"
-      #   memory: "1024Mi"
+      #   cpu: "3"
+      #   memory: "8Gi"
       # requests:
-      #   cpu: "500m"
-      #   memory: "1024Mi"
+      #   cpu: "3"
+      #   memory: "8Gi"
 
     # Set priority class to set to influence the scheduler's pod preemption
     # priorityClassName:
