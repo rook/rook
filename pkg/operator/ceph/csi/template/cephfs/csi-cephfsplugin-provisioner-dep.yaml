@@ -22,24 +22,6 @@ spec:
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
       containers:
-        - name: csi-attacher
-          image: {{ .AttacherImage }}
-          args:
-            - "--v={{ .SidecarLogLevel }}"
-            - "--csi-address=$(ADDRESS)"
-            - "--leader-election=true"
-            - "--timeout={{ .GRPCTimeout }}"
-            - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
-          env:
-            - name: ADDRESS
-              value: /csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
         {{ if .EnableCephFSSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}

@@ -100,8 +100,8 @@ If you did not modify the `cluster.yaml` above, it is expected that one OSD will
 ```console
 $ kubectl -n rook-ceph get pod
 NAME                                                 READY   STATUS      RESTARTS   AGE
-csi-cephfsplugin-provisioner-d77bb49c6-n5tgs         5/5     Running     0          140s
-csi-cephfsplugin-provisioner-d77bb49c6-v9rvn         5/5     Running     0          140s
+csi-cephfsplugin-provisioner-d77bb49c6-n5tgs         4/4     Running     0          140s
+csi-cephfsplugin-provisioner-d77bb49c6-v9rvn         4/4     Running     0          140s
 csi-cephfsplugin-rthrp                               3/3     Running     0          140s
 csi-rbdplugin-hbsm7                                  3/3     Running     0          140s
 csi-rbdplugin-provisioner-5b5cd64fd-nvk6c            6/6     Running     0          140s
