@@ -213,10 +213,10 @@ func okToContinueMDSDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, 
 // So if we invoke this method function with "mon", it will look for the least recent version
 // Assume the following:
 //
-// "mon": {
-//     "ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 2,
-//     "ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1
-// }
+//	"mon": {
+//	    "ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 2,
+//	    "ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1
+//	}
 //
 // In the case we will pick: "ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 2,
 // And eventually return 16.2.5

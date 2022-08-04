@@ -562,7 +562,7 @@ const secondPeriodGet = `{
 // example real-world output from 'radosgw-admin period update' after the first period commit,
 // and with no changes since the first commit
 // note: output was modified to increment the epoch to make sure this code works in case the "epoch"
-//       behavior changes in radosgw-admin in the future
+// behavior changes in radosgw-admin in the future
 const secondPeriodUpdateWithoutChanges = `{
     "id": "94ba560d-a560-431d-8ed4-85a2891f9122:staging",
     "epoch": 2,

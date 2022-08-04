@@ -145,9 +145,12 @@ type VolumesAndMountsTestDefinition struct {
 
 // TestMountsMatchVolumes tests two things:
 // (1) That each volume mount in each every MountsSpec has a corresponding volume to source it
-//     in the VolumesSpec
+//
+//	in the VolumesSpec
+//
 // (2) That there are no extraneous volumes defined in the VolumesSpec that do not have a
-//     corresponding volume mount in any of the MountsSpec items
+//
+//	corresponding volume mount in any of the MountsSpec items
 func (d *VolumesAndMountsTestDefinition) TestMountsMatchVolumes(t *testing.T) {
 	// Run a test for each MountsSpec item to verify that all the volume mounts within each item
 	// have a corresponding volume in VolumesSpec to source it
