@@ -41,7 +41,7 @@ func runNFSFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *sui
 
 	if settings.TestNFSCSI {
 		// Following two commands are needed to be able to create NFS exports in ceph v17.2
-		// refer: https://github.com/rook/rook/blob/master/Documentation/CRDs/ceph-nfs-crd.md#ceph-v1720
+		// refer: https://github.com/rook/rook/blob/master/Documentation/CRDs/ceph-nfs-crd.md#ceph-v1721
 		parameters := []string{"orch", "set", "backend"}
 		clusterInfo := client.AdminTestClusterInfo(settings.Namespace)
 		cmd, args := client.FinalizeCephCommandArgs("ceph", clusterInfo, parameters, k8sh.MakeContext().ConfigDir)

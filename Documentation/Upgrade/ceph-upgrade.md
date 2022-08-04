@@ -55,7 +55,7 @@ will need two extra steps after the Ceph upgrade is complete. Once upgrade is co
 ### CephNFS User Consideration
 
 Ceph Quincy v17.2.1 has a potentially breaking regression with CephNFS. See the NFS documentation's
-[known issue](../CRDs/ceph-nfs-crd.md#ceph-v1720) for more detail.
+[known issue](../CRDs/ceph-nfs-crd.md#ceph-v1721) for more detail.
 
 ### Ceph Images
 
