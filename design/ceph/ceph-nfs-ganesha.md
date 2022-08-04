@@ -56,21 +56,23 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
 #### Security settings
 
 - Using [SSSD] (System Security Services Daemon)
-  - This can be used to connect to many ID management services, but only LDAP has been tested
+  - This can be used to connect to many ID mapping services, but only LDAP has been tested
   - Run SSSD in a sidecar
     - The sidecar uses a different container image than ceph, and users should be able to specify it
     - Resources requests/limits should be configurable for the sidecar container
-    - Users must be able to specify the SSSD config file(s)
-      - Users can add an SSSD config from a ConfigMap
+    - Users must be able to specify the SSSD config file
+      - Users can add an SSSD config from any standard Kubernetes VolumeMount
         - Older SSSD versions (like those available in CentOS 7) do not support loading config files
           from `/etc/sssd/conf.d/*`; they must use `/etc/sssd/sssd.conf`. Newer versions support
           either method.
         - To make configuration as simple as possible to document for users, we only support the
           `/etc/sssd/sssd.conf` method. This may reduce some configurability, but it is much simpler
           to document for users. For an option that is already complex, the simplicity here is a value.
-        - We allow users to specify a ConfigMap name. There must exist a ConfigMap.Data entry named
-          `sssd.conf`, which Rook will mount in to the SSSD sidecar.
-        - Users only need one ConfigMap per CephNFS that has this option path enabled.
+        - We allow users to specify any VolumeSource. There are two caveats:
+          1. The file be mountable as `sssd.conf` via a VolumeMount `subPath`, which is how Rook
+             will mount the file into the SSSD sidecar.
+          2. The file mode must be 0600.
+        - Users only need one SSSD conf Volume per CephNFS that has this option path enabled.
 
 #### Example
 Below is an example NFS-Ganesha CRD, `nfs-ganesha.yaml`
@@ -122,8 +124,11 @@ spec:
       sidecar:
         image: registry.access.redhat.com/rhel7/sssd:latest
         sssdConfigFile:
-          configMap:
-            name: rook-ceph-nfs-organization-sssd-config
+          volumeSource: # any standard kubernetes volume source
+            # example
+            configMap:
+              name: rook-ceph-nfs-organization-sssd-config
+              defaultMode: 0600 # mode must be 0600
         resources:
           # requests:
           #   cpu: "2"
@@ -189,7 +194,7 @@ NFS-Ganesha requires DBus. Run DBus as a sidecar container so that it can be res
 process fails. The `/run/dbus` directory must be shared between Ganesha and DBus.
 
 ### [SSSD] (System Security Services Daemon)
-SSSD is able to provide user ID management to NFS-Ganesha. It can integrate with LDAP, Active
+SSSD is able to provide user ID mapping to NFS-Ganesha. It can integrate with LDAP, Active
 Directory, and FreeIPA.
 
 Prototype information detailed on Rook blog:

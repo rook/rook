@@ -137,6 +137,10 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	}
 	nfs.Spec.Server.Placement.ApplyToPodSpec(&podSpec)
 
+	if err := r.addSecurityConfigsToPod(nfs, &podSpec); err != nil {
+		return nil, err
+	}
+
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   resourceName,
