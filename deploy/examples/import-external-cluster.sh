@@ -96,11 +96,11 @@ function checkEnvVars() {
 }
 
 function importClusterID() {
-  if [ -n "$RADOS_NAMESPACE_CLUSTER_ID" ]; then
-    CLUSTER_ID_RBD=$(kubectl -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE_CLUSTER_ID" -o jsonpath='{.status.info.clusterID}')
+  if [ -n "$RADOS_NAMESPACE" ]; then
+    CLUSTER_ID_RBD=$(kubectl -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE" -o jsonpath='{.status.info.clusterID}')
   fi
-  if [ -n "$SUBVOLUME_GROUP_CLUSTER_ID" ]; then
-    CLUSTER_ID_CEPHFS=$(kubectl -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP_CLUSTER_ID" -o jsonpath='{.status.info.clusterID}')
+  if [ -n "$SUBVOLUME_GROUP" ]; then
+    CLUSTER_ID_CEPHFS=$(kubectl -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP" -o jsonpath='{.status.info.clusterID}')
   fi
 }
 
