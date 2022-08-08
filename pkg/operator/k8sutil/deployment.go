@@ -61,8 +61,9 @@ func GetDeploymentSpecImage(clientset kubernetes.Interface, d appsv1.Deployment,
 // error if the deployment does not exist to be updated or if it takes too long.
 // This method has a generic callback function that each backend can rely on
 // It serves two purposes:
-//   1. verify that a resource can be stopped
-//   2. verify that we can continue the update procedure
+//  1. verify that a resource can be stopped
+//  2. verify that we can continue the update procedure
+//
 // Basically, we go one resource by one and check if we can stop and then if the resource has been successfully updated
 // we check if we can go ahead and move to the next one.
 func UpdateDeploymentAndWait(ctx context.Context, clusterContext *clusterd.Context, modifiedDeployment *appsv1.Deployment, namespace string, verifyCallback func(action string) error) error {

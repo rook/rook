@@ -91,8 +91,9 @@ func (d *DependentList) OfKind(pluralKind string) []string {
 // formatting directive (followed by a colon). It outputs dependents in alphabetical order by the
 // plural Kind.
 // Example:
-//    StringWithHeader("dependents of my %q", "mom")  -->
-//    `dependents of my "mom": FirstResources: [name1], SecondResources: [name2 name2 name3]`
+//
+//	StringWithHeader("dependents of my %q", "mom")  -->
+//	`dependents of my "mom": FirstResources: [name1], SecondResources: [name2 name2 name3]`
 func (d *DependentList) StringWithHeader(headerFormat string, args ...interface{}) string {
 	header := fmt.Sprintf(headerFormat, args...)
 	if len(d.d) == 0 {

@@ -330,7 +330,9 @@ func ListSnapshotSchedulesRecursively(context *clusterd.Context, clusterInfo *Cl
 	return snapshotSchedulesRecursive, nil
 }
 
-/* CreateRBDMirrorBootstrapPeerWithoutPool creates a bootstrap peer for the current cluster
+/*
+	CreateRBDMirrorBootstrapPeerWithoutPool creates a bootstrap peer for the current cluster
+
 It creates the cephx user for the remote cluster to use with all the necessary details
 This function is handy on scenarios where no pools have been created yet but replication communication is required (connecting peers)
 It essentially sits above CreateRBDMirrorBootstrapPeer()
@@ -338,20 +340,20 @@ and is a cluster-wide option in the scenario where all the pools will be mirrore
 
 So the scenario looks like:
 
-	1) Create the cephx ID on the source cluster
+ 1. Create the cephx ID on the source cluster
 
-	2) Enable a source pool for mirroring - at any time, we just don't know when
-	rbd --cluster site-a mirror pool enable image-pool image
+ 2. Enable a source pool for mirroring - at any time, we just don't know when
+    rbd --cluster site-a mirror pool enable image-pool image
 
-	3) Copy the key details over to the other cluster (non-ceph workflow)
+ 3. Copy the key details over to the other cluster (non-ceph workflow)
 
-	4) Enable destination pool for mirroring
-	rbd --cluster site-b mirror pool enable image-pool image
+ 4. Enable destination pool for mirroring
+    rbd --cluster site-b mirror pool enable image-pool image
 
-	5) Add the peer details to the destination pool
+ 5. Add the peer details to the destination pool
 
-	6) Repeat the steps flipping source and destination to enable
-	bi-directional mirroring
+ 6. Repeat the steps flipping source and destination to enable
+    bi-directional mirroring
 */
 func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterInfo *ClusterInfo) ([]byte, error) {
 	fullClientName := getQualifiedUser(rbdMirrorPeerKeyringID)
