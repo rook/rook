@@ -48,18 +48,31 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
 
 ### Ceph NFS-Ganesha CRD
 
-The NFS-Ganesha CRD will specify the following:
-
+#### Server settings
 - Number of active Ganesha servers in the cluster
-
 - Placement of the Ganesha servers
-
 - Resource limits (memory, CPU) of the Ganesha server pods
 
-- RADOS pool and namespace where backend objects will be stored (supplemental
-  config objects and recovery backend objects)
+#### Security settings
 
+- Using [SSSD] (System Security Services Daemon)
+  - This can be used to connect to many ID management services, but only LDAP has been tested
+  - Run SSSD in a sidecar
+    - The sidecar uses a different container image than ceph, and users should be able to specify it
+    - Resources requests/limits should be configurable for the sidecar container
+    - Users must be able to specify the SSSD config file(s)
+      - Users can add an SSSD config from a ConfigMap
+        - Older SSSD versions (like those available in CentOS 7) do not support loading config files
+          from `/etc/sssd/conf.d/*`; they must use `/etc/sssd/sssd.conf`. Newer versions support
+          either method.
+        - To make configuration as simple as possible to document for users, we only support the
+          `/etc/sssd/sssd.conf` method. This may reduce some configurability, but it is much simpler
+          to document for users. For an option that is already complex, the simplicity here is a value.
+        - We allow users to specify a ConfigMap name. There must exist a ConfigMap.Data entry named
+          `sssd.conf`, which Rook will mount in to the SSSD sidecar.
+        - Users only need one ConfigMap per CephNFS that has this option path enabled.
 
+#### Example
 Below is an example NFS-Ganesha CRD, `nfs-ganesha.yaml`
 
 ```yaml
@@ -73,18 +86,6 @@ metadata:
   # created.
   namespace: rook-ceph
 spec:
-  # NFS client recovery storage settings
-  rados:
-    # RADOS pool where NFS client recovery data and per-daemon configs are
-    # stored. In this example the data pool for the "myfs" filesystem is used.
-    # If using the object store example, the data pool would be
-    # "my-store.rgw.buckets.data". Note that this has nothing to do with where
-    # exported CephFS' or objectstores live.
-    pool: myfs-data0
-    # RADOS namespace where NFS client recovery data and per-daemon configs are
-    # stored.
-    namespace: ganesha-ns
-
   # Settings for the ganesha server
   server:
     # the number of active ganesha servers
@@ -108,13 +109,28 @@ spec:
     # one CPU core and 1 gigabyte of memory
     resources:
     #  limits:
-    #    cpu: "500m"
-    #    memory: "1024Mi"
+    #    cpu: "3"
+    #    memory: "8Gi"
     #  requests:
-    #    cpu: "500m"
-    #    memory: "1024Mi"
+    #    cpu: "3"
+    #    memory: "8Gi"
     # the priority class to set to influence the scheduler's pod preemption
     priorityClassName:
+
+  security:
+    sssd:
+      sidecar:
+        image: registry.access.redhat.com/rhel7/sssd:latest
+        sssdConfigFile:
+          configMap:
+            name: rook-ceph-nfs-organization-sssd-config
+        resources:
+          # requests:
+          #   cpu: "2"
+          #   memory: "1024Mi"
+          # limits:
+          #   cpu: "2"
+          #   memory: "1024Mi"
 ```
 
 When the  nfs-ganesha.yaml is created the following will happen:
@@ -167,6 +183,33 @@ pods based on OpenStack users' requests. The OpenStack user VMs will have
 network connectivity to the ganesha server pods, and manually mount the shares
 using NFS clients.
 
+## Detailed designs
+### DBus
+NFS-Ganesha requires DBus. Run DBus as a sidecar container so that it can be restarted if the
+process fails. The `/run/dbus` directory must be shared between Ganesha and DBus.
+
+### [SSSD] (System Security Services Daemon)
+SSSD is able to provide user ID management to NFS-Ganesha. It can integrate with LDAP, Active
+Directory, and FreeIPA.
+
+Prototype information detailed on Rook blog:
+https://blog.rook.io/prototyping-an-nfs-connection-to-ldap-using-sssd-7c27f624f1a4
+
+NFS-Ganesha (via libraries within its container) is the client to SSSD. As of Ceph v17.2.3, the Ceph
+container image does not have the `sssd-client` package installed which is required for supporting
+SSSD. It should be available in Ceph v17.2.4.
+
+The following directories must be shared between SSSD and the NFS-Ganesha container:
+- `/var/lib/sss/pipes`: this directory holds the sockets used to communicate between client and SSSD
+- `/var/lib/sss/mc`: this is a memory-mapped "L0" cache shared between client and SSSD
+
+The following directories should **not** be shared between SSSD and other containers:
+- `/var/lib/sss/db`: this is a memory-mapped "L1" cache that is intended to survive reboots
+- `/run/dbus`: using the DBus instance from the sidecar caused SSSD errors in testing. SSSD only
+  uses DBus for internal communications and creates its own socket as needed.
+
+
+<!-- LINKS -->
 [NFS-Ganesha]: https://github.com/nfs-ganesha/nfs-ganesha/wiki
 [CephFS]: http://docs.ceph.com/docs/master/cephfs/nfs/
 [RGW]: http://docs.ceph.com/docs/master/radosgw/nfs/
@@ -179,3 +222,4 @@ using NFS clients.
 [k8s Service]: (https://kubernetes.io/docs/concepts/services-networking/service)
 [Ceph Pool CRD]: (https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md)
 [k8s Deployments]: (https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+[SSSD]: (https://sssd.io)
