@@ -555,7 +555,9 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 					nodeDrainFailureDomains.Insert(failureDomainName)
 				}
 			} else {
-				logger.Infof("osd %q is down but no node drain is detected", deployment.Name)
+				if !strings.HasSuffix(deployment.Name, "-debug") {
+					logger.Infof("osd %q is down but no node drain is detected", deployment.Name)
+				}
 			}
 		}
 
