@@ -292,7 +292,7 @@ Restarting the `csi-xxxxplugin-xxx` pod on the node may help.
 
 ## Volume Attachment
 
-Each RBD provisioner pod also has a sidecar container called `csi-attacher`.
+Each provisioner pod also has a sidecar container called `csi-attacher`.
 
 ### csi-attacher
 
