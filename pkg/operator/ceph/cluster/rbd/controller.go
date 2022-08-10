@@ -214,7 +214,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
 	// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
 	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
-	if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
+	if !runningCephVersion.IsExactly(*desiredCephVersion) {
 		// Upgrade is in progress, let's wait for the mons to be done
 		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading, *cephRBDMirror,
 			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)

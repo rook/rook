@@ -150,7 +150,7 @@ func (v *CephVersion) Supported() bool {
 // Unsupported checks if a given release is supported
 func (v *CephVersion) Unsupported() bool {
 	for _, sv := range unsupportedVersions {
-		if v.isExactly(sv) {
+		if v.IsExactly(sv) {
 			return true
 		}
 	}
@@ -161,7 +161,7 @@ func (v *CephVersion) isRelease(other CephVersion) bool {
 	return v.Major == other.Major
 }
 
-func (v *CephVersion) isExactly(other CephVersion) bool {
+func (v *CephVersion) IsExactly(other CephVersion) bool {
 	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
 }
 
