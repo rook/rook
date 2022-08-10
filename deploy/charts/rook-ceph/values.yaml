@@ -227,6 +227,14 @@ csi:
         limits:
           memory: 256Mi
           cpu: 200m
+    - name : csi-attacher
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 100m
+        limits:
+          memory: 256Mi
+          cpu: 200m
     - name : csi-snapshotter
       resource:
         requests:
