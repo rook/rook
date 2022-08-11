@@ -7,6 +7,72 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
+    controller-gen.kubebuilder.io/version: v0.6.2
+  creationTimestamp: null
+  name: cephblockpoolradosnamespaces.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephBlockPoolRadosNamespace
+    listKind: CephBlockPoolRadosNamespaceList
+    plural: cephblockpoolradosnamespaces
+    singular: cephblockpoolradosnamespace
+  scope: Namespaced
+  versions:
+    - name: v1
+      schema:
+        openAPIV3Schema:
+          description: CephBlockPoolRadosNamespace represents a Ceph BlockPool Rados Namespace
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: Spec represents the specification of a Ceph BlockPool Rados Namespace
+              properties:
+                blockPoolName:
+                  description: BlockPoolName is the name of Ceph BlockPool. Typically it's the name of the CephBlockPool CR.
+                  type: string
+              required:
+                - blockPoolName
+              type: object
+            status:
+              description: Status represents the status of a CephBlockPool Rados Namespace
+              properties:
+                info:
+                  additionalProperties:
+                    type: string
+                  nullable: true
+                  type: object
+                phase:
+                  description: ConditionType represent a resource's status
+                  type: string
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+          required:
+            - metadata
+            - spec
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
     controller-gen.kubebuilder.io/version: v0.5.1-0.20210420220833-f284e2e8098c
   creationTimestamp: null
   name: cephblockpools.ceph.rook.io
@@ -957,7 +1023,7 @@ spec:
                             description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
                             properties:
                               exec:
-                                description: One and only one of the following should be specified. Exec specifies the action to take.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
@@ -969,6 +1035,19 @@ spec:
                                 description: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
                                 format: int32
                                 type: integer
+                              grpc:
+                                description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                                properties:
+                                  port:
+                                    description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                                    format: int32
+                                    type: integer
+                                  service:
+                                    description: "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md). \n If this is not specified, the default behavior is defined by gRPC."
+                                    type: string
+                                required:
+                                  - port
+                                type: object
                               httpGet:
                                 description: HTTPGet specifies the http request to perform.
                                 properties:
@@ -1019,7 +1098,7 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: 'TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported TODO: implement a realistic TCP lifecycle hook'
+                                description: TCPSocket specifies an action involving a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to, defaults to the pod IP.'
@@ -1056,7 +1135,7 @@ spec:
                             description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
                             properties:
                               exec:
-                                description: One and only one of the following should be specified. Exec specifies the action to take.
+                                description: Exec specifies the action to take.
                                 properties:
                                   command:
                                     description: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
@@ -1068,6 +1147,19 @@ spec:
                                 description: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
                                 format: int32
                                 type: integer
+                              grpc:
+                                description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                                properties:
+                                  port:
+                                    description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                                    format: int32
+                                    type: integer
+                                  service:
+                                    description: "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md). \n If this is not specified, the default behavior is defined by gRPC."
+                                    type: string
+                                required:
+                                  - port
+                                type: object
                               httpGet:
                                 description: HTTPGet specifies the http request to perform.
                                 properties:
@@ -1118,7 +1210,7 @@ spec:
                                 format: int32
                                 type: integer
                               tcpSocket:
-                                description: 'TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported TODO: implement a realistic TCP lifecycle hook'
+                                description: TCPSocket specifies an action involving a TCP port.
                                 properties:
                                   host:
                                     description: 'Optional: Host name to connect to, defaults to the pod IP.'
@@ -1295,7 +1387,7 @@ spec:
                                           - name
                                         type: object
                                       resources:
-                                        description: 'Resources represents the minimum resources the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                        description: 'Resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                         properties:
                                           limits:
                                             additionalProperties:
@@ -1364,6 +1456,15 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      allocatedResources:
+                                        additionalProperties:
+                                          anyOf:
+                                            - type: integer
+                                            - type: string
+                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                          x-kubernetes-int-or-string: true
+                                        description: The storage resource within AllocatedResources tracks the capacity allocated to a PVC. It may be larger than the actual capacity when a volume expansion operation is requested. For storage quota, the larger value from allocatedResources and PVC.spec.resources is used. If allocatedResources is not set, PVC.spec.resources alone is used for quota calculation. If a volume expansion capacity request is lowered, allocatedResources is only lowered if there are no expansion operations in progress and if the actual volume capacity is equal or lower than the requested capacity. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
+                                        type: object
                                       capacity:
                                         additionalProperties:
                                           anyOf:
@@ -1404,6 +1505,9 @@ spec:
                                         type: array
                                       phase:
                                         description: Phase represents the current phase of PersistentVolumeClaim.
+                                        type: string
+                                      resizeStatus:
+                                        description: ResizeStatus stores status of resize operation. ResizeStatus is not set by default but when expansion is complete resizeStatus is set to empty string by resize controller or kubelet. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
                                         type: string
                                     type: object
                                 type: object
@@ -1482,7 +1586,7 @@ spec:
                                 - name
                               type: object
                             resources:
-                              description: 'Resources represents the minimum resources the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                              description: 'Resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                               properties:
                                 limits:
                                   additionalProperties:
@@ -1551,6 +1655,15 @@ spec:
                               items:
                                 type: string
                               type: array
+                            allocatedResources:
+                              additionalProperties:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: The storage resource within AllocatedResources tracks the capacity allocated to a PVC. It may be larger than the actual capacity when a volume expansion operation is requested. For storage quota, the larger value from allocatedResources and PVC.spec.resources is used. If allocatedResources is not set, PVC.spec.resources alone is used for quota calculation. If a volume expansion capacity request is lowered, allocatedResources is only lowered if there are no expansion operations in progress and if the actual volume capacity is equal or lower than the requested capacity. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
+                              type: object
                             capacity:
                               additionalProperties:
                                 anyOf:
@@ -1591,6 +1704,9 @@ spec:
                               type: array
                             phase:
                               description: Phase represents the current phase of PersistentVolumeClaim.
+                              type: string
+                            resizeStatus:
+                              description: ResizeStatus stores status of resize operation. ResizeStatus is not set by default but when expansion is complete resizeStatus is set to empty string by resize controller or kubelet. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
                               type: string
                           type: object
                       type: object
@@ -2212,7 +2328,7 @@ spec:
                               description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                               type: string
                             whenUnsatisfiable:
-                              description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                              description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                               type: string
                           required:
                             - maxSkew
@@ -2456,7 +2572,7 @@ spec:
                                         - name
                                       type: object
                                     resources:
-                                      description: 'Resources represents the minimum resources the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                      description: 'Resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                       properties:
                                         limits:
                                           additionalProperties:
@@ -2525,6 +2641,15 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    allocatedResources:
+                                      additionalProperties:
+                                        anyOf:
+                                          - type: integer
+                                          - type: string
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      description: The storage resource within AllocatedResources tracks the capacity allocated to a PVC. It may be larger than the actual capacity when a volume expansion operation is requested. For storage quota, the larger value from allocatedResources and PVC.spec.resources is used. If allocatedResources is not set, PVC.spec.resources alone is used for quota calculation. If a volume expansion capacity request is lowered, allocatedResources is only lowered if there are no expansion operations in progress and if the actual volume capacity is equal or lower than the requested capacity. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
+                                      type: object
                                     capacity:
                                       additionalProperties:
                                         anyOf:
@@ -2565,6 +2690,9 @@ spec:
                                       type: array
                                     phase:
                                       description: Phase represents the current phase of PersistentVolumeClaim.
+                                      type: string
+                                    resizeStatus:
+                                      description: ResizeStatus stores status of resize operation. ResizeStatus is not set by default but when expansion is complete resizeStatus is set to empty string by resize controller or kubelet. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
                                       type: string
                                   type: object
                               type: object
@@ -3122,7 +3250,7 @@ spec:
                                       description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                                       type: string
                                     whenUnsatisfiable:
-                                      description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                                      description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                                       type: string
                                   required:
                                     - maxSkew
@@ -3662,7 +3790,7 @@ spec:
                                       description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                                       type: string
                                     whenUnsatisfiable:
-                                      description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                                      description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                                       type: string
                                   required:
                                     - maxSkew
@@ -3778,7 +3906,7 @@ spec:
                                         - name
                                       type: object
                                     resources:
-                                      description: 'Resources represents the minimum resources the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                      description: 'Resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                       properties:
                                         limits:
                                           additionalProperties:
@@ -3847,6 +3975,15 @@ spec:
                                       items:
                                         type: string
                                       type: array
+                                    allocatedResources:
+                                      additionalProperties:
+                                        anyOf:
+                                          - type: integer
+                                          - type: string
+                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                        x-kubernetes-int-or-string: true
+                                      description: The storage resource within AllocatedResources tracks the capacity allocated to a PVC. It may be larger than the actual capacity when a volume expansion operation is requested. For storage quota, the larger value from allocatedResources and PVC.spec.resources is used. If allocatedResources is not set, PVC.spec.resources alone is used for quota calculation. If a volume expansion capacity request is lowered, allocatedResources is only lowered if there are no expansion operations in progress and if the actual volume capacity is equal or lower than the requested capacity. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
+                                      type: object
                                     capacity:
                                       additionalProperties:
                                         anyOf:
@@ -3887,6 +4024,9 @@ spec:
                                       type: array
                                     phase:
                                       description: Phase represents the current phase of PersistentVolumeClaim.
+                                      type: string
+                                    resizeStatus:
+                                      description: ResizeStatus stores status of resize operation. ResizeStatus is not set by default but when expansion is complete resizeStatus is set to empty string by resize controller or kubelet. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
                                       type: string
                                   type: object
                               type: object
@@ -3975,7 +4115,7 @@ spec:
                                   - name
                                 type: object
                               resources:
-                                description: 'Resources represents the minimum resources the volume should have. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
+                                description: 'Resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                 properties:
                                   limits:
                                     additionalProperties:
@@ -4044,6 +4184,15 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                              allocatedResources:
+                                additionalProperties:
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                  x-kubernetes-int-or-string: true
+                                description: The storage resource within AllocatedResources tracks the capacity allocated to a PVC. It may be larger than the actual capacity when a volume expansion operation is requested. For storage quota, the larger value from allocatedResources and PVC.spec.resources is used. If allocatedResources is not set, PVC.spec.resources alone is used for quota calculation. If a volume expansion capacity request is lowered, allocatedResources is only lowered if there are no expansion operations in progress and if the actual volume capacity is equal or lower than the requested capacity. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
+                                type: object
                               capacity:
                                 additionalProperties:
                                   anyOf:
@@ -4084,6 +4233,9 @@ spec:
                                 type: array
                               phase:
                                 description: Phase represents the current phase of PersistentVolumeClaim.
+                                type: string
+                              resizeStatus:
+                                description: ResizeStatus stores status of resize operation. ResizeStatus is not set by default but when expansion is complete resizeStatus is set to empty string by resize controller or kubelet. This is an alpha field and requires enabling RecoverVolumeExpansionFailure feature.
                                 type: string
                             type: object
                         type: object
@@ -4826,7 +4978,7 @@ spec:
                             description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                             type: string
                           whenUnsatisfiable:
-                            description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                            description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                             type: string
                         required:
                           - maxSkew
@@ -5811,7 +5963,7 @@ spec:
                                 description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                                 type: string
                               whenUnsatisfiable:
-                                description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                                description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                                 type: string
                             required:
                               - maxSkew
@@ -6777,7 +6929,7 @@ spec:
                                 description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                                 type: string
                               whenUnsatisfiable:
-                                description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                                description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                                 type: string
                             required:
                               - maxSkew
@@ -7705,7 +7857,7 @@ spec:
                                 description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                                 type: string
                               whenUnsatisfiable:
-                                description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                                description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                                 type: string
                             required:
                               - maxSkew
@@ -7793,7 +7945,7 @@ spec:
                           description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
                           properties:
                             exec:
-                              description: One and only one of the following should be specified. Exec specifies the action to take.
+                              description: Exec specifies the action to take.
                               properties:
                                 command:
                                   description: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
@@ -7805,6 +7957,19 @@ spec:
                               description: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
                               format: int32
                               type: integer
+                            grpc:
+                              description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                              properties:
+                                port:
+                                  description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                                  format: int32
+                                  type: integer
+                                service:
+                                  description: "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md). \n If this is not specified, the default behavior is defined by gRPC."
+                                  type: string
+                              required:
+                                - port
+                              type: object
                             httpGet:
                               description: HTTPGet specifies the http request to perform.
                               properties:
@@ -7855,7 +8020,7 @@ spec:
                               format: int32
                               type: integer
                             tcpSocket:
-                              description: 'TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported TODO: implement a realistic TCP lifecycle hook'
+                              description: TCPSocket specifies an action involving a TCP port.
                               properties:
                                 host:
                                   description: 'Optional: Host name to connect to, defaults to the pod IP.'
@@ -7889,7 +8054,7 @@ spec:
                           description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
                           properties:
                             exec:
-                              description: One and only one of the following should be specified. Exec specifies the action to take.
+                              description: Exec specifies the action to take.
                               properties:
                                 command:
                                   description: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
@@ -7901,6 +8066,19 @@ spec:
                               description: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
                               format: int32
                               type: integer
+                            grpc:
+                              description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                              properties:
+                                port:
+                                  description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                                  format: int32
+                                  type: integer
+                                service:
+                                  description: "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md). \n If this is not specified, the default behavior is defined by gRPC."
+                                  type: string
+                              required:
+                                - port
+                              type: object
                             httpGet:
                               description: HTTPGet specifies the http request to perform.
                               properties:
@@ -7951,7 +8129,7 @@ spec:
                               format: int32
                               type: integer
                             tcpSocket:
-                              description: 'TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported TODO: implement a realistic TCP lifecycle hook'
+                              description: TCPSocket specifies an action involving a TCP port.
                               properties:
                                 host:
                                   description: 'Optional: Host name to connect to, defaults to the pod IP.'
@@ -7985,7 +8163,7 @@ spec:
                           description: Probe describes a health check to be performed against a container to determine whether it is alive or ready to receive traffic.
                           properties:
                             exec:
-                              description: One and only one of the following should be specified. Exec specifies the action to take.
+                              description: Exec specifies the action to take.
                               properties:
                                 command:
                                   description: Command is the command line to execute inside the container, the working directory for the command  is root ('/') in the container's filesystem. The command is simply exec'd, it is not run inside a shell, so traditional shell instructions ('|', etc) won't work. To use a shell, you need to explicitly call out to that shell. Exit status of 0 is treated as live/healthy and non-zero is unhealthy.
@@ -7997,6 +8175,19 @@ spec:
                               description: Minimum consecutive failures for the probe to be considered failed after having succeeded. Defaults to 3. Minimum value is 1.
                               format: int32
                               type: integer
+                            grpc:
+                              description: GRPC specifies an action involving a GRPC port. This is an alpha field and requires enabling GRPCContainerProbe feature gate.
+                              properties:
+                                port:
+                                  description: Port number of the gRPC service. Number must be in the range 1 to 65535.
+                                  format: int32
+                                  type: integer
+                                service:
+                                  description: "Service is the name of the service to place in the gRPC HealthCheckRequest (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md). \n If this is not specified, the default behavior is defined by gRPC."
+                                  type: string
+                              required:
+                                - port
+                              type: object
                             httpGet:
                               description: HTTPGet specifies the http request to perform.
                               properties:
@@ -8047,7 +8238,7 @@ spec:
                               format: int32
                               type: integer
                             tcpSocket:
-                              description: 'TCPSocket specifies an action involving a TCP port. TCP hooks not yet supported TODO: implement a realistic TCP lifecycle hook'
+                              description: TCPSocket specifies an action involving a TCP port.
                               properties:
                                 host:
                                   description: 'Optional: Host name to connect to, defaults to the pod IP.'
@@ -9521,7 +9712,7 @@ spec:
                             description: TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a "bucket", and try to put balanced number of pods into each bucket. It's a required field.
                             type: string
                           whenUnsatisfiable:
-                            description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assigment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
+                            description: 'WhenUnsatisfiable indicates how to deal with a pod if it doesn''t satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,   but giving higher precedence to topologies that would help reduce the   skew. A constraint is considered "Unsatisfiable" for an incoming pod if and only if every possible node assignment for that pod would violate "MaxSkew" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won''t make it *more* imbalanced. It''s a required field.'
                             type: string
                         required:
                           - maxSkew
@@ -9695,3 +9886,226 @@ spec:
               x-kubernetes-preserve-unknown-fields: true
       subresources:
         status: {}
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: volumereplicationclasses.replication.storage.openshift.io
+spec:
+  group: replication.storage.openshift.io
+  names:
+    kind: VolumeReplicationClass
+    listKind: VolumeReplicationClassList
+    plural: volumereplicationclasses
+    shortNames:
+      - vrc
+    singular: volumereplicationclass
+  scope: Cluster
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.provisioner
+          name: provisioner
+          type: string
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: VolumeReplicationClass is the Schema for the volumereplicationclasses API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: VolumeReplicationClassSpec specifies parameters that an underlying storage system uses when creating a volume replica. A specific VolumeReplicationClass is used by specifying its name in a VolumeReplication object.
+              properties:
+                parameters:
+                  additionalProperties:
+                    type: string
+                  description: Parameters is a key-value map with storage provisioner specific configurations for creating volume replicas
+                  type: object
+                provisioner:
+                  description: Provisioner is the name of storage provisioner
+                  type: string
+              required:
+                - provisioner
+              type: object
+            status:
+              description: VolumeReplicationClassStatus defines the observed state of VolumeReplicationClass
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: volumereplications.replication.storage.openshift.io
+spec:
+  group: replication.storage.openshift.io
+  names:
+    kind: VolumeReplication
+    listKind: VolumeReplicationList
+    plural: volumereplications
+    shortNames:
+      - vr
+    singular: volumereplication
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        - jsonPath: .spec.volumeReplicationClass
+          name: volumeReplicationClass
+          type: string
+        - jsonPath: .spec.dataSource.name
+          name: pvcName
+          type: string
+        - jsonPath: .spec.replicationState
+          name: desiredState
+          type: string
+        - jsonPath: .status.state
+          name: currentState
+          type: string
+      name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: VolumeReplication is the Schema for the volumereplications API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: VolumeReplicationSpec defines the desired state of VolumeReplication
+              properties:
+                dataSource:
+                  description: DataSource represents the object associated with the volume
+                  properties:
+                    apiGroup:
+                      description: APIGroup is the group for the resource being referenced. If APIGroup is not specified, the specified Kind must be in the core API group. For any other third-party types, APIGroup is required.
+                      type: string
+                    kind:
+                      description: Kind is the type of resource being referenced
+                      type: string
+                    name:
+                      description: Name is the name of resource being referenced
+                      type: string
+                  required:
+                    - kind
+                    - name
+                  type: object
+                replicationState:
+                  description: ReplicationState represents the replication operation to be performed on the volume. Supported operations are "primary", "secondary" and "resync"
+                  enum:
+                    - primary
+                    - secondary
+                    - resync
+                  type: string
+                replicationHandle:
+                  description: replicationHandle represents an existing (but new) replication id
+                  type: string
+                volumeReplicationClass:
+                  description: VolumeReplicationClass is the VolumeReplicationClass name for this VolumeReplication resource
+                  type: string
+              required:
+                - dataSource
+                - replicationState
+                - volumeReplicationClass
+              type: object
+            status:
+              description: VolumeReplicationStatus defines the observed state of VolumeReplication
+              properties:
+                conditions:
+                  description: Conditions are the list of conditions and their status.
+                  items:
+                    description: "Condition contains details for one aspect of the current state of this API Resource. --- This struct is intended for direct use as an array at the field path .status.conditions.  For example, type FooStatus struct{     // Represents the observations of a foo's current state.     // Known .status.conditions.type are: \"Available\", \"Progressing\", and \"Degraded\"     // +patchMergeKey=type     // +patchStrategy=merge     // +listType=map     // +listMapKey=type     Conditions []metav1.Condition `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\" protobuf:\"bytes,1,rep,name=conditions\"` \n     // other fields }"
+                    properties:
+                      lastTransitionTime:
+                        description: lastTransitionTime is the last time the condition transitioned from one status to another. This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                        format: date-time
+                        type: string
+                      message:
+                        description: message is a human readable message indicating details about the transition. This may be an empty string.
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        description: observedGeneration represents the .metadata.generation that the condition was set based upon. For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date with respect to the current state of the instance.
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        description: reason contains a programmatic identifier indicating the reason for the condition's last transition. Producers of specific condition types may define expected values and meanings for this field, and whether the values are considered a guaranteed API. The value should be a CamelCase string. This field may not be empty.
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                        type: string
+                      type:
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase. --- Many .condition.type values are consistent across resources like Available, but because arbitrary conditions can be useful (see .node.status.conditions), the ability to deconflict is important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                    type: object
+                  type: array
+                lastCompletionTime:
+                  format: date-time
+                  type: string
+                lastStartTime:
+                  format: date-time
+                  type: string
+                message:
+                  type: string
+                observedGeneration:
+                  description: observedGeneration is the last generation change the operator has dealt with
+                  format: int64
+                  type: integer
+                state:
+                  description: State captures the latest state of the replication operation
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

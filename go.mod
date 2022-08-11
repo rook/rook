@@ -16,7 +16,7 @@ require (
 	github.com/hashicorp/vault/api v1.1.2-0.20210713235431-1fc8af4c041f
 	github.com/hashicorp/vault/sdk v0.2.2-0.20210825150427-9b1f4d486f5d
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220105185820-c1da9586e05b
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220811192603-abc54caa34ac
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
 	github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
@@ -30,11 +30,11 @@ require (
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	gopkg.in/ini.v1 v1.57.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.22.2
-	k8s.io/apimachinery v0.22.2
-	k8s.io/client-go v0.22.2
+	k8s.io/api v0.23.5
+	k8s.io/apimachinery v0.23.5
+	k8s.io/client-go v0.23.5
 	k8s.io/cloud-provider v0.21.1
-	k8s.io/utils v0.0.0-20210819203725-bdf08cb9a70a
+	k8s.io/utils v0.0.0-20211116205334-6203023598ed
 	sigs.k8s.io/controller-runtime v0.10.2
 )
 
