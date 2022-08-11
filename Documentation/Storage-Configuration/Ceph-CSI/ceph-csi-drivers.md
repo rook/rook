@@ -10,7 +10,7 @@ There are three CSI drivers integrated with Rook that will enable different scen
   [More information](../Shared-Filesystem-CephFS/filesystem-storage.md).
 * NFS (experimental): This file storage driver allows creating NFS exports that can be mounted to
   pods, or the exports can be mounted directly via an NFS client from inside or outside the
-  Kubernetes cluster. [More information](../../CRDs/ceph-nfs-crd.md#ceph-csi-nfs-provisioner-and-nfs-csi-driver).
+  Kubernetes cluster. [More information](../NFS/nfs-csi-driver.md)
 
 The Ceph Filesystem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically with
 the Rook operator. The NFS driver is disabled by default. All drivers will be started in the same
