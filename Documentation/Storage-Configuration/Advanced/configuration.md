@@ -53,7 +53,7 @@ on individual pools.
 ### Toolbox + Ceph CLI
 
 The most recommended way of configuring Ceph is to set Ceph's configuration directly. The first
-method for doing so is to use Ceph's CLI from the Rook-Ceph toolbox pod. Using the toolbox pod is
+method for doing so is to use Ceph's CLI from the Rook toolbox pod. Using the toolbox pod is
 detailed [here](../../Troubleshooting/ceph-toolbox.md). From the toolbox, the user can change Ceph configurations, enable
 manager modules, create users and pools, and much more.
 
