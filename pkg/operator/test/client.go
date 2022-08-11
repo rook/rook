@@ -79,8 +79,8 @@ func AddReadyNode(t *testing.T, clientset *fake.Clientset, name, ip string) {
 }
 
 // AddSomeReadyNodes create a number of new, ready Nodes.
-//  - name from 0 to count-1
-//  - ip from 0.0.0.0 to <count-1>.<count-1>.<count-1>.<count-1>
+//   - name from 0 to count-1
+//   - ip from 0.0.0.0 to <count-1>.<count-1>.<count-1>.<count-1>
 func AddSomeReadyNodes(t *testing.T, clientset *fake.Clientset, count int) {
 	t.Helper()
 	for i := 0; i < count; i++ {
@@ -126,7 +126,7 @@ var (
 
 // NewComplexClientset is a reusable clientset for Rook unit tests that adds some complex behavior
 // to the clientset to mimic more of what K8s does in the real world.
-//  - Generate a name for resources that have 'generateName' set and 'name' unset.
+//   - Generate a name for resources that have 'generateName' set and 'name' unset.
 func NewComplexClientset(t *testing.T) *fake.Clientset {
 	t.Helper()
 	clientset := fake.NewSimpleClientset()
@@ -169,11 +169,11 @@ func NewComplexClientset(t *testing.T) *fake.Clientset {
 // PrependComplexJobReactor adds a Job reactor with the below behavior. If more or different
 // functionality than this is needed for a test, either make a custom Job reactor or add more
 // optional behavior to this reactor.
-//  - When a Job is created, create the Pod for the Job based on the Job's Pod template
-//  - Created pod.Name = "[job name]-[pod name in job template]"
-//  - When a Job is deleted, delete the Pod for the Job (Pod delete will not be handled by reactors)
-//  - Pod create/delete is done to the clientset tracker, so no Pod watch events will register.
-//  - Optionally look through the clientset Nodes to randomly assign created Pods to a node.
+//   - When a Job is created, create the Pod for the Job based on the Job's Pod template
+//   - Created pod.Name = "[job name]-[pod name in job template]"
+//   - When a Job is deleted, delete the Pod for the Job (Pod delete will not be handled by reactors)
+//   - Pod create/delete is done to the clientset tracker, so no Pod watch events will register.
+//   - Optionally look through the clientset Nodes to randomly assign created Pods to a node.
 func PrependComplexJobReactor(t *testing.T, clientset *fake.Clientset, assignPodToNode bool) {
 	t.Helper()
 	var jobReactor k8stesting.ReactionFunc = func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {

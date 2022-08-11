@@ -434,10 +434,10 @@ func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
 }
 
 // ensureMonsRunning is called in two scenarios:
-// 1. To create a new mon and wait for it to join quorum (requireAllInQuorum = true). This method will be called multiple times
-//    to add a mon until we have reached the desired number of mons.
-// 2. To check that the majority of existing mons are in quorum. It is ok if not all mons are in quorum. (requireAllInQuorum = false)
-//    This is needed when the operator is restarted and all mons may not be up or in quorum.
+//  1. To create a new mon and wait for it to join quorum (requireAllInQuorum = true). This method will be called multiple times
+//     to add a mon until we have reached the desired number of mons.
+//  2. To check that the majority of existing mons are in quorum. It is ok if not all mons are in quorum. (requireAllInQuorum = false)
+//     This is needed when the operator is restarted and all mons may not be up or in quorum.
 func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requireAllInQuorum bool) error {
 	if requireAllInQuorum {
 		logger.Infof("creating mon %s", mons[i].DaemonName)
@@ -1191,23 +1191,22 @@ func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 // The following outlines the different scenarios that exist and how deployments
 // should be configured w.r.t. scheduling and the use of a node selector.
 //
-// 1) if HostNetworking -> always use node selector. we do not want to change
-//    the IP address of a monitor as it is wrapped up in the monitor's identity.
-//    with host networking we use node selector to ensure a stable IP for each
-//    monitor. see scheduleMonitor() comment for more details.
+//  1. if HostNetworking -> always use node selector. we do not want to change
+//     the IP address of a monitor as it is wrapped up in the monitor's identity.
+//     with host networking we use node selector to ensure a stable IP for each
+//     monitor. see scheduleMonitor() comment for more details.
 //
 // Note: an important assumption is that HostNetworking setting does not
 // change once a cluster is created.
 //
-// 2) if *not* HostNetworking -> stable IP from service; may avoid node selector
-//      a) when creating a new deployment
-//           - if HostPath -> use node selector for storage/node affinity
-//           - if PVC      -> node selector is not required
+//  2. if *not* HostNetworking -> stable IP from service; may avoid node selector
+//     a) when creating a new deployment
+//     - if HostPath -> use node selector for storage/node affinity
+//     - if PVC      -> node selector is not required
 //
-//      b) when updating a deployment
-//           - if HostPath -> leave node selector as is
-//           - if PVC      -> remove node selector, if present
-//
+//     b) when updating a deployment
+//     - if HostPath -> leave node selector as is
+//     - if PVC      -> remove node selector, if present
 func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) error {
 	// check if the monitor deployment already exists. if the deployment does
 	// exist, also determine if it using pvc storage.

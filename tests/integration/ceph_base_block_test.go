@@ -53,7 +53,7 @@ func skipCloneTest(k8sh *utils.K8sHelper) bool {
 	return false
 }
 
-func blockCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName string) {
+func blockCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName string) {
 	// create pvc and app
 	pvcSize := "1Gi"
 	pvcName := "parent-pvc"
@@ -127,7 +127,7 @@ func blockCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suit
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
 }
 
-func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, storageClassName, namespace string) {
+func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string) {
 	logger.Infof("install snapshot CRD")
 	err := k8sh.CreateSnapshotCRD()
 	require.NoError(s.T(), err)
@@ -250,7 +250,7 @@ func blockCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
 // Create,Mount,Write,Read,Expand,Unmount and Delete.
-func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, namespace string) {
 	podName := "block-test"
 	poolName := "replicapool"
 	storageClassName := "rook-ceph-block"
@@ -349,7 +349,7 @@ func runBlockCSITest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	assert.NoError(s.T(), err)
 }
 
-func deletePVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo, pvcName, retainPolicy string) {
+func deletePVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo, pvcName, retainPolicy string) {
 	pvName, err := k8sh.GetPVCVolumeName(defaultNamespace, pvcName)
 	assert.NoError(s.T(), err)
 	pv, err := k8sh.GetPV(pvName)
@@ -373,7 +373,7 @@ func deletePVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite,
 	}
 }
 
-func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace, storageClassName, podName, pvcName string) {
+func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterNamespace, storageClassName, podName, pvcName string) {
 	err := helper.BlockClient.CreateClientPod(getCSIBlockPodDefinition(podName, pvcName, defaultNamespace, storageClassName, false))
 	assert.NoError(s.T(), err)
 
@@ -381,7 +381,7 @@ func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s sui
 	logger.Infof("Block Storage Mounted successfully")
 }
 
-func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+func restartOSDPods(k8sh *utils.K8sHelper, s *suite.Suite, namespace string) {
 	ctx := context.TODO()
 	osdLabel := "app=rook-ceph-osd"
 
@@ -407,7 +407,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	assert.NoError(s.T(), err)
 }
 
-func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, settings *installer.TestCephSettings) {
+func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, settings *installer.TestCephSettings) {
 	logger.Infof("Block Storage End to End Integration Test - create storageclass,pool and pvc")
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	clusterInfo := client.AdminTestClusterInfo(settings.Namespace)
@@ -426,7 +426,7 @@ func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	}
 }
 
-func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo,
+func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo,
 	poolName, storageClassName, blockName string) {
 
 	// Check initial number of blocks
@@ -443,7 +443,7 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	createAndWaitForPVC(helper, k8sh, s, clusterInfo, storageClassName, blockName)
 }
 
-func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo,
+func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo,
 	storageClassName, blockName string) {
 	err := helper.BlockClient.CreatePVC(defaultNamespace, blockName, storageClassName, "ReadWriteOnce", "1M")
 	require.NoError(s.T(), err)
@@ -455,7 +455,7 @@ func createAndWaitForPVC(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	assert.Equal(s.T(), 1, len(b), "Make sure new block image is created")
 }
 
-func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo, poolName, storageClassName, blockName string, requireBlockImagesRemoved bool) {
+func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo, poolName, storageClassName, blockName string, requireBlockImagesRemoved bool) {
 	logger.Infof("deleteBlockLite: cleaning up after test")
 	// Delete pvc and storageclass
 	err := helper.BlockClient.DeletePVC(defaultNamespace, blockName)
@@ -473,14 +473,14 @@ func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	checkPoolDeleted(helper, s, clusterInfo.Namespace, poolName)
 }
 
-func assertNoErrorUnlessNotFound(s suite.Suite, err error) {
+func assertNoErrorUnlessNotFound(s *suite.Suite, err error) {
 	if err == nil || errors.IsNotFound(err) {
 		return
 	}
 	assert.NoError(s.T(), err)
 }
 
-func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, namespace, name string) {
+func checkPoolDeleted(helper *clients.TestClient, s *suite.Suite, namespace, name string) {
 	// only retry once to see if the pool was deleted
 	for i := 0; i < 3; i++ {
 		found, err := helper.PoolClient.CephPoolExists(namespace, name)
@@ -498,7 +498,7 @@ func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, namespace, name
 	logger.Errorf("pool %s was not deleted", name)
 }
 
-func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterInfo *client.ClusterInfo, poolname, storageclassname, blockname, podName string, requireBlockImagesRemoved bool) {
+func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo, poolname, storageclassname, blockname, podName string, requireBlockImagesRemoved bool) {
 	logger.Infof("Cleaning up block storage")
 	err := k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 	if err != nil {

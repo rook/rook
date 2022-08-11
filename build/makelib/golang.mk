@@ -48,7 +48,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.17|1.18
+GO_SUPPORTED_VERSIONS ?= 1.18|1.19
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -65,7 +65,7 @@ GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
 GOLINT := $(TOOLS_HOST_DIR)/golint
-GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
+GOJUNIT := $(TOOLS_DIR)/go-junit-report
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
@@ -194,9 +194,10 @@ $(GOFMT):
 
 $(GOJUNIT):
 	@echo === installing go-junit-report
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/jstemmer/go-junit-report
-	@$(GOHOST) clean -modcache
+	@mkdir -p $(TOOLS_DIR)/tmp
+	@curl -sL https://github.com/jstemmer/go-junit-report/releases/download/v2.0.0/go-junit-report-v2.0.0-$(GOOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_DIR)/tmp
+	@mv $(TOOLS_DIR)/tmp/go-junit-report $(TOOLS_DIR)
+	@rm -fr $(TOOLS_DIR)/tmp
 
 export CONTROLLER_GEN=$(TOOLS_HOST_DIR)/controller-gen-$(CONTROLLER_GEN_VERSION)
 $(CONTROLLER_GEN):

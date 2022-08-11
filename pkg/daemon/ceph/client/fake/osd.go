@@ -36,11 +36,12 @@ func OsdLsOutput(numOSDs int) string {
 // OsdTreeOutput returns JSON output from 'ceph osd tree' that can be used for unit tests.
 // It returns output for a Ceph cluster with the given number of nodes and the given number of OSDs
 // per node with no complex configuration. This should work even for 0 nodes.
-//   example:  OsdTreeOutput(3, 3) // returns JSON output for the Ceph cluster below
-//       node0:       node1:      node2:
-//         - osd0      - osd1      - osd2
-//         - osd3      - osd4      - osd5
-//         - osd6      - osd7      - osd8
+//
+//	example:  OsdTreeOutput(3, 3) // returns JSON output for the Ceph cluster below
+//	    node0:       node1:      node2:
+//	      - osd0      - osd1      - osd2
+//	      - osd3      - osd4      - osd5
+//	      - osd6      - osd7      - osd8
 func OsdTreeOutput(numNodes, numOSDsPerNode int) string {
 	// JSON output taken from Ceph Pacific
 	rootFormat := `		{

@@ -59,9 +59,9 @@ var (
 )
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
-//  1) default value (at compilation)
-//  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
-//  3) command line parameter
+//  1. default value (at compilation)
+//  2. environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
+//  3. command line parameter
 func init() {
 	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: ERROR,WARNING,INFO,DEBUG)")
 	RootCmd.PersistentFlags().StringVar(&operatorImage, "operator-image", "", "Override the image url that the operator uses. The default is read from the operator pod.")

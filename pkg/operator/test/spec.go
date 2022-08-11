@@ -33,15 +33,16 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-op-testlib"
 // of actual arguments contains extra arguments not specified in the expected args.
 // The expected arguments are given as an array of string arrays. This is to support flags which
 // may have multiple values. Examples:
-// expectedArgs := [][]string{
-//     {"-h"},                              // test for a short flag
-//     {"-vvv"},                            // test for a short flag with value(s) specified
-//     {"-d", "3"},                         // test for a short flag with a value specified
-//     {"--verbose"},                       // test for a --bool flag
-//     {"--name=alex"},                     // test for a --flag=value flag
-//     {"--name", "sam"},                   // test for a --flag with a value after a space
-//     {"--full-name", "sam", "goodhuman"}, // test for a --flag with 2 values separated by spaces
-// }
+//
+//	expectedArgs := [][]string{
+//	    {"-h"},                              // test for a short flag
+//	    {"-vvv"},                            // test for a short flag with value(s) specified
+//	    {"-d", "3"},                         // test for a short flag with a value specified
+//	    {"--verbose"},                       // test for a --bool flag
+//	    {"--name=alex"},                     // test for a --flag=value flag
+//	    {"--name", "sam"},                   // test for a --flag with a value after a space
+//	    {"--full-name", "sam", "goodhuman"}, // test for a --flag with 2 values separated by spaces
+//	}
 func ArgumentsMatchExpected(actualArgs []string, expectedArgs [][]string) error {
 	// join all args into a big space-separated arg string so we can use string search on it
 	// this is simpler than a bunch of nested for loops and if statements with continues in them

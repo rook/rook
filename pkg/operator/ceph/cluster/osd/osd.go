@@ -667,9 +667,10 @@ func getTopologyFromNode(ctx context.Context, clientset kubernetes.Interface, d 
 }
 
 // GetLocationWithNode gets the topology information about the node. The return values are:
-//  location: The CRUSH properties for the OSD to apply
-//  topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
-//		topology as the OSD prepare job.
+//
+//	 location: The CRUSH properties for the OSD to apply
+//	 topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
+//			topology as the OSD prepare job.
 func GetLocationWithNode(ctx context.Context, clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, string, error) {
 	node, err := getNode(ctx, clientset, nodeName)
 	if err != nil {

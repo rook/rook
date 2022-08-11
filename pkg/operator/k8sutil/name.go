@@ -21,10 +21,11 @@ const (
 
 // IndexToName converts an index to a daemon name based on as few letters of the alphabet as possible.
 // For example:
-//  0 -> a
-//  1 -> b
-//  25 -> z
-//  26 -> aa
+//
+//	0 -> a
+//	1 -> b
+//	25 -> z
+//	26 -> aa
 func IndexToName(index int) string {
 	var result string
 	for {
@@ -42,8 +43,9 @@ func IndexToName(index int) string {
 
 // NameToIndex converts a daemon name to an index, which is the inverse of IndexToName
 // For example:
-//  a -> 0
-//  b -> 1
+//
+//	a -> 0
+//	b -> 1
 func NameToIndex(name string) (int, error) {
 	factor := 1
 	for i := 1; i < len(name); i++ {
