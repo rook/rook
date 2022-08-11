@@ -147,7 +147,7 @@ kubectl create -f storageclass-bucket-delete.yaml
 ```
 
 Based on this storage class, an object client can now request a bucket by creating an Object Bucket Claim (OBC).
-When the OBC is created, the Rook-Ceph bucket provisioner will create a new bucket. Notice that the OBC
+When the OBC is created, the Rook bucket provisioner will create a new bucket. Notice that the OBC
 references the storage class that was created above.
 Save the following as `object-bucket-claim-delete.yaml` (the example is named as such due to the `Delete` reclaim policy):
 
