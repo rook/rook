@@ -29,13 +29,18 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
+        with:
+          version: v3.6.2
+
       - name: copy working directory to GOPATH
         run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
 
       - name: build rook
         working-directory: /Users/runner/go/src/github.com/rook/rook
         run: |
-          GOPATH=$(go env GOPATH) make clean && go get -u golang.org/x/sys && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+          GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
 
       - name: validate build
         working-directory: /Users/runner/go/src/github.com/rook/rook
