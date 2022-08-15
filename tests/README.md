@@ -6,7 +6,7 @@ quickly spin up a Kubernetes cluster. The Test framework is designed to install 
 
 ## Install Kubernetes
 
-To install Kubernetes follow Rook's [developer guide](https://rook.io/docs/rook/latest/development-environment.html).
+To install Kubernetes follow Rook's [developer guide](https://rook.io/docs/rook/latest/Contributing/development-environment/).
 
 ## Run Tests
 
@@ -44,7 +44,10 @@ export TEST_BASE_DIR=WORKING_DIR
 export TEST_SCRATCH_DEVICE=/dev/vdb
 ```
 
-Please note that the integration tests erase the contents of TEST_SCRATCH_DEVICE.
+Change the `TEST_SCRATCH_DEVICE` and point it to the correct block device name based on the driver that's being used.
+If you are using the `virtualbox` minikube driver, the device should be `/dev/sdb`.
+
+Please note that the integration tests erase the contents of `TEST_SCRATCH_DEVICE`.
 
 To run all integration tests:
 
@@ -52,7 +55,7 @@ To run all integration tests:
 go test -v -timeout 7200s github.com/rook/rook/tests/integration
 ```
 
-After running tests, you can get test logs under "tests/integration/_output".
+After running tests, you can get test logs under `tests/integration/_output`.
 
 To run a specific suite (uses regex):
 
