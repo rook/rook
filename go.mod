@@ -17,7 +17,7 @@ require (
 	github.com/hashicorp/vault/sdk v0.4.2-0.20220321211954-d7083ad326db
 	github.com/jetstack/cert-manager v1.6.2
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.1.0
-	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220420154035-5eb5ff03d30a
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20220811192603-abc54caa34ac
 	github.com/libopenstorage/secrets v0.0.0-20210709082113-dde442ea20ec
 	github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
 	github.com/openshift/cluster-api v0.0.0-20191129101638-b09907ac6668
