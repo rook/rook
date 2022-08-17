@@ -299,9 +299,6 @@ func (r *ReconcileNode) reconcileCrashRetention(namespace string, cephCluster ce
 		var cronJob client.Object
 		// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
 		if useCronJobV1 {
-			if err := r.deletev1betaJob(objectMeta); err != nil {
-				return err
-			}
 			cronJob = &v1.CronJob{ObjectMeta: objectMeta}
 		} else {
 			cronJob = &v1beta1.CronJob{ObjectMeta: objectMeta}
