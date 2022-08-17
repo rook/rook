@@ -76,15 +76,17 @@ runs:
     - name: RGW configuration period should be committed on first reconcile and not be committed on second reconcile
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        ns_name_primary='"rook-ceph/multisite-store"' # double quotes intended
-        ns_name_secondary='"rook-ceph-secondary/zone-b-multisite-store"' # double quotes intended
+        ns_name_primary_object_store='"rook-ceph/multisite-store"' # double quotes intended
+        ns_name_secondary_object_store='"rook-ceph-secondary/zone-b-multisite-store"' # double quotes intended
         committed_msg="committing changes to RGW configuration period for CephObjectStore"
-        tests/scripts/github-action-helper.sh verify_operator_log_message "${committed_msg} ${ns_name_primary}"
-        tests/scripts/github-action-helper.sh verify_operator_log_message "${committed_msg} ${ns_name_secondary}"
+        tests/scripts/github-action-helper.sh verify_operator_log_message "${committed_msg} ${ns_name_primary_object_store}"
+        tests/scripts/github-action-helper.sh verify_operator_log_message "${committed_msg} ${ns_name_secondary_object_store}"
+        ns_name_primary_object_zone='"rook-ceph/zone-a"' # double quotes intended
+        ns_name_secondary_object_zone='"rook-ceph-secondary/zone-b"' # double quotes intended
         tests/scripts/github-action-helper.sh restart_operator
         not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
-        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary}" 120
-        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary}" 90
+        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary_object_zone}" 120
+        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary_object_zone}" 90
 
     - name: collect common logs
       if: always()

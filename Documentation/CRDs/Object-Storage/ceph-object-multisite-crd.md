@@ -84,6 +84,8 @@ spec:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+  customEndpoints:
+    - "http://rgw-a.fqdn"
 ```
 
 ### Object Zone Settings
@@ -102,3 +104,10 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 * `zonegroup`: The object zonegroup in which the zone will be created. This matches the name of the object zone group CRD.
 * `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 * `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
+* `customEndpoints`:  Specify the endpoint(s) that will accept multisite replication traffic for this zone. You may include the port in the definition if necessary. For example: "https://my-object-store.my-domain.net:443". By default, Rook will set this to the DNS name of the ClusterIP Service created for the CephObjectStore that corresponds to this zone.
+
+ Most multisite configurations will not exist within the same Kubernetes cluster, meaning the default value will not be useful. In these cases, you will be required to create your own custom ingress resource for the CephObjectStore in order to make the zone available for replication. You must add the endpoint for your custom ingress resource to this list to allow the store to accept replication traffic.
+
+ In the case of multiple stores (or multiple endpoints for a single store), you are not required to put all endpoints in this list. Only specify the endpoints that should be used for replication traffic.
+
+ If you update `customEndpoints` to return to an empty list, you must the Rook operator to automatically add the CephObjectStore service endpoint to Ceph's internal configuration.

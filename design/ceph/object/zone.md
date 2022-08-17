@@ -18,6 +18,8 @@ In the config, the admin must configure the zone group the zone is in, and pools
 
 The first zone created in a zone group is designated as the master zone in the Ceph cluster.
 
+If endpoint(s) are not specified the endpoint will be set to the Kubernetes service DNS address and port used for the CephObjectStore. To override this, a user can specify custom endpoint(s). The endpoint(s) specified will be become the sole source of endpoints for the zone, replacing any service endpoints added by CephObjectStores.
+
 This example `ceph-object-zone.yaml`, names a zone `my-zone`.
 ```yaml
 apiVersion: ceph.rook.io/v1alpha1
@@ -36,6 +38,8 @@ spec:
     erasureCoded:
       dataChunks: 6
       codingChunks: 2
+  customEndpoints:
+    - "http://zone-a.fqdn"
 ```
 
 Now create the ceph-object-zone.
@@ -128,6 +132,8 @@ The following variables can be configured in the ceph-object-zone resource.
 
 - `zoneGroup`: The zone group named in the `zoneGroup` section of the ceph-realm resource the zone is a part of.
 
+- `customEndpoints`:  Specify the endpoint(s) that will accept multisite replication traffic for this zone. You may include the port in the definition if necessary. For example: "https://my-object-store.my-domain.net:443".
+
 ```yaml
 apiVersion: ceph.rook.io/v1alpha1
 kind: CephObjectZone
@@ -145,6 +151,8 @@ spec:
     erasureCoded:
       dataChunks: 6
       codingChunks: 2
+  customEndpoints:
+    - "http://rgw-a.fqdn"
 ```
 
 ### Pools

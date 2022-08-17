@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -75,6 +76,7 @@ type zoneGroupType struct {
 	MasterZoneID string     `json:"master_zone"`
 	IsMaster     string     `json:"is_master"`
 	Zones        []zoneType `json:"zones"`
+	Endpoints    []string   `json:"endpoints"`
 }
 
 type zoneType struct {
@@ -105,56 +107,57 @@ func deleteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreSpec) error
 
 func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStoreSpec) error {
 	// get list of endpoints not including the endpoint of the object-store for the zone
-	zoneEndpointsList, err := getZoneEndpoints(objContext, objContext.Endpoint)
+	zoneEndpointsList, isEndpointAlreadyExists, err := getZoneEndpoints(objContext, objContext.Endpoint)
 	if err != nil {
 		return err
 	}
 
-	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
-	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
-	zoneEndpoints := strings.Join(zoneEndpointsList, ",")
-	endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+	// The endpoint is present in zone, hence remove it
+	if isEndpointAlreadyExists {
+		realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
+		zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+		zoneEndpoints := strings.Join(zoneEndpointsList, ",")
+		endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 
-	zoneIsMaster, err := checkZoneIsMaster(objContext)
-	if err != nil {
-		return errors.Wrap(err, "failed to find out zone in Master")
-	}
-
-	zoneGroupIsMaster := false
-	if zoneIsMaster {
-		_, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+		zoneIsMaster, err := checkZoneIsMaster(objContext)
 		if err != nil {
+			return errors.Wrapf(err, "failed to determine if zone %q is master", objContext.Zone)
+		}
 
-			if kerrors.IsNotFound(err) {
-				return err
+		zoneGroupIsMaster := false
+		if zoneIsMaster {
+			_, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					return err
+				}
+				return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 			}
-			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone group %q", objContext.Name, objContext.ZoneGroup)
-		}
-		logger.Debugf("endpoint %q was removed from zone group %q. the remaining endpoints in the zone group are %q", objContext.Endpoint, objContext.ZoneGroup, zoneEndpoints)
+			logger.Debugf("endpoint %q was removed from zone group %q. the remaining endpoints in the zone group are %q", objContext.Endpoint, objContext.ZoneGroup, zoneEndpoints)
 
-		// check if zone group is master only if zone is master for creating the system user
-		zoneGroupIsMaster, err = checkZoneGroupIsMaster(objContext)
+			// check if zone group is master only if zone is master for creating the system user
+			zoneGroupIsMaster, err = checkZoneGroupIsMaster(objContext)
+			if err != nil {
+				return errors.Wrapf(err, "failed to find out whether zone group %q is the master zone group", objContext.ZoneGroup)
+			}
+		}
+
+		_, err = runAdminCommand(objContext, false, "zone", "modify", endpointArg)
 		if err != nil {
-			return errors.Wrapf(err, "failed to find out whether zone group %q in is the master zone group", objContext.ZoneGroup)
+			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone %q", objContext.Name, spec.Zone.Name)
+		}
+		logger.Debugf("endpoint %q was removed from zone %q. the remaining endpoints in the zone are %q", objContext.Endpoint, objContext.Zone, zoneEndpoints)
+
+		if zoneIsMaster && zoneGroupIsMaster && zoneEndpoints == "" {
+			logger.Warningf("WARNING: No other zone in realm %q can commit to the period or pull the realm until you create another object-store in zone %q", objContext.Realm, objContext.Zone)
+		}
+
+		// this will notify other zones of changes if there are multi-zones
+		if err := commitConfigChanges(objContext); err != nil {
+			nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+			return errors.Wrapf(err, "failed to commit config changes after removing CephObjectStore %q from multi-site", nsName)
 		}
 	}
-
-	_, err = runAdminCommand(objContext, false, "zone", "modify", endpointArg)
-	if err != nil {
-		return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone %q", objContext.Name, spec.Zone.Name)
-	}
-	logger.Debugf("endpoint %q was removed from zone %q. the remaining endpoints in the zone are %q", objContext.Endpoint, objContext.Zone, zoneEndpoints)
-
-	if zoneIsMaster && zoneGroupIsMaster && zoneEndpoints == "" {
-		logger.Infof("WARNING: No other zone in realm %q can commit to the period or pull the realm until you create another object-store in zone %q", objContext.Realm, objContext.Zone)
-	}
-
-	// this will notify other zones of changes if there are multi-zones
-	if err := commitConfigChanges(objContext); err != nil {
-		nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
-		return errors.Wrapf(err, "failed to commit config changes after removing CephObjectStore %q from multi-site", nsName)
-	}
-
 	return nil
 }
 
@@ -347,20 +350,21 @@ func GetRealmKeyArgs(ctx context.Context, clusterdContext *clusterd.Context, rea
 	return GetRealmKeyArgsFromSecret(secret, realmNsName)
 }
 
-func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, error) {
+func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, bool, error) {
 	logger.Debugf("getting current endpoints for zone %v", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+	isEndpointAlreadyExists := false
 
 	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
 		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
-		return []string{}, errorOrIsNotFound(err, "failed to get rgw zone group %q", objContext.Name)
+		return []string{}, isEndpointAlreadyExists, errorOrIsNotFound(err, "failed to get rgw zone group %q", objContext.Name)
 	}
 	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
 	if err != nil {
-		return []string{}, errors.Wrap(err, "failed to parse zones list")
+		return []string{}, isEndpointAlreadyExists, errors.Wrap(err, "failed to parse zones list")
 	}
 
 	zoneEndpointsList := []string{}
@@ -370,13 +374,15 @@ func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, er
 				// in case object-store operator code is rereconciled, zone modify could get run again with serviceEndpoint added again
 				if endpoint != serviceEndpoint {
 					zoneEndpointsList = append(zoneEndpointsList, endpoint)
+				} else {
+					isEndpointAlreadyExists = true
 				}
 			}
 			break
 		}
 	}
 
-	return zoneEndpointsList, nil
+	return zoneEndpointsList, isEndpointAlreadyExists, nil
 }
 
 func createMultisite(objContext *Context, endpointArg string) error {
@@ -440,7 +446,7 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	return nil
 }
 
-func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace string) error {
+func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace string) error {
 	logger.Debugf("joining zone %v", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
@@ -524,30 +530,32 @@ func createSystemUser(objContext *Context, namespace string) error {
 	return nil
 }
 
-func setMultisite(objContext *Context, store *cephv1.CephObjectStore, serviceIP string) error {
+func setMultisite(objContext *Context, store *cephv1.CephObjectStore, zone *cephv1.CephObjectZone) error {
 	logger.Debugf("setting multisite configuration for object-store %v", store.Name)
-	serviceEndpoint := fmt.Sprintf("http://%s:%d", serviceIP, store.Spec.Gateway.Port)
-	if store.Spec.Gateway.SecurePort != 0 {
-		serviceEndpoint = fmt.Sprintf("https://%s:%d", serviceIP, store.Spec.Gateway.SecurePort)
-	}
 
 	if store.Spec.IsMultisite() {
-		zoneEndpointsList, err := getZoneEndpoints(objContext, serviceEndpoint)
-		if err != nil {
-			return err
-		}
-		zoneEndpointsList = append(zoneEndpointsList, serviceEndpoint)
+		if zone != nil && len(zone.Spec.CustomEndpoints) == 0 {
+			zoneEndpointsList, isEndpointAlreadyExists, err := getZoneEndpoints(objContext, objContext.Endpoint)
+			if err != nil {
+				return err
+			}
 
-		zoneEndpoints := strings.Join(zoneEndpointsList, ",")
-		logger.Debugf("Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
-		endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+			// If endpoint already exists in zone, no need to update
+			if !isEndpointAlreadyExists {
+				zoneEndpointsList = append(zoneEndpointsList, objContext.Endpoint)
 
-		err = joinMultisite(objContext, endpointArg, zoneEndpoints, store.Namespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
+				zoneEndpoints := strings.Join(zoneEndpointsList, ",")
+				logger.Debugf("Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
+				endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+
+				err = JoinMultisite(objContext, endpointArg, zoneEndpoints, store.Namespace)
+				if err != nil {
+					return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
+				}
+			}
 		}
 	} else {
-		endpointArg := fmt.Sprintf("--endpoints=%s", serviceEndpoint)
+		endpointArg := fmt.Sprintf("--endpoints=%s", objContext.Endpoint)
 		err := createMultisite(objContext, endpointArg)
 		if err != nil {
 			return errorOrIsNotFound(err, "failed create ceph multisite for object-store %q", objContext.Name)
@@ -997,4 +1005,46 @@ func errorOrIsNotFound(err error, msg string, args ...string) error {
 		return err
 	}
 	return errors.Wrapf(err, msg, args)
+}
+
+// ShouldUpdateZoneEndpointList checks whether zone endpoint list need to be updated or not
+func ShouldUpdateZoneEndpointList(zones []zoneType, desiredEndpointList []string, zoneName string) (bool, error) {
+	if zoneName == "" {
+		return false, errors.Errorf("zone name can't be empty")
+	}
+
+	zoneExists, endpoints := findZoneEndpoints(zoneName, zones)
+	if !zoneExists {
+		return false, nil
+	}
+
+	return !listsAreEqual(desiredEndpointList, endpoints), nil
+}
+
+func findZoneEndpoints(targetZone string, zones []zoneType) (bool, []string) {
+	for _, z := range zones {
+		if z.Name == targetZone {
+			return true, z.Endpoints
+		}
+	}
+	return false, []string{}
+}
+
+func listsAreEqual(a, b []string) bool {
+	as := make([]string, len(a))
+	bs := make([]string, len(b))
+	copy(as, a)
+	copy(bs, b)
+	sort.Strings(as)
+	sort.Strings(bs)
+
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if as[i] != bs[i] {
+			return false
+		}
+	}
+	return true
 }

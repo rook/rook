@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"syscall"
 	"time"
 
@@ -194,8 +195,8 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcileResponse, *cephObjectZone, err
 	}
 
-	// Create Ceph Zone
-	_, err = r.createCephZone(cephObjectZone, realmName)
+	// Create/Update Ceph Zone
+	_, err = r.createorUpdateCephZone(cephObjectZone, realmName)
 	if err != nil {
 		return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, cephObjectZone, request.NamespacedName, "failed to create ceph zone", err)
 	}
@@ -209,13 +210,16 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 	return reconcile.Result{}, *cephObjectZone, nil
 }
 
-func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
+func (r *ReconcileObjectZone) createorUpdateCephZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
 	logger.Infof("creating object zone %q in zonegroup %q in realm %q", zone.Name, zone.Spec.ZoneGroup, realmName)
 
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
+	objContext.Realm = realmName
+	objContext.ZoneGroup = zone.Spec.ZoneGroup
+	objContext.Zone = zone.Name
 
 	// get zone group to see if master zone exists yet
 	output, err := object.RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
@@ -233,10 +237,23 @@ func (r *ReconcileObjectZone) createCephZone(zone *cephv1.CephObjectZone, realmN
 		return reconcile.Result{}, errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
 	}
 
-	// create zone
+	// create/update zone
 	_, err = object.RunAdminCommandNoMultisite(objContext, true, "zone", "get", realmArg, zoneGroupArg, zoneArg)
 	if err == nil {
-		logger.Debugf("ceph zone %q already exists, new zone and pools will not be created", zone.Name)
+		logger.Debugf("ceph zone %q already exists, new zone and pools will not be created but checking for update", zone.Name)
+		zoneEndpointsModified, err := object.ShouldUpdateZoneEndpointList(zoneGroupJson.Zones, zone.Spec.CustomEndpoints, objContext.Zone)
+		if err != nil {
+			return reconcile.Result{}, err
+		}
+		if zoneEndpointsModified {
+			zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
+			logger.Debugf("Updating endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
+			endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+			err = object.JoinMultisite(objContext, endpointArg, zoneEndpoints, zone.Namespace)
+			if err != nil {
+				return reconcile.Result{}, err
+			}
+		}
 		return reconcile.Result{}, nil
 	}
 
@@ -282,7 +299,11 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 		// master zone does not exist yet for zone group
 		args = append(args, "--master")
 	}
-
+	if len(zone.Spec.CustomEndpoints) > 0 {
+		// If custom endpoint list defined set those values
+		zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
+		args = append(args, fmt.Sprintf("--endpoints=%s", zoneEndpoints))
+	}
 	output, err := object.RunAdminCommandNoMultisite(objContext, false, args...)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create ceph zone %q for reason %q", zone.Name, output)
