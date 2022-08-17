@@ -1385,7 +1385,7 @@ func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName
 		}
 	}
 	fileName := fmt.Sprintf("%s_%s_%s_%s%s_%d.log", testName, platformName, namespace, name, suffix, time.Now().Unix())
-	filePath := path.Join(logDir, fileName)
+	filePath := path.Join(logDir, strings.ReplaceAll(fileName, "/", "_"))
 	file, err := os.Create(filePath)
 	if err != nil {
 		logger.Errorf("Cannot create file %s. %v", filePath, err)
