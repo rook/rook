@@ -178,6 +178,9 @@ data:
 {{- if .Values.csi.sidecarLogLevel }}
   CSI_SIDECAR_LOG_LEVEL: {{ .Values.csi.sidecarLogLevel | quote }}
 {{- end }}
+{{- if .Values.csi.clusterName }}
+  CSI_CLUSTER_NAME: {{ .Values.csi.clusterName | quote }}
+{{- end }}
 {{- if .Values.csi.grpcTimeoutInSeconds }}
   CSI_GRPC_TIMEOUT_SECONDS: {{ .Values.csi.grpcTimeoutInSeconds | quote }}
 {{- end }}
