@@ -106,6 +106,9 @@ csi:
   # Set replicas for csi provisioner deployment.
   provisionerReplicas: 2
 
+  # (Optional) cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful
+  # in cases like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster.
+  # clusterName: "my-prod-cluster"
   # Set logging level for cephCSI containers maintained by the cephCSI.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0
