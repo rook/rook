@@ -60,7 +60,7 @@ allowHostNetwork: true
 # This need to be set to true as we use HostPath
 allowHostDirVolumePlugin: true
 priority:
-# SYS_ADMIN is needed for rbd to execture rbd map command
+# SYS_ADMIN is needed for rbd to execute rbd map command
 allowedCapabilities: ["SYS_ADMIN"]
 # Needed as we run liveness container on daemonset pods
 allowHostPorts: true
