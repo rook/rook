@@ -58,6 +58,7 @@ type Param struct {
 	VolumeReplicationImage         string
 	CSIAddonsImage                 string
 	GRPCTimeout                    time.Duration
+	CSIEnableMetadata              bool
 	EnablePluginSelinuxHostMount   bool
 	EnableCSIHostNetwork           bool
 	EnableOMAPGenerator            bool
