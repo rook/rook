@@ -57,6 +57,7 @@ type Param struct {
 	ProvisionerPriorityClassName   string
 	VolumeReplicationImage         string
 	CSIAddonsImage                 string
+	CSIClusterName                 string
 	GRPCTimeout                    time.Duration
 	CSIEnableMetadata              bool
 	EnablePluginSelinuxHostMount   bool
