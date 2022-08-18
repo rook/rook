@@ -910,7 +910,7 @@ func TestUpdateZoneEndpointList(t *testing.T) {
 			},
 			true, false,
 		},
-		{"new endpoint list contains muliple different endpoints from existing list containing single zone",
+		{"new endpoint list contains multiple different endpoints from existing list containing single zone",
 			args{
 				zones:            []zoneType{{Name: "zone-1", Endpoints: []string{"http://rgw-endpoint-1", "http://rgw-endpoint-2"}}},
 				zoneEndpointList: []string{"http://rgw-endpoint-3", "http://rgw-endpoint-4"},

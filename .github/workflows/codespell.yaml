@@ -30,7 +30,11 @@ jobs:
       - name: codespell
         uses: codespell-project/actions-codespell@master
         with:
-          skip: .git,*.png,*.jpg,*.svg,*.sum
+          # LICENSE: skip file because codespell wants to flag complies, which we may want to flag
+          # in other places, so ignore the file itself assuming it is correct
+          # crds.yaml, resources.yaml: CRD files are fully generated from content we control (should
+          # be flagged elsewhere) and content we don't control (can't fix easily), so ignore
+          skip: .git,*.png,*.jpg,*.svg,*.sum,./LICENSE,./deploy/examples/crds.yaml,./deploy/charts/rook-ceph/templates/resources.yaml
           # aks: Amazon Kubernetes Service
           # keyserver: flag to apt-key
           # atleast: codespell wants to flag any 'AtLeast' method
@@ -40,6 +44,7 @@ jobs:
           # te: udev persistent naming test in pkg/daemon/ceph/osd/daemon_test.go
           # parm: modinfo parameter
           # assigment: inherited from K8s TopologySpreadConstraints dependency
-          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment
+          # ro, RO: means read-only
+          ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment,ro,RO
           check_filenames: true
           check_hidden: true
