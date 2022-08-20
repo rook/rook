@@ -495,6 +495,11 @@ func (c *cluster) skipMDSSanityChecks(skip bool) error {
 // It gets executed right after the main mon Start() method
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
+	// Generate the client.rookoperator keyring if needed
+	if err := c.generateOperatorKeyring(); err != nil {
+		return errors.Wrap(err, "failed to generate operator keyring")
+	}
+
 	// Create CSI Kubernetes Secrets
 	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
 	if err != nil {
@@ -536,6 +541,50 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
+	return nil
+}
+
+func (c *cluster) generateOperatorKeyring() error {
+	if c.Spec.External.Enable {
+		logger.Debug("skipping check for operator keyring on external cluster")
+		return nil
+	}
+
+	secrets, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(c.ClusterInfo.Context, mon.AppName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to get secret to check for operator keyring")
+	}
+
+	if cephUsername, ok := secrets.Data[controller.CephOperatorUsernameKey]; ok && string(cephUsername) == client.OperatorAdminUsername {
+		logger.Info("operator keyring already exists")
+		return nil
+	}
+
+	logger.Infof("Generating the keyring for client.rookoperator")
+
+	// The upgrade path is now triggered since the new key name doesn't exist, or the client.admin keyring is still being used
+
+	// generate the new admin keyring
+	access := []string{"mon", "allow *", "mds", "allow *", "mgr", "allow *", "osd", "allow *"}
+	userKey, err := client.AuthGetOrCreateKey(c.context, c.ClusterInfo, client.OperatorAdminUsername, access)
+	if err != nil {
+		return errors.Wrap(err, "failed to create rookoperator keyring")
+	}
+
+	secrets.Data[controller.CephOperatorUsernameKey] = []byte(client.OperatorAdminUsername)
+	secrets.Data[controller.CephOperatorUserSecretKey] = []byte(userKey)
+	c.ClusterInfo.CephCred.Username = client.OperatorAdminUsername
+	c.ClusterInfo.CephCred.Secret = userKey
+	if _, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Update(c.ClusterInfo.Context, secrets, metav1.UpdateOptions{}); err != nil {
+		return errors.Wrap(err, "failed to update mon secrets with operator keyring")
+	}
+
+	// Generate the keyring in the config on disk
+	if _, err = client.GenerateConnectionConfig(c.context, c.ClusterInfo); err != nil {
+		return errors.Wrap(err, "failed to write connection config for new operator keyring")
+	}
+
+	logger.Info("Generated the new client.rookoperator keyring")
 	return nil
 }
 

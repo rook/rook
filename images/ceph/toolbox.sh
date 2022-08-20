@@ -34,7 +34,7 @@ write_endpoints() {
 [global]
 mon_host = ${mon_endpoints}
 
-[client.rookoperator]
+[client.admin]
 keyring = ${KEYRING_FILE}
 EOF
 }

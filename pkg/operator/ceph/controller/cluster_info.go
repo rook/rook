@@ -32,7 +32,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -136,39 +135,15 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 			Context:       context,
 		}
 		// First check for the most common case of the `rookoperator` keyring existing
-		if cephUsername, ok := secrets.Data[CephOperatorUsernameKey]; ok && string(cephUsername) == "client.rookoperator" {
+		if cephUsername, ok := secrets.Data[CephOperatorUsernameKey]; ok {
 			clusterInfo.CephCred.Username = string(cephUsername)
 			clusterInfo.CephCred.Secret = string(secrets.Data[CephOperatorUserSecretKey])
-		} else if isExternal {
+		} else {
+			// Fall back to get the original keyring (either the client.admin or keyring for external user)
 			secrets.Data[CephOperatorUsernameKey] = secrets.Data[CephNonOperatorUsernameKey]
 			secrets.Data[CephOperatorUserSecretKey] = secrets.Data[CephNonOperatorUserSecretKey]
-			if _, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Update(context, secrets, metav1.UpdateOptions{}); err != nil {
-				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
-			}
-			// we don't want to create client.rookoperator for external cluster
-		} else {
-			clusterInfo.CephCred.Username = string(cephUsername)
+			clusterInfo.CephCred.Username = string(secrets.Data[CephNonOperatorUsernameKey])
 			clusterInfo.CephCred.Secret = string(secrets.Data[CephNonOperatorUserSecretKey])
-			// The upgrade path is now triggered since the new key name doesn't exist, or the client.admin keyring is still being used
-			if _, err = cephclient.GenerateConnectionConfig(clusterdContext, clusterInfo); err != nil {
-				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to write connection config for existing admin keyring")
-			}
-
-			// generate the new admin keyring
-			access := []string{"mon", "allow *", "mds", "allow *", "mgr", "allow *", "osd", "allow *"}
-			userKey, err := client.AuthGetOrCreateKey(clusterdContext, clusterInfo, cephclient.OperatorAdminUsername, access)
-			if err != nil {
-				return nil, maxMonID, monMapping, errors.Wrap(err, "failed to create/update rookoperator keyring")
-			}
-
-			clusterInfo.CephCred.Secret = userKey
-			clusterInfo.CephCred.Username = cephclient.OperatorAdminUsername
-
-			secrets.Data[CephOperatorUsernameKey] = []byte(cephclient.OperatorAdminUsername)
-			secrets.Data[CephOperatorUserSecretKey] = []byte(userKey)
-		}
-		if _, err = clusterdContext.Clientset.CoreV1().Secrets(namespace).Update(context, secrets, metav1.UpdateOptions{}); err != nil {
-			return nil, maxMonID, monMapping, errors.Wrap(err, "failed to update mon secrets")
 		}
 
 		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Namespace)
@@ -184,7 +159,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	// Some people might want to give the admin key
 	// The necessary users/keys/secrets will be created by Rook
 	// This is also done to allow backward compatibility
-	if clusterInfo.CephCred.Username == cephclient.OperatorAdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
+	if clusterInfo.CephCred.Username == cephclient.NonOperatorAdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
 		return clusterInfo, maxMonID, monMapping, nil
 	}
 
@@ -199,9 +174,6 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
 	}
 
-	if cephUsername, ok := secrets.Data[CephNonOperatorUsernameKey]; ok && string(cephUsername) == "client.admin" {
-
-	}
 	return clusterInfo, maxMonID, monMapping, nil
 }
 
@@ -239,6 +211,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		},
 	}, nil
 }
+
 func genSecret(executor exec.Executor, configDir, name string, args []string) (string, error) {
 	path := path.Join(configDir, fmt.Sprintf("%s.keyring", name))
 	path = strings.Replace(path, "..", ".", 1)
