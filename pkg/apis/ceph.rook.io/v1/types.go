@@ -1325,12 +1325,6 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	Security *SecuritySpec `json:"security,omitempty"`
-
-	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
-	// +kubebuilder:pruning:PreserveUnknownFields
-	// +nullable
-	// +optional
-	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // BucketHealthCheckSpec represents the health check of an object store
@@ -1421,6 +1415,12 @@ type GatewaySpec struct {
 	// +optional
 	// +nullable
 	Service *RGWServiceSpec `json:"service,omitempty"`
+
+	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
