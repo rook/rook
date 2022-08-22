@@ -242,7 +242,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephFilesystem, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo = clusterInfo
-
+	logger.Info("PRINTING CLUSTER INFO. %v", r.clusterInfo)
 	// DELETE: the CR was deleted
 	if !cephFilesystem.GetDeletionTimestamp().IsZero() {
 		deps, err := CephFilesystemDependents(r.context, r.clusterInfo, cephFilesystem)

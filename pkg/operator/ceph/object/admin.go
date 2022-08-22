@@ -244,7 +244,10 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 	// The following conditions tries to determine if the cluster is external
 	// When connecting to an external cluster, the Ceph user is different than client.rookoperator
 	// This is not perfect though since "client.rookoperator" is somehow supported...
-	if c.Name != "" && c.clusterInfo.CephCred.Username == cephclient.OperatorAdminUsername {
+
+	c.clusterInfo.CephCred.Username = cephclient.NonOperatorAdminUsername
+	logger.Info("PRINTING CLUSTER INFO in admin. %v", c.clusterInfo)
+	if c.Name != "" && c.clusterInfo.CephCred.Username == cephclient.NonOperatorAdminUsername {
 		options := []string{
 			fmt.Sprintf("--rgw-realm=%s", c.Realm),
 			fmt.Sprintf("--rgw-zonegroup=%s", c.ZoneGroup),

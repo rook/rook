@@ -19,8 +19,8 @@ package mon
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
-	"path"
 	"reflect"
 	"strconv"
 	"strings"
@@ -81,16 +81,22 @@ func newTestStartCluster(t *testing.T, namespace string) (*clusterd.Context, err
 func newTestStartClusterWithQuorumResponse(t *testing.T, namespace string, monResponse func() (string, error)) (*clusterd.Context, error) {
 	clientset := test.New(t, 3)
 	configDir := t.TempDir()
+	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			if strings.Contains(command, "ceph-authtool") {
-				err := clienttest.CreateConfigDir(path.Join(configDir, namespace))
-				return "", errors.Wrap(err, "failed testing of start cluster without quorum response")
+			logger.Infof("COMMAND: %s %v", command, args)
+			if command == "ceph-authtool" && args[0] == "--create-keyring" {
+				filename := args[1]
+				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
+			} else if command == "ceph" && args[0] == "auth" && args[1] == "get-or-create-key" {
+				return `{"key":"AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q=="}`, nil
 			} else {
 				return monResponse()
 			}
+			return "", nil
 		},
 	}
+
 	return &clusterd.Context{
 		Clientset: clientset,
 		Executor:  executor,
