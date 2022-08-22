@@ -418,7 +418,7 @@ function create_helm_tag() {
 
 function deploy_multus() {
   # download the multus daemonset, and remove mem and cpu limits that cause it to crash on minikube
-  curl https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-thick-plugin.yml \
+  curl https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-thick.yml \
     | sed -e 's/cpu: /# cpu: /g' -e 's/memory: /# memory: /g' \
     | kubectl apply -f -
 
