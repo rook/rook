@@ -18,6 +18,10 @@ limitations under the License.
 package cluster
 
 import (
+	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
 	"testing"
 	"time"
 
@@ -27,10 +31,14 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPreClusterStartValidation(t *testing.T) {
@@ -149,6 +157,70 @@ func TestPreMonChecks(t *testing.T) {
 		assert.False(t, setSkipSanity)
 		assert.False(t, unsetSkipSanity)
 	})
+}
+
+func TestCreateClusterSecrets(t *testing.T) {
+	ctx := context.TODO()
+	clientset := test.New(t, 1)
+	configDir := "ns"
+	err := os.MkdirAll(configDir, 0755)
+	assert.NoError(t, err)
+	defer os.RemoveAll(configDir)
+	adminSecret := "original-secret" //nolint:gosec // This is just a var name, not a real secret
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("COMMAND: %s %v", command, args)
+			if command == "ceph-authtool" && args[0] == "--create-keyring" {
+				filename := args[1]
+				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
+			}
+			if command == "ceph" && args[0] == "auth" && args[1] == "get-or-create-key" {
+				assert.Equal(t, "client.rookoperator", args[2])
+				return fmt.Sprintf(`{"key": "%s"}`, adminSecret), nil
+			}
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+	}
+	c := &cluster{
+		context:   context,
+		Namespace: "ns",
+		Spec:      &cephv1.ClusterSpec{},
+	}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+
+	// The first creation will create the client.admin keyring
+	info, maxID, mapping, err := controller.CreateOrLoadClusterInfo(context, ctx, c.Namespace, ownerInfo, false)
+	c.ClusterInfo = info
+	assert.NoError(t, err)
+	assert.Equal(t, -1, maxID)
+	require.NotNil(t, info)
+	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, adminSecret, info.CephCred.Secret)
+	assert.NotEqual(t, "", info.FSID)
+	assert.NotNil(t, mapping)
+
+	// check for the cluster secret
+	secret, err := clientset.CoreV1().Secrets(c.Namespace).Get(ctx, "rook-ceph-mon", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "client.admin", string(secret.Data["ceph-username"]))
+	assert.Equal(t, adminSecret, string(secret.Data["ceph-secret"]))
+
+	// Check that the cluster info can now be loaded, still as client.admin
+	info, _, _, err = controller.CreateOrLoadClusterInfo(context, ctx, c.Namespace, ownerInfo, false)
+	assert.NoError(t, err)
+	assert.Equal(t, "client.admin", info.CephCred.Username)
+	assert.Equal(t, adminSecret, info.CephCred.Secret)
+
+	// Now update the keyring to client.rookoperator
+	adminSecret = "new-secret"
+	err = c.generateOperatorKeyring()
+	assert.NoError(t, err)
+	assert.Equal(t, "client.rookoperator", c.ClusterInfo.CephCred.Username)
+	assert.Equal(t, "new-secret", c.ClusterInfo.CephCred.Secret)
 }
 
 func TestConfigureMsgr2(t *testing.T) {
