@@ -39,7 +39,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	err := os.MkdirAll(configDir, 0755)
 	assert.NoError(t, err)
 	defer os.RemoveAll(configDir)
-	adminSecret := "AQDkLIBd9vLGJxAAnXsIKPrwvUXAmY+D1g0X1Q==" //nolint:gosec // This is just a var name, not a real secret
+	adminSecret := "original-secret" //nolint:gosec // This is just a var name, not a real secret
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("COMMAND: %s %v", command, args)
@@ -68,39 +68,12 @@ func TestCreateClusterSecrets(t *testing.T) {
 	// check for the cluster secret
 	secret, err := clientset.CoreV1().Secrets(namespace).Get(ctx, "rook-ceph-mon", metav1.GetOptions{})
 	assert.NoError(t, err)
+	assert.Equal(t, "client.admin", string(secret.Data["ceph-username"]))
 	assert.Equal(t, adminSecret, string(secret.Data["ceph-secret"]))
-
-	// For backward compatibility check that the admin secret can be loaded as previously specified
-	// Update the secret as if created in an old cluster
-	delete(secret.Data, CephNonOperatorUsernameKey)
-	delete(secret.Data, CephNonOperatorUserSecretKey)
-	secret.Data[adminSecretNameKey] = []byte(adminSecret)
-	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
-	assert.NoError(t, err)
 
 	// Check that the cluster info can now be loaded
 	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
 	assert.NoError(t, err)
 	assert.Equal(t, "client.admin", info.CephCred.Username)
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
-
-	// Fail to load the external cluster if the admin placeholder is specified
-	secret.Data[adminSecretNameKey] = []byte(adminSecretNameKey)
-	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
-	assert.NoError(t, err)
-	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
-	assert.Error(t, err)
-
-	// Load the external cluster with the legacy external creds
-	secret.Name = OperatorCreds
-	secret.Data = map[string][]byte{
-		"userID":  []byte("testid"),
-		"userKey": []byte("testkey"),
-	}
-	_, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
-	assert.NoError(t, err)
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, false)
-	assert.NoError(t, err)
-	assert.Equal(t, "testid", info.CephCred.Username)
-	assert.Equal(t, "testkey", info.CephCred.Secret)
 }

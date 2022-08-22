@@ -48,8 +48,6 @@ const (
 	OperatorCreds     = "rook-ceph-operator-creds"
 	fsidSecretNameKey = "fsid"
 	MonSecretNameKey  = "mon-secret"
-	// AdminSecretName is the name of the admin secret
-	adminSecretNameKey = "admin-secret"
 	// CephOperatorUsernameKey for the new operator user
 	CephOperatorUsernameKey = "ceph-operator-username"
 	//#nosec G101 This is key used in map as string key value
@@ -153,25 +151,6 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(clusterdContext.Clientset, namespace)
 	if err != nil {
 		return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon config")
-	}
-
-	// If an admin key was provided we don't need to load the other resources
-	// Some people might want to give the admin key
-	// The necessary users/keys/secrets will be created by Rook
-	// This is also done to allow backward compatibility
-	if clusterInfo.CephCred.Username == cephclient.NonOperatorAdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
-		return clusterInfo, maxMonID, monMapping, nil
-	}
-
-	// If the admin secret is "admin-secret", look for the deprecated secret that has the external creds
-	if clusterInfo.CephCred.Secret == adminSecretNameKey {
-		secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(context, OperatorCreds, metav1.GetOptions{})
-		if err != nil {
-			return nil, maxMonID, monMapping, err
-		}
-		// Populate external credential
-		clusterInfo.CephCred.Username = string(secret.Data["userID"])
-		clusterInfo.CephCred.Secret = string(secret.Data["userKey"])
 	}
 
 	return clusterInfo, maxMonID, monMapping, nil
