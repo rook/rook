@@ -50,8 +50,8 @@ func (s *ObjectStoreSpec) IsExternal() bool {
 }
 
 func (s *ObjectStoreSpec) IsHostNetwork(c *ClusterSpec) bool {
-	if s.HostNetwork != nil {
-		return *s.HostNetwork
+	if s.Gateway.HostNetwork != nil {
+		return *s.Gateway.HostNetwork
 	}
 	return c.Network.IsHost()
 }
