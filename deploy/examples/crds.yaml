@@ -8624,6 +8624,11 @@ spec:
                         type: object
                       nullable: true
                       type: array
+                    hostNetwork:
+                      description: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
+                      nullable: true
+                      type: boolean
+                      x-kubernetes-preserve-unknown-fields: true
                     instances:
                       description: The number of pods in the rgw replicaset.
                       format: int32
@@ -9573,11 +9578,6 @@ spec:
                           type: object
                       type: object
                   type: object
-                hostNetwork:
-                  description: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
-                  nullable: true
-                  type: boolean
-                  x-kubernetes-preserve-unknown-fields: true
                 metadataPool:
                   description: The metadata pool settings
                   nullable: true
