@@ -2363,6 +2363,11 @@ func (in *GatewaySpec) DeepCopyInto(out *GatewaySpec) {
 		*out = new(RGWServiceSpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.HostNetwork != nil {
+		in, out := &in.HostNetwork, &out.HostNetwork
+		*out = new(bool)
+		**out = **in
+	}
 	return
 }
 
@@ -2992,11 +2997,6 @@ func (in *ObjectStoreSpec) DeepCopyInto(out *ObjectStoreSpec) {
 		in, out := &in.Security, &out.Security
 		*out = new(SecuritySpec)
 		(*in).DeepCopyInto(*out)
-	}
-	if in.HostNetwork != nil {
-		in, out := &in.HostNetwork, &out.HostNetwork
-		*out = new(bool)
-		**out = **in
 	}
 	return
 }
