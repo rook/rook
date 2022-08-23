@@ -199,6 +199,12 @@ spec:
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
             {{ end }}
+            {{ if .CSIEnableMetadata }}
+            - "--setmetadata={{ .CSIEnableMetadata }}"
+            {{ end }}
+            {{ if .CSIClusterName }}
+            - "--clustername={{ .CSIClusterName }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:

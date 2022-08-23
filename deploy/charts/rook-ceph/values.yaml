@@ -98,9 +98,17 @@ csi:
   # sidecar with CSI provisioner pod, to enable set it to true.
   enableOMAPGenerator: false
 
+  # (Optional) set to true to enable adding volume metadata on the CephFS subvolumes and RBD images.
+  # Not all users might be interested in getting volume/snapshot details as metadata on CephFS subvolume and RBD images.
+  # Hence enable metadata is false by default.
+  enableMetadata: false
+
   # Set replicas for csi provisioner deployment.
   provisionerReplicas: 2
 
+  # (Optional) cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful
+  # in cases like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster.
+  # clusterName: "my-prod-cluster"
   # Set logging level for cephCSI containers maintained by the cephCSI.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   #logLevel: 0

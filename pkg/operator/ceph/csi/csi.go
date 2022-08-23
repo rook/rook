@@ -180,6 +180,10 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableCSIEncryption = true
 	}
 
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_METADATA", "false"), "true") {
+		CSIParam.CSIEnableMetadata = true
+	}
+
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.CephFSPluginUpdateStrategy = onDelete
 	} else {
@@ -261,6 +265,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	CSIParam.CSINFSPodLabels = k8sutil.ParseStringToLabels(csiNFSPodLabels)
 	csiRBDPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RBD_POD_LABELS", "")
 	CSIParam.CSIRBDPodLabels = k8sutil.ParseStringToLabels(csiRBDPodLabels)
+	CSIParam.CSIClusterName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CLUSTER_NAME", "")
 
 	return nil
 }
