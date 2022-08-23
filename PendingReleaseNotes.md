@@ -4,3 +4,4 @@
 
 
 ## Features
+- Remove Attacher sidecar from CephFS Rook deployment.
