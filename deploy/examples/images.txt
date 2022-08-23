@@ -1,5 +1,5 @@
  quay.io/ceph/ceph:v17.2.3
- quay.io/cephcsi/cephcsi:v3.6.2
+ quay.io/cephcsi/cephcsi:v3.7.0
  quay.io/csiaddons/k8s-sidecar:v0.4.0
  quay.io/csiaddons/volumereplication-operator:v0.3.0
  registry.k8s.io/sig-storage/csi-attacher:v3.4.0
