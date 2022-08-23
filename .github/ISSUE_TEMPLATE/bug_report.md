@@ -37,7 +37,7 @@ labels: bug
 
   To get the health of the cluster, use `kubectl rook-ceph health`
   To get the status of the cluster, use `kubectl rook-ceph ceph status`
-  For other commands and how to use Krew Read [Krew Plugin](https://rook.io/docs/rook/latest/Troubleshooting/krew-plugin)
+  For more details, see the [Rook Krew Plugin](https://rook.io/docs/rook/latest-release/Troubleshooting/krew-plugin)
 
 **Environment**:
 * OS (e.g. from /etc/os-release):
@@ -47,4 +47,4 @@ labels: bug
 * Storage backend version (e.g. for ceph do `ceph -v`):
 * Kubernetes version (use `kubectl version`):
 * Kubernetes cluster type (e.g. Tectonic, GKE, OpenShift):
-* Storage backend status (e.g. for Ceph use `ceph health` in the [Rook Ceph toolbox](https://rook.io/docs/rook/latest/Troubleshooting/ceph-toolbox/#interactive-toolbox)):
+* Storage backend status (e.g. for Ceph use `ceph health` in the [Rook Ceph toolbox](https://rook.io/docs/rook/latest-release/Troubleshooting/ceph-toolbox/#interactive-toolbox)):
