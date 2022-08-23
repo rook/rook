@@ -21,12 +21,23 @@ labels: bug
 **File(s) to submit**:
 
 * Cluster CR (custom resource), typically called `cluster.yaml`, if necessary
+
+**Logs to submit**:
+
 * Operator's logs, if necessary
 * Crashing pod(s) logs, if necessary
 
- To get logs, use `kubectl -n <namespace> logs <pod name>`
-When pasting logs, always surround them with backticks or use the `insert code` button from the Github UI.
-Read [GitHub documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
+  To get logs, use `kubectl -n <namespace> logs <pod name>`
+  When pasting logs, always surround them with backticks or use the `insert code` button from the Github UI.
+  Read [GitHub documentation if you need help](https://help.github.com/en/articles/creating-and-highlighting-code-blocks).
+
+**Cluster Status to submit**:
+
+* Output of krew commands, if necessary
+
+  To get the health of the cluster, use `kubectl rook-ceph health`
+  To get the status of the cluster, use `kubectl rook-ceph ceph status`
+  For other commands and how to use Krew Read [Krew Plugin](https://rook.io/docs/rook/latest/Troubleshooting/krew-plugin)
 
 **Environment**:
 * OS (e.g. from /etc/os-release):
