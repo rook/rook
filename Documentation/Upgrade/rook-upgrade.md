@@ -46,8 +46,11 @@ those releases.
 
 ## Breaking changes in v1.10
 
-* Support for Ceph Octopus (15.2.x) was removed. If you are running Octopus you must upgrade the Ceph version
-before upgrading to Rook v1.10.
+* Support for Ceph Octopus (15.2.x) was removed. If you are running v15 you must upgrade to Ceph
+  Pacific (v16) or Quincy (v17) before upgrading to Rook v1.10
+
+* The minimum supported version of Ceph-CSI is v3.6.0. You must update to at least this version of
+  Ceph-CSI before or at the same time you update the Rook operator image to v1.10
 
 
 ## Considerations
@@ -66,8 +69,6 @@ Unless otherwise noted due to extenuating requirements, upgrades from one patch 
 another are as simple as updating the common resources and the image of the Rook operator. For
 example, when Rook v1.10.1 is released, the process of updating from v1.10.0 is as simple as running
 the following:
-
-First get the latest common resources manifests that contain the latest changes for Rook v1.10.
 
 ```console
 git clone --single-branch --depth=1 --branch v1.10.1 https://github.com/rook/rook.git
@@ -114,7 +115,7 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
 
 ## Rook Operator Upgrade
 
-In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.9.9` to
+In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.9.10` to
 the version `v1.10.0`. This upgrade should work from any official patch release of Rook v1.9 to any
 official patch release of v1.10.
 
@@ -143,7 +144,7 @@ by the Operator. Also update the Custom Resource Definitions (CRDs).
 Get the latest common resources manifests that contain the latest changes.
 
 ```console
-git clone --single-branch --depth=1 --branch v1.10.0-beta.0 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch master https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -182,7 +183,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.10.0-beta.0
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:master
 ```
 
 ### **3. Update Ceph CSI**
@@ -190,8 +191,11 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-cep
 !!! hint
     If have not customized the CSI image versions, this is automatically updated.
 
-If you have specified custom CSI images, we recommended you
-update to use the latest Ceph-CSI drivers. See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.
+!!! important
+    The minimum supported version of Ceph-CSI is v3.6.0.
+
+If you have specified custom CSI images, we recommended you update to the latest Ceph-CSI drivers.
+See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.
 
 !!! note
     If using snapshots, refer to the [Upgrade Snapshot API guide](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#upgrade-snapshot-api).
@@ -219,8 +223,8 @@ rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.10.0
 rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.10.0
 rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.10.0
 rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.10.0
-rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.9.9
-rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.9.9
+rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.9.10
+rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.9.10
 ```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
@@ -229,7 +233,7 @@ An easy check to see if the upgrade is totally finished is to check that there i
 ```console
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-  rook-version=v1.9.9
+  rook-version=v1.9.10
   rook-version=v1.10.0
 This cluster is finished:
   rook-version=v1.10.0

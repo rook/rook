@@ -39,6 +39,10 @@ before upgrading to Rook v1.10.
 We recommend updating to v16.2.7 or newer. If you require updating **to v16.2.0-v16.2.6**,
 please see the [v1.8 upgrade guide for a special upgrade consideration](https://rook.github.io/docs/rook/v1.8/ceph-upgrade.html#disable-bluestore_fsck_quick_fix_on_mount).
 
+!!! warning
+    Ceph v17.2.2 has a blocking issue when running with Rook. If you are running Ceph v17, we
+    recommend using v17.2.3 or newer.
+
 ### Quincy Consideration
 
 In Ceph Quincy (v17), the `device_health_metrics` pool was renamed to `.mgr`. Ceph will perform this
