@@ -86,7 +86,7 @@ sed -i "s|*.log|$CEPH_CLIENT_ID.log|" "$LOG_ROTATE_CEPH_FILE"
 # replace default daily with given user input
 sed --in-place "s/daily/$PERIODICITY/g" "$LOG_ROTATE_CEPH_FILE"
 
-if [ "$LOG_MAX_SIZE" -ne 0 ]; then
+if [ "$LOG_MAX_SIZE" != "0" ]; then
 	# adding maxsize $LOG_MAX_SIZE at the 4th line of the logrotate config file with 4 spaces to maintain indentation
 	sed --in-place "4i \ \ \ \ maxsize $LOG_MAX_SIZE" "$LOG_ROTATE_CEPH_FILE"
 fi
@@ -670,14 +670,16 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 		maxLogSize = resource.MustParse(fmt.Sprintf("%dM", size))
 	}
 
-	periodicity := "daily"
-	if c.LogCollector.Periodicity == "1h" {
+	var periodicity string
+	if c.LogCollector.Periodicity == "1h" || c.LogCollector.Periodicity == "hourly" {
 		periodicity = "hourly"
-	} else if strings.Contains(c.LogCollector.Periodicity, "h") || strings.Contains(c.LogCollector.Periodicity, "d") {
-		periodicity = "daily"
-	} else if c.LogCollector.Periodicity != "" {
+	} else if c.LogCollector.Periodicity == "weekly" || c.LogCollector.Periodicity == "monthly" {
 		periodicity = c.LogCollector.Periodicity
+	} else {
+		periodicity = "daily"
 	}
+
+	logger.Debugf("setting periodicity to %q. Supported periodicity are hourly, daily, weekly and monthly", periodicity)
 
 	return &v1.Container{
 		Name: logCollector,
