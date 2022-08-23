@@ -753,15 +753,15 @@ func TestMakeRGWPodSpec(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.isSet {
 				if tt.enabled {
-					c.store.Spec.HostNetwork = func(hostNetwork bool) *bool { return &hostNetwork }(true)
+					c.store.Spec.Gateway.HostNetwork = func(hostNetwork bool) *bool { return &hostNetwork }(true)
 				} else {
-					c.store.Spec.HostNetwork = new(bool)
+					c.store.Spec.Gateway.HostNetwork = new(bool)
 				}
 			}
 			podTemplateSpec, _ := c.makeRGWPodSpec(rgwConfig)
 
 			if tt.isSet {
-				assert.Equal(t, *c.store.Spec.HostNetwork, podTemplateSpec.Spec.HostNetwork)
+				assert.Equal(t, *c.store.Spec.Gateway.HostNetwork, podTemplateSpec.Spec.HostNetwork)
 			} else {
 				assert.Equal(t, c.clusterSpec.Network.IsHost(), podTemplateSpec.Spec.HostNetwork)
 			}
