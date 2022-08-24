@@ -35,8 +35,8 @@ var RunAllCephCommandsInToolboxPod string
 const (
 	// OperatorAdminUsername is the name of the operator admin user
 	OperatorAdminUsername = "client.rookoperator"
-	// NonOperatorAdminUsername is the name of the older admin user
-	NonOperatorAdminUsername = "client.admin"
+	// CephAdminUsername is the name of the older admin user
+	CephAdminUsername = "client.admin"
 	// CephTool is the name of the CLI tool for 'ceph'
 	CephTool = "ceph"
 	// RBDTool is the name of the CLI tool for 'rbd'

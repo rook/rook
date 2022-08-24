@@ -53,8 +53,8 @@ const (
 	//#nosec G101 This is key used in map as string key value
 	CephOperatorUserSecretKey = "ceph-operator-secret"
 	// CephLegacyUsernameKey for the old admin user
-	CephNonOperatorUsernameKey   = "ceph-username"
-	CephNonOperatorUserSecretKey = "ceph-secret"
+	CephUsernameKey   = "ceph-username"
+	CephUserSecretKey = "ceph-secret"
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
@@ -138,10 +138,10 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 			clusterInfo.CephCred.Secret = string(secrets.Data[CephOperatorUserSecretKey])
 		} else {
 			// Fall back to get the original keyring (either the client.admin or keyring for external user)
-			secrets.Data[CephOperatorUsernameKey] = secrets.Data[CephNonOperatorUsernameKey]
-			secrets.Data[CephOperatorUserSecretKey] = secrets.Data[CephNonOperatorUserSecretKey]
-			clusterInfo.CephCred.Username = string(secrets.Data[CephNonOperatorUsernameKey])
-			clusterInfo.CephCred.Secret = string(secrets.Data[CephNonOperatorUserSecretKey])
+			secrets.Data[CephOperatorUsernameKey] = secrets.Data[CephUsernameKey]
+			secrets.Data[CephOperatorUserSecretKey] = secrets.Data[CephUserSecretKey]
+			clusterInfo.CephCred.Username = string(secrets.Data[CephUsernameKey])
+			clusterInfo.CephCred.Secret = string(secrets.Data[CephUserSecretKey])
 		}
 
 		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Namespace)
@@ -175,7 +175,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 	}
 
 	// generate the admin secret if one was not provided at the command line
-	adminSecret, err := genSecret(context.Executor, dir, cephclient.NonOperatorAdminUsername, adminCapArgs)
+	adminSecret, err := genSecret(context.Executor, dir, cephclient.CephAdminUsername, adminCapArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func createNamedClusterInfo(context *clusterd.Context, namespace string) (*cephc
 		MonitorSecret: monSecret,
 		Namespace:     namespace,
 		CephCred: cephclient.CephCred{
-			Username: cephclient.NonOperatorAdminUsername,
+			Username: cephclient.CephAdminUsername,
 			Secret:   adminSecret,
 		},
 	}, nil
@@ -295,12 +295,12 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 
 	// store the secrets for internal usage of the rook pods
 	secrets := map[string][]byte{
-		fsidSecretNameKey:            []byte(clusterInfo.FSID),
-		MonSecretNameKey:             []byte(clusterInfo.MonitorSecret),
-		CephNonOperatorUsernameKey:   []byte(clusterInfo.CephCred.Username),
-		CephNonOperatorUserSecretKey: []byte(clusterInfo.CephCred.Secret),
-		CephOperatorUsernameKey:      []byte(clusterInfo.CephCred.Username),
-		CephOperatorUserSecretKey:    []byte(clusterInfo.CephCred.Secret),
+		fsidSecretNameKey:         []byte(clusterInfo.FSID),
+		MonSecretNameKey:          []byte(clusterInfo.MonitorSecret),
+		CephUsernameKey:           []byte(clusterInfo.CephCred.Username),
+		CephUserSecretKey:         []byte(clusterInfo.CephCred.Secret),
+		CephOperatorUsernameKey:   []byte(clusterInfo.CephCred.Username),
+		CephOperatorUserSecretKey: []byte(clusterInfo.CephCred.Secret),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

@@ -48,7 +48,7 @@ const (
 
 // CephKeyring returns the filled-out user keyring
 func CephKeyring(cred CephCred) string {
-	if cred.Username == OperatorAdminUsername || cred.Username == NonOperatorAdminUsername {
+	if cred.Username == OperatorAdminUsername || cred.Username == CephAdminUsername {
 		return fmt.Sprintf(AdminKeyringTemplate, cred.Username, cred.Secret)
 	}
 	return fmt.Sprintf(UserKeyringTemplate, cred.Username, cred.Secret)

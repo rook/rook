@@ -111,9 +111,9 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	preFilename := "pre-upgrade-file"
 	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
 
-	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
+		clusterInfo := client.AdminTestClusterInfo(s.namespace)
 		blockTestDataCleanUp(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName, rbdPodName, requireBlockImagesRemoved)
 		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
@@ -179,9 +179,9 @@ func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.QuincyVersion
 	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
-	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
+		clusterInfo := client.AdminTestClusterInfo(s.namespace)
 		blockTestDataCleanUp(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName, rbdPodName, requireBlockImagesRemoved)
 		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
@@ -212,9 +212,9 @@ func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.PacificVersion
 	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
-	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
+		clusterInfo := client.AdminTestClusterInfo(s.namespace)
 		blockTestDataCleanUp(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName, rbdPodName, requireBlockImagesRemoved)
 		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
@@ -244,6 +244,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectUserID, preFilename string)
 	// The helm chart already created these though.
 	//
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
+	clusterInfo.CephCred.Username = client.CephAdminUsername
 	if !s.settings.UseHelm {
 		logger.Infof("Initializing block before the upgrade")
 		setupBlockLite(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName)

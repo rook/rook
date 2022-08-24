@@ -100,7 +100,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	logger.Info("external cluster identity established")
 
 	// Create CSI Secrets only if the user has provided the admin key
-	if cluster.ClusterInfo.CephCred.Username == client.NonOperatorAdminUsername {
+	if cluster.ClusterInfo.CephCred.Username == client.CephAdminUsername {
 		err = csi.CreateCSISecrets(c.context, cluster.ClusterInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to create csi kubernetes secrets")

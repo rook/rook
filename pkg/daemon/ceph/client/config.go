@@ -125,7 +125,7 @@ func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pat
 		return "", errors.Wrapf(err, "failed to merge global config with %q", k8sutil.ConfigOverrideName)
 	}
 
-	clusterInfo.CephCred.Username = NonOperatorAdminUsername
+	clusterInfo.CephCred.Username = CephAdminUsername
 	root := path.Join(context.ConfigDir, clusterInfo.Namespace)
 	keyringPath = path.Join(root, fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username))
 	qualifiedUser := getQualifiedUser(clusterInfo.CephCred.Username)
