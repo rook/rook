@@ -110,6 +110,7 @@ func GenerateConnectionConfigWithSettings(context *clusterd.Context, clusterInfo
 // generateConfigFile generates and writes a config file to disk.
 func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pathRoot, keyringPath string, globalConfig *CephConfig, clientSettings map[string]string) (string, error) {
 
+	temp := clusterInfo.CephCred.Username
 	// create the config directory
 	if err := os.MkdirAll(pathRoot, 0744); err != nil {
 		return "", errors.Wrapf(err, "failed to create config directory at %q", pathRoot)
@@ -124,9 +125,19 @@ func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pat
 		return "", errors.Wrapf(err, "failed to merge global config with %q", k8sutil.ConfigOverrideName)
 	}
 
+	clusterInfo.CephCred.Username = NonOperatorAdminUsername
+	root := path.Join(context.ConfigDir, clusterInfo.Namespace)
+	keyringPath = path.Join(root, fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username))
 	qualifiedUser := getQualifiedUser(clusterInfo.CephCred.Username)
 	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
 		return "", errors.Wrap(err, "failed to add admin client config section")
+	}
+
+	clusterInfo.CephCred.Username = OperatorAdminUsername
+	keyringPath = path.Join(root, fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username))
+	qualifiedUser = getQualifiedUser(clusterInfo.CephCred.Username)
+	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
+		return "", errors.Wrap(err, "failed to add operator admin client config section")
 	}
 
 	// write the entire config to disk
@@ -135,6 +146,7 @@ func generateConfigFile(context *clusterd.Context, clusterInfo *ClusterInfo, pat
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", errors.Wrapf(err, "failed to save config file %s", filePath)
 	}
+	clusterInfo.CephCred.Username = temp
 
 	return filePath, nil
 }

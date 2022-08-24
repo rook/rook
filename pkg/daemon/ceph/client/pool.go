@@ -234,7 +234,6 @@ func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, n
 func DeletePool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
 	// check if the pool exists
 
-	clusterInfo.CephCred.Username = NonOperatorAdminUsername
 	logger.Info("PRINTING CLUSTER INFO in pool. %v", clusterInfo)
 
 	pool, err := GetPoolDetails(context, clusterInfo, name)
