@@ -40,8 +40,8 @@ func TestFinalizeCephCommandArgs(t *testing.T) {
 		"--connect-timeout=" + strconv.Itoa(int(exec.CephCommandsTimeout.Seconds())),
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
-		"--name=client.admin",
-		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
+		"--name=client.rookoperator",
+		"--keyring=/var/lib/rook/rook-ceph/rook/client.rookoperator.keyring",
 	}
 
 	clusterInfo := AdminTestClusterInfo("rook")
@@ -70,8 +70,8 @@ func TestFinalizeRadosGWAdminCommandArgs(t *testing.T) {
 		"--rgw-zonegroup=default-rook",
 		"--cluster=rook",
 		"--conf=/var/lib/rook/rook-ceph/rook/rook.config",
-		"--name=client.admin",
-		"--keyring=/var/lib/rook/rook-ceph/rook/client.admin.keyring",
+		"--name=client.rookoperator",
+		"--keyring=/var/lib/rook/rook-ceph/rook/client.rookoperator.keyring",
 	}
 
 	clusterInfo := AdminTestClusterInfo("rook")
