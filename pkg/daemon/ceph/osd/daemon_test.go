@@ -16,6 +16,7 @@ limitations under the License.
 package osd
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -172,7 +173,121 @@ USEC_INITIALIZED=1128667
 	 `
 )
 
+func TestGetOsdUUID(t *testing.T) {
+	fileContainSignatureOnly, err := os.Create("fileContainSignatureOnly")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileContainSignatureOnly.Close()
+	defer os.Remove("fileContainSignatureOnly")
+
+	_, err = fileContainSignatureOnly.Write([]byte(bluestoreSignature + "\n"))
+	if err != nil {
+		t.Fatal("failed to write test file")
+	}
+
+	fileContainSignatureAndUUID, err := os.Create("fileContainSignatureAndUUID")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileContainSignatureAndUUID.Close()
+	defer os.Remove("fileContainSignatureAndUUID")
+
+	_, err = fileContainSignatureAndUUID.Write([]byte(bluestoreSignature + "\n" + "c6416047-1e71-412a-9b61-ca398b815e50\n"))
+	if err != nil {
+		t.Fatal("failed to write test file")
+	}
+
+	fileNotContainBluestore, err := os.Create("fileNotContainBluestore")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileNotContainBluestore.Close()
+	defer os.Remove("fileNotContainBluestore")
+
+	_, err = fileNotContainBluestore.Write([]byte("invalid signature\n"))
+	if err != nil {
+		t.Fatal("failed to write test file")
+	}
+
+	fileNotReadable, err := os.Create("fileNotReadable")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileNotReadable.Close()
+	defer os.Remove("fileNotReadable")
+
+	err = os.Chmod("fileNotReadable", 0)
+	if err != nil {
+		t.Fatal("failed to set permission of test file")
+	}
+
+	cases := []struct {
+		device   *sys.LocalDisk
+		uuid     string
+		hasError bool
+	}{
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileContainSignatureOnly",
+			},
+			uuid:     "",
+			hasError: true,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileContainSignatureAndUUID",
+			},
+			uuid:     "c6416047-1e71-412a-9b61-ca398b815e50",
+			hasError: false,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileNotContainBluestore",
+			},
+			uuid:     "",
+			hasError: false,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileNotReadable",
+			},
+			uuid:     "",
+			hasError: true,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileNotExist",
+			},
+			uuid:     "",
+			hasError: true,
+		},
+	}
+
+	for _, c := range cases {
+		uuid, err := getOsdUUID(c.device)
+
+		assert.Equal(t, c.uuid, uuid, c.device.RealPath)
+
+		if c.hasError {
+			assert.Error(t, err, c.device.RealPath)
+		} else {
+			assert.NoError(t, err, c.device.RealPath, err)
+		}
+
+	}
+}
+
 func TestAvailableDevices(t *testing.T) {
+	getOsdUUID = func(device *sys.LocalDisk) (string, error) {
+		return "", nil
+	}
+
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -398,6 +513,15 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries), mapping)
+
+	// device has an OSD, but don't detect bluestore signature by lsblk.
+	// so try to detect signature by Rook
+	getOsdUUID = func(device *sys.LocalDisk) (string, error) {
+		return "c6416047-1e71-412a-9b61-ca398b815e50", nil
+	}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries), mapping)
 }
 
 func TestGetVolumeGroupName(t *testing.T) {
