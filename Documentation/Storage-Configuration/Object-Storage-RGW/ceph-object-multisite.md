@@ -98,11 +98,17 @@ The access key and secret key of the system user are keys that allow other Ceph 
 
 #### Getting the Realm Access Key and Secret Key from the Rook Ceph Cluster
 
+##### System User for Multisite
+
 When an admin creates a ceph-object-realm a system user automatically gets created for the realm with an access key and a secret key.
 
-This system user has the name "$REALM_NAME-system-user". For the example realm, the uid for the system user is "realm-a-system-user".
+This system user has the name "$REALM_NAME-system-user". For the example if realm name is `realm-a`, then uid for the system user is "realm-a-system-user".
 
 These keys for the user are exported as a kubernetes [secret](https://kubernetes.io/docs/concepts/configuration/secret/) called "$REALM_NAME-keys" (ex: realm-a-keys).
+
+This system user used by RGW internally for the data replication.
+
+##### Getting keys from k8s secret
 
 To get these keys from the cluster the realm was originally created on, run:
 
@@ -293,3 +299,67 @@ kubectl delete -f object-store.yaml
 ```
 
 Removing object store(s) from the master zone of the master zone group should be done with caution. When all of these object-stores are deleted the period cannot be updated and that realm cannot be pulled.
+
+## Configure an Existing Object Store for Multisite
+
+When an object store is configured by Rook, it internally creates a zone, zone group, and realm with the same name as the object store. To enable multisite, you will need to create the corresponding zone, zone group, and realm CRs with the same name as the object store. For example, to create multisite CRs for an object store named `my-store`:
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: my-store
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: my-store
+  metadataPool:
+    replicated:
+      size: 3
+  dataPool:
+    replicated:
+      size: 3
+  preservePoolsOnDelete: false
+  # recommended to set this value if ingress used for exposing rgw endpoints
+  # customEndpoints:
+  #   - "http://rgw-a.fqdn"
+```
+
+Now modify the existing `CephObjectStore` CR to exclude pool settings and add a reference to the zone. 
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: my-store
+```
+
+#### Using custom names
+If names different from the object store need to be set for the realm, zone, or zone group, first rename them in the backend via toolbox pod, then following the procedure above.
+```console
+radosgw-admin realm rename --rgw-realm=my-store --realm-new-name=<new-realm-name>
+radosgw-admin zonegroup rename --rgw-zonegroup=my-store --zonegroup-new-name=<new-zonegroup-name> --rgw-realm=<new-realm-name>
+radosgw-admin zone rename --rgw-zone=my-store --zone-new-name=<new-zone-name>  --rgw-zonegroup=<new-zonegroup-name> --rgw-realm=<new-realm-name>
+radosgw-admin period update --commit
+```
+!!! important
+    Renaming in the toolbox must be performed **before** creating the multisite CRs
