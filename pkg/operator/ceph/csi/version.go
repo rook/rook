@@ -26,7 +26,7 @@ import (
 
 var (
 	//minimum supported version is 3.7.0
-	minimum = CephCSIVersion{3, 7, 0}
+	minimum = CephCSIVersion{3, 6, 0}
 	//supportedCSIVersions are versions that rook supports
 	releasev370 = CephCSIVersion{3, 7, 0}
 
