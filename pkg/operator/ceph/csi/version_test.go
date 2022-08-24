@@ -23,7 +23,7 @@ import (
 )
 
 var (
-	testMinVersion         = CephCSIVersion{3, 7, 0}
+	testMinVersion         = CephCSIVersion{3, 6, 0}
 	testReleaseV350        = CephCSIVersion{3, 5, 0}
 	testReleaseV360        = CephCSIVersion{3, 6, 0}
 	testReleaseV361        = CephCSIVersion{3, 6, 1}
@@ -64,7 +64,7 @@ func TestSupported(t *testing.T) {
 	assert.Equal(t, false, ret)
 
 	ret = testReleaseV360.Supported()
-	assert.Equal(t, false, ret)
+	assert.Equal(t, true, ret)
 
 	ret = testReleaseV370.Supported()
 	assert.Equal(t, true, ret)
