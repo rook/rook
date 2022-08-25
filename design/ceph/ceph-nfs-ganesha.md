@@ -331,6 +331,21 @@ EXPORT {
 }
 ```
 
+### Metrics
+Each NFS-Ganesha server instance exports its stats via DBus. When Prometheus
+monitoring is enable on a k8s cluster, run a sidecar container which will
+provide an end-point for Prometheus metrics scraping. This sidecar container
+must share the `/run/dbus` directory in order to communicate with the DBus
+daemon via UNIX domain socket within the same pod (similar to way NFS-Ganesha's
+[ganesha_stats] utility communicates with the server).
+
+Exported metrics should include the following details:
+- Exports
+- Connected clients
+- Operations counter per export (NFSv3, NFSv4.0, NFSv4.1, NFSv4.2)
+- I/O stats (write/read/error/other)
+- Optional: detailed statistics (if enabled)
+
 
 <!--------------------------------------------- LINKS --------------------------------------------->
 [NFS-Ganesha]: https://github.com/nfs-ganesha/nfs-ganesha/wiki
@@ -346,3 +361,4 @@ EXPORT {
 [Ceph Pool CRD]: (https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md)
 [k8s Deployments]: (https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
 [SSSD]: (https://sssd.io)
+[ganesha_stats]: (https://github.com/nfs-ganesha/nfs-ganesha/blob/next/src/scripts/ganeshactl/ganesha_stats.py)
