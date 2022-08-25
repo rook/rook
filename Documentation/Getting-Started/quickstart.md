@@ -50,6 +50,7 @@ The first step is to deploy the Rook operator. Check that you are using the [exa
 
 ```console
 cd deploy/examples
+# kubectl create -f psp.yaml # if your cluster is protected by pod security policies
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 
 # verify the rook-ceph-operator is in the `Running` state before proceeding
