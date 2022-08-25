@@ -100,7 +100,7 @@ function create_bluestore_partitions_and_pvcs() {
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
 }
 
-function create_bluestore_partitions_and_pvcs_for_wal(){
+function create_bluestore_partitions_and_pvcs_for_wal() {
   BLOCK_PART="$BLOCK"3
   DB_PART="$BLOCK"1
   WAL_PART="$BLOCK"2
@@ -111,9 +111,9 @@ function create_bluestore_partitions_and_pvcs_for_wal(){
 function collect_udev_logs_in_background() {
   local log_dir="${1:-"/home/runner/work/rook/rook/tests/integration/_output/tests"}"
   mkdir -p "${log_dir}"
-  udevadm monitor --property &> "${log_dir}"/udev-monitor-property.txt &
-  udevadm monitor --kernel &> "${log_dir}"/udev-monitor-kernel.txt &
-  udevadm monitor --udev &> "${log_dir}"/udev-monitor-udev.txt &
+  udevadm monitor --property &>"${log_dir}"/udev-monitor-property.txt &
+  udevadm monitor --kernel &>"${log_dir}"/udev-monitor-kernel.txt &
+  udevadm monitor --udev &>"${log_dir}"/udev-monitor-udev.txt &
 }
 
 function build_rook() {
@@ -125,25 +125,26 @@ function build_rook() {
   for _ in $(seq 1 3); do
     if ! o=$(make -j"$(nproc)" IMAGES='ceph' "$build_type"); then
       case "$o" in
-        *"$NETWORK_ERROR"*)
-          echo "network failure occurred, retrying..."
-          continue
+      *"$NETWORK_ERROR"*)
+        echo "network failure occurred, retrying..."
+        continue
         ;;
-        *"$SERVICE_UNAVAILABLE_ERROR"*)
-          echo "network failure occurred, retrying..."
-          continue
+      *"$SERVICE_UNAVAILABLE_ERROR"*)
+        echo "network failure occurred, retrying..."
+        continue
         ;;
-        *"$INTERNAL_ERROR"*)
-          echo "network failure occurred, retrying..."
-          continue
+      *"$INTERNAL_ERROR"*)
+        echo "network failure occurred, retrying..."
+        continue
         ;;
-        *"$INTERNAL_SERVER_ERROR"*)
-          echo "network failure occurred, retrying..."
-          continue
+      *"$INTERNAL_SERVER_ERROR"*)
+        echo "network failure occurred, retrying..."
+        continue
         ;;
-        *)
-          # valid failure
-          exit 1
+      *)
+        # valid failure
+        exit 1
+        ;;
       esac
     fi
     # no errors so we break the loop after the first iteration
@@ -165,6 +166,12 @@ function validate_yaml() {
   cd deploy/examples
   kubectl create -f crds.yaml -f common.yaml
 
+  # create and use PSPs on k8s versions older than 1.21
+  kube_minor_ver="$(kubectl version -o json | jq -r '.serverVersion.minor')"
+  if [[ "$kube_minor_ver" -lt 21 ]]; then
+    kubectl create -f psp.yaml
+  fi
+
   # create the volume replication CRDs
   replication_version=v0.3.0
   replication_url="https://raw.githubusercontent.com/csi-addons/volume-replication-operator/${replication_version}/config/crd/bases"
@@ -177,7 +184,7 @@ function validate_yaml() {
   kubectl apply -f "${keda_url}"
 
   # skipping folders and some yamls that are only for openshift.
-  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*')"
+  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'psp*')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
   # shellcheck disable=SC2086 # '-f manifest1.yaml -f manifest2.yaml etc.' should not be quoted
   kubectl create ${with_f_arg} --dry-run=client
@@ -185,7 +192,7 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  ( cd deploy/examples && kubectl create -f crds.yaml -f common.yaml )
+  (cd deploy/examples && kubectl create -f crds.yaml -f common.yaml)
 }
 
 function deploy_manifest_with_local_build() {
@@ -196,8 +203,8 @@ function deploy_manifest_with_local_build() {
 }
 
 function replace_ceph_image() {
-  local file="$1"  # parameter 1: the file in which to replace the ceph image
-  local ceph_image="${2:-}"  # parameter 2: the new ceph image to use
+  local file="$1"           # parameter 1: the file in which to replace the ceph image
+  local ceph_image="${2:-}" # parameter 2: the new ceph image to use
   if [[ -z ${ceph_image} ]]; then
     echo "No Ceph image given. Not adjusting manifests."
     return 0
@@ -209,14 +216,14 @@ function deploy_cluster() {
   cd deploy/examples
   deploy_manifest_with_local_build operator.yaml
   if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
-  elif [ "$1" = "two_osds_in_device" ] ; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
-  elif [ "$1" = "osd_with_metadata_device" ] ; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
-  elif [ "$1" = "encryption" ] ; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
-  elif [ "$1" = "lvm" ] ; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
+  elif [ "$1" = "two_osds_in_device" ]; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+  elif [ "$1" = "osd_with_metadata_device" ]; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+  elif [ "$1" = "encryption" ]; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
+  elif [ "$1" = "lvm" ]; then
     sed -i "s|#deviceFilter:|devices:\n      - name: \"/dev/test-rook-vg/test-rook-lv\"|g" cluster-test.yaml
   else
     echo "invalid argument: $*" >&2
@@ -241,11 +248,11 @@ function deploy_csi_hostnetwork_disabled_cluster() {
   sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-test.yaml
-  elif [ "$1" = "two_osds_in_device" ] ; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
-  elif [ "$1" = "osd_with_metadata_device" ] ; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
+  elif [ "$1" = "two_osds_in_device" ]; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+  elif [ "$1" = "osd_with_metadata_device" ]; then
+    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   fi
   kubectl create -f cluster-test.yaml
   kubectl create -f filesystem-test.yaml
@@ -256,7 +263,7 @@ function wait_for_prepare_pod() {
   get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
   timeout=450
   start_time="${SECONDS}"
-  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+  while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
     pod="$("${get_pod_cmd[@]}" --selector=app=rook-ceph-osd-prepare --output custom-columns=NAME:.metadata.name,PHASE:status.phase | awk 'FNR <= 1')"
     if echo "$pod" | grep 'Running\|Succeeded\|Failed'; then break; fi
     echo 'waiting for at least one osd prepare pod to be running or finished'
@@ -266,7 +273,7 @@ function wait_for_prepare_pod() {
   kubectl --namespace rook-ceph logs --follow "$pod"
   timeout=60
   start_time="${SECONDS}"
-  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+  while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
     pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd,ceph_daemon_id=0 --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
     if echo "$pod" | grep 'Running'; then break; fi
     echo 'waiting for OSD 0 pod to be running'
@@ -315,7 +322,7 @@ function create_LV_on_disk() {
 }
 
 function deploy_first_rook_cluster() {
-  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  BLOCK=$(sudo lsblk | awk '/14G/ {print $1}' | head -1)
   create_cluster_prerequisites
   cd deploy/examples/
 
@@ -328,9 +335,9 @@ function deploy_first_rook_cluster() {
 }
 
 function deploy_second_rook_cluster() {
-  BLOCK=$(sudo lsblk|awk '/14G/ {print $1}'| head -1)
+  BLOCK=$(sudo lsblk | awk '/14G/ {print $1}' | head -1)
   cd deploy/examples/
-  NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+  NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
   yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
   yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
@@ -341,17 +348,17 @@ function deploy_second_rook_cluster() {
 
 function wait_for_rgw() {
   for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --no-headers --field-selector=status.phase=Running|wc -l)" -ge 1 ] ; then
-        echo "rgw pod is found"
-        break
+    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --no-headers --field-selector=status.phase=Running | wc -l)" -ge 1 ]; then
+      echo "rgw pod is found"
+      break
     fi
     echo "waiting for rgw pods"
     sleep 5
   done
   for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ] ; then
-        echo "rgw is ready"
-        break
+    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ]; then
+      echo "rgw is ready"
+      break
     fi
     echo "waiting for rgw becomes ready"
     sleep 5
@@ -359,25 +366,25 @@ function wait_for_rgw() {
 }
 
 function verify_operator_log_message() {
-  local message="$1"  # param 1: the message to verify exists
-  local namespace="${2:-rook-ceph}"  # optional param 2: the namespace of the CephCluster (default: rook-ceph)
+  local message="$1"                # param 1: the message to verify exists
+  local namespace="${2:-rook-ceph}" # optional param 2: the namespace of the CephCluster (default: rook-ceph)
   kubectl --namespace "$namespace" logs deployment/rook-ceph-operator | grep "$message"
 }
 
 function wait_for_operator_log_message() {
-  local message="$1"  # param 1: the message to look for
-  local timeout="$2"  # param 2: the timeout for waiting for the message to exist
-  local namespace="${3:-rook-ceph}"  # optional param 3: the namespace of the CephCluster (default: rook-ceph)
+  local message="$1"                # param 1: the message to look for
+  local timeout="$2"                # param 2: the timeout for waiting for the message to exist
+  local namespace="${3:-rook-ceph}" # optional param 3: the namespace of the CephCluster (default: rook-ceph)
   start_time="${SECONDS}"
-  while [[ $(( SECONDS - start_time )) -lt $timeout ]]; do
+  while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
     if verify_operator_log_message "$message" "$namespace"; then return 0; fi
     sleep 5
   done
   echo "timed out" >&2 && return 1
 }
 
-function restart_operator () {
-  local namespace="${1:-rook-ceph}"  # optional param 1: the namespace of the CephCluster (default: rook-ceph)
+function restart_operator() {
+  local namespace="${1:-rook-ceph}" # optional param 1: the namespace of the CephCluster (default: rook-ceph)
   kubectl --namespace "$namespace" delete pod --selector app=rook-ceph-operator
   # wait for new pod to be running
   get_pod_cmd=(kubectl --namespace "$namespace" get pod --selector app=rook-ceph-operator --no-headers)
@@ -388,11 +395,11 @@ function restart_operator () {
 
 function write_object_to_cluster1_read_from_cluster2() {
   cd deploy/examples/
-  echo "[default]" > s3cfg
-  echo "host_bucket = no.way.in.hell" >> ./s3cfg
-  echo "use_https = False" >> ./s3cfg
+  echo "[default]" >s3cfg
+  echo "host_bucket = no.way.in.hell" >>./s3cfg
+  echo "use_https = False" >>./s3cfg
   fallocate -l 1M ./1M.dat
-  echo "hello world" >> ./1M.dat
+  echo "hello world" >>./1M.dat
   CLUSTER_1_IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
   BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
   BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
@@ -418,9 +425,9 @@ function create_helm_tag() {
 
 function deploy_multus() {
   # download the multus daemonset, and remove mem and cpu limits that cause it to crash on minikube
-  curl https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-thick.yml \
-    | sed -e 's/cpu: /# cpu: /g' -e 's/memory: /# memory: /g' \
-    | kubectl apply -f -
+  curl https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-thick.yml |
+    sed -e 's/cpu: /# cpu: /g' -e 's/memory: /# memory: /g' |
+    kubectl apply -f -
 
   # install whereabouts
   kubectl apply \
@@ -462,20 +469,20 @@ function deploy_multus_cluster() {
   cd deploy/examples
   deploy_manifest_with_local_build operator.yaml
   deploy_manifest_with_local_build toolbox.yaml
-  sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\/}|g" cluster-multus-test.yaml
+  sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-multus-test.yaml
   kubectl create -f cluster-multus-test.yaml
   kubectl create -f filesystem-test.yaml
 }
 
 function wait_for_ceph_csi_configmap_to_be_updated {
   timeout 60 bash <<EOF
-until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].rbd.netNamespaceFilePath) != "null" ]]; do
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].rbd.netNamespaceFilePath) != "null" ]]; do
   echo "waiting for ceph csi configmap to be updated with rbd.netNamespaceFilePath"
   sleep 5
 done
 EOF
   timeout 60 bash <<EOF
-until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].cephFS.netNamespaceFilePath) != "null" ]]; do
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].cephFS.netNamespaceFilePath) != "null" ]]; do
   echo "waiting for ceph csi configmap to be updated with cephFS.netNamespaceFilePath"
   sleep 5
 done
