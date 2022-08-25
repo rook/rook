@@ -55,10 +55,13 @@ spec:
               - SYS_ADMIN
             privileged: true
           args:
-          - "--v={{ .LogLevel }}"
-          - "--drivername={{ .DriverNamePrefix }}nfs.csi.ceph.com"
-          - --nodeid=$(NODE_ID)
-          - --endpoint=$(CSI_ENDPOINT)
+            - "--nodeid=$(NODE_ID)"
+            - "--type=nfs"
+            - "--endpoint=$(CSI_ENDPOINT)"
+            - "--v={{ .LogLevel }}"
+            - "--nodeserver=true"
+            - "--drivername={{ .DriverNamePrefix }}nfs.csi.ceph.com"
+            - "--pidlimit=-1"
           env:
           - name: NODE_ID
             valueFrom:
@@ -67,19 +70,49 @@ spec:
                 fieldPath: spec.nodeName
           - name: CSI_ENDPOINT
             value: unix:///csi/csi.sock
-          image: {{ .NFSPluginImage }}
+          image: {{ .CSIPluginImage }}
           imagePullPolicy: IfNotPresent
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
+            - name: csi-plugins-dir
+              mountPath: "{{ .KubeletDirPath }}/plugins"
+              mountPropagation: "Bidirectional"
             - name: pods-mount-dir
               mountPath: "{{ .KubeletDirPath }}/pods"
               mountPropagation: "Bidirectional"
+            - name: host-sys
+              mountPath: /sys
+            - name: lib-modules
+              mountPath: /lib/modules
+              readOnly: true
+            - name: host-dev
+              mountPath: /dev
+            - name: ceph-csi-config
+              mountPath: /etc/ceph-csi-config/
+            - name: keys-tmp-dir
+              mountPath: /tmp/csi/keys
+            - name: host-run-mount
+              mountPath: /run/mount
+            {{ if .EnablePluginSelinuxHostMount }}
+            -  name: etc-selinux
+               mountPath: /etc/selinux
+               readOnly: true
+            {{ end }}
+            {{ if .MountCustomCephConf }}
+            - name: ceph-config
+              mountPath: /etc/ceph/ceph.conf
+              subPath: ceph.conf
+            {{ end }}
       volumes:
         - name: plugin-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}nfs.csi.ceph.com/"
             type: DirectoryOrCreate
+        - name: csi-plugins-dir
+          hostPath:
+            path: "{{ .KubeletDirPath }}/plugins"
+            type: Directory
         - name: registration-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins_registry/"
@@ -88,3 +121,38 @@ spec:
           hostPath:
             path: "{{ .KubeletDirPath }}/pods"
             type: Directory
+        - name: host-sys
+          hostPath:
+            path: /sys
+        - name: lib-modules
+          hostPath:
+            path: /lib/modules
+        - name: host-dev
+          hostPath:
+            path: /dev
+        - name: ceph-csi-config
+          configMap:
+            name: rook-ceph-csi-config
+            items:
+              - key: csi-cluster-config-json
+                path: config.json
+        - name: keys-tmp-dir
+          emptyDir: {
+            medium: "Memory"
+          }
+        - name: host-run-mount
+          hostPath:
+            path: /run/mount
+        {{ if .EnablePluginSelinuxHostMount }}
+        - name: etc-selinux
+          hostPath:
+            path: /etc/selinux
+        {{ end }}
+        {{ if .MountCustomCephConf }}
+        - name: ceph-config
+          configMap:
+            name: csi-ceph-conf-override
+            items:
+            - key: ceph.conf
+              path: ceph.conf
+        {{ end }}
