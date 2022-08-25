@@ -162,6 +162,8 @@ var (
 	NFSPluginTemplatePath string
 	//go:embed template/nfs/csi-nfsplugin-provisioner-dep.yaml
 	NFSProvisionerDepTemplatePath string
+	//go:embed template/nfs/csi-nfsplugin-holder.yaml
+	NFSPluginHolderTemplatePath string
 )
 
 const (
@@ -240,6 +242,7 @@ const (
 
 	RBDDriverShortName    = "rbd"
 	CephFSDriverShortName = "cephfs"
+	NFSDriverShortName    = "nfs"
 	rbdDriverSuffix       = "rbd.csi.ceph.com"
 	cephFSDriverSuffix    = "cephfs.csi.ceph.com"
 )
@@ -375,6 +378,14 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs provisioner deployment template")
 		}
+		enabledDrivers = append(enabledDrivers, driverDetails{
+			name:           NFSDriverShortName,
+			fullName:       NFSDriverName,
+			holderTemplate: NFSPluginHolderTemplatePath,
+			nodeAffinity:   nfsPluginNodeAffinityEnv,
+			toleration:     nfsPluginTolerationsEnv,
+			resource:       nfsPluginResource,
+		})
 	}
 
 	holderEnabled := !CSIParam.EnableCSIHostNetwork
@@ -561,7 +572,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		}
 		if holderEnabled {
 			nfsPlugin.Spec.Template.Spec.HostNetwork = false
+			// HostPID is used to communicate with the network namespace
+			nfsPlugin.Spec.Template.Spec.HostPID = true
 		}
+
 		err = k8sutil.CreateDaemonSet(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, nfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start nfs plugin daemonset %q", nfsPlugin.Name)
@@ -832,6 +846,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 		Monitors: MonEndpoints(c.clusterInfo.Monitors),
 		RBD:      &CsiRBDSpec{},
 		CephFS:   &CsiCephFSSpec{},
+		NFS:      &CsiNFSSpec{},
 	}
 	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, c.cluster.Namespace)
 	if driver.name == RBDDriverShortName {
@@ -839,6 +854,9 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 	}
 	if driver.name == CephFSDriverShortName {
 		clusterConfigEntry.CephFS.NetNamespaceFilePath = netNamespaceFilePath
+	}
+	if driver.name == NFSDriverShortName {
+		clusterConfigEntry.NFS.NetNamespaceFilePath = netNamespaceFilePath
 	}
 	// Save the path of the network namespace file for ceph-csi to use
 	err = SaveClusterConfig(r.context.Clientset, c.cluster.Namespace, c.clusterInfo, clusterConfigEntry)
