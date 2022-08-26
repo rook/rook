@@ -3,5 +3,12 @@
   "go.buildOnSave": "package",
   "files.trimTrailingWhitespace": true,
   "files.insertFinalNewline": true,
-  "files.trimFinalNewlines": true
+  "files.trimFinalNewlines": true,
+  "go.lintTool": "golangci-lint",
+  "go.lintFlags": [
+    "--fast"
+  ],
+  "python.formatting.provider": "black",
+  "python.linting.pylintEnabled": true,
+  "python.linting.enabled": true,
 }
