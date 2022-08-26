@@ -18,201 +18,201 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions: ["v1.17.17", "v1.19.16", "v1.21.7", "v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestCephHelmSuite
-      run: |
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        tests/scripts/github-action-helper.sh create_helm_tag
-        tests/scripts/helm.sh up
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
+      - name: TestCephHelmSuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          tests/scripts/github-action-helper.sh create_helm_tag
+          tests/scripts/helm.sh up
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export CLUSTER_NAMESPACE="helm-ns"
-        export OPERATOR_NAMESPACE="helm-ns-system"
-        tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="helm-ns"
+          export OPERATOR_NAMESPACE="helm-ns-system"
+          tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-helm-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-helm-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephMultiClusterDeploySuite:
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions: ["v1.17.17", "v1.19.16", "v1.21.7", "v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestCephMultiClusterDeploySuite
-      run: |
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        go test -v -timeout 1800s -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
+      - name: TestCephMultiClusterDeploySuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          go test -v -timeout 1800s -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export OPERATOR_NAMESPACE="multi-core-system"
-        CLUSTER_NAMESPACE="multi-core" tests/scripts/collect-logs.sh
-        CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export OPERATOR_NAMESPACE="multi-core-system"
+          CLUSTER_NAMESPACE="multi-core" tests/scripts/collect-logs.sh
+          CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephSmokeSuite:
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions: ["v1.17.17", "v1.19.16", "v1.21.7", "v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestCephSmokeSuite
-      run: |
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
+      - name: TestCephSmokeSuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export CLUSTER_NAMESPACE="smoke-ns"
-        export OPERATOR_NAMESPACE="smoke-ns-system"
-        tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="smoke-ns"
+          export OPERATOR_NAMESPACE="smoke-ns-system"
+          tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephUpgradeSuite:
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions: ["v1.17.17", "v1.19.16", "v1.21.7", "v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestCephUpgradeSuite
-      run: |
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
+      - name: TestCephUpgradeSuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export CLUSTER_NAMESPACE="upgrade"
-        export OPERATOR_NAMESPACE="upgrade-system"
-        tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="upgrade"
+          export OPERATOR_NAMESPACE="upgrade-system"
+          tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestHelmUpgradeSuite:
     runs-on: ubuntu-18.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.21.7', 'v1.24.1']
+        kubernetes-versions: ["v1.19.16", "v1.21.7", "v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestHelmUpgradeSuite
-      run: |
-        tests/scripts/github-action-helper.sh create_helm_tag
-        tests/scripts/helm.sh up
+      - name: TestHelmUpgradeSuite
+        run: |
+          tests/scripts/github-action-helper.sh create_helm_tag
+          tests/scripts/helm.sh up
 
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export CLUSTER_NAMESPACE="upgrade"
-        export OPERATOR_NAMESPACE="upgrade-system"
-        tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="upgrade"
+          export OPERATOR_NAMESPACE="upgrade-system"
+          tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephObjectSuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
@@ -220,36 +220,36 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17', 'v1.24.1']
+        kubernetes-versions: ["v1.17.17", "v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestCephObjectSuite
-      run: |
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -failfast -run CephObjectSuite github.com/rook/rook/tests/integration
+      - name: TestCephObjectSuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -failfast -run CephObjectSuite github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export CLUSTER_NAMESPACE="object-ns"
-        export OPERATOR_NAMESPACE="object-ns-system"
-        tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="object-ns"
+          export OPERATOR_NAMESPACE="object-ns-system"
+          tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-object-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-object-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/

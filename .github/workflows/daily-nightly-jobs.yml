@@ -340,11 +340,7 @@ jobs:
     strategy:
       matrix:
         ceph-image-tag:
-          [
-            "latest-master-devel",
-            "latest-quincy-devel",
-            "latest-pacific-devel",
-          ]
+          ["latest-master-devel", "latest-quincy-devel", "latest-pacific-devel"]
 
     steps:
       - uses: actions/checkout@v2
