@@ -99,7 +99,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
@@ -134,7 +134,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
@@ -169,7 +169,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
@@ -204,7 +204,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
@@ -239,7 +239,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
@@ -274,7 +274,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
@@ -309,7 +309,7 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.24.1"
