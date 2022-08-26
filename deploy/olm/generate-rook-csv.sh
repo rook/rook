@@ -85,8 +85,8 @@ ROOK_OP_VERSION=$3
 : "${SED_IN_PLACE:="build/sed-in-place"}"
 YQ_CMD_DELETE=($yq delete -i)
 YQ_CMD_MERGE_OVERWRITE=($yq merge --inplace --overwrite --prettyPrint)
-YQ_CMD_MERGE=($yq merge --inplace --append -P )
-YQ_CMD_WRITE=($yq write --inplace -P )
+YQ_CMD_MERGE=($yq merge --inplace --append -P)
+YQ_CMD_WRITE=($yq write --inplace -P)
 OPERATOR_YAML_FILE_K8S="deploy/examples/operator.yaml"
 OPERATOR_YAML_FILE_OCP="deploy/examples/operator-openshift.yaml"
 CSV_PATH="$OLM_CATALOG_DIR/deploy/olm-catalog/${PLATFORM}/${VERSION}"
@@ -105,7 +105,7 @@ fi
 #############
 # FUNCTIONS #
 #############
-function create_directories(){
+function create_directories() {
     mkdir -p "$CSV_PATH"
     mkdir -p "$OLM_CATALOG_DIR/deploy/crds"
 }
@@ -115,10 +115,10 @@ function cleanup() {
     "${YQ_CMD_DELETE[@]}" "$CSV_FILE_NAME" 'spec.install.spec.deployments[0].spec.template.metadata.creationTimestamp'
 }
 
-function generate_csv(){
-    pushd "$OLM_CATALOG_DIR" &> /dev/null
+function generate_csv() {
+    pushd "$OLM_CATALOG_DIR" &>/dev/null
     "${OP_SDK_CMD[@]}" "$VERSION"
-    popd &> /dev/null
+    popd &>/dev/null
 
     mv "$CSV_BUNDLE_PATH/olm.clusterserviceversion.yaml" "$CSV_FILE_NAME"
 
@@ -159,7 +159,7 @@ function generate_operator_yaml() {
         operator_file=$OPERATOR_YAML_FILE_OCP
     fi
 
-    sed -n '/^# OLM: BEGIN OPERATOR DEPLOYMENT$/,/# OLM: END OPERATOR DEPLOYMENT$/p' "$operator_file" > "$OLM_OPERATOR_YAML_FILE"
+    sed -n '/^# OLM: BEGIN OPERATOR DEPLOYMENT$/,/# OLM: END OPERATOR DEPLOYMENT$/p' "$operator_file" >"$OLM_OPERATOR_YAML_FILE"
 }
 
 function hack_csv() {
@@ -210,7 +210,7 @@ function generate_package() {
     "${YQ_CMD_WRITE[@]}" "$PACKAGE_FILE" channels[0].currentCSV "rook-ceph.v${VERSION}"
 }
 
-function apply_rook_op_img(){
+function apply_rook_op_img() {
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.containerImage "$ROOK_OP_VERSION"
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.install.spec.deployments[0].spec.template.spec.containers[0].image "$ROOK_OP_VERSION"
 }
@@ -232,12 +232,9 @@ function validate_crds() {
 create_directories
 generate_operator_yaml "$@"
 
-# Do not include Pod Security Policy (PSP) resources for CSV generation since OLM uses
-# Security Context Constraints (SCC).
-export DO_NOT_INCLUDE_POD_SECURITY_POLICY_RESOURCES=true
 # Generate csi nfs rbac too.
-export ADDITIONAL_HELM_CLI_OPTIONS="--set csi.nfs.enabled=true"
-./build/rbac/get-helm-rbac.sh > "$OLM_RBAC_YAML_FILE"
+export ADDITIONAL_HELM_CLI_OPTIONS="--set csi.nfs.enabled=true --set pspEnable=false"
+./build/rbac/get-helm-rbac.sh >"$OLM_RBAC_YAML_FILE"
 
 # TODO: do we need separate clusterrole/clusterrolebinding/role/rolebinding/serviceaccount files, or
 # can these just stay in rbac.yaml? If they need to be separate, we can do that here with YQ.
