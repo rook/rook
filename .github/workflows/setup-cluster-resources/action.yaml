@@ -20,7 +20,7 @@ runs:
       uses: manusa/actions-setup-minikube@v2.7.0
 >>>>>>> e82516607 (ci: update minikube setup action to 2.7.0):.github/workflows/canary-test-config/action.yaml
       with:
-        minikube version: "v1.24.0"
+        minikube version: "v1.26.1"
         kubernetes version: "v1.23.0"
         start args: --memory 6g --cpus=2 --addons ingress --cni=calico
         github token: ${{ inputs.github-token }}
