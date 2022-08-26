@@ -18,7 +18,7 @@ defaults:
 
 jobs:
   canary:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -397,7 +397,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   raw-disk:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -864,7 +864,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   pvc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -1000,7 +1000,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   pvc-db:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -1102,7 +1102,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   pvc-db-wal:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -1968,7 +1968,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   multi-cluster-mirroring:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -2356,7 +2356,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   rgw-multisite-testing:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD
@@ -2416,7 +2416,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   encryption-pvc-kms-ibm-kp:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
 <<<<<<< HEAD
     - uses: actions/checkout@v2
@@ -2483,7 +2483,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   multus-cluster-network:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -2559,7 +2559,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   csi-hostnetwork-disabled:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
 <<<<<<< HEAD

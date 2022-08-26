@@ -14,7 +14,7 @@ defaults:
 
 jobs:
   TestCephHelmSuite:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -93,7 +93,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   TestCephMultiClusterDeploySuite:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -170,7 +170,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   TestCephSmokeSuite:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -245,7 +245,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   TestCephUpgradeSuite:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -320,7 +320,7 @@ jobs:
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
   TestHelmUpgradeSuite:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
@@ -402,7 +402,7 @@ jobs:
 
   TestCephObjectSuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:

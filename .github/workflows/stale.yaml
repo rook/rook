@@ -11,8 +11,12 @@ jobs:
     permissions:
       issues: write # for actions/stale to close stale issues
       pull-requests: write # for actions/stale to close stale PRs
+<<<<<<< HEAD
 >>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
     runs-on: ubuntu-18.04
+=======
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     if: github.repository == 'rook/rook'
     steps:
       - uses: actions/stale@v4

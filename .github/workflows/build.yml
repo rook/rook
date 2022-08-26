@@ -68,7 +68,12 @@ jobs:
       timeout-minutes: 60
 
   linux-build-all:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     strategy:
       fail-fast: false
       matrix:

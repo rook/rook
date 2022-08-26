@@ -90,7 +90,12 @@ jobs:
           path: test
 
   smoke-suite-pacific-devel:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -124,7 +129,12 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   smoke-suite-quincy-devel:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -158,7 +168,12 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   smoke-suite-ceph-master:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -192,7 +207,12 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-pacific-devel:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -226,7 +246,12 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-master:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -260,7 +285,12 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   upgrade-from-pacific-stable-to-pacific-devel:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -293,8 +323,14 @@ jobs:
           name: ceph-upgrade-suite-pacific-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+<<<<<<< HEAD
   upgrade-from-octopus-stable-to-octopus-devel:
     runs-on: ubuntu-18.04
+=======
+  upgrade-from-quincy-stable-to-quincy-devel:
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -328,7 +364,12 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   rgw-multisite-test-with-ceph-devel:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     strategy:
       matrix:
 <<<<<<< HEAD
@@ -357,7 +398,12 @@ jobs:
         path: test
 
   encryption-pvc-kms-ibm-kp:
+<<<<<<< HEAD
     runs-on: ubuntu-18.04
+=======
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-20.04
+>>>>>>> aec9ac306 (ci: ubuntu 18.04 is deprecated upgrade to ubuntu 22.04)
     steps:
     - uses: actions/checkout@v2
       with:
