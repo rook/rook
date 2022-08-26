@@ -195,9 +195,10 @@ func TestCephObjectStoreUserController(t *testing.T) {
 	t.Run("failure CephCluster is ready but NO rgw object", func(t *testing.T) {
 		// Mock clusterInfo
 		secrets := map[string][]byte{
-			"fsid":         []byte(name),
-			"mon-secret":   []byte("monsecret"),
-			"admin-secret": []byte("adminsecret"),
+			"fsid":                   []byte(name),
+			"mon-secret":             []byte("monsecret"),
+			"admin-secret":           []byte("adminsecret"),
+			"ceph-operator-username": []byte("client.rookoperator"),
 		}
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{

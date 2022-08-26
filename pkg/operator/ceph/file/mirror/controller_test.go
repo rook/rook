@@ -174,9 +174,10 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 	t.Run("error - ceph cluster ready but version is too old", func(t *testing.T) {
 		// Mock clusterInfo
 		secrets := map[string][]byte{
-			"fsid":         []byte(name),
-			"mon-secret":   []byte("monsecret"),
-			"admin-secret": []byte("adminsecret"),
+			"fsid":                   []byte(name),
+			"mon-secret":             []byte("monsecret"),
+			"admin-secret":           []byte("adminsecret"),
+			"ceph-operator-username": []byte("client.rookoperator"),
 		}
 		secret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{

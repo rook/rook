@@ -456,9 +456,10 @@ func TestCephObjectStoreController(t *testing.T) {
 		r := setupNewEnvironment(cephCluster)
 
 		secrets := map[string][]byte{
-			"fsid":         []byte(name),
-			"mon-secret":   []byte("monsecret"),
-			"admin-secret": []byte("adminsecret"),
+			"fsid":                   []byte(name),
+			"mon-secret":             []byte("monsecret"),
+			"admin-secret":           []byte("adminsecret"),
+			"ceph-operator-username": []byte("client.rookoperator"),
 		}
 		secret := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
@@ -590,9 +591,10 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	}
 
 	secrets := map[string][]byte{
-		"fsid":         []byte(name),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
+		"fsid":                   []byte(name),
+		"mon-secret":             []byte("monsecret"),
+		"admin-secret":           []byte("adminsecret"),
+		"ceph-operator-username": []byte("client.rookoperator"),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -819,9 +821,10 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 	}
 
 	secrets := map[string][]byte{
-		"fsid":         []byte(name),
-		"mon-secret":   []byte("monsecret"),
-		"admin-secret": []byte("adminsecret"),
+		"fsid":                   []byte(name),
+		"mon-secret":             []byte("monsecret"),
+		"admin-secret":           []byte("adminsecret"),
+		"ceph-operator-username": []byte("client.rookoperator"),
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

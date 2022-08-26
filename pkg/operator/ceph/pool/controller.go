@@ -202,9 +202,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, cephCluster.Spec.External.Enable)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrap(err, "failed to populate cluster info")
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
+		}
+		return result, *cephBlockPool, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo = clusterInfo
 	r.clusterInfo.NetworkSpec = cephCluster.Spec.Network

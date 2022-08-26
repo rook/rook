@@ -147,9 +147,13 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	r.clusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace, cephCluster.Spec.External.Enable)
 	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
+		}
+		return result, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// DELETE: the CR was deleted

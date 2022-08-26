@@ -177,9 +177,13 @@ func (r *ReconcileFilesystemMirror) reconcile(request reconcile.Request) (reconc
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, cephCluster.Spec.External.Enable)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, *filesystemMirror, errors.Wrap(err, "failed to populate cluster info")
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
+		}
+		return result, *filesystemMirror, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Detect desired CephCluster version

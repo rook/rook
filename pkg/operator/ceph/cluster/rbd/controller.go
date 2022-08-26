@@ -187,9 +187,13 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, cephCluster.Spec.External.Enable)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, *cephRBDMirror, errors.Wrap(err, "failed to populate cluster info")
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
+		}
+		return result, *cephRBDMirror, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Detect desired CephCluster version

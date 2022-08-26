@@ -233,9 +233,13 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.clusterSpec.External.Enable)
 	if err != nil {
-		return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to populate cluster info")
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
+		}
+		return result, *cephObjectStore, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// DELETE: the CR was deleted

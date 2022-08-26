@@ -147,14 +147,13 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace, cephCluster.Spec.External.Enable)
 	if err != nil {
-		// This avoids a requeue with exponential backoff and allows the controller to reconcile
-		// more quickly when the cluster is ready.
-		if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) || errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
 		}
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
+		return result, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo = clusterInfo
 

@@ -187,9 +187,13 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, cephCluster.Spec.External.Enable)
 	if err != nil {
-		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to populate cluster info")
+		result := opcontroller.ImmediateRetryResult
+		if errors.Is(err, opcontroller.ClusterInfoNoOperatorKeyring) {
+			result = opcontroller.WaitForRequeueIfOperatorNotInitialized
+		}
+		return result, *cephObjectStoreUser, errors.Wrap(err, "failed to populate cluster info")
 	}
 
 	// Validate the object store has been initialized

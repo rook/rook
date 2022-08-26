@@ -70,6 +70,7 @@ const (
 
 var (
 	ClusterInfoNoClusterNoSecret = errors.New("not expected to create new cluster info and did not find existing secret")
+	ClusterInfoNoOperatorKeyring = errors.New("client.rookoperator keyring not found yet")
 	externalConnectionRetry      = 60 * time.Second
 	adminCapArgs                 = []string{
 		"--cap", "mon", "'allow *'",
@@ -94,12 +95,17 @@ type MonScheduleInfo struct {
 }
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(ctx *clusterd.Context, context context.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
+func LoadClusterInfo(ctx *clusterd.Context, context context.Context, namespace string, isExternal bool) (*cephclient.ClusterInfo, int, *Mapping, error) {
+	return CreateOrLoadClusterInfo(ctx, context, namespace, nil, !isExternal)
+}
+
+// LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
+func LoadClusterInfoAnyUser(ctx *clusterd.Context, context context.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	return CreateOrLoadClusterInfo(ctx, context, namespace, nil, false)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo, isExternal bool) (*cephclient.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo, requireOperatorKeyring bool) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
@@ -136,6 +142,10 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		if cephUsername, ok := secrets.Data[CephOperatorUsernameKey]; ok {
 			clusterInfo.CephCred.Username = string(cephUsername)
 			clusterInfo.CephCred.Secret = string(secrets.Data[CephOperatorUserSecretKey])
+		} else if requireOperatorKeyring {
+			// No client.rookoperator keyring generated yet, so the caller will wait until it is created
+			// This error condition only applies to converged clusters.
+			return nil, maxMonID, monMapping, ClusterInfoNoOperatorKeyring
 		} else {
 			// Fall back to get the original keyring (either the client.admin or keyring for external user)
 			secrets.Data[CephOperatorUsernameKey] = secrets.Data[CephUsernameKey]
@@ -347,7 +357,7 @@ func PopulateExternalClusterInfo(context *clusterd.Context, ctx context.Context,
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil, true)
+		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil, false)
 		if err != nil {
 			logger.Warningf("waiting for connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			logger.Debugf("%v", err)
