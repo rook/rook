@@ -90,7 +90,7 @@ jobs:
         timeout-minutes: 60
 
   linux-build-all:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       fail-fast: false

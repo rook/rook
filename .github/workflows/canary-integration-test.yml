@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   canary:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -216,7 +216,7 @@ jobs:
         timeout-minutes: 60
 
   raw-disk:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -489,7 +489,7 @@ jobs:
         timeout-minutes: 60
 
   pvc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -562,7 +562,7 @@ jobs:
         timeout-minutes: 60
 
   pvc-db:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -618,7 +618,7 @@ jobs:
         timeout-minutes: 60
 
   pvc-db-wal:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1086,7 +1086,7 @@ jobs:
         timeout-minutes: 60
 
   multi-cluster-mirroring:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1285,7 +1285,7 @@ jobs:
         timeout-minutes: 60
 
   rgw-multisite-testing:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1320,7 +1320,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc-kms-ibm-kp:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
@@ -1358,7 +1358,7 @@ jobs:
         timeout-minutes: 60
 
   multus-cluster-network:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1420,7 +1420,7 @@ jobs:
         timeout-minutes: 60
 
   csi-hostnetwork-disabled:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
