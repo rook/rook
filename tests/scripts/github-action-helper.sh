@@ -199,6 +199,7 @@ function deploy_manifest_with_local_build() {
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
   fi
+  sed -i "s|ROOK_LOG_LEVEL:.*|ROOK_LOG_LEVEL: DEBUG|g" "$1"
   kubectl create -f $1
 }
 
