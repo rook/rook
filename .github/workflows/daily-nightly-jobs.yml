@@ -91,7 +91,7 @@ jobs:
 
   smoke-suite-pacific-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -126,7 +126,7 @@ jobs:
 
   smoke-suite-quincy-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -161,7 +161,7 @@ jobs:
 
   smoke-suite-ceph-master:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -196,7 +196,7 @@ jobs:
 
   object-suite-pacific-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -231,7 +231,7 @@ jobs:
 
   object-suite-master:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -266,7 +266,7 @@ jobs:
 
   upgrade-from-pacific-stable-to-pacific-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -301,7 +301,7 @@ jobs:
 
   upgrade-from-quincy-stable-to-quincy-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -336,7 +336,7 @@ jobs:
 
   rgw-multisite-test-with-ceph-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         ceph-image-tag:
@@ -362,7 +362,7 @@ jobs:
 
   encryption-pvc-kms-ibm-kp:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
