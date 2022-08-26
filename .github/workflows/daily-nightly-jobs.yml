@@ -103,7 +103,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -142,7 +146,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -181,7 +189,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -220,7 +232,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -259,7 +275,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -298,7 +318,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"
@@ -338,7 +362,11 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
+<<<<<<< HEAD
         uses: ./.github/workflows/integration-test-setup
+=======
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+>>>>>>> e82516607 (ci: update minikube setup action to 2.7.0)
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: "1.23.0"

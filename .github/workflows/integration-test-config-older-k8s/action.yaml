@@ -11,48 +11,27 @@ inputs:
 runs:
   using: "composite"
   steps:
-<<<<<<< HEAD:.github/workflows/integration-test-setup/action.yaml
-  - name: setup golang
-    uses: actions/setup-go@v2
-    with:
-      go-version: 1.17
-
-  - name: setup minikube
-    uses: manusa/actions-setup-minikube@v2.4.2
-    with:
-      minikube version: "v1.24.0"
-      kubernetes version: ${{ inputs.kubernetes-version }}
-      start args: --memory 6g --cpus=2 --addons ingress
-      github token: ${{ inputs.github-token }}
-=======
     - name: setup golang
       uses: actions/setup-go@v2
       with:
         go-version: 1.18
 
     - name: setup minikube
-      uses: manusa/actions-setup-minikube@v2.7.0
+      uses: manusa/actions-setup-minikube@v2.6.1
       with:
         minikube version: "v1.26.0"
         kubernetes version: ${{ inputs.kubernetes-version }}
         start args: --memory 6g --cpus=2 --addons ingress
         github token: ${{ inputs.github-token }}
->>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files):.github/workflows/integration-test-config/action.yaml
 
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-<<<<<<< HEAD:.github/workflows/integration-test-setup/action.yaml
-  - name: use local disk
-    shell: bash --noprofile --norc -eo pipefail -x {0}
-    run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
-=======
     # This step is required for all the integration tests except the canary tests
     - name: use local disk
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
->>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files):.github/workflows/integration-test-config/action.yaml
 
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}

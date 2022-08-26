@@ -35,7 +35,7 @@ jobs:
         kubernetes-version: ${{ matrix.kubernetes-versions }}
 =======
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
