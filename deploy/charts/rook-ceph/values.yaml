@@ -316,22 +316,22 @@ csi:
   # CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   csiNFSPluginResource: |
-   - name : driver-registrar
-     resource:
-       requests:
-         memory: 128Mi
-         cpu: 50m
-       limits:
-         memory: 256Mi
-         cpu: 100m
-   - name : csi-nfsplugin
-     resource:
-       requests:
-         memory: 512Mi
-         cpu: 250m
-       limits:
-         memory: 1Gi
-         cpu: 500m
+    - name : driver-registrar
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+          cpu: 100m
+    - name : csi-nfsplugin
+      resource:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m
 
   # Set provisionerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
@@ -360,17 +360,17 @@ csi:
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
-    #image: quay.io/cephcsi/cephcsi:v3.7.0
+  #  image: quay.io/cephcsi/cephcsi:v3.7.0
   #registrar:
-    #image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1
+  #  image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1
   #provisioner:
-    #image: registry.k8s.io/sig-storage/csi-provisioner:v3.1.0
+  #  image: registry.k8s.io/sig-storage/csi-provisioner:v3.1.0
   #snapshotter:
-    #image: registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1
+  #  image: registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1
   #attacher:
-    #image: registry.k8s.io/sig-storage/csi-attacher:v3.4.0
+  #  image: registry.k8s.io/sig-storage/csi-attacher:v3.4.0
   #resizer:
-    #image: registry.k8s.io/sig-storage/csi-resizer:v1.4.0
+  #  image: registry.k8s.io/sig-storage/csi-resizer:v1.4.0
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI NFS Deployments and DaemonSets Pods.

@@ -52,7 +52,6 @@ those releases.
 * The minimum supported version of Ceph-CSI is v3.6.0. You must update to at least this version of
   Ceph-CSI before or at the same time you update the Rook operator image to v1.10
 
-
 ## Considerations
 
 With this upgrade guide, there are a few notes to consider:
