@@ -331,7 +331,12 @@ jobs:
     runs-on: ubuntu-18.04
     strategy:
       matrix:
+<<<<<<< HEAD
         ceph-image-tag: ['latest-master-devel', 'latest-octopus-devel', 'latest-pacific-devel']
+=======
+        ceph-image-tag:
+          ["latest-master-devel", "latest-quincy-devel", "latest-pacific-devel"]
+>>>>>>> 0ae55eb47 (ci: add right indentation for ci yaml and sh files)
 
     steps:
     - uses: actions/checkout@v2
