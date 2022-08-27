@@ -1,4 +1,5 @@
 {{- if .Values.pspEnable }}
+{{- if semverCompare "<1.25.0-0" .Capabilities.KubeVersion.GitVersion }}
 # We expect most Kubernetes teams to follow the Kubernetes docs and have these PSPs.
 # * privileged (for kube-system namespace)
 # * restricted (for all logged in users)
@@ -167,5 +168,6 @@ subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
+{{- end }}
 {{- end }}
 {{- end }}
