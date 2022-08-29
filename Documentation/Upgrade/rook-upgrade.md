@@ -135,7 +135,10 @@ export ROOK_CLUSTER_NAMESPACE=rook-ceph
 ### **1. Update common resources and CRDs**
 
 !!! hint
-    If you are upgrading via the Helm chart, the common resources and CRDs are automatically updated.
+    If you are upgrading via the Helm chart, the common resources are
+    automatically updated. [Helm v3 will not update existing
+    CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/).
+    CRDs **must** be updated manually when using Helm v3.
 
 First apply updates to Rook common resources. This includes modified privileges (RBAC) needed
 by the Operator. Also update the Custom Resource Definitions (CRDs).
