@@ -90,9 +90,6 @@ data:
 {{- end }}
 {{- if .Values.csi.nfs }}
   ROOK_CSI_ENABLE_NFS: {{ .Values.csi.nfs.enabled | quote }}
-{{- if .Values.csi.nfs.image }}
-  ROOK_CSI_NFS_IMAGE: {{ .Values.csi.nfs.image | quote }}
-{{- end }}
 {{- end }}
 {{- if .Values.csi.cephfsPodLabels }}
   ROOK_CSI_CEPHFS_POD_LABELS: {{ .Values.csi.cephfsPodLabels | quote }}
