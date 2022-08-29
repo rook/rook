@@ -18,54 +18,54 @@ concurrency:
 jobs:
   TestCephMultiClusterDeploySuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.24.1']
+        kubernetes-versions: ["v1.24.1"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup cluster resources
-      uses: ./.github/workflows/integration-test-config
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        kubernetes-version: ${{ matrix.kubernetes-versions }}
+      - name: setup cluster resources
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-    - name: TestCephMultiClusterDeploySuite
-      run: |
-        tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-        export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-        export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-        go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
+      - name: TestCephMultiClusterDeploySuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
 
-    - name: collect common logs
-      if: always()
-      run: |
-        export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-        export OPERATOR_NAMESPACE="multi-core-system"
-        CLUSTER_NAMESPACE="multi-core" tests/scripts/collect-logs.sh
-        CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export OPERATOR_NAMESPACE="multi-core-system"
+          CLUSTER_NAMESPACE="multi-core" tests/scripts/collect-logs.sh
+          CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
 
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      if: failure()
-      with:
-        name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
-        path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+      - name: Artifact
+        uses: actions/upload-artifact@v2
+        if: failure()
+        with:
+          name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-    - name: consider debugging
-      if: failure() && github.event_name == 'pull_request'
-      run: |
-        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
-        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-          echo USE_TMATE=1 >> $GITHUB_ENV
-        fi
+      - name: consider debugging
+        if: failure() && github.event_name == 'pull_request'
+        run: |
+          # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+          if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+            echo USE_TMATE=1 >> $GITHUB_ENV
+          fi
 
-    - name: set up tmate session for debugging
-      if: failure() && env.USE_TMATE
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60
+      - name: set up tmate session for debugging
+        if: failure() && env.USE_TMATE
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60
