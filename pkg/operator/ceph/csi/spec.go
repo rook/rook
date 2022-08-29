@@ -40,7 +40,6 @@ import (
 
 type Param struct {
 	CSIPluginImage                 string
-	NFSPluginImage                 string
 	RegistrarImage                 string
 	ProvisionerImage               string
 	AttacherImage                  string
@@ -128,7 +127,6 @@ var (
 var (
 	// image names
 	DefaultCSIPluginImage         = "quay.io/cephcsi/cephcsi:v3.7.0"
-	DefaultNFSPluginImage         = "registry.k8s.io/sig-storage/nfsplugin:v4.0.0"
 	DefaultRegistrarImage         = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1"
 	DefaultProvisionerImage       = "registry.k8s.io/sig-storage/csi-provisioner:v3.2.1"
 	DefaultAttacherImage          = "registry.k8s.io/sig-storage/csi-attacher:v3.5.0"
