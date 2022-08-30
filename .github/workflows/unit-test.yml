@@ -26,21 +26,21 @@ permissions:
 
 jobs:
   unittests:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: 1.18
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
 
-    - name: copy working directory to GOPATH
-      run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
+      - name: copy working directory to GOPATH
+        run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
 
-    - name: run unit tests
-      working-directory: /home/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make -j $(nproc) test
+      - name: run unit tests
+        working-directory: /home/runner/go/src/github.com/rook/rook
+        run: GOPATH=$(go env GOPATH) make -j $(nproc) test

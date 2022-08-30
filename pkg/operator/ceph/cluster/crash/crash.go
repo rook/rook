@@ -164,9 +164,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 
 	// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
 	if useCronJobV1 {
-		if err := r.deletev1betaJob(objectMeta); err != nil {
-			return controllerutil.OperationResultNone, err
-		}
+		r.deletev1betaJob(objectMeta)
 
 		cronJob := &v1.CronJob{ObjectMeta: objectMeta}
 		err := controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
@@ -202,18 +200,16 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, cronJob, mutateFunc)
 }
 
-func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) error {
+func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) {
 	// delete v1beta1 cronJob on an update to v1 job,only if v1 job is not created yet
 	if _, err := r.context.Clientset.BatchV1().CronJobs(objectMeta.Namespace).Get(r.opManagerContext, prunerName, metav1.GetOptions{}); err != nil {
 		if apierrors.IsNotFound(err) {
 			err = r.client.Delete(r.opManagerContext, &v1beta1.CronJob{ObjectMeta: objectMeta})
 			if err != nil && !apierrors.IsNotFound(err) {
-				return errors.Wrapf(err, "failed to delete CronJob v1Beta1 %q", prunerName)
+				logger.Debugf("could not delete CronJob v1Beta1 %q. %v", prunerName, err)
 			}
 		}
 	}
-
-	return nil
 }
 
 func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {

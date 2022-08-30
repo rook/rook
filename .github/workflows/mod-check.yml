@@ -26,19 +26,19 @@ permissions:
 
 jobs:
   modcheck:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: 1.18
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.18
 
-    - name: run mod check
-      run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
+      - name: run mod check
+        run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
 
-    - name: validate modcheck
-      run: tests/scripts/validate_modified_files.sh modcheck
+      - name: validate modcheck
+        run: tests/scripts/validate_modified_files.sh modcheck

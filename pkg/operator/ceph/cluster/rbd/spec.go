@@ -17,8 +17,6 @@ limitations under the License.
 package rbd
 
 import (
-	"fmt"
-
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -52,7 +50,12 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	if r.cephClusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-client.rbd-mirror.%s", daemonConfig.DaemonID), r.clusterInfo.Namespace, *r.cephClusterSpec))
+
+		// The rbd mirror daemon logs to multiple logs, so we need a more generous log rotation filter for files:
+		// ceph-client.rbd-mirror.a.log
+		// <CLUSTER_FSID>-client.rbd-mirror-peer.log
+		logRotationFilter := "*-client.rbd-mirror*"
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(logRotationFilter, r.clusterInfo.Namespace, *r.cephClusterSpec))
 	}
 
 	// Replace default unreachable node toleration
