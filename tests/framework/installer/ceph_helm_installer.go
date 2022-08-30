@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -136,10 +135,6 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 				"path": "/ceph-dashboard(/|$)(.*)",
 			},
 		},
-	}
-	if !utils.VersionAtLeast(h.settings.KubernetesVersion, "v1.17.0") {
-		values["cephFilesystems"] = map[string]interface{}{}
-		values["cephObjectStores"] = map[string]interface{}{}
 	}
 
 	if err := h.CreateBlockPoolConfiguration(values, BlockPoolName, BlockPoolSCName); err != nil {
