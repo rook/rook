@@ -18,7 +18,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.25.0']
+        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -28,7 +28,7 @@ jobs:
       - name: check matrix k8s version
         run: |
           echo USE_K8S=$(echo ${{ matrix.kubernetes-versions }})
-          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.17.17" ]; then
+          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.19.16" ]; then
             echo "OLDER_K8S=true" >> $GITHUB_ENV
           else
             echo "OLDER_K8S=false" >> $GITHUB_ENV
@@ -77,7 +77,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -87,7 +87,7 @@ jobs:
       - name: check matrix k8s version
         run: |
           echo USE_K8S=$(echo ${{ matrix.kubernetes-versions }})
-          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.17.17" ]; then
+          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.19.16" ]; then
             echo "OLDER_K8S=true" >> $GITHUB_ENV
           else
             echo "OLDER_K8S=false" >> $GITHUB_ENV
@@ -135,7 +135,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -145,7 +145,7 @@ jobs:
       - name: check matrix k8s version
         run: |
           echo USE_K8S=$(echo ${{ matrix.kubernetes-versions }})
-          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.17.17" ]; then
+          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.19.16" ]; then
             echo "OLDER_K8S=true" >> $GITHUB_ENV
           else
             echo "OLDER_K8S=false" >> $GITHUB_ENV
@@ -192,7 +192,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17','v1.19.16','v1.21.7','v1.24.1']
+        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -202,7 +202,7 @@ jobs:
       - name: check matrix k8s version
         run: |
           echo USE_K8S=$(echo ${{ matrix.kubernetes-versions }})
-          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.17.17" ]; then
+          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.19.16" ]; then
             echo "OLDER_K8S=true" >> $GITHUB_ENV
           else
             echo "OLDER_K8S=false" >> $GITHUB_ENV
@@ -249,7 +249,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.21.7', 'v1.24.1']
+        kubernetes-versions : ['v1.19.16','v1.23.10','v1.25.0']
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -264,7 +264,7 @@ jobs:
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: setup older cluster resources
-        if: ${{ matrix.kubernetes-versions }} == "v1.17.17"
+        if: ${{ matrix.kubernetes-versions }} == "v1.19.16"
         uses: ./.github/workflows/integration-test-config-older-k8s
 
       - name: TestHelmUpgradeSuite
@@ -297,7 +297,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.17.17', 'v1.24.1']
+        kubernetes-versions : ['v1.19.16','v1.25.0']
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -307,7 +307,7 @@ jobs:
       - name: check matrix k8s version
         run: |
           echo USE_K8S=$(echo ${{ matrix.kubernetes-versions }})
-          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.17.17" ]; then
+          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.19.16" ]; then
             echo "OLDER_K8S=true" >> $GITHUB_ENV
           else
             echo "OLDER_K8S=false" >> $GITHUB_ENV

@@ -461,13 +461,9 @@ func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *su
 	err := helper.FSClient.CreateStorageClass(filesystemName, settings.OperatorNamespace, settings.Namespace, storageClassName)
 	assert.NoError(s.T(), err)
 	assert.NoError(s.T(), err)
-	if !skipSnapshotTest(k8sh) {
-		fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace)
-	}
+	fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace)
+	fileSystemCSICloneTest(helper, k8sh, s, storageClassName, settings.Namespace)
 
-	if !skipCloneTest(k8sh) {
-		fileSystemCSICloneTest(helper, k8sh, s, storageClassName, settings.Namespace)
-	}
 	cleanupFilesystem(helper, k8sh, s, settings.Namespace, filesystemName)
 	err = helper.FSClient.DeleteStorageClass(storageClassName)
 	assertNoErrorUnlessNotFound(s, err)
