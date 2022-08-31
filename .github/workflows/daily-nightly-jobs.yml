@@ -1,7 +1,19 @@
 name: Daily nightly jobs
 on:
-  schedule:
-    - cron: "0 0 * * *" # every day at midnight
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+#
+#on:
+#  schedule:
+#    - cron: "0 0 * * *" # every day at midnight
 
 defaults:
   run:
@@ -43,7 +55,9 @@ jobs:
           minikube start --memory 28g --cpus=12 --driver=docker
 
       - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+        run: |
+          sudo apt-get install -y jq
+          tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
       - name: use local disk and create partitions for osds
         run: |
