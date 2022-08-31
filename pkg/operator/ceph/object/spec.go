@@ -210,7 +210,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
 	labels := getLabels(c.store.Name, c.store.Namespace, false)
-	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.clusterSpec.Network.IsHost(), v1.LabelHostname, labels, nil)
+	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.IsHostNetwork(c.clusterSpec), v1.LabelHostname, labels, nil)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -452,7 +452,7 @@ func (c *clusterConfig) generateProbePort() intstr.IntOrString {
 	port := intstr.FromInt(int(rgwPortInternalPort))
 
 	// If Host Networking is enabled, the port from the spec must be reflected
-	if c.clusterSpec.Network.IsHost() {
+	if c.store.Spec.IsHostNetwork(c.clusterSpec) {
 		port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
 	}
 
@@ -474,7 +474,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	if c.store.Spec.Gateway.Service != nil {
 		c.store.Spec.Gateway.Service.Annotations.ApplyToObjectMeta(&svc.ObjectMeta)
 	}
-	if c.clusterSpec.Network.IsHost() {
+	if c.store.Spec.IsHostNetwork(c.clusterSpec) {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
