@@ -114,6 +114,12 @@ spec:
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            {{ if .CSIEnableMetadata }}
+            - "--setmetadata={{ .CSIEnableMetadata }}"
+            {{ end }}
+            {{ if .CSIClusterName }}
+            - "--clustername={{ .CSIClusterName }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:
