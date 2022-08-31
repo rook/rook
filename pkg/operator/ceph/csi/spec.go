@@ -130,10 +130,10 @@ var (
 	DefaultCSIPluginImage         = "quay.io/cephcsi/cephcsi:v3.7.0"
 	DefaultNFSPluginImage         = "registry.k8s.io/sig-storage/nfsplugin:v4.0.0"
 	DefaultRegistrarImage         = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1"
-	DefaultProvisionerImage       = "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0"
-	DefaultAttacherImage          = "registry.k8s.io/sig-storage/csi-attacher:v3.4.0"
+	DefaultProvisionerImage       = "registry.k8s.io/sig-storage/csi-provisioner:v3.2.1"
+	DefaultAttacherImage          = "registry.k8s.io/sig-storage/csi-attacher:v3.5.0"
 	DefaultSnapshotterImage       = "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
-	DefaultResizerImage           = "registry.k8s.io/sig-storage/csi-resizer:v1.4.0"
+	DefaultResizerImage           = "registry.k8s.io/sig-storage/csi-resizer:v1.5.0"
 	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.3.0"
 	DefaultCSIAddonsImage         = "quay.io/csiaddons/k8s-sidecar:v0.4.0"
 
