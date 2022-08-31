@@ -152,11 +152,9 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableOIDCTokenProjection = true
 	}
 
-	// if k8s >= v1.17 enable RBD and CephFS snapshotter by default
-	if ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForSnapshot {
-		CSIParam.EnableRBDSnapshotter = true
-		CSIParam.EnableCephFSSnapshotter = true
-	}
+	// enable RBD and CephFS snapshotter by default
+	CSIParam.EnableRBDSnapshotter = true
+	CSIParam.EnableCephFSSnapshotter = true
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false

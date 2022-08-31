@@ -13,7 +13,7 @@ from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.17** or higher is supported by Rook.
+Kubernetes **v1.19** or higher is supported by Rook.
 
 ## CPU Architecture
 

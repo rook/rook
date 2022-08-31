@@ -158,13 +158,13 @@ pull_request_rules:
       - "check-success=lvm-pvc"
       - "check-success=multi-cluster-mirroring"
       - "check-success=rgw-multisite-testing"
-      - "check-success=TestCephSmokeSuite (v1.17.17)"
-      - "check-success=TestCephSmokeSuite (v1.24.1)"
-      - "check-success=TestCephHelmSuite (v1.17.17)"
-      - "check-success=TestCephHelmSuite (v1.24.1)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.24.1)"
-      - "check-success=TestCephUpgradeSuite (v1.17.17)"
-      - "check-success=TestCephUpgradeSuite (v1.24.1)"
+      - "check-success=TestCephSmokeSuite (v1.19.16)"
+      - "check-success=TestCephSmokeSuite (v1.25.0)"
+      - "check-success=TestCephHelmSuite (v1.19.16)"
+      - "check-success=TestCephHelmSuite (v1.25.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.25.0"
+      - "check-success=TestCephUpgradeSuite (v1.19.16)"
+      - "check-success=TestCephUpgradeSuite (v1.25.0)"
     actions:
       merge:
         method: merge

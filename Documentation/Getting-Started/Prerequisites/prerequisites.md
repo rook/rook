@@ -7,11 +7,11 @@ and Rook is granted the required privileges (see below for more information).
 
 ## Minimum Version
 
-Kubernetes **v1.17** or higher is supported for the Ceph operator.
+Kubernetes **v1.19** or higher is supported for the Ceph operator.
 
-## CPU Architecture  
+## CPU Architecture
 
-Architectures released are `amd64 / x86_64` and `arm64`.  
+Architectures released are `amd64 / x86_64` and `arm64`.
 
 ## Ceph Prerequisites
 
