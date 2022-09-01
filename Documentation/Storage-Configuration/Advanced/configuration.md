@@ -20,11 +20,37 @@ configuration options which users are well advised to consider for any productio
 
 ### Default PG and PGP counts
 
-The number of PGs and PGPs can be configured on a per-pool basis, but it is highly advised to set
-default values that are appropriate for your Ceph cluster. Appropriate values depend on the number
-of OSDs the user expects to have backing each pool. The Ceph [OSD and Pool config
+The number of PGs and PGPs can be configured on a per-pool basis, but it is
+advised to set default values that are appropriate for your Ceph
+cluster.
+Appropriate values depend on the number of OSDs the user expects to have
+backing each pool. These can be configured by declaring pg_num and pgp_num
+parameters under CephBlockPool resource.
+
+For determining the right value for pg_num please refer [placement group
+sizing](ceph-configuration.md#placement-group-sizing)
+
+In this example configuration, 128 PGs are applied to the pool:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ceph-block-pool-test
+  namespace: rook-ceph
+spec:
+  deviceClass: hdd
+  replicated:
+    size: 3
+spec:
+  parameters:
+    pg_num: '128' # create the pool with a pre-configured placement group number
+    pgp_num: '128' # this should at least match `pg_num` so that all PGs are used
+```
+
+ Ceph [OSD and Pool config
 docs](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#a-preselection-of-pg-num)
-provide detailed information about how to tune these parameters: `osd_pool_default_pg_num` and `osd_pool_default_pgp_num`.
+provide detailed information about how to tune these parameters.
 
 Nautilus [introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)
 capable of automatically managing PG and PGP values for pools. Please see

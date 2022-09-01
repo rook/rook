@@ -159,8 +159,10 @@ a common practice for those looking to target certain workloads onto faster
 
 !!! note
     Since Ceph Nautilus (v14.x), you can use the Ceph MGR `pg_autoscaler`
-    module to auto scale the PGs as needed. If you want to enable this feature,
-    please refer to [Default PG and PGP counts](ceph-configuration.md#default-pg-and-pgp-counts).
+    module to auto scale the PGs as needed. It is highly advisable to configure
+    default pg_num value on per-pool basis, If you want to enable this feature,
+    please refer to [Default PG and PGP
+    counts](configuration.md#default-pg-and-pgp-counts).
 
 The general rules for deciding how many PGs your pool(s) should contain is:
 
