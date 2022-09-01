@@ -18,33 +18,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
+        kubernetes-versions: ["v1.19.16", "v1.21.14", "v1.23.10", "v1.25.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
 
-      - name: check matrix k8s version
-        run: |
-          echo USE_K8S=$(echo ${{ matrix.kubernetes-versions }})
-          if [ $(echo ${{ matrix.kubernetes-versions }}) == "v1.19.16" ]; then
-            echo "OLDER_K8S=true" >> $GITHUB_ENV
-          else
-            echo "OLDER_K8S=false" >> $GITHUB_ENV
-          fi
-          echo env.OLDER_K8S
-
-      - name: setup latest cluster resources
-        if: ${{ env.OLDER_K8S == 'false' }}
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: ${{ matrix.kubernetes-versions }}
-
       - name: setup older cluster resources
         if: ${{ env.OLDER_K8S == 'true' }}
-        uses: ./.github/workflows/integration-test-config-older-k8s
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
@@ -77,7 +60,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
+        kubernetes-versions: ["v1.19.16", "v1.21.14", "v1.23.10", "v1.25.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -103,7 +86,7 @@ jobs:
 
       - name: setup older cluster resources
         if: ${{ env.OLDER_K8S == 'true' }}
-        uses: ./.github/workflows/integration-test-config-older-k8s
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
@@ -135,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
+        kubernetes-versions: ["v1.19.16", "v1.21.14", "v1.23.10", "v1.25.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -161,7 +144,7 @@ jobs:
 
       - name: setup older cluster resources
         if: ${{ env.OLDER_K8S == 'true' }}
-        uses: ./.github/workflows/integration-test-config-older-k8s
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
@@ -192,7 +175,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.21.14','v1.23.10','v1.25.0']
+        kubernetes-versions: ["v1.19.16", "v1.21.14", "v1.23.10", "v1.25.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -218,7 +201,7 @@ jobs:
 
       - name: setup older cluster resources
         if: ${{ env.OLDER_K8S == 'true' }}
-        uses: ./.github/workflows/integration-test-config-older-k8s
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
@@ -249,7 +232,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.23.10','v1.25.0']
+        kubernetes-versions: ["v1.19.16", "v1.23.10", "v1.25.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -292,7 +275,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions : ['v1.19.16','v1.25.0']
+        kubernetes-versions: ["v1.19.16", "v1.25.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -318,7 +301,7 @@ jobs:
 
       - name: setup older cluster resources
         if: ${{ env.OLDER_K8S == 'true' }}
-        uses: ./.github/workflows/integration-test-config-older-k8s
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
