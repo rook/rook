@@ -20,6 +20,7 @@ include ../makelib/helm.mk
 # ====================================================================================
 # Options
 
+LATEST_DOCS_BRANCH=release-1.10
 CHANNEL ?= master
 ifeq ($(filter master release,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
@@ -39,7 +40,7 @@ else
 DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+)$$/v\1.\2/g")
 endif
 
-ifeq ($(shell echo $(BRANCH_NAME)),$(shell git branch -r | grep 'origin/release-' | sort  | tail -n 1 | cut -d'/' -f2))
+ifeq ($(shell echo $(BRANCH_NAME)),$(LATEST_DOCS_BRANCH))
 DOCS_VERSION_ALIAS := latest-release
 else
 DOCS_VERSION_ALIAS :=
