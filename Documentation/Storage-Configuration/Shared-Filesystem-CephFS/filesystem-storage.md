@@ -220,6 +220,171 @@ If the Rook cluster has more than one filesystem and the application pod is sche
 
 Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/release-1.9/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared filesystem in the toolbox pod. See the [Direct Filesystem](../../Troubleshooting/direct-tools.md#shared-filesystem-tools) topic for more details.
 
+## Consume the Shared Filesystem across namespaces
+
+A PVC that you create using the `rook-cephfs` storageClass can be shared between different Pods simultaneously, either read-write or read-only, but is restricted to a single namespace (a PVC is a namespace-scoped resource, so you cannot use it in another one).
+
+However there are some use cases where you want to share the content from a CephFS-based PVC among different Pods in different namespaces, for a shared library for example, or a collaboration workspace between applications running in different namespaces.
+
+You can do that using the following recipe.
+
+### Shared volume creation
+
+* In the `rook` namespace, create a copy of the secret `rook-csi-cephfs-node`, name it `rook-csi-cephfs-node-user`
+.
+* Edit your new secret, changing the name of the keys (keep the value as it is):
+  * `adminID` -> `userID`
+  * `adminKey` -> `userKey`
+* Create the PVC you want to share, for example:
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: base-pvc
+  namespace: first-namespace
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: rook-cephfs
+  volumeMode: Filesystem
+```
+
+* The corresponding PV that is created will have all the necessary info to connect to the CephFS volume (all non-necessary information are removed here):
+
+```yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pvc-a02dd277-cb26-4c1e-9434-478ebc321e22
+  annotations:
+    pv.kubernetes.io/provisioned-by: rook.cephfs.csi.ceph.com
+  finalizers:
+    - kubernetes.io/pv-protection
+spec:
+  capacity:
+    storage: 100Gi
+  csi:
+    driver: rook.cephfs.csi.ceph.com
+    volumeHandle: >-
+      0001-0011-rook-0000000000000001-8a528de0-e274-11ec-b069-0a580a800213
+    volumeAttributes:
+      clusterID: rook
+      fsName: rook-cephfilesystem
+      storage.kubernetes.io/csiProvisionerIdentity: 1654174264855-8081-rook.cephfs.csi.ceph.com
+      subvolumeName: csi-vol-8a528de0-e274-11ec-b069-0a580a800213
+      subvolumePath: >-
+        /volumes/csi/csi-vol-8a528de0-e274-11ec-b069-0a580a800213/da98fb83-fff3-485a-a0a9-57c227cb67ec
+    nodeStageSecretRef:
+      name: rook-csi-cephfs-node
+      namespace: rook
+    controllerExpandSecretRef:
+      name: rook-csi-cephfs-provisioner
+      namespace: rook
+  accessModes:
+    - ReadWriteMany
+  claimRef:
+    kind: PersistentVolumeClaim
+    namespace: first-namespace
+    name: base-pvc
+    apiVersion: v1
+    resourceVersion: '49728'
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rook-cephfs
+  volumeMode: Filesystem
+```
+
+* On this PV, change the `persistentVolumeReclaimPolicy` parameter to `Retain` to avoid it from being deleted when you will delete PVCs. Don't forget to change it back to `Delete` when you want to remove the shared volume (see full procedure in the next section).
+
+* Copy the YAML content of the PV, and create a new static PV with the same information and some modifications. From the original YAML, you must:
+  * Modify the original name. To keep track, the best solution is to append to the original name the namespace name where you want your new PV. In this example `newnamespace`.
+  * Modify the volumeHandle. Again append the targeted namespace.
+  * Add the `staticVolume: "true"` entry to the volumeAttributes.
+  * Add the rootPath entry to the volumeAttributes, with the same content as `subvolumePath`.
+  * In the `nodeStageSecretRef` section, change the name to point to the secret you created earlier, `rook-csi-cephfs-node-user`.
+  * Remove the unnecessary information before applying the YAML (claimRef, managedFields,...):
+
+Your YAML should look like this:
+
+```yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: pvc-a02dd277-cb26-4c1e-9434-478ebc321e22-newnamespace
+spec:
+  capacity:
+    storage: 100Gi
+  csi:
+    driver: rook.cephfs.csi.ceph.com
+    volumeHandle: >-
+      0001-0011-rook-0000000000000001-8a528de0-e274-11ec-b069-0a580a800213-newnamespace
+    volumeAttributes:
+      clusterID: rook
+      fsName: rook-cephfilesystem
+      storage.kubernetes.io/csiProvisionerIdentity: 1654174264855-8081-rook.cephfs.csi.ceph.com
+      subvolumeName: csi-vol-8a528de0-e274-11ec-b069-0a580a800213
+      subvolumePath: >-
+        /volumes/csi/csi-vol-8a528de0-e274-11ec-b069-0a580a800213/da98fb83-fff3-485a-a0a9-57c227cb67ec
+      rootPath: >-
+        /volumes/csi/csi-vol-8a528de0-e274-11ec-b069-0a580a800213/da98fb83-fff3-485a-a0a9-57c227cb67ec
+      staticVolume: "true"
+    nodeStageSecretRef:
+      name: rook-csi-cephfs-node
+      namespace: rook
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: rook-cephfs
+  volumeMode: Filesystem
+```
+
+* In a new or other namespace, create a new PVC that will use this new PV you created. You simply have to point to it in the `volumeName` parameter. Make sure you enter the same size as the original PVC!:
+
+```yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: second-pvc
+  namespace: newnamespace
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  volumeName: pvc-a02dd277-cb26-4c1e-9434-478ebc321e22-newnamespace
+  storageClassName: rook-cephfs
+  volumeMode: Filesystem
+```
+
+You have now access to the same CephFS subvolume from different PVCs in different namespaces. Redo the previous steps (copy PV with a new name, create a PVC pointing to it) in each namespace you want to use this subvolume.
+
+**Note**: the new PVCs/PVs we have created are static. Therefore CephCSI does not support snapshots, clones, resizing or delete operations for them. If those operations are required, you must make them on the original PVC.
+
+### Shared volume removal
+
+As the same CephFS volume is used by different PVCs/PVs, you must proceed very orderly to remove it properly.
+
+* Delete the static PVCs in the different namespaces, but keep the original one!
+* Delete the corresponding static PVs that should now have been marked as "Released". Again, don't delete the original one yet!
+* Edit the original PV, changing back the `persistentVolumeReclaimPolicy` from `Retain` to `Delete`.
+* Delete the original PVC. It will now properly delete the original PV, as well as the subvolume in CephFS.
+
+### Pending Issue
+
+Due to [this bug](https://github.com/ceph/ceph-csi/issues/2238), the global mount for a Volume that is mounted multiple times on the same node will not be unmounted. This does not result in any particular problem, apart from polluting the logs with unmount error messages, or having many different mounts hanging if you create and delete many shared PVCs, or you don't really use them.
+
+Until this issue is solved, either on the Rook or Kubelet side, you can always manually unmount the unwanted hanging global mounts on the nodes:
+
+* Log onto each node where the volume has been mounted.
+* Check for hanging mounts using their `volumeHandle`.
+* Unmount the unwanted volumes.
+
 ## Teardown
 
 To clean up all the artifacts created by the filesystem demo:
