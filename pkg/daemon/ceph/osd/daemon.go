@@ -484,11 +484,18 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 							break
 						}
 					}
-				} else if device.Name == desiredDevice.Name || filepath.Join("/dev", device.Name) == desiredDevice.Name {
-					logger.Infof("%q found in the desired devices", device.Name)
-					matched = true
-				} else if strings.HasPrefix(desiredDevice.Name, "/dev/") {
-					matched = matchDevLinks(device.DevLinks, desiredDevice.Name)
+				} else {
+					// the desired device is a file
+					if device.Name == desiredDevice.Name || filepath.Join("/dev", device.Name) == desiredDevice.Name {
+						logger.Infof("%q found in the desired devices", device.Name)
+						matched = true
+					} else if strings.HasPrefix(desiredDevice.Name, "/dev/") {
+						matched = matchDevLinks(device.DevLinks, desiredDevice.Name)
+					}
+					if matched && device.Type == sys.LVMType && desiredDevice.MetadataDevice != "" {
+						logger.Infof("logical volume %q is not picked because OSD on LV with metadata device is not allowed", device.Name)
+						continue
+					}
 				}
 				matchedDevice = desiredDevice
 
