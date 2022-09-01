@@ -58,8 +58,10 @@ spec:
         image: registry.access.redhat.com/rhel7/sssd:latest
 
         sssdConfigFile:
-          configMap:
-            name: my-nfs-sssd-config
+          volumeSource:
+            configMap:
+              name: my-nfs-sssd-config
+              defaultMode: 0600 # mode must be 0600
 
         debugLevel: 0
 ```
