@@ -56,6 +56,8 @@ const (
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
 	EndpointDataKey = "data"
+	// OutOfQuorumKey is the name of the key for tracking mons detected out of quorum
+	OutOfQuorumKey = "outOfQuorum"
 	// MaxMonIDKey is the name of the max mon id used
 	MaxMonIDKey = "maxMonId"
 	// MappingKey is the name of the mapping for the mon->node and node->port
@@ -249,6 +251,21 @@ func ExtractKey(contents string) (string, error) {
 	return secret, nil
 }
 
+func UpdateMonsOutOfQuorum(clientset kubernetes.Interface, namespace string, monsOutOfQuorum []string) error {
+	ctx := context.TODO()
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to get mon endpoints configmap")
+	}
+
+	cm.Data[OutOfQuorumKey] = strings.Join(monsOutOfQuorum, ",")
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to update mon endpoints configmap with mon(s) out of quorum")
+	}
+	return nil
+}
+
 // loadMonConfig returns the monitor endpoints and maxMonID
 func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephclient.MonInfo, int, *Mapping, error) {
 	ctx := context.TODO()
@@ -270,6 +287,18 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	// Parse the monitor List
 	if info, ok := cm.Data[EndpointDataKey]; ok {
 		monEndpointMap = ParseMonEndpoints(info)
+	}
+
+	// Parse the mons that were detected out of quorum
+	if outOfQuorum, ok := cm.Data[OutOfQuorumKey]; ok && len(outOfQuorum) > 0 {
+		monNames := strings.Split(outOfQuorum, ",")
+		for _, monName := range monNames {
+			if monInfo, ok := monEndpointMap[monName]; ok {
+				monInfo.OutOfQuorum = true
+			} else {
+				logger.Warningf("did not find mon %q to set it out of quorum in the cluster info", monName)
+			}
+		}
 	}
 
 	// Parse the max monitor id

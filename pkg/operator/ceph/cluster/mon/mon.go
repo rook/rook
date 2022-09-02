@@ -1097,6 +1097,14 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 		return errors.Wrap(err, "failed to save maxMonID")
 	}
 
+	// preserve the mons detected out of quorum
+	var monsOutOfQuorum []string
+	for monName, mon := range c.ClusterInfo.Monitors {
+		if mon.OutOfQuorum {
+			monsOutOfQuorum = append(monsOutOfQuorum, monName)
+		}
+	}
+
 	configMap.Data = map[string]string{
 		EndpointDataKey: FlattenMonEndpoints(c.ClusterInfo.Monitors),
 		// persist the maxMonID that was previously stored in the configmap. We are likely saving info
@@ -1104,9 +1112,10 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 		// actually been started. If the operator is restarted or the reconcile is otherwise restarted,
 		// we want to calculate the mon scheduling next time based on the committed maxMonID, rather
 		// than only a mon scheduling, which may not have completed.
-		controller.MaxMonIDKey: maxMonID,
-		controller.MappingKey:  string(monMapping),
-		csi.ConfigKey:          csiConfigValue,
+		controller.MaxMonIDKey:    maxMonID,
+		controller.MappingKey:     string(monMapping),
+		controller.OutOfQuorumKey: strings.Join(monsOutOfQuorum, ","),
+		csi.ConfigKey:             csiConfigValue,
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(c.ClusterInfo.Context, configMap, metav1.CreateOptions{}); err != nil {

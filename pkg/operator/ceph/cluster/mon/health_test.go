@@ -19,6 +19,7 @@ package mon
 import (
 	"context"
 	"fmt"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
@@ -204,6 +206,51 @@ func TestRemoveExtraMon(t *testing.T) {
 	if removedMon != "b" && removedMon != "c" && removedMon != "d" {
 		assert.Fail(t, fmt.Sprintf("removed mon %q instead of b, c, or d from the non-arbiter zone", removedMon))
 	}
+}
+
+func TestTrackMonsOutOfQuorum(t *testing.T) {
+	endpoint := "1.2.3.4:6789"
+	clientset := test.New(t, 1)
+	tempDir, err := os.MkdirTemp("", "")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := &Cluster{
+		mapping:   &opcontroller.Mapping{},
+		context:   &clusterd.Context{Clientset: clientset, ConfigDir: tempDir},
+		ownerInfo: ownerInfo,
+		Namespace: "ns"}
+	c.ClusterInfo = &cephclient.ClusterInfo{Monitors: map[string]*cephclient.MonInfo{
+		"a": {Name: "a", Endpoint: endpoint},
+		"b": {Name: "b", Endpoint: endpoint},
+		"c": {Name: "c", Endpoint: endpoint},
+	}}
+	// No change since all mons are in quorum
+	updated, err := c.trackMonInOrOutOfQuorum("a", true)
+	assert.False(t, updated)
+	assert.NoError(t, err)
+
+	// initialize the configmap
+	err = c.persistExpectedMonDaemons()
+	assert.NoError(t, err)
+
+	// Track mon.a as out of quorum
+	updated, err = c.trackMonInOrOutOfQuorum("a", false)
+	assert.True(t, updated)
+	assert.NoError(t, err)
+
+	cm, err := clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "a", cm.Data[controller.OutOfQuorumKey])
+
+	// Put mon.a back in quorum
+	updated, err = c.trackMonInOrOutOfQuorum("a", true)
+	assert.True(t, updated)
+	assert.NoError(t, err)
+
+	cm, err = clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "", cm.Data[controller.OutOfQuorumKey])
 }
 
 func TestSkipMonFailover(t *testing.T) {
