@@ -71,26 +71,17 @@ PVC will be updated to new size.
 
 ## RBD Mirroring
 
-To support RBD Mirroring, the [Volume Replication Operator](https://github.com/csi-addons/volume-replication-operator/blob/main/README.md) will be started in the RBD provisioner pod.
-The Volume Replication Operator is a kubernetes operator that provides common and reusable APIs for storage disaster recovery. It is based on [csi-addons/spec](https://github.com/csi-addons/spec) specification and can be used by any storage provider.
+To support RBD Mirroring, the [CSI-Addons sidecar](https://github.com/csi-addons/kubernetes-csi-addons#readme) will be started in the RBD provisioner pod.
+The CSI-Addons supports the VolumeReplication operation. The volume replication controller provides common and reusable APIs for storage disaster recovery. It is based on [csi-addons/spec](https://github.com/csi-addons/spec) specification and can be used by any storage provider.
 It follows the controller pattern and provides extended APIs for storage disaster recovery. The extended APIs are provided via Custom Resource Definitions (CRDs).
 
 ### Prerequisites
 
 Kubernetes version 1.21 or greater is required.
 
-### Enable volume replication
+### Enable CSIAddons Sidecar
 
-1. Install the volume replication CRDs:
-
-    ```console
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
-    ```
-
-2. Enable the volume replication controller:
-    * For Helm deployments see the [`csi.volumeReplication.enabled` setting](../../Helm-Charts/operator-chart.md#configuration).
-    * For non-Helm deployments set `CSI_ENABLE_VOLUME_REPLICATION: "true"` in operator.yaml
+To enable the CSIAddons sidecar and deploy the controller, Please follow the steps [below](#csi-addons-controller)
 
 ## Ephemeral volume support
 
@@ -132,9 +123,9 @@ The CSI-Addons Controller handles the requests from users to initiate an operati
 Users can deploy the controller by running the following commands:
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/crds.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/setup-controller.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/deploy/controller/crds.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/deploy/controller/rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/deploy/controller/setup-controller.yaml
 ```
 
 This creates the required crds and configure permissions.
@@ -166,11 +157,14 @@ kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_
 CSI-Addons supports the following operations:
 
 * Reclaim Space
-  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#reclaimspacejob)
-  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#reclaimspacecronjob)
-  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.5.0/docs/reclaimspace.md#reclaimspacejob)
+  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.5.0/docs/reclaimspace.md#reclaimspacecronjob)
+  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.5.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
 * Network Fencing
-  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/networkfence.md)
+  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.5.0/docs/networkfence.md)
+* Volume Replication
+  * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.5.0/docs/volumereplicationclass.md)
+  * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.5.0/docs/volumereplication.md)
 
 ## Enable RBD Encryption Support
 
