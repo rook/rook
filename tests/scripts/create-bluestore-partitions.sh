@@ -43,8 +43,10 @@ function wipe_disk {
     sudo parted "$DISK" -s print || :
     return
   fi
+  set +e
   sudo parted -s "$DISK" mklabel gpt
-  sudo partprobe "$DISK"
+  set -e
+  sudo partprobe -d "$DISK"
   sudo udevadm settle
   sudo parted "$DISK" -s print
 }

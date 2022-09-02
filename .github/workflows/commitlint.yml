@@ -13,7 +13,7 @@ on:
 
 jobs:
   lint:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
@@ -22,5 +22,5 @@ jobs:
           fetch-depth: 0
       - uses: wagoid/commitlint-github-action@v2.0.3
         with:
-          configFile: './.commitlintrc.json'
+          configFile: "./.commitlintrc.json"
           helpURL: https://rook.io/docs/rook/latest/development-flow.html#commit-structure
