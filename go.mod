@@ -8,6 +8,7 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/go-ceph v0.16.0
 	github.com/coreos/pkg v0.0.0-20220709002704-04386ae12ed0
+	github.com/gemalto/kmip-go v0.0.8-0.20220721195433-3fe83e2d3f26
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0
@@ -63,6 +64,8 @@ require (
 	github.com/NYTimes/gziphandler v1.1.1 // indirect
 	github.com/StackExchange/wmi v1.2.1 // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v0.0.0-20190620160927-9418d7b0cd0f // indirect
+	github.com/ansel1/merry v1.6.2 // indirect
+	github.com/ansel1/merry/v2 v2.0.1 // indirect
 	github.com/armon/go-metrics v0.4.0 // indirect
 	github.com/armon/go-radix v1.0.0 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535 // indirect
@@ -86,6 +89,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
+	github.com/gemalto/flume v0.13.0 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
@@ -164,6 +168,7 @@ require (
 	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.2-0.20181231171920-c182affec369 // indirect
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/miekg/dns v1.1.41 // indirect
 	github.com/mitchellh/cli v1.1.2 // indirect
 	github.com/mitchellh/copystructure v1.2.0 // indirect
@@ -208,6 +213,7 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
+	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa // indirect
 	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48 // indirect
 	golang.org/x/oauth2 v0.0.0-20220808172628-8227340efae7 // indirect

@@ -50,6 +50,15 @@ func TestValidateConnectionDetails(t *testing.T) {
 		},
 		Data: map[string][]byte{"foo": []byte("bar")},
 	}
+	kmipSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "kmip-token",
+			Namespace: ns,
+		},
+		Data: map[string][]byte{"CLIENT_CERT": []byte("bar"),
+			"CLIENT_KEY": []byte("bar"),
+		},
+	}
 	tlsSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "vault-ca-secret",
@@ -61,12 +70,42 @@ func TestValidateConnectionDetails(t *testing.T) {
 			"KMS_PROVIDER": TypeIBM,
 		},
 	}
+	kmipKMSSpec := &cephv1.KeyManagementServiceSpec{
+		ConnectionDetails: map[string]string{
+			"KMS_PROVIDER": TypeKMIP,
+		},
+		TokenSecretName: "kmip-token",
+	}
 
 	t.Run("no kms provider given", func(t *testing.T) {
 		err := ValidateConnectionDetails(ctx, clusterdContext, kms, ns)
 		assert.Error(t, err, "")
 		assert.EqualError(t, err, "failed to validate kms config \"KMS_PROVIDER\". cannot be empty")
 		kms.ConnectionDetails["KMS_PROVIDER"] = "vault"
+	})
+
+	t.Run("kmip - missing ca cert", func(t *testing.T) {
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Create(ctx, kmipSecret, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		err = ValidateConnectionDetails(ctx, clusterdContext, kmipKMSSpec, ns)
+		assert.Error(t, err, ErrKMIPEndpointNotSet)
+	})
+
+	t.Run("kmip - missing endpoint", func(t *testing.T) {
+		kmipSecret.Data[KmipCACert] = []byte("foo")
+		_, err := clusterdContext.Clientset.CoreV1().Secrets(ns).Update(ctx, kmipSecret, metav1.UpdateOptions{})
+		assert.NoError(t, err)
+		err = ValidateConnectionDetails(ctx, clusterdContext, kmipKMSSpec, ns)
+		assert.Error(t, err, ErrKMIPEndpointNotSet)
+	})
+
+	t.Run("kmip - success", func(t *testing.T) {
+		kmipKMSSpec.ConnectionDetails[kmipEndpoint] = "pykmip.local"
+		err := ValidateConnectionDetails(ctx, clusterdContext, kmipKMSSpec, ns)
+		assert.NoError(t, err)
+		assert.Equal(t, "foo", kmipKMSSpec.ConnectionDetails[KmipCACert])
+		assert.Equal(t, "bar", kmipKMSSpec.ConnectionDetails[KmipClientCert])
+		assert.Equal(t, "bar", kmipKMSSpec.ConnectionDetails[KmipClientKey])
 	})
 
 	t.Run("vault - no token object", func(t *testing.T) {

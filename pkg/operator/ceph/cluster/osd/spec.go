@@ -323,6 +323,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 				encryptedVol, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 				volumes = append(volumes, encryptedVol)
 			}
+			if c.spec.Security.KeyManagementService.IsEnabled() && c.spec.Security.KeyManagementService.IsKMIPKMS() {
+				encryptedVol, _ := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
+				volumes = append(volumes, encryptedVol)
+			}
 		}
 	}
 

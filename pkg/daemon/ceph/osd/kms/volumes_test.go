@@ -150,3 +150,74 @@ func TestVaultVolumeAndMountWithCustomName(t *testing.T) {
 		})
 	}
 }
+
+func TestKMIPVolumeAndMount(t *testing.T) {
+	mode := int32(0444)
+	tokenSecretName := "kmip-credentials"
+	type args struct {
+		tokenSecretName string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  v1.Volume
+		want1 v1.VolumeMount
+	}{
+		{
+			name: "",
+			args: args{
+				tokenSecretName: tokenSecretName,
+			},
+			want: v1.Volume{
+				Name: TypeKMIP,
+				VolumeSource: v1.VolumeSource{
+					Projected: &v1.ProjectedVolumeSource{
+						Sources: []v1.VolumeProjection{
+							{
+
+								Secret: &v1.SecretProjection{
+									LocalObjectReference: v1.LocalObjectReference{
+										Name: tokenSecretName,
+									},
+									Items: []v1.KeyToPath{
+										{
+											Key:  KmipCACert,
+											Path: KmipCACertFileName,
+											Mode: &mode,
+										},
+										{
+											Key:  KmipClientCert,
+											Path: KmipClientCertFileName,
+											Mode: &mode,
+										},
+										{
+											Key:  KmipClientKey,
+											Path: KmipClientKeyFileName,
+											Mode: &mode,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			want1: v1.VolumeMount{
+				Name:      TypeKMIP,
+				ReadOnly:  true,
+				MountPath: EtcKmipDir,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, got1 := KMIPVolumeAndMount(tt.args.tokenSecretName)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("KMIPVolumeAndMount() got = %v, want %v", got, tt.want)
+			}
+			if !reflect.DeepEqual(got1, tt.want1) {
+				t.Errorf("KMIPVolumeAndMount() got1 = %v, want %v", got1, tt.want1)
+			}
+		})
+	}
+}

@@ -382,6 +382,30 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes) // One more than the encryption with k8s for the kek get init container
 
+	// Test with encrypted OSD on PVC with RAW with KMS
+	osdProp.encrypted = true
+	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{}
+	osdProp.walPVC = corev1.PersistentVolumeClaimVolumeSource{}
+	c.spec.Security.KeyManagementService.ConnectionDetails = map[string]string{"KMS_PROVIDER": "kmip"}
+	c.spec.Security.KeyManagementService.TokenSecretName = "kmip-credentials"
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.InitContainers), deployment.Spec.Template.Spec.InitContainers)
+	assert.Equal(t, "blkdevmapper", deployment.Spec.Template.Spec.InitContainers[0].Name)
+	assert.Equal(t, "encryption-kms-get-kek", deployment.Spec.Template.Spec.InitContainers[1].Name)
+	assert.Equal(t, "encryption-open", deployment.Spec.Template.Spec.InitContainers[2].Name)
+	assert.Equal(t, "blkdevmapper-encryption", deployment.Spec.Template.Spec.InitContainers[3].Name)
+	assert.Equal(t, "encrypted-block-status", deployment.Spec.Template.Spec.InitContainers[4].Name)
+	assert.Equal(t, "expand-encrypted-bluefs", deployment.Spec.Template.Spec.InitContainers[5].Name)
+	assert.Equal(t, "activate", deployment.Spec.Template.Spec.InitContainers[6].Name)
+	assert.Equal(t, "expand-bluefs", deployment.Spec.Template.Spec.InitContainers[7].Name)
+	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[8].Name)
+	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
+	cont = deployment.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+
 	// Test with encrypted OSD on PVC with RAW with KMS with TLS
 	osdProp.encrypted = true
 	osdProp.metadataPVC = corev1.PersistentVolumeClaimVolumeSource{}
