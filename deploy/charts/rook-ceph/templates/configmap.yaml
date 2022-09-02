@@ -76,12 +76,6 @@ data:
   ROOK_CSI_RESIZER_IMAGE: {{ .Values.csi.resizer.image | quote }}
 {{- end }}
 {{- end }}
-{{- if .Values.csi.volumeReplication }}
-  CSI_ENABLE_VOLUME_REPLICATION: {{ .Values.csi.volumeReplication.enabled | quote }}
-{{- if .Values.csi.volumeReplication.image }}
-  CSI_VOLUME_REPLICATION_IMAGE: {{ .Values.csi.volumeReplication.image | quote }}
-{{- end }}
-{{- end }}
 {{- if .Values.csi.csiAddons }}
   CSI_ENABLE_CSIADDONS: {{ .Values.csi.csiAddons.enabled | quote }}
 {{- if .Values.csi.csiAddons.image }}

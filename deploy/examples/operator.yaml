@@ -441,14 +441,9 @@ data:
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
   # The timeout value (in seconds) of Ceph commands. It should be >= 1. If this variable is not set or is an invalid value, it's default to 15.
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: "15"
-  # Enable the volume replication controller.
-  # Before enabling, ensure the Volume Replication CRDs are created.
-  # See https://rook.io/docs/rook/latest/ceph-csi-drivers.html#rbd-mirroring
-  CSI_ENABLE_VOLUME_REPLICATION: "false"
-  # CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.3.0"
   # Enable the csi addons sidecar.
   CSI_ENABLE_CSIADDONS: "false"
-  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.4.0"
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.5.0"
   # The CSI GRPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 ---
