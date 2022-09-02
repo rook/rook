@@ -32,6 +32,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
@@ -688,21 +689,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		} else {
 			err = h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cephcluster", clusterName)
 			checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
-
-			clusterDeleteRetries := 0
-			crdCheckerFunc := func() error {
-				_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
-				clusterDeleteRetries++
-				if clusterDeleteRetries > 10 {
-					// If the operator really isn't going to remove the finalizer, just force remove it
-					h.removeClusterFinalizers(namespace, clusterName)
-				}
-
-				return err
-			}
-			err = h.k8shelper.WaitForCustomResourceDeletion(namespace, clusterName, crdCheckerFunc)
-			checkError(h.T(), err, fmt.Sprintf("failed to wait for cluster crd %s deletion", namespace))
 		}
+		h.waitForResourceDeletion(namespace, clusterName)
 
 		if testCleanupPolicy {
 			err = h.waitForCleanupJobs(namespace)
@@ -833,6 +821,36 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 		logger.Infof("operator namespace %q still found...", h.settings.OperatorNamespace)
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func (h *CephInstaller) waitForResourceDeletion(namespace, clusterName string) {
+	ctx := context.TODO()
+	clusterDeleteRetries := 0
+	crdCheckerFunc := func() error {
+		// Check for existence of the cluster CR
+		_, err := h.k8shelper.RookClientset.CephV1().CephClusters(namespace).Get(ctx, clusterName, metav1.GetOptions{})
+		clusterDeleteRetries++
+		if err != nil {
+			if !kerrors.IsNotFound(err) {
+				return err
+			}
+		} else {
+			// If the operator really isn't going to remove the finalizer, just force remove it
+			if clusterDeleteRetries > 10 {
+				h.removeClusterFinalizers(namespace, clusterName)
+			}
+		}
+		// Check for existence of the mon endpoints configmap, which has a finalizer
+		_, err = h.k8shelper.Clientset.CoreV1().ConfigMaps(namespace).Get(ctx, mon.EndpointConfigMapName, metav1.GetOptions{})
+		if err != nil && !kerrors.IsNotFound(err) {
+			return err
+		}
+		// Check for existence of the mon secret, which has a finalizer
+		_, err = h.k8shelper.Clientset.CoreV1().Secrets(namespace).Get(ctx, mon.AppName, metav1.GetOptions{})
+		return err
+	}
+	err := h.k8shelper.WaitForCustomResourceDeletion(namespace, clusterName, crdCheckerFunc)
+	checkError(h.T(), err, fmt.Sprintf("failed to wait for cluster crd %s deletion", namespace))
 }
 
 func (h *CephInstaller) removeClusterFinalizers(namespace, clusterName string) {
