@@ -20,17 +20,17 @@ jobs:
   modcheck:
     runs-on: ubuntu-18.04
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: 1.17
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
-    - name: run mod check
-      run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
+      - name: run mod check
+        run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
 
-    - name: validate modcheck
-      run: tests/scripts/validate_modified_files.sh modcheck
+      - name: validate modcheck
+        run: tests/scripts/validate_modified_files.sh modcheck
