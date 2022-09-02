@@ -243,6 +243,9 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		}
 
 		if inQuorum {
+			if _, err := c.trackMonInOrOutOfQuorum(mon.Name, true); err != nil {
+				return errors.Wrapf(err, "failed to track out of quorum mon %q", mon.Name)
+			}
 			logger.Debugf("mon %q found in quorum", mon.Name)
 			// delete the "timeout" for a mon if the pod is in quorum again
 			if _, ok := c.monTimeoutList[mon.Name]; ok {
@@ -253,14 +256,16 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		}
 
 		logger.Debugf("mon %q NOT found in quorum. Mon quorum status: %+v", mon.Name, quorumStatus)
+		allMonsInQuorum = false
+		if _, err := c.trackMonInOrOutOfQuorum(mon.Name, false); err != nil {
+			return errors.Wrapf(err, "failed to track out of quorum mon %q", mon.Name)
+		}
 
 		// if the time out is set to 0 this indicate that we don't want to trigger mon failover
 		if MonOutTimeout == timeZero {
 			logger.Warningf("mon %q NOT found in quorum and health timeout is 0, mon will never fail over", mon.Name)
-			return nil
+			continue
 		}
-
-		allMonsInQuorum = false
 
 		// If not yet set, add the current time, for the timeout
 		// calculation, to the list
@@ -297,6 +302,13 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 
 		// only deal with one unhealthy mon per health check
 		return nil
+	}
+
+	if allMonsInQuorum {
+		// Make sure the mons out of quorum are cleared
+		if _, err := c.trackMonInOrOutOfQuorum("", true); err != nil {
+			return errors.Wrap(err, "failed to track all mons in quorum")
+		}
 	}
 
 	// after all unhealthy mons have been removed or failed over
@@ -339,6 +351,55 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (c *Cluster) trackMonInOrOutOfQuorum(monName string, inQuorum bool) (bool, error) {
+	updateNeeded := false
+	var monsOutOfQuorum []string
+	if monName == "" {
+		// All mons are in quorum, so make sure no mons are marked out of quorum
+		for monName, mon := range c.ClusterInfo.Monitors {
+			if mon.OutOfQuorum {
+				logger.Infof("resetting mon %q to be back in quorum", monName)
+				mon.OutOfQuorum = false
+				updateNeeded = true
+			}
+		}
+	} else {
+		mon, ok := c.ClusterInfo.Monitors[monName]
+		if !ok {
+			logger.Infof("mon %q not found to keep track of being out of quorum", monName)
+			return false, nil
+		}
+		// Mark the mon in quorum
+		if inQuorum && mon.OutOfQuorum {
+			logger.Infof("marking mon %q back in quorum", monName)
+			mon.OutOfQuorum = false
+			updateNeeded = true
+		}
+		// Mark the mon out of quorum
+		if !inQuorum && !mon.OutOfQuorum {
+			logger.Infof("marking mon %q out of quorum", monName)
+			mon.OutOfQuorum = true
+			updateNeeded = true
+		}
+		if mon.OutOfQuorum {
+			monsOutOfQuorum = append(monsOutOfQuorum, monName)
+		}
+	}
+	if updateNeeded {
+		// write the latest config to the config dir
+		if err := WriteConnectionConfig(c.context, c.ClusterInfo); err != nil {
+			return true, errors.Wrap(err, "failed to write connection config for new mons")
+		}
+		// Update the mon endpoints configmap
+		err := controller.UpdateMonsOutOfQuorum(c.context.Clientset, c.Namespace, monsOutOfQuorum)
+		if err != nil {
+			return true, errors.Wrap(err, "failed to update mon endpoints cm")
+		}
+	}
+
+	return updateNeeded, nil
 }
 
 // determineExtraMonToRemove assumes all mons are in quorum and that there are more mons
@@ -419,6 +480,11 @@ func (c *Cluster) findExtraMonToRemoveFromStretchCluster(mons []*monConfig) stri
 // Returns whether the failover request was attempted. If false,
 // the operator should check for other mons to failover.
 func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
+	// make sure the failed mon is marked out of quorum
+	if _, err := c.trackMonInOrOutOfQuorum(name, false); err != nil {
+		logger.Errorf("failed to track failed mon %q. %v", name, err)
+	}
+
 	if monCount > desiredMonCount {
 		// no need to create a new mon since we have an extra
 		if err := c.removeMon(name); err != nil {
