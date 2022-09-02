@@ -54,6 +54,17 @@ func (c *Config) storeSecretInKubernetes(pvcName, key string) error {
 	return nil
 }
 
+// getKubernetesSecret returns key value from secret.
+func (c *Config) getKubernetesSecret(pvcName string) (string, error) {
+	secretName := GenerateOSDEncryptionSecretName(pvcName)
+	secret, err := c.context.Clientset.CoreV1().Secrets(c.ClusterInfo.Namespace).Get(c.ClusterInfo.Context, secretName, metav1.GetOptions{})
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get secret %q", secretName)
+	}
+
+	return string(secret.Data[OsdEncryptionSecretNameKeyName]), nil
+}
+
 func generateOSDEncryptedKeySecret(pvcName, key string, clusterInfo *cephclient.ClusterInfo) (*v1.Secret, error) {
 	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{

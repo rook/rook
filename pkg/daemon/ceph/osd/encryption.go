@@ -19,6 +19,7 @@ package osd
 import (
 	"fmt"
 	"os"
+	"path"
 	"regexp"
 	"strings"
 
@@ -83,6 +84,27 @@ func setKEKinEnv(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo)
 			return errors.Errorf("ibm key protect %q environment variable is not set", kms.IbmKeyProtectServiceApiKey)
 		}
 		clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.IbmKeyProtectServiceApiKey] = ibmServiceApiKey
+	}
+
+	if clusterSpec.Security.KeyManagementService.IsKMIPKMS() {
+		// the following files will be mounted to the osd pod.
+		byteValue, err := os.ReadFile(path.Join(kms.EtcKmipDir, kms.KmipCACertFileName))
+		if err != nil {
+			return errors.Wrapf(err, "failed to read file %q", kms.KmipCACertFileName)
+		}
+		clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.KmipCACert] = string(byteValue)
+
+		byteValue, err = os.ReadFile(path.Join(kms.EtcKmipDir, kms.KmipClientCertFileName))
+		if err != nil {
+			return errors.Wrapf(err, "failed to read file %q", kms.KmipClientCertFileName)
+		}
+		clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.KmipClientCert] = string(byteValue)
+
+		byteValue, err = os.ReadFile(path.Join(kms.EtcKmipDir, kms.KmipClientKeyFileName))
+		if err != nil {
+			return errors.Wrapf(err, "failed to read file %q", kms.KmipClientKeyFileName)
+		}
+		clusterSpec.Security.KeyManagementService.ConnectionDetails[kms.KmipClientKey] = string(byteValue)
 	}
 
 	kmsConfig := kms.NewConfig(context, clusterSpec, clusterInfo)

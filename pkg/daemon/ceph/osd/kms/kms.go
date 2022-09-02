@@ -30,6 +30,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -67,6 +68,8 @@ func NewConfig(context *clusterd.Context, clusterSpec *cephv1.ClusterSpec, clust
 		config.Provider = secrets.TypeVault
 	case TypeIBM:
 		config.Provider = TypeIBM
+	case TypeKMIP:
+		config.Provider = TypeKMIP
 	default:
 		logger.Errorf("unsupported kms type %q", Provider)
 	}
@@ -114,6 +117,33 @@ func (c *Config) PutSecret(secretName, secretValue string) error {
 			return errors.Wrap(err, "failed to put secret in ibm key protect")
 		}
 	}
+	if c.IsKMIP() {
+		_, err := c.getKubernetesSecret(secretName)
+		if err == nil {
+			// if error is nil, secret exists, just return nil.
+			return nil
+		}
+		// if error is not found, continue with creation.
+		if !kerrors.IsNotFound(err) {
+			return errors.Wrapf(err, "failed to check secret exists for %q", secretName)
+		}
+
+		kmip, err := InitKMIP(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		if err != nil {
+			return errors.Wrap(err, "failed to init kmip")
+		}
+
+		// register the key with kmip server.
+		uniqueIdentifier, err := kmip.registerKey(secretName, secretValue)
+		if err != nil {
+			return errors.Wrap(err, "failed to register secret in kmip")
+		}
+		// store the uniqueIdentifier in Kubernetes Secret.
+		err = c.storeSecretInKubernetes(secretName, uniqueIdentifier)
+		if err != nil {
+			return errors.Wrap(err, "failed to store unique identifier in kubernetes secret")
+		}
+	}
 
 	return nil
 }
@@ -144,6 +174,22 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 			return "", errors.Wrap(err, "failed to get secret from ibm key protect")
 		}
 		value = string(keyObject.Payload)
+	}
+	if c.IsKMIP() {
+		uniqueIdentifier, err := c.getKubernetesSecret(secretName)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get unique id")
+		}
+
+		kmip, err := InitKMIP(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to init kmip")
+		}
+
+		value, err = kmip.getKey(uniqueIdentifier)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get key from kmip")
+		}
 	}
 
 	return value, nil
@@ -194,6 +240,21 @@ func (c *Config) DeleteSecret(secretName string) error {
 		_, err = kpClient.DeleteKey(ctx, key.ID, kp.ReturnRepresentation, []kp.CallOpt{kp.ForceOpt{Force: true}}...)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete secret in ibm key protect")
+		}
+	}
+	if c.IsKMIP() {
+		uniqueIdentifier, err := c.getKubernetesSecret(secretName)
+		if err != nil {
+			return errors.Wrap(err, "failed to get unique id")
+		}
+		kmip, err := InitKMIP(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		if err != nil {
+			return errors.Wrap(err, "failed to init kmip")
+		}
+
+		err = kmip.deleteKey(uniqueIdentifier)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete key with kmip")
 		}
 	}
 
@@ -257,6 +318,16 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 				// Append the token secret details to the connection details
 				kms.ConnectionDetails[config] = strings.TrimSuffix(strings.TrimSpace(string(v)), "\n")
 			}
+
+		case TypeKMIP:
+			for _, config := range kmsKMIPMandatoryTokenDetails {
+				v, ok := kmsToken.Data[config]
+				if !ok || len(v) == 0 {
+					return errors.Errorf("failed to read k8s kms secret %q key %q (not found or empty)", config, kms.TokenSecretName)
+				}
+				// Append the token secret details to the connection details
+				kms.ConnectionDetails[config] = strings.TrimSuffix(strings.TrimSpace(string(v)), "\n")
+			}
 		}
 	}
 
@@ -283,6 +354,13 @@ func ValidateConnectionDetails(ctx context.Context, clusterdContext *clusterd.Co
 
 	case TypeIBM:
 		for _, config := range kmsIBMKeyProtectMandatoryConnectionDetails {
+			if GetParam(kms.ConnectionDetails, config) == "" {
+				return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
+			}
+		}
+
+	case TypeKMIP:
+		for _, config := range kmsKMIPMandatoryConnectionDetails {
 			if GetParam(kms.ConnectionDetails, config) == "" {
 				return errors.Errorf("failed to validate kms config %q. cannot be empty", config)
 			}

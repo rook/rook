@@ -118,6 +118,10 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 					volumeTLS, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 					volumes = append(volumes, volumeTLS)
 				}
+				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
+					volumeKMIP, _ := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
+					volumes = append(volumes, volumeKMIP)
+				}
 			}
 		}
 	} else {
@@ -276,6 +280,11 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 					volumeMounts = append(volumeMounts, volumeMountsTLS)
 				}
 				envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
+				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
+					envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
+					_, volmeMountsKMIP := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
+					volumeMounts = append(volumeMounts, volmeMountsKMIP)
+				}
 			} else {
 				envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
 			}

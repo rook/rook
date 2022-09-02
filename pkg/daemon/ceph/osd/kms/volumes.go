@@ -31,9 +31,12 @@ const (
 	vaultKeySecretKeyName    = "key"
 
 	// File names of the Secret value when mapping on the filesystem
-	VaultCAFileName   = "vault.ca"
-	VaultCertFileName = "vault.crt"
-	VaultKeyFileName  = "vault.key"
+	VaultCAFileName        = "vault.ca"
+	VaultCertFileName      = "vault.crt"
+	VaultKeyFileName       = "vault.key"
+	KmipCACertFileName     = "ca.crt"
+	KmipClientCertFileName = "client.crt"
+	KmipClientKeyFileName  = "client.key"
 
 	// File name for token file
 	VaultFileName = "vault.token"
@@ -110,4 +113,49 @@ func tlsSecretPath(tlsOption string) string {
 	}
 
 	return ""
+}
+
+func KMIPVolumeAndMount(tokenSecretName string) (v1.Volume, v1.VolumeMount) {
+	mode := int32(0444)
+	v := v1.Volume{
+		Name: TypeKMIP,
+		VolumeSource: v1.VolumeSource{
+			Projected: &v1.ProjectedVolumeSource{
+				Sources: []v1.VolumeProjection{
+					{
+						Secret: &v1.SecretProjection{
+							LocalObjectReference: v1.LocalObjectReference{
+								Name: tokenSecretName,
+							},
+							Items: []v1.KeyToPath{
+								{
+									Key:  KmipCACert,
+									Path: KmipCACertFileName,
+									Mode: &mode,
+								},
+								{
+									Key:  KmipClientCert,
+									Path: KmipClientCertFileName,
+									Mode: &mode,
+								},
+								{
+									Key:  KmipClientKey,
+									Path: KmipClientKeyFileName,
+									Mode: &mode,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	m := v1.VolumeMount{
+		Name:      TypeKMIP,
+		ReadOnly:  true,
+		MountPath: EtcKmipDir,
+	}
+
+	return v, m
 }
