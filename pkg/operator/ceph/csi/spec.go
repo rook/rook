@@ -804,7 +804,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 
 	// Make the DS name unique per Ceph cluster
 	cephPluginHolder.Name = fmt.Sprintf("%s-%s", cephPluginHolder.Name, c.cluster.Name)
-	cephPluginHolder.Spec.Template.Name = fmt.Sprintf("%s-%s", cephPluginHolder.Spec.Template.Name, c.cluster.Name)
+	cephPluginHolder.Spec.Template.Name = cephPluginHolder.Name
 	cephPluginHolder.Spec.Template.Spec.Containers[0].Name = fmt.Sprintf("%s-%s", cephPluginHolder.Spec.Template.Spec.Containers[0].Name, c.cluster.Name)
 
 	// Add default labels
