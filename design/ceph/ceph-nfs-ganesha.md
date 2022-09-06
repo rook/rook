@@ -136,6 +136,18 @@ spec:
           # limits:
           #   cpu: "2"
           #   memory: "1024Mi"
+
+    kerberos:
+      principalName: nfs
+      configFiles:
+        volumeSource:
+          configMap:
+            name: rook-ceph-nfs-organization-krb-conf
+      keytabFile:
+        volumeSource:
+          secret:
+            name: rook-ceph-nfs-organization-keytab
+            defaultMode: 0600 # required
 ```
 
 When the  nfs-ganesha.yaml is created the following will happen:
@@ -213,8 +225,114 @@ The following directories should **not** be shared between SSSD and other contai
 - `/run/dbus`: using the DBus instance from the sidecar caused SSSD errors in testing. SSSD only
   uses DBus for internal communications and creates its own socket as needed.
 
+### Kerberos
+Kerberos is the authentication mechanism natively supported by NFS-Ganesha.
 
-<!-- LINKS -->
+#### Kerberos principals
+The Kerberos service principal used by NFS-Ganesha to authenticate with the Kerberos server is built
+up from 3 components:
+1. a configured PrincipalName (from `spec.security.kerberos.principalName` in Rook) that acts as the
+   service name
+2. the hostname of the server on which NFS-Ganesha is running (using kernel call `getaddrinfo()`)
+3. the realm (as configured by the user's krb.conf file(s))
+
+The full service principal name is constructed as `<principalName>/<hostname>@<realm>`.
+
+Users must add this service principal to their Kerberos server configuration. Therefore, this
+principal must be static, and for the benefit of users it should be deterministic.
+
+The hostname of Kubernetes pods is the partly-random name of the pod by default. In order to give
+NFS-Ganesha server pods a deterministic hostname, the `hostname` field of the pod spec will be set
+to the namespace plus name of the CephNFS resource. This also means that all servers will be able to
+use the same service principal, which will be valuable for auto-scaling NFS servers in the future.
+The principal then becomes easy to construct from known CephNFS fields as
+`<principalName>/<namespace>-<name>@<realm>`.
+
+Additionally, `getaddrinfo()` doesn't return the hostname by default because the default
+`resolv.conf` in the pod does not check localhost. The pod's DNS config must be updated as shown.
+```yaml
+dnsConfig:
+  searches:
+    - localhost
+```
+
+#### Volumes
+Volumes that should be mounted into nfs-ganesha container to support Kerberos:
+1. `keytabFile` volume: use `subPath` on the mount to add the `krb5.keytab` file to `/etc/krb5.keytab`
+2. `configFiles` volume: mount (without `subPath`) to `/etc/krb5.conf.d/` to allow all files to
+   be mounted (e.g., if a ConfigMap has multiple data items or hostPath has multiple conf.d files)
+
+#### Ganesha config
+Should add configuration. Docs say Active_krb5 is default true if krb support is compiled in, but
+most examples have this explicitly set.
+Default PrincipalName is "nfs".
+Default for keytab path is reportedly empty. Rook can use `/etc/krb5.keytab`.
+
+Create a new RADOS object named `kerberos` to configure Kerberos.
+```ini
+NFS_KRB5
+{
+   PrincipalName = nfs ; # <-- set from spec.security.kerberos.principalName (or "nfs" if unset)
+   KeytabPath = /etc/krb5.keytab ;
+   Active_krb5 = YES ;
+}
+```
+
+Add the following line to to the config object (`conf-nfs.${nfs-name}`) to reference the new
+`kerberos` RADOS object. Remove this line from the config object if Kerberos is disabled.
+```
+%url "rados://.nfs/${nfs-name}/kerberos"
+```
+
+These steps can be done from the Rook operator.
+
+#### Kerberos config
+Rook should take steps to remove any default configuration. This means that it should create its own
+minimal krb.conf and ensure that any imported directories are empty. While it might be nice for some
+users to include the default configurations that are present in the container, it is extremely
+difficult in practice to adequately document the interactions between defaults that may change from
+time to time in the container image (or between different distros), and users will have to expend
+mental effort to understand how their configurations may override defaults. Upstream documentation
+for krb5.conf is unclear about file ordering and override behavior. Therefore, Rook will rely on
+users to specify nearly all of the configuration which will ensure users are able to easily supply
+the configuration they require.
+
+The minimal `/etc/krb5.conf` file Rook will create is as so:
+```ini
+includedir /etc/krb5.conf.d/ # include all user-defined config files
+
+[logging]
+default = STDERR # only log to stderr by default
+```
+
+#### Enabling kerberos for an export
+Currently the `ceph nfs ...` CLI tool is unable to create exports with Kerberos security enabled.
+Users must manually add it by modifying the raw RADOS export object. This should be documented.
+
+Example export (with `sectype` manually added):
+```ini
+EXPORT {
+    FSAL {
+        name = "CEPH";
+        user_id = "nfs.my-nfs.1";
+        filesystem = "myfs";
+        secret_access_key = "AQBsPf1iNXTRKBAAtw+D5VzFeAMV4iqbfI0IBA==";
+    }
+    export_id = 1;
+    path = "/";
+    pseudo = "/test";
+    access_type = "RW";
+    squash = "none";
+    attr_expiration_time = 0;
+    security_label = true;
+    protocols = 4;
+    transports = "TCP";
+    sectype = krb5,krb5i,krb5p; # <-- not included in ceph nfs exports by default
+}
+```
+
+
+<!--------------------------------------------- LINKS --------------------------------------------->
 [NFS-Ganesha]: https://github.com/nfs-ganesha/nfs-ganesha/wiki
 [CephFS]: http://docs.ceph.com/docs/master/cephfs/nfs/
 [RGW]: http://docs.ceph.com/docs/master/radosgw/nfs/
