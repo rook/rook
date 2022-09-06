@@ -37,13 +37,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: copy working directory to GOPATH
-        run: sudo mkdir -p /home/runner/go/src/github.com && sudo cp -a /home/runner/work/rook /home/runner/go/src/github.com/
-
       - name: run gen-rbac
-        working-directory: /home/runner/go/src/github.com/rook/rook
         run: GOPATH=$(go env GOPATH) make gen-rbac
 
       - name: validate gen-rbac
-        working-directory: /home/runner/go/src/github.com/rook/rook
         run: tests/scripts/validate_modified_files.sh gen-rbac
