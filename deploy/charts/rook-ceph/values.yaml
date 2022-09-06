@@ -390,7 +390,6 @@ csi:
   # Enable the nfs csi driver.
   nfs:
     enabled: false
-    #image: "registry.k8s.io/sig-storage/nfsplugin:v4.0.0"
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
