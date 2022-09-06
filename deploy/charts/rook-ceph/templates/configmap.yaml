@@ -12,6 +12,7 @@ data:
   ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
   CSI_ENABLE_CEPHFS_SNAPSHOTTER: {{ .Values.csi.enableCephfsSnapshotter | quote }}
+  CSI_ENABLE_NFS_SNAPSHOTTER: {{ .Values.csi.enableNFSSnapshotter | quote }}
   CSI_ENABLE_RBD_SNAPSHOTTER: {{ .Values.csi.enableRBDSnapshotter | quote }}
   CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: {{ .Values.csi.enablePluginSelinuxHostMount | quote }}
   CSI_ENABLE_ENCRYPTION: {{ .Values.csi.enableCSIEncryption | quote }}

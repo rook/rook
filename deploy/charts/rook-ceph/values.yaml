@@ -66,6 +66,8 @@ csi:
   enableCSIHostNetwork: true
   # set to false to disable deployment of snapshotter container in CephFS provisioner pod.
   enableCephfsSnapshotter: true
+  # set to false to disable deployment of snapshotter container in NFS provisioner pod.
+  enableNFSSnapshotter: true
   # set to false to disable deployment of snapshotter container in RBD provisioner pod.
   enableRBDSnapshotter: true
   # set to false if the selinux is not enabled or unavailable in cluster nodes.
