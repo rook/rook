@@ -601,19 +601,19 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	}
 
 	if EnableRBD {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, RBDDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_FSGROUPPOLICY", string(k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy)), true)
+		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, RBDDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), true)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 	}
 	if EnableCephFS {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy)), true)
+		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), true)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
 	}
 	if EnableNFS {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.ReadWriteOnceWithFSTypeFSGroupPolicy)), false)
+		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), false)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", NFSDriverName)
 		}
