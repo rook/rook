@@ -249,7 +249,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	}
 
 	CSIParam.CSIPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
-	CSIParam.NFSPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_IMAGE", DefaultNFSPluginImage)
 	CSIParam.RegistrarImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
 	CSIParam.ProvisionerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
 	CSIParam.AttacherImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)

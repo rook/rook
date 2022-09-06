@@ -164,7 +164,7 @@ function build_rook_all() {
 
 function validate_yaml() {
   cd deploy/examples
-  kubectl create -f crds.yaml -f common.yaml
+  kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
 
   # create and use PSPs on k8s versions older than 1.21
   kube_minor_ver="$(kubectl version -o json | jq -r '.serverVersion.minor')"
@@ -192,10 +192,11 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  (cd deploy/examples && kubectl create -f crds.yaml -f common.yaml)
+  ( cd deploy/examples && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml )
 }
 
 function deploy_manifest_with_local_build() {
+  sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' $1
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
   fi
@@ -255,6 +256,7 @@ function deploy_csi_hostnetwork_disabled_cluster() {
   elif [ "$1" = "osd_with_metadata_device" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   fi
+  kubectl create -f nfs-test.yaml
   kubectl create -f cluster-test.yaml
   kubectl create -f filesystem-test.yaml
   deploy_manifest_with_local_build toolbox.yaml
@@ -468,11 +470,14 @@ EOF
 
 function deploy_multus_cluster() {
   cd deploy/examples
+  sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   deploy_manifest_with_local_build toolbox.yaml
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-multus-test.yaml
   kubectl create -f cluster-multus-test.yaml
   kubectl create -f filesystem-test.yaml
+  # uncomment once https://github.com/rook/rook/issues/10812 is resolved.
+  # kubectl create -f nfs-test.yaml
 }
 
 function wait_for_ceph_csi_configmap_to_be_updated {
@@ -488,6 +493,12 @@ until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="
   sleep 5
 done
 EOF
+timeout 60 bash <<EOF
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].nfs.netNamespaceFilePath) != "null" ]]; do
+  echo "waiting for ceph csi configmap to be updated with nfs.netNamespaceFilePath"
+  sleep 5
+done
+EOF
 }
 
 function test_csi_rbd_workload {
@@ -497,7 +508,7 @@ function test_csi_rbd_workload {
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   kubectl create -f pod.yaml
-  timeout 45 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  timeout 90 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
   kubectl -n rook-ceph logs ds/csi-rbdplugin -c csi-rbdplugin
   kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-rbdplugin --field-selector=status.phase=Running -o name)"
@@ -510,12 +521,25 @@ function test_csi_cephfs_workload {
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   kubectl create -f pod.yaml
-  timeout 45 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  timeout 90 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
   kubectl -n rook-ceph logs ds/csi-cephfsplugin -c csi-cephfsplugin
   kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-cephfsplugin --field-selector=status.phase=Running -o name)"
   kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csicephfs-demo-pod -- ls -alh /var/lib/www/html/
+}
+
+function test_csi_nfs_workload {
+  cd deploy/examples/csi/nfs
+  sed -i "s|#- debug|- nolock|" storageclass.yaml
+  kubectl create -f storageclass.yaml
+  kubectl create -f pvc.yaml
+  kubectl create -f pod.yaml
+  timeout 90 sh -c 'until kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
+  kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-nfsplugin --field-selector=status.phase=Running -o name)"
+  kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
+  kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
 }
 
 FUNCTION="$1"
