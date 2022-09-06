@@ -432,9 +432,8 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		if !isAvailable {
 			logger.Infof("skipping device %q: %s.", device.Name, rejectedReason)
 			continue
-		} else {
-			logger.Infof("device %q is available.", device.Name)
 		}
+		logger.Infof("device %q is available.", device.Name)
 
 		var deviceInfo *DeviceOsdIDEntry
 		if agent.metadataDevice != "" && agent.metadataDevice == device.Name {
@@ -497,23 +496,22 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 						continue
 					}
 				}
-				matchedDevice = desiredDevice
-
-				if matchedDevice.DeviceClass == "" {
-					classNotSet := true
-					if agent.pvcBacked {
-						crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
-						if crushDeviceClass != "" {
-							matchedDevice.DeviceClass = crushDeviceClass
-							classNotSet = false
-						}
-					}
-					if classNotSet {
-						matchedDevice.DeviceClass = sys.GetDiskDeviceClass(device)
-					}
-				}
 
 				if matched {
+					matchedDevice = desiredDevice
+					if matchedDevice.DeviceClass == "" {
+						classNotSet := true
+						if agent.pvcBacked {
+							crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
+							if crushDeviceClass != "" {
+								matchedDevice.DeviceClass = crushDeviceClass
+								classNotSet = false
+							}
+						}
+						if classNotSet {
+							matchedDevice.DeviceClass = sys.GetDiskDeviceClass(device)
+						}
+					}
 					break
 				}
 			}
