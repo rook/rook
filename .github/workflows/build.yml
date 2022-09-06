@@ -34,24 +34,17 @@ jobs:
         with:
           version: v3.6.2
 
-      - name: copy working directory to GOPATH
-        run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
-
       - name: build rook
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: |
           GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
 
       - name: validate build
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: tests/scripts/validate_modified_files.sh build
 
       - name: run codegen
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: GOPATH=$(go env GOPATH) make codegen
 
       - name: validate codegen
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: tests/scripts/validate_modified_files.sh codegen
 
       - name: run mod check
@@ -61,19 +54,15 @@ jobs:
         run: tests/scripts/validate_modified_files.sh modcheck
 
       - name: run crds-gen
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: make csv-clean && GOPATH=$(go env GOPATH) make crds
 
       - name: validate crds-gen
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: tests/scripts/validate_modified_files.sh crd
 
       - name: run gen-rbac
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: GOPATH=$(go env GOPATH) make gen-rbac
 
       - name: validate gen-rbac
-        working-directory: /Users/runner/go/src/github.com/rook/rook
         run: tests/scripts/validate_modified_files.sh gen-rbac
 
       - name: consider debugging
