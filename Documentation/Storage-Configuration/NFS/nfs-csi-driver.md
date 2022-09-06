@@ -167,3 +167,39 @@ kubectl delete -f deploy/examples/csi/nfs/pvc-restore.yaml
 kubectl delete -f deploy/examples/csi/nfs/snapshot.yaml
 kubectl delete -f deploy/examples/csi/nfs/snapshotclass.yaml
 ```
+
+## Cloning NFS exports
+
+### Creating clones
+
+In
+[pvc-clone](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/pvc-clone.yaml),
+`dataSource` should be the name of the PVC which is already created by NFS
+CSI driver. The `dataSource` kind should be "PersistentVolumeClaim" and also storageclass
+should be same as the source PVC.
+
+Create a new PVC Clone from the PVC as in the example [here](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/pvc-clone.yaml).
+
+```console
+kubectl create -f deploy/examples/csi/nfs/pvc-clone.yaml
+```
+
+### Verifying a cloned PVC
+
+```console
+kubectl get pvc
+```
+
+>```
+>NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+>nfs-pvc           Bound    pvc-1ea51547-a88b-4ab0-8b4a-812caeaf025d   1Gi        RWX            rook-nfs       39m
+>nfs-pvc-clone     Bound    pvc-b575bc35-d521-4c41-b4f9-1d733cd28fdf   1Gi        RWX            rook-nfs       8s
+>```
+
+### Cleaning up clone resources
+
+To clean your cluster of the resources created by this example, run the following:
+
+```console
+kubectl delete -f deploy/examples/csi/nfs/pvc-clone.yaml
+```
