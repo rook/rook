@@ -152,9 +152,10 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableOIDCTokenProjection = true
 	}
 
-	// enable RBD and CephFS snapshotter by default
+	// enable RBD, CephFS and NFS snapshotter by default
 	CSIParam.EnableRBDSnapshotter = true
 	CSIParam.EnableCephFSSnapshotter = true
+	CSIParam.EnableNFSSnapshotter = true
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false
@@ -162,6 +163,10 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CEPHFS_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableCephFSSnapshotter = false
+	}
+
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_NFS_SNAPSHOTTER", "true"), "false") {
+		CSIParam.EnableNFSSnapshotter = false
 	}
 
 	CSIParam.EnableCSIAddonsSideCar = false

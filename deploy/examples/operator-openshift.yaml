@@ -155,6 +155,9 @@ data:
   # set to false to disable deployment of snapshotter container in CephFS provisioner pod.
   CSI_ENABLE_CEPHFS_SNAPSHOTTER: "true"
 
+  # set to false to disable deployment of snapshotter container in NFS provisioner pod.
+  CSI_ENABLE_NFS_SNAPSHOTTER: "true"
+
   # set to false to disable deployment of snapshotter container in RBD provisioner pod.
   CSI_ENABLE_RBD_SNAPSHOTTER: "true"
 
