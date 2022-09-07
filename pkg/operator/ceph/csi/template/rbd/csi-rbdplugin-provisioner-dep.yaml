@@ -121,25 +121,6 @@ spec:
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
         {{ end }}
-        {{ if .EnableVolumeReplicationSideCar }}
-        - name: volume-replication
-          image: {{ .VolumeReplicationImage }}
-          args :
-            - "--metrics-bind-address=0"
-            - "--leader-election-namespace={{ .Namespace }}"
-            - "--driver-name={{ .DriverNamePrefix }}rbd.csi.ceph.com"
-            - "--csi-address=$(ADDRESS)"
-            - "--rpc-timeout={{ .GRPCTimeout }}"
-            - "--health-probe-bind-address=:9998"
-            - "--leader-elect=true"
-          env:
-            - name: ADDRESS
-              value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /csi
-        {{ end }}
         {{ if .EnableCSIAddonsSideCar }}
         - name: csi-addons
           image: {{ .CSIAddonsImage }}
@@ -147,7 +128,6 @@ spec:
             - "--node-id=$(NODE_ID)"
             - "--v={{ .LogLevel }}"
             - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
-            - "--controller-ip=$(POD_IP)"
             - "--controller-port={{ .CSIAddonsPort }}"
             - "--pod=$(POD_NAME)"
             - "--namespace=$(POD_NAMESPACE)"
@@ -156,10 +136,6 @@ spec:
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
             - name: NODE_ID
               valueFrom:
                 fieldRef:
