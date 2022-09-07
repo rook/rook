@@ -85,6 +85,7 @@ func (s *TestCephSettings) readManifestFromGitHubWithClusterNamespace(filename, 
 }
 
 func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
+	manifest = strings.ReplaceAll(manifest, `ROOK_LOG_LEVEL: "INFO"`, `ROOK_LOG_LEVEL: "DEBUG"`)
 	manifest = strings.ReplaceAll(manifest, `# CSI_LOG_LEVEL: "0"`, `CSI_LOG_LEVEL: "5"`)
 	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_DISCOVERY_DAEMON: "false"`, fmt.Sprintf(`ROOK_ENABLE_DISCOVERY_DAEMON: "%t"`, s.EnableDiscovery))
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))

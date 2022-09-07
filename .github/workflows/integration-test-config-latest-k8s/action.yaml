@@ -1,6 +1,9 @@
 name: Cluster Setup
-description: Cluster setup for canary test
+description: Cluster setup for integration test
 inputs:
+  kubernetes-version:
+    description: kubernetes version to use for the workflow
+    required: true
   github-token:
     description: GITHUB_TOKEN from the calling workflow
     required: true
@@ -17,17 +20,18 @@ runs:
       uses: manusa/actions-setup-minikube@v2.7.0
       with:
         minikube version: "v1.26.1"
-        kubernetes version: "v1.23.0"
-        start args: --memory 6g --cpus=2 --addons ingress --cni=calico
+        kubernetes version: ${{ inputs.kubernetes-version }}
+        start args: --memory 6g --cpus=2 --addons ingress
         github token: ${{ inputs.github-token }}
-
-    - name: install deps
-      shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: tests/scripts/github-action-helper.sh install_deps
 
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+    # This step is required for all the integration tests except the canary tests
+    - name: use local disk
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
 
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}

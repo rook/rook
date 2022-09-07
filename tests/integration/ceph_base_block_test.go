@@ -35,24 +35,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func skipSnapshotTest(k8sh *utils.K8sHelper) bool {
-	minVersion := "v1.17.0"
-	if !k8sh.VersionAtLeast(minVersion) {
-		logger.Infof("Skipping snapshot tests as kubernetes version is less than %q for the CSI driver", minVersion)
-		return true
-	}
-	return false
-}
-
-func skipCloneTest(k8sh *utils.K8sHelper) bool {
-	minVersion := "v1.16.0"
-	if !k8sh.VersionAtLeast(minVersion) {
-		logger.Infof("Skipping snapshot tests as kubernetes version is less than %q for the CSI driver", minVersion)
-		return true
-	}
-	return false
-}
-
 func blockCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName string) {
 	// create pvc and app
 	pvcSize := "1Gi"
@@ -417,13 +399,8 @@ func runBlockCSITestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *s
 	podName := "test-pod-lite"
 	defer blockTestDataCleanUp(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName, podName, true)
 	setupBlockLite(helper, k8sh, s, clusterInfo, poolName, storageClassName, blockName)
-	if !skipSnapshotTest(k8sh) {
-		blockCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace)
-	}
-
-	if !skipCloneTest(k8sh) {
-		blockCSICloneTest(helper, k8sh, s, storageClassName)
-	}
+	blockCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace)
+	blockCSICloneTest(helper, k8sh, s, storageClassName)
 }
 
 func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, clusterInfo *client.ClusterInfo,

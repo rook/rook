@@ -7,12 +7,12 @@
 kind: DaemonSet
 apiVersion: apps/v1
 metadata:
-  name: csi-cephfsplugin-holder
+  name: csi-nfsplugin-holder
   namespace: {{ .Namespace }}
 spec:
   selector:
     matchLabels:
-      app: csi-cephfsplugin-holder
+      app: csi-nfsplugin-holder
   updateStrategy:
     # DO NOT CHANGE THE STRATEGY
     # The pod is not supposed to be restarted on updates, it should never receive updates too.
@@ -22,19 +22,19 @@ spec:
   template:
     metadata:
       labels:
-        app: csi-cephfsplugin-holder
-        {{ range $key, $value := .CSICephFSPodLabels }}
+        app: csi-nfsplugin-holder
+        {{ range $key, $value := .CSINFSPodLabels }}
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
       # HostPID is needed to expose the correct process ID network namespace and not the process namespace
       hostPID: true
-      serviceAccountName: rook-csi-cephfs-plugin-sa
+      serviceAccountName: rook-csi-nfs-plugin-sa
       {{ if .PluginPriorityClassName }}
       priorityClassName: {{ .PluginPriorityClassName }}
       {{ end }}
       containers:
-        - name: csi-cephfsplugin-holder
+        - name: csi-nfsplugin-holder
           # This is necessary for the Bidirectional mount propagation
           securityContext:
             privileged: true

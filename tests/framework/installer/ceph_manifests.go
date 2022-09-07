@@ -65,7 +65,7 @@ func NewCephManifests(settings *TestCephSettings) CephManifests {
 	switch settings.RookVersion {
 	case LocalBuildTag:
 		return &CephManifestsMaster{settings}
-	case Version1_8:
+	case Version1_9:
 		return &CephManifestsPreviousVersion{settings, &CephManifestsMaster{settings}}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", settings.RookVersion))
@@ -229,23 +229,12 @@ spec:
       journalSizeMB: "1024"
 `
 	}
-	return clusterSpec + m.getClusterPriorityClasses()
-}
-
-func (m *CephManifestsMaster) getClusterPriorityClasses() string {
-	priorityClasses := `
+	return clusterSpec + `
   priorityClassNames:
-`
-	// Priority classes are only supported on pods outside the kube-system namespace
-	// in versions of at least v1.17
-	if utils.VersionAtLeast(m.Settings().KubernetesVersion, "v1.17.0") {
-		priorityClasses += `
     mon: system-node-critical
     osd: system-node-critical
     mgr: system-cluster-critical
 `
-	}
-	return priorityClasses
 }
 
 func (m *CephManifestsMaster) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
@@ -462,7 +451,6 @@ spec:
       requireSafeReplicaSize: false
   gateway:
     resources: null
-    type: s3
     securePort: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
     sslCertificateRef: ` + name + `

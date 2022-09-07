@@ -76,12 +76,6 @@ data:
   ROOK_CSI_RESIZER_IMAGE: {{ .Values.csi.resizer.image | quote }}
 {{- end }}
 {{- end }}
-{{- if .Values.csi.volumeReplication }}
-  CSI_ENABLE_VOLUME_REPLICATION: {{ .Values.csi.volumeReplication.enabled | quote }}
-{{- if .Values.csi.volumeReplication.image }}
-  CSI_VOLUME_REPLICATION_IMAGE: {{ .Values.csi.volumeReplication.image | quote }}
-{{- end }}
-{{- end }}
 {{- if .Values.csi.csiAddons }}
   CSI_ENABLE_CSIADDONS: {{ .Values.csi.csiAddons.enabled | quote }}
 {{- if .Values.csi.csiAddons.image }}
@@ -90,9 +84,6 @@ data:
 {{- end }}
 {{- if .Values.csi.nfs }}
   ROOK_CSI_ENABLE_NFS: {{ .Values.csi.nfs.enabled | quote }}
-{{- if .Values.csi.nfs.image }}
-  ROOK_CSI_NFS_IMAGE: {{ .Values.csi.nfs.image | quote }}
-{{- end }}
 {{- end }}
 {{- if .Values.csi.cephfsPodLabels }}
   ROOK_CSI_CEPHFS_POD_LABELS: {{ .Values.csi.cephfsPodLabels | quote }}

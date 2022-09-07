@@ -42,6 +42,7 @@ type CsiClusterConfigEntry struct {
 	Monitors       []string       `json:"monitors"`
 	Namespace      string         `json:"namespace"`
 	CephFS         *CsiCephFSSpec `json:"cephFS,omitempty"`
+	NFS            *CsiNFSSpec    `json:"nfs,omitempty"`
 	RBD            *CsiRBDSpec    `json:"rbd,omitempty"`
 	RadosNamespace string         `json:"radosNamespace,omitempty"`
 }
@@ -49,6 +50,10 @@ type CsiClusterConfigEntry struct {
 type CsiCephFSSpec struct {
 	NetNamespaceFilePath string `json:"netNamespaceFilePath,omitempty"`
 	SubvolumeGroup       string `json:"subvolumeGroup,omitempty"`
+}
+
+type CsiNFSSpec struct {
+	NetNamespaceFilePath string `json:"netNamespaceFilePath,omitempty"`
 }
 
 type CsiRBDSpec struct {
@@ -142,6 +147,9 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
 				centry.CephFS = newCsiClusterConfigEntry.CephFS
 			}
+			if newCsiClusterConfigEntry.NFS != nil && newCsiClusterConfigEntry.NFS.NetNamespaceFilePath != "" {
+				centry.NFS = newCsiClusterConfigEntry.NFS
+			}
 			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.RBD.NetNamespaceFilePath != "") {
 				centry.RBD = newCsiClusterConfigEntry.RBD
 			}
@@ -168,6 +176,9 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			// Add a condition not to fill with empty values
 			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
 				centry.CephFS = newCsiClusterConfigEntry.CephFS
+			}
+			if newCsiClusterConfigEntry.NFS != nil && newCsiClusterConfigEntry.NFS.NetNamespaceFilePath != "" {
+				centry.NFS = newCsiClusterConfigEntry.NFS
 			}
 			cc = append(cc, centry)
 		}
@@ -208,7 +219,7 @@ func CreateCsiConfigMap(ctx context.Context, namespace string, clientset kuberne
 // SaveClusterConfig updates the config map used to provide ceph-csi with
 // basic cluster configuration. The clusterNamespace and clusterInfo are
 // used to determine what "cluster" in the config map will be updated and
-// and the clusterNamespace value is expected to match the clusterID
+// the clusterNamespace value is expected to match the clusterID
 // value that is provided to ceph-csi uses in the storage class.
 // The locker l is typically a mutex and is used to prevent the config
 // map from being updated for multiple clusters simultaneously.

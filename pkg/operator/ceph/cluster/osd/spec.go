@@ -356,32 +356,35 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	var command []string
 	var args []string
 	// If the OSD was prepared with ceph-volume and running on PVC and using the LVM mode
-	if osdProps.onPVC() && osd.CVMode == "lvm" {
-		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
-		command = []string{path.Join(rookBinariesMountPath, "rook")}
-		args = []string{
-			"ceph", "osd", "start",
-			"--",
-			"--foreground",
-			"--id", osdID,
-			"--fsid", c.clusterInfo.FSID,
-			"--cluster", "ceph",
-			"--setuser", "ceph",
-			"--setgroup", "ceph",
-			fmt.Sprintf("--crush-location=%s", osd.Location),
-		}
-		osd.LVBackedPV = true
-	} else if osdProps.onPVC() && osd.CVMode == "raw" {
-		doBinaryCopyInit = false
-		doConfigInit = false
-		command = []string{"ceph-osd"}
-		args = []string{
-			"--foreground",
-			"--id", osdID,
-			"--fsid", c.clusterInfo.FSID,
-			"--setuser", "ceph",
-			"--setgroup", "ceph",
-			fmt.Sprintf("--crush-location=%s", osd.Location),
+	if osdProps.onPVC() {
+		if osd.CVMode == "lvm" {
+			// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
+			command = []string{path.Join(rookBinariesMountPath, "rook")}
+			args = []string{
+				"ceph", "osd", "start",
+				"--",
+				"--foreground",
+				"--id", osdID,
+				"--fsid", c.clusterInfo.FSID,
+				"--cluster", "ceph",
+				"--setuser", "ceph",
+				"--setgroup", "ceph",
+				fmt.Sprintf("--crush-location=%s", osd.Location),
+			}
+			osd.LVBackedPV = true
+		} else {
+			// raw mode
+			doBinaryCopyInit = false
+			doConfigInit = false
+			command = []string{"ceph-osd"}
+			args = []string{
+				"--foreground",
+				"--id", osdID,
+				"--fsid", c.clusterInfo.FSID,
+				"--setuser", "ceph",
+				"--setgroup", "ceph",
+				fmt.Sprintf("--crush-location=%s", osd.Location),
+			}
 		}
 	} else {
 		doBinaryCopyInit = false
@@ -438,31 +441,21 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
 	}
 
-	// Add the volume to the spec and the mount to the daemon container
-	// so that it can pick the already mounted/activated osd metadata path
-	// This container will activate the OSD and place the activated filesinto an empty dir
-	// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
-	activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd, osdProps)
-	if !osdProps.onPVC() {
-		volumes = append(volumes, activateOSDVolume...)
-		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
-	}
-
 	args = append(args, opconfig.LoggingFlags()...)
 	args = append(args, osdOnSDNFlag(c.spec.Network)...)
 	args = append(args, controller.NetworkBindingFlags(c.clusterInfo, &c.spec)...)
 
 	osdDataDirPath := activateOSDMountPath + osdID
-	if osdProps.onPVC() && osd.CVMode == "lvm" {
-		// Let's use the old bridge for these lvm based pvc osds
-		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
+	if osdProps.onPVC() {
 		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
-		envVars = append(envVars, lvBackedPVEnvVar(strconv.FormatBool(osd.LVBackedPV)))
-	}
-
-	if osdProps.onPVC() && osd.CVMode == "raw" {
-		volumeMounts = append(volumeMounts, getPvcOSDBridgeMountActivate(osdDataDirPath, osdProps.pvc.ClaimName))
-		envVars = append(envVars, pvcBackedOSDEnvVar("true"))
+		if osd.CVMode == "lvm" {
+			// Let's use the old bridge for these lvm based pvc osds
+			volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
+			envVars = append(envVars, lvBackedPVEnvVar(strconv.FormatBool(osd.LVBackedPV)))
+		} else {
+			// raw mode
+			volumeMounts = append(volumeMounts, getPvcOSDBridgeMountActivate(osdDataDirPath, osdProps.pvc.ClaimName))
+		}
 	}
 
 	// We cannot go un-privileged until we have a bindmount for logs and crash
@@ -498,35 +491,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		initContainers = append(initContainers, *copyBinariesContainer)
 	}
 
-	if osdProps.onPVC() && osd.CVMode == "lvm" {
-		initContainers = append(initContainers, c.getPVCInitContainer(osdProps))
-	} else if osdProps.onPVC() && osd.CVMode == "raw" {
-		// Copy main block device to an empty dir
-		initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
-		// Copy main block.db device to an empty dir
-		if osdProps.onPVCWithMetadata() {
-			initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
-		}
-		// Copy main block.wal device to an empty dir
-		if osdProps.onPVCWithWal() {
-			initContainers = append(initContainers, c.getPVCWalInitContainerActivate(osdDataDirPath, osdProps))
-		}
-		if osdProps.encrypted {
-			// Open the encrypted disk
-			initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdDataDirPath, osdProps)...)
-			// Copy the encrypted block to the osd data location, e,g: /var/lib/ceph/osd/ceph-0/block
-			initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
-			// Print the encrypted block status
-			initContainers = append(initContainers, c.getEncryptedStatusPVCInitContainer(osdDataDirPath, osdProps))
-			// Resize the encrypted device if necessary, this must be done after the encrypted block is opened
-			initContainers = append(initContainers, c.getExpandEncryptedPVCInitContainer(osdDataDirPath, osdProps))
-		}
-		initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
-		initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
-	} else {
-		initContainers = append(initContainers, *activateOSDContainer)
-	}
-
 	// For OSD on PVC with LVM the directory does not exist yet
 	// It gets created by the 'ceph-volume lvm activate' command
 	//
@@ -534,9 +498,45 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// So we don't need to chown it again
 	dataPath := ""
 
-	// Raw mode on PVC needs this path so that OSD's metadata files can be chown after 'ceph-bluestore-tool' ran
-	if osd.CVMode == "raw" && osdProps.onPVC() {
-		dataPath = activateOSDMountPath + osdID
+	if osdProps.onPVC() {
+		if osd.CVMode == "lvm" {
+			initContainers = append(initContainers, c.getPVCInitContainer(osdProps))
+		} else {
+			// Raw mode on PVC needs this path so that OSD's metadata files can be chown after 'ceph-bluestore-tool' ran
+			dataPath = activateOSDMountPath + osdID
+
+			// Copy main block device to an empty dir
+			initContainers = append(initContainers, c.getPVCInitContainerActivate(osdDataDirPath, osdProps))
+			// Copy main block.db device to an empty dir
+			if osdProps.onPVCWithMetadata() {
+				initContainers = append(initContainers, c.getPVCMetadataInitContainerActivate(osdDataDirPath, osdProps))
+			}
+			// Copy main block.wal device to an empty dir
+			if osdProps.onPVCWithWal() {
+				initContainers = append(initContainers, c.getPVCWalInitContainerActivate(osdDataDirPath, osdProps))
+			}
+			if osdProps.encrypted {
+				// Open the encrypted disk
+				initContainers = append(initContainers, c.getPVCEncryptionOpenInitContainerActivate(osdDataDirPath, osdProps)...)
+				// Copy the encrypted block to the osd data location, e,g: /var/lib/ceph/osd/ceph-0/block
+				initContainers = append(initContainers, c.getPVCEncryptionInitContainerActivate(osdDataDirPath, osdProps)...)
+				// Print the encrypted block status
+				initContainers = append(initContainers, c.getEncryptedStatusPVCInitContainer(osdDataDirPath, osdProps))
+				// Resize the encrypted device if necessary, this must be done after the encrypted block is opened
+				initContainers = append(initContainers, c.getExpandEncryptedPVCInitContainer(osdDataDirPath, osdProps))
+			}
+			initContainers = append(initContainers, c.getActivatePVCInitContainer(osdProps, osdID))
+			initContainers = append(initContainers, c.getExpandPVCInitContainer(osdProps, osdID))
+		}
+	} else {
+		// Add the volume to the spec and the mount to the daemon container
+		// so that it can pick the already mounted/activated osd metadata path
+		// This container will activate the OSD and place the activated filesinto an empty dir
+		// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
+		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd, osdProps)
+		volumes = append(volumes, activateOSDVolume...)
+		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
+		initContainers = append(initContainers, *activateOSDContainer)
 	}
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
@@ -635,15 +635,26 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		k8sutil.AddLabelToDeployment(CephDeviceSetLabelKey, osdProps.deviceSetName, deployment)
 		k8sutil.AddLabelToPod(OSDOverPVCLabelKey, osdProps.pvc.ClaimName, &deployment.Spec.Template)
 		k8sutil.AddLabelToPod(CephDeviceSetLabelKey, osdProps.deviceSetName, &deployment.Spec.Template)
+		// Replace default unreachable node toleration if the osd pod is portable and based in PVC
+		if osdProps.portable {
+			k8sutil.AddUnreachableNodeToleration(&deployment.Spec.Template.Spec)
+		}
+		c.applyAllPlacementIfNeeded(&deployment.Spec.Template.Spec)
+		// apply storageClassDeviceSets.Placement
+		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	} else {
+		c.applyAllPlacementIfNeeded(&deployment.Spec.Template.Spec)
+		// apply c.spec.Placement.osd
+		c.spec.Placement[cephv1.KeyOSD].ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	}
-	if !osdProps.portable {
+	if osdProps.portable {
+		// portable OSDs must have affinity to the topology where the osd prepare job was executed
+		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, osd); err != nil {
+			return nil, err
+		}
+	} else {
 		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
 	}
-	// Replace default unreachable node toleration if the osd pod is portable and based in PVC
-	if osdProps.onPVC() && osdProps.portable {
-		k8sutil.AddUnreachableNodeToleration(&deployment.Spec.Template.Spec)
-	}
-
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&deployment.ObjectMeta)
 	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
@@ -654,23 +665,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd deployment %q", deployment.Name)
-	}
-
-	if osdProps.onPVC() {
-		c.applyAllPlacementIfNeeded(&deployment.Spec.Template.Spec)
-		// apply storageClassDeviceSets.Placement
-		osdProps.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
-	} else {
-		c.applyAllPlacementIfNeeded(&deployment.Spec.Template.Spec)
-		// apply c.spec.Placement.osd
-		c.spec.Placement[cephv1.KeyOSD].ApplyToPodSpec(&deployment.Spec.Template.Spec)
-	}
-
-	// portable OSDs must have affinity to the topology where the osd prepare job was executed
-	if osdProps.portable {
-		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, osd); err != nil {
-			return nil, err
-		}
 	}
 
 	// Change TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES if the OSD has been annotated with a value
@@ -755,9 +749,6 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		},
 	}
 
-	adminKeyringVol, adminKeyringVolMount := cephkey.Volume().Admin(), cephkey.VolumeMount().Admin()
-	volume = append(volume, adminKeyringVol)
-
 	envVars := append(
 		osdActivateEnvVar(),
 		blockPathEnvVariable(osdInfo.BlockPath),
@@ -770,12 +761,14 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
 	activateOSDMountPathID := activateOSDMountPath + osdID
 
+	adminKeyringVol, adminKeyringVolMount := cephkey.Volume().Admin(), cephkey.VolumeMount().Admin()
+	volume = append(volume, adminKeyringVol)
 	volMounts := []v1.VolumeMount{
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: tempEtcCephDir},
+		adminKeyringVolMount,
 	}
-	volMounts = append(volMounts, adminKeyringVolMount)
 
 	if osdProps.onPVC() {
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))

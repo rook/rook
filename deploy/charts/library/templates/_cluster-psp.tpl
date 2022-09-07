@@ -2,6 +2,8 @@
 RoleBindings needed to enable Pod Security Policies for a CephCluster.
 */}}
 {{- define "library.cluster.psp.rolebindings" }}
+{{- if semverCompare "<1.25.0-0" .Capabilities.KubeVersion.GitVersion }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -89,4 +91,5 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-purge-osd
     namespace: {{ .Release.Namespace }} # namespace:cluster
+{{- end }}
 {{- end }}

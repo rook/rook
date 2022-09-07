@@ -152,11 +152,9 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableOIDCTokenProjection = true
 	}
 
-	// if k8s >= v1.17 enable RBD and CephFS snapshotter by default
-	if ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForSnapshot {
-		CSIParam.EnableRBDSnapshotter = true
-		CSIParam.EnableCephFSSnapshotter = true
-	}
+	// enable RBD and CephFS snapshotter by default
+	CSIParam.EnableRBDSnapshotter = true
+	CSIParam.EnableCephFSSnapshotter = true
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false
@@ -164,11 +162,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CEPHFS_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableCephFSSnapshotter = false
-	}
-
-	CSIParam.EnableVolumeReplicationSideCar = false
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_REPLICATION", "false"), "true") {
-		CSIParam.EnableVolumeReplicationSideCar = true
 	}
 
 	CSIParam.EnableCSIAddonsSideCar = false
@@ -251,13 +244,11 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	}
 
 	CSIParam.CSIPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
-	CSIParam.NFSPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_IMAGE", DefaultNFSPluginImage)
 	CSIParam.RegistrarImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
 	CSIParam.ProvisionerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
 	CSIParam.AttacherImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)
 	CSIParam.SnapshotterImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
 	CSIParam.KubeletDirPath = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
-	CSIParam.VolumeReplicationImage = k8sutil.GetValue(r.opConfig.Parameters, "CSI_VOLUME_REPLICATION_IMAGE", DefaultVolumeReplicationImage)
 	CSIParam.CSIAddonsImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
 	csiCephFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)

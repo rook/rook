@@ -51,26 +51,12 @@ copy_ob_obc_crds() {
   cp -f "${SCRIPT_ROOT}/deploy/olm/assemble/objectbucket.io_objectbuckets.yaml" "$OLM_CATALOG_DIR"
 }
 
-copy_volume_replication_crds() {
-  volume_replication_dir=${SCRIPT_ROOT}/.cache/crds/volumereplication
-  volume_replication_crd=replication.storage.openshift.io_volumereplications.yaml
-  volume_replication_class_crd=replication.storage.openshift.io_volumereplicationclasses.yaml
-  if [[ ! -d "${volume_replication_dir}" ]]; then
-    mkdir -p "${volume_replication_dir}"
-    VOLUME_REPLICATION_URL=${VOLUME_REPLICATION_URL:-https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases}
-    curl -L ${VOLUME_REPLICATION_URL}/${volume_replication_crd} -o ${volume_replication_dir}/${volume_replication_crd}
-    curl -L ${VOLUME_REPLICATION_URL}/${volume_replication_class_crd} -o ${volume_replication_dir}/${volume_replication_class_crd}
-  fi
-
-  cp -f "${volume_replication_dir}/${volume_replication_crd}" "$OLM_CATALOG_DIR"
-  cp -f "${volume_replication_dir}/${volume_replication_class_crd}" "$OLM_CATALOG_DIR"
-}
-
 generating_crds_v1() {
   echo "Generating ceph crds"
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   # the csv upgrade is failing on the volumeClaimTemplate.metadata.annotations.crushDeviceClass unless we preserve the annotations as an unknown field
   $YQ_BIN_PATH eval --inplace '.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields = true' "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml
+  $YQ_BIN_PATH eval --inplace '.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.security.properties.sssd.properties.sidecar.properties.sssdConfigFile.properties.volumeSource.properties.hostPath |= with(select(.description != null);.description |= sub("--- ", ""))' "${OLM_CATALOG_DIR}"/ceph.rook.io_cephnfses.yaml
 }
 
 generating_main_crd() {
@@ -126,7 +112,3 @@ echo "---" >> "$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
 $YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >> "$CEPH_CRDS_FILE_PATH"
 
 build_helm_resources
-
-# copy the volume replication crds last so they won't be included in the helm chart or crds.yaml,
-# we just want them to end up owned by the csv
-copy_volume_replication_crds

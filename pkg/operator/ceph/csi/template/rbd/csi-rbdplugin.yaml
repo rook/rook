@@ -141,7 +141,6 @@ spec:
             - "--node-id=$(NODE_ID)"
             - "--v={{ .LogLevel }}"
             - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
-            - "--controller-ip=$(POD_IP)"
             - "--controller-port={{ .CSIAddonsPort }}"
             - "--pod=$(POD_NAME)"
             - "--namespace=$(POD_NAMESPACE)"
@@ -150,10 +149,6 @@ spec:
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
             - name: NODE_ID
               valueFrom:
                 fieldRef:

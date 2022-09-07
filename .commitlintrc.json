@@ -10,7 +10,7 @@
         "block",
         "bot",
         "build",
-        "cephfs-mirror",
+        "cephfsmirror",
         "ci",
         "core",
         "csi",
@@ -28,7 +28,7 @@
         "operator",
         "osd",
         "pool",
-        "rbd-mirror",
+        "rbdmirror",
         "rgw",
         "security",
         "subvolumegroup",
@@ -43,6 +43,10 @@
     ],
     "footer-leading-blank": [
       2,
+      "always"
+    ],
+    "body-max-line-length": [
+      0,
       "always"
     ]
   }

@@ -43,8 +43,10 @@ function wipe_disk {
     sudo parted "$DISK" -s print || :
     return
   fi
+  set +e
   sudo parted -s "$DISK" mklabel gpt
-  sudo partprobe "$DISK"
+  set -e
+  sudo partprobe -d "$DISK"
   sudo udevadm settle
   sudo parted "$DISK" -s print
 }
@@ -57,7 +59,7 @@ function create_block_partition {
   local osd_count=$1
   if [ "$osd_count" -eq 1 ]; then
     sudo sgdisk --largest-new=0 --change-name=0:'block' --mbrtogpt -- "$DISK"
-    elif [ "$osd_count" -gt 1 ]; then
+  elif [ "$osd_count" -gt 1 ]; then
     SIZE=6144M
     for osd in $(seq 1 "$osd_count"); do
       echo "$osd"
@@ -76,28 +78,29 @@ fi
 
 while [ "$1" != "" ]; do
   case $1 in
-    --disk)
-      shift
-      DISK="$1"
+  --disk)
+    shift
+    DISK="$1"
     ;;
-    --bluestore-type)
-      shift
-      BLUESTORE_TYPE="$1"
+  --bluestore-type)
+    shift
+    BLUESTORE_TYPE="$1"
     ;;
-    --osd-count)
-      shift
-      OSD_COUNT="$1"
+  --osd-count)
+    shift
+    OSD_COUNT="$1"
     ;;
-    --wipe-only)
-      WIPE_ONLY=1
+  --wipe-only)
+    WIPE_ONLY=1
     ;;
-    -h | --help)
-      usage
-      exit
+  -h | --help)
+    usage
+    exit
     ;;
-    *)
-      usage
-      exit 1
+  *)
+    usage
+    exit 1
+    ;;
   esac
   shift
 done
@@ -112,16 +115,17 @@ fi
 if [ -z "$WIPE_ONLY" ]; then
   if [ -n "$BLUESTORE_TYPE" ]; then
     case "$BLUESTORE_TYPE" in
-      block.db)
-        create_partition block.db
+    block.db)
+      create_partition block.db
       ;;
-      block.wal)
-        create_partition block.db
-        create_partition block.wal
+    block.wal)
+      create_partition block.db
+      create_partition block.wal
       ;;
-      *)
-        printf "invalid bluestore configuration %q" "$BLUESTORE_TYPE" >&2
-        exit 1
+    *)
+      printf "invalid bluestore configuration %q" "$BLUESTORE_TYPE" >&2
+      exit 1
+      ;;
     esac
   fi
 

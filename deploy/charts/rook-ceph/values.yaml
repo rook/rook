@@ -81,7 +81,7 @@ csi:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  rbdFSGroupPolicy: "ReadWriteOnceWithFSType"
+  rbdFSGroupPolicy: "File"
 
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
@@ -89,7 +89,7 @@ csi:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  nfsFSGroupPolicy: "ReadWriteOnceWithFSType"
+  nfsFSGroupPolicy: "File"
 
   # OMAP generator generates the omap mapping between the PV name and the RBD image
   # which helps CSI to identify the rbd images for CSI operations.
@@ -316,22 +316,22 @@ csi:
   # CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   csiNFSPluginResource: |
-   - name : driver-registrar
-     resource:
-       requests:
-         memory: 128Mi
-         cpu: 50m
-       limits:
-         memory: 256Mi
-         cpu: 100m
-   - name : csi-nfsplugin
-     resource:
-       requests:
-         memory: 512Mi
-         cpu: 250m
-       limits:
-         memory: 1Gi
-         cpu: 500m
+    - name : driver-registrar
+      resource:
+        requests:
+          memory: 128Mi
+          cpu: 50m
+        limits:
+          memory: 256Mi
+          cpu: 100m
+    - name : csi-nfsplugin
+      resource:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m
 
   # Set provisionerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
@@ -360,37 +360,30 @@ csi:
   #rbdLivenessMetricsPort: 9080
   #kubeletDirPath: /var/lib/kubelet
   #cephcsi:
-    #image: quay.io/cephcsi/cephcsi:v3.7.0
+  #  image: quay.io/cephcsi/cephcsi:v3.7.0
   #registrar:
-    #image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1
+  #  image: registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1
   #provisioner:
-    #image: registry.k8s.io/sig-storage/csi-provisioner:v3.1.0
+  #  image: registry.k8s.io/sig-storage/csi-provisioner:v3.2.1
   #snapshotter:
-    #image: registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1
+  #  image: registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1
   #attacher:
-    #image: registry.k8s.io/sig-storage/csi-attacher:v3.4.0
+  #  image: registry.k8s.io/sig-storage/csi-attacher:v3.5.0
   #resizer:
-    #image: registry.k8s.io/sig-storage/csi-resizer:v1.4.0
+  #  image: registry.k8s.io/sig-storage/csi-resizer:v1.5.0
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI NFS Deployments and DaemonSets Pods.
   #nfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI RBD Deployments and DaemonSets Pods.
   #rbdPodLabels: "key1=value1,key2=value2"
-  # Enable the volume replication controller.
-  # Before enabling, ensure the Volume Replication CRDs are created.
-  # See https://rook.io/docs/rook/latest/ceph-csi-drivers.html#rbd-mirroring
-  volumeReplication:
-    enabled: false
-    #image: "quay.io/csiaddons/volumereplication-operator:v0.3.0"
   # Enable the CSIAddons sidecar.
   csiAddons:
     enabled: false
-    #image: "quay.io/csiaddons/k8s-sidecar:v0.4.0"
+    #image: "quay.io/csiaddons/k8s-sidecar:v0.5.0"
   # Enable the nfs csi driver.
   nfs:
     enabled: false
-    #image: "registry.k8s.io/sig-storage/nfsplugin:v4.0.0"
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 

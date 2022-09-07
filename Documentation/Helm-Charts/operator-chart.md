@@ -10,7 +10,7 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-* Kubernetes 1.17+
+* Kubernetes 1.19+
 * Helm 3.x
 
 See the [Helm support matrix](https://helm.sh/docs/topics/version_skew/) for more details.
@@ -124,12 +124,9 @@ The following tables lists the configurable parameters of the rook-operator char
 | `csi.attacher.image`                | Kubernetes CSI Attacher image.                                                                                                                   | `registry.k8s.io/sig-storage/csi-attacher:v3.4.0`              |
 | `csi.cephfsPodLabels`               | Labels to add to the CSI CephFS Pods.                                                                                                            | `<none>`                                                  |
 | `csi.rbdPodLabels`                  | Labels to add to the CSI RBD Pods.                                                                                                               | `<none>`                                                  |
-| `csi.volumeReplication.enabled`     | Enable Volume Replication.                                                                                                                       | `false`                                                   |
-| `csi.volumeReplication.image`       | Volume Replication Controller image.                                                                                                             | `quay.io/csiaddons/volumereplication-operator:v0.3.0`     |
 | `csi.csiAddons.enabled`             | Enable CSIAddons                                                                                                                                 | `false`                                                   |
-| `csi.csiAddons.image`               | CSIAddons Sidecar image.                                                                                                                         | `quay.io/csiaddons/k8s-sidecar:v0.4.0`                    |
+| `csi.csiAddons.image`               | CSIAddons Sidecar image.                                                                                                                         | `quay.io/csiaddons/k8s-sidecar:v0.5.0`                    |
 | `csi.nfs.enabled`                   | Enable nfs driver.                                                                                                                               | `false`                                                   |
-| `csi.nfs.image`                     | NFS nodeplugin image.                                                                                                                            | `registry.k8s.io/sig-storage/nfsplugin:v4.0.0`                 |
 | `admissionController.tolerations`   | Array of tolerations in YAML format which will be added to admission controller deployment.                                                      | `<none>`                                                  |
 | `admissionController.nodeAffinity`  | The node labels for affinity of the admission controller deployment [^1]                                                                         | `<none>`                                                  |
 | `monitoring.enabled`                | Create necessary RBAC rules for Rook to integrate with Prometheus monitoring in the operator namespace. Requires Prometheus to be pre-installed. | `false`                                                   |

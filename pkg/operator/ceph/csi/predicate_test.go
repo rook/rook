@@ -31,108 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-func Test_findCSIChange(t *testing.T) {
-	t.Run("no match", func(t *testing.T) {
-		var str = `  map[string]string{
-        "CSI_FORCE_CEPHFS_KERNEL_CLIENT":     "true",
-        "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION": "false",
-        "ROOK_CSI_ENABLE_GRPC_METRICS":       "true",
-        "ROOK_CSI_ENABLE_RBD":                "true",
-        "ROOK_ENABLE_DISCOVERY_DAEMON":       "false",
--       "ROOK_LOG_LEVEL":                     "INFO",
-+       "ROOK_LOG_LEVEL":                     "DEBUG",
-        "ROOK_OBC_WATCH_OPERATOR_NAMESPACE":  "true",
-  }`
-		b := findCSIChange(str)
-		assert.False(t, b)
-	})
-
-	t.Run("match on addition", func(t *testing.T) {
-		var str = `  map[string]string{
-        "CSI_FORCE_CEPHFS_KERNEL_CLIENT":     "true",
-        "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION": "false",
-+       "ROOK_CSI_ENABLE_CEPHFS":             "false",
-        "ROOK_CSI_ENABLE_GRPC_METRICS":       "true",
-        "ROOK_CSI_ENABLE_RBD":                "true",
-        "ROOK_ENABLE_DISCOVERY_DAEMON":       "false",
--       "ROOK_LOG_LEVEL":                     "INFO",
-+       "ROOK_LOG_LEVEL":                     "DEBUG",
-        "ROOK_OBC_WATCH_OPERATOR_NAMESPACE":  "true",
-  }`
-		b := findCSIChange(str)
-		assert.True(t, b)
-	})
-
-	t.Run("match on deletion", func(t *testing.T) {
-		var str = `  map[string]string{
-        "CSI_FORCE_CEPHFS_KERNEL_CLIENT":     "true",
-        "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION": "false",
--       "ROOK_CSI_ENABLE_CEPHFS":             "true",
-        "ROOK_CSI_ENABLE_GRPC_METRICS":       "true",
-        "ROOK_CSI_ENABLE_RBD":                "true",
-        "ROOK_ENABLE_DISCOVERY_DAEMON":       "false",
--       "ROOK_LOG_LEVEL":                     "INFO",
-+       "ROOK_LOG_LEVEL":                     "DEBUG",
-        "ROOK_OBC_WATCH_OPERATOR_NAMESPACE":  "true",
-  }`
-		b := findCSIChange(str)
-		assert.True(t, b)
-	})
-
-	t.Run("match on addition and deletion", func(t *testing.T) {
-		var str = `  map[string]string{
-        "CSI_FORCE_CEPHFS_KERNEL_CLIENT":     "true",
-        "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION": "false",
--       "ROOK_CSI_ENABLE_CEPHFS":             "true",
-+       "ROOK_CSI_ENABLE_CEPHFS":             "false",
-        "ROOK_CSI_ENABLE_GRPC_METRICS":       "true",
-        "ROOK_CSI_ENABLE_RBD":                "true",
-        "ROOK_ENABLE_DISCOVERY_DAEMON":       "false",
--       "ROOK_LOG_LEVEL":                     "INFO",
-+       "ROOK_LOG_LEVEL":                     "DEBUG",
-        "ROOK_OBC_WATCH_OPERATOR_NAMESPACE":  "true",
-  }`
-		b := findCSIChange(str)
-		assert.True(t, b)
-	})
-
-	t.Run("match with CSI_ name", func(t *testing.T) {
-		var str = `  map[string]string{
-        "CSI_FORCE_CEPHFS_KERNEL_CLIENT":     "true",
-        "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION": "false",
--       "CSI_PROVISIONER_TOLERATIONS":             "true",
-+       "CSI_PROVISIONER_TOLERATIONS":             "false",
-        "ROOK_CSI_ENABLE_GRPC_METRICS":       "true",
-        "ROOK_CSI_ENABLE_RBD":                "true",
-        "ROOK_ENABLE_DISCOVERY_DAEMON":       "false",
--       "ROOK_LOG_LEVEL":                     "INFO",
-+       "ROOK_LOG_LEVEL":                     "DEBUG",
-        "ROOK_OBC_WATCH_OPERATOR_NAMESPACE":  "true",
-  }`
-		b := findCSIChange(str)
-		assert.True(t, b)
-	})
-
-	t.Run("match with CSI_ and ROOK_CSI_ name", func(t *testing.T) {
-		var str = `  map[string]string{
-        "CSI_FORCE_CEPHFS_KERNEL_CLIENT":     "true",
-        "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION": "false",
--       "CSI_PROVISIONER_TOLERATIONS":             "true",
-+       "CSI_PROVISIONER_TOLERATIONS":             "false",
--       "ROOK_CSI_ENABLE_CEPHFS":             "true",
-+       "ROOK_CSI_ENABLE_CEPHFS":             "false",
-        "ROOK_CSI_ENABLE_GRPC_METRICS":       "true",
-        "ROOK_CSI_ENABLE_RBD":                "true",
-        "ROOK_ENABLE_DISCOVERY_DAEMON":       "false",
--       "ROOK_LOG_LEVEL":                     "INFO",
-+       "ROOK_LOG_LEVEL":                     "DEBUG",
-        "ROOK_OBC_WATCH_OPERATOR_NAMESPACE":  "true",
-  }`
-		b := findCSIChange(str)
-		assert.True(t, b)
-	})
-}
-
 func Test_predicateController(t *testing.T) {
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	var (
@@ -185,15 +83,6 @@ func Test_predicateController(t *testing.T) {
 
 	t.Run("update event is a CM and it's the operator config but nothing changed", func(t *testing.T) {
 		u = event.UpdateEvent{ObjectOld: &cm, ObjectNew: &cm}
-		p = predicateController(context.TODO(), client, "rook-ceph")
-		assert.False(t, p.Update(u))
-	})
-
-	t.Run("update event is a CM and the content changed but with incorrect setting", func(t *testing.T) {
-		cm.Data = map[string]string{"foo": "bar"}
-		cm2.Name = "rook-ceph-operator-config"
-		cm2.Data = map[string]string{"foo": "ooo"}
-		u = event.UpdateEvent{ObjectOld: &cm, ObjectNew: &cm2}
 		p = predicateController(context.TODO(), client, "rook-ceph")
 		assert.False(t, p.Update(u))
 	})

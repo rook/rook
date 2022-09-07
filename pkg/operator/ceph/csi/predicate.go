@@ -18,7 +18,6 @@ package csi
 
 import (
 	"context"
-	"regexp"
 
 	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -80,7 +79,9 @@ func predicateController(ctx context.Context, c client.Client, opNamespace strin
 					if old.Name == opcontroller.OperatorSettingConfigMapName && new.Name == opcontroller.OperatorSettingConfigMapName {
 						diff := cmp.Diff(old.Data, new.Data, resourceQtyComparer)
 						logger.Debugf("operator configmap diff:\n %s", diff)
-						return findCSIChange(diff)
+						if diff != "" {
+							return true
+						}
 					}
 				}
 			}
@@ -108,18 +109,4 @@ func predicateController(ctx context.Context, c client.Client, opNamespace strin
 			return false
 		},
 	}
-}
-
-func findCSIChange(str string) bool {
-	var re = regexp.MustCompile(`(?m)^(\+|-).*(\"ROOK_CSI_|\"CSI_).*,$`)
-	found := re.FindAllString(str, -1)
-	if len(found) > 0 {
-		for _, match := range found {
-			// logger.Debugf("ceph csi config changed with: %q", match)
-			logger.Infof("ceph csi config changed with: %q", match)
-		}
-		return true
-	}
-
-	return false
 }

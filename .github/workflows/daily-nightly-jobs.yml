@@ -91,7 +91,7 @@ jobs:
 
   smoke-suite-pacific-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -99,10 +99,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -126,7 +126,7 @@ jobs:
 
   smoke-suite-quincy-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -134,10 +134,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -161,7 +161,7 @@ jobs:
 
   smoke-suite-ceph-master:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -169,10 +169,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -196,7 +196,7 @@ jobs:
 
   object-suite-pacific-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -204,10 +204,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephObjectSuite
         run: |
@@ -231,7 +231,7 @@ jobs:
 
   object-suite-master:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -239,10 +239,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephObjectSuite
         run: |
@@ -266,7 +266,7 @@ jobs:
 
   upgrade-from-pacific-stable-to-pacific-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -274,10 +274,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -301,7 +301,7 @@ jobs:
 
   upgrade-from-quincy-stable-to-quincy-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - name: checkout
         uses: actions/checkout@v2
@@ -309,10 +309,10 @@ jobs:
           fetch-depth: 0
 
       - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config
+        uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.24.1"
+          kubernetes-version: "1.25.0"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -336,15 +336,11 @@ jobs:
 
   rgw-multisite-test-with-ceph-devel:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         ceph-image-tag:
-          [
-            "latest-master-devel",
-            "latest-quincy-devel",
-            "latest-pacific-devel",
-          ]
+          ["latest-master-devel", "latest-quincy-devel", "latest-pacific-devel"]
 
     steps:
       - uses: actions/checkout@v2
@@ -366,7 +362,7 @@ jobs:
 
   encryption-pvc-kms-ibm-kp:
     if: github.repository == 'rook/rook'
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:

@@ -183,14 +183,14 @@ spec:
 ### Spec
 
 * `replicated`: Settings for a replicated pool. If specified, `erasureCoded` settings must not be specified.
-  * `size`: The desired number of copies to make of the data in the pool.
-  * `requireSafeReplicaSize`: set to false if you want to create a pool with size 1, setting pool size 1 could lead to data loss without recovery. Make sure you are *ABSOLUTELY CERTAIN* that is what you want.
-  * `replicasPerFailureDomain`: Sets up the number of replicas to place in a given failure domain. For instance, if the failure domain is a datacenter (cluster is
+   * `size`: The desired number of copies to make of the data in the pool.
+   * `requireSafeReplicaSize`: set to false if you want to create a pool with size 1, setting pool size 1 could lead to data loss without recovery. Make sure you are *ABSOLUTELY CERTAIN* that is what you want.
+   * `replicasPerFailureDomain`: Sets up the number of replicas to place in a given failure domain. For instance, if the failure domain is a datacenter (cluster is
 stretched) then you will have 2 replicas per datacenter where each replica ends up on a different host. This gives you a total of 4 replicas and for this, the `size` must be set to 4. The default is 1.
-  * `subFailureDomain`: Name of the CRUSH bucket representing a sub-failure domain. In a stretched configuration this option represent the "last" bucket where replicas will end up being written. Imagine the cluster is stretched across two datacenters, you can then have 2 copies per datacenter and each copy on a different CRUSH bucket. The default is "host".
+   * `subFailureDomain`: Name of the CRUSH bucket representing a sub-failure domain. In a stretched configuration this option represent the "last" bucket where replicas will end up being written. Imagine the cluster is stretched across two datacenters, you can then have 2 copies per datacenter and each copy on a different CRUSH bucket. The default is "host".
 * `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified. See below for more details on [erasure coding](#erasure-coding).
-  * `dataChunks`: Number of chunks to divide the original object into
-  * `codingChunks`: Number of coding chunks to generate
+   * `dataChunks`: Number of chunks to divide the original object into
+   * `codingChunks`: Number of coding chunks to generate
 * `failureDomain`: The failure domain across which the data will be spread. This can be set to a value of either `osd` or `host`, with `host` being the default setting. A failure domain can also be set to a different type (e.g. `rack`), if the OSDs are created on nodes with the supported [topology labels](../Cluster/ceph-cluster-crd.md#osd-topology). If the `failureDomain` is changed on the pool, the operator will create a new CRUSH rule and update the pool.
     If a `replicated` pool of size `3` is configured and the `failureDomain` is set to `host`, all three copies of the replicated data will be placed on OSDs located on `3` different Ceph hosts. This case is guaranteed to tolerate a failure of two hosts without a loss of data. Similarly, a failure domain set to `osd`, can tolerate a loss of two OSD devices.
 
@@ -208,26 +208,26 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
   [builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
 
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
-  * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
-  * `compression_mode`: Sets up the pool for inline compression when using a Bluestore OSD. If left unspecified does not setup any compression mode for the pool. Values supported are the same as Bluestore inline compression [modes](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression), such as `none`, `passive`, `aggressive`, and `force`.
+   * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
+   * `compression_mode`: Sets up the pool for inline compression when using a Bluestore OSD. If left unspecified does not setup any compression mode for the pool. Values supported are the same as Bluestore inline compression [modes](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression), such as `none`, `passive`, `aggressive`, and `force`.
 
 * `mirroring`: Sets up mirroring of the pool
-  * `enabled`: whether mirroring is enabled on that pool (default: false)
-  * `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring) for more details.
-  * `snapshotSchedules`: schedule(s) snapshot at the **pool** level. One or more schedules are supported.
-    * `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
-    * `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
-  * `peers`: to configure mirroring peers. See the prerequisite [RBD Mirror documentation](ceph-rbd-mirror-crd.md) first.
-    * `secretNames`:  a list of peers to connect to. Currently **only a single** peer is supported where a peer represents a Ceph cluster.
+   * `enabled`: whether mirroring is enabled on that pool (default: false)
+   * `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring) for more details.
+   * `snapshotSchedules`: schedule(s) snapshot at the **pool** level. One or more schedules are supported.
+      * `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
+      * `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
+   * `peers`: to configure mirroring peers. See the prerequisite [RBD Mirror documentation](ceph-rbd-mirror-crd.md) first.
+      * `secretNames`:  a list of peers to connect to. Currently **only a single** peer is supported where a peer represents a Ceph cluster.
 
 * `statusCheck`: Sets up pool mirroring status
-  * `mirror`: displays the mirroring status
-    * `disabled`: whether to enable or disable pool mirroring status
-    * `interval`: time interval to refresh the mirroring status (default 60s)
+   * `mirror`: displays the mirroring status
+      * `disabled`: whether to enable or disable pool mirroring status
+      * `interval`: time interval to refresh the mirroring status (default 60s)
 
 * `quotas`: Set byte and object quotas. See the [ceph documentation](https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas) for more info.
-  * `maxSize`: quota in bytes as a string with quantity suffixes (e.g. "10Gi")
-  * `maxObjects`: quota in objects as an integer
+   * `maxSize`: quota in bytes as a string with quantity suffixes (e.g. "10Gi")
+   * `maxObjects`: quota in objects as an integer
 
     !!! note
         A value of 0 disables the quota.
