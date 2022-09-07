@@ -165,13 +165,13 @@ APIs for storage disaster recovery. The extended APIs are provided via Custom
 Resource Definition(CRD). Create the VolumeReplication CRDs on all the peer clusters.
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
 ```
 
 ## Enable CSI Replication Sidecars
 
-To achieve RBD Mirroring, `csi-omap-generator` and `volume-replication`
+To achieve RBD Mirroring, `csi-omap-generator` and `csi-addons`
  containers need to be deployed in the RBD provisioner pods, which are not enabled by default.
 
 * **Omap Generator**: Omap generator is a sidecar container that when
@@ -182,13 +182,13 @@ To achieve RBD Mirroring, `csi-omap-generator` and `volume-replication`
 
 * **Volume Replication Operator**: Volume Replication Operator is a
  kubernetes operator that provides common and reusable APIs for
- storage disaster recovery.
+ storage disaster recovery. The volume replication operation is
+ supported by the [CSIAddons](https://github.com/csi-addons/kubernetes-csi-addons#readme)
  It is based on [csi-addons/spec](https://github.com/csi-addons/spec)
  specification and can be used by any storage provider.
- For more details, refer to [volume replication operator](https://github.com/csi-addons/volume-replication-operator).
 
 Execute the following steps on each peer cluster to enable the
- OMap generator and Volume Replication sidecars:
+ OMap generator and CSIADDONS sidecars:
 
 * Edit the `rook-ceph-operator-config` configmap and add the
  following configurations
@@ -202,7 +202,7 @@ Add the following properties if not present:
 ```yaml
 data:
   CSI_ENABLE_OMAP_GENERATOR: "true"
-  CSI_ENABLE_VOLUME_REPLICATION: "true"
+  CSI_ENABLE_CSIADDONS: "true"
 ```
 
 * After updating the configmap with those settings, two new sidecars
@@ -219,10 +219,6 @@ the storage admin information required for the volume replication operator.
 
 * **VolumeReplication**: *VolumeReplication* is a namespaced resource that contains references to storage object to be replicated and VolumeReplicationClass
 corresponding to the driver providing replication.
-
-!!! info
-    For more information, please refer to the
-    [volume-replication-operator](https://github.com/csi-addons/volume-replication-operator).
 
 ## Enable mirroring on a PVC
 

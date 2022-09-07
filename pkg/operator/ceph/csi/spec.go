@@ -39,48 +39,47 @@ import (
 )
 
 type Param struct {
-	CSIPluginImage                 string
-	RegistrarImage                 string
-	ProvisionerImage               string
-	AttacherImage                  string
-	SnapshotterImage               string
-	ResizerImage                   string
-	DriverNamePrefix               string
-	EnableCSIGRPCMetrics           string
-	KubeletDirPath                 string
-	ForceCephFSKernelClient        string
-	CephFSPluginUpdateStrategy     string
-	NFSPluginUpdateStrategy        string
-	RBDPluginUpdateStrategy        string
-	PluginPriorityClassName        string
-	ProvisionerPriorityClassName   string
-	VolumeReplicationImage         string
-	CSIAddonsImage                 string
-	CSIClusterName                 string
-	GRPCTimeout                    time.Duration
-	CSIEnableMetadata              bool
-	EnablePluginSelinuxHostMount   bool
-	EnableCSIHostNetwork           bool
-	EnableOMAPGenerator            bool
-	EnableRBDSnapshotter           bool
-	EnableCephFSSnapshotter        bool
-	EnableVolumeReplicationSideCar bool
-	EnableCSIAddonsSideCar         bool
-	MountCustomCephConf            bool
-	EnableOIDCTokenProjection      bool
-	EnableCSIEncryption            bool
-	EnableLiveness                 bool
-	LogLevel                       uint8
-	SidecarLogLevel                uint8
-	CephFSGRPCMetricsPort          uint16
-	CephFSLivenessMetricsPort      uint16
-	RBDGRPCMetricsPort             uint16
-	CSIAddonsPort                  uint16
-	RBDLivenessMetricsPort         uint16
-	ProvisionerReplicas            int32
-	CSICephFSPodLabels             map[string]string
-	CSINFSPodLabels                map[string]string
-	CSIRBDPodLabels                map[string]string
+	CSIPluginImage               string
+	RegistrarImage               string
+	ProvisionerImage             string
+	AttacherImage                string
+	SnapshotterImage             string
+	ResizerImage                 string
+	DriverNamePrefix             string
+	EnableCSIGRPCMetrics         string
+	KubeletDirPath               string
+	ForceCephFSKernelClient      string
+	CephFSPluginUpdateStrategy   string
+	NFSPluginUpdateStrategy      string
+	RBDPluginUpdateStrategy      string
+	PluginPriorityClassName      string
+	ProvisionerPriorityClassName string
+	VolumeReplicationImage       string
+	CSIAddonsImage               string
+	CSIClusterName               string
+	GRPCTimeout                  time.Duration
+	CSIEnableMetadata            bool
+	EnablePluginSelinuxHostMount bool
+	EnableCSIHostNetwork         bool
+	EnableOMAPGenerator          bool
+	EnableRBDSnapshotter         bool
+	EnableCephFSSnapshotter      bool
+	EnableCSIAddonsSideCar       bool
+	MountCustomCephConf          bool
+	EnableOIDCTokenProjection    bool
+	EnableCSIEncryption          bool
+	EnableLiveness               bool
+	LogLevel                     uint8
+	SidecarLogLevel              uint8
+	CephFSGRPCMetricsPort        uint16
+	CephFSLivenessMetricsPort    uint16
+	RBDGRPCMetricsPort           uint16
+	CSIAddonsPort                uint16
+	RBDLivenessMetricsPort       uint16
+	ProvisionerReplicas          int32
+	CSICephFSPodLabels           map[string]string
+	CSINFSPodLabels              map[string]string
+	CSIRBDPodLabels              map[string]string
 }
 
 type templateParam struct {
@@ -126,14 +125,13 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage         = "quay.io/cephcsi/cephcsi:v3.7.0"
-	DefaultRegistrarImage         = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1"
-	DefaultProvisionerImage       = "registry.k8s.io/sig-storage/csi-provisioner:v3.2.1"
-	DefaultAttacherImage          = "registry.k8s.io/sig-storage/csi-attacher:v3.5.0"
-	DefaultSnapshotterImage       = "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
-	DefaultResizerImage           = "registry.k8s.io/sig-storage/csi-resizer:v1.5.0"
-	DefaultVolumeReplicationImage = "quay.io/csiaddons/volumereplication-operator:v0.3.0"
-	DefaultCSIAddonsImage         = "quay.io/csiaddons/k8s-sidecar:v0.4.0"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.7.0"
+	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1"
+	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v3.2.1"
+	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v3.5.0"
+	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
+	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.5.0"
+	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.5.0"
 
 	// Local package template path for RBD
 	//go:embed template/rbd/csi-rbdplugin.yaml

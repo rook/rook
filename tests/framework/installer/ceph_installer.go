@@ -60,7 +60,7 @@ const (
 osd_pool_default_size = 1
 bdev_flock_retry = 20
 `
-	volumeReplicationVersion = "v0.3.0"
+	volumeReplicationVersion = "v0.5.0"
 )
 
 var (
@@ -69,7 +69,7 @@ var (
 	QuincyVersion                = cephv1.CephVersionSpec{Image: quincyTestImage}
 	QuincyDevelVersion           = cephv1.CephVersionSpec{Image: quincyDevelTestImage}
 	MasterVersion                = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
-	volumeReplicationBaseURL     = fmt.Sprintf("https://raw.githubusercontent.com/csi-addons/volume-replication-operator/%s/config/crd/bases/", volumeReplicationVersion)
+	volumeReplicationBaseURL     = fmt.Sprintf("https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/%s/config/crd/bases/", volumeReplicationVersion)
 	volumeReplicationCRDURL      = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplications.yaml"
 	volumeReplicationClassCRDURL = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplicationclasses.yaml"
 )
