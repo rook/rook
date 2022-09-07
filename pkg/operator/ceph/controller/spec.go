@@ -570,12 +570,23 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 				//
 				// Example:
 				// env -i sh -c "ceph --admin-daemon /run/ceph/ceph-osd.0.asok status"
+				//
+				// Ceph gives pretty un-diagnostic error message when `ceph status` or `ceph mon_status` command fails.
+				// Add a clear message after Ceph's to help.
+				// ref: https://github.com/rook/rook/issues/9846
 				Command: []string{
 					"env",
 					"-i",
 					"sh",
 					"-c",
-					fmt.Sprintf("ceph --admin-daemon %s %s", confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
+					fmt.Sprintf(`outp="$(ceph --admin-daemon %s %s 2>&1)"
+rc=$?
+if [ $rc -ne 0 ]; then
+  echo "ceph daemon health check failed with the following output:"
+  echo "$outp" | sed -e 's/^/> /g'
+  exit $rc
+fi`,
+						confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
 				},
 			},
 		},
