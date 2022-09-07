@@ -143,6 +143,8 @@ function build_rook() {
         ;;
       *)
         # valid failure
+        echo "failed with the following log:"
+        echo "$o"
         exit 1
         ;;
       esac
