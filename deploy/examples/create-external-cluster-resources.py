@@ -25,10 +25,13 @@ from hashlib import sha1 as sha
 from os import linesep as LINESEP
 from os import path
 from email.utils import formatdate
-import urllib.parse
-
 import requests
 from requests.auth import AuthBase
+
+py3k = False
+if sys.version_info.major >= 3:
+    py3k = True
+    import urllib.parse
 
 ModuleNotFoundError = ImportError
 
@@ -58,13 +61,9 @@ except ModuleNotFoundError:
     # for 3.x
     from urllib.parse import urlparse
 
-py3k = False
 try:
-    from urlparse import urlparse
     from base64 import encodestring
 except:
-    py3k = True
-    from urllib.parse import urlparse
     from base64 import encodebytes as encodestring
 
 
