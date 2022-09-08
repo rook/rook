@@ -52,6 +52,11 @@ those releases.
 * The minimum supported version of Ceph-CSI is v3.6.0. You must update to at least this version of
   Ceph-CSI before or at the same time you update the Rook operator image to v1.10
 
+* Before upgrading to K8s 1.25, ensure that you are running at least Rook v1.9.10, or v1.10.x.
+  If you upgrade to K8s 1.25 before upgrading to v1.9.10 or newer, the Helm chart may be
+  blocked from upgrading to newer versions of Rook. See [#10826](https://github.com/rook/rook/issues/10826)
+  for a possible workaround.
+
 ## Considerations
 
 With this upgrade guide, there are a few notes to consider:
