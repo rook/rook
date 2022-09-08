@@ -145,6 +145,16 @@ The `security` spec sets security configuration for the NFS cluster.
            the data item must be named `sssd.conf`, or `items` must be defined to select the key and
            give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
         2. The volume or config file must have mode 0600.
+    * `additionalFiles`: adds any number of additional files into the SSSD sidecar. All files will
+      be placed into `/etc/sssd/rook-additional/<subPath>` and can be referenced by the SSSD
+      config file. For example, CA and/or TLS certificates to authenticate with Kerberos.
+      - `subPath`: the sub-path of `/etc/sssd/rook-additional` to add files into. This can
+        include `/` to create arbitrarily deep sub-paths if desired. If the `volumeSource` is a
+        file, this will refer to a file name.
+      - `volumeSource`: this is a standard Kubernetes VolumeSource for additional files like what is
+        normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or HostPath.
+        The volume may contain multiple files, a single file, or may be a file on its own (e.g., a
+        host path with `type: File`).
     * `debugLevel`: sets the debug level for SSSD. If unset or `0`, Rook does nothing. Otherwise,
       this may be a value between 1 and 10. See the
       [SSSD docs](https://sssd.io/troubleshooting/basics.html#sssd-debug-logs) for more info.
