@@ -73,6 +73,7 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
              will mount the file into the SSSD sidecar.
           2. The file mode must be 0600.
         - Users only need one SSSD conf Volume per CephNFS that has this option path enabled.
+      - Users must be able to provide additional files that are referenced in the the SSSD config file
 
 #### Example
 Below is an example NFS-Ganesha CRD, `nfs-ganesha.yaml`
@@ -129,6 +130,13 @@ spec:
             configMap:
               name: rook-ceph-nfs-organization-sssd-config
               defaultMode: 0600 # mode must be 0600
+        additionalFiles:
+          - subPath: some-dir
+            volumeSource:
+              # example
+              configMap:
+                name: rook-ceph-nfs-organization-sssd-ca-bundle
+                defaultMode: 0600 # mode must be 0600 for CA certs
         resources:
           # requests:
           #   cpu: "2"

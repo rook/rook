@@ -83,6 +83,17 @@ spec:
     #         configMap:
     #           name: my-nfs-sssd-config
     #           defaultMode: 0600 # mode must be 0600
+    #     additionalFiles:
+    #       - subPath: ca-certs
+    #         volumeSource:
+    #           secret:
+    #             secretName: sssd-tls-certificates
+    #             defaultMode: 0600 # mode must be 0600 for TLS certs
+    #       - subPath: kerberos.crt
+    #         volumeSource:
+    #           hostPath:
+    #             path: /etc/pki/kerberos.crt
+    #             type: File
     #     # debugLevel: 6
     #     resources:
     #       limits:
@@ -142,6 +153,18 @@ spec:
 #     # recommended options for speeding up LDAP lookups:
 #     enumerate = false
 #     ignore_group_members = true
+#
+#     this can reference /etc/sssd/rook-additional/certs/ca.crt from the secret below if
+#     sssd.sidecar.additionalFiles uses the example below
+# ---
+# # Example secret containing a ca.crt added to SSSD additional files
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: sssd-tls-certificates
+#   namespace: rook-ceph
+# data:
+#   ca.crt: aSBhbSBhIGNlcnQK
 
 # # Example secret and configmap providing krb5.keytab and krb5 config files
 # ---

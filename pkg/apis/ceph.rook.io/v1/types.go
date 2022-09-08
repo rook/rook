@@ -2060,6 +2060,11 @@ type SSSDSidecar struct {
 	// +optional
 	SSSDConfigFile SSSDSidecarConfigFile `json:"sssdConfigFile"`
 
+	// AdditionalFiles defines any number of additional files that should be mounted into the SSSD
+	// sidecar. These files may be referenced by the sssd.conf config file.
+	// +optional
+	AdditionalFiles []SSSDSidecarAdditionalFile `json:"additionalFiles,omitempty"`
+
 	// Resources allow specifying resource requests/limits on the SSSD sidecar container.
 	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
@@ -2083,6 +2088,25 @@ type SSSDSidecarConfigFile struct {
 	//      and give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
 	//   2. The volume or config file must have mode 0600.
 	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+}
+
+// SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
+// configuration should come from and are made available.
+type SSSDSidecarAdditionalFile struct {
+	// SubPath defines the sub-path in `/etc/sssd/rook-additional/` where the additional file(s)
+	// will be placed. Each subPath definition must be unique and must not contain ':'.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[^:]+$`
+	SubPath string `json:"subPath"`
+
+	// VolumeSource accepts standard Kubernetes VolumeSource for the additional file(s) like what is
+	// normally used to configure Volumes for a Pod. Fore example, a ConfigMap, Secret, or HostPath.
+	// Each VolumeSource adds one or more additional files to the SSSD sidecar container in the
+	// `/etc/sssd/rook-additional/<subPath>` directory.
+	// Be aware that some files may need to have a specific file mode like 0600 due to requirements
+	// by SSSD for some files. For example, CA or TLS certificates.
+	VolumeSource *v1.VolumeSource `json:"volumeSource"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code
