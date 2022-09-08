@@ -1092,7 +1092,7 @@ class RadosJSON:
             "--display-name",
             "Rook RGW Admin Ops user",
             "--caps",
-            "info=read;buckets=*;users=*;usage=read;metadata=read;zone=read",
+            "buckets=*;users=*;usage=read;metadata=read;zone=read",
         ]
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + " ".join(cmd))
@@ -1123,7 +1123,7 @@ class RadosJSON:
                 )
                 raise Exception(err_msg)
 
-        # separately add info=read caps, because sometimes users already exited and the cap doesn't update
+        # separately add info=read caps for rgw-endpoint ip validation
         info_cap_supported = True
         cmd = [
             "radosgw-admin",
