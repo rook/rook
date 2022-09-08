@@ -11,89 +11,89 @@ jobs:
   macos-build:
     runs-on: macos-10.15
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: 1.17
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.17
 
-    - name: copy working directory to GOPATH
-      run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
+      - name: copy working directory to GOPATH
+        run: sudo mkdir -p /Users/runner/go/src/github.com && sudo cp -a /Users/runner/work/rook /Users/runner/go/src/github.com/
 
-    - name: build rook
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: |
-        GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+      - name: build rook
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: |
+          GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
 
-    - name: validate build
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh build
+      - name: validate build
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh build
 
-    - name: run codegen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make codegen
+      - name: run codegen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: GOPATH=$(go env GOPATH) make codegen
 
-    - name: validate codegen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh codegen
+      - name: validate codegen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh codegen
 
-    - name: run mod check
-      run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
+      - name: run mod check
+        run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
 
-    - name: validate modcheck
-      run: tests/scripts/validate_modified_files.sh modcheck
+      - name: validate modcheck
+        run: tests/scripts/validate_modified_files.sh modcheck
 
-    - name: run crds-gen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: make csv-clean && GOPATH=$(go env GOPATH) make crds
+      - name: run crds-gen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: make csv-clean && GOPATH=$(go env GOPATH) make crds
 
-    - name: validate crds-gen
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh crd
+      - name: validate crds-gen
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh crd
 
-    - name: run gen-rbac
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: GOPATH=$(go env GOPATH) make gen-rbac
+      - name: run gen-rbac
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: GOPATH=$(go env GOPATH) make gen-rbac
 
-    - name: validate gen-rbac
-      working-directory: /Users/runner/go/src/github.com/rook/rook
-      run: tests/scripts/validate_modified_files.sh gen-rbac
+      - name: validate gen-rbac
+        working-directory: /Users/runner/go/src/github.com/rook/rook
+        run: tests/scripts/validate_modified_files.sh gen-rbac
 
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60
+      - name: setup tmate session for debugging
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60
 
   linux-build-all:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
       matrix:
         go-version: ["1.17", "1.18"]
     steps:
-    - name: checkout
-      uses: actions/checkout@v2
-      with:
-        fetch-depth: 0
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
 
-    - name: setup golang ${{ matrix.go-version }}
-      uses: actions/setup-go@v2
-      with:
-        go-version: ${{ matrix.go-version }}
+      - name: setup golang ${{ matrix.go-version }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go-version }}
 
-    - name: set up QEMU
-      uses: docker/setup-qemu-action@master
-      with:
-        platforms: all
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@master
+        with:
+          platforms: all
 
-    - name: build.all rook with go ${{ matrix.go-version }}
-      run: |
-        tests/scripts/github-action-helper.sh build_rook_all
+      - name: build.all rook with go ${{ matrix.go-version }}
+        run: |
+          tests/scripts/github-action-helper.sh build_rook_all
 
-    - name: setup tmate session for debugging
-      if: failure()
-      uses: mxschmitt/action-tmate@v3
-      timeout-minutes: 60
+      - name: setup tmate session for debugging
+        if: failure()
+        uses: mxschmitt/action-tmate@v3
+        timeout-minutes: 60

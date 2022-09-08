@@ -14,12 +14,12 @@ runs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: 1.17
+        go-version: 1.18
 
     - name: setup minikube
       uses: manusa/actions-setup-minikube@v2.4.2
       with:
-        minikube version: "v1.24.0"
+        minikube version: "v1.26.0"
         kubernetes version: ${{ inputs.kubernetes-version }}
         start args: --memory 6g --cpus=2 --addons ingress
         github token: ${{ inputs.github-token }}
@@ -28,6 +28,7 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
+    # This step is required for all the integration tests except the canary tests
     - name: use local disk
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh use_local_disk_for_integration_test
