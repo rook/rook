@@ -87,6 +87,50 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 				},
 			}),
 			isFailing},
+		{"security.sssd.sidecar.sssdGenericFiles empty",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image:            "myimage",
+					SSSDGenericFiles: SSSDSidecarGenericFiles{},
+				},
+			}),
+			isOkay},
+		{"security.sssd.sidecar.sssdGenericFiles.volumeSource empty",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					SSSDGenericFiles: SSSDSidecarGenericFiles{
+						VolumeSource: &v1.VolumeSource{},
+						MountPath:    "/etc/local/config",
+					},
+				},
+			}),
+			isFailing},
+		{"security.sssd.sidecar.sssdGenericFiles.mountPath empty",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					SSSDGenericFiles: SSSDSidecarGenericFiles{
+						VolumeSource: &v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{},
+						},
+					},
+				},
+			}),
+			isFailing},
+		{"security.sssd.sidecar.sssdGenericFiles sufficiently specified",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					SSSDGenericFiles: SSSDSidecarGenericFiles{
+						VolumeSource: &v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{},
+						},
+						MountPath: "/etc/local/config",
+					},
+				},
+			}),
+			isOkay},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

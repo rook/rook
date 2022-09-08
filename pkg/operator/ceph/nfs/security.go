@@ -115,6 +115,15 @@ func generateSssdSidecarResources(sidecarCfg *cephv1.SSSDSidecar) (
 		sssdMounts = append(sssdMounts, mount)
 	}
 
+	genericFiles := sidecarCfg.SSSDGenericFiles.VolumeSource
+	genericMountPath := sidecarCfg.SSSDGenericFiles.MountPath
+	if genericFiles != nil {
+		vol, mount := genericVolAndMount(*genericFiles, genericMountPath)
+
+		volumes = append(volumes, vol)
+		sssdMounts = append(sssdMounts, mount)
+	}
+
 	// the init container is needed to copy the starting content from the /var/lib/sss/pipes
 	// directory into the shared sockets dir so that SSSD has the content it needs to start up
 	init = &v1.Container{
@@ -163,6 +172,20 @@ func configVolAndMount(volSource v1.VolumeSource) (v1.Volume, v1.VolumeMount) {
 		Name:      volName,
 		MountPath: "/etc/sssd/sssd.conf",
 		SubPath:   "sssd.conf",
+	}
+
+	return vol, mount
+}
+
+func genericVolAndMount(volSource v1.VolumeSource, mountPath string) (v1.Volume, v1.VolumeMount) {
+	volName := "sssd-generic-files"
+	vol := v1.Volume{
+		Name:         volName,
+		VolumeSource: volSource,
+	}
+	mount := v1.VolumeMount{
+		Name:      volName,
+		MountPath: mountPath,
 	}
 
 	return vol, mount

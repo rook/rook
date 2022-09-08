@@ -70,6 +70,12 @@ spec:
   #           configMap:
   #             name: my-nfs-sssd-config
   #             defaultMode: 0600 # mode must be 0600
+  #       sssdGenericFiles:
+  #         volumeSource:
+  #           secret:
+  #             name: sssd-tls-certificates
+  #             defaultMode: 0600 # mode must be 0600
+  #           mountPath: /etc/local/certs
   #       # debugLevel: 6
   #
   #       resources:

@@ -1994,6 +1994,14 @@ type SSSDSidecar struct {
 	// +optional
 	SSSDConfigFile SSSDSidecarConfigFile `json:"sssdConfigFile"`
 
+	// SSSDGenericFiles defines where additional files for the SSSD configuration should be sourced
+	// from. The referenced VolumeSource will be made available at the requested mountPath. For
+	// example, you may build it into your custom Ceph container image or use the Vault agent
+	// injector to securely add the file via annotations on the CephNFS spec (passed to the NFS
+	// server pods).
+	// +optional
+	SSSDGenericFiles SSSDSidecarGenericFiles `json:"sssdGenericFiles,omitempty"`
+
 	// Resources allow specifying resource requests/limits on the SSSD sidecar container.
 	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
@@ -2029,6 +2037,23 @@ type SSSDSidecarConfigFileConfigMap struct {
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	Name string `json:"name"`
+}
+
+// SSSDSidecarGenericFiles represents the source from where additional files for the the SSSD
+// configuration should come from and are made available.
+type SSSDSidecarGenericFiles struct {
+	// VolumeSource accepts a standard Kubernetes VolumeSource for additional SSSD files like what
+	// is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
+	// HostPath. There are two requirements for the source's content:
+	//   1. The config file must be mountable via `subPath: sssd.conf`. For example, in a ConfigMap,
+	//      the data item must be named `sssd.conf`, or `items` must be defined to select the key
+	//      and give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
+	//   2. The volume or config file must have mode 0600.
+	VolumeSource *v1.VolumeSource `json:"volumeSource"`
+
+	// MountPath contains the path where the contents of the VolumeSource will made available inside
+	// the SSSD sidecar.
+	MountPath string `json:"mountPath"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code

@@ -55,6 +55,14 @@ func (sec *NFSSecuritySpec) Validate() error {
 		if volSource != nil && reflect.DeepEqual(*volSource, v1.VolumeSource{}) {
 			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with config from a VolumeSource, but no source is specified")
 		}
+
+		volSource = sidecar.SSSDGenericFiles.VolumeSource
+		if volSource != nil && reflect.DeepEqual(*volSource, v1.VolumeSource{}) {
+			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with generic files from a VolumeSource, but no source is specified")
+		}
+		if volSource != nil && sidecar.SSSDGenericFiles.MountPath == "" {
+			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with generic files from a VolumeSource, but no mountPath is specified")
+		}
 	}
 
 	return nil
