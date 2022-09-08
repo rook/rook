@@ -153,6 +153,12 @@ func rawUdevBlockMonitor(c chan string, matches, exclusions []string) {
 
 	// stdbuf -oL performs line buffered output
 	cmd := exec.Command("stdbuf", "-oL", "udevadm", "monitor", "-u", "-k", "-s", "block")
+	defer func() {
+		err := cmd.Wait()
+		if err != nil {
+			logger.Errorf("Can not wait udevadm cmd: %v", err)
+		}
+	}()
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		logger.Warningf("Cannot open udevadm stdout: %v", err)
