@@ -17,6 +17,7 @@ limitations under the License.
 package test
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -125,4 +126,8 @@ func TestMockExecHelperProcess(t *testing.T) {
 		panic(err)
 	}
 	os.Exit(rc)
+}
+
+func FakeTimeoutError(text string) error {
+	return errors.New(fmt.Sprintf("exec timeout waiting for %s", text))
 }

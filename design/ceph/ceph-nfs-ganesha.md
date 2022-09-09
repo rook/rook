@@ -146,7 +146,7 @@ spec:
       keytabFile:
         volumeSource:
           secret:
-            name: rook-ceph-nfs-organization-keytab
+            secretName: rook-ceph-nfs-organization-keytab
             defaultMode: 0600 # required
 ```
 
@@ -259,7 +259,7 @@ dnsConfig:
 #### Volumes
 Volumes that should be mounted into nfs-ganesha container to support Kerberos:
 1. `keytabFile` volume: use `subPath` on the mount to add the `krb5.keytab` file to `/etc/krb5.keytab`
-2. `configFiles` volume: mount (without `subPath`) to `/etc/krb5.conf.d/` to allow all files to
+2. `configFiles` volume: mount (without `subPath`) to `/etc/krb5.conf.rook/` to allow all files to
    be mounted (e.g., if a ConfigMap has multiple data items or hostPath has multiple conf.d files)
 
 #### Ganesha config
@@ -299,7 +299,7 @@ the configuration they require.
 
 The minimal `/etc/krb5.conf` file Rook will create is as so:
 ```ini
-includedir /etc/krb5.conf.d/ # include all user-defined config files
+includedir /etc/krb5.conf.rook/ # include all user-defined config files
 
 [logging]
 default = STDERR # only log to stderr by default

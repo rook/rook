@@ -24,6 +24,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// KerberosEnabled returns true if Kerberos is enabled from the spec.
+func (n *NFSSecuritySpec) KerberosEnabled() bool {
+	if n == nil {
+		return false
+	}
+	if n.Kerberos != nil {
+		return true
+	}
+	return false
+}
+
+// GetPrincipalName gets the principal name for the Kerberos spec or the default value if it is unset.
+func (k *KerberosSpec) GetPrincipalName() string {
+	if k.PrincipalName == "" {
+		return "nfs"
+	}
+	return k.PrincipalName
+}
+
 func (n *CephNFS) ValidateCreate() error {
 	return n.Spec.Security.Validate()
 }
@@ -51,11 +70,25 @@ func (sec *NFSSecuritySpec) Validate() error {
 			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled, but no image is specified")
 		}
 
-		volSource := sidecar.SSSDConfigFile.VolumeSource
-		if volSource != nil && reflect.DeepEqual(*volSource, v1.VolumeSource{}) {
+		if volSourceExistsAndIsEmpty(sidecar.SSSDConfigFile.VolumeSource) {
 			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with config from a VolumeSource, but no source is specified")
 		}
 	}
 
+	krb := sec.Kerberos
+	if krb != nil {
+		if volSourceExistsAndIsEmpty(krb.ConfigFiles.VolumeSource) {
+			return errors.New("Kerberos is enabled with config from a VolumeSource, but no source is specified")
+		}
+
+		if volSourceExistsAndIsEmpty(krb.KeytabFile.VolumeSource) {
+			return errors.New("Kerberos is enabled with keytab from a VolumeSource, but no source is specified")
+		}
+	}
+
 	return nil
+}
+
+func volSourceExistsAndIsEmpty(v *v1.VolumeSource) bool {
+	return v != nil && reflect.DeepEqual(*v, v1.VolumeSource{})
 }

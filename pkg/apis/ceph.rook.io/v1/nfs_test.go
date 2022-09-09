@@ -19,6 +19,7 @@ package v1
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -95,4 +96,53 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNFSSecuritySpec_KerberosEnabled(t *testing.T) {
+	t.Run("nil security spec", func(t *testing.T) {
+		var sec *NFSSecuritySpec
+		assert.False(t, sec.KerberosEnabled())
+	})
+
+	t.Run("empty security spec", func(t *testing.T) {
+		sec := &NFSSecuritySpec{}
+		assert.False(t, sec.KerberosEnabled())
+	})
+
+	t.Run("empty kerberos spec", func(t *testing.T) {
+		sec := &NFSSecuritySpec{
+			Kerberos: &KerberosSpec{},
+		}
+		assert.True(t, sec.KerberosEnabled())
+	})
+
+	t.Run("filled in kerberos spec", func(t *testing.T) {
+		sec := &NFSSecuritySpec{
+			Kerberos: &KerberosSpec{
+				PrincipalName: "mom",
+			},
+		}
+		assert.True(t, sec.KerberosEnabled())
+	})
+}
+
+func TestKerberosSpec_GetPrincipalName(t *testing.T) {
+	t.Run("empty kerberos spec", func(t *testing.T) {
+		k := &KerberosSpec{}
+		assert.Equal(t, "nfs", k.GetPrincipalName())
+	})
+
+	t.Run("principal name nfs", func(t *testing.T) {
+		k := &KerberosSpec{
+			PrincipalName: "nfs",
+		}
+		assert.Equal(t, "nfs", k.GetPrincipalName())
+	})
+
+	t.Run("principal name set", func(t *testing.T) {
+		k := &KerberosSpec{
+			PrincipalName: "set",
+		}
+		assert.Equal(t, "set", k.GetPrincipalName())
+	})
 }

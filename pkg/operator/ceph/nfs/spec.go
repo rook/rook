@@ -17,6 +17,8 @@ limitations under the License.
 package nfs
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -128,6 +130,15 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		},
 		HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 		PriorityClassName: nfs.Spec.Server.PriorityClassName,
+		// for kerberos, nfs-ganesha uses the hostname via getaddrinfo() and uses that when
+		// connecting to the krb server. give all ganesha servers the same hostname so they can all
+		// use the same krb credentials to auth
+		Hostname: fmt.Sprintf("%s-%s", nfs.Namespace, nfs.Name),
+		DNSConfig: &v1.PodDNSConfig{
+			// for getaddrinfo() to get the hostname defined above, need to add localhost to
+			// searches in resolv.conf
+			Searches: []string{"localhost"},
+		},
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
