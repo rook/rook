@@ -83,6 +83,12 @@ data:
   ROOK_CSIADDONS_IMAGE: {{ .Values.csi.csiAddons.image | quote }}
 {{- end }}
 {{- end }}
+{{- if .Values.csi.topology }}
+  CSI_ENABLE_TOPOLOGY: {{ .Values.csi.topology.enabled | quote }}
+{{- if .Values.csi.topology.domainLabels }}
+  CSI_TOPOLOGY_DOMAIN_LABELS: {{ .Values.csi.topology.domainLabels | join "," }}
+{{- end }}
+{{- end }}
 {{- if .Values.csi.nfs }}
   ROOK_CSI_ENABLE_NFS: {{ .Values.csi.nfs.enabled | quote }}
 {{- end }}

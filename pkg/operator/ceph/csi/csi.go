@@ -174,6 +174,11 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableCSIAddonsSideCar = true
 	}
 
+	CSIParam.EnableCSITopology = false
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_TOPOLOGY", "false"), "true") {
+		CSIParam.EnableCSITopology = true
+	}
+
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_ENCRYPTION", "false"), "true") {
 		CSIParam.EnableCSIEncryption = true
 	}
@@ -255,6 +260,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	CSIParam.SnapshotterImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
 	CSIParam.KubeletDirPath = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
 	CSIParam.CSIAddonsImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
+	CSIParam.CSIDomainLabels = k8sutil.GetValue(r.opConfig.Parameters, "CSI_TOPOLOGY_DOMAIN_LABELS", "")
 	csiCephFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)
 	csiNFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_POD_LABELS", "")
