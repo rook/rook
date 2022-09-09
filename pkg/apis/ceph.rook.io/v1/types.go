@@ -1976,6 +1976,66 @@ type NFSSecuritySpec struct {
 	// +optional
 	// +nullable
 	SSSD *SSSDSpec `json:"sssd,omitempty"`
+
+	// Kerberos configures NFS-Ganesha to secure NFS client connections with Kerberos.
+	// +optional
+	// +nullable
+	Kerberos *KerberosSpec `json:"kerberos,omitempty"`
+}
+
+// KerberosSpec represents configuration for Kerberos.
+type KerberosSpec struct {
+	// PrincipalName corresponds directly to NFS-Ganesha's NFS_KRB5:PrincipalName config. In
+	// practice, this is the service prefix of the principal name. The default is "nfs".
+	// This value is combined with (a) the namespace and name of the CephNFS (with a hyphen between)
+	// and (b) the Realm configured in the user-provided krb5.conf to determine the full principal
+	// name: <principalName>/<namespace>-<name>@<realm>. e.g., nfs/rook-ceph-my-nfs@example.net.
+	// See https://github.com/nfs-ganesha/nfs-ganesha/wiki/RPCSEC_GSS for more detail.
+	// +optional
+	// +kubebuilder:default="nfs"
+	PrincipalName string `json:"principalName"`
+
+	// ConfigFiles defines where the Kerberos configuration should be sourced from. Config files
+	// will be placed into the `/etc/krb5.conf.rook/` directory.
+	//
+	// If this is left empty, Rook will not add any files. This allows you to manage the files
+	// yourself however you wish. For example, you may build them into your custom Ceph container
+	// image or use the Vault agent injector to securely add the files via annotations on the
+	// CephNFS spec (passed to the NFS server pods).
+	//
+	// Rook configures Kerberos to log to stderr. We suggest removing logging sections from config
+	// files to avoid consuming unnecessary disk space from logging to files.
+	// +optional
+	ConfigFiles KerberosConfigFiles `json:"configFiles"`
+
+	// KeytabFile defines where the Kerberos keytab should be sourced from. The keytab file will be
+	// placed into `/etc/krb5.keytab`. If this is left empty, Rook will not add the file.
+	// This allows you to manage the `krb5.keytab` file yourself however you wish. For example, you
+	// may build it into your custom Ceph container image or use the Vault agent injector to
+	// securely add the file via annotations on the CephNFS spec (passed to the NFS server pods).
+	// +optional
+	KeytabFile KerberosKeytabFile `json:"keytabFile"`
+}
+
+// KerberosConfigFiles represents the source(s) from which Kerberos configuration should come.
+type KerberosConfigFiles struct {
+	// VolumeSource accepts a standard Kubernetes VolumeSource for Kerberos configuration files like
+	// what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
+	// HostPath. The volume may contain multiple files, all of which will be loaded.
+	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+}
+
+// KerberosKeytabFile represents the source(s) from which the Kerberos keytab file should come.
+type KerberosKeytabFile struct {
+	// VolumeSource accepts a standard Kubernetes VolumeSource for the Kerberos keytab file like
+	// what is normally used to configure Volumes for a Pod. For example, a Secret or HostPath.
+	// There are two requirements for the source's content:
+	//   1. The config file must be mountable via `subPath: krb5.keytab`. For example, in a
+	//      Secret, the data item must be named `krb5.keytab`, or `items` must be defined to
+	//      select the key and give it path `krb5.keytab`. A HostPath directory must have the
+	//      `krb5.keytab` file.
+	//   2. The volume or config file must have mode 0600.
+	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
 }
 
 // SSSDSpec represents configuration for System Security Services Daemon (SSSD).
@@ -1992,11 +2052,11 @@ type SSSDSidecar struct {
 	// +kubebuilder:validation:MinLength=1
 	Image string `json:"image"`
 
-	// Config defines where the SSSD configuration should be sourced from. The config file will be
-	// placed into `/etc/sssd/sssd.conf`. If this is left empty, Rook will not add the file. This
-	// allows you to manage the `sssd.conf` file yourself however you wish. For example, you may
-	// build it into your custom Ceph container image or use the Vault agent injector to securely
-	// add the file via annotations on the CephNFS spec (passed to the NFS server pods).
+	// SSSDConfigFile defines where the SSSD configuration should be sourced from. The config file
+	// will be placed into `/etc/sssd/sssd.conf`. If this is left empty, Rook will not add the file.
+	// This allows you to manage the `sssd.conf` file yourself however you wish. For example, you
+	// may build it into your custom Ceph container image or use the Vault agent injector to
+	// securely add the file via annotations on the CephNFS spec (passed to the NFS server pods).
 	// +optional
 	SSSDConfigFile SSSDSidecarConfigFile `json:"sssdConfigFile"`
 
@@ -2023,18 +2083,6 @@ type SSSDSidecarConfigFile struct {
 	//      and give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
 	//   2. The volume or config file must have mode 0600.
 	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
-}
-
-// SSSDSidecarConfigFileConfigMap represents the option to use a ConfigMap as the source for SSSD configuration.
-type SSSDSidecarConfigFileConfigMap struct {
-	// Name accepts the name of a ConfigMap which should contain the SSSD configuration. The
-	// ConfigMap must contain the SSSD configuration in a data entry named 'sssd.conf'. The
-	// ConfigMap must be created in the same namespace as the CephNFS (and CephCluster).
-	// The user-supplied configuration follows the sssd.conf format documented here:
-	// https://linux.die.net/man/5/sssd.conf
-	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:MinLength=1
-	Name string `json:"name"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code
