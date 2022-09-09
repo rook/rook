@@ -543,6 +543,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 
 	// Initialize the KMS code
 	kmsConfig := kms.NewConfig(c.context, &currentCluster.Spec, c.clusterMap[currentCluster.Namespace].ClusterInfo)
+	kmsConfig.ClusterInfo.Context = ctx
 
 	// If token auth is used by the KMS we set it as an env variable
 	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() && currentCluster.Spec.Security.KeyManagementService.IsVaultKMS() {
@@ -552,9 +553,10 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 		}
 	}
 
-	// We need to fetch the IBM_KP_SERVICE_API_KEY value
-	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() {
-		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec
+	// We need to fetch the IBM_KP_SERVICE_API_KEY value and KMIP kms related values too.
+	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() || currentCluster.Spec.Security.KeyManagementService.IsKMIPKMS() {
+		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec and
+		// token details required for KMIP kms is added too.
 		err = kms.ValidateConnectionDetails(ctx, c.context, &currentCluster.Spec.Security.KeyManagementService, currentCluster.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate kms connection details to delete the secret")

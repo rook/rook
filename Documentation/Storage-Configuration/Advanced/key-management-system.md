@@ -15,14 +15,16 @@ The `security` section contains settings related to encryption of the cluster.
 
 Supported KMS providers:
 
-* [Vault](#vault)
-  * [Authentication methods](#authentication-methods)
-    * [Token-based authentication](#token-based-authentication)
-    * [Kubernetes-based authentication](#kubernetes-based-authentication)
-  * [General Vault configuration](#general-vault-configuration)
-  * [TLS configuration](#tls-configuration)
-* [IBM Key Protect](#ibm-key-protect)
-  * [Configuration](#configuration)
+- [Vault](#vault)
+  - [Authentication methods](#authentication-methods)
+    - [Token-based authentication](#token-based-authentication)
+    - [Kubernetes-based authentication](#kubernetes-based-authentication)
+  - [General Vault configuration](#general-vault-configuration)
+  - [TLS configuration](#tls-configuration)
+- [IBM Key Protect](#ibm-key-protect)
+  - [Configuration](#configuration)
+- [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
+  - [Configuration](#configuration-1)
 
 ## Vault
 
@@ -281,3 +283,47 @@ More options are supported such as:
   [region](https://cloud.ibm.com/docs/key-protect?topic=key-protect-regions). Defaults to `https://us-south.kms.cloud.ibm.com`.
 * `IBM_TOKEN_URL`: the URL of the Key Protect instance to retrieve the token. Defaults to
   `https://iam.cloud.ibm.com/oidc/token`. Only needed for private instances.
+
+## Key Management Interoperability Protocol
+
+Rook supports storing OSD encryption keys in [Key Management Interoperability Protocol (KMIP)](https://www.ibm.com/cloud/key-protect) supported
+KMS.
+The current implementation stores OSD encryption
+keys using the [Register](https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmip-spec-v2.0-os.html#_Toc6497565) operation.
+Key is fetched and deleted using [Get](https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmip-spec-v2.0-os.html#_Toc6497545)
+and [Destroy](https://docs.oasis-open.org/kmip/kmip-spec/v2.0/os/kmip-spec-v2.0-os.html#_Toc6497541) operations respectively.
+
+### Configuration
+
+The Secret with credentials for the KMIP KMS is expected to contain the following.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kmip-credentials
+  namespace: rook-ceph
+stringData:
+  CA_CERT: <ca certificate>
+  CLIENT_CERT: <client certificate>
+  CLIENT_KEY: <client key>
+```
+
+In order for Rook to connect to KMIP, you must configure the following in your `CephCluster` template:
+
+```yaml
+security:
+  kms:
+    # name of the k8s config map containing all the kms connection details
+    connectionDetails:
+      KMS_PROVIDER: kmip
+      KMIP_ENDPOINT: <KMIP endpoint address>
+      # (optional) The endpoint server name. Useful when the KMIP endpoint does not have a DNS entry.
+      TLS_SERVER_NAME: <tls server name>
+      # (optional) Network read timeout, in seconds. The default value is 10.
+      READ_TIMEOUT: <read timeout>
+      # (optional) Network write timeout, in seconds. The default value is 10.
+      WRITE_TIMEOUT: <write timeout>
+    # name of the k8s secret containing the credentials.
+    tokenSecretName: kmip-credentials
+```

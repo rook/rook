@@ -30,7 +30,8 @@ import (
 )
 
 var (
-	knownKMSPrefix = []string{"VAULT_", "IBM_"}
+	kmipKMSPrefix  = "KMIP_"
+	knownKMSPrefix = []string{"VAULT_", "IBM_", kmipKMSPrefix}
 )
 
 // VaultTokenEnvVarFromSecret returns the kms token secret value as an env var
@@ -99,6 +100,16 @@ func ConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 		envs = append(envs, ibmKeyProtectServiceAPIKeyEnvVarFromSecret(spec.Security.KeyManagementService.TokenSecretName))
 	}
 
+	if spec.Security.KeyManagementService.IsKMIPKMS() {
+		for key, val := range spec.Security.KeyManagementService.ConnectionDetails {
+			// these token details will be mounted into osd pod instead of being inserted as env vars.
+			if sets.NewString(kmsKMIPMandatoryTokenDetails...).Has(key) {
+				continue
+			}
+			envs = append(envs, v1.EnvVar{Name: kmipKMSPrefix + key, Value: val})
+		}
+	}
+
 	for k, v := range spec.Security.KeyManagementService.ConnectionDetails {
 		if spec.Security.KeyManagementService.IsVaultKMS() {
 			// Skip TLS and token env var to avoid env being set multiple times
@@ -106,6 +117,10 @@ func ConfigToEnvVar(spec cephv1.ClusterSpec) []v1.EnvVar {
 			if sets.NewString(toSkip...).Has(k) {
 				continue
 			}
+		}
+		if spec.Security.KeyManagementService.IsKMIPKMS() {
+			// required KMIP env vars are already set above.
+			continue
 		}
 
 		envs = append(envs, v1.EnvVar{Name: k, Value: v})
@@ -135,7 +150,11 @@ func ConfigEnvsToMapString() map[string]string {
 		for _, knownKMS := range knownKMSPrefix {
 			if strings.HasPrefix(pair[0], knownKMS) || pair[0] == Provider {
 				logger.Debugf("adding env %q", pair[0])
-				envs[pair[0]] = os.Getenv(pair[0])
+				if knownKMS == kmipKMSPrefix {
+					envs[strings.TrimPrefix(pair[0], knownKMS)] = os.Getenv(pair[0])
+				} else {
+					envs[pair[0]] = os.Getenv(pair[0])
+				}
 			}
 		}
 	}
