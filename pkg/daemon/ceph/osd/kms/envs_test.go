@@ -141,6 +141,14 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 				{Name: "KMS_PROVIDER", Value: TypeIBM},
 			},
 		},
+		{
+			"kmip - token details is removed from the details",
+			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeKMIP, "CLIENT_KEY": "foo", "CLIENT_CERT": "foo", "CA_CERT": "foo", "TLS_SERVER_NAME": "pykmip"}, TokenSecretName: "kmip-token"}}}},
+			[]v1.EnvVar{
+				{Name: "KMIP_KMS_PROVIDER", Value: TypeKMIP},
+				{Name: "KMIP_TLS_SERVER_NAME", Value: "pykmip"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
