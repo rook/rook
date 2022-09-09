@@ -26,8 +26,6 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 In order to configure the Ceph storage cluster, at least one of these local storage options are required:
 
 * Raw devices (no partitions or formatted filesystems)
-  * This requires `lvm2` to be installed on the host.
-    To avoid this dependency, you can create a single full-disk partition on the disk (see below)
 * Raw partitions (no formatted filesystem)
 * Persistent Volumes available from a storage class in `block` mode
 
