@@ -188,3 +188,67 @@ func GetPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
 		},
 	}
 }
+
+func applyVolumeToPodSpec(opConfig map[string]string, configName string, podspec *corev1.PodSpec) {
+	volumesRaw := k8sutil.GetValue(opConfig, configName, "")
+	if volumesRaw == "" {
+		return
+	}
+	volumes, err := k8sutil.YamlToVolumes(volumesRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %q for %q. %v", volumesRaw, configName, err)
+		return
+	}
+	if len(volumes) > 0 {
+		for i := range volumes {
+			found := false
+			for j := range podspec.Volumes {
+				// check do we need to override any existing volumes
+				if volumes[i].Name == podspec.Volumes[j].Name {
+					podspec.Volumes[j] = volumes[i]
+					found = true
+					break
+				}
+			}
+			if !found {
+				// if not found add volume to volumes list
+				podspec.Volumes = append(podspec.Volumes, volumes[i])
+			}
+		}
+	}
+}
+
+func applyVolumeMountToContainer(opConfig map[string]string, configName, containerName string, podspec *corev1.PodSpec) {
+	volumeMountsRaw := k8sutil.GetValue(opConfig, configName, "")
+	if volumeMountsRaw == "" {
+		return
+	}
+	volumeMounts, err := k8sutil.YamlToVolumeMounts(volumeMountsRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %q for %q. %v", volumeMountsRaw, configName, err)
+		return
+	}
+	if len(volumeMounts) > 0 {
+		for i, c := range podspec.Containers {
+			if c.Name == containerName {
+				for j := range volumeMounts {
+					found := false
+					for k := range podspec.Containers[i].VolumeMounts {
+						// override if the name is matching
+						if volumeMounts[j].Name == podspec.Containers[i].VolumeMounts[k].Name {
+							found = true
+							podspec.Containers[i].VolumeMounts[k] = volumeMounts[j]
+							break
+						}
+					}
+					if !found {
+						// if not found append it to the exiting volumes
+						podspec.Containers[i].VolumeMounts = append(podspec.Containers[i].VolumeMounts, volumeMounts[j])
+					}
+				}
+				// return as we finished with found container
+				return
+			}
+		}
+	}
+}

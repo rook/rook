@@ -221,6 +221,36 @@ data:
   # Labels to add to the CSI NFS Deployments and DaemonSets Pods.
   # ROOK_CSI_NFS_POD_LABELS: "key1=value1,key2=value2"
 
+  # (Optional) CephCSI CephFS plugin Volumes
+  # CSI_CEPHFS_PLUGIN_VOLUME: |
+  #  - name: lib-modules
+  #    hostPath:
+  #      path: /run/current-system/kernel-modules/lib/modules/
+  #  - name: host-nix
+  #    hostPath:
+  #      path: /nix
+
+  # (Optional) CephCSI CephFS plugin Volume mounts
+  # CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: |
+  #  - name: host-nix
+  #    mountPath: /nix
+  #    readOnly: true
+
+  # (Optional) CephCSI RBD plugin Volumes
+  # CSI_RBD_PLUGIN_VOLUME: |
+  #  - name: lib-modules
+  #    hostPath:
+  #      path: /run/current-system/kernel-modules/lib/modules/
+  #  - name: host-nix
+  #    hostPath:
+  #      path: /nix
+
+  # (Optional) CephCSI RBD plugin Volume mounts
+  # CSI_RBD_PLUGIN_VOLUME_MOUNT: |
+  #  - name: host-nix
+  #    mountPath: /nix
+  #    readOnly: true
+
   # (Optional) CephCSI provisioner NodeAffinity(applied to both CephFS and RBD provisioner).
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
   # (Optional) CephCSI provisioner tolerations list(applied to both CephFS and RBD provisioner).
