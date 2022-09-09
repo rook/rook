@@ -71,6 +71,9 @@ spec:
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
             {{ end }}
+            {{- if .EnableCSITopology }}
+            - "--domainlabels={{ .CSIDomainLabels }}"
+            {{- end }}
           env:
             - name: POD_IP
               valueFrom:

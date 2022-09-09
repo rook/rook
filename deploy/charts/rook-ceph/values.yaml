@@ -386,6 +386,17 @@ csi:
   # Enable the nfs csi driver.
   nfs:
     enabled: false
+  # Enable topology based provisioning.
+  topology:
+    enabled: false
+    # domainLabels define which node labels to use as domains
+    # for CSI nodeplugins to advertise their domains
+    # NOTE: the value here serves as an example and needs to be
+    # updated with node labels that define domains of interest
+    # domainLabels:
+    # - kubernetes.io/hostname
+    # - topology.kubernetes.io/zone
+    # - topology.rook.io/rack
 enableDiscoveryDaemon: false
 cephCommandsTimeoutSeconds: "15"
 
