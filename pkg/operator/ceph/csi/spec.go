@@ -64,6 +64,7 @@ type Param struct {
 	EnableOMAPGenerator          bool
 	EnableRBDSnapshotter         bool
 	EnableCephFSSnapshotter      bool
+	EnableNFSSnapshotter         bool
 	EnableCSIAddonsSideCar       bool
 	MountCustomCephConf          bool
 	EnableOIDCTokenProjection    bool
