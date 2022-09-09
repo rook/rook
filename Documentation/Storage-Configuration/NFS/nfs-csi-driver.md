@@ -97,3 +97,109 @@ application pod.
 ### Connecting to an export directly
 After a PVC is created successfully, the `share` parameter set on the resulting PV contains the
 `share` path which can be used as the export path when [mounting the export manually](nfs.md#mounting-exports).
+
+## Taking snapshots of NFS exports
+
+NFS export PVCs can be snapshotted and later restored to new PVCs.
+
+### Creating snapshots
+
+First, create a VolumeSnapshotClass as in the example [here](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/snapshotclass.yaml). The `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the name of the secret created for the cephfsplugin [here](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/snapshotclass.yaml).
+
+```console
+kubectl create -f deploy/examples/csi/nfs/snapshotclass.yaml
+```
+
+In [snapshot](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/snapshot.yaml),
+`volumeSnapshotClassName` should be the name of the VolumeSnapshotClass
+previously created. The `persistentVolumeClaimName` should be the name of the
+PVC which is already created by the NFS CSI driver.
+
+```console
+kubectl create -f deploy/examples/csi/nfs/snapshot.yaml
+```
+
+### Verifying snapshots
+
+```console
+$ kubectl get volumesnapshotclass
+NAME                        DRIVER                          DELETIONPOLICY   AGE
+csi-nfslugin-snapclass      rook-ceph.nfs.csi.ceph.com      Delete           3h55m
+```
+
+```console
+$ kubectl get volumesnapshot
+NAME                  READYTOUSE   SOURCEPVC   SOURCESNAPSHOTCONTENT  RESTORESIZE   SNAPSHOTCLASS                SNAPSHOTCONTENT                                   CREATIONTIME   AGE
+nfs-pvc-snapshot      true         nfs-pvc                            1Gi           csi-nfsplugin-snapclass      snapcontent-34476204-a14a-4d59-bfbc-2bbba695652c  3h50m          3h51m
+```
+
+The snapshot will be ready to restore to a new PVC when `READYTOUSE` field of the
+volumesnapshot is set to true.
+
+### Restoring snapshot to a new PVC
+
+In
+[pvc-restore](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/pvc-restore.yaml),
+`dataSource` name should be the name of the VolumeSnapshot previously
+created. The `dataSource` kind should be "VolumeSnapshot".
+
+Create a new PVC from the snapshot.
+
+```console
+kubectl create -f deploy/examples/csi/nfs/pvc-restore.yaml
+```
+
+### Verifying restored PVC Creation
+
+```console
+$ kubectl get pvc
+NAME                 STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS      AGE
+nfs-pvc              Bound    pvc-74734901-577a-11e9-b34f-525400581048   1Gi        RWX            rook-nfs          55m
+nfs-pvc-restore      Bound    pvc-95308c75-6c93-4928-a551-6b5137192209   1Gi        RWX            rook-nfs          34s
+```
+
+### Cleaning up snapshot resource
+
+To clean your cluster of the resources created by this example, run the following:
+
+```console
+kubectl delete -f deploy/examples/csi/nfs/pvc-restore.yaml
+kubectl delete -f deploy/examples/csi/nfs/snapshot.yaml
+kubectl delete -f deploy/examples/csi/nfs/snapshotclass.yaml
+```
+
+## Cloning NFS exports
+
+### Creating clones
+
+In
+[pvc-clone](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/pvc-clone.yaml),
+`dataSource` should be the name of the PVC which is already created by NFS
+CSI driver. The `dataSource` kind should be "PersistentVolumeClaim" and also storageclass
+should be same as the source PVC.
+
+Create a new PVC Clone from the PVC as in the example [here](https://github.com/rook/rook/tree/master/deploy/examples/csi/nfs/pvc-clone.yaml).
+
+```console
+kubectl create -f deploy/examples/csi/nfs/pvc-clone.yaml
+```
+
+### Verifying a cloned PVC
+
+```console
+kubectl get pvc
+```
+
+>```
+>NAME              STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   AGE
+>nfs-pvc           Bound    pvc-1ea51547-a88b-4ab0-8b4a-812caeaf025d   1Gi        RWX            rook-nfs       39m
+>nfs-pvc-clone     Bound    pvc-b575bc35-d521-4c41-b4f9-1d733cd28fdf   1Gi        RWX            rook-nfs       8s
+>```
+
+### Cleaning up clone resources
+
+To clean your cluster of the resources created by this example, run the following:
+
+```console
+kubectl delete -f deploy/examples/csi/nfs/pvc-clone.yaml
+```
