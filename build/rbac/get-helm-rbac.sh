@@ -27,6 +27,6 @@ done
 
 echo "generating Helm template with options: ${options[*]}" &>/dev/stderr
 
-${HELM} template ../../deploy/charts/rook-ceph "${options[@]}" | ./keep-rbac-yaml.sh
+${HELM} template ../../deploy/charts/rook-ceph "${options[@]}" --debug | ./keep-rbac-yaml.sh
 
 popd &>/dev/stderr
