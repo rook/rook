@@ -585,9 +585,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					WorkingDir:      opconfig.VarLogCephDir,
 				},
 			},
-			Volumes:       volumes,
-			SchedulerName: osdProps.schedulerName,
-			ImagePullSecrets:  c.spec.ImagePullSecrets,
+			Volumes:          volumes,
+			SchedulerName:    osdProps.schedulerName,
+			ImagePullSecrets: c.spec.ImagePullSecrets,
 		},
 	}
 
