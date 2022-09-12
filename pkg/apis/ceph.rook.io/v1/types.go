@@ -220,6 +220,11 @@ type ClusterSpec struct {
 	// +optional
 	// +nullable
 	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
+
+	// Image pull secrets to apply to all Ceph Pods
+	// +optional
+	// +nullable
+	ImagePullSecrets []v1.LocalObjectReference `json:"imagePullSecrets,omitempty"`
 }
 
 // LogCollectorSpec is the logging spec

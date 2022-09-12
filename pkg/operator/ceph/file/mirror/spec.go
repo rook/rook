@@ -46,6 +46,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: fsMirror.Spec.PriorityClassName,
+			ImagePullSecrets:  r.cephClusterSpec.ImagePullSecrets,
 		},
 	}
 

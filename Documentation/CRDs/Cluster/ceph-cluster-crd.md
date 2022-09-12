@@ -90,6 +90,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the OSDs are `out` and `safe-to-destroy` when they are removed.
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 * `security`: [security page for key management configuration](../../Storage-Configuration/Advanced/key-management-system.md)
+* `imagePullSecrets`: List of image pull secrets to apply to Ceph cluster Pods. Does not apply to CSI Pods.
 
 ### Ceph container images
 

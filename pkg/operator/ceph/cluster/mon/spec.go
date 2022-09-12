@@ -184,6 +184,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
 		HostNetwork:       c.spec.Network.IsHost(),
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		ImagePullSecrets:  c.spec.ImagePullSecrets,
 	}
 
 	// If the log collector is enabled we add the side-car container

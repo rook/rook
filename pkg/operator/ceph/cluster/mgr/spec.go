@@ -65,6 +65,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			Volumes:            volumes,
 			HostNetwork:        c.spec.Network.IsHost(),
 			PriorityClassName:  cephv1.GetMgrPriorityClassName(c.spec.PriorityClassNames),
+			ImagePullSecrets:   c.spec.ImagePullSecrets,
 		},
 	}
 	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec)

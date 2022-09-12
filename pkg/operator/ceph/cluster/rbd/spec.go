@@ -43,6 +43,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: rbdMirror.Spec.PriorityClassName,
+			ImagePullSecrets:  r.cephClusterSpec.ImagePullSecrets,
 		},
 	}
 
