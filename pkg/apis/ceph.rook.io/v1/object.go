@@ -109,3 +109,7 @@ func (s *ObjectStoreSpec) GetServiceServingCert() string {
 func (c *CephObjectStore) GetStatusConditions() *[]Condition {
 	return &c.Status.Conditions
 }
+
+func (z *CephObjectZone) GetStatusConditions() *[]Condition {
+	return &z.Status.Conditions
+}

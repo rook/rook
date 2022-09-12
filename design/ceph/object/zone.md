@@ -40,6 +40,7 @@ spec:
       codingChunks: 2
   customEndpoints:
     - "http://zone-a.fqdn"
+  preservePoolsOnDelete: true
 ```
 
 Now create the ceph-object-zone.
@@ -70,7 +71,7 @@ The order in which these resources are created is not important.
 
 When the storage admin is ready to sync data from another Ceph cluster with multisite set up (primary cluster) to a Rook Ceph cluster (pulling cluster), the pulling cluster will have a newly created in the zone group from the primary cluster.
 
-A [ceph-object-pull-realm](/design/object/ceph-object-pull-realm.md) resource must be created to pull the realm information from the primary cluster to the pulling cluster.
+A [ceph-object-pull-realm](/design/ceph/object/ceph-object-pull-realm.md) resource must be created to pull the realm information from the primary cluster to the pulling cluster.
 
 Once the ceph-object-pull-realm is configured a ceph-object-zone must be created.
 
@@ -78,11 +79,21 @@ After an ceph-object-store is configured to be in this ceph-object-zone, the all
 
 ## Deleting and Reconfiguring the Ceph Object Zone
 
-At the moment creating an ceph-object-zone resource only handles Day 1 initial configuration for the zone.
+At the moment creating a CephObjectZone resource does not handle configuration updates for the zone.
 
-Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
+By default when a CephObjectZone is deleted, the pools supporting the zone are not deleted from the Ceph cluster. But if `preservePoolsOnDelete` is set to false, then pools are deleted from the Ceph cluster.
 
-To be clear, when the ceph-object-zone resource is deleted or modified, the zone is not deleted from the Ceph cluster. Zone deletion must be done through the toolbox.
+A CephObjectZone will be removed only if all CephObjectStores that reference the zone are deleted first.
+
+### Deleting CephObjectStores in a multisite configuration
+
+One of the following scenarios is possible when deleting a CephObjectStore in a multisite configuration. Rook's behavior is noted after each scenario.
+1. The store belongs to a [master zone](/design/ceph/object/ceph-multisite-overview.md/#master-zonezonegroup) that has no other peers.
+  - This case is essentially the same as deleting a CephObjectStore outside of a multisite configuration; Rook should check for dependents before deleting the store
+2. The store belongs to a master zone that has other peers
+  - Rook will error on this condition with a message instructing the user to manually set another zone as the master zone once that zone has all data backed up to it
+3. The store is a non-master peer
+  - Rook will not check for dependents in this case, as the data in the master zone is assumed to have a copy of all user data
 
 ### Deleting Zone through Toolboxes
 
@@ -134,6 +145,8 @@ The following variables can be configured in the ceph-object-zone resource.
 
 - `customEndpoints`:  Specify the endpoint(s) that will accept multisite replication traffic for this zone. You may include the port in the definition if necessary. For example: "https://my-object-store.my-domain.net:443".
 
+- `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the zone will remain when the CephObjectZone is deleted. This is a security measure to avoid accidental loss of data. It is set to 'true' by default. If not specified it is also deemed as 'true'.
+
 ```yaml
 apiVersion: ceph.rook.io/v1alpha1
 kind: CephObjectZone
@@ -153,6 +166,7 @@ spec:
       codingChunks: 2
   customEndpoints:
     - "http://rgw-a.fqdn"
+  preservePoolsOnDelete: true
 ```
 
 ### Pools
