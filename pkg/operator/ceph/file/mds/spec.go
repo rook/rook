@@ -63,6 +63,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.
 			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 			HostNetwork:       c.clusterSpec.Network.IsHost(),
 			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
+			ImagePullSecrets:  c.clusterSpec.ImagePullSecrets,
 		},
 	}
 

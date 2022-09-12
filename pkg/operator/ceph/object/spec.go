@@ -129,6 +129,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		HostNetwork:        hostNetwork,
 		PriorityClassName:  c.store.Spec.Gateway.PriorityClassName,
 		ServiceAccountName: serviceAccountName,
+		ImagePullSecrets:   c.clusterSpec.ImagePullSecrets,
 	}
 
 	// If the log collector is enabled we add the side-car container
