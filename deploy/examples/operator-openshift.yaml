@@ -524,6 +524,14 @@ data:
   # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.5.0"
   # The GCSI RPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
+
+  # Enable topology based provisioning.
+  CSI_ENABLE_TOPOLOGY: "false"
+  # Domain labels define which node labels to use as domains
+  # for CSI nodeplugins to advertise their domains
+  # NOTE: the value here serves as an example and needs to be
+  # updated with node labels that define domains of interest
+  # CSI_TOPOLOGY_DOMAIN_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
