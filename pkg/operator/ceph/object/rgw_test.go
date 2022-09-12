@@ -143,16 +143,16 @@ func TestGenerateSecretName(t *testing.T) {
 }
 
 func TestEmptyPoolSpec(t *testing.T) {
-	assert.True(t, emptyPool(cephv1.PoolSpec{}))
+	assert.True(t, EmptyPool(cephv1.PoolSpec{}))
 
 	p := cephv1.PoolSpec{FailureDomain: "foo"}
-	assert.False(t, emptyPool(p))
+	assert.False(t, EmptyPool(p))
 
 	p = cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}
-	assert.False(t, emptyPool(p))
+	assert.False(t, EmptyPool(p))
 
 	p = cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1}}
-	assert.False(t, emptyPool(p))
+	assert.False(t, EmptyPool(p))
 }
 
 func TestBuildDomainNameAndEndpoint(t *testing.T) {

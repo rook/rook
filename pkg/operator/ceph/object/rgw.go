@@ -291,12 +291,12 @@ func (r *ReconcileCephObjectStore) validateStore(s *cephv1.CephObjectStore) erro
 
 	// Validate the pool settings, but allow for empty pools specs in case they have already been created
 	// such as by the ceph mgr
-	if !emptyPool(s.Spec.MetadataPool) {
+	if !EmptyPool(s.Spec.MetadataPool) {
 		if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, r.clusterSpec, &s.Spec.MetadataPool); err != nil {
 			return errors.Wrap(err, "invalid metadata pool spec")
 		}
 	}
-	if !emptyPool(s.Spec.DataPool) {
+	if !EmptyPool(s.Spec.DataPool) {
 		if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, r.clusterSpec, &s.Spec.DataPool); err != nil {
 			return errors.Wrap(err, "invalid data pool spec")
 		}
@@ -309,7 +309,7 @@ func (c *clusterConfig) generateSecretName(id string) string {
 	return fmt.Sprintf("%s-%s-%s-keyring", AppName, c.store.Name, id)
 }
 
-func emptyPool(pool cephv1.PoolSpec) bool {
+func EmptyPool(pool cephv1.PoolSpec) bool {
 	return reflect.DeepEqual(pool, cephv1.PoolSpec{})
 }
 

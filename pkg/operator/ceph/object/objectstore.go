@@ -61,6 +61,7 @@ var (
 		"rgw.log",
 		"rgw.buckets.index",
 		"rgw.buckets.non-ec",
+		"rgw.otp",
 	}
 	dataPoolName = "rgw.buckets.data"
 
@@ -119,7 +120,7 @@ func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStore
 		zoneEndpoints := strings.Join(zoneEndpointsList, ",")
 		endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 
-		zoneIsMaster, err := checkZoneIsMaster(objContext)
+		zoneIsMaster, err := CheckZoneIsMaster(objContext)
 		if err != nil {
 			return errors.Wrapf(err, "failed to determine if zone %q is master", objContext.Zone)
 		}
@@ -183,7 +184,11 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 	}
 
 	if !spec.PreservePoolsOnDelete {
-		err = deletePools(objContext, spec, lastStore)
+		if EmptyPool(spec.DataPool) && EmptyPool(spec.MetadataPool) {
+			logger.Info("skipping removal of pools since not specified in the object store")
+			return nil
+		}
+		err = DeletePools(objContext, lastStore, objContext.Name)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete object store pools")
 		}
@@ -227,7 +232,7 @@ func getMultisiteForObjectStore(ctx context.Context, clusterdContext *clusterd.C
 	return name, name, name, nil
 }
 
-func checkZoneIsMaster(objContext *Context) (bool, error) {
+func CheckZoneIsMaster(objContext *Context) (bool, error) {
 	logger.Debugf("checking if zone %v is the master zone", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
@@ -452,7 +457,7 @@ func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	zoneIsMaster, err := checkZoneIsMaster(objContext)
+	zoneIsMaster, err := CheckZoneIsMaster(objContext)
 	if err != nil {
 		return err
 	}
@@ -632,12 +637,7 @@ func getObjectStores(context *Context) ([]string, error) {
 	return r.Realms, nil
 }
 
-func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) error {
-	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
-		logger.Info("skipping removal of pools since not specified in the object store")
-		return nil
-	}
-
+func DeletePools(ctx *Context, lastStore bool, poolPrefix string) error {
 	pools := append(metadataPools, dataPoolName)
 	if lastStore {
 		pools = append(pools, rootPool)
@@ -646,7 +646,7 @@ func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) erro
 	if configurePoolsConcurrently() {
 		waitGroup, _ := errgroup.WithContext(ctx.clusterInfo.Context)
 		for _, pool := range pools {
-			name := poolName(ctx.Name, pool)
+			name := poolName(poolPrefix, pool)
 			waitGroup.Go(func() error {
 				if err := cephclient.DeletePool(ctx.Context, ctx.clusterInfo, name); err != nil {
 					return errors.Wrapf(err, "failed to delete pool %q. ", name)
@@ -663,7 +663,7 @@ func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) erro
 
 	} else {
 		for _, pool := range pools {
-			name := poolName(ctx.Name, pool)
+			name := poolName(poolPrefix, pool)
 			if err := cephclient.DeletePool(ctx.Context, ctx.clusterInfo, name); err != nil {
 				logger.Warningf("failed to delete pool %q. %v", name, err)
 			}
@@ -714,7 +714,7 @@ func missingPools(context *Context) ([]string, error) {
 	}
 
 	missingPools := []string{}
-	for _, objPool := range allObjectPools(context.Name) {
+	for _, objPool := range allObjectPools(context.Zone) {
 		if !existingPools.Has(objPool) {
 			missingPools = append(missingPools, objPool)
 		}
@@ -724,7 +724,7 @@ func missingPools(context *Context) ([]string, error) {
 }
 
 func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
-	if emptyPool(dataPool) && emptyPool(metadataPool) {
+	if EmptyPool(dataPool) && EmptyPool(metadataPool) {
 		logger.Info("no pools specified for the CR, checking for their existence...")
 		missingPools, err := missingPools(context)
 		if err != nil {
@@ -806,12 +806,12 @@ func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv
 	return nil
 }
 
-func poolName(storeName, poolName string) string {
+func poolName(poolPrefix, poolName string) string {
 	if strings.HasPrefix(poolName, ".") {
 		return poolName
 	}
 	// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
-	return fmt.Sprintf("%s.%s", storeName, poolName)
+	return fmt.Sprintf("%s.%s", poolPrefix, poolName)
 }
 
 // GetObjectBucketProvisioner returns the bucket provisioner name appended with operator namespace if OBC is watching on it
@@ -1047,4 +1047,20 @@ func listsAreEqual(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func CheckIfZonePresentInZoneGroup(objContext *Context) (bool, error) {
+	output, err := runAdminCommand(objContext, true, "zonegroup", "get")
+	if err != nil {
+		return false, err
+	}
+	zoneGroupJson, err := DecodeZoneGroupConfig(output)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
+	}
+	zoneExists, _ := findZoneEndpoints(objContext.Zone, zoneGroupJson.Zones)
+	if zoneExists {
+		return true, nil
+	}
+	return false, nil
 }
