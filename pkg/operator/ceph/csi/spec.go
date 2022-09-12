@@ -725,6 +725,7 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 		[]string{"--version"},
 		r.opConfig.Image,
 		CSIParam.CSIPluginImage,
+		nil,
 	)
 
 	if err != nil {

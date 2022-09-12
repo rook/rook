@@ -1281,6 +1281,17 @@ spec:
                       description: StartupProbe allows changing the startupProbe configuration for a given daemon
                       type: object
                   type: object
+                imagePullSecrets:
+                  description: Image pull secrets to apply to all Ceph Pods
+                  items:
+                    description: LocalObjectReference contains enough information to let you locate the referenced object inside the same namespace.
+                    properties:
+                      name:
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names TODO: Add other useful fields. apiVersion, kind, uid?'
+                        type: string
+                    type: object
+                  nullable: true
+                  type: array
                 labels:
                   additionalProperties:
                     additionalProperties:

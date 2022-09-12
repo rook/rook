@@ -65,15 +65,15 @@ type CmdReporter struct {
 }
 
 type cmdReporterCfg struct {
-	clientset    	 kubernetes.Interface
-	ownerInfo    	 *k8sutil.OwnerInfo
-	appName      	 string
-	jobName      	 string
-	jobNamespace 	 string
-	cmd          	 []string
-	args         	 []string
-	rookImage    	 string
-	runImage     	 string
+	clientset        kubernetes.Interface
+	ownerInfo        *k8sutil.OwnerInfo
+	appName          string
+	jobName          string
+	jobNamespace     string
+	cmd              []string
+	args             []string
+	rookImage        string
+	runImage         string
 	imagePullSecrets []v1.LocalObjectReference
 }
 
@@ -98,16 +98,16 @@ func New(
 	imagePullSecrets []v1.LocalObjectReference,
 ) (*CmdReporter, error) {
 	cfg := &cmdReporterCfg{
-		clientset:    	  clientset,
-		ownerInfo:    	  ownerInfo,
-		appName:      	  appName,
-		jobName:      	  jobName,
-		jobNamespace: 	  jobNamespace,
-		cmd:          	  cmd,
-		args:         	  args,
-		rookImage:    	  rookImage,
-		runImage:     	  runImage,
-		imagePullSecrets: imagePullSecrets
+		clientset:        clientset,
+		ownerInfo:        ownerInfo,
+		appName:          appName,
+		jobName:          jobName,
+		jobNamespace:     jobNamespace,
+		cmd:              cmd,
+		args:             args,
+		rookImage:        rookImage,
+		runImage:         runImage,
+		imagePullSecrets: imagePullSecrets,
 	}
 
 	// Validate contents of config struct, not inputs to function to catch any developer errors
@@ -296,8 +296,8 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 		Containers: []v1.Container{
 			*cmdReporterContainer,
 		},
-		RestartPolicy: v1.RestartPolicyOnFailure,
-		ImagePullSecrets: cmdReporterCfg.imagePullSecrets,
+		RestartPolicy:    v1.RestartPolicyOnFailure,
+		ImagePullSecrets: cr.imagePullSecrets,
 	}
 	copyBinsVol, _ := copyBinariesVolAndMount()
 	podSpec.Volumes = []v1.Volume{copyBinsVol}
