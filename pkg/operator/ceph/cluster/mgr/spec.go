@@ -138,6 +138,7 @@ func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
 	return controller.ChownCephDataDirsInitContainer(
 		*mgrConfig.DataPathMap,
 		c.spec.CephVersion.Image,
+		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 		cephv1.GetMgrResources(c.spec.Resources),
 		controller.PodSecurityContext(),
@@ -159,8 +160,9 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			config.NewFlag("client-mount-gid", "0"),
 			"--foreground",
 		),
-		Image:        c.spec.CephVersion.Image,
-		VolumeMounts: controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "mgr",
@@ -232,6 +234,7 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		Args:            []string{"ceph", "mgr", "watch-active"},
 		Name:            "watch-active",
 		Image:           c.rookVersion,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Env:             envVars,
 		Resources:       cephv1.GetMgrSidecarResources(c.spec.Resources),
 		SecurityContext: controller.PrivilegedContext(true),
@@ -245,6 +248,7 @@ func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Containe
 		Command:         []string{"sleep"},
 		Args:            []string{"infinity"},
 		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName), adminKeyringVolMount),
 		Env:             append(controller.DaemonEnvVars(c.spec.CephVersion.Image), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),

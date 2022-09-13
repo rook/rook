@@ -404,6 +404,7 @@ csi:
   #  image: registry.k8s.io/sig-storage/csi-attacher:v3.5.0
   #resizer:
   #  image: registry.k8s.io/sig-storage/csi-resizer:v1.5.0
+  #imagePullPolicy: IfNotPresent
   # Labels to add to the CSI CephFS Deployments and DaemonSets Pods.
   #cephfsPodLabels: "key1=value1,key2=value2"
   # Labels to add to the CSI NFS Deployments and DaemonSets Pods.

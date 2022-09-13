@@ -97,6 +97,7 @@ func (r *ReconcileFilesystemMirror) makeChownInitContainer(daemonConfig *daemonC
 	return controller.ChownCephDataDirsInitContainer(
 		*daemonConfig.DataPathMap,
 		r.cephClusterSpec.CephVersion.Image,
+		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		fsMirror.Spec.Resources,
 		controller.PodSecurityContext(),
@@ -115,6 +116,7 @@ func (r *ReconcileFilesystemMirror) makeFsMirroringDaemonContainer(daemonConfig 
 			"--name="+user,
 		),
 		Image:           r.cephClusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       fsMirror.Spec.Resources,

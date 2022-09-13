@@ -485,6 +485,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 				Args:            []string{"ceph", "osd", "init"},
 				Name:            controller.ConfigInitContainerName,
 				Image:           c.rookVersion,
+				ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 				VolumeMounts:    configVolumeMounts,
 				Env:             configEnvVars,
 				EnvFrom:         getEnvFromSources(),
@@ -552,6 +553,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		controller.ChownCephDataDirsInitContainer(
 			opconfig.DataPathMap{ContainerDataDir: dataPath},
 			c.spec.CephVersion.Image,
+			controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 			volumeMounts,
 			osdProps.resources,
 			securityContext,
@@ -575,6 +577,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					Args:            args,
 					Name:            "osd",
 					Image:           c.spec.CephVersion.Image,
+					ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 					VolumeMounts:    volumeMounts,
 					Env:             envVars,
 					EnvFrom:         getEnvFromSources(),
@@ -725,9 +728,10 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 		Args: []string{
 			"copy-binaries",
 			"--copy-to-dir", rookBinariesMountPath},
-		Name:         "copy-bins",
-		Image:        c.rookVersion,
-		VolumeMounts: []v1.VolumeMount{mount},
+		Name:            "copy-bins",
+		Image:           c.rookVersion,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    []v1.VolumeMount{mount},
 	}
 }
 
@@ -786,6 +790,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    volMounts,
 		SecurityContext: controller.PrivilegedContext(true),
 		Env:             envVars,
@@ -817,8 +822,9 @@ func getBlockDevMapperContext() *v1.SecurityContext {
 // and the privileged provision container.
 func (c *Cluster) getPVCInitContainer(osdProps osdProperties) v1.Container {
 	return v1.Container{
-		Name:  blockPVCMapperInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            blockPVCMapperInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -849,8 +855,9 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 	}
 
 	return v1.Container{
-		Name:  blockPVCMapperInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            blockPVCMapperInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -870,8 +877,9 @@ func (c *Cluster) getPVCInitContainerActivate(mountPath string, osdProps osdProp
 
 func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequirements, containerName, pvcName, volumeMountPVCName, cryptBlockType, blockType, mountPath string) v1.Container {
 	return v1.Container{
-		Name:  containerName,
-		Image: c.spec.CephVersion.Image,
+		Name:            containerName,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		// Running via bash allows us to check whether the device is already opened or not
 		// If we don't the cryptsetup command will fail saying the device is already opened
 		Command: []string{
@@ -892,9 +900,10 @@ func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
 	envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
 
 	return v1.Container{
-		Name:    blockEncryptionKMSGetKEKInitContainer,
-		Image:   c.rookVersion,
-		Command: []string{"rook"},
+		Name:            blockEncryptionKMSGetKEKInitContainer,
+		Image:           c.rookVersion,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		Command:         []string{"rook"},
 		Args: []string{
 			"key-management",
 			"get",
@@ -957,8 +966,9 @@ func (c *Cluster) getPVCEncryptionOpenInitContainerActivate(mountPath string, os
 
 func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequirements, containerName, pvcName, mountPath, volumeMountPVCName, blockName, blockType string) v1.Container {
 	return v1.Container{
-		Name:  containerName,
-		Image: c.spec.CephVersion.Image,
+		Name:            containerName,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -995,8 +1005,9 @@ func (c *Cluster) getPVCEncryptionInitContainerActivate(mountPath string, osdPro
 // otherwise we will end up with a new conflict during the job/deployment initialization
 func (c *Cluster) getPVCMetadataInitContainer(mountPath string, osdProps osdProperties) v1.Container {
 	return v1.Container{
-		Name:  blockPVCMetadataMapperInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            blockPVCMetadataMapperInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -1032,8 +1043,9 @@ func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps
 	}
 
 	return v1.Container{
-		Name:  blockPVCMetadataMapperInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            blockPVCMetadataMapperInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -1055,8 +1067,9 @@ func (c *Cluster) getPVCMetadataInitContainerActivate(mountPath string, osdProps
 
 func (c *Cluster) getPVCWalInitContainer(mountPath string, osdProps osdProperties) v1.Container {
 	return v1.Container{
-		Name:  blockPVCWalMapperInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            blockPVCWalMapperInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -1092,8 +1105,9 @@ func (c *Cluster) getPVCWalInitContainerActivate(mountPath string, osdProps osdP
 	}
 
 	return v1.Container{
-		Name:  blockPVCWalMapperInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            blockPVCWalMapperInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"/bin/bash",
 			"-c",
@@ -1118,8 +1132,9 @@ func (c *Cluster) getActivatePVCInitContainer(osdProps osdProperties, osdID stri
 	osdDataBlockPath := path.Join(osdDataPath, "block")
 
 	container := v1.Container{
-		Name:  activatePVCOSDInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            activatePVCOSDInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"ceph-bluestore-tool",
 		},
@@ -1152,8 +1167,9 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 	osdDataPath := activateOSDMountPath + osdID
 
 	return v1.Container{
-		Name:  expandPVCOSDInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            expandPVCOSDInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"ceph-bluestore-tool",
 		},
@@ -1179,8 +1195,9 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 	volMount = append(volMount, volMountMapper)
 
 	return v1.Container{
-		Name:  expandEncryptedPVCOSDInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            expandEncryptedPVCOSDInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"cryptsetup",
 		},
@@ -1209,8 +1226,9 @@ func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps 
 	*/
 
 	return v1.Container{
-		Name:  encryptedPVCStatusOSDInitContainer,
-		Image: c.spec.CephVersion.Image,
+		Name:            encryptedPVCStatusOSDInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"cryptsetup",
 		},

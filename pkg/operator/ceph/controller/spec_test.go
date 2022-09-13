@@ -442,3 +442,18 @@ func TestLogCollectorContainer(t *testing.T) {
 		assert.Equal(t, want, got.Command[5])
 	})
 }
+
+func TestGetContainerImagePullPolicy(t *testing.T) {
+	t.Run("containerImagePullPolicy is set in cluster CR", func(t *testing.T) {
+		containerImagePullPolicy := v1.PullAlways
+
+		imagePullPolicy := GetContainerImagePullPolicy(containerImagePullPolicy)
+		assert.Equal(t, containerImagePullPolicy, imagePullPolicy)
+	})
+
+	t.Run("containerImagePullPolicy is empty", func(t *testing.T) {
+		exepctedImagePullPolicy := v1.PullIfNotPresent
+		imagePullPolicy := GetContainerImagePullPolicy(v1.PullPolicy(""))
+		assert.Equal(t, exepctedImagePullPolicy, imagePullPolicy)
+	})
+}
