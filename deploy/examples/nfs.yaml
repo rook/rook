@@ -62,23 +62,35 @@ spec:
   # Configure security options for the NFS cluster. See docs for more information:
   # https://rook.github.io/docs/rook/latest/Storage-Configuration/NFS/nfs-security/
   security:
-  #   sssd:
-  #     sidecar:
-  #       image: registry.access.redhat.com/rhel7/sssd:latest
-  #       sssdConfigFile:
-  #         volumeSource:
-  #           configMap:
-  #             name: my-nfs-sssd-config
-  #             defaultMode: 0600 # mode must be 0600
-  #       # debugLevel: 6
-  #
-  #       resources:
-  #         limits:
-  #           cpu: "2"
-  #           memory: "1Gi"
-  #         requests:
-  #           cpu: "2"
-  #           memory: "1Gi"
+    # kerberos:
+    #   principalName: "nfs"
+    #   configFiles:
+    #     volumeSource:
+    #       configMap:
+    #         name: krb5-conf
+    #         defaultMode: 0644 # required?
+    #   keytabFile:
+    #     volumeSource:
+    #       secret:
+    #         secretName: keytab
+    #         defaultMode: 0600 # required
+    #
+    # sssd:
+    #   sidecar:
+    #     image: registry.access.redhat.com/rhel7/sssd:latest
+    #     sssdConfigFile:
+    #       volumeSource:
+    #         configMap:
+    #           name: my-nfs-sssd-config
+    #           defaultMode: 0600 # mode must be 0600
+    #     # debugLevel: 6
+    #     resources:
+    #       limits:
+    #         cpu: "2"
+    #         memory: "1Gi"
+    #       requests:
+    #         cpu: "2"
+    #         memory: "1Gi"
 # ---
 # # The built-in Ceph pool ".nfs" is used for storing configuration for all CephNFS clusters. If this
 # # shared pool needs to be configured with alternate settings, create this pool (once) with any of
@@ -97,6 +109,7 @@ spec:
 #   replicated:
 #     size: 3
 #     requireSafeReplicaSize: true
+
 # ---
 # # Example configmap for providing sssd.conf file to the SSSD sidecar
 # # Note that this example uses an obfuscated password that may still not be as secure as desired
@@ -119,13 +132,47 @@ spec:
 #     [domain/default]
 #     id_provider = ldap
 #     ldap_uri = ldap://server.address
-#     ldap_search_base = dc=company,dc=net
-#     ldap_default_bind_dn = cn=admin,dc=company,dc=net
+#     ldap_search_base = dc=example,dc=net
+#     ldap_default_bind_dn = cn=admin,dc=example,dc=net
 #     ldap_default_authtok_type = obfuscated_password
 #     ldap_default_authtok = some-obfuscated-password
-#     ldap_user_search_base = ou=users,dc=company,dc=net
-#     ldap_group_search_base = ou=groups,dc=company,dc=net
-#     ldap_access_filter = memberOf=cn=rook,ou=groups,dc=company,dc=net
+#     ldap_user_search_base = ou=users,dc=example,dc=net
+#     ldap_group_search_base = ou=groups,dc=example,dc=net
+#     ldap_access_filter = memberOf=cn=rook,ou=groups,dc=example,dc=net
 #     # recommended options for speeding up LDAP lookups:
 #     enumerate = false
 #     ignore_group_members = true
+
+# # Example secret and configmap providing krb5.keytab and krb5 config files
+# ---
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: keytab
+#   namespace: rook-ceph
+# data:
+#   # e.g., Keytab containing principal nfs/rook-ceph-my-nfs@EXAMPLE.NET
+#   krb5.keytab: # your keytab here
+# ---
+# # suggest not putting [logging] section in here
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: krb5-conf
+#   namespace: rook-ceph
+# data:
+#   example-net.conf: |
+#     [libdefaults]
+#     default_realm = EXAMPLE.NET
+#
+#     [realms]
+#     EXAMPLE.NET = {
+#     kdc = kerberos-server.default.svc:88
+#     admin_server = kerberos-server.default.svc:749
+#     }
+#
+#     [domain_realm]
+#     .example.net = EXAMPLE.NET
+#     example.net = EXAMPLE.NET
+#     kerberos-server.default.svc = EXAMPLE.NET # e.g., kerberos server with a k8s service endpoint
+#     kerberos-server = EXAMPLE.NET

@@ -53,6 +53,20 @@ spec:
     logLevel: NIV_INFO
 
   security:
+    kerberos:
+      principalName: "nfs"
+
+      configFiles:
+        volumeSource:
+          configMap:
+            name: my-krb5-config-files
+
+      keytabFile:
+        volumeSource:
+          secret:
+            secretName: my-nfs-keytab
+            defaultMode: 0600 # mode must be 0600
+
     sssd:
       sidecar:
         image: registry.access.redhat.com/rhel7/sssd:latest
@@ -64,6 +78,8 @@ spec:
               defaultMode: 0600 # mode must be 0600
 
         debugLevel: 0
+
+        resources: {}
 ```
 
 ## NFS Settings
@@ -90,15 +106,37 @@ The `server` spec sets configuration for Rook-created NFS-Ganesha server pods.
 
 The `security` spec sets security configuration for the NFS cluster.
 
+* `kerberos`: Kerberos configures NFS-Ganesha to secure NFS client connections with Kerberos.
+  * `principalName`: this value is combined with (a) the namespace and name of the CephNFS (with a
+    hyphen between) and (b) the Realm configured in the user-provided kerberos config file(s) to
+    determine the full service principal name: `<principalName>/<namespace>-<name>@<realm>`.
+    e.g., nfs/rook-ceph-my-nfs@example.net. For full details, see the
+    [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#nfs-service-principals).
+  * `configFiles`: defines where the Kerberos configuration should be sourced from. Config
+    files will be placed into the `/etc/krb5.conf.rook/` directory. For advanced usage, see the
+    [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#kerberos-configuration).
+    * `volumeSource`: this is a standard Kubernetes VolumeSource for Kerberos configuration files
+      like what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret,
+      or HostPath. The volume may contain multiple files, all of which will be loaded.
+  * `keytabFile`: defines where the Kerberos keytab should be sourced from. The keytab file will be
+    placed into `/etc/krb5.keytab`. For advanced usage, see the
+    [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#kerberos-configuration).
+    * `volumeSource`: this is a standard Kubernetes VolumeSource for the Kerberos keytab file like
+      what is normally used to configure Volumes for a Pod. For example, a Secret or HostPath.
+      There are two requirements for the source's content:
+      1. The config file must be mountable via `subPath: krb5.keytab`. For example, in a Secret, the
+         data item must be named `krb5.keytab`, or `items` must be defined to select the key and
+         give it path `krb5.keytab`. A HostPath directory must have the `krb5.keytab` file.
+      2. The volume or config file must have mode 0600.
+
 * `sssd`: SSSD enables integration with System Security Services Daemon (SSSD). See also:
   [ID mapping via SSSD](../Storage-Configuration/NFS/nfs-security.md#id-mapping-via-sssd).
   * `sidecar`: Specifying this configuration tells Rook to run SSSD in a sidecar alongside the NFS
     server in each NFS pod.
     * `image`: defines the container image that should be used for the SSSD sidecar.
     * `sssdConfigFile`: defines where the SSSD configuration should be sourced from. The
-      config file will be placed into `/etc/sssd/sssd.conf`. If this is left empty, Rook will not
-      add the file. This allows you to inject your own, for example by using
-      [Vault's agent injector](https://www.vaultproject.io/docs/platform/k8s/injector).
+      config file will be placed into `/etc/sssd/sssd.conf`. For advanced usage, see the
+      [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#sssd-configuration).
       * `volumeSource`: this is a standard Kubernetes
         [VolumeSource](https://pkg.go.dev/k8s.io/api/core/v1#VolumeSource) like what is normally
         used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or HostPath.
@@ -110,6 +148,7 @@ The `security` spec sets security configuration for the NFS cluster.
     * `debugLevel`: sets the debug level for SSSD. If unset or `0`, Rook does nothing. Otherwise,
       this may be a value between 1 and 10. See the
       [SSSD docs](https://sssd.io/troubleshooting/basics.html#sssd-debug-logs) for more info.
+    * `resources`: Kubernetes resource requests and limits to set on NFS server containers
 
 
 ## Scaling the active server count
