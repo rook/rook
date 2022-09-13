@@ -6,7 +6,7 @@ require (
 	github.com/IBM/keyprotect-go-client v0.8.0
 	github.com/aws/aws-sdk-go v1.44.71
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/go-ceph v0.16.0
+	github.com/ceph/go-ceph v0.17.0
 	github.com/coreos/pkg v0.0.0-20220709002704-04386ae12ed0
 	github.com/gemalto/kmip-go v0.0.8-0.20220721195433-3fe83e2d3f26
 	github.com/go-ini/ini v1.67.0
