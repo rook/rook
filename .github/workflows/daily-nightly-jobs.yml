@@ -10,7 +10,7 @@ defaults:
 
 jobs:
   canary-arm64:
-    runs-on: [self-hosted, ubuntu-20.04, ARM64]
+    runs-on: [self-hosted, ubuntu-20.04-arm64, ARM64]
     if: github.repository == 'rook/rook'
     env:
       BLOCK: /dev/sdb
