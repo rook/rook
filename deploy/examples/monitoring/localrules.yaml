@@ -735,7 +735,7 @@ spec:
       rules:
         - alert: CephPoolGrowthWarning
           expr: |
-            (predict_linear(ceph_pool_percent_used[2d], 3600 * 24 * 5) * on(pool_id)
+            (predict_linear((max(ceph_pool_percent_used) without (pod, instance))[2d:1h], 3600 * 24 * 5) * on(pool_id)
                 group_right ceph_pool_metadata) >= 95
           labels:
             severity: warning
