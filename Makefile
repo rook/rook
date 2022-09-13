@@ -69,7 +69,7 @@ endif
 # platforms
 PLATFORMS ?= $(ALL_PLATFORMS)
 # PLATFORMS_TO_BUILD_FOR controls for which platforms to build the rook binary for
-PLATFORMS_TO_BUILD_FOR ?= linux_amd64 linux_arm64
+PLATFORMS_TO_BUILD_FOR ?= linux_amd64 linux_arm64 linux_riscv64
 SERVER_PLATFORMS := $(filter linux_%,$(PLATFORMS))
 CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 
