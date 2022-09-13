@@ -42,7 +42,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -61,7 +61,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -79,7 +79,7 @@ spec:
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -99,7 +99,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -117,7 +117,7 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: ceph-csi-configs
               mountPath: /etc/ceph-csi-config/
@@ -157,7 +157,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSIADDONS_ENDPOINT
               value: unix:///csi/csi-addons.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -203,7 +203,7 @@ spec:
             - name: CSIADDONS_ENDPOINT
               value: unix:///csi/csi-addons.sock
             {{ end }}
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -252,7 +252,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
         {{ end }}
       volumes:
         - name: host-dev

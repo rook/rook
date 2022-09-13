@@ -454,6 +454,7 @@ func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinim
 func ChownCephDataDirsInitContainer(
 	dpm config.DataPathMap,
 	containerImage string,
+	containerImagePullPolicy v1.PullPolicy,
 	volumeMounts []v1.VolumeMount,
 	resources v1.ResourceRequirements,
 	securityContext *v1.SecurityContext,
@@ -474,6 +475,7 @@ func ChownCephDataDirsInitContainer(
 		Command:         []string{"chown"},
 		Args:            args,
 		Image:           containerImage,
+		ImagePullPolicy: containerImagePullPolicy,
 		VolumeMounts:    volumeMounts,
 		Resources:       resources,
 		SecurityContext: securityContext,
@@ -489,6 +491,7 @@ func ChownCephDataDirsInitContainer(
 func GenerateMinimalCephConfInitContainer(
 	username, keyringPath string,
 	containerImage string,
+	containerImagePullPolicy v1.PullPolicy,
 	volumeMounts []v1.VolumeMount,
 	resources v1.ResourceRequirements,
 	securityContext *v1.SecurityContext,
@@ -516,6 +519,7 @@ cat ` + cfgPath + `
 		Command:         []string{"/bin/bash", "-c", confScript},
 		Args:            []string{},
 		Image:           containerImage,
+		ImagePullPolicy: containerImagePullPolicy,
 		VolumeMounts:    volumeMounts,
 		Env:             config.StoredMonHostEnvVars(),
 		Resources:       resources,
@@ -703,6 +707,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String()),
 		},
 		Image:           c.CephVersion.Image,
+		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
 		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), ""),
 		SecurityContext: PodSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
@@ -797,4 +802,12 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 
 func extractMgrIP(rawActiveAddr string) string {
 	return strings.Split(rawActiveAddr, ":")[0]
+}
+
+func GetContainerImagePullPolicy(containerImagePullPolicy v1.PullPolicy) v1.PullPolicy {
+	if containerImagePullPolicy == "" {
+		return v1.PullIfNotPresent
+	}
+
+	return containerImagePullPolicy
 }

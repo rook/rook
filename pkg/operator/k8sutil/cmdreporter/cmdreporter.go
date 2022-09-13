@@ -65,15 +65,16 @@ type CmdReporter struct {
 }
 
 type cmdReporterCfg struct {
-	clientset    kubernetes.Interface
-	ownerInfo    *k8sutil.OwnerInfo
-	appName      string
-	jobName      string
-	jobNamespace string
-	cmd          []string
-	args         []string
-	rookImage    string
-	runImage     string
+	clientset       kubernetes.Interface
+	ownerInfo       *k8sutil.OwnerInfo
+	appName         string
+	jobName         string
+	jobNamespace    string
+	cmd             []string
+	args            []string
+	rookImage       string
+	runImage        string
+	imagePullPolicy v1.PullPolicy
 }
 
 // New creates a new CmdReporter.
@@ -94,17 +95,19 @@ func New(
 	appName, jobName, jobNamespace string,
 	cmd, args []string,
 	rookImage, runImage string,
+	imagePullPolicy v1.PullPolicy,
 ) (*CmdReporter, error) {
 	cfg := &cmdReporterCfg{
-		clientset:    clientset,
-		ownerInfo:    ownerInfo,
-		appName:      appName,
-		jobName:      jobName,
-		jobNamespace: jobNamespace,
-		cmd:          cmd,
-		args:         args,
-		rookImage:    rookImage,
-		runImage:     runImage,
+		clientset:       clientset,
+		ownerInfo:       ownerInfo,
+		appName:         appName,
+		jobName:         jobName,
+		jobNamespace:    jobNamespace,
+		cmd:             cmd,
+		args:            args,
+		rookImage:       rookImage,
+		runImage:        runImage,
+		imagePullPolicy: imagePullPolicy,
 	}
 
 	// Validate contents of config struct, not inputs to function to catch any developer errors
@@ -336,7 +339,8 @@ func (cr *cmdReporterCfg) initContainers() []v1.Container {
 			"copy-binaries",
 			"--copy-to-dir", CopyBinariesMountDir,
 		},
-		Image: cr.rookImage,
+		Image:           cr.rookImage,
+		ImagePullPolicy: cr.imagePullPolicy,
 	}
 	_, copyBinsMount := copyBinariesVolAndMount()
 	c.VolumeMounts = []v1.VolumeMount{copyBinsMount}
@@ -365,7 +369,8 @@ func (cr *cmdReporterCfg) container() (*v1.Container, error) {
 			"--config-map-name", cr.jobName,
 			"--namespace", cr.jobNamespace,
 		},
-		Image: cr.runImage,
+		Image:           cr.runImage,
+		ImagePullPolicy: cr.imagePullPolicy,
 	}
 	if cr.needToCopyBinaries() {
 		_, copyBinsMount := copyBinariesVolAndMount()

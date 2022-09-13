@@ -247,6 +247,7 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    volumeMounts,
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.PodSecurityContext(),
@@ -281,7 +282,8 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig, kmsEnabled
 			fmt.Sprintf(setupVaultTokenFile,
 				kms.EtcVaultDir, rgwVaultDirName),
 		},
-		Image: c.clusterSpec.CephVersion.Image,
+		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts: append(
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), vaultVolMounts...),
 		Resources:       c.store.Spec.Gateway.Resources,
@@ -293,6 +295,7 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 	return controller.ChownCephDataDirsInitContainer(
 		*c.DataPathMap,
 		c.clusterSpec.CephVersion.Image,
+		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
 		c.store.Spec.Gateway.Resources,
 		controller.PodSecurityContext(),
@@ -302,8 +305,9 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container, error) {
 	// start the rgw daemon in the foreground
 	container := v1.Container{
-		Name:  "rgw",
-		Image: c.clusterSpec.CephVersion.Image,
+		Name:            "rgw",
+		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"radosgw",
 		},

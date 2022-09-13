@@ -119,6 +119,7 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 	return controller.ChownCephDataDirsInitContainer(
 		*mdsConfig.DataPathMap,
 		c.clusterSpec.CephVersion.Image,
+		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		c.fs.Spec.MetadataServer.Resources,
 		controller.PodSecurityContext(),
@@ -143,6 +144,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		},
 		Args:            args,
 		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName),
 		Env:             append(controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image), k8sutil.PodIPEnvVar(podIPEnvVar)),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
