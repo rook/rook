@@ -57,6 +57,7 @@ type Param struct {
 	VolumeReplicationImage       string
 	CSIAddonsImage               string
 	CSIClusterName               string
+	CSIDomainLabels              string
 	GRPCTimeout                  time.Duration
 	CSIEnableMetadata            bool
 	EnablePluginSelinuxHostMount bool
@@ -69,6 +70,7 @@ type Param struct {
 	MountCustomCephConf          bool
 	EnableOIDCTokenProjection    bool
 	EnableCSIEncryption          bool
+	EnableCSITopology            bool
 	EnableLiveness               bool
 	LogLevel                     uint8
 	SidecarLogLevel              uint8

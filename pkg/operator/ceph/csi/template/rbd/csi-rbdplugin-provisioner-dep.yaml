@@ -36,6 +36,9 @@ spec:
             - "--leader-election-retry-period=26s"
             - "--default-fstype=ext4"
             - "--extra-create-metadata=true"
+            {{- if .EnableCSITopology }}
+            - "--feature-gates=Topology=true"
+            {{- end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
