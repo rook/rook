@@ -238,6 +238,29 @@ func TestCephNFSController(t *testing.T) {
 		assert.True(t, res.Requeue)
 	})
 
+	t.Run("error - security spec invalid", func(t *testing.T) {
+		t.Run("security.sssd empty should error", func(t *testing.T) {
+			cCtx := newContext(baseExecutor())
+			nfs := baseCephNFS()
+			nfs.Spec.Security = &cephv1.NFSSecuritySpec{
+				SSSD: &cephv1.SSSDSpec{},
+			}
+			cl := newControllerClient(nfs, cephClusterNotReady())
+			r := newReconcile(cCtx, cl)
+			fakeRecorder := record.NewFakeRecorder(5)
+			r.recorder = fakeRecorder
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.True(t, res.Requeue)
+
+			assert.Len(t, fakeRecorder.Events, 1)
+			event := <-fakeRecorder.Events
+			assert.Contains(t, event, // verify the security spec calls the Validate() method
+				"System Security Services Daemon (SSSD) is enabled, but no runtime option is specified")
+		})
+	})
+
 	assertCephNFSReady := func(t *testing.T, r *ReconcileCephNFS, names ...string) {
 		t.Helper()
 
@@ -478,10 +501,9 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	nodeid := "a"
 	expectedName := "conf-nfs.my-nfs"
 
-	res := getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 16}, nodeid)
+	res := getGaneshaConfigObject(cephNFS)
 	logger.Infof("Config Object for Pacific is %s", res)
 	assert.Equal(t, expectedName, res)
 }

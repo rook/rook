@@ -34,6 +34,9 @@ import (
 	kexec "k8s.io/utils/exec"
 )
 
+// TimeoutWaitingForMessage can be used to identify if an error is due to a timeout.
+const TimeoutWaitingForMessage = "exec timeout waiting for"
+
 var (
 	CephCommandsTimeout = 15 * time.Second
 )
@@ -71,6 +74,13 @@ func (*CommandExecutor) ExecuteCommandWithEnv(env []string, command string, arg 
 	return nil
 }
 
+// IsTimeout returns true if the error is due to a timeout in the exec function. Note that it cannot
+// determine if a command timed out due to behavior of the command itself; for example if a
+// '--timeout' flag was passed to the command.
+func IsTimeout(err error) bool {
+	return strings.Contains(err.Error(), TimeoutWaitingForMessage)
+}
+
 // ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.
 func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
@@ -95,18 +105,18 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command
 		select {
 		case <-time.After(timeout):
 			if interruptSent {
-				logger.Infof("timeout waiting for process %s to return after interrupt signal was sent. Sending kill signal to the process", command)
+				logger.Infof("%s process %s to return after interrupt signal was sent. Sending kill signal to the process", TimeoutWaitingForMessage, command)
 				var e error
 				if err := cmd.Process.Kill(); err != nil {
 					logger.Errorf("Failed to kill process %s: %v", command, err)
-					e = fmt.Errorf("timeout waiting for the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %v", command, err)
+					e = fmt.Errorf("%s the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %v", TimeoutWaitingForMessage, command, err)
 				} else {
-					e = fmt.Errorf("timeout waiting for the command %s to return", command)
+					e = fmt.Errorf("%s the command %s to return", TimeoutWaitingForMessage, command)
 				}
 				return strings.TrimSpace(b.String()), e
 			}
 
-			logger.Infof("timeout waiting for process %s to return. Sending interrupt signal to the process", command)
+			logger.Infof("%s process %s to return. Sending interrupt signal to the process", TimeoutWaitingForMessage, command)
 			if err := cmd.Process.Signal(os.Interrupt); err != nil {
 				logger.Errorf("Failed to send interrupt signal to process %s: %v", command, err)
 				// kill signal will be sent next loop
@@ -117,7 +127,7 @@ func (*CommandExecutor) ExecuteCommandWithTimeout(timeout time.Duration, command
 				return strings.TrimSpace(b.String()), err
 			}
 			if interruptSent {
-				return strings.TrimSpace(b.String()), fmt.Errorf("timeout waiting for the command %s to return", command)
+				return strings.TrimSpace(b.String()), fmt.Errorf("%s the command %s to return", TimeoutWaitingForMessage, command)
 			}
 			return strings.TrimSpace(b.String()), nil
 		}

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -168,6 +169,12 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// The CR was just created, initializing status fields
 	if cephNFS.Status == nil {
 		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.EmptyStatus)
+	}
+
+	if err := cephNFS.Spec.Security.Validate(); err != nil {
+		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, *cephNFS,
+			errors.Wrapf(err, "failed to validate security spec for CephNFS %q",
+				types.NamespacedName{Namespace: cephNFS.Namespace, Name: cephNFS.Name})
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
