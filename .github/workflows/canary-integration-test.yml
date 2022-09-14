@@ -1394,6 +1394,9 @@ jobs:
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
 
+      - name: wait for cephnfs to be ready
+        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
+
       - name: test ceph-csi-rbd plugin restart
         run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
 
@@ -1421,7 +1424,7 @@ jobs:
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
+        timeout-minutes: 600
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04

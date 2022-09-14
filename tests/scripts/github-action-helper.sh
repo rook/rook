@@ -194,7 +194,7 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  ( cd deploy/examples && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml )
+  (cd deploy/examples && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
 }
 
 function deploy_manifest_with_local_build() {
@@ -479,7 +479,7 @@ function deploy_multus_cluster() {
   kubectl create -f cluster-multus-test.yaml
   kubectl create -f filesystem-test.yaml
   # uncomment once https://github.com/rook/rook/issues/10812 is resolved.
-  # kubectl create -f nfs-test.yaml
+  kubectl create -f nfs-test.yaml
 }
 
 function wait_for_ceph_csi_configmap_to_be_updated {
@@ -495,8 +495,8 @@ until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="
   sleep 5
 done
 EOF
-timeout 60 bash <<EOF
-until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config  -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].nfs.netNamespaceFilePath) != "null" ]]; do
+  timeout 60 bash <<EOF
+until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].nfs.netNamespaceFilePath) != "null" ]]; do
   echo "waiting for ceph csi configmap to be updated with nfs.netNamespaceFilePath"
   sleep 5
 done
