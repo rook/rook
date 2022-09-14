@@ -182,8 +182,11 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	if command == RBDTool || command == RadosTool {
 		if c.RemoteExecution {
 			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
-			if stderr != "" || err != nil {
-				err = errors.Errorf("%s. %s", err.Error(), stderr)
+			if err != nil {
+				err = errors.Errorf("%s", err.Error())
+			}
+			if stderr != "" {
+				err = errors.Errorf("%s", stderr)
 			}
 		} else if c.timeout == 0 {
 			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
