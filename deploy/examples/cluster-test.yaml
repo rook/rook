@@ -26,7 +26,10 @@ metadata:
   name: my-cluster
   namespace: rook-ceph # namespace:cluster
 spec:
-  dataDirHostPath: /var/lib/rook
+  # In Minikube, the '/data' directory is configured to persist across
+  # reboots.  You may need to use another location for other test
+  # environments.
+  dataDirHostPath: /data/rook
   cephVersion:
     image: quay.io/ceph/ceph:v17
     allowUnsupported: true
