@@ -71,7 +71,8 @@ EOF
 }
 
 build_helm_resources() {
-  echo "Generating helm resources.yaml"
+  TMP_FILE=$(mktemp -q /tmp/resources.XXXXXX || exit 1)
+  echo "Generating helm resources.yaml to temp file: $TMP_FILE"
   {
     # add header
     echo "{{- if .Values.crds.enabled }}"
@@ -83,7 +84,9 @@ build_helm_resources() {
     # DO NOT REMOVE the empty line, it is necessary
     echo ""
     echo "{{- end }}"
-  } >>"$CEPH_HELM_CRDS_FILE_PATH"
+  } >>"$TMP_FILE"
+  echo "updating helm crds file $CEPH_HELM_CRDS_FILE_PATH from temp file"
+  mv "$TMP_FILE" "$CEPH_HELM_CRDS_FILE_PATH"
 }
 
 ########
