@@ -27,6 +27,7 @@ In order to configure the Ceph storage cluster, at least one of these local stor
 
 * Raw devices (no partitions or formatted filesystems)
 * Raw partitions (no formatted filesystem)
+* LVM Logical Volumes (no formatted filesystem)
 * Persistent Volumes available from a storage class in `block` mode
 
 ## TL;DR
