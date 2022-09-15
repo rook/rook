@@ -20,6 +20,8 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"strconv"
@@ -27,7 +29,9 @@ import (
 	"syscall"
 
 	"github.com/pkg/errors"
+	"gopkg.in/ini.v1"
 
+	"github.com/rook/rook/cmd/rook/rook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -42,6 +46,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	pkgexec "github.com/rook/rook/pkg/util/exec"
 	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -595,28 +600,89 @@ func (c *cluster) reportTelemetry() {
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.ExternalModeEnabledKey, strconv.FormatBool(c.Spec.External.Enable))
 }
 
+func (c *cluster) addSettingsToMonDB(clientName string, settings map[string]string) error {
+
+	assimilateConfPath, err := ioutil.TempFile("", "")
+	if err != nil {
+		return errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
+	}
+
+	err = ioutil.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
+	if err != nil {
+		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
+	}
+
+	defer func() {
+		err := os.Remove(assimilateConfPath.Name())
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", assimilateConfPath.Name(), err)
+		}
+	}()
+
+	configFile := ini.Empty()
+	s, err := configFile.NewSection(clientName)
+	if err != nil {
+		return err
+	}
+
+	for key, val := range settings {
+		if _, err := s.NewKey(key, val); err != nil {
+			return errors.Wrapf(err, "failed to add key %s", key)
+		}
+	}
+
+	if err := configFile.SaveTo(assimilateConfPath.Name()); err != nil {
+		return errors.Wrapf(err, "failed to save config file %s", assimilateConfPath.Name())
+	}
+
+	fileContent, err := ioutil.ReadFile(assimilateConfPath.Name())
+	if err != nil {
+		logger.Errorf("failed to open assimilate input file %s. %c", assimilateConfPath.Name(), err)
+	}
+	logger.Infof("applying ceph settings:\n%s", string(fileContent))
+
+	args := []string{"config", "assimilate-conf", "-i", assimilateConfPath.Name(), "-o", assimilateConfPath.Name() + ".out"}
+	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
+
+	out, err := cephCmd.RunWithTimeout(pkgexec.CephCommandsTimeout)
+	if err != nil {
+		logger.Errorf("failed to run command ceph %s", args)
+
+		fileContent, err := ioutil.ReadFile(assimilateConfPath.Name() + ".out")
+		if err != nil {
+			logger.Errorf("failed to open assimilate output file %s.out. %v", assimilateConfPath.Name(), err)
+		}
+		logger.Infof("failed to apply ceph settings:\n%s", string(fileContent))
+
+		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
+			"output: %s", string(out))
+	}
+
+	logger.Info("successfully applied settings to the mon configuration database")
+	return nil
+}
+
 func (c *cluster) configureMsgr2() error {
 	if c.Spec.Network.Connections == nil {
 		return nil
 	}
 
 	// Set network encryption
-	monStore := config.GetMonStore(c.context, c.ClusterInfo)
 	if c.Spec.Network.Connections.Encryption != nil {
 		encryptionSetting := "crc secure"
 		if c.Spec.Network.Connections.Encryption.Enabled {
 			encryptionSetting = "secure"
 		}
-		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
 
-		if err := monStore.Set("global", "ms_cluster_mode", encryptionSetting); err != nil {
-			return errors.Wrapf(err, "failed to set ms_cluster_mode to %q", encryptionSetting)
+		globalConfigSettings := map[string]string{
+			"ms_cluster_mode": encryptionSetting,
+			"ms_service_mode": encryptionSetting,
+			"ms_client_mode":  encryptionSetting,
 		}
-		if err := monStore.Set("global", "ms_service_mode", encryptionSetting); err != nil {
-			return errors.Wrapf(err, "failed to set ms_service_mode to %q", encryptionSetting)
-		}
-		if err := monStore.Set("global", "ms_client_mode", encryptionSetting); err != nil {
-			return errors.Wrapf(err, "failed to set ms_client_mode to %q", encryptionSetting)
+
+		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
+		if err := c.addSettingsToMonDB("global", globalConfigSettings); err != nil {
+			return err
 		}
 	}
 
@@ -627,9 +693,12 @@ func (c *cluster) configureMsgr2() error {
 			if c.Spec.Network.Connections.Compression.Enabled {
 				compressionSetting = "force"
 			}
+			globalConfigSettings := map[string]string{
+				"ms_osd_compress_mode": compressionSetting,
+			}
 			logger.Infof("setting msgr2 compression mode to %q", compressionSetting)
-			if err := monStore.Set("global", "ms_osd_compress_mode", compressionSetting); err != nil {
-				return errors.Wrapf(err, "failed to set ms_osd_compress_mode to %q", compressionSetting)
+			if err := c.addSettingsToMonDB("global", globalConfigSettings); err != nil {
+				return err
 			}
 		} else {
 			logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
