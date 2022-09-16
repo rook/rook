@@ -204,6 +204,15 @@ const (
 	nfsProvisionerResource = "CSI_NFS_PROVISIONER_RESOURCE"
 	nfsPluginResource      = "CSI_NFS_PLUGIN_RESOURCE"
 
+	cephFSPluginVolume      = "CSI_CEPHFS_PLUGIN_VOLUME"
+	cephFSPluginVolumeMount = "CSI_CEPHFS_PLUGIN_VOLUME_MOUNT"
+
+	rbdPluginVolume      = "CSI_RBD_PLUGIN_VOLUME"
+	rbdPluginVolumeMount = "CSI_RBD_PLUGIN_VOLUME_MOUNT"
+
+	nfsPluginVolume      = "CSI_NFS_PLUGIN_VOLUME"
+	nfsPluginVolumeMount = "CSI_NFS_PLUGIN_VOLUME_MOUNT"
+
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
 
@@ -422,6 +431,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, rbdPluginNodeAffinity, rbdPluginTolerations)
 		// apply resource request and limit to rbdplugin containers
 		applyResourcesToContainers(r.opConfig.Parameters, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
+		// apply custom mounts to volumes
+		applyVolumeToPodSpec(r.opConfig.Parameters, rbdPluginVolume, &rbdPlugin.Spec.Template.Spec)
+		// apply custom mounts to volume mounts
+		applyVolumeMountToContainer(r.opConfig.Parameters, rbdPluginVolumeMount, "csi-rbdplugin", &rbdPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to rbd plugin daemonset %q", rbdPlugin.Name)
@@ -490,6 +503,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, cephFSPluginNodeAffinity, cephFSPluginTolerations)
 		// apply resource request and limit to cephfs plugin containers
 		applyResourcesToContainers(r.opConfig.Parameters, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
+		// apply custom mounts to volumes
+		applyVolumeToPodSpec(r.opConfig.Parameters, cephFSPluginVolume, &cephfsPlugin.Spec.Template.Spec)
+		// apply custom mounts to volume mounts
+		applyVolumeMountToContainer(r.opConfig.Parameters, cephFSPluginVolumeMount, "csi-cephfsplugin", &cephfsPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to cephfs plugin daemonset %q", cephfsPlugin.Name)
@@ -561,6 +578,10 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		applyToPodSpec(&nfsPlugin.Spec.Template.Spec, nfsPluginNodeAffinity, nfsPluginTolerations)
 		// apply resource request and limit to nfs plugin containers
 		applyResourcesToContainers(r.opConfig.Parameters, nfsPluginResource, &nfsPlugin.Spec.Template.Spec)
+		// apply custom mounts to volumes
+		applyVolumeToPodSpec(r.opConfig.Parameters, nfsPluginVolume, &nfsPlugin.Spec.Template.Spec)
+		// apply custom mounts to volume mounts
+		applyVolumeMountToContainer(r.opConfig.Parameters, nfsPluginVolumeMount, "csi-nfsplugin", &nfsPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(nfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to nfs plugin daemonset %q", nfsPlugin.Name)

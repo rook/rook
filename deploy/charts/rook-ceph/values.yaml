@@ -131,6 +131,37 @@ csi:
 
   # Allow starting unsupported ceph-csi image
   allowUnsupportedVersion: false
+
+  # CephCSI RBD plugin Volumes
+  # csiRBDPluginVolumes: |
+  #  - name: lib-modules
+  #    hostPath:
+  #      path: /run/current-system/kernel-modules/lib/modules/
+  #  - name: host-nix
+  #    hostPath:
+  #      path: /nix
+
+  # CephCSI RBD plugin Volume mounts
+  # csiRBDPluginVolumeMounts: |
+  #  - name: host-nix
+  #    mountPath: /nix
+  #    readOnly: true
+
+  # CephCSI CephFS plugin Volumes
+  # csiCephFSPluginVolumes: |
+  #  - name: lib-modules
+  #    hostPath:
+  #      path: /run/current-system/kernel-modules/lib/modules/
+  #  - name: host-nix
+  #    hostPath:
+  #      path: /nix
+
+  # CephCSI CephFS plugin Volume mounts
+  # csiCephFSPluginVolumeMounts: |
+  #  - name: host-nix
+  #    mountPath: /nix
+  #    readOnly: true
+
   # CEPH CSI RBD provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
   # csi-omap-generator resources will be applied only if enableOMAPGenerator is set to true
