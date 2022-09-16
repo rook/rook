@@ -63,7 +63,6 @@ func predicateForHotPlugCMWatcher(client client.Client) predicate.Funcs {
 		UpdateFunc: func(e event.UpdateEvent) bool {
 			isHotPlugCM := isHotPlugCM(e.ObjectNew)
 			if !isHotPlugCM {
-				logger.Debugf("hot-plug cm watcher: only reconcile on hot plug cm changes, this %q cm is handled by another watcher", e.ObjectNew.GetName())
 				return false
 			}
 
