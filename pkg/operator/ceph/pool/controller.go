@@ -25,6 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/exec"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -390,7 +391,7 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	}
 	logger.Infof("initializing pool %q for RBD use", p.Name)
 	args := []string{"pool", "init", p.Name}
-	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).Run()
+	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "failed to initialize pool %q for RBD use. %s", p.Name, string(output))
 	}
