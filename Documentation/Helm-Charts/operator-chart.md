@@ -133,6 +133,10 @@ The following tables lists the configurable parameters of the rook-operator char
 | `admissionController.tolerations`   | Array of tolerations in YAML format which will be added to admission controller deployment.                                                      | `<none>`                                                  |
 | `admissionController.nodeAffinity`  | The node labels for affinity of the admission controller deployment [^1]                                                                         | `<none>`                                                  |
 | `monitoring.enabled`                | Create necessary RBAC rules for Rook to integrate with Prometheus monitoring in the operator namespace. Requires Prometheus to be pre-installed. | `false`                                                   |
+| `csi.csiRBDPluginVolume`            | The volume of the CephCSI RBD plugin DaemonSet                                                                                 | `<none>`                                                  |
+| `csi.csiRBDPluginVolumeMount`       | The volume mounts of the CephCSI RBD plugin DaemonSet                                                                                 | `<none>`                                                  |
+| `csi.csiCephFSPluginVolume`         | The volume of the CephCSI CephFS plugin DaemonSet                                                                                 | `<none>`                                                  |
+| `csi.csiCephFSPluginVolumeMount`    | The volume mounts of the CephCSI CephFS plugin DaemonSet                                                                                 | `<none>`                                                  |
 
 [^1]: `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 

@@ -203,4 +203,16 @@ data:
 {{- if .Values.csi.csiNFSPluginResource }}
   CSI_NFS_PLUGIN_RESOURCE: {{ .Values.csi.csiNFSPluginResource | quote }}
 {{- end }}
+{{- if .Values.csi.csiRBDPluginVolume }}
+  CSI_RBD_PLUGIN_VOLUME: {{ toYaml .Values.csi.csiRBDPluginVolume | quote }}
+{{- end }}
+{{- if .Values.csi.csiRBDPluginVolumeMount }}
+  CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiRBDPluginVolumeMount | quote }}
+{{- end }}
+{{- if .Values.csi.csiCephFSPluginVolume }}
+  CSI_CEPHFS_PLUGIN_VOLUME: {{ toYaml .Values.csi.csiRBDPluginVolumes | quote }}
+{{- end }}
+{{- if .Values.csi.csiCephFSPluginVolumeMount }}
+  CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiCephFSPluginVolumeMount | quote }}
+{{- end }}
 {{- end }}
