@@ -24,6 +24,7 @@ parameters:
 {{ end }}
 reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
+volumeBindingMode: {{ default "Immediate" $blockpool.storageClass.volumeBindingMode }}
 {{- if $blockpool.storageClass.mountOptions }}
 mountOptions:
   {{- range $blockpool.storageClass.mountOptions }}
