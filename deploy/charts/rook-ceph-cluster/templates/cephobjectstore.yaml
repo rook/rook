@@ -15,6 +15,7 @@ metadata:
   name: {{ $objectstore.storageClass.name }}
 provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
 reclaimPolicy: {{ default "Delete" $objectstore.storageClass.reclaimPolicy }}
+volumeBindingMode: {{ default "Immediate" $objectstore.storageClass.volumeBindingMode }}
 parameters:
   objectStoreName: {{ $objectstore.name }}
   objectStoreNamespace: {{ $root.Release.Namespace }}
