@@ -443,6 +443,7 @@ cephBlockPools:
       isDefault: true
       reclaimPolicy: Delete
       allowVolumeExpansion: true
+      volumeBindingMode: "Immediate"
       mountOptions: []
       # see https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies
       allowedTopologies: []
@@ -521,6 +522,7 @@ cephFileSystems:
       pool: data0
       reclaimPolicy: Delete
       allowVolumeExpansion: true
+      volumeBindingMode: "Immediate"
       mountOptions: []
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-filesystem.md#provision-storage for available configuration
       parameters:
@@ -593,6 +595,7 @@ cephObjectStores:
       enabled: true
       name: ceph-bucket
       reclaimPolicy: Delete
+      volumeBindingMode: "Immediate"
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-object-bucket-claim.md#storageclass for available configuration
       parameters:
         # note: objectStoreNamespace and objectStoreName are configured by the chart
