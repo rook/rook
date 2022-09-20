@@ -866,8 +866,8 @@ func (k8sh *K8sHelper) IsPodInError(podNamePattern, namespace, reason, containin
 	return false
 }
 
-// GetPodHostID returns HostIP address of a pod
-func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
+// GetPodHostIP returns HostIP address of a pod
+func (k8sh *K8sHelper) GetPodHostIP(podNamePattern string, namespace string) (string, error) {
 	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
 	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
@@ -1275,7 +1275,7 @@ func (k8sh *K8sHelper) getInternalRGWServiceURL(storeName string, namespace stri
 
 // GetRGWServiceURL returns URL of ceph RGW service in the cluster
 func (k8sh *K8sHelper) getExternalRGWServiceURL(storeName string, namespace string) (string, error) {
-	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", namespace)
+	hostip, err := k8sh.GetPodHostIP("rook-ceph-rgw", namespace)
 	if err != nil {
 		return "", fmt.Errorf("RGW pods not found. %+v", err)
 	}

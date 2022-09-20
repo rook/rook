@@ -48,12 +48,10 @@ type CephStatus struct {
 	Quorum        []int        `json:"quorum"`
 	QuorumNames   []string     `json:"quorum_names"`
 	MonMap        MonMap       `json:"monmap"`
-	OsdMap        struct {
-		OsdMap OsdMap `json:"osdmap"`
-	} `json:"osdmap"`
-	PgMap  PgMap  `json:"pgmap"`
-	MgrMap MgrMap `json:"mgrmap"`
-	Fsmap  Fsmap  `json:"fsmap"`
+	OsdMap        OsdMap       `json:"osdmap"`
+	PgMap         PgMap        `json:"pgmap"`
+	MgrMap        MgrMap       `json:"mgrmap"`
+	Fsmap         Fsmap        `json:"fsmap"`
 }
 
 type HealthStatus struct {
@@ -72,6 +70,7 @@ type Summary struct {
 
 type MonMap struct {
 	Epoch        int           `json:"epoch"`
+	NumMons      int           `josn:"num_mons"`
 	FSID         string        `json:"fsid"`
 	CreatedTime  string        `json:"created"`
 	ModifiedTime string        `json:"modified"`
