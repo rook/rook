@@ -30,7 +30,7 @@ spec:
           requests:
             storage: 10Gi
   storage:
-   storageClassDeviceSets:
+    storageClassDeviceSets:
     - name: set1
       count: 3
       portable: false
