@@ -143,28 +143,28 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	// critical pods in cluster but less priority than plugin pods
 	CSIParam.ProvisionerPriorityClassName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
 
+	CSIParam.EnableOMAPGenerator = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_OMAP_GENERATOR", "false"), "true") {
 		CSIParam.EnableOMAPGenerator = true
 	}
 
 	// SA token projection is stable only from kubernetes version 1.20.
+	CSIParam.EnableOIDCTokenProjection = false
 	if ver.Major == KubeMinMajor && ver.Minor >= KubeMinVerForOIDCTokenProjection {
 		CSIParam.EnableOIDCTokenProjection = true
 	}
 
-	// enable RBD, CephFS and NFS snapshotter by default
 	CSIParam.EnableRBDSnapshotter = true
-	CSIParam.EnableCephFSSnapshotter = true
-	CSIParam.EnableNFSSnapshotter = true
-
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false
 	}
 
+	CSIParam.EnableCephFSSnapshotter = true
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CEPHFS_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableCephFSSnapshotter = false
 	}
 
+	CSIParam.EnableNFSSnapshotter = true
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_NFS_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableNFSSnapshotter = false
 	}
@@ -179,10 +179,12 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableCSITopology = true
 	}
 
+	CSIParam.EnableCSIEncryption = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_ENCRYPTION", "false"), "true") {
 		CSIParam.EnableCSIEncryption = true
 	}
 
+	CSIParam.CSIEnableMetadata = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_METADATA", "false"), "true") {
 		CSIParam.CSIEnableMetadata = true
 	}
@@ -205,6 +207,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.RBDPluginUpdateStrategy = rollingUpdate
 	}
 
+	CSIParam.EnablePluginSelinuxHostMount = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT", "false"), "true") {
 		CSIParam.EnablePluginSelinuxHostMount = true
 	}
