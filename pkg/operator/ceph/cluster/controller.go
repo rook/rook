@@ -299,7 +299,7 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 	// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
 	internalCtx := context.Context(r.opManagerContext)
 	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.Spec.External.Enable {
-		monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
+		monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(&cephCluster.Spec, cephCluster.Namespace)
 		if err != nil {
 			logger.Warningf("failed to get mon secret. skip cluster cleanup. remove finalizer. %v", err)
 			doCleanup = false

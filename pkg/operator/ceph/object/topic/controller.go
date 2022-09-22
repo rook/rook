@@ -147,7 +147,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	r.clusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace, r.clusterSpec)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
