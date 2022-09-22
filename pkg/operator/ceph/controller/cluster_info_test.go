@@ -23,6 +23,7 @@ import (
 	"os"
 	"testing"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/test"
@@ -54,9 +55,14 @@ func TestCreateClusterSecrets(t *testing.T) {
 		Clientset: clientset,
 		Executor:  executor,
 	}
+	provider := "Multus"
+	cephClusterSpec := &cephv1.ClusterSpec{
+		Network: cephv1.NetworkSpec{
+			Provider: provider},
+	}
 	namespace := "ns"
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
-	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	info, maxID, mapping, err := CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
 	assert.NoError(t, err)
 	assert.Equal(t, -1, maxID)
 	require.NotNil(t, info)
@@ -79,7 +85,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check that the cluster info can now be loaded
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
 	assert.NoError(t, err)
 	assert.Equal(t, "client.admin", info.CephCred.Username)
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
@@ -88,7 +94,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	secret.Data[adminSecretNameKey] = []byte(adminSecretNameKey)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
-	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
 	assert.Error(t, err)
 
 	// Load the external cluster with the legacy external creds
@@ -99,7 +105,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	}
 	_, err = clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 	assert.NoError(t, err)
-	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo)
+	info, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
 	assert.NoError(t, err)
 	assert.Equal(t, "testid", info.CephCred.Username)
 	assert.Equal(t, "testkey", info.CephCred.Secret)

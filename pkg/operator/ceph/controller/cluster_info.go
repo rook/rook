@@ -86,12 +86,12 @@ type MonScheduleInfo struct {
 }
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(ctx *clusterd.Context, context context.Context, namespace string) (*cephclient.ClusterInfo, int, *Mapping, error) {
-	return CreateOrLoadClusterInfo(ctx, context, namespace, nil)
+func LoadClusterInfo(ctx *clusterd.Context, context context.Context, namespace string, cephClusterSpec *cephv1.ClusterSpec) (*cephclient.ClusterInfo, int, *Mapping, error) {
+	return CreateOrLoadClusterInfo(ctx, context, namespace, nil, cephClusterSpec)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo, cephClusterSpec *cephv1.ClusterSpec) (*cephclient.ClusterInfo, int, *Mapping, error) {
 	var clusterInfo *cephclient.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
@@ -147,6 +147,11 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	if err != nil {
 		return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon config")
 	}
+
+	// update clusterInfo with cephCLusterSpec Network info
+	// it will also update if Multus is enabled, so ceph cmds
+	// can run on remote executor
+	clusterInfo.NetworkSpec = cephClusterSpec.Network
 
 	// If an admin key was provided we don't need to load the other resources
 	// Some people might want to give the admin key
@@ -357,13 +362,13 @@ func ParseMonEndpoints(input string) map[string]*cephclient.MonInfo {
 
 // PopulateExternalClusterInfo Add validation in the code to fail if the external cluster has no
 // OSDs keep waiting
-func PopulateExternalClusterInfo(context *clusterd.Context, ctx context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, error) {
+func PopulateExternalClusterInfo(cephClusterSpec *cephv1.ClusterSpec, context *clusterd.Context, ctx context.Context, namespace string, ownerInfo *k8sutil.OwnerInfo) (*cephclient.ClusterInfo, error) {
 	for {
 		// Checking for the context makes sure we don't loop forever with a canceled context
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil)
+		clusterInfo, _, _, err := CreateOrLoadClusterInfo(context, ctx, namespace, nil, cephClusterSpec)
 		if err != nil {
 			logger.Warningf("waiting for connection info of the external cluster. retrying in %s.", externalConnectionRetry.String())
 			logger.Debugf("%v", err)
