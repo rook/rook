@@ -1424,7 +1424,7 @@ jobs:
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 600
+        timeout-minutes: 60
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
