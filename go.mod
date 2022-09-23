@@ -12,7 +12,7 @@ require (
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.5.8
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/vault v1.11.2
+	github.com/hashicorp/vault v1.11.3
 	github.com/hashicorp/vault-plugin-secrets-kv v0.12.1
 	github.com/hashicorp/vault/api v1.7.2
 	github.com/hashicorp/vault/sdk v0.5.3
@@ -55,7 +55,7 @@ require (
 	github.com/Azure/go-autorest/autorest/validation v0.3.1 // indirect
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
-	github.com/BurntSushi/toml v0.3.1 // indirect
+	github.com/BurntSushi/toml v1.2.0 // indirect
 	github.com/DataDog/datadog-go v3.2.0+incompatible // indirect
 	github.com/Jeffail/gabs v1.1.1 // indirect
 	github.com/Masterminds/goutils v1.1.1 // indirect
@@ -108,7 +108,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/gophercloud/gophercloud v0.1.0 // indirect
-	github.com/hashicorp/consul/sdk v0.8.0 // indirect
+	github.com/hashicorp/consul/sdk v0.11.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-discover v0.0.0-20210818145131-c573d69da192 // indirect
