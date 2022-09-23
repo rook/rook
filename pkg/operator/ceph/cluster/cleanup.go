@@ -248,8 +248,8 @@ func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	return hostNameList, nil
 }
 
-func (c *ClusterController) getCleanUpDetails(namespace string) (string, string, error) {
-	clusterInfo, _, _, err := controller.LoadClusterInfo(c.context, c.OpManagerCtx, namespace)
+func (c *ClusterController) getCleanUpDetails(cephClusterSpec *cephv1.ClusterSpec, namespace string) (string, string, error) {
+	clusterInfo, _, _, err := controller.LoadClusterInfo(c.context, c.OpManagerCtx, namespace, cephClusterSpec)
 	if err != nil {
 		return "", "", errors.Wrap(err, "failed to get cluster info")
 	}

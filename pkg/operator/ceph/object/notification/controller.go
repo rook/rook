@@ -245,7 +245,7 @@ func getReadyCluster(client client.Client, opManagerContext context.Context, con
 		logger.Debug("Ceph cluster not yet present.")
 		return nil, nil, nil
 	}
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(&context, opManagerContext, cephCluster.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(&context, opManagerContext, cephCluster.Namespace, &cephCluster.Spec)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to populate cluster info")
 	}
