@@ -46,7 +46,7 @@ func supportedDeviceType(device string) bool {
 
 // GetDeviceEmpty check whether a device is completely empty
 func GetDeviceEmpty(device *sys.LocalDisk) bool {
-	return device.Parent == "" && supportedDeviceType(device.Type) && len(device.Partitions) == 0 && device.Filesystem == ""
+	return supportedDeviceType(device.Type) && len(device.Partitions) == 0 && device.Filesystem == ""
 }
 
 func ignoreDevice(d string) bool {
