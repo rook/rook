@@ -1404,8 +1404,8 @@ jobs:
         run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
 
       # uncomment once https://github.com/rook/rook/issues/10812 is resolved.
-      # - name: test ceph-csi-nfs plugin restart
-      #   run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
+      - name: test ceph-csi-nfs plugin restart
+        run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
 
       - name: collect common logs
         if: always()
@@ -1424,7 +1424,7 @@ jobs:
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
+        timeout-minutes: 1000
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
