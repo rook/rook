@@ -557,6 +557,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			securityContext,
 		))
 
+	socketPathVolume := v1.Volume{Name: "socket-path", VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+	volumes = append(volumes, socketPathVolume)
+
+	volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "socket-path", MountPath: "/run/ceph"})
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   AppName,
@@ -610,6 +614,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			return nil, err
 		}
 	}
+
+	// Add ceph exporter side-car container
+	podTemplateSpec.Spec.Containers = append(podTemplateSpec.Spec.Containers, *controller.CephExporterContainer(c.spec))
 
 	k8sutil.RemoveDuplicateEnvVars(&podTemplateSpec.Spec)
 
@@ -678,6 +685,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		deployment.Spec.Template.Spec.Containers[0].Env = append(deployment.Spec.Template.Spec.Containers[0].Env, getTcmallocMaxTotalThreadCacheBytes(tcmallocMaxTotalThreadCacheBytes))
 	}
 
+	fmt.Printf("spec %+v", deployment.Spec)
 	return deployment, nil
 }
 

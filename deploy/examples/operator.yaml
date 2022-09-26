@@ -516,7 +516,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
-          image: rook/ceph:master
+          image: quay.io/sp1098/rook:local
           args: ["ceph", "operator"]
           securityContext:
             runAsNonRoot: true

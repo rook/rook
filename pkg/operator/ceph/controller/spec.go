@@ -48,7 +48,9 @@ const (
 	volumeMountSubPath                      = "data"
 	crashVolumeName                         = "rook-ceph-crash"
 	daemonSocketDir                         = "/run/ceph"
+	socketDir                               = "/var/run/ceph"
 	logCollector                            = "log-collector"
+	cephExporter                            = "ceph-exporter"
 	DaemonIDLabel                           = "ceph_daemon_id"
 	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
@@ -708,6 +710,30 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)
 		TTY: true,
+	}
+}
+
+func CephExporterContainer(c cephv1.ClusterSpec) *v1.Container {
+
+	volMounts := DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap("rook-ceph", c.DataDirHostPath), "")
+	volMounts = append(volMounts, v1.VolumeMount{Name: "socket-path", MountPath: daemonSocketDir})
+	volMounts = append(volMounts, v1.VolumeMount{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir})
+	return &v1.Container{
+		Name: cephExporter,
+		// Command: []string{
+		// 	"ceph-exporter",
+		// },
+		// Args:            []string{"--sock-dir", socketDir},
+		Command: []string{
+			"sleep",
+		},
+		Args:            []string{"15m"},
+		Image:           c.CephVersion.Image,
+		SecurityContext: PodSecurityContext(),
+		// VolumeMounts: []v1.VolumeMount{{Name: "socket-path", MountPath: socketDir},
+		// 	{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir}, {Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: "/etc/temp-ceph"}},
+		VolumeMounts: volMounts,
+		Resources:    cephv1.GetLogCollectorResources(c.Resources),
 	}
 }
 
