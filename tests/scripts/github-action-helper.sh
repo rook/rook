@@ -41,6 +41,7 @@ function print_k8s_cluster_status() {
 
 function use_local_disk() {
   BLOCK_DATA_PART=${BLOCK}1
+  sudo apt purge snapd -y
   sudo dmsetup version || true
   sudo swapoff --all --verbose
   if mountpoint -q /mnt; then
@@ -57,6 +58,7 @@ function use_local_disk() {
 }
 
 function use_local_disk_for_integration_test() {
+  sudo apt purge snapd -y
   sudo udevadm control --log-priority=debug
   sudo swapoff --all --verbose
   sudo umount /mnt
