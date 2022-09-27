@@ -270,7 +270,7 @@ jobs:
         timeout-minutes: 60
 
   two-osds-in-device:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -324,7 +324,7 @@ jobs:
         timeout-minutes: 60
 
   osd-with-metadata-device:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -384,7 +384,7 @@ jobs:
         timeout-minutes: 60
 
   encryption:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -430,7 +430,7 @@ jobs:
         timeout-minutes: 60
 
   lvm:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -677,7 +677,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -753,7 +753,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc-db:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -811,7 +811,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc-db-wal:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -870,7 +870,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc-kms-vault-token-auth:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -956,7 +956,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc-kms-vault-k8s-auth:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1025,7 +1025,7 @@ jobs:
         timeout-minutes: 60
 
   lvm-pvc:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1320,7 +1320,7 @@ jobs:
         timeout-minutes: 60
 
   encryption-pvc-kms-ibm-kp:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
         with:
