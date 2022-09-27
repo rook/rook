@@ -73,6 +73,23 @@ func (sec *NFSSecuritySpec) Validate() error {
 		if volSourceExistsAndIsEmpty(sidecar.SSSDConfigFile.VolumeSource) {
 			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with config from a VolumeSource, but no source is specified")
 		}
+
+		subDirs := map[string]bool{}
+		for _, additionalFile := range sidecar.AdditionalFiles {
+			subDir := additionalFile.SubPath
+			if subDir == "" {
+				return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with additional file having no subPath specified")
+			}
+
+			if volSourceExistsAndIsEmpty(additionalFile.VolumeSource) {
+				return errors.Errorf("System Security Services Daemon (SSSD) sidecar is enabled with additional file (subPath %q), but no source is specified", subDir)
+			}
+
+			if _, ok := subDirs[subDir]; ok {
+				return errors.Errorf("System Security Services Daemon (SSSD) sidecar is enabled with additional file containing duplicate subPath %q", subDir)
+			}
+			subDirs[subDir] = true
+		}
 	}
 
 	krb := sec.Kerberos

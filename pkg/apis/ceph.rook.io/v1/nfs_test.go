@@ -33,6 +33,10 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 		}
 	}
 
+	configMapVolumeSource := &v1.VolumeSource{
+		ConfigMap: &v1.ConfigMapVolumeSource{},
+	}
+
 	tests := []struct {
 		name     string
 		security *NFSSecuritySpec
@@ -51,9 +55,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
 					SSSDConfigFile: SSSDSidecarConfigFile{
-						VolumeSource: &v1.VolumeSource{
-							ConfigMap: &v1.ConfigMapVolumeSource{},
-						},
+						VolumeSource: configMapVolumeSource,
 					},
 				},
 			}),
@@ -63,9 +65,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 				Sidecar: &SSSDSidecar{
 					Image: "",
 					SSSDConfigFile: SSSDSidecarConfigFile{
-						VolumeSource: &v1.VolumeSource{
-							ConfigMap: &v1.ConfigMapVolumeSource{},
-						},
+						VolumeSource: configMapVolumeSource,
 					},
 				},
 			}),
@@ -84,6 +84,62 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 					Image: "myimage",
 					SSSDConfigFile: SSSDSidecarConfigFile{
 						VolumeSource: &v1.VolumeSource{},
+					},
+				},
+			}),
+			isFailing},
+		{"security.sssd.sidecar.additionalFiles empty",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image:           "myimage",
+					AdditionalFiles: []SSSDSidecarAdditionalFile{},
+				},
+			}),
+			isOkay},
+		{"security.sssd.sidecar.additionalFiles multiple valid",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					AdditionalFiles: []SSSDSidecarAdditionalFile{
+						{SubPath: "one", VolumeSource: configMapVolumeSource},
+						{SubPath: "two", VolumeSource: configMapVolumeSource},
+						{SubPath: "three", VolumeSource: configMapVolumeSource},
+					},
+				},
+			}),
+			isOkay},
+		{"security.sssd.sidecar.additionalFiles one empty subDir",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					AdditionalFiles: []SSSDSidecarAdditionalFile{
+						{SubPath: "one", VolumeSource: configMapVolumeSource},
+						{SubPath: "", VolumeSource: configMapVolumeSource},
+						{SubPath: "three", VolumeSource: configMapVolumeSource},
+					},
+				},
+			}),
+			isFailing},
+		{"security.sssd.sidecar.additionalFiles duplicate subDirs",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					AdditionalFiles: []SSSDSidecarAdditionalFile{
+						{SubPath: "one", VolumeSource: configMapVolumeSource},
+						{SubPath: "two", VolumeSource: configMapVolumeSource},
+						{SubPath: "one", VolumeSource: configMapVolumeSource},
+					},
+				},
+			}),
+			isFailing},
+		{"security.sssd.sidecar.additionalFiles one vol source empty",
+			withSSSD(&SSSDSpec{
+				Sidecar: &SSSDSidecar{
+					Image: "myimage",
+					AdditionalFiles: []SSSDSidecarAdditionalFile{
+						{SubPath: "one", VolumeSource: configMapVolumeSource},
+						{SubPath: "", VolumeSource: &v1.VolumeSource{}},
+						{SubPath: "three", VolumeSource: configMapVolumeSource},
 					},
 				},
 			}),
