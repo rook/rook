@@ -434,9 +434,6 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 		if device == nil {
 			continue
 		}
-		if device.Type == sys.PartType {
-			continue
-		}
 
 		partitions, _, err := sys.GetDevicePartitions(device.Name, context.Executor)
 		if err != nil {

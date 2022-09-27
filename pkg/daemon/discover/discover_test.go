@@ -19,6 +19,7 @@ package discover
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -28,8 +29,31 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const (
-	udevOutput = `DEVLINKS=/dev/disk/by-id/scsi-36001405d27e5d898829468b90ce4ef8c /dev/disk/by-id/wwn-0x6001405d27e5d898829468b90ce4ef8c /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-0 /dev/disk/by-uuid/f2d38cba-37da-411d-b7ba-9a6696c58174
+func TestProbeDevices(t *testing.T) {
+	var (
+		listDevicesArgs = []string{"--all", "--noheadings", "--list", "--output", "KNAME"}
+
+		// testa: single disk with FS
+		// testb1: first partition of disk testb
+		listDevicesOutput = "testa\ntestb\ntestb1"
+
+		listDevicesChildArgs    = []string{"--noheadings", "--path", "--list", "--output", "NAME"}
+		listDevicesChildOutputs = map[string]string{
+			"/dev/testa":  "/dev/testa",
+			"/dev/testb":  "/dev/testb\n/dev/testb1",
+			"/dev/testb1": "/dev/testb1",
+		}
+
+		getDevicePropertiesArgs    = []string{"--bytes", "--nodeps", "--pairs", "--paths", "--output", "SIZE,ROTA,RO,TYPE,PKNAME,NAME,KNAME,MOUNTPOINT,FSTYPE"}
+		getDevicePropertiesOutputs = map[string]string{
+			"/dev/testa":  `SIZE="249510756352" ROTA="1" RO="0" TYPE="disk" PKNAME=""`,
+			"/dev/testb":  `SIZE="3200000196608" ROTA="0" RO="0" TYPE="disk" PKNAME="" NAME="/dev/testb" KNAME="/dev/testb" MOUNTPOINT="" FSTYPE=""`,
+			"/dev/testb1": `SIZE="3199999131136" ROTA="0" RO="0" TYPE="part" PKNAME="/dev/testb" NAME="/dev/testb1" KNAME="/dev/testb1" MOUNTPOINT="" FSTYPE=""`,
+		}
+
+		getUdevInfoArgs    = []string{"info", "--query=property"}
+		getUdevInfoOutputs = map[string]string{
+			"/dev/testa": `DEVLINKS=/dev/disk/by-id/scsi-36001405d27e5d898829468b90ce4ef8c /dev/disk/by-id/wwn-0x6001405d27e5d898829468b90ce4ef8c /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-0 /dev/disk/by-uuid/f2d38cba-37da-411d-b7ba-9a6696c58174
 DEVNAME=/dev/sdk
 DEVPATH=/devices/platform/host6/session2/target6:0:0/6:0:0:0/block/sdk
 DEVTYPE=disk
@@ -60,28 +84,67 @@ MINOR=160
 SUBSYSTEM=block
 TAGS=:systemd:
 USEC_INITIALIZED=15981915740802
-`
-	sgdiskOutput = `Disk /dev/sdb: 20971520 sectors, 10.0 GiB
-Logical sector size: 512 bytes
-Disk identifier (GUID): 819C2F95-7015-438F-A624-D40DBA2C2069
-Partition table holds up to 128 entries
-`
-)
-
-func TestProbeDevices(t *testing.T) {
+`,
+			"/dev/testb1": `DEVPATH=/devices/pci0000:00/0000:00:02.2/0000:03:00.0/host0/target0:2:0/0:2:0:0/block/testb/testb1
+	DEVNAME=/dev/testb1
+	DEVTYPE=partition
+	PARTN=1
+	MAJOR=8
+	MINOR=1
+	SUBSYSTEM=block
+	USEC_INITIALIZED=2439447
+	SCSI_TPGS=0
+	SCSI_TYPE=disk
+	SCSI_VENDOR=DELL
+	SCSI_VENDOR_ENC=DELL\x20\x20\x20\x20
+	SCSI_MODEL=PERC_H710P
+	SCSI_MODEL_ENC=PERC\x20H710P\x20\x20\x20\x20\x20\x20
+	SCSI_REVISION=3.13
+	SCSI_IDENT_SERIAL=00fc8e7907c0a26e26003b99f960f681
+	SCSI_IDENT_LUN_NAA_REGEXT=6c81f660f9993b00266ea2c007798efc
+	ID_SCSI=1
+	ID_VENDOR=DELL
+	ID_VENDOR_ENC=DELL\x20\x20\x20\x20
+	ID_MODEL=PERC_H710P
+	ID_MODEL_ENC=PERC\x20H710P\x20\x20\x20\x20\x20\x20
+	ID_REVISION=3.13
+	ID_TYPE=disk
+	ID_WWN=0x6c81f660f9993b00266ea2c007798efc
+	ID_WWN_WITH_EXTENSION=0x6c81f660f9993b00266ea2c007798efc
+	ID_BUS=scsi
+	ID_SERIAL=36c81f660f9993b00266ea2c007798efc
+	ID_SERIAL_SHORT=6c81f660f9993b00266ea2c007798efc
+	DM_MULTIPATH_DEVICE_PATH=0
+	ID_SCSI_INQUIRY=1
+	ID_PATH=pci-0000:03:00.0-scsi-0:2:0:0
+	ID_PATH_TAG=pci-0000_03_00_0-scsi-0_2_0_0
+	ID_PART_TABLE_UUID=57251e2b-1081-4215-b37d-076ba307c1fa
+	ID_PART_TABLE_TYPE=gpt
+	ID_PART_ENTRY_SCHEME=gpt
+	ID_PART_ENTRY_UUID=a43b1740-4219-4e33-83a5-0fc87ffe39db
+	ID_PART_ENTRY_TYPE=21686148-6449-6e6f-744e-656564454649
+	ID_PART_ENTRY_NUMBER=1
+	ID_PART_ENTRY_OFFSET=2048
+	ID_PART_ENTRY_SIZE=2048
+	ID_PART_ENTRY_DISK=8:0
+	DEVLINKS=/dev/disk/by-path/pci-0000:03:00.0-scsi-0:2:0:0-part1 /dev/disk/by-partuuid/a43b1740-4219-4e33-83a5-0fc87ffe39db /dev/disk/by-id/scsi-36c81f660f9993b00266ea2c007798efc-part1 /dev/disk/by-id/scsi-SDELL_PERC_H710P_00fc8e7907c0a26e26003b99f960f681-part1 /dev/disk/by-id/wwn-0x6c81f660f9993b00266ea2c007798efc-part1
+	TAGS=:systemd:
+`,
+		}
+	)
 	// set up mock execute so we can verify the partitioning happens on sda
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("RUN Command %s  %v", command, args)
 		output := ""
-		if args[0] == "--all" {
-			output = "testa"
-		} else if args[0] == "/dev/testa" {
-			output = `SIZE="249510756352" ROTA="1" RO="0" TYPE="disk" PKNAME=""`
-		} else if args[0] == "info" && args[1] == "--query=property" {
-			output = udevOutput
-		} else if args[0] == "--print" && args[1] == "/dev/testa" {
-			output = sgdiskOutput
+		if reflect.DeepEqual(args, listDevicesArgs) {
+			output = listDevicesOutput
+		} else if reflect.DeepEqual(args[1:], getDevicePropertiesArgs) {
+			output = getDevicePropertiesOutputs[args[0]]
+		} else if reflect.DeepEqual(args[:len(args)-1], getUdevInfoArgs) {
+			output = getUdevInfoOutputs[args[len(args)-1]]
+		} else if reflect.DeepEqual(args[:len(args)-1], listDevicesChildArgs) {
+			output = listDevicesChildOutputs[args[len(args)-1]]
 		}
 		return output, nil
 	}
@@ -90,8 +153,14 @@ func TestProbeDevices(t *testing.T) {
 
 	devices, err := probeDevices(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, len(devices))
+
+	// the /dev/testb should be filtered out in favor of its partitions
+	assert.Equal(t, 2, len(devices))
 	assert.Equal(t, "ext2", devices[0].Filesystem)
+	assert.Equal(t, false, devices[0].Empty)
+	assert.Equal(t, "testb1", devices[1].Name)
+	assert.Equal(t, "", devices[1].Filesystem)
+	assert.Equal(t, true, devices[1].Empty)
 }
 
 func TestMatchUdevMonitorFiltering(t *testing.T) {
