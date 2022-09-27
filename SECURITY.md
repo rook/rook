@@ -6,22 +6,22 @@ issues.
 
 This policy is adapted from the policies of the following CNCF projects:
 
-* [Envoy](https://github.com/envoyproxy/envoy)
-* [CoreDNS](https://github.com/coredns/coredns)
+- [Envoy](https://github.com/envoyproxy/envoy)
+- [CoreDNS](https://github.com/coredns/coredns)
 
 The Rook community credits and appreciates the example and security best practices that they have
 published openly.
 
 ## Security Audit
 
-A third party security audit was performed in December 2019 by [Trail of
+A third-party security audit was performed in December 2019 by [Trail of
 Bits](https://www.trailofbits.com/). The full security report has been published and is [available for
 download](https://drive.google.com/file/d/1rOwrwYmBUpLUm6W5J5rhXvdVit818hWJ/view?usp=sharing).
 
 ## Product Security Team (PST)
 
 Security vulnerabilities should be handled quickly and sometimes privately. The primary goal of this
-process is to reduce the total time users are vulnerable to publicly known exploits.
+the process is to reduce the total time users are vulnerable to publicly known exploits.
 
 The Product Security Team (PST) is responsible for organizing the entire response including internal
 communication and external disclosure.
@@ -31,9 +31,9 @@ beta or stable storage provider **MUST** have a representative on the PST.
 
 ### Mailing lists
 
-* [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io): for any security concerns. Received by Product
+- [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io): for any security concerns. Received by Product
   Security Team members, and used by this Team to discuss security issues and fixes.
-* [cncf-rook-distributors-announce@lists.cncf.io](mailto:cncf-rook-distributors-announce@lists.cncf.io): for
+- [cncf-rook-distributors-announce@lists.cncf.io](mailto:cncf-rook-distributors-announce@lists.cncf.io): for
   early private information on Security patch releases. See below how Rook distributors can apply
   for this list.
 
@@ -41,18 +41,18 @@ beta or stable storage provider **MUST** have a representative on the PST.
 
 ### Private Disclosure Processes
 
-If you find a security vulnerability or any security related issues, please **DO NOT** file a public
+If you find a security vulnerability or any security-related issues, please **DO NOT** file a public
 issue. **Do not** create a GitHub issue. Instead, send your report privately to
 [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io). Security reports are greatly appreciated and we will
-publicly thank you for it.
+publicly thank you for them.
 
 Please provide as much information as possible, so we can react quickly. For instance, that could
 include:
 
-* Description of the location and potential impact of the vulnerability
-* A detailed description of the steps required to reproduce the vulnerability (POC scripts,
-  screenshots, and logs are all helpful to us)
-* Whatever else you think we might need to identify the source of this vulnerability, and possibly
+- Description of the location and potential impact of the vulnerability
+- A detailed description of the steps required to reproduce the vulnerability (POC scripts,
+  screenshots and logs are all helpful to us)
+- Whatever else you think we might need to identify the source of this vulnerability, and possibly
   even a suggested fix for the vulnerability as well
 
 ### Public Disclosure Processes
@@ -64,12 +64,12 @@ vulnerability so we start the patch, release, and communication process.
 If possible the PST will ask the person making the public report if the issue can be handled via a
 private disclosure process (for example if the full exploit details have not yet been published). If
 the reporter denies the request for private disclosure, the PST will move swiftly with the fix and
-release process. In extreme cases you can ask GitHub to delete the issue but this generally isn't
+release process. In extreme cases, you can ask GitHub to delete the issue but this generally isn't
 necessary and is unlikely to make a public disclosure less damaging.
 
 ## Patch, Release, and Public Communication
 
-For each vulnerability a member of the PST will volunteer to lead coordination with the "Fix Team"
+For each vulnerability, a member of the PST will volunteer to lead coordination with the "Fix Team"
 and is responsible for sending disclosure emails to the rest of the community. This lead will be
 referred to as the "Fix Lead."
 
@@ -88,20 +88,20 @@ fit their timeline and best protect our users.
 
 These steps should be completed within the first 24 hours of disclosure.
 
-* The Fix Lead will work quickly to identify relevant engineers from the affected projects and
+- The Fix Lead will work quickly to identify relevant engineers from the affected projects and
   packages and CC those engineers into the disclosure thread. These selected developers are the Fix
   Team.
-* The Fix Lead will get the Fix Team access to private security repos to develop the fix.
+- The Fix Lead will get the Fix Team access to private security repos to develop the fix.
 
 ### Fix Development Process
 
 These steps should be completed within the 1-7 days of Disclosure.
 
-* The Fix Lead and the Fix Team will create a
+- The Fix Lead and the Fix Team will create a
   [CVSS](https://www.first.org/cvss/specification-document) using the [CVSS
   Calculator](https://www.first.org/cvss/calculator/3.0). The Fix Lead makes the final call on the
-  calculated CVSS; it is better to move quickly than making the CVSS perfect.
-* The Fix Team will notify the Fix Lead that work on the fix branch is complete once there are LGTMs
+  calculated CVSS; it is better to move quickly than to make the CVSS perfect.
+- The Fix Team will notify the Fix Lead that works on the fix branch is complete once there are LGTMs
   on all commits in the private repo from one or more maintainers.
 
 If the CVSS score is under 4.0 ([a low severity
@@ -111,13 +111,13 @@ discussed on the [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@li
 
 ### Fix Disclosure Process
 
-With the Fix Development underway the Rook Security Team needs to come up with an overall
+With the Fix Development, underway the Rook Security Team needs to come up with an overall
 communication plan for the wider community. This Disclosure process should begin after the Team has
 developed a fix or mitigation so that a realistic timeline can be communicated to users.
 
 **Disclosure of Forthcoming Fix to Users** (Completed within 1-7 days of Disclosure)
 
-* The Fix Lead will create a GitHub issue in Rook project to inform users that a security
+- The Fix Lead will create a GitHub issue in the Rook project to inform users that a security
   vulnerability has been disclosed and that a fix will be made available, with an estimation of the
   Release Date. It will include any mitigating steps users can take until a fix is available.
 
@@ -126,29 +126,29 @@ patches, understand exact mitigation steps, etc.
 
 **Optional Fix Disclosure to Private Distributors List** (Completed within 1-14 days of Disclosure):
 
-* The Fix Lead will make a determination with the help of the Fix Team if an issue is critical
-  enough to require early disclosure to distributors. Generally this Private Distributor Disclosure
-  process should be reserved for remotely exploitable or privilege escalation issues. Otherwise,
+- The Fix Lead will decide with the help of the Fix Team if an issue is critical
+  enough to require early disclosure to distributors. Generally, this Private Distributor Disclosure
+  process should be reserved for remotely exploitable or privileged escalation issues. Otherwise,
   this process can be skipped.
-* The Fix Lead will email the patches to cncf-rook-distributors-announce@lists.cncf.io so distributors
-  can prepare their own release to be available to users on the day of the issue's announcement.
+- The Fix Lead will email the patches to cncf-rook-distributors-announce@lists.cncf.io so distributors
+  can prepare their release to be available to users on the day of the issue's announcement.
   Distributors should read about the [Private Distributor List](#private-distributor-list) to find
   out the requirements for being added to this list.
-* **What if a distributor breaks embargo?** The PST will assess the damage and may make the call to
+- **What if a distributor breaks an embargo?** The PST will assess the damage and may make the call to
   release earlier or continue with the plan. When in doubt push forward and go public ASAP.
 
 **Fix Release Day** (Completed within 1-21 days of Disclosure)
 
-* The Fix Team will selectively choose all needed commits from the Master branch in order to create
+- The Fix Team will selectively choose all needed commits from the Master branch to create
   a new release on top of the current last version released.
-* Release process will be as usual.
-* The Fix Lead will request a CVE from
+- Release process will be as usual.
+- The Fix Lead will request a CVE from
   [DWF](https://github.com/distributedweaknessfiling/DWF-Documentation) and include the CVSS and
   release details.
-* The Fix Lead will inform all users, devs and integrators, now that everything is public,
+- The Fix Lead will inform all users, devs, and integrators, now that everything is public,
   announcing the new releases, the CVE number, and the relevant merged PRs to get wide distribution
   and user action. As much as possible this email should be actionable and include links on how to
-  apply the fix to user's environments; this can include links to external distributor
+  apply the fix to the user's environments; this can include links to external distributor
   documentation.
 
 ## Private Distributor List
@@ -159,7 +159,7 @@ projects at once. This list is not intended for individuals to find out about se
 ### Embargo Policy
 
 The information members receive on cncf-rook-distributors-announce@lists.cncf.io must not be made public,
-shared, nor even hinted at anywhere beyond the need-to-know within your specific team except with
+shared, or even hinted at anywhere beyond the need-to-know within your specific team except with
 the list's explicit approval. This holds true until the public disclosure date/time that was agreed
 upon by the list. Members of the list and others may not use the information for anything other than
 getting the issue fixed for your respective distribution's users.
@@ -167,28 +167,28 @@ getting the issue fixed for your respective distribution's users.
 Before any information from the list is shared with respective members of your team required to fix
 said issue, they must agree to the same terms and only find out information on a need-to-know basis.
 
-In the unfortunate event you share the information beyond what is allowed by this policy, you _must_
+In the unfortunate event, you share the information beyond what is allowed by this policy, you _must_
 urgently inform the [cncf-rook-security@lists.cncf.io](mailto:cncf-rook-security@lists.cncf.io) mailing list of exactly what
-information leaked and to whom.
+information was leaked and to whom.
 
 If you continue to leak information and break the policy outlined here, you will be removed from the
 list.
 
 ### Contributing Back
 
-This is a team effort. As a member of the list you must carry some water. This could be in the form
+This is a team effort. As a member of the list, you must carry some water. This could be in the form
 of the following:
 
 #### Technical
 
-* Review and/or test the proposed patches and point out potential issues with them (such as
+- Review and/or test the proposed patches and point out potential issues with them (such as
   incomplete fixes for the originally reported issues, additional issues you might notice, and newly
   introduced bugs), and inform the list of the work done even if no issues were encountered.
 
 #### Administrative
 
-* Help draft emails to the public disclosure mailing list.
-* Help with release notes.
+- Help draft emails to the public disclosure mailing list.
+- Help with release notes.
 
 ### Membership Criteria
 
@@ -196,10 +196,10 @@ To be eligible for the cncf-rook-distributors-announce@lists.cncf.io mailing lis
 should:
 
 1. Be an active distributor of Rook.
-2. Have a user base not limited to your own organization.
-3. Have a publicly verifiable track record up to present day of fixing security issues.
+2. Have a user base not limited to your organization.
+3. Have a publicly verifiable track record up to the present day of fixing security issues.
 4. Not be a downstream or rebuild of another distributor.
-5. Be a participant and active contributor in the community.
+5. Be a participant and active contributor to the community.
 6. Accept the [Embargo Policy](#embargo-policy) that is outlined above.
 7. Have someone already on the list vouch for the person requesting membership on behalf of your
    distribution.
