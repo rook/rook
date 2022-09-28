@@ -100,6 +100,7 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 	return controller.ChownCephDataDirsInitContainer(
 		*daemonConfig.DataPathMap,
 		r.cephClusterSpec.CephVersion.Image,
+		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		rbdMirror.Spec.Resources,
 		controller.PodSecurityContext(),
@@ -118,6 +119,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
 		Image:           r.cephClusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       rbdMirror.Spec.Resources,

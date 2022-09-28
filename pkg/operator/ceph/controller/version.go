@@ -73,6 +73,7 @@ func DetectCephVersion(ctx context.Context, rookImage, namespace, jobName string
 		[]string{"--version"},
 		rookImage,
 		cephImage,
+		cephClusterSpec.CephVersion.ImagePullPolicy,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set up ceph version job")

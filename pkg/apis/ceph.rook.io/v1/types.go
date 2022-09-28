@@ -278,6 +278,12 @@ type CephVersionSpec struct {
 	// Whether to allow unsupported versions (do not set to true in production)
 	// +optional
 	AllowUnsupported bool `json:"allowUnsupported,omitempty"`
+
+	// ImagePullPolicy describes a policy for if/when to pull a container image
+	// One of Always, Never, IfNotPresent.
+	// +kubebuilder:validation:Enum=IfNotPresent;Always;Never;""
+	// +optional
+	ImagePullPolicy v1.PullPolicy `json:"imagePullPolicy,omitempty"`
 }
 
 // DashboardSpec represents the settings for the Ceph dashboard

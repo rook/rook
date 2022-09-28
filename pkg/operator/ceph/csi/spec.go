@@ -31,6 +31,7 @@ import (
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	k8scsi "k8s.io/api/storage/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -56,6 +57,7 @@ type Param struct {
 	ProvisionerPriorityClassName string
 	VolumeReplicationImage       string
 	CSIAddonsImage               string
+	ImagePullPolicy              string
 	CSIClusterName               string
 	CSIDomainLabels              string
 	GRPCTimeout                  time.Duration
@@ -135,6 +137,9 @@ var (
 	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.5.0"
 	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.5.0"
+
+	// image pull policy
+	DefaultCSIImagePullPolicy = string(v1.PullIfNotPresent)
 
 	// Local package template path for RBD
 	//go:embed template/rbd/csi-rbdplugin.yaml
@@ -748,6 +753,7 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 		[]string{"--version"},
 		r.opConfig.Image,
 		CSIParam.CSIPluginImage,
+		v1.PullPolicy(CSIParam.ImagePullPolicy),
 	)
 
 	if err != nil {
@@ -762,6 +768,7 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 	job.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
 	}
+
 	stdout, _, retcode, err := versionReporter.Run(r.opManagerContext, timeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to complete ceph CSI version job")

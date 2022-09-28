@@ -301,13 +301,14 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	readOnlyRootFilesystem := false
 
 	osdProvisionContainer := v1.Container{
-		Command:      []string{path.Join(rookBinariesMountPath, "rook")},
-		Args:         []string{"ceph", "osd", "provision"},
-		Name:         "provision",
-		Image:        c.spec.CephVersion.Image,
-		VolumeMounts: volumeMounts,
-		Env:          envVars,
-		EnvFrom:      getEnvFromSources(),
+		Command:         []string{path.Join(rookBinariesMountPath, "rook")},
+		Args:            []string{"ceph", "osd", "provision"},
+		Name:            "provision",
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    volumeMounts,
+		Env:             envVars,
+		EnvFrom:         getEnvFromSources(),
 		SecurityContext: &v1.SecurityContext{
 			Privileged:             &privileged,
 			RunAsUser:              &runAsUser,

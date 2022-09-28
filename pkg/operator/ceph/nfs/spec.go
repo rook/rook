@@ -197,6 +197,7 @@ func (r *ReconcileCephNFS) connectionConfigInitContainer(nfs *cephv1.CephNFS, na
 		getNFSClientID(nfs, name),
 		keyring.VolumeMount().KeyringFilePath(),
 		r.cephClusterSpec.CephVersion.Image,
+		r.cephClusterSpec.CephVersion.ImagePullPolicy,
 		[]v1.VolumeMount{
 			cephConfigMount,
 			keyring.VolumeMount().Resource(instanceName(nfs, name)),
@@ -226,7 +227,8 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			"-p", ganeshaPid, // PID file location
 			"-N", logLevel, // Change Log level
 		},
-		Image: r.cephClusterSpec.CephVersion.Image,
+		Image:           r.cephClusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts: []v1.VolumeMount{
 			cephConfigMount,
 			keyring.VolumeMount().Resource(instanceName(nfs, cfg.ID)),
@@ -253,7 +255,8 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 			"--nopidfile", // don't write a pid file
 			// some dbus-daemon versions have flag --nosyslog to send logs to sterr; not ceph upstream image
 		},
-		Image: r.cephClusterSpec.CephVersion.Image,
+		Image:           r.cephClusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts: []v1.VolumeMount{
 			dbusMount,
 		},
