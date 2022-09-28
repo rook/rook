@@ -4,21 +4,21 @@ Rook is composed of a golang project and can be built directly with standard `go
 and storage software (like Ceph) that are built inside containers. We currently support
 these platforms for building:
 
-* Linux: most modern distributions should work although most testing has been done on Ubuntu
-* Mac: macOS 10.6+ is supported
+- Linux: most modern distributions should work although most testing has been done on Ubuntu
+- Mac: macOS 10.6+ is supported
 
 ## Build Requirements
 
-Recommend 2+ cores, 8+ GB of memory and 128GB of SSD. Inside your build environment (Docker for Mac or a VM), 2+ GB memory is also recommended.
+Recommend 2+ cores, 8+ GB of memory, and 128GB of SSD. Inside your build environment (Docker for Mac or a VM), 2+ GB memory is also recommended.
 
-The following tools are need on the host:
+The following tools are needed on the host:
 
-* curl
-* docker (1.12+) or Docker for Mac (17+)
-* git
-* make
-* golang
-* helm
+- curl
+- docker (1.12+) or Docker for Mac (17+)
+- git
+- make
+- golang
+- helm
 
 ## Build
 
