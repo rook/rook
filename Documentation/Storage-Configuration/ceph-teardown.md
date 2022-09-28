@@ -19,7 +19,7 @@ If you are tearing down a cluster frequently for development purposes, it is ins
 
 First you will need to clean up the resources created on top of the Rook cluster.
 
-These commands will clean up the resources from the [block](Block-Storage-RBD/block-storage.md#teardown) and [file](Shared-Filesystem-CephFS/filesystem-storage.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc). If you did not complete those parts of the walkthrough, you can skip these instructions:
+These commands will clean up the resources from the [block](../Storage-Configuration/Block-Storage-RBD/block-storage.md#teardown) and [file](../Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc). If you did not complete those parts of the walkthrough, you can skip these instructions:
 
 ```console
 kubectl delete -f ../wordpress.yaml
