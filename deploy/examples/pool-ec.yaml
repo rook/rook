@@ -21,6 +21,3 @@ spec:
   parameters:
     # Inline compression mode for the data pool
     compression_mode: none
-  # A key/value list of annotations
-  annotations:
-  #  key: value
