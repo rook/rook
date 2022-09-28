@@ -37,7 +37,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -57,7 +57,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -76,7 +76,7 @@ spec:
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -105,7 +105,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

@@ -930,6 +930,14 @@ spec:
                     image:
                       description: Image is the container image used to launch the ceph daemons, such as quay.io/ceph/ceph:<tag> The full list of images can be found at https://quay.io/repository/ceph/ceph?tab=tags
                       type: string
+                    imagePullPolicy:
+                      description: ImagePullPolicy describes a policy for if/when to pull a container image One of Always, Never, IfNotPresent.
+                      enum:
+                        - IfNotPresent
+                        - Always
+                        - Never
+                        - ""
+                      type: string
                   type: object
                 cleanupPolicy:
                   description: Indicates user intent when deleting a cluster; blocks orchestration and should not be set if cluster deletion is not imminent.

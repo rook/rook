@@ -111,6 +111,9 @@ data:
   # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
   # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v3.4.0"
 
+  # To indicate the image pull policy to be applied to all the containers in the csi driver pods.
+  # ROOK_CSI_IMAGE_PULL_POLICY: "IfNotPresent"
+
   # (Optional) set user created priorityclassName for csi plugin pods.
   CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
 

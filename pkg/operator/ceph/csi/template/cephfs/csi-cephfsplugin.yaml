@@ -34,6 +34,7 @@ spec:
           securityContext:
             privileged: true
           image: {{ .RegistrarImage }}
+          imagePullPolicy: {{ .ImagePullPolicy }}
           args:
             - "--v={{ .LogLevel }}"
             - "--csi-address=/csi/csi.sock"
@@ -82,7 +83,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
@@ -137,7 +138,7 @@ spec:
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
         {{ end }}
       volumes:
         - name: plugin-dir
