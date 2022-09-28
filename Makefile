@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Linux doesn't guarantee file ordering, so sort the files to make sure order is deterministic.
-# And in order to handle file paths with spaces, it's easiest to read the file names into an array.
+# Linux doesn't guarantee file ordering, so sort the files to make sure the order is deterministic.
+# And to handle file paths with spaces, it's easiest to read the file names into an array.
 # Set locale `LC_ALL=C` because different OSes have different sort behavior;
 # `C` sorting order is based on the byte values,
 # Reference: https://blog.zhimingwang.org/macos-lc_collate-hunt
@@ -31,7 +31,7 @@ all: build
 # Build Options
 
 # Controller-gen version
-# f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs
+# f284e2e8... is master ahead of v0.5.0 which can generate embedded objectmeta in CRDs
 CONTROLLER_GEN_VERSION=v0.6.2
 
 # Set GOBIN
@@ -115,92 +115,92 @@ include build/makelib/golang.mk
 # Targets
 
 build.version:
-	@mkdir -p $(OUTPUT_DIR)
-	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
+    @mkdir -p $(OUTPUT_DIR)
+    @echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
 build.common: build.version helm.build mod.check crds gen-rbac
-	@$(MAKE) go.init
-	@$(MAKE) go.validate
-	@$(MAKE) -C images/ceph list-image
+    @$(MAKE) go.init
+    @$(MAKE) go.validate
+    @$(MAKE) -C images/ceph list-image
 
 do.build.platform.%:
-	@$(MAKE) PLATFORM=$* go.build
+    @$(MAKE) PLATFORM=$* go.build
 
 do.build.parallel: $(foreach p,$(PLATFORMS_TO_BUILD_FOR), do.build.platform.$(p))
 
 build: csv-clean build.common ## Only build for linux platform
-	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
-	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
+    @$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
+    @$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
 
 build.all: build.common ## Build source code for all platforms.
 ifneq ($(GOHOSTARCH),amd64)
-	$(error cross platform image build only supported on amd64 host currently)
+    $(error cross platform image build only supported on amd64 host currently)
 endif
-	@$(MAKE) do.build.parallel
-	@$(MAKE) -C images build.all
+    @$(MAKE) do.build.parallel
+    @$(MAKE) -C images build.all
 
 install: build.common
-	@$(MAKE) go.install
+    @$(MAKE) go.install
 
 check test: ## Runs unit tests.
-	@$(MAKE) go.test.unit
+    @$(MAKE) go.test.unit
 
 test-integration: ## Runs integration tests.
-	@$(MAKE) go.test.integration
+    @$(MAKE) go.test.integration
 
 lint: ## Check syntax and styling of go sources.
-	@$(MAKE) go.init
-	@$(MAKE) go.lint
+    @$(MAKE) go.init
+    @$(MAKE) go.lint
 
 vet: ## Runs lint checks on go sources.
-	@$(MAKE) go.init
-	@$(MAKE) go.vet
+    @$(MAKE) go.init
+    @$(MAKE) go.vet
 
 fmt: ## Check formatting of go sources.
-	@$(MAKE) go.init
-	@$(MAKE) go.fmt
+    @$(MAKE) go.init
+    @$(MAKE) go.fmt
 
 codegen: ${CODE_GENERATOR} ## Run code generators.
-	@build/codegen/codegen.sh
+    @build/codegen/codegen.sh
 
 mod.check: go.mod.check ## Check if any go modules changed.
 mod.update: go.mod.update ## Update all go modules.
 
 clean: csv-clean ## Remove all files that are created by building.
-	@$(MAKE) go.mod.clean
-	@$(MAKE) -C images clean
-	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
+    @$(MAKE) go.mod.clean
+    @$(MAKE) -C images clean
+    @rm -fr $(OUTPUT_DIR) $(WORK_DIR)
 
 distclean: clean ## Remove all files that are created by building or configuring.
-	@rm -fr $(CACHE_DIR)
+    @rm -fr $(CACHE_DIR)
 
 prune: ## Prune cached artifacts.
-	@$(MAKE) -C images prune
+    @$(MAKE) -C images prune
 
 # Change how CRDs are generated for CSVs
 csv-ceph: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
 csv-ceph: export NO_OB_OBC_VOL_GEN=true
 csv-ceph: csv-clean crds ## Generate a CSV file for OLM.
-	$(MAKE) -C images/ceph csv
+    $(MAKE) -C images/ceph csv
 
 csv-clean: ## Remove existing OLM files.
-	@$(MAKE) -C images/ceph csv-clean
+    @$(MAKE) -C images/ceph csv-clean
 
 crds: $(CONTROLLER_GEN) $(YQ)
-	@echo Updating CRD manifests
-	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
+    @echo Updating CRD manifests
+    @build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 
 gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
-	@# output only stdout to the file; stderr for debugging should keep going to stderr
-	HELM=$(HELM) ./build/rbac/gen-common.sh
-	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
-	HELM=$(HELM) ./build/rbac/gen-psp.sh
+    @# output only stdout to the file; stderr for debugging should keep going to stderr
+    HELM=$(HELM) ./build/rbac/gen-common.sh
+    HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
+    HELM=$(HELM) ./build/rbac/gen-psp.sh
 
 docs-preview: ## Preview the documentation through mkdocs
-	mkdocs serve
+    mkdocs serve
 
 docs-build:  ## Build the documentation to the `site/` directory
-	mkdocs build --strict
+    mkdocs build --strict
 
 .PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
@@ -214,15 +214,15 @@ Options:
     PLATFORM     The platform to build.
     SUITE        The test suite to run.
     TESTFILTER   Tests to run in a suite.
-    VERSION      The version information compiled into binaries.
+    VERSION      The version information is compiled into binaries.
                  The default is obtained from git.
     V            Set to 1 enable verbose build. Default is 0.
 endef
 export HELPTEXT
 .PHONY: help
 help: ## Show this help menu.
-	@echo "Usage: make [TARGET ...]"
-	@echo ""
-	@grep --no-filename -E '^[a-zA-Z_%-. ]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
-	@echo ""
-	@echo "$$HELPTEXT"
+    @echo "Usage: make [TARGET ...]"
+    @echo ""
+    @grep --no-filename -E '^[a-zA-Z_%-. ]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+    @echo ""
+    @echo "$$HELPTEXT"
