@@ -62,6 +62,3 @@ spec:
   # quotas:
     # maxSize: "10Gi" # valid suffixes include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei
     # maxObjects: 1000000000 # 1 billion objects
-  # A key/value list of annotations
-  annotations:
-  #  key: value
