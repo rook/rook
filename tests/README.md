@@ -1,6 +1,6 @@
 # Rook Test Framework
 
-The Rook Test Framework is used to run end to end and integration tests on Rook. The framework depends on a running instance of Kubernetes.
+The Rook Test Framework is used to run end-to-end and integration tests on Rook. The framework depends on a running instance of Kubernetes.
 The framework also provides scripts for starting Kubernetes so users can
 quickly spin up a Kubernetes cluster. The Test framework is designed to install Rook, run tests, and uninstall Rook.
 
@@ -69,12 +69,12 @@ To run specific tests inside a suite:
 go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration -testify.m TestARookClusterInstallation_SmokeTest
 ```
 
-### 3. To run tests on OpenShift environment
+### 3. To run tests on the OpenShift environment
 
-- Setup OpenShift environment and export KUBECONFIG before executing the tests.
+- Set up OpenShift environment and export KUBECONFIG before executing the tests.
 - Make sure `oc` executable file is in the PATH.
 - Only `CephSmokeSuite` is currently supported on OpenShift.
-- Set few environment variables:
+- Set a few environment variables:
 
 ```console
 export TEST_ENV_NAME=openshift
