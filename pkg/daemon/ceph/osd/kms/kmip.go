@@ -48,7 +48,7 @@ const (
 	kmipDefaultWriteTimeout = uint8(10)
 
 	// cryptographicLength of the key.
-	cryptographicLength = 128
+	cryptographicLength = 256
 
 	//nolint:gosec, value not credential, just configuration keys.
 	kmipEndpoint         = "KMIP_ENDPOINT"
