@@ -76,6 +76,7 @@ spec:
             - "--leader-election-lease-duration=137s"
             - "--leader-election-renew-deadline=107s"
             - "--leader-election-retry-period=26s"
+            - "--default-fstype=ext4"
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
