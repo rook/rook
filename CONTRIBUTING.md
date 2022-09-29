@@ -9,8 +9,7 @@ resources to make it easier to get your contribution accepted.
 
 By contributing to this project you agree to the Developer Certificate of
 Origin (DCO). This document was created by the Linux Kernel community and is a
-simple statement that you, as a contributor, have the legal right to make the
-contribution. See the [DCO](DCO) file for details.
+simple statement that you, as a contributor, have the legal right to contribute. See the [DCO](DCO) file for details.
 
 Contributors sign-off that they adhere to these requirements by adding a
 Signed-off-by line to commit messages. For example:
@@ -117,10 +116,10 @@ The goal of this process is to increase the code velocity of all storage provide
 The model for approving changes is largely based on the [Kubernetes code review process](https://github.com/kubernetes/community/blob/master/contributors/guide/owners.md#code-review-using-owners-files),
 where a set of roles are defined for different portions of the code base and have different responsibilities:
 
-* **Reviewers** are able to review code for quality and correctness on some part of the project, but cannot merge changes.
-* **Maintainers** are able to both review and approve code contributions. While code review is focused on code quality and correctness, approval is focused on holistic acceptance of a contribution. Maintainers can merge changes. (A Rook maintainer is similar in scope to a K8s approver in the link above.)
+- **Reviewers** can review code for quality and correctness on some part of the project, but cannot merge changes.
+- **Maintainers** can both review and approve code contributions. While code review is focused on code quality and correctness, approval is focused on holistic acceptance of a contribution. Maintainers can merge changes. (A Rook maintainer is similar in scope to a K8s approver in the link above.)
 
-Both of these roles will require a time commitment to the project in order to keep the change approval process moving forward at a reasonable pace.
+Both of these roles will require a time commitment to the project to keep the change approval process moving forward at a reasonable pace.
 When automation is implemented to auto assign members to review pull requests, it will be done in a round-robin fashion, so all members must be able to dedicate the time needed.
 
 Note that neither of these roles have voting powers in conflict resolution, these roles are for the code base change approval process only.
@@ -133,7 +132,7 @@ The general flow for a pull request approval process is as follows:
 1. Reviewers and maintainers for the applicable code areas review the pull request and provide feedback that the author integrates
 1. Reviewers and/or maintainers signify their LGTM on the pull request
 1. A maintainer approves the pull request based on at least one LGTM from the previous step
-    1. Note that the maintainer can heavily lean on the reviewer for examining the pull request at a finely grained detailed level. The reviewers are trusted members and maintainers can leverage their efforts to reduce their own review burden.
+   1. Note that the maintainer can heavily lean on the reviewer for examining the pull request at a finely grained detailed level. The reviewers are trusted members and maintainers can leverage their efforts to reduce their review burden.
 1. A maintainer merges the pull request into the target branch (master, release, etc.)
 
 ### Role Assignments
@@ -150,10 +149,10 @@ The format of the file can start with simply listing the reviewers and maintaine
 areas:
   feature-foo:
     maintainers:
-    - alice
-    - bob
+      - alice
+      - bob
     reviewers:
-    - carol
+      - carol
 ```
 
 #### Update Process
@@ -164,8 +163,8 @@ The process for adding or removing reviewers/maintainers is described in the [pr
 
 Role assignees will be made part of the following Rook organization teams with the given permissions:
 
-* **Reviewers:** added to a new Reviewers team so they have write permissions to the repo to assign issues, add labels to issues, add issues to milestones and projects, etc. but cannot merge to protected branches such as `master` and `release-*`.
-* **Maintainers:** added to a Maintainers team that has access to merge to protected branches.
+- **Reviewers:** added to a new Reviewers team so they have write permissions to the repo to assign issues, add labels to issues, add issues to milestones and projects, etc. but cannot merge to protected branches such as `master` and `release-*`.
+- **Maintainers:** added to a Maintainers team that has access to merge to protected branches.
 
 ### Automation
 
