@@ -108,7 +108,7 @@ spec:
   #   uri: # e.g: ldaps://<fqdn>:636
   #   binddn: # e.g: "uid=ceph,cn=users,cn=accounts,dc=example,dc=com"
   #   searchdn: # e.g: "cn=users,cn=accounts,dc=example,dc=com"
-  #   dnattr: # e.g: "uid=ceph"
+  #   dnattr: # e.g: "uid"
   #   credentialsecret: object-my-store-ldap-creds
   # security oriented settings
   # security:
