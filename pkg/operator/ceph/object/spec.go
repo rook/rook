@@ -414,6 +414,10 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			container.Args = append(container.Args,
 				cephconfig.NewFlag("rgw ldap dnattr", c.store.Spec.LDAP.DNattribute))
 		}
+		if c.store.Spec.LDAP.Searchfilter != "" {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw ldap searchfilter", c.store.Spec.LDAP.Searchfilter))
+		}
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {

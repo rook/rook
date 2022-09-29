@@ -110,6 +110,7 @@ spec:
   #   searchdn: # e.g: "cn=users,cn=accounts,dc=example,dc=com"
   #   dnattr: # e.g: "uid"
   #   credentialsecret: object-my-store-ldap-creds
+  #   searchfilter: # e.g: "memberof=cn=s3,cn=groups,cn=accounts,dc=example,dc=com"
   # security oriented settings
   # security:
   # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file

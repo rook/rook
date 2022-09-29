@@ -12870,6 +12870,9 @@ spec:
                     searchdn:
                       description: A Distinguished Name (DN) that specifies the base in the directory information tree for searching users. This might be your user's Organizational Unit (OU) or some more specific Organizational Unit.
                       type: string
+                    searchfilter:
+                      description: A generic search filter. If `dnattr` is set, this filter is `&()`'d together with the automatically constructed filter. If not specified, the Ceph Object Gateway automatically constructs the search filter with the dnattr setting. Use this parameter to narrow the list of allowed users in very flexible ways. Consult the Using a custom search filter to limit user access section for details. e.g., `memberof=cn=s3,cn=groups,cn=accounts,dc=example,dc=com`
+                      type: string
                     uri:
                       description: Specifies the LDAP server to use. Make sure to use the ldaps://<fqdn>:<port> parameter to not transmit clear text credentials over the wire.
                       minLength: 1

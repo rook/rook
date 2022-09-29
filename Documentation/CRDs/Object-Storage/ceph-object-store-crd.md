@@ -263,9 +263,11 @@ ldap:
   credentialsecret: object-my-store-ldap-creds
   searchdn: "cn=users,cn=accounts,dc=example,dc=com"
   dnattr: "uid"
+  searchfilter: "memberof=cn=s3,cn=groups,cn=accounts,dc=example,dc=com"
 ```
 * `uri`: It specifies the address of LDAP server to use.
 * `binddn`: The bind domain for the service account used by RGW server.
 * `credentialsecret`: The name of k8s secret which contains password for the bind domain, need to save value as `data.password`.
 * `searchdn`: The search domain where can it look for the user details.
 * `dnattr`: The attribute being used in the constructed search filter to match a username, this can either be `uid` or `cn`.
+* `searchfilter`: A generic search filter. If `dnattr` is set, this filter is `&()`'d together with the automatically constructed filter.

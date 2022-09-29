@@ -1404,6 +1404,15 @@ type LDAPSpec struct {
 	// +kubebuilder:validation:Required
 	// +required
 	CredentialSecretName string `json:"credentialsecret"`
+	// A generic search filter. If `dnattr` is set, this filter is `&()`'d
+	// together with the automatically constructed filter. If not specified, the
+	// Ceph Object Gateway automatically constructs the search filter with the
+	// dnattr setting. Use this parameter to narrow the list of allowed users in
+	// very flexible ways. Consult the Using a custom search filter to limit user
+	// access section for details.
+	// e.g., `memberof=cn=s3,cn=groups,cn=accounts,dc=example,dc=com`
+	// +optional
+	Searchfilter string `json:"searchfilter,omitempty"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
