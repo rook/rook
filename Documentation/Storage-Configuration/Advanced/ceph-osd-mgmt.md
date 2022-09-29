@@ -112,7 +112,24 @@ $ kubectl -n rook-ceph scale deployment rook-ceph-osd-<ID> --replicas=0
 $ ceph osd down osd.<ID>
 ```
 
-### Purge the OSD from the Ceph cluster
+### Purge the OSD with Krew
+
+!!! note
+The `rook-ceph` Krew plugin must be [installed(https://github.com/rook/kubectl-rook-ceph#install)
+
+```bash
+kubectl rook-ceph rook purge-osd 0 --force
+
+# 2022-09-14 08:58:28.888431 I | rookcmd: starting Rook v1.10.0-alpha.0.164.gcb73f728c with arguments 'rook ceph osd remove --osd-ids=0 --force-osd-removal=true'
+# 2022-09-14 08:58:28.889217 I | rookcmd: flag values: --force-osd-removal=true, --help=false, --log-level=INFO, --operator-image=, --osd-ids=0, --preserve-pvc=false, --service-account=
+# 2022-09-14 08:58:28.889582 I | op-mon: parsing mon endpoints: b=10.106.118.240:6789
+# 2022-09-14 08:58:28.898898 I | cephclient: writing config file /var/lib/rook/rook-ceph/rook-ceph.config
+# 2022-09-14 08:58:28.899567 I | cephclient: generated admin config in /var/lib/rook/rook-ceph
+# 2022-09-14 08:58:29.421345 I | cephosd: validating status of osd.0
+---
+```
+
+### Purge the OSD with a Job
 
 OSD removal can be automated with the example found in the [rook-ceph-purge-osd job](https://github.com/rook/rook/blob/master/deploy/examples/osd-purge.yaml).
 In the osd-purge.yaml, change the `<OSD-IDs>` to the ID(s) of the OSDs you want to remove.
@@ -121,7 +138,7 @@ In the osd-purge.yaml, change the `<OSD-IDs>` to the ID(s) of the OSDs you want 
 2. When the job is completed, review the logs to ensure success: `kubectl -n rook-ceph logs -l app=rook-ceph-purge-osd`
 3. When finished, you can delete the job: `kubectl delete -f osd-purge.yaml`
 
-If you want to remove OSDs by hand, continue with the following sections. However, we recommend you to use the above-mentioned job to avoid operation errors.
+If you want to remove OSDs by hand, continue with the following sections. However, we recommend you use the above-mentioned steps to avoid operation errors.
 
 ### Purge the OSD manually
 
