@@ -1366,10 +1366,30 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
+      - name: setup golang
+        uses: actions/setup-go@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          go-version: 1.18
+
+      - name: setup minikube
+        uses: manusa/actions-setup-minikube@v2.7.0
+        with:
+          minikube version: "v1.26.1"
+          kubernetes version: "v1.23.0"
+          start args: --memory 6g --cpus=2 --addons ingress --cni=calico
+          github token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install deps
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: tests/scripts/github-action-helper.sh install_deps
+
+      - name: print k8s cluster status
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: build rook
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: tests/scripts/github-action-helper.sh build_rook
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
