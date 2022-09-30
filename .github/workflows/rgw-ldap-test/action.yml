@@ -1,0 +1,63 @@
+name: RGW LDAP Test
+description: Reusable workflow to test RGW LDAP integration
+inputs:
+  github-token:
+    description: GITHUB_TOKEN from the calling workflow
+    required: true
+  ceph-image:
+    description: Ceph image to use for the workflow (e.g., quay.io/ceph/ceph:v17)
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: setup cluster resources
+      uses: ./.github/workflows/canary-test-config
+      with:
+        github-token: ${{ inputs.github-token }}
+
+    - name: install additional deps for object testing
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: sudo apt-get install -y s3cmd ldap-utils
+
+    - name: validate-yaml
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh validate_yaml
+
+    - name: use local disk as OSD
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        tests/scripts/github-action-helper.sh use_local_disk
+        BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+    - name: deploy cluster
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh deploy_cluster
+
+    - name: wait for prepare pod
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+    - name: wait for ceph to be ready
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+    - name: deploy openldap
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/openldap-install.sh
+
+    - name: create my-store-ldap cephobjectstore
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        kubectl create -f deploy/examples/object-ldap-test.yaml
+        tests/scripts/github-action-helper.sh wait_for_rgw rook-ceph
+
+    - name: test s3 object manipulation with ldap user
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh object_ldap_write_test
+
+    - name: collect common logs
+      if: always()
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/collect-logs.sh

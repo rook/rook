@@ -1489,3 +1489,30 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+  rgw-ldap-testing:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: run RGW LDAP test
+        uses: ./.github/workflows/rgw-ldap-test
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: canary-multus
+
+      - name: consider debugging
+        if: failure() && github.event_name == 'pull_request'
+        timeout-minutes: 60
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}

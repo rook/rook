@@ -35,4 +35,5 @@ spec:
     binddn: cn=admin,dc=example,dc=org
     searchdn: dc=example,dc=org
     dnattr: uid
+    searchfilter: objectClass=person
     credentialsecret: my-store-ldap

@@ -526,6 +526,41 @@ function test_multisite_object_replication() {
   write_object_read_from_replica_cluster "$cluster_2_ip" "$cluster_1_ip" test2
 }
 
+function object_ldap_write_test() {
+  cd deploy/examples/
+  echo "[default]" >s3cfg
+  echo "host_bucket = no.way.in.hell" >>./s3cfg
+  echo "use_https = False" >>./s3cfg
+  fallocate -l 1M ./1M.dat
+  echo "hello world" >>./1M.dat
+  AWS_ACCESS_KEY_ID=$(base64 -w0 - <<'END'
+{
+  "RGW_TOKEN": {
+    "version": 1,
+    "type": "ldap",
+    "id": "foo",
+    "key": "baz"
+  }
+}
+END
+  )
+  export AWS_ACCESS_KEY_ID
+  export AWS_SECRET_ACCESS_KEY=" "
+  RGW_IP=$(kubectl -n rook-ceph get svc rook-ceph-rgw-my-store-ldap -o jsonpath="{.spec.clusterIP}")
+  # rgw has been observed to rejects api auth attempts for a few seconds
+  # immediately after startup
+  timeout 60 bash <<EOF
+until s3cmd -v -d --config=s3cfg --host="${RGW_IP}" ls; do
+  echo "waiting for rgw to settle"
+  sleep 5
+done
+EOF
+  s3cmd -v -d --config=s3cfg --host="${RGW_IP}" mb s3://bkt
+  s3cmd -v -d --config=s3cfg --host="${RGW_IP}" put ./1M.dat s3://bkt
+  s3cmd -v -d --config=s3cfg --host="${RGW_IP}" get s3://bkt/1M.dat 1M-get.dat --force
+  diff 1M.dat 1M-get.dat
+}
+
 function create_helm_tag() {
   helm_tag="$(cat _output/version)"
   build_image="$(docker images | awk '/build-/ {print $1}')"
