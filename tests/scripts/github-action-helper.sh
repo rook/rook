@@ -411,7 +411,7 @@ function wait_for_rgw() {
     sleep 5
   done
   for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ]; then
+    if [[ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ]]; then
       echo "rgw is ready"
       break
     fi
