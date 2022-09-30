@@ -4,3 +4,5 @@
 
 
 ## Features
+
+- Add LDAP authz support to cephobectstore
