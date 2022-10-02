@@ -1,0 +1,24 @@
+name: Release
+on:
+  release:
+    types: [published]
+jobs:
+  build:
+    name: Publish artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+
+      - name: run build
+        run: GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+
+      - name: upload ghr
+        uses: fnkr/github-action-ghr@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHR_PATH: ./images/ceph/operator.tgz

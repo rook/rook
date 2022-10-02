@@ -11,6 +11,10 @@
 deploy/olm/deploy/*
 deploy/olm/templates/*
 
+# criteo build artefacts
+images/ceph/operator
+images/ceph/operator.tgz
+
 # mkdocs + mike
 site/
 public/
