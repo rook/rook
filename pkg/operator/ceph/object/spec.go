@@ -199,7 +199,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 			c.createCaBundleUpdateInitContainer(rgwConfig))
 	}
 	//Check if ldap is enabled
-	if c.store.Spec.LDAP != nil {
+	if (c.store.Spec.LDAP != nil) && (c.store.Spec.LDAP.CredentialSecretName != "") {
 		ldapVol := v1.Volume{
 			Name: ldapVolumeName,
 			VolumeSource: v1.VolumeSource{
@@ -404,8 +404,11 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			cephconfig.NewFlag("rgw s3 auth use ldap", "true"),
 			cephconfig.NewFlag("rgw ldap uri", c.store.Spec.LDAP.URI),
 			cephconfig.NewFlag("rgw ldap binddn", c.store.Spec.LDAP.BindDN),
-			cephconfig.NewFlag("rgw ldap secret", path.Join(ldapDir, ldapFileName)),
 		)
+		if c.store.Spec.LDAP.CredentialSecretName != "" {
+			container.Args = append(container.Args,
+				cephconfig.NewFlag("rgw ldap secret", path.Join(ldapDir, ldapFileName)))
+		}
 		if c.store.Spec.LDAP.SearchDN != "" {
 			container.Args = append(container.Args,
 				cephconfig.NewFlag("rgw ldap searchdn", c.store.Spec.LDAP.SearchDN))

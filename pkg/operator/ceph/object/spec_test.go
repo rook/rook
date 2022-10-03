@@ -130,18 +130,33 @@ func TestPodSpecs(t *testing.T) {
 		assert.Nil(t, deployment.LivenessProbe)                                   // NO liveness probe
 	})
 
-	t.Run(("check rgw ldap"), func(t *testing.T) {
-		checkRGWOption := func(allRGWOption []string, flag string) bool {
-			optionMap := make(map[string]bool)
-			for _, option := range allRGWOption {
-				optionMap[option] = true
-			}
-			if _, found := optionMap[flag]; !found {
-				return false
-			}
-			return true
+	checkRGWOption := func(allRGWOption []string, flag string) bool {
+		optionMap := make(map[string]bool)
+		for _, option := range allRGWOption {
+			optionMap[option] = true
 		}
+		if _, found := optionMap[flag]; !found {
+			return false
+		}
+		return true
+	}
 
+	t.Run(("check rgw ldap no config"), func(t *testing.T) {
+		c.store.Spec.LDAP = &cephv1.LDAPSpec{}
+
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		args := rgwContainer.Args
+		assert.True(t, checkRGWOption(args, "--rgw-s3-auth-use-ldap=true"))
+		assert.False(t, checkRGWOption(args, "--rgw-ldap-secret=/etc/ldap/rgw-ldap.secret"))
+		assert.False(t, checkRGWOption(args, "--rgw-ldap-uri=ldap://example.org:389"))
+		assert.False(t, checkRGWOption(args, "--rgw-ldap-binddn=cn=admin,dc=example,dc=org"))
+		assert.False(t, checkRGWOption(args, "--rgw-ldap-searchdn=dc=example,dc=org"))
+		assert.False(t, checkRGWOption(args, "--rgw-ldap-dnattr=uid"))
+		assert.False(t, checkRGWOption(args, "--rgw-ldap-searchfilter=objectClass=person"))
+	})
+
+	t.Run(("check rgw ldap enabled"), func(t *testing.T) {
 		c.store.Spec.LDAP = &cephv1.LDAPSpec{
 			URI:                  "ldap://example.org:389",
 			BindDN:               "cn=admin,dc=example,dc=org",
