@@ -245,7 +245,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 
 		// disable RBD stats collection if cephBlockPool was deleted
-		if err := configureRBDStats(r.context, clusterInfo); err != nil {
+		if err := configureRBDStats(r.context, clusterInfo, cephBlockPool.Name); err != nil {
 			logger.Errorf("failed to disable stats collection for pool(s). %v", err)
 		}
 
@@ -290,7 +290,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// enable/disable RBD stats collection based on cephBlockPool spec
-	if err := configureRBDStats(r.context, clusterInfo); err != nil {
+	if err := configureRBDStats(r.context, clusterInfo, ""); err != nil {
 		return reconcile.Result{}, *cephBlockPool, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
 
@@ -418,11 +418,35 @@ func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	return nil
 }
 
-func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
+// remove removes any element from a list
+func remove(list []string, s string) []string {
+	for i, v := range list {
+		if v == s {
+			list = append(list[:i], list[i+1:]...)
+		}
+	}
+
+	return list
+}
+
+// Remove duplicate entries from slice
+func removeDuplicates(slice []string) []string {
+	inResult := make(map[string]bool)
+	var result []string
+	for _, str := range slice {
+		if _, ok := inResult[str]; !ok {
+			inResult[str] = true
+			result = append(result, str)
+		}
+	}
+	return result
+}
+
+func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deletedPool string) error {
 	logger.Debug("configuring RBD per-image IO statistics collection")
 	namespaceListOpt := client.InNamespace(clusterInfo.Namespace)
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
-	var enableStatsForPools []string
+	var enableStatsForCephBlockPools []string
 	err := clusterContext.Client.List(clusterInfo.Context, cephBlockPoolList, namespaceListOpt)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve list of CephBlockPool")
@@ -430,15 +454,28 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	for _, cephBlockPool := range cephBlockPoolList.Items {
 		if cephBlockPool.GetDeletionTimestamp() == nil && cephBlockPool.Spec.EnableRBDStats {
 			// add to list of CephBlockPool with enableRBDStats set to true and not marked for deletion
-			enableStatsForPools = append(enableStatsForPools, cephBlockPool.ToNamedPoolSpec().Name)
+			enableStatsForCephBlockPools = append(enableStatsForCephBlockPools, cephBlockPool.ToNamedPoolSpec().Name)
 		}
 	}
-	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
+	enableStatsForCephBlockPools = remove(enableStatsForCephBlockPools, deletedPool)
 	monStore := config.GetMonStore(clusterContext, clusterInfo)
+	// Check for existing rbd stats pools
+	existingRBDStatsPools, e := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	if e != nil {
+		return errors.Wrapf(e, "failed to get rbd_stats_pools")
+	}
+
+	existingRBDStatsPoolsList := strings.Split(existingRBDStatsPools, ",")
+	enableStatsForPools := append(enableStatsForCephBlockPools, existingRBDStatsPoolsList...)
+	enableStatsForPools = removeDuplicates(enableStatsForPools)
+
+	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
+
 	if len(enableStatsForPools) == 0 {
 		err = monStore.Delete("mgr", "mgr/prometheus/rbd_stats_pools")
 	} else {
-		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","))
+		// appending existing rbd stats pools if any
+		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", strings.Trim(strings.Join(enableStatsForPools, ","), ","))
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
