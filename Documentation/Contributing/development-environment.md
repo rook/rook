@@ -54,5 +54,4 @@ Use [helm.sh](/tests/scripts/helm.sh) to install Helm and set up Rook charts def
     These scripts should be run from the project root.
 
 !!! note
-    If Helm is not available in your `PATH`, Helm will be downloaded to a temporary directory
-(`/tmp/rook-tests-scripts-helm`) and used from that directory.
+    If Helm is not available in your `PATH`, Helm will be downloaded to a temporary directory (`/tmp/rook-tests-scripts-helm`) and used from that directory.
