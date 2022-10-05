@@ -119,7 +119,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 	c := &Cluster{clusterInfo: clusterInfo, context: &clusterd.Context{Clientset: clientset, Executor: executor},
 		spec: cephv1.ClusterSpec{
-			Dashboard:   cephv1.DashboardSpec{Port: dashboardPortHTTP, Enabled: true, SSL: true},
+			Dashboard:   cephv1.DashboardSpec{Port: 443, Enabled: true, SSL: true},
 			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v15"},
 		},
 	}
@@ -143,6 +143,8 @@ func TestStartSecureDashboard(t *testing.T) {
 	svc, err := c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.NotNil(t, svc)
+	assert.Equal(t, 443, int(svc.Spec.Ports[0].Port))
+	assert.Equal(t, 8443, int(svc.Spec.Ports[0].TargetPort.IntVal))
 
 	// disable the dashboard
 	c.spec.Dashboard.Enabled = false
@@ -157,4 +159,28 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
 	assert.Nil(t, svc)
+
+	// Set the port to something over 1024 and confirm the port and targetPort are the same
+	c.spec.Dashboard.Enabled = true
+	c.spec.Dashboard.Port = 1025
+	err = c.configureDashboardService("a")
+	assert.Nil(t, err)
+
+	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, svc)
+	assert.Equal(t, 1025, int(svc.Spec.Ports[0].Port))
+	assert.Equal(t, 1025, int(svc.Spec.Ports[0].TargetPort.IntVal))
+
+	// Fall back to the default port
+	c.spec.Dashboard.Enabled = true
+	c.spec.Dashboard.Port = 0
+	err = c.configureDashboardService("a")
+	assert.Nil(t, err)
+
+	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, svc)
+	assert.Equal(t, 8443, int(svc.Spec.Ports[0].Port))
+	assert.Equal(t, 8443, int(svc.Spec.Ports[0].TargetPort.IntVal))
 }

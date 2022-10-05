@@ -129,7 +129,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 	hasChanged = hasChanged || changed
 
 	// server port
-	port := strconv.Itoa(c.dashboardPort())
+	port := strconv.Itoa(c.dashboardInternalPort())
 	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/server_port", port)
 	if err != nil {
 		return false, err

@@ -26,7 +26,9 @@ import (
 )
 
 const (
-	keyringTemplate = `
+	// Ports below 1024 require extra privileges for binding inside a pod
+	minPortWithoutPrivileges = 1024
+	keyringTemplate          = `
 [mgr.%s]
 	key = %s
 	caps mon = "allow profile mgr"
@@ -42,17 +44,37 @@ type mgrConfig struct {
 	DataPathMap  *config.DataPathMap // location to store data in container
 }
 
-func (c *Cluster) dashboardPort() int {
+// dashboardInternalPort gets the port to be used by the service targetPort
+// and the container ports on the mgr pod.
+// If the port is greater than 1024, for backward compatibility the port and
+// targetPort should be the same value. If the port is less than 1024,
+// the internal port must use a higher port number. In that case, the internal
+// port will be the default port numbers and only the public port will be
+// the desired port in the cluster CR.
+func (c *Cluster) dashboardInternalPort() int {
+	port := c.dashboardPublicPort()
+	if port <= minPortWithoutPrivileges {
+		// If the port is less than the allowed range, set it back to the default
+		return c.dashboardDefaultPort()
+	}
+	return port
+}
+
+// dashboardPublicPort is the desired port to be exposed on the service
+func (c *Cluster) dashboardPublicPort() int {
 	if c.spec.Dashboard.Port == 0 {
-		// default port for HTTP/HTTPS
-		if c.spec.Dashboard.SSL {
-			return dashboardPortHTTPS
-		} else {
-			return dashboardPortHTTP
-		}
+		return c.dashboardDefaultPort()
 	}
 	// crd validates port >= 0
 	return c.spec.Dashboard.Port
+}
+
+func (c *Cluster) dashboardDefaultPort() int {
+	// default port for HTTP/HTTPS
+	if c.spec.Dashboard.SSL {
+		return dashboardPortHTTPS
+	}
+	return dashboardPortHTTP
 }
 
 func (c *Cluster) generateKeyring(m *mgrConfig) (string, error) {
