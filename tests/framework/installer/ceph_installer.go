@@ -50,8 +50,8 @@ const (
 	// test with the current development version of Pacific
 	pacificDevelTestImage = "quay.io/ceph/daemon-base:latest-pacific-devel"
 	quincyDevelTestImage  = "quay.io/ceph/daemon-base:latest-quincy-devel"
-	// test with the latest master image
-	masterTestImage    = "quay.io/ceph/daemon-base:latest-master-devel"
+	// test with the latest Ceph main image
+	mainTestImage      = "quay.io/ceph/daemon-base:latest-main-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
 	defaultclusterName = "test-cluster"
 
@@ -68,7 +68,7 @@ var (
 	PacificDevelVersion          = cephv1.CephVersionSpec{Image: pacificDevelTestImage}
 	QuincyVersion                = cephv1.CephVersionSpec{Image: quincyTestImage}
 	QuincyDevelVersion           = cephv1.CephVersionSpec{Image: quincyDevelTestImage}
-	MasterVersion                = cephv1.CephVersionSpec{Image: masterTestImage, AllowUnsupported: true}
+	MainVersion                  = cephv1.CephVersionSpec{Image: mainTestImage, AllowUnsupported: true}
 	volumeReplicationBaseURL     = fmt.Sprintf("https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/%s/config/crd/bases/", volumeReplicationVersion)
 	volumeReplicationCRDURL      = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplications.yaml"
 	volumeReplicationClassCRDURL = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplicationclasses.yaml"
@@ -88,8 +88,8 @@ type CephInstaller struct {
 
 func ReturnCephVersion() cephv1.CephVersionSpec {
 	switch os.Getenv("CEPH_SUITE_VERSION") {
-	case "master":
-		return MasterVersion
+	case "main":
+		return MainVersion
 	case "pacific-devel":
 		return PacificDevelVersion
 	case "quincy-devel":

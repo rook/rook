@@ -159,7 +159,7 @@ jobs:
           name: ceph-smoke-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  smoke-suite-ceph-master:
+  smoke-suite-ceph-main:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-20.04
     steps:
@@ -177,7 +177,7 @@ jobs:
       - name: TestCephSmokeSuite
         run: |
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=master go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
@@ -229,7 +229,7 @@ jobs:
           name: ceph-object-suite-pacific-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  object-suite-master:
+  object-suite-ceph-main:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-20.04
     steps:
@@ -247,7 +247,7 @@ jobs:
       - name: TestCephObjectSuite
         run: |
           export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=master go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()

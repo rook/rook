@@ -96,7 +96,7 @@ func (s *CephMgrSuite) SetupSuite() {
 		SkipOSDCreation:   true,
 		EnableDiscovery:   false,
 		RookVersion:       installer.LocalBuildTag,
-		CephVersion:       installer.MasterVersion,
+		CephVersion:       installer.MainVersion,
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
