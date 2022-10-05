@@ -1423,9 +1423,8 @@ jobs:
       - name: test ceph-csi-cephfs plugin restart
         run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
 
-      # uncomment once https://github.com/rook/rook/issues/10812 is resolved.
-      # - name: test ceph-csi-nfs plugin restart
-      #   run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
+      - name: test ceph-csi-nfs plugin restart
+        run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
 
       - name: collect common logs
         if: always()
