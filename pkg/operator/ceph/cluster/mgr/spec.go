@@ -32,6 +32,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -176,7 +177,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(c.dashboardPort()),
+				ContainerPort: int32(c.dashboardInternalPort()),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -310,8 +311,11 @@ func (c *Cluster) makeDashboardService(name, activeDaemon string) (*v1.Service, 
 			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
-					Name:     portName,
-					Port:     int32(c.dashboardPort()),
+					Name: portName,
+					Port: int32(c.dashboardPublicPort()),
+					TargetPort: intstr.IntOrString{
+						IntVal: int32(c.dashboardInternalPort()),
+					},
 					Protocol: v1.ProtocolTCP,
 				},
 			},
