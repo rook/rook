@@ -45,6 +45,8 @@ const (
 	Kubectl = "kubectl"
 	// CrushTool is the name of the CLI tool for 'crushtool'
 	CrushTool = "crushtool"
+	// GaneshaRadosGraceTool is the name of the CLI tool for 'ganesha-rados-grace'
+	GaneshaRadosGraceTool = "ganesha-rados-grace"
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
 	// CommandProxyInitContainerName is the name of the init container for proxying ceph command when multus is used
@@ -62,12 +64,17 @@ func CephConfFilePath(configDir, clusterName string) string {
 // FinalizeCephCommandArgs builds the command line to be called
 func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []string, configDir string) (string, []string) {
 	timeout := strconv.Itoa(int(exec.CephCommandsTimeout.Seconds()))
+	cephConfPath := CephConfFilePath(configDir, clusterInfo.Namespace)
 
 	// some tools not support the '--connect-timeout' option
 	// so we only use it for the 'ceph' command
 	switch command {
 	case RBDTool, CrushTool, RadosTool, "radosgw-admin":
 		// do not add timeout flag
+	case GaneshaRadosGraceTool:
+		// do not add timeout flag
+		// ganesha-rados-grace uses '--cephconf' for config file path
+		args = append(args, fmt.Sprintf("--cephconf=%s", cephConfPath))
 	default:
 		args = append(args, "--connect-timeout="+timeout)
 	}
@@ -79,14 +86,21 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 		return Kubectl, append(toolArgs, args...)
 	}
 
-	// Append the args to find the config and keyring
-	keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
-	configArgs := []string{
-		fmt.Sprintf("--cluster=%s", clusterInfo.Namespace),
-		fmt.Sprintf("--conf=%s", CephConfFilePath(configDir, clusterInfo.Namespace)),
-		fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
-		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterInfo.Namespace, keyringFile)),
+	configArgs := []string{}
+	switch command {
+	case GaneshaRadosGraceTool:
+		// ganesha-rados-grace does not accept any standard flags
+	default:
+		// Append the standard flags for config and keyring
+		keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
+		configArgs = []string{
+			fmt.Sprintf("--cluster=%s", clusterInfo.Namespace),
+			fmt.Sprintf("--conf=%s", cephConfPath),
+			fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
+			fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterInfo.Namespace, keyringFile)),
+		}
 	}
+
 	return command, append(args, configArgs...)
 }
 
@@ -140,6 +154,18 @@ func NewRadosCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args [
 	return cmd
 }
 
+func NewGaneshaRadosGraceCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
+	cmd := newCephToolCommand(GaneshaRadosGraceTool, context, clusterInfo, args)
+	cmd.JsonOutput = false
+
+	// When Multus is enabled, the rados tool should run inside the proxy container
+	if clusterInfo.NetworkSpec.IsMultus() {
+		cmd.RemoteExecution = true
+	}
+
+	return cmd
+}
+
 func (c *CephToolCommand) run() ([]byte, error) {
 	// Return if the context has been canceled
 	if c.clusterInfo.Context.Err() != nil {
@@ -167,7 +193,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 	} else {
 		// the `rbd` tool doesn't use special flag for plain format
 		switch c.tool {
-		case RBDTool, RadosTool:
+		case RBDTool, RadosTool, GaneshaRadosGraceTool:
 			// do not add format option
 		default:
 			args = append(args, "--format", "plain")
@@ -179,7 +205,7 @@ func (c *CephToolCommand) run() ([]byte, error) {
 
 	// NewRBDCommand does not use the --out-file option so we only check for remote execution here
 	// Still forcing the check for the command if the behavior changes in the future
-	if command == RBDTool || command == RadosTool {
+	if command == RBDTool || command == RadosTool || command == GaneshaRadosGraceTool {
 		if c.RemoteExecution {
 			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
 			if err != nil {

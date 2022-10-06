@@ -18,7 +18,9 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -157,4 +159,72 @@ func TestNewRBDCommand(t *testing.T) {
 		assert.EqualError(t, err, "context canceled")
 	})
 
+}
+
+func TestNewGaneshaRadosGraceCommand(t *testing.T) {
+	anyArgContains := func(substr string, args []string) bool {
+		for _, arg := range args {
+			if strings.Contains(arg, substr) {
+				return true
+			}
+		}
+		return false
+	}
+
+	args := []string{"--pool", ".nfs", "--ns", "my-nfs", "add", "node"}
+
+	timeout := time.Second
+
+	ctx := func() *clusterd.Context {
+		return &clusterd.Context{
+			Executor: &exectest.MockExecutor{
+				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+					t.Logf("command: %s %v", command, arg)
+					assert.Equal(t, time.Second, timeout)
+
+					assert.Equal(t, "ganesha-rados-grace", command)
+					assert.Equal(t, []string{"--pool", ".nfs", "--ns", "my-nfs", "add", "node"}, arg[0:6])
+
+					// ganesha-rados-grace's conf flag is --cephconf
+					assert.True(t, anyArgContains("--cephconf=", arg))
+					// ganesha-rados-grace accepts NO standard flags
+					assert.False(t, anyArgContains("--cluster", arg))
+					assert.False(t, anyArgContains("--conf", arg))
+					assert.False(t, anyArgContains("--name", arg))
+					assert.False(t, anyArgContains("--keyring", arg))
+					assert.False(t, anyArgContains("--format", arg))
+
+					return "", nil
+				},
+			},
+		}
+	}
+
+	clusterInfo := func() *ClusterInfo {
+		return &ClusterInfo{
+			Namespace: "rook-ceph",
+			Context:   context.Background(),
+		}
+	}
+
+	t.Run("normal call", func(t *testing.T) {
+		cmd := NewGaneshaRadosGraceCommand(ctx(), clusterInfo(), args)
+		assert.Equal(t, false, cmd.JsonOutput)
+
+		_, err := cmd.RunWithTimeout(timeout)
+		assert.NoError(t, err)
+	})
+
+	t.Run("error call", func(t *testing.T) {
+		ctx := ctx()
+		ctx.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, arg ...string) (string, error) {
+				return "", fmt.Errorf("induced error")
+			},
+		}
+
+		cmd := NewGaneshaRadosGraceCommand(ctx, clusterInfo(), args)
+		_, err := cmd.RunWithTimeout(timeout)
+		assert.Error(t, err)
+	})
 }

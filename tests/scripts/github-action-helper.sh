@@ -480,7 +480,6 @@ function deploy_multus_cluster() {
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-multus-test.yaml
   kubectl create -f cluster-multus-test.yaml
   kubectl create -f filesystem-test.yaml
-  # uncomment once https://github.com/rook/rook/issues/10812 is resolved.
   kubectl create -f nfs-test.yaml
 }
 
