@@ -36,7 +36,6 @@ import (
 )
 
 const (
-	ganeshaRadosGraceCmd = "ganesha-rados-grace"
 	// Default RADOS pool name after the NFS changes in Ceph
 	postNFSChangeDefaultPoolName = ".nfs"
 	// Default RADOS pool name before the NFS changes in Ceph
@@ -182,11 +181,10 @@ func (r *ReconcileCephNFS) removeServerFromDatabase(nfs *cephv1.CephNFS, name st
 
 func (r *ReconcileCephNFS) runGaneshaRadosGrace(nfs *cephv1.CephNFS, name, action string) error {
 	nodeID := getNFSNodeID(nfs, name)
-	cmd := ganeshaRadosGraceCmd
 	args := []string{"--pool", nfs.Spec.RADOS.Pool, "--ns", nfs.Spec.RADOS.Namespace, action, nodeID}
-	env := []string{fmt.Sprintf("CEPH_CONF=%s", cephclient.CephConfFilePath(r.context.ConfigDir, nfs.Namespace))}
-
-	return r.context.Executor.ExecuteCommandWithEnv(env, cmd, args...)
+	cmd := cephclient.NewGaneshaRadosGraceCommand(r.context, r.clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	return err
 }
 
 func (r *ReconcileCephNFS) generateConfigMap(n *cephv1.CephNFS, name string) *v1.ConfigMap {

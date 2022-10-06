@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -100,28 +101,30 @@ func TestCephNFSController(t *testing.T) {
 				}
 				panic(fmt.Sprintf("unhandled command %s %v", command, args))
 			},
-			MockExecuteCommand: func(command string, args ...string) error {
-				logger.Infof("mock execute: %s %v", command, args)
-				if command == "rados" {
-					assert.Equal(t, "stat", args[6])
-					assert.Contains(t, []string{"conf-nfs.my-nfs", "conf-nfs.nfs2"}, args[7])
-					return nil
-				}
-				panic(fmt.Sprintf("unhandled command %s %v", command, args))
-			},
-			MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("mock execute: %s %v", command, args)
 				if command == "ganesha-rados-grace" {
 					if args[4] == "add" {
-						assert.Len(t, env, 1)
-						return nil
+						return "", nil
 					}
 					if args[4] == "remove" {
-						assert.Len(t, env, 1)
-						return nil
+						return "", nil
 					}
 				}
-				panic(fmt.Sprintf("unhandled command %s %v with env %v", command, args, env))
+				if command == "rados" {
+					subc := args[4]
+					switch subc {
+					case "stat", "lock", "unlock":
+						return "", nil
+					}
+					assert.Condition(t, func() bool {
+						return stringInSlice("conf-nfs.my-nfs", args) ||
+							stringInSlice("conf-nfs.nfs2", args) ||
+							stringInSlice("kerberos", args)
+					})
+					return "", nil
+				}
+				panic(fmt.Sprintf("unhandled command %s %v", command, args))
 			},
 		}
 	}
@@ -506,4 +509,13 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 	res := getGaneshaConfigObject(cephNFS)
 	logger.Infof("Config Object for Pacific is %s", res)
 	assert.Equal(t, expectedName, res)
+}
+
+func stringInSlice(str string, slice []string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }
