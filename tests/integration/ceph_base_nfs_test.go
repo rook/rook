@@ -17,7 +17,6 @@ limitations under the License.
 package integration
 
 import (
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -32,32 +31,14 @@ func runNFSFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *sui
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, settings.Namespace, filesystemName)
 	logger.Infof("Running on Rook Cluster %s", settings.Namespace)
 	logger.Infof("File Storage End To End Integration Test for CephNFS- create, mount, write to, read from, and unmount")
-	activeCount := 2
+	activeCount := 1
 	createFilesystem(helper, k8sh, s, settings, filesystemName, activeCount)
 
 	nfsClusterName := "my-nfs"
-	err := helper.NFSClient.Create(settings.Namespace, nfsClusterName, 2)
+	err := helper.NFSClient.Create(settings.Namespace, nfsClusterName, 1)
 	require.Nil(s.T(), err)
 
 	if settings.TestNFSCSI {
-		// Following two commands are needed to be able to create NFS exports in ceph v17.2
-		// refer: https://github.com/rook/rook/blob/master/Documentation/CRDs/ceph-nfs-crd.md#ceph-v1721
-		parameters := []string{"orch", "set", "backend"}
-		clusterInfo := client.AdminTestClusterInfo(settings.Namespace)
-		cmd, args := client.FinalizeCephCommandArgs("ceph", clusterInfo, parameters, k8sh.MakeContext().ConfigDir)
-		res, err := k8sh.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
-		if err != nil {
-			logger.Errorf("Error executing command %q: <%v>, %q", parameters, err, res)
-			assert.NoError(s.T(), err)
-		}
-		parameters = []string{"mgr", "module", "disable", "rook"}
-		cmd, args = client.FinalizeCephCommandArgs("ceph", clusterInfo, parameters, k8sh.MakeContext().ConfigDir)
-		res, err = k8sh.MakeContext().Executor.ExecuteCommandWithOutput(cmd, args...)
-		if err != nil {
-			logger.Errorf("Error executing command %q: <%v>, %q", parameters, err, res)
-			assert.NoError(s.T(), err)
-		}
-
 		storageClassName := "nfs-storageclass"
 		err = helper.NFSClient.CreateStorageClass(filesystemName, nfsClusterName, settings.OperatorNamespace, settings.Namespace, storageClassName)
 		assert.NoError(s.T(), err)

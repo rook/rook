@@ -94,11 +94,10 @@ func (s *SmokeSuite) SetupSuite() {
 		ConnectionsCompressed:     true,
 		UseCrashPruner:            true,
 		EnableVolumeReplication:   true,
-		// TODO: uncomment once issue https://github.com/rook/rook/issues/10518 is resolved.
-		// TestNFSCSI:                true,
-		ChangeHostName: true,
-		RookVersion:    installer.LocalBuildTag,
-		CephVersion:    installer.ReturnCephVersion(),
+		TestNFSCSI:                true,
+		ChangeHostName:            true,
+		RookVersion:               installer.LocalBuildTag,
+		CephVersion:               installer.ReturnCephVersion(),
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
@@ -113,6 +112,10 @@ func (s *SmokeSuite) TearDownSuite() {
 	s.installer.UninstallRook()
 }
 
+func (s *SmokeSuite) TestCephNFS_SmokeTest() {
+	runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
+}
+
 func (s *SmokeSuite) TestBlockStorage_SmokeTest() {
 	runBlockCSITest(s.helper, s.k8sh, &s.Suite, s.settings.Namespace)
 }
@@ -120,10 +123,6 @@ func (s *SmokeSuite) TestBlockStorage_SmokeTest() {
 func (s *SmokeSuite) TestFileStorage_SmokeTest() {
 	preserveFilesystemOnDelete := true
 	runFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-fs", preserveFilesystemOnDelete)
-}
-
-func (s *SmokeSuite) TestNetworkFileStorage_SmokeTest() {
-	runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
 }
 
 func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
