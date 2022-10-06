@@ -55,6 +55,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | Parameter                               | Description                                                                                | Default         |
 | --------------------------------------- | ------------------------------------------------------------------------------------------ | --------------- |
 | `operatorNamespace`                     | Namespace of the Rook Operator                                                             | `rook-ceph`     |
+| `createCluster`                         | Ability to disable cluster creation (create only supporting resources)                     | `true`          |
 | `kubeVersion`                           | Optional override of the target kubernetes version                                         | ``              |
 | `configOverride`                        | Cluster ceph.conf override                                                                 | `<none>`        |
 | `toolbox.enabled`                       | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)    | `false`         |

@@ -8,6 +8,10 @@ operatorNamespace: rook-ceph
 # The metadata.name of the CephCluster CR. The default name is the same as the namespace.
 # clusterName: rook-ceph
 
+# Ability to disable the creation of the cluster itself,
+# but still create all supporting resources
+createCluster: true
+
 # Ability to override the kubernetes version used in rendering the helm chart
 # kubeVersion: 1.21
 
