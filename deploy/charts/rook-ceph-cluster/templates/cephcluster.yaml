@@ -15,5 +15,7 @@ spec:
     externalMgrPrometheusPort: {{ toYaml .Values.monitoring.externalMgrPrometheusPort }}
 {{- end }}
 {{- end }}
-
-{{ toYaml .Values.cephClusterSpec | indent 2 }}
+{{- /*
+This function is defined in the helper templates (_helpers.tpl).
+*/ }}
+{{ include "rook-ceph-cluster.cephClusterSpec" . | indent 2 }}

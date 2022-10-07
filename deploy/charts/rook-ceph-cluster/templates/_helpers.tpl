@@ -22,3 +22,16 @@ Return the appropriate apiVersion for ingress.
 {{- print "networking.k8s.io/v1" -}}
 {{- end }}
 {{- end }}
+
+{{/*
+Remove incompatible keys from cluster spec when creating an external cluster
+*/}}
+{{- define "rook-ceph-cluster.cephClusterSpec" -}}
+{{- $cephClusterSpec := .Values.cephClusterSpec -}}
+{{- if .Values.cephClusterSpec.external.enable -}}
+{{- range tuple "dashboard" "disruptionManagement" "mgr" "mon" "monitoring" "network" "storage" -}}
+{{- $cephClusterSpec := unset $cephClusterSpec . -}}
+{{- end -}}
+{{- end -}}
+{{- toYaml $cephClusterSpec -}}
+{{- end }}

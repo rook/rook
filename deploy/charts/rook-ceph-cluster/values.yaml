@@ -366,6 +366,12 @@ cephClusterSpec:
       osd:
         disabled: false
 
+  # Create an external cluster, which will be used to access a distant Ceph cluster.
+  # Enabling will unset the following keys from cephClusterSpec:
+  # dashboard, disruptionManagement, mon, monitoring, network, storage
+  external:
+    enable: false
+
 ingress:
   dashboard:
     {}
