@@ -81,12 +81,9 @@ spec:
     #    memory: "1024Mi"
     # priorityClassName: my-priority-class
   #zone:
-    #name: zone-a
+  #name: zone-a
   # service endpoint healthcheck
   healthCheck:
-    bucket:
-      disabled: false
-      interval: 60s
     # Configure the pod probes for the rgw daemon
     livenessProbe:
       disabled: false

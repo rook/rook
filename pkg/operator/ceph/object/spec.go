@@ -391,7 +391,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 }
 
 // configureReadinessProbe returns the desired readiness probe for a given daemon
-func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
+func configureReadinessProbe(container *v1.Container, healthCheck cephv1.ObjectHealthCheckSpec) {
 	if ok := healthCheck.ReadinessProbe; ok != nil {
 		if !healthCheck.ReadinessProbe.Disabled {
 			probe := healthCheck.ReadinessProbe.Probe

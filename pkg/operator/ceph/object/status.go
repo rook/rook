@@ -75,42 +75,6 @@ func updateStatus(ctx context.Context, observedGeneration int64, client client.C
 	logger.Debugf("object store %q status updated to %q", namespacedName.String(), status)
 }
 
-// updateStatusBucket updates an object with a given status
-func updateStatusBucket(ctx context.Context, client client.Client, name types.NamespacedName, status cephv1.ConditionType, details string) {
-	// Updating the status is important to users, but we can still keep operating if there is a
-	// failure. Retry a few times to give it our best effort attempt.
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		objectStore := &cephv1.CephObjectStore{}
-		if err := client.Get(ctx, name, objectStore); err != nil {
-			if kerrors.IsNotFound(err) {
-				logger.Debug("CephObjectStore resource not found. Ignoring since object must be deleted.")
-				return nil
-			}
-			return errors.Wrapf(err, "failed to retrieve object store %q to update status to %v", name.String(), status)
-		}
-		if objectStore.Status == nil {
-			objectStore.Status = &cephv1.ObjectStoreStatus{}
-		}
-		objectStore.Status.BucketStatus = toCustomResourceStatus(objectStore.Status.BucketStatus, details, status)
-
-		// do not transition to other statuses once deletion begins
-		if objectStore.Status.Phase != cephv1.ConditionDeleting {
-			objectStore.Status.Phase = status
-		}
-
-		// but we still need to update the health checker status
-		if err := reporting.UpdateStatus(client, objectStore); err != nil {
-			return errors.Wrapf(err, "failed to set object store %q status to %v", name.String(), status)
-		}
-		return nil
-	})
-	if err != nil {
-		logger.Error(err)
-	}
-
-	logger.Debugf("object store %q status updated to %v", name.String(), status)
-}
-
 func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
 	m := make(map[string]string)
 

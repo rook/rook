@@ -162,9 +162,6 @@ Rook will be default monitor the state of the object store endpoints.
 The following CRD settings are available:
 
 * `healthCheck`: main object store health monitoring section
-  * `bucket`: Rook checks that the object store is usable regularly. This is explained in more
-    detail below. Use this config to disable or change the interval at which Rook verifies the
-    object store connectivity.
   * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
   * `livenessProbe`: Disable, or override timing and threshold values of the object gateway liveness probe.
   * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
@@ -173,31 +170,21 @@ Here is a complete example:
 
 ```yaml
 healthCheck:
-  bucket:
-    disabled: false
-    interval: 60s
   startupProbe:
     disabled: false
   livenessProbe:
     disabled: false
-    periodSeconds: 5
-    failureThreshold: 4
+    periodSeconds: 30
+    failureThreshold: 13
   readinessProbe:
     disabled: false
     periodSeconds: 5
     failureThreshold: 2
 ```
 
-The endpoint health check procedure is the following:
-
-1. Create an S3 user
-2. Create a bucket with that user
-3. PUT the file in the object store
-4. GET the file from the object store
-5. Verify object consistency
-6. Update CR health status check
-
-The Rook Ceph operator always keeps the bucket and the user for the health check, it just does a PUT and GET of an s3 object since creating a bucket is an expensive operation.
+You can monitor the health of a CephObjectStore by monitoring the gateway deployments it creates.
+The primary deployment created is named `rook-ceph-rgw-<store-name>-a` where `store-name` is the
+name of the CephObjectStore (don't forget the `-a` at the end).
 
 ## Security settings
 

@@ -30,6 +30,7 @@ import (
 const (
 	bucketDependentType                = "buckets in the object store (could be from ObjectBucketClaims or COSI Buckets)"
 	zoneIsMasterWithPeersDependentType = "zone is master and has peers"
+	s3HealthCheckBucketName            = "rook-ceph-bucket-checker"
 )
 
 // CephObjectStoreDependents returns the buckets which exist in the object store that should block
@@ -127,11 +128,7 @@ func getBucketDependents(
 	if err != nil {
 		return errors.Wrapf(err, "failed to list buckets in CephObjectStore %q", nsName)
 	}
-	healthCheckBucket := genHealthCheckerBucketName(string(store.UID))
 	for _, b := range buckets {
-		if b == healthCheckBucket {
-			continue // don't include the health checker bucket as a blocking dependent
-		}
 		deps.Add(bucketDependentType, b)
 	}
 
@@ -164,4 +161,8 @@ func getMasterZoneDependents(
 		}
 	}
 	return nil
+}
+
+func genHealthCheckerBucketName(uuid string) string {
+	return fmt.Sprintf("%s-%s", s3HealthCheckBucketName, uuid)
 }
