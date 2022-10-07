@@ -24,8 +24,8 @@ configOverride:
 toolbox:
   # -- Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)
   enabled: false
-  # -- Toolbox image
-  image: rook/ceph:VERSION
+  # -- Toolbox image, defaults to the image used by the Ceph cluster
+  image: #quay.io/ceph/ceph:v17.2.3
   # -- Toolbox tolerations
   tolerations: []
   # -- Toolbox affinity
@@ -47,7 +47,7 @@ monitoring:
   enabled: false
   # -- Whether to create the Prometheus rules for Ceph alerts
   createPrometheusRules: false
-  # -- The namespace in which to create the prometheus rules, if different from the rook cluster namespace
+  # -- The namespace in which to create the prometheus rules, if different from the rook cluster namespace.
   # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
   # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
   rulesNamespaceOverride:
