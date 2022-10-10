@@ -1142,7 +1142,7 @@ jobs:
           cd deploy/examples/
           yq w -i pool-test.yaml metadata.name replicapool2
           kubectl create -f pool-test.yaml
-          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 2" && sleep 1; done'
+          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 1" && sleep 1; done'
           yq w -i pool-test.yaml metadata.name replicapool
 
       - name: create replicated mirrored pool on cluster 2
@@ -1150,7 +1150,7 @@ jobs:
           cd deploy/examples/
           yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
           kubectl create -f pool-test.yaml
-          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 1" && sleep 1; done'
+          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 2" && sleep 1; done'
 
       - name: create replicated mirrored pool 2 on cluster 2
         run: |
