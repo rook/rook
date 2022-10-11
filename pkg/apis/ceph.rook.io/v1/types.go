@@ -1348,8 +1348,9 @@ type ObjectStoreSpec struct {
 
 // ObjectHealthCheckSpec represents the health check of an object store
 type ObjectHealthCheckSpec struct {
-	// +optional
-	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
+	// livenessProbe field is no longer used
+	// +kubebuilder:pruning:PreserveUnknownFields
+
 	// +optional
 	ReadinessProbe *ProbeSpec `json:"readinessProbe,omitempty"`
 	// +optional

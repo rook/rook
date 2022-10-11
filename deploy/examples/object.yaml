@@ -107,8 +107,6 @@ spec:
     # Configure the pod probes for the rgw daemon
     startupProbe:
       disabled: false
-    livenessProbe:
-      disabled: false
     readinessProbe:
       disabled: false
   # security oriented settings

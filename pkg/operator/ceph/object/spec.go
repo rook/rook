@@ -17,9 +17,12 @@ limitations under the License.
 package object
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"path"
 	"strings"
+	"text/template"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets/vault"
@@ -37,7 +40,6 @@ import (
 )
 
 const (
-	readinessProbePath = "/swift/healthcheck"
 	serviceAccountName = "rook-ceph-rgw"
 	sseKMS             = "ssekms"
 	sseS3              = "sses3"
@@ -68,7 +70,28 @@ chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 var (
 	cephVersionMinRGWSSES3     = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
 	cephVersionMinRGWSSEKMSTLS = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+
+	//go:embed rgw-probe.sh
+	rgwProbeScriptTemplate string
 )
+
+type ProbeType string
+type ProtocolType string
+
+const (
+	StartupProbeType   ProbeType = "startup"
+	ReadinessProbeType ProbeType = "readiness"
+
+	HTTPProtocol  ProtocolType = "HTTP"
+	HTTPSProtocol ProtocolType = "HTTPS"
+)
+
+type rgwProbeConfig struct {
+	ProbeType ProbeType
+
+	Protocol ProtocolType
+	Port     string
+}
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
 	pod, err := c.makeRGWPodSpec(rgwConfig)
@@ -304,6 +327,15 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 
 func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container, error) {
 	// start the rgw daemon in the foreground
+	startupProbe, err := c.defaultStartupProbe()
+	if err != nil {
+		return v1.Container{}, errors.Wrap(err, "failed to generate default startup probe")
+	}
+	readinessProbe, err := c.defaultReadinessProbe()
+	if err != nil {
+		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
+	}
+
 	container := v1.Container{
 		Name:            "rgw",
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -328,17 +360,15 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		),
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
 		Resources:       c.store.Spec.Gateway.Resources,
-		StartupProbe:    c.defaultStartupProbe(),
-		LivenessProbe:   c.defaultLivenessProbe(),
-		ReadinessProbe:  c.defaultReadinessProbe(),
+		StartupProbe:    startupProbe,
+		LivenessProbe:   noLivenessProbe(),
+		ReadinessProbe:  readinessProbe,
 		SecurityContext: controller.PodSecurityContext(),
 		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
 	// If the startup probe is enabled
 	container = cephconfig.ConfigureStartupProbe(container, c.store.Spec.HealthCheck.StartupProbe)
-	// If the liveness probe is enabled
-	container = cephconfig.ConfigureLivenessProbe(container, c.store.Spec.HealthCheck.LivenessProbe)
 	// If the readiness probe is enabled
 	configureReadinessProbe(&container, c.store.Spec.HealthCheck)
 	if c.store.Spec.IsTLSEnabled() {
@@ -406,35 +436,76 @@ func configureReadinessProbe(container *v1.Container, healthCheck cephv1.ObjectH
 	}
 }
 
-func (c *clusterConfig) defaultLivenessProbe() *v1.Probe {
-	return &v1.Probe{
-		ProbeHandler: v1.ProbeHandler{
-			TCPSocket: &v1.TCPSocketAction{
-				Port: c.generateProbePort(),
-			},
-		},
-		InitialDelaySeconds: 10,
-	}
+// RGW has internal mechanisms for restarting its processing if it gets stuck. any failures detected
+// in a liveness probe are likely to either (1) be resolved by the RGW internally or (2) be a result
+// of connection issues to the Ceph cluster. in the first case, restarting is unnecessary. in the
+// second case, restarting will only cause more load to the Ceph cluster by causing RGWs to attempt
+// to re-connect, potentially causing more issues with the Ceph cluster. forcing a restart of the
+// RGW is more likely to cause issues than solve them, so do not implement this probe.
+func noLivenessProbe() *v1.Probe {
+	return nil
 }
 
-func (c *clusterConfig) defaultReadinessProbe() *v1.Probe {
-	return &v1.Probe{
+func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
+	proto, port := c.endpointInfo()
+	cfg := rgwProbeConfig{
+		ProbeType: ReadinessProbeType,
+		Protocol:  proto,
+		Port:      port.String(),
+	}
+	script, err := renderProbe(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	probe := &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
-			HTTPGet: &v1.HTTPGetAction{
-				Path:   readinessProbePath,
-				Port:   c.generateProbePort(),
-				Scheme: c.generateReadinessProbeScheme(),
+			Exec: &v1.ExecAction{
+				Command: []string{
+					"bash", "-c", script,
+				},
 			},
 		},
+		TimeoutSeconds:      5,
 		InitialDelaySeconds: 10,
+		// if RGWs aren't responding reliably, remove them from service routing until they are stable
+		PeriodSeconds:    10,
+		FailureThreshold: 3,
+		SuccessThreshold: 3, // don't re-add too soon to "flappy" RGWs from being rout-able
 	}
+
+	return probe, nil
 }
 
-func (c *clusterConfig) defaultStartupProbe() *v1.Probe {
-	probe := c.defaultLivenessProbe()
-	probe.PeriodSeconds = 10
-	probe.FailureThreshold = 18
-	return probe
+func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
+	proto, port := c.endpointInfo()
+	cfg := rgwProbeConfig{
+		ProbeType: StartupProbeType,
+		Protocol:  proto,
+		Port:      port.String(),
+	}
+	script, err := renderProbe(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	probe := &v1.Probe{
+		ProbeHandler: v1.ProbeHandler{
+			Exec: &v1.ExecAction{
+				Command: []string{
+					"bash", "-c", script,
+				},
+			},
+		},
+		TimeoutSeconds:      5,
+		InitialDelaySeconds: 10,
+		// RGW's default init timeout is 300 seconds; give an extra margin before the pod should be
+		// restarted by kubernetes
+		PeriodSeconds:    10,
+		FailureThreshold: 33,
+	}
+
+	return probe, nil
 }
 
 func (c *clusterConfig) generateReadinessProbeScheme() v1.URIScheme {
@@ -450,20 +521,25 @@ func (c *clusterConfig) generateReadinessProbeScheme() v1.URIScheme {
 	return uriScheme
 }
 
-func (c *clusterConfig) generateProbePort() intstr.IntOrString {
+func (c *clusterConfig) endpointInfo() (ProtocolType, *intstr.IntOrString) {
 	// The port the liveness probe needs to probe
 	// Assume we run on SDN by default
+	proto := HTTPProtocol
 	port := intstr.FromInt(int(rgwPortInternalPort))
 
 	// If Host Networking is enabled, the port from the spec must be reflected
 	if c.store.Spec.IsHostNetwork(c.clusterSpec) {
+		proto = HTTPProtocol
 		port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
 	}
 
 	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.IsTLSEnabled() {
+		proto = HTTPSProtocol
 		port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
 	}
-	return port
+
+	logger.Debugf("rgw %q probe port is %v", c.store.Namespace+"/"+c.store.Name, port)
+	return proto, &port
 }
 
 func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
@@ -482,7 +558,7 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	destPort := c.generateProbePort()
+	_, destPort := c.endpointInfo()
 
 	// When the cluster is external we must use the same one as the gateways are listening on
 	if cephObjectStore.Spec.IsExternal() {
@@ -830,4 +906,21 @@ func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
 		}
 	}
 	return rgwOptions
+}
+
+func renderProbe(cfg rgwProbeConfig) (string, error) {
+	var writer bytes.Buffer
+	name := string(cfg.ProbeType) + "-probe"
+
+	t := template.New(name)
+	t, err := t.Parse(rgwProbeScriptTemplate)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to parse template %q", name)
+	}
+
+	if err := t.Execute(&writer, cfg); err != nil {
+		return "", errors.Wrapf(err, "failed to render template %q", name)
+	}
+
+	return writer.String(), nil
 }

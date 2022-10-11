@@ -945,6 +945,7 @@ jobs:
         run: |
           kubectl delete -f tests/manifests/test-object.yaml
           yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_SECRET_ENGINE" transit
+          timeout 120 bash -c 'while kubectl -n rook-ceph get cephobjectstore my-store; do echo "waiting for objectstore my-store to delete"; sleep 5; done'
           kubectl create -f tests/manifests/test-object.yaml
           tests/scripts/validate_cluster.sh rgw
           tests/scripts/deploy-validate-vault.sh validate_rgw
