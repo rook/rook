@@ -1142,7 +1142,7 @@ jobs:
           cd deploy/examples/
           yq w -i pool-test.yaml metadata.name replicapool2
           kubectl create -f pool-test.yaml
-          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 2" && sleep 1; done'
+          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph get cephblockpool replicapool2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool2 to created on cluster 1" && sleep 1; done'
           yq w -i pool-test.yaml metadata.name replicapool
 
       - name: create replicated mirrored pool on cluster 2
@@ -1150,7 +1150,7 @@ jobs:
           cd deploy/examples/
           yq w -i pool-test.yaml metadata.namespace rook-ceph-secondary
           kubectl create -f pool-test.yaml
-          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 1" && sleep 1; done'
+          timeout 60 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get cephblockpool replicapool -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for pool replicapool to created on cluster 2" && sleep 1; done'
 
       - name: create replicated mirrored pool 2 on cluster 2
         run: |
@@ -1264,6 +1264,64 @@ jobs:
           kubectl -n rook-ceph get cephfilesystem myfs -o yaml
           # the check is not super ideal since 'mirroring_failed' is only displayed when there is a failure but not when it's working...
           timeout 60 sh -c 'while [ "$(kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror daemon status|jq -r '.[0].filesystems[0]'|grep -c "mirroring_failed")" -eq 1 ]; do echo "waiting for filesystem to be mirrored" && sleep 1; done'
+
+      - name: Create subvolume on primary cluster
+        run: |
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume create myfs testsubvolume
+
+      - name: Create subvolume of same name on secondary cluster
+        run: |
+          kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- ceph fs subvolume create myfs testsubvolume
+
+      - name: Deploy Direct Tools pod on primary cluster
+        run: |
+          kubectl -n rook-ceph create -f deploy/examples/direct-mount.yaml
+
+      - name: Deploy Direct Tools pod on secondary cluster
+        run: |
+          sed -i "s/rook-ceph # namespace/rook-ceph-secondary # namespace/" deploy/examples/direct-mount.yaml
+          kubectl -n rook-ceph-secondary create -f deploy/examples/direct-mount.yaml
+
+      - name: Configure a directory for snapshot mirroring on primary cluster
+        run: |
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror enable myfs
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs snapshot mirror add myfs /volumes/_nogroup/testsubvolume/
+
+      - name: make sure that snapshot mirror is enabled on the secondary cluster
+        run: |
+          kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- ceph fs snapshot mirror enable myfs
+
+      - name: Create 3 snapshots on cluster primary cluster
+        run: |
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume snapshot create myfs testsubvolume snap1
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume snapshot create myfs testsubvolume snap2
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume snapshot create myfs testsubvolume snap3
+
+      - name: Get the peer and verify the peer synchronization status that snaps have synced on secondary cluster
+        run: |
+          exec_fs_mirror='kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror --'
+          mirror_daemon=$($exec_fs_mirror ls /var/run/ceph/ | grep "fs-mirror" | head -n 1)
+          timeout 45 bash -x <<EOF
+            while
+            clusterfsid=\$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
+            [ -z "\$clusterfsid" ]
+            do echo "Waiting for the clusterfsid to get populated." && sleep 1
+            done
+          EOF
+          clusterfsid=$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
+          echo $clusterfsid
+          snaps=$(kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror peer status myfs@1 $clusterfsid|jq -r '."/volumes/_nogroup/testsubvolume"."snaps_synced"')
+          echo $snaps
+          kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=90s
+          kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mkdir /tmp/registry
+          mon_endpoints=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep mon_host /etc/ceph/ceph.conf | awk '{print $3}')
+          my_secret=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep key /etc/ceph/keyring | awk '{print $3}')
+          kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mount -t ceph -o mds_namespace=myfs,name=admin,secret=$my_secret $mon_endpoints:/ /tmp/registry
+          num_snaps_target=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- ls -lhsa /tmp/registry/volumes/_nogroup/testsubvolume/.snap|grep snap|wc -l)
+          if [ $num_snaps_target = $snaps ]
+          then echo "Snaphots have synced."
+          else echo "Snaps have not synced" ; exit 1
+          fi
 
       - name: collect common logs
         if: always()
