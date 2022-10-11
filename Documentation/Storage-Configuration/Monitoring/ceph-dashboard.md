@@ -69,6 +69,37 @@ spec:
   dashboard behind a proxy already served using SSL) by setting the `ssl` option
   to be false.
 
+## Visualization of 'Physical Disks' section in the dashboard
+
+Information about physical disks is available only in [Rook host clusters](../../CRDs/Cluster/host-cluster.md).
+
+The Rook manager module is required by the dashboard to obtain the information about physical disks, but it is disabled by default. Before it is enabled, the dashboard 'Physical Disks' section will show an error message.
+
+To prepare the Rook manager module to be used in the dashboard, modify your cluster CRD:
+
+```yaml
+  mgr:
+    modules:
+      - name: rook
+        enabled: true
+```
+
+And apply the changes:
+
+```console
+$ kubectl apply cluster.yaml
+```
+
+Once the Rook manager module is enabled as the orchestrator backend, there are two settings required for showing disk information:
+- `ROOK_ENABLE_DISCOVERY_DAEMON`: Set to `true` to provide the dashboard the information about physical disks. The default is `false`.
+- `ROOK_DISCOVER_DEVICES_INTERVAL`: The interval for changes to be refreshed in the set of physical disks in the cluster. The default is `60` minutes.  
+
+Modify the operator.yaml, and apply the changes:
+
+```console
+$ kubectl apply operator.yaml
+```
+
 ## Viewing the Dashboard External to the Cluster
 
 Commonly you will want to view the dashboard from outside the cluster. For example, on a development machine with the
