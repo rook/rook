@@ -42,6 +42,11 @@ jobs:
           # sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
           minikube start --memory 28g --cpus=12 --driver=docker
 
+      - name: install yq
+        run: |
+          sudo curl -JL https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_arm64  --output /usr/bin/yq
+          sudo chmod +x /usr/bin/yq
+
       - name: print k8s cluster status
         run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
@@ -75,6 +80,9 @@ jobs:
         run: |
           minikube delete
           docker system prune -a
+
+      - name: remove /usr/bin/yq
+        run: sudo rm -rf /usr/bin/yq
 
       - name: collect common logs
         if: always()
