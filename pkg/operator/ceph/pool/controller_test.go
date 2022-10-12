@@ -29,6 +29,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -554,15 +555,16 @@ func TestConfigureRBDStats(t *testing.T) {
 		namespace = "rook-ceph"
 	)
 
+	mockedPools := ""
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
-				if args[1] == "set" && args[4] != "" {
+				if args[1] == "set" {
 					return "", nil
 				}
 				if args[1] == "get" {
-					return "", nil
+					return mockedPools, nil
 				}
 				if args[1] == "rm" {
 					return "", nil
@@ -579,13 +581,13 @@ func TestConfigureRBDStats(t *testing.T) {
 
 	// Case 1: CephBlockPoolList is not registered in scheme.
 	// So, an error is expected as List() operation would fail.
-	err := configureRBDStats(context, clusterInfo)
+	err := configureRBDStats(context, clusterInfo, "")
 	assert.NotNil(t, err)
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 	// Case 2: CephBlockPoolList is registered in schema.
 	// So, no error is expected.
-	err = configureRBDStats(context, clusterInfo)
+	err = configureRBDStats(context, clusterInfo, "")
 	assert.Nil(t, err)
 
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPool{})
@@ -609,7 +611,7 @@ func TestConfigureRBDStats(t *testing.T) {
 		poolWithRBDStatsDisabled,
 	}
 	context.Client = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-	err = configureRBDStats(context, clusterInfo)
+	err = configureRBDStats(context, clusterInfo, "")
 	assert.Nil(t, err)
 
 	// Case 4: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
@@ -618,10 +620,41 @@ func TestConfigureRBDStats(t *testing.T) {
 	poolWithRBDStatsEnabled.Spec.EnableRBDStats = true
 	objects = append(objects, poolWithRBDStatsEnabled)
 	context.Client = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
-	err = configureRBDStats(context, clusterInfo)
+	err = configureRBDStats(context, clusterInfo, "")
 	assert.Nil(t, err)
 
-	// Case 5: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
+	// Case 5: Two external pools(non CephBlockPools) with rbd_stats_pools config already set
+	monStore := config.GetMonStore(context, clusterInfo)
+	e := monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", "pool1,pool2")
+	assert.Nil(t, e)
+	mockedPools = "my-pool-with-rbd-stats,pool1,pool2"
+	e = configureRBDStats(context, clusterInfo, "")
+	assert.Nil(t, e)
+
+	rbdStatsPools, err := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	assert.Nil(t, err)
+	assert.Equal(t, "my-pool-with-rbd-stats,pool1,pool2", rbdStatsPools)
+
+	// Case 6: Deleted CephBlockPool should be excluded from config
+	mockedPools = "pool1,pool2"
+	err = configureRBDStats(context, clusterInfo, "my-pool-with-rbd-stats")
+	assert.Nil(t, err)
+
+	rbdStatsPools, err = monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	assert.Nil(t, err)
+	assert.Equal(t, "pool1,pool2", rbdStatsPools)
+
+	//Case 7: Duplicate entries should be removed from config
+	e = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", "pool1,pool2,pool1")
+	assert.Nil(t, e)
+	err = configureRBDStats(context, clusterInfo, "")
+	assert.Nil(t, err)
+
+	rbdStatsPools, err = monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	assert.Nil(t, err)
+	assert.Equal(t, "pool1,pool2", rbdStatsPools)
+
+	// Case 8: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
 	// SetConfig returns an error
 	context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
@@ -629,6 +662,7 @@ func TestConfigureRBDStats(t *testing.T) {
 			return "", errors.New("mock error to simulate failure of mon store Set() function")
 		},
 	}
-	err = configureRBDStats(context, clusterInfo)
+	err = configureRBDStats(context, clusterInfo, "")
 	assert.NotNil(t, err)
+
 }
