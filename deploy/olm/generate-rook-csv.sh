@@ -214,7 +214,6 @@ function apply_rook_op_img() {
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" metadata.annotations.containerImage "$ROOK_OP_VERSION"
     "${YQ_CMD_WRITE[@]}" "$CSV_FILE_NAME" spec.install.spec.deployments[0].spec.template.spec.containers[0].image "$ROOK_OP_VERSION"
 }
-
 function validate_crds() {
     crds=$(awk '/Kind:/ {print $2}' $CRDS_FILE | grep -vE "ObjectBucketList|ObjectBucketClaimList" | sed 's/List//' | sort)
     csv_crds=$(awk '/kind:/ {print $3}' "$CSV_FILE_NAME" | sort)

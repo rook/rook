@@ -26,6 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	api "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -83,6 +84,13 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	// Watch for Secret (admission controller secret)
 	err = c.Watch(&source.Kind{
 		Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
+	if err != nil {
+		return err
+	}
+
+	// Watch for certificate rook-ceph-admission-controller
+	err = c.Watch(&source.Kind{
+		Type: &api.Certificate{TypeMeta: metav1.TypeMeta{Kind: "Certificate", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
 	if err != nil {
 		return err
 	}

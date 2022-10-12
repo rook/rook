@@ -47,6 +47,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool/radosnamespace"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	certmanagerv1 "github.com/jetstack/cert-manager/pkg/apis/certmanager/v1"
 	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
 	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -66,6 +67,7 @@ var (
 		mapiv1.AddToScheme,
 		healthchecking.AddToScheme,
 		cephv1.AddToScheme,
+		certmanagerv1.AddToScheme,
 	}
 )
 
