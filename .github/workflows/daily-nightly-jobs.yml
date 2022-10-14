@@ -26,20 +26,14 @@ jobs:
         with:
           go-version: 1.18
 
-      - name: teardown minikube and docker
-        run: |
-          uptime
-          minikube delete
-          docker system prune -a
-
       - name: setup minikube
         run: |
-          # sudo apt-get install build-essential -y
-          # curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-arm64
-          # sudo install minikube-linux-arm64 /usr/local/bin/minikube
-          # sudo rm -f minikube-linux-arm64
-          # curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
-          # sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+          sudo apt-get install build-essential -y
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-arm64
+          sudo install minikube-linux-arm64 /usr/local/bin/minikube
+          sudo rm -f minikube-linux-arm64
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
           minikube start --memory 28g --cpus=12 --driver=docker
 
       - name: install yq
@@ -76,12 +70,17 @@ jobs:
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready "mon,mgr,osd,mds,rgw,rbd_mirror,fs_mirror" 1
 
-      - name: teardown minikube and docker
+      - name: teardown minikube, docker and kubectl
+        if: always()
         run: |
+          uptime
           minikube delete
-          docker system prune -a
+          docker system prune --all --force
+          sudo rm -rf  /usr/local/bin/minikube
+          sudo rm -rf /usr/local/bin/kubectl
 
       - name: remove /usr/bin/yq
+        if: always()
         run: sudo rm -rf /usr/bin/yq
 
       - name: collect common logs
