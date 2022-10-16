@@ -245,6 +245,11 @@ continue to ensure cluster health. Upgrades will be blocked, further updates to 
 Since Kubernetes does not allow undeleting resources, the following procedure will allow you to restore
 the CRs to their prior state without even necessarily suffering cluster downtime.
 
+!!! note
+    In the following commands, the affected `CephCluster` resource is called `rook-ceph`. If yours is named differently, the
+    commands will need to be adjusted.
+
+
 1.  Scale down the operator.
 
     ```console
