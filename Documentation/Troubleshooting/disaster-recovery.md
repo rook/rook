@@ -36,80 +36,82 @@ continue to ensure cluster health. Upgrades will be blocked, further updates to 
 Since Kubernetes does not allow undeleting resources, the following procedure will allow you to restore
 the CRs to their prior state without even necessarily suffering cluster downtime.
 
-1. Scale down the operator
+1.  Scale down the operator.
 
-```console
-kubectl -n rook-ceph scale --replicas=0 deploy/rook-ceph-operator
-```
+    ```console
+    kubectl -n rook-ceph scale --replicas=0 deploy/rook-ceph-operator
+    ```
 
-2. Backup all Rook CRs and critical metadata
+2.  Backup all Rook CRs and critical metadata
 
-```console
-# Store the CephCluster CR settings. Also, save other Rook CRs that are in terminating state.
-kubectl -n rook-ceph get cephcluster rook-ceph -o yaml > cluster.yaml
+    ```console
+    # Store the CephCluster CR settings. Also, save other Rook CRs that are in terminating state.
+    kubectl -n rook-ceph get cephcluster rook-ceph -o yaml > cluster.yaml
 
-# Backup critical secrets and configmaps in case something goes wrong later in the procedure
-kubectl -n rook-ceph get secret -o yaml > secrets.yaml
-kubectl -n rook-ceph get configmap -o yaml > configmaps.yaml
-```
+    # Backup critical secrets and configmaps in case something goes wrong later in the procedure
+    kubectl -n rook-ceph get secret -o yaml > secrets.yaml
+    kubectl -n rook-ceph get configmap -o yaml > configmaps.yaml
+    ```
 
-3. Remove the owner references from all critical Rook resources that were referencing the CephCluster CR.
-   The critical resources include:
-   - Secrets: `rook-ceph-admin-keyring`, `rook-ceph-config`, `rook-ceph-mon`, `rook-ceph-mons-keyring`
-   - ConfigMap: `rook-ceph-mon-endpoints`
-   - Services: `rook-ceph-mon-*`, `rook-ceph-mgr-*`
-   - Deployments: `rook-ceph-mon-*`, `rook-ceph-osd-*`, `rook-ceph-mgr-*`
-   - PVCs (if applicable): `rook-ceph-mon-*` and the OSD PVCs (named `<deviceset>-*`, for example `set1-data-*`)
+3.  Remove the owner references from all critical Rook resources that were referencing the CephCluster CR.
+    The critical resources include:
 
-For example, remove this entire block from each resource:
+      - Secrets: `rook-ceph-admin-keyring`, `rook-ceph-config`, `rook-ceph-mon`, `rook-ceph-mons-keyring`
+      - ConfigMap: `rook-ceph-mon-endpoints`
+      - Services: `rook-ceph-mon-*`, `rook-ceph-mgr-*`
+      - Deployments: `rook-ceph-mon-*`, `rook-ceph-osd-*`, `rook-ceph-mgr-*`
+      - PVCs (if applicable): `rook-ceph-mon-*` and the OSD PVCs (named `<deviceset>-*`, for example `set1-data-*`)
 
-```yaml
-ownerReferences:
-- apiVersion: ceph.rook.io/v1
-    blockOwnerDeletion: true
-    controller: true
-    kind: CephCluster
-    name: rook-ceph
-    uid: <uid>
-```
+    For example, remove this entire block from each resource:
 
-4. **After confirming all critical resources have had the owner reference to the CephCluster CR removed**, now
-   we allow the cluster CR to be deleted. Remove the finalizer by editing the CephCluster CR.
+    ```yaml
+    ownerReferences:
+    - apiVersion: ceph.rook.io/v1
+       blockOwnerDeletion: true
+       controller: true
+       kind: CephCluster
+       name: rook-ceph
+       uid: <uid>
+    ```
 
-```console
-kubectl -n rook-ceph edit cephcluster
-```
+4.  **After confirming all critical resources have had the owner reference to the CephCluster CR removed**, now
+    we allow the cluster CR to be deleted. Remove the finalizer by editing the CephCluster CR.
 
-For example, remove the following from the CR metadata:
+    ```console
+    kubectl -n rook-ceph edit cephcluster
+    ```
 
-```yaml
-    finalizers:
-    - cephcluster.ceph.rook.io
-```
+    For example, remove the following from the CR metadata:
 
-After the finalizer is removed, the CR will be immediately deleted. If all owner references were properly removed,
-all ceph daemons will continue running and there will be no downtime.
+    ```yaml
+        finalizers:
+        - cephcluster.ceph.rook.io
+    ```
 
-5. Create the CephCluster CR with the same settings as previously
+    After the finalizer is removed, the CR will be immediately deleted. If all owner references were properly removed,
+    all ceph daemons will continue running and there will be no downtime.
 
-```console
-# Use the same cluster settings as exported above in step 2.
-kubectl create -f cluster.yaml
-```
+5.  Create the CephCluster CR with the same settings as previously
 
-6. If there are other CRs in terminating state such as CephBlockPools, CephObjectStores, or CephFilesystems,
-   follow the above steps as well for those CRs:
-   - Backup the CR
-   - Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
-   - Create the CR again
+    ```console
+    # Use the same cluster settings as exported above in step 2.
+    kubectl create -f cluster.yaml
+    ```
 
-7. Scale up the operator
+6.  If there are other CRs in terminating state such as CephBlockPools, CephObjectStores, or CephFilesystems,
+    follow the above steps as well for those CRs:
 
-```console
-kubectl -n rook-ceph scale --replicas=1 deploy/rook-ceph-operator
-```
+      - Backup the CR
+      - Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
+      - Create the CR again
 
-Watch the operator log to confirm that the reconcile completes successfully.
+7.  Scale up the operator
+
+    ```console
+    kubectl -n rook-ceph scale --replicas=1 deploy/rook-ceph-operator
+    ```
+
+    Watch the operator log to confirm that the reconcile completes successfully.
 
 ## Adopt an existing Rook Ceph cluster into a new Kubernetes cluster
 
