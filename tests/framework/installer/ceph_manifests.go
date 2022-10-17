@@ -38,6 +38,7 @@ type CephManifests interface {
 	GetBlockStorageClass(poolName, storageClassName, reclaimPolicy string) string
 	GetFileStorageClass(fsName, storageClassName string) string
 	GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName string) string
+	GetNFSSnapshotClass(fsName, snapshotClassName string) string
 	GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string
 	GetFileStorageSnapshotClass(snapshotClassName, reclaimPolicy string) string
 	GetFilesystem(name string, activeCount int) string
@@ -376,6 +377,22 @@ mountOptions:
 	// Output: mount.nfs: rpc.statd is not running but is required for remote locking.
 	// mount.nfs: Either use '-o nolock' to keep locks local, or start statd.
 	return sc
+}
+
+func (m *CephManifestsMaster) GetNFSSnapshotClass(snapshotClassName, reclaimPolicy string) string {
+	// return NFS CSI snapshotclass object.
+	return `
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: ` + snapshotClassName + `
+driver: ` + m.settings.OperatorNamespace + `.nfs.csi.ceph.com
+deletionPolicy: ` + reclaimPolicy + `
+parameters:
+  clusterID: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
+  csi.storage.k8s.io/snapshotter-secret-namespace: ` + m.settings.Namespace + `
+`
 }
 
 // GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.

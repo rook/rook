@@ -116,7 +116,7 @@ func fileSystemCSICloneTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
 }
 
-func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string) {
+func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.Suite, storageClassName, namespace string, testNFS bool) {
 	logger.Infof("install snapshot CRD")
 	err := k8sh.CreateSnapshotCRD()
 	require.NoError(s.T(), err)
@@ -142,7 +142,11 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	snapshotDeletePolicy := "Delete"
 	snapshotClassName := "snapshot-testing"
 	logger.Infof("create snapshotclass")
-	err = helper.FSClient.CreateSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
+	if !testNFS {
+		err = helper.FSClient.CreateSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
+	} else {
+		err = helper.NFSClient.CreateSnapshotClass(snapshotClassName, snapshotDeletePolicy)
+	}
 	require.NoError(s.T(), err)
 	// create pvc and app
 	pvcSize := "1Gi"
@@ -171,11 +175,11 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	pvcChecksum := strings.Fields(resp)
 	require.Equal(s.T(), len(pvcChecksum), 2)
 	// create a snapshot
-	snapshotName := "rbd-pvc-snapshot"
+	snapshotName := "fs-pvc-snapshot"
 	logger.Infof("create a snapshot from pvc")
 	err = helper.FSClient.CreateSnapshot(snapshotName, pvcName, snapshotClassName, defaultNamespace)
 	require.NoError(s.T(), err)
-	restorePVCName := "restore-block-pvc"
+	restorePVCName := "restore-fs-pvc"
 	// check snapshot is in ready state
 	ready, err := k8sh.CheckSnapshotISReadyToUse(snapshotName, defaultNamespace, 15)
 	require.NoError(s.T(), err)
@@ -233,8 +237,11 @@ func fileSystemCSISnapshotTest(helper *clients.TestClient, k8sh *utils.K8sHelper
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, pvcName))
 
 	logger.Infof("delete snapshotclass")
-
-	err = helper.FSClient.DeleteSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
+	if !testNFS {
+		err = helper.FSClient.DeleteSnapshotClass(snapshotClassName, snapshotDeletePolicy, namespace)
+	} else {
+		err = helper.NFSClient.DeleteSnapshotClass(snapshotClassName, snapshotDeletePolicy)
+	}
 	require.NoError(s.T(), err)
 	logger.Infof("delete snapshot-controller")
 }
@@ -465,7 +472,7 @@ func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s *su
 	err := helper.FSClient.CreateStorageClass(filesystemName, settings.OperatorNamespace, settings.Namespace, storageClassName)
 	assert.NoError(s.T(), err)
 	assert.NoError(s.T(), err)
-	fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace)
+	fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace, false)
 	fileSystemCSICloneTest(helper, k8sh, s, storageClassName, settings.Namespace)
 
 	cleanupFilesystem(helper, k8sh, s, settings.Namespace, filesystemName)

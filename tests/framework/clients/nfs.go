@@ -109,3 +109,13 @@ func (f *NFSOperation) CreateStorageClass(fsName, nfsClusterName, systemNamespac
 
 	return f.k8sh.ResourceOperation("apply", f.manifests.GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName))
 }
+
+// CreateSnapshotClass creates a Snapshot class for NFS clients
+func (f *NFSOperation) CreateSnapshotClass(fsName, snapshotClassName string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetNFSSnapshotClass(fsName, snapshotClassName))
+}
+
+// DeleteSnapshotClass deletes a Snapshot class for NFS clients
+func (f *NFSOperation) DeleteSnapshotClass(fsName, snapshotClassName string) error {
+	return f.k8sh.ResourceOperation("delete", f.manifests.GetNFSSnapshotClass(fsName, snapshotClassName))
+}
