@@ -40,6 +40,7 @@ import (
 )
 
 type Param struct {
+
 	CSIPluginImage               string
 	RegistrarImage               string
 	ProvisionerImage             string
