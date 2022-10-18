@@ -113,10 +113,10 @@ spec:
     # specified number of days.
     #daysToRetain: 30
   # enable log collector, daemons will log on files and rotate
-  # logCollector:
-  #   enabled: true
-  #   periodicity: daily # one of: hourly, daily, weekly, monthly
-  #   maxLogSize:  500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
+  logCollector:
+    enabled: true
+    periodicity: daily # one of: hourly, daily, weekly, monthly
+    maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
   # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/Storage-Configuration/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
   cleanupPolicy:
     # Since cluster cleanup is destructive to data, confirmation is required.
