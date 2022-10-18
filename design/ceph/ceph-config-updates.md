@@ -54,7 +54,9 @@ Notable non-required flags:
   the `/var/lib/ceph/<daemon_type>/ceph-<daemon_id>` directory for daemon data within containers. If
   possible, mapping the `dataDirHostPath/<rook_daemon_data_dir>` path on hosts to this default
   location in the container is preferred.
-  - Note that currently, `dataDirHostPath` is mapped directly to containers, meaning that each
+
+  !!! Note
+    Currently, `dataDirHostPath` is mapped directly to containers, meaning that each
     daemon container has access to other daemon containers' host-persisted data. Modifying Rook's
     behavior to only mount the individual daemon's data dir into the container as proposed here will
     be a small security improvement on the existing behavior.
@@ -135,7 +137,7 @@ spec:
       debug_osd: 10
    # ...
 ```
-!!! note 
+!!! Note
     All values under config are reported to Ceph as strings, but the yaml should
     support integer values as well if at all possible.
 
