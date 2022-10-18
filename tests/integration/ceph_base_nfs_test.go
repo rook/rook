@@ -50,6 +50,10 @@ func runNFSFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *sui
 
 		cleanupFilesystemConsumer(helper, k8sh, s, settings.Namespace, filePodName)
 		assert.NoError(s.T(), err)
+
+		fileSystemCSISnapshotTest(helper, k8sh, s, storageClassName, settings.Namespace, true)
+
+		fileSystemCSICloneTest(helper, k8sh, s, storageClassName, settings.Namespace)
 	}
 
 	err = helper.NFSClient.Delete(settings.Namespace, nfsClusterName)
