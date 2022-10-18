@@ -113,6 +113,12 @@ spec:
             - "--drivernamespace=$(DRIVER_NAMESPACE)"
             - "--v={{ .LogLevel }}"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
+            {{ if .CSIEnableMetadata }}
+            - "--setmetadata={{ .CSIEnableMetadata }}"
+            {{ end }}
+            {{ if .CSIClusterName }}
+            - "--clustername={{ .CSIClusterName }}"
+            {{ end }}
           env:
             - name: DRIVER_NAMESPACE
               valueFrom:
