@@ -150,7 +150,8 @@ Authoring a design document for big features has many advantages:
 * Gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
 * Serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
 
-Note that writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
+!!! Note
+    Writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
 A design document should be written as a markdown file in the [design folder](https://github.com/rook/rook/tree/master/design).
 You can follow the process outlined in the [design template](https://github.com/rook/rook/tree/master/design/design_template.md).
@@ -287,7 +288,8 @@ Signed-off-by: First Name Last Name <email address>
 
 The `component` **MUST** be in the [list checked by the CI](https://github.com/rook/rook/blob/master/.commitlintrc.json).
 
-Note: sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
+!!! Note
+    Sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
 In that case, it is acceptable to shorten the commit message.
 Also, you don't always need to close an issue, again for a very small fix.
 
