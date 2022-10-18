@@ -556,23 +556,30 @@ class RadosJSON:
         if isinstance(self.cluster, DummyRados):
             return
         protocols = ["http", "https"]
+        response_error = None
         for prefix in protocols:
             try:
                 ep = "{}://{}".format(prefix, endpoint_str)
+                verify = None
                 # If verify is set to a path to a directory,
                 # the directory must have been processed using the c_rehash utility supplied with OpenSSL.
-                if prefix == "https" and cert and self._arg_parser.rgw_skip_tls:
+                if prefix == "https" and self._arg_parser.rgw_skip_tls:
+                    verify = False
                     r = requests.head(ep, timeout=timeout, verify=False)
                 elif prefix == "https" and cert:
+                    verify = cert
                     r = requests.head(ep, timeout=timeout, verify=cert)
                 else:
                     r = requests.head(ep, timeout=timeout)
                 if r.status_code == 200:
-                    return prefix
-            except:
+                    return prefix, verify
+            except Exception as err:
+                response_error = err
                 continue
         raise ExecutionFailureException(
-            "unable to connect to endpoint: {}".format(endpoint_str)
+            "unable to connect to endpoint: {}, failed error: {}".format(
+                endpoint_str, response_error
+            )
         )
 
     def __init__(self, arg_list=None):
@@ -1183,7 +1190,13 @@ class RadosJSON:
         if self._arg_parser.rgw_endpoint:
             rgw_endpoint = self._arg_parser.rgw_endpoint
             self._invalid_endpoint(rgw_endpoint)
-            self.endpoint_dial(rgw_endpoint, cert=self.validate_rgw_endpoint_tls_cert())
+            cert = None
+            if (
+                not self._arg_parser.rgw_skip_tls
+                and self.validate_rgw_endpoint_tls_cert()
+            ):
+                cert = self._arg_parser.rgw_tls_cert_path
+            self.endpoint_dial(rgw_endpoint, cert=cert)
             # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
             if self._arg_parser.rgw_pool_prefix != "default":
                 rgw_pool_to_validate = [
@@ -1244,14 +1257,10 @@ class RadosJSON:
         secret_key = self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"]
         rgw_endpoint = self._arg_parser.rgw_endpoint
         cert = None
-        verify = None
-        if self._arg_parser.rgw_tls_cert_path and not self._arg_parser.rgw_skip_tls:
-            cert = self.validate_rgw_endpoint_tls_cert()
-            verify = True
-        if self._arg_parser.rgw_skip_tls:
-            verify = False
-        base_url = self.endpoint_dial(rgw_endpoint, cert=cert) + "://"
-        base_url = base_url + rgw_endpoint + "/admin/info?"
+        if not self._arg_parser.rgw_skip_tls and self.validate_rgw_endpoint_tls_cert():
+            cert = self._arg_parser.rgw_tls_cert_path
+        base_url, verify = self.endpoint_dial(rgw_endpoint, cert=cert)
+        base_url = base_url + "://" + rgw_endpoint + "/admin/info?"
         params = {"format": "json"}
         request_url = base_url + urllib.parse.urlencode(params)
 
@@ -1259,7 +1268,6 @@ class RadosJSON:
             r = requests.get(
                 request_url,
                 auth=S3Auth(access_key, secret_key, rgw_endpoint),
-                cert=cert,
                 verify=verify,
             )
         except requests.exceptions.Timeout:
