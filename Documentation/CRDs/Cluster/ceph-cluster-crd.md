@@ -65,8 +65,8 @@ For more details on the mons and when to choose a number other than `3`, see the
   * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
   * `daysToRetain`: specifies the number of days to keep crash entries in the Ceph cluster. By default the entries are kept indefinitely.
 * `logCollector`: The settings for log collector daemon.
-  * `enabled`: if set to `true`, the log collector will run as a side-car next to each Ceph daemon. The Ceph configuration option `log_to_file` will be turned on, meaning Ceph daemons will log on files in addition to still logging to container's stdout. These logs will be rotated. (default: false)
-  * `periodicity`: how often to rotate daemon's log. (default: 24h). Specified with a time suffix which may be 'h' for hours or 'd' for days. **Rotating too often will slightly impact the daemon's performance since the signal briefly interrupts the program.**
+  * `enabled`: if set to `true`, the log collector will run as a side-car next to each Ceph daemon. The Ceph configuration option `log_to_file` will be turned on, meaning Ceph daemons will log on files in addition to still logging to container's stdout. These logs will be rotated. In case a daemon terminates with a segfault, the coredump files will be commonly be generated in `/var/lib/systemd/coredump` directory on the host, depending on the underlying OS location. (default: `true`)
+  * `periodicity`: how often to rotate daemon's log. (default: 24h). Specified with a time suffix which may be `h` for hours or `d` for days. **Rotating too often will slightly impact the daemon's performance since the signal briefly interrupts the program.**
 * `annotations`: [annotations configuration settings](#annotations-and-labels)
 * `labels`: [labels configuration settings](#annotations-and-labels)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
