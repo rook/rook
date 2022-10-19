@@ -65,6 +65,7 @@ const (
 	bluestorePVCMetadata           = "metadata"
 	bluestorePVCWal                = "wal"
 	bluestorePVCData               = "data"
+	deviceClass                    = "device-class"
 )
 
 // Cluster keeps track of the OSDs
