@@ -1,4 +1,4 @@
-<!-- Please take a look at our [Contributing](https://rook.io/docs/rook/latest/Contributing/development-flow/)
+<!-- Please take a look at our [Contributing](https://rook.io/docs/rook/latest-release/Contributing/development-flow/)
 documentation before submitting a Pull Request!
 Thank you for contributing to Rook! -->
 
