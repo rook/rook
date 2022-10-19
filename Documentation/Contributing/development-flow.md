@@ -7,7 +7,7 @@ don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev 
 
 ## Prerequisites
 
-1. [GO 1.18](https://golang.org/dl/) or greater installed
+1. [GO 1.19](https://golang.org/dl/) or greater installed
 2. Git client installed
 3. GitHub account
 
@@ -44,26 +44,27 @@ make build
 If you want to use `podman` instead of `docker` then uninstall `docker` packages from your machine, make will automatically pick up `podman`.
 
 !!! tip
-    If you are in linux environment and `make build` command throws an error like `unknown revision` for some imports, try adding `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc` and then run `source ~/.bashrc` or to a similar file to update your environment and confirm with `go env` that `GOPROXY` is updated.
+If you are in linux environment and `make build` command throws an error like `unknown revision` for some imports, try adding `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc` and then run `source ~/.bashrc` or to a similar file to update your environment and confirm with `go env` that `GOPROXY` is updated.
+
 ### Development Settings
 
 To provide consistent whitespace and other formatting in your `go` and other source files (e.g., Markdown), it is recommended you apply
 the following settings in your IDE:
 
-* Format with the `goreturns` tool
-* Trim trailing whitespace
-* Markdown Table of Contents is correctly updated automatically
+- Format with the `goreturns` tool
+- Trim trailing whitespace
+- Markdown Table of Contents is correctly updated automatically
 
 #### VS Code
 
 !!! tip
-    VS Code should prompt you automatically with some recommended extensions to install.
-    E.g., Markdown All in One, Go and YAML validator.
+VS Code should prompt you automatically with some recommended extensions to install.
+E.g., Markdown All in One, Go and YAML validator.
 
 A set of recommended settings when working on Rook, can be found [here](https://github.com/rook/rook/blob/master/.vscode/settings.json).
 
 !!! tip
-    VS Code should automatically use these settings through the `.vscode/settings.json` file.
+VS Code should automatically use these settings through the `.vscode/settings.json` file.
 
 ### Add Upstream Remote
 
@@ -140,15 +141,15 @@ To add a feature or to make a bug fix, you will need to create a branch in your 
 For new features of significant scope and complexity, a design document is recommended before work begins on the implementation.
 So create a design document if:
 
-* Adding a new CRD
-* Adding a significant feature to an existing storage provider. If the design is simple enough to describe in a github issue, you likely don't need a full design doc.
+- Adding a new CRD
+- Adding a significant feature to an existing storage provider. If the design is simple enough to describe in a github issue, you likely don't need a full design doc.
 
 For smaller, straightforward features and bug fixes, there is no need for a design document.
 Authoring a design document for big features has many advantages:
 
-* Helps flesh out the approach by forcing the author to think critically about the feature and can identify potential issues early on
-* Gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
-* Serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
+- Helps flesh out the approach by forcing the author to think critically about the feature and can identify potential issues early on
+- Gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
+- Serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
 
 Note that writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
@@ -189,11 +190,11 @@ git rebase upstream/master
 
 Rebasing is a very powerful feature of Git. You need to understand how it works or else you will risk losing your work. Read about it in the [Git documentation](https://git-scm.com/docs/git-rebase), it will be well worth it. In a nutshell, rebasing does the following:
 
-* "Unwinds" your local commits. Your local commits are removed temporarily from the history.
-* The latest changes from upstream are added to the history
-* Your local commits are re-applied one by one
-* If there are merge conflicts, you will be prompted to fix them before continuing. Read the output closely. It will tell you how to complete the rebase.
-* When done rebasing, you will see all of your commits in the history.
+- "Unwinds" your local commits. Your local commits are removed temporarily from the history.
+- The latest changes from upstream are added to the history
+- Your local commits are re-applied one by one
+- If there are merge conflicts, you will be prompted to fix them before continuing. Read the output closely. It will tell you how to complete the rebase.
+- When done rebasing, you will see all of your commits in the history.
 
 ## Submitting a Pull Request
 
@@ -242,16 +243,16 @@ can more easily verify that the units are combined together correctly.
 
 Common cases that may need tests:
 
-* the feature is enabled
-* the feature is disabled
-* the feature is only partially enabled, for every possible way it can be partially enabled
-* every error that can be encountered during execution of the feature
-* the feature can be disabled (including partially) after it was enabled
-* the feature can be modified (including partially) after it was enabled
-* if there is a slice/array involved, test length = 0, length = 1, length = 3, length == max, length > max
-* an input is not specified, for each input
-* an input is specified incorrectly, for each input
-* a resource the code relies on doesn't exist, for each dependency
+- the feature is enabled
+- the feature is disabled
+- the feature is only partially enabled, for every possible way it can be partially enabled
+- every error that can be encountered during execution of the feature
+- the feature can be disabled (including partially) after it was enabled
+- the feature can be modified (including partially) after it was enabled
+- if there is a slice/array involved, test length = 0, length = 1, length = 3, length == max, length > max
+- an input is not specified, for each input
+- an input is specified incorrectly, for each input
+- a resource the code relies on doesn't exist, for each dependency
 
 #### Running the Integration Tests
 
@@ -265,13 +266,13 @@ so, follow the [test instructions](https://github.com/rook/rook/blob/master/test
 
 Rook maintainers value clear, lengthy and explanatory commit messages. So by default each of your commits must:
 
-* be prefixed by the component it's affecting, if Ceph, then the title of the commit message should be `ceph: my commit title`. If not the commit-lint bot will complain.
-* contain a commit message which explains the original issue and how it was fixed if a bug.
-If a feature it is a full description of the new functionality.
-* refer to the issue it's closing, this is mandatory when fixing a bug
-* have a sign-off, this is achieved by adding `-s` when committing so in practice run `git commit -s`. If not the DCO bot will complain.
-If you forgot to add the sign-off you can also amend a previous commit with the sign-off by running `git commit --amend -s`.
-If you've pushed your changes to GitHub already you'll need to force push your branch with `git push -f`.
+- be prefixed by the component it's affecting, if Ceph, then the title of the commit message should be `ceph: my commit title`. If not the commit-lint bot will complain.
+- contain a commit message which explains the original issue and how it was fixed if a bug.
+  If a feature it is a full description of the new functionality.
+- refer to the issue it's closing, this is mandatory when fixing a bug
+- have a sign-off, this is achieved by adding `-s` when committing so in practice run `git commit -s`. If not the DCO bot will complain.
+  If you forgot to add the sign-off you can also amend a previous commit with the sign-off by running `git commit --amend -s`.
+  If you've pushed your changes to GitHub already you'll need to force push your branch with `git push -f`.
 
 Here is an example of an acceptable commit message:
 
