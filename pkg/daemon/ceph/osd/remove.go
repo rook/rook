@@ -146,11 +146,13 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	}
 
 	// Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host
-	logger.Infof("attempting to remove host %q from crush map if not in use", osdID)
+	logger.Infof("attempting to remove host %q from crush map if not in use", hostName)
 	hostArgs := []string{"osd", "crush", "rm", hostName}
 	_, err = client.NewCephCommand(clusterdContext, clusterInfo, hostArgs).Run()
 	if err != nil {
 		logger.Infof("failed to remove CRUSH host %q. %v", hostName, err)
+	} else {
+		logger.Infof("removed CRUSH host %q", hostName)
 	}
 
 	// call archiveCrash to silence crash warning in ceph health if any
