@@ -178,7 +178,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		}
 		if err != nil {
-			errs.addError("%v", errors.Wrapf(err, "failed to update OSD %d", osdID))
+			errs.addError("%v", errors.Wrapf(err, "failed to update OSD %d - DeviceSets may have changed", osdID))
 			continue
 		}
 
