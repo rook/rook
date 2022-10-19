@@ -47,6 +47,10 @@ spec:
     ssl: true
   crashCollector:
     disable: false
+  logCollector:
+    enabled: true
+    periodicity: daily # one of: hourly, daily, weekly, monthly
+    maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
   storage:
     storageClassDeviceSets:
       - name: set1

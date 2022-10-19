@@ -166,6 +166,10 @@ spec:
   crashCollector:
     disable: false
     ` + pruner + `
+  logCollector:
+    enabled: true
+    periodicity: daily
+    maxLogSize: 500M
   disruptionManagement:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
