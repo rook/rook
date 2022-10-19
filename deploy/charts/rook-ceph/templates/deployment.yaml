@@ -77,8 +77,6 @@ spec:
 {{- end }}
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"
-        - name: ROOK_ENABLE_SELINUX_RELABELING
-          value: "{{ .Values.enableSelinuxRelabeling }}"
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
         - name: ROOK_ENABLE_DISCOVERY_DAEMON

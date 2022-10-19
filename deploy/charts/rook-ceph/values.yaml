@@ -450,11 +450,6 @@ cephCommandsTimeoutSeconds: "15"
 #   nodeAffinity: key1=value1,value2; key2=value3
 #   podLabels: "key1=value1,key2=value2"
 
-# In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
-# Disable it here if you have similar issues.
-# For more details see https://github.com/rook/rook/issues/2417
-enableSelinuxRelabeling: true
-
 disableAdmissionController: false
 
 # Writing to the hostPath is required for the Ceph mon and osd pods. Given the restricted permissions in OpenShift with SELinux,
