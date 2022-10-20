@@ -135,7 +135,8 @@ spec:
       debug_osd: 10
    # ...
 ```
-**Note on the above:** all values under config are reported to Ceph as strings, but the yaml should
+!!! Note
+    All values under config are reported to Ceph as strings, but the yaml should
 support integer values as well if at all possible
 
 As stated in the example yaml, above, the 'config' section adds or overrides values in the Ceph
