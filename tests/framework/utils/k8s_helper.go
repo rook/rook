@@ -272,7 +272,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, che
 		return err
 	}
 	logger.Errorf("gave up deleting custom resource %q ", name)
-	return nil
+	return fmt.Errorf("Timed out waiting for deletion of custom resource %q", name)
 }
 
 // DeleteResource performs a kubectl delete on give args.
@@ -1175,6 +1175,24 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 			return true
 		}
 		logger.Infof("waiting for PVC %s to be deleted.", pvcname)
+
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return false
+}
+
+func (k8sh *K8sHelper) WaitUntilZeroPVs() bool {
+	ListOpts := metav1.ListOptions{}
+	ctx := context.TODO()
+	for i := 0; i < RetryLoop; i++ {
+		pvList, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(ctx, ListOpts)
+		if err != nil && kerrors.IsNotFound(err) {
+			return true
+		}
+		if len(pvList.Items) == 0 {
+			return true
+		}
+		logger.Infof("waiting for PV count to be zero.")
 
 		time.Sleep(RetryInterval * time.Second)
 	}
