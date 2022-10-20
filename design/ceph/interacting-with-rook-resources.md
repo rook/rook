@@ -38,6 +38,7 @@ Another example on CephFilesystem with ID=a:
 	app.kubernetes.io/managed-by : "rook-ceph-operator"
 	app.kubernetes.io/created-by : "rook-ceph-operator"
 	rook.io/operator-namespace   : "rook-ceph"
-``` 
+```
 
-**NOTE** : A totally unique string for an application can be built up from (a) app.kubernetes.io/component, (b) app.kubernetes.io/part-of, (c) the resource's namespace, (d) app.kubernetes.io/name, and (e) app.kubernetes.io/instance fields. For the example above, we could join those fields with underscore connectors like this: cephclusters.ceph.rook.io_rook-ceph_rook-ceph_ceph-mon_a. Note that this full spec can easily exceed the 64-character limit imposed on Kubernetes labels.
+!!! Note
+    A totally unique string for an application can be built up from (a) app.kubernetes.io/component, (b) app.kubernetes.io/part-of, (c) the resource's namespace, (d) app.kubernetes.io/name, and (e) app.kubernetes.io/instance fields. For the example above, we could join those fields with underscore connectors like this: cephclusters.ceph.rook.io_rook-ceph_rook-ceph_ceph-mon_a. Note that this full spec can easily exceed the 64-character limit imposed on Kubernetes labels.
