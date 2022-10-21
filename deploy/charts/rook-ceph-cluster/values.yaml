@@ -396,6 +396,9 @@ cephBlockPools:
       failureDomain: host
       replicated:
         size: 3
+      # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
+      # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
+      # enableRBDStats: true
     storageClass:
       enabled: true
       name: ceph-block
