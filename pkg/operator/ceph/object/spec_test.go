@@ -161,7 +161,7 @@ func TestSSLPodSpec(t *testing.T) {
 		context:     context,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.2.3"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.2.5"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -590,7 +590,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 			store:       store,
 			clusterInfo: &client.ClusterInfo{Context: ctx, CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}},
 			clusterSpec: &cephv1.ClusterSpec{
-				CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.2.3"},
+				CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.2.5"},
 			},
 		}
 	}
