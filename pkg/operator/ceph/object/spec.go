@@ -503,6 +503,15 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *v1.Endpoints {
 	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 
+	k8sEndpointAddrs := []v1.EndpointAddress{}
+	for _, rookEndpoint := range cephObjectStore.Spec.Gateway.ExternalRgwEndpoints {
+		k8sEndpointAddr := v1.EndpointAddress{
+			IP:       rookEndpoint.IP,
+			Hostname: rookEndpoint.Hostname,
+		}
+		k8sEndpointAddrs = append(k8sEndpointAddrs, k8sEndpointAddr)
+	}
+
 	endpoints := &v1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
@@ -511,7 +520,7 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 		},
 		Subsets: []v1.EndpointSubset{
 			{
-				Addresses: cephObjectStore.Spec.Gateway.ExternalRgwEndpoints,
+				Addresses: k8sEndpointAddrs,
 			},
 		},
 	}
@@ -540,17 +549,17 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 	return nil
 }
 
-func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore) error {
-	service := c.generateService(cephObjectStore)
+func (c *clusterConfig) reconcileService(store *cephv1.CephObjectStore) error {
+	service := c.generateService(store)
 	// Set owner ref to the parent object
 	err := c.ownerInfo.SetControllerReference(service)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to ceph object store service %q", service.Name)
 	}
 
-	svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, cephObjectStore.Namespace, service)
+	svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, store.Namespace, service)
 	if err != nil {
-		return errors.Wrapf(err, "failed to create or update object store %q service", cephObjectStore.Name)
+		return errors.Wrapf(err, "failed to create or update object store %q service", store.Name)
 	}
 
 	logger.Infof("ceph object store gateway service running at %s", svc.Spec.ClusterIP)

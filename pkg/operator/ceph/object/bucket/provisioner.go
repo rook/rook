@@ -19,12 +19,12 @@ package bucket
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -63,6 +63,16 @@ func NewProvisioner(context *clusterd.Context, clusterInfo *client.ClusterInfo) 
 	return &Provisioner{context: context, clusterInfo: clusterInfo}
 }
 
+func (p Provisioner) GenerateUserID(obc *v1alpha1.ObjectBucketClaim, ob *v1alpha1.ObjectBucket) (string, error) {
+	if ob != nil {
+		return getCephUser(ob), nil
+	}
+
+	username := p.genUserName(obc.Name, obc.Namespace)
+
+	return username, nil
+}
+
 // Provision creates an s3 bucket and returns a connection info
 // representing the bucket's endpoint and user access credentials.
 func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBucket, error) {
@@ -74,8 +84,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	}
 	logger.Infof("Provision: creating bucket %q for OBC %q", p.bucketName, options.ObjectBucketClaim.Name)
 
-	// dynamically create a new ceph user
-	p.accessKeyID, p.secretAccessKey, err = p.createCephUser("")
+	p.accessKeyID, p.secretAccessKey, err = p.createCephUser(options.UserID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
@@ -87,32 +96,37 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		s3svc, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	}
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
 	// create the bucket
-	err = s3svc.CreateBucket(p.bucketName)
+	var bucketExists bool
+	bucketExists, err = p.bucketExists(p.bucketName)
 	if err != nil {
-		err = errors.Wrapf(err, "error creating bucket %q", p.bucketName)
-		logger.Errorf(err.Error())
-		p.deleteOBCResourceLogError("")
-		return nil, err
+		return nil, errors.Wrapf(err, "error creating bucket %q. failed to check if bucket already exists", p.bucketName)
+	}
+	if !bucketExists {
+		// if bucket already exists, this returns error: TooManyBuckets because we set the quota
+		// below. If it already exists, assume we are good to go
+		logger.Debugf("creating bucket %q", p.bucketName)
+		err = s3svc.CreateBucket(p.bucketName)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
+		}
+	} else {
+		logger.Debugf("bucket %q already exists", p.bucketName)
 	}
 
 	singleBucketQuota := 1
 	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &singleBucketQuota})
 	if err != nil {
-		p.deleteOBCResourceLogError(p.bucketName)
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to set user %q bucket quota to %d", p.cephUserName, singleBucketQuota)
 	}
 	logger.Infof("set user %q bucket max to %d", p.cephUserName, singleBucketQuota)
 
-	// setting quota limit if it is enabled
 	err = p.setAdditionalSettings(options)
 	if err != nil {
-		p.deleteOBCResourceLogError(p.bucketName)
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q", options.ObjectBucketClaim.Name)
 	}
 
 	return p.composeObjectBucket(), nil
@@ -136,29 +150,27 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "bucket %s does not exist", p.bucketName)
 	}
 
-	p.accessKeyID, p.secretAccessKey, err = p.createCephUser("")
+	// get or create ceph user
+	p.accessKeyID, p.secretAccessKey, err = p.createCephUser(options.UserID)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	// need to quota into -1 for restricting creation of new buckets in rgw
-	restrictBucketCreation := -1
+	// restrict creation of new buckets in rgw
+	restrictBucketCreation := 0
 	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &restrictBucketCreation})
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
 	// get the bucket's owner via the bucket metadata
 	stats, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, errors.Wrapf(err, "failed to get bucket %q stats", p.bucketName)
 	}
 
 	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: stats.Owner})
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
 	}
 
@@ -169,7 +181,6 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		s3svc, err = object.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	}
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
@@ -178,7 +189,6 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() != "NoSuchBucketPolicy" {
-				p.deleteOBCResourceLogError("")
 				return nil, err
 			}
 		}
@@ -200,14 +210,12 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	logger.Infof("PutBucketPolicy output: %v", out)
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
 	// setting quota limit if it is enabled
 	err = p.setAdditionalSettings(options)
 	if err != nil {
-		p.deleteOBCResourceLogError("")
 		return nil, err
 	}
 
@@ -321,7 +329,11 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 	}
 
 	// finally, delete the user
-	p.deleteOBCResourceLogError("")
+	err = p.deleteOBCResource("")
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete user %q", p.cephUserName)
+	}
+
 	return nil
 }
 
@@ -378,6 +390,11 @@ func (p *Provisioner) initializeCreateOrGrant(options *apibkt.BucketOptions) err
 		return errors.Wrap(err, "failed to set admin ops api client")
 	}
 
+	if len(options.UserID) == 0 {
+		return errors.Errorf("user ID for OBC %q is empty", obc.Name)
+	}
+	p.cephUserName = options.UserID
+
 	return nil
 }
 
@@ -427,6 +444,8 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 
 	conn := &bktv1alpha1.Connection{
 		Endpoint: &bktv1alpha1.Endpoint{
+			// if there are multiple endpoints on the object store, the OBC will get the endpoint
+			// that it used for provisioning to make sure that the configmap gets a working config
 			BucketHost:           p.storeDomainName,
 			BucketPort:           int(p.storePort),
 			BucketName:           p.bucketName,
@@ -439,7 +458,9 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 			},
 		},
 		AdditionalState: map[string]string{
-			CephUser: p.cephUserName,
+			CephUser:             p.cephUserName,
+			ObjectStoreName:      p.objectStoreName,
+			ObjectStoreNamespace: p.clusterInfo.Namespace,
 		},
 	}
 
@@ -482,15 +503,12 @@ func (p *Provisioner) setObjectContext() error {
 // setObjectStoreDomainName sets the provisioner.storeDomainName and provisioner.port
 // must be called after setObjectStoreName and setObjectStoreNamespace
 func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error {
-
-	name := getObjectStoreName(sc)
-	namespace := getObjectStoreNameSpace(sc)
 	// make sure the object store actually exists
-	_, err := p.getObjectStore()
+	store, err := p.getObjectStore()
 	if err != nil {
 		return err
 	}
-	p.storeDomainName = object.BuildDomainName(name, namespace)
+	p.storeDomainName = object.GetDomainName(store)
 	return nil
 }
 
@@ -504,7 +522,7 @@ func (p *Provisioner) setObjectStorePort() error {
 }
 
 func (p *Provisioner) setObjectStoreName(sc *storagev1.StorageClass) {
-	p.objectStoreName = sc.Parameters[objectStoreName]
+	p.objectStoreName = sc.Parameters[ObjectStoreName]
 }
 
 func (p *Provisioner) setBucketName(name string) {
@@ -551,53 +569,69 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 	return nil
 }
 
-func (p *Provisioner) deleteOBCResourceLogError(bucketname string) {
-	if err := p.deleteOBCResource(bucketname); err != nil {
-		logger.Warningf("failed to delete OBC resource. %v", err)
-	}
-}
-
 // Check for additional options mentioned in OBC and set them accordingly
-func (p Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error {
-	quotaEnabled := true
+func (p *Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error {
+	var maxObjectsInt64 int64 = -1
+	var maxSizeInt64 int64 = -1
+	var err error
+	var quotaEnabled bool
+
 	maxObjects := MaxObjectQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
-	maxSize := MaxSizeQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
-	if maxObjects == "" && maxSize == "" {
-		return nil
-	}
-
-	// Enabling quota for the user
-	err := p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
-	if err != nil {
-		return errors.Wrapf(err, "failed to enable user %q quota for obc", p.cephUserName)
-	}
-
 	if maxObjects != "" {
-		maxObjectsInt, err := strconv.Atoi(maxObjects)
+		quotaEnabled = true
+
+		maxObjectsInt64, err = toInt64(maxObjects)
 		if err != nil {
-			return errors.Wrap(err, "failed to convert maxObjects to integer")
-		}
-		maxObjectsInt64 := int64(maxObjectsInt)
-		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxObjects: &maxObjectsInt64})
-		if err != nil {
-			return errors.Wrapf(err, "failed to set MaxObject to user %q", p.cephUserName)
+			return errors.Wrapf(err, "failed to parse maxObjects quota for user %q", p.cephUserName)
 		}
 	}
+
+	maxSize := MaxSizeQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
 	if maxSize != "" {
-		maxSizeInt, err := maxSizeToInt64(maxSize)
+		quotaEnabled = true
+
+		maxSizeInt64, err = toInt64(maxSize)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
 		}
-		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxSize: &maxSizeInt})
+	}
+
+	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName})
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
+	}
+
+	// enable or disable quota for user
+	if *objectUser.UserQuota.Enabled != quotaEnabled {
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
 		if err != nil {
-			return errors.Wrapf(err, "failed to set MaxSize to user %q", p.cephUserName)
+			return errors.Wrapf(err, "failed to set user %q quota enabled=%v for obc", p.cephUserName, quotaEnabled)
+		}
+	}
+
+	if !quotaEnabled {
+		// no need to process anything else if quotas are disabled
+		return nil
+	}
+
+	if *objectUser.UserQuota.MaxObjects != maxObjectsInt64 {
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxObjects: &maxObjectsInt64})
+		if err != nil {
+			return errors.Wrapf(err, "failed to set MaxObjects=%v to user %q", maxObjectsInt64, p.cephUserName)
+		}
+	}
+
+	if *&objectUser.UserQuota.MaxSize != &maxSizeInt64 {
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxSize: &maxSizeInt64})
+		if err != nil {
+			return errors.Wrapf(err, "failed to set MaxSize=%v to user %q", maxSizeInt64, p.cephUserName)
 		}
 	}
 
 	return nil
 }
 
-func maxSizeToInt64(maxSize string) (int64, error) {
+func toInt64(maxSize string) (int64, error) {
 	maxSizeInt, err := resource.ParseQuantity(maxSize)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to parse quantity")
@@ -654,7 +688,7 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	// Build endpoint
-	s3endpoint := object.BuildDNSEndpoint(object.BuildDomainName(p.objectContext.Name, cephObjectStore.Namespace), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
+	s3endpoint := object.BuildDNSEndpoint(object.GetDomainName(cephObjectStore), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
 
 	// If DEBUG level is set we will mutate the HTTP client for printing request and response
 	if logger.LevelAt(capnslog.DEBUG) {
@@ -670,70 +704,4 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	return nil
-}
-func (p Provisioner) updateAdditionalSettings(ob *bktv1alpha1.ObjectBucket) error {
-	var maxObjectsInt64 int64
-	var maxSizeInt64 int64
-	var err error
-	var quotaEnabled bool
-	maxObjects := MaxObjectQuota(ob.Spec.Endpoint.AdditionalConfigData)
-	maxSize := MaxSizeQuota(ob.Spec.Endpoint.AdditionalConfigData)
-	if maxObjects != "" {
-		maxObjectsInt, err := strconv.Atoi(maxObjects)
-		if err != nil {
-			return errors.Wrap(err, "failed to convert maxObjects to integer")
-		}
-		maxObjectsInt64 = int64(maxObjectsInt)
-	}
-	if maxSize != "" {
-		maxSizeInt64, err = maxSizeToInt64(maxSize)
-		if err != nil {
-			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
-		}
-	}
-	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: ob.Spec.Connection.AdditionalState[CephUser]})
-	if err != nil {
-		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
-	}
-	if *objectUser.UserQuota.Enabled &&
-		(maxObjects == "" || maxObjectsInt64 < 0) &&
-		(maxSize == "" || maxSizeInt64 < 0) {
-		quotaEnabled = false
-		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
-		if err != nil {
-			return errors.Wrapf(err, "failed to disable quota to user %q", p.cephUserName)
-		}
-		return nil
-	}
-
-	quotaEnabled = true
-	quotaSpec := admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled}
-
-	//MaxObject is modified
-	if maxObjects != "" && (maxObjectsInt64 != *objectUser.UserQuota.MaxObjects) {
-		quotaSpec.MaxObjects = &maxObjectsInt64
-	}
-
-	//MaxSize is modified
-	if maxSize != "" && (maxSizeInt64 != *objectUser.UserQuota.MaxSize) {
-		quotaSpec.MaxSize = &maxSizeInt64
-	}
-	err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, quotaSpec)
-	if err != nil {
-		return errors.Wrapf(err, "failed to update quota to user %q", p.cephUserName)
-	}
-
-	return nil
-}
-
-// Update is sent when only there is modification to AdditionalConfig field in OBC
-func (p Provisioner) Update(ob *bktv1alpha1.ObjectBucket) error {
-	logger.Debugf("Update event for OB: %+v", ob)
-
-	err := p.initializeDeleteOrRevoke(ob)
-	if err != nil {
-		return err
-	}
-
-	return p.updateAdditionalSettings(ob)
 }

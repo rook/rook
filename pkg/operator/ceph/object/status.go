@@ -49,7 +49,12 @@ func updateStatus(ctx context.Context, observedGeneration int64, client client.C
 			return errors.Wrapf(err, "failed to retrieve object store %q to update status to %q", namespacedName.String(), status)
 		}
 		if objectStore.Status == nil {
-			objectStore.Status = &cephv1.ObjectStoreStatus{}
+			objectStore.Status = &cephv1.ObjectStoreStatus{
+				Endpoints: cephv1.ObjectEndpoints{
+					Insecure: []string{},
+					Secure:   []string{},
+				},
+			}
 		}
 
 		if objectStore.Status.Phase == cephv1.ConditionDeleting {
@@ -61,6 +66,15 @@ func updateStatus(ctx context.Context, observedGeneration int64, client client.C
 		objectStore.Status.Info = info
 		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 			objectStore.Status.ObservedGeneration = observedGeneration
+		}
+
+		insecurePort := objectStore.Spec.Gateway.Port
+		if insecurePort > 0 {
+			objectStore.Status.Endpoints.Insecure = getAllDNSEndpoints(objectStore, insecurePort, false)
+		}
+		securePort := objectStore.Spec.Gateway.SecurePort
+		if securePort > 0 {
+			objectStore.Status.Endpoints.Secure = getAllDNSEndpoints(objectStore, securePort, true)
 		}
 
 		if err := reporting.UpdateStatus(client, objectStore); err != nil {
@@ -79,12 +93,12 @@ func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string 
 	m := make(map[string]string)
 
 	if cephObjectStore.Spec.Gateway.SecurePort != 0 && cephObjectStore.Spec.Gateway.Port != 0 {
-		m["secureEndpoint"] = BuildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.SecurePort, true)
-		m["endpoint"] = BuildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
+		m["secureEndpoint"] = BuildDNSEndpoint(GetStableDomainName(cephObjectStore), cephObjectStore.Spec.Gateway.SecurePort, true)
+		m["endpoint"] = BuildDNSEndpoint(GetStableDomainName(cephObjectStore), cephObjectStore.Spec.Gateway.Port, false)
 	} else if cephObjectStore.Spec.Gateway.SecurePort != 0 {
-		m["endpoint"] = BuildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.SecurePort, true)
+		m["endpoint"] = BuildDNSEndpoint(GetStableDomainName(cephObjectStore), cephObjectStore.Spec.Gateway.SecurePort, true)
 	} else {
-		m["endpoint"] = BuildDNSEndpoint(BuildDomainName(cephObjectStore.Name, cephObjectStore.Namespace), cephObjectStore.Spec.Gateway.Port, false)
+		m["endpoint"] = BuildDNSEndpoint(GetStableDomainName(cephObjectStore), cephObjectStore.Spec.Gateway.Port, false)
 	}
 
 	return m

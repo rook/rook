@@ -99,6 +99,7 @@ func (s *S3Agent) createBucket(name string, infoLogging bool) error {
 	bucketInput := &s3.CreateBucketInput{
 		Bucket: &name,
 	}
+
 	_, err := s.Client.CreateBucket(bucketInput)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
