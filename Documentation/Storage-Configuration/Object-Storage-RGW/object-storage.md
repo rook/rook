@@ -48,10 +48,6 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
-  healthCheck:
-    bucket:
-      disabled: false
-      interval: 60s
 ```
 
 After the `CephObjectStore` is created, the Rook operator will then create all the pools and other resources necessary to start the service. This may take a minute to complete.
@@ -84,10 +80,6 @@ spec:
     port: 8080
     externalRgwEndpoints:
       - ip: 192.168.39.182
-  healthCheck:
-    bucket:
-      enabled: true
-      interval: 60s
 ```
 
 You can use the existing `object-external.yaml` file.
@@ -248,6 +240,12 @@ Download and verify the file from the bucket
 s5cmd --endpoint-url http://$AWS_HOST:$PORT cp s3://$BUCKET_NAME/rookObj /tmp/rookObj-download
 cat /tmp/rookObj-download
 ```
+
+## Monitoring health
+
+Rook configures health probes on the deployment created for CephObjectStore gateways. Refer to
+[the CRD document](../../CRDs/Object-Storage/ceph-object-store-crd.md#health-settings) for
+information about configuring the probes and monitoring the deployment status.
 
 ## Access External to the Cluster
 

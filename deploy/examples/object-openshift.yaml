@@ -98,9 +98,6 @@ spec:
     #    service.beta.openshift.io/serving-cert-secret-name: <name of TLS secret automatic generation>
   # service endpoint healthcheck
   healthCheck:
-    bucket:
-      disabled: false
-      interval: 60s
     # Configure the pod probes for the rgw daemon
     livenessProbe:
       disabled: false
@@ -149,12 +146,12 @@ metadata:
 spec:
   port:
     targetPort: http
-# if TLS is enabled, remove the above http port and uncomment the https port and tls settings
-#  port:
-#    targetPort: https
-#  tls:
-#    insecureEdgeTerminationPolicy: Redirect
-#    termination: reencrypt
+  # if TLS is enabled, remove the above http port and uncomment the https port and tls settings
+  #  port:
+  #    targetPort: https
+  #  tls:
+  #    insecureEdgeTerminationPolicy: Redirect
+  #    termination: reencrypt
   to:
     kind: Service
     name: rook-ceph-rgw-my-store # The name of the RGW service is in the form 'rook-ceph-rgw-<objectstore-name>'

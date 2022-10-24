@@ -12223,20 +12223,9 @@ spec:
                       type: string
                   type: object
                 healthCheck:
-                  description: The rgw Bucket healthchecks and liveness probe
+                  description: The RGW health probes
                   nullable: true
                   properties:
-                    bucket:
-                      description: HealthCheckSpec represents the health check of an object store bucket
-                      properties:
-                        disabled:
-                          type: boolean
-                        interval:
-                          description: Interval is the internal in second or minute for the health check to run like 60s for 60 seconds
-                          type: string
-                        timeout:
-                          type: string
-                      type: object
                     livenessProbe:
                       description: ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon
                       properties:
@@ -12780,19 +12769,6 @@ spec:
             status:
               description: ObjectStoreStatus represents the status of a Ceph Object Store resource
               properties:
-                bucketStatus:
-                  description: BucketStatus represents the status of a bucket
-                  properties:
-                    details:
-                      type: string
-                    health:
-                      description: ConditionType represent a resource's status
-                      type: string
-                    lastChanged:
-                      type: string
-                    lastChecked:
-                      type: string
-                  type: object
                 conditions:
                   items:
                     description: Condition represents a status condition on any Rook-Ceph Custom Resource.

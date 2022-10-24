@@ -532,9 +532,6 @@ cephObjectStores:
         # sslCertificateRef:
         instances: 1
         priorityClassName: system-cluster-critical
-      healthCheck:
-        bucket:
-          interval: 60s
     storageClass:
       enabled: true
       name: ceph-bucket

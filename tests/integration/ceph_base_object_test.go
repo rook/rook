@@ -36,6 +36,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -116,18 +117,23 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		for i = 0; i < retryCount; i++ {
 			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
 			assert.Nil(t, err)
-			if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
+			// TODO: check that object store status is good, and also check that status of
+			// deployment is good based on health checks
+
+			if objectStore.Status == nil {
 				logger.Infof("(%d) object status check sleeping for 5 seconds ...%+v", i, objectStore.Status)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 			logger.Info("objectstore status is", objectStore.Status)
-			if objectStore.Status.BucketStatus.Health == cephv1.ConditionFailure {
-				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.BucketStatus)
+			// ConditionConnected supports Rook v1.10 clusters that still had health check
+			// TODO: remove that half of check after Rook v1.12 release
+			if objectStore.Status.Phase != cephv1.ConditionReady && objectStore.Status.Phase != cephv1.ConditionConnected {
+				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.Phase)
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			assert.Equal(t, cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
+
 			// Info field has the endpoint in it
 			assert.NotEmpty(t, objectStore.Status.Info)
 			assert.NotEmpty(t, objectStore.Status.Info["endpoint"])
@@ -136,6 +142,23 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		if i == retryCount {
 			t.Fatal("bucket status check failed. status is not connected")
 		}
+	})
+
+	t.Run("verify RGW liveness probes show healthy", func(t *testing.T) {
+		err := wait.PollImmediate(2*time.Second, 90*time.Second, func() (done bool, err error) {
+			deployName := "rook-ceph-rgw-" + storeName + "-a"
+			d, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
+			if err != nil {
+				logger.Infof("waiting for rgw deployment %q to be ready; failed to get deployment: %v", deployName, err)
+				return false, nil
+			}
+			if d.Status.UnavailableReplicas != 0 {
+				logger.Infof("waiting rgw deployment %q to be ready; %d replicas are unavailable", deployName, d.Status.UnavailableReplicas)
+				return false, nil
+			}
+			return true, nil
+		})
+		assert.NoError(t, err)
 	})
 
 	t.Run("verify RGW service is up", func(t *testing.T) {

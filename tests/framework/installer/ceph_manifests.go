@@ -473,10 +473,6 @@ spec:
     securePort: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
     sslCertificateRef: ` + name + `
-  healthCheck:
-    bucket:
-      disabled: false
-      interval: 10s
 `
 	}
 	return `apiVersion: ceph.rook.io/v1
@@ -498,10 +494,6 @@ spec:
     resources: null
     port: ` + strconv.Itoa(port) + `
     instances: ` + strconv.Itoa(replicaCount) + `
-  healthCheck:
-    bucket:
-      disabled: false
-      interval: 5s
 `
 }
 

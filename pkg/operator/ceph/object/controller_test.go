@@ -19,7 +19,7 @@ package object
 
 import (
 	"context"
-	"net/http"
+	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -383,12 +383,11 @@ func TestCephObjectStoreController(t *testing.T) {
 		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 		// Create a ReconcileCephObjectStore object with the scheme and fake client.
 		r := &ReconcileCephObjectStore{
-			client:              cl,
-			scheme:              s,
-			context:             c,
-			objectStoreContexts: make(map[string]*objectStoreHealth),
-			recorder:            record.NewFakeRecorder(5),
-			opManagerContext:    context.TODO(),
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			recorder:         record.NewFakeRecorder(5),
+			opManagerContext: context.TODO(),
 		}
 
 		return r
@@ -526,28 +525,12 @@ func TestCephObjectStoreController(t *testing.T) {
 		return r
 	}
 
-	t.Run("error - failed to start health checker", func(t *testing.T) {
-		r := setupEnvironmentWithReadyCephCluster()
-
-		// cause a failure when creating the admin ops api for the health check
-		origHTTPClientFunc := genObjectStoreHTTPClientFunc
-		genObjectStoreHTTPClientFunc = func(objContext *Context, spec *cephv1.ObjectStoreSpec) (client *http.Client, tlsCert []byte, err error) {
-			return nil, []byte{}, errors.New("induced error creating admin ops API connection")
-		}
-		defer func() { genObjectStoreHTTPClientFunc = origHTTPClientFunc }()
-
-		_, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
-		// we don't actually care if Requeue is true if there is an error assert.True(t, res.Requeue)
-		assert.Contains(t, err.Error(), "failed to start rgw health checker")
-		assert.Contains(t, err.Error(), "induced error creating admin ops API connection")
-
-		// health checker should start up after committing config changes
-		assert.True(t, calledCommitConfigChanges)
-	})
-
 	t.Run("success - object store is running", func(t *testing.T) {
 		r := setupEnvironmentWithReadyCephCluster()
+
+		removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
+			return nil
+		}
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -556,11 +539,23 @@ func TestCephObjectStoreController(t *testing.T) {
 		objectStore := &cephv1.CephObjectStore{}
 		err = r.client.Get(context.TODO(), req.NamespacedName, objectStore)
 		assert.NoError(t, err)
-		assert.Equal(t, cephv1.ConditionProgressing, objectStore.Status.Phase, objectStore)
+		assert.Equal(t, cephv1.ConditionReady, objectStore.Status.Phase, objectStore)
 		assert.NotEmpty(t, objectStore.Status.Info["endpoint"], objectStore)
 		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
 		assert.True(t, calledCommitConfigChanges)
 		assert.Equal(t, 16, r.clusterInfo.CephVersion.Major)
+	})
+
+	t.Run("failed to remove deprecated health check bucket", func(t *testing.T) {
+		r := setupEnvironmentWithReadyCephCluster()
+
+		removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
+			return fmt.Errorf("induced error")
+		}
+
+		_, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "deprecated health check bucket")
 	})
 }
 
@@ -735,12 +730,11 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	r := &ReconcileCephObjectStore{
-		client:              cl,
-		scheme:              s,
-		context:             c,
-		objectStoreContexts: make(map[string]*objectStoreHealth),
-		recorder:            record.NewFakeRecorder(5),
-		opManagerContext:    ctx,
+		client:           cl,
+		scheme:           s,
+		context:          c,
+		recorder:         record.NewFakeRecorder(5),
+		opManagerContext: ctx,
 	}
 
 	_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
@@ -755,6 +749,10 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*cephver.CephVersion, *cephver.CephVersion, error) {
 		return &cephver.Pacific, &cephver.Pacific, nil
+	}
+
+	removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
+		return nil
 	}
 
 	t.Run("create an object store", func(t *testing.T) {
@@ -894,12 +892,11 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 		}
 
 		r := &ReconcileCephObjectStore{
-			client:              cl,
-			scheme:              s,
-			context:             c,
-			objectStoreContexts: make(map[string]*objectStoreHealth),
-			recorder:            record.NewFakeRecorder(5),
-			opManagerContext:    ctx,
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			recorder:         record.NewFakeRecorder(5),
+			opManagerContext: ctx,
 		}
 
 		_, err := r.context.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
@@ -930,6 +927,10 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 		}
 
 		r := getReconciler(objects)
+
+		removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
+			return nil
+		}
 
 		t.Run("create an external object store", func(t *testing.T) {
 			res, err := r.Reconcile(ctx, req)
