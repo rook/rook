@@ -589,6 +589,7 @@ func (c *Cluster) failoverMon(name string) error {
 			return errors.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
 		}
 		m.PublicIP = schedule.Address
+		m.UseHostNetwork = true
 	} else {
 		// Create the service endpoint
 		serviceIP, err := c.createService(m)
