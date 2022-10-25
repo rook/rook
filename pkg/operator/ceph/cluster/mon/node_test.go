@@ -173,11 +173,12 @@ func TestHostNetwork(t *testing.T) {
 	c.spec.Network.HostNetwork = true
 
 	monConfig := testGenMonConfig("c")
+	monConfig.UseHostNetwork = true
 	pod, err := c.makeMonPod(monConfig, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, pod)
-	assert.Equal(t, true, pod.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
+	assert.Equal(t, true, pod.Spec.HostNetwork)
 	val, message := extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
 	assert.Equal(t, "2.4.6.3", val, message)
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-bind-addr")
@@ -190,6 +191,14 @@ func TestHostNetwork(t *testing.T) {
 	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
 	assert.Equal(t, "2.4.6.3:6790", val, message)
 	assert.NotNil(t, pod)
+
+	// Host network setting of mons should be maintained even if the cluster spec hostnetwork is different
+	// from the mons to not be using host networking
+	monConfig.UseHostNetwork = false
+	pod, err = c.makeMonPod(monConfig, false)
+	assert.NoError(t, err)
+	assert.NotNil(t, pod)
+	assert.Equal(t, false, pod.Spec.HostNetwork)
 }
 
 func extractArgValue(args []string, name string) (string, string) {

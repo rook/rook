@@ -132,6 +132,10 @@ type monConfig struct {
 	// DataPathMap is the mapping relationship between mon data stored on the host and mon data
 	// stored in containers.
 	DataPathMap *config.DataPathMap
+	// Whether the mon is running with host networking. Must be detected separately
+	// from the cephcluster host network setting. If the cluster setting changes,
+	// each individual mon must keep running with the same network settings.
+	UseHostNetwork bool
 }
 
 type SchedulingResult struct {
@@ -546,19 +550,27 @@ func (c *Cluster) clusterInfoToMonConfigWithExclude(excludedMon string) []*monCo
 		}
 		var zone string
 		var nodeName string
+		isHostNetwork := false
+		monPublicIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
 		schedule := c.mapping.Schedule[monitor.Name]
 		if schedule != nil {
 			zone = schedule.Zone
 			nodeName = schedule.Name
+			if schedule.Address == monPublicIP {
+				isHostNetwork = true
+			}
 		}
+		logger.Debugf("Host network for mon %q is %t", monitor.Name, isHostNetwork)
+
 		mons = append(mons, &monConfig{
-			ResourceName: resourceName(monitor.Name),
-			DaemonName:   monitor.Name,
-			Port:         cephutil.GetPortFromEndpoint(monitor.Endpoint),
-			PublicIP:     cephutil.GetIPFromEndpoint(monitor.Endpoint),
-			Zone:         zone,
-			NodeName:     nodeName,
-			DataPathMap:  config.NewStatefulDaemonDataPathMap(c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
+			ResourceName:   resourceName(monitor.Name),
+			DaemonName:     monitor.Name,
+			Port:           cephutil.GetPortFromEndpoint(monitor.Endpoint),
+			PublicIP:       monPublicIP,
+			Zone:           zone,
+			NodeName:       nodeName,
+			DataPathMap:    config.NewStatefulDaemonDataPathMap(c.spec.DataDirHostPath, dataDirRelativeHostPath(monitor.Name), config.MonType, monitor.Name, c.Namespace),
+			UseHostNetwork: isHostNetwork,
 		})
 	}
 	return mons
@@ -572,10 +584,11 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	}
 
 	return &monConfig{
-		ResourceName: resourceName(daemonName),
-		DaemonName:   daemonName,
-		Port:         defaultPort,
-		Zone:         zone,
+		ResourceName:   resourceName(daemonName),
+		DaemonName:     daemonName,
+		Port:           defaultPort,
+		Zone:           zone,
+		UseHostNetwork: c.spec.Network.IsHost(),
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
 	}
@@ -776,11 +789,11 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 		if c.ClusterInfo.Context.Err() != nil {
 			return c.ClusterInfo.Context.Err()
 		}
-		if c.spec.Network.IsHost() {
-			logger.Infof("setting mon endpoints for hostnetwork mode")
+		if m.UseHostNetwork {
+			logger.Infof("setting mon %q endpoints for hostnetwork mode", m.DaemonName)
 			node, ok := c.mapping.Schedule[m.DaemonName]
 			if !ok || node == nil {
-				return errors.Errorf("failed to found node for mon %q in assignment map", m.DaemonName)
+				return errors.Errorf("failed to find node for mon %q in assignment map", m.DaemonName)
 			}
 			m.PublicIP = node.Address
 		} else {
@@ -1274,7 +1287,7 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 		// isn't using host networking and the deployment is using pvc storage,
 		// then the node selector can be removed. this may happen after
 		// upgrading the cluster with the k8s scheduling support for monitors.
-		if c.spec.Network.IsHost() || !pvcExists {
+		if m.UseHostNetwork || !pvcExists {
 			p.PodAffinity = nil
 			p.PodAntiAffinity = nil
 			k8sutil.SetNodeAntiAffinityForPod(&d.Spec.Template.Spec, requiredDuringScheduling(&c.spec), v1.LabelHostname,
