@@ -23,8 +23,8 @@ metadata:
 spec:
   bucketName: [3]
   generateBucketName: photo-booth [4]
-  storageClassName: rook-ceph-bucket [4]
-  additionalConfig: [5]
+  storageClassName: rook-ceph-bucket [5]
+  additionalConfig: [6]
     maxObjects: "1000"
     maxSize: "2G"
 ```
