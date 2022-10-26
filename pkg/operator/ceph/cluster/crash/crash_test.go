@@ -25,6 +25,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -151,6 +152,8 @@ func TestCreateOrUpdateCephCrash(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, false, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
+	assert.Equal(t, int64(controller.CephUserID), *podSpec.Spec.Containers[0].SecurityContext.RunAsUser)
+	assert.Equal(t, int64(controller.CephUserID), *podSpec.Spec.Containers[0].SecurityContext.RunAsGroup)
 
 	cephCluster.Spec.Labels[cephv1.KeyCrashCollector] = map[string]string{"foo": "bar"}
 	cephCluster.Spec.Network.HostNetwork = true
