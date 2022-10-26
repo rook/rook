@@ -367,42 +367,28 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			args = []string{
 				"ceph", "osd", "start",
 				"--",
-				"--foreground",
-				"--id", osdID,
-				"--fsid", c.clusterInfo.FSID,
-				"--cluster", "ceph",
-				"--setuser", "ceph",
-				"--setgroup", "ceph",
-				fmt.Sprintf("--crush-location=%s", osd.Location),
 			}
 			osd.LVBackedPV = true
 		} else {
-			// raw mode
+			// raw mode on pvc
 			doBinaryCopyInit = false
 			doConfigInit = false
 			command = []string{"ceph-osd"}
-			args = []string{
-				"--foreground",
-				"--id", osdID,
-				"--fsid", c.clusterInfo.FSID,
-				"--setuser", "ceph",
-				"--setgroup", "ceph",
-				fmt.Sprintf("--crush-location=%s", osd.Location),
-			}
 		}
 	} else {
+		// non-pvc
 		doBinaryCopyInit = false
 		doConfigInit = false
 		command = []string{"ceph-osd"}
-		args = []string{
-			"--foreground",
-			"--id", osdID,
-			"--fsid", c.clusterInfo.FSID,
-			"--setuser", "ceph",
-			"--setgroup", "ceph",
-			fmt.Sprintf("--crush-location=%s", osd.Location),
-		}
 	}
+	args = append(args, []string{
+		"--foreground",
+		"--id", osdID,
+		"--fsid", c.clusterInfo.FSID,
+		"--setuser", "ceph",
+		"--setgroup", "ceph",
+		fmt.Sprintf("--crush-location=%s", osd.Location),
+	}...)
 
 	// Ceph expects initial weight as float value in tera-bytes units
 	if osdProps.storeConfig.InitialWeight != "" {
