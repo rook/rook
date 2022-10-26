@@ -478,26 +478,28 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 	return false, nil
 }
 
-func (r *ReconcileCephCluster) removeFinalizers(client client.Client, name types.NamespacedName) error {
-	// Remove cephcluster finalizer
-	err := r.removeFinalizer(client, name, &cephv1.CephCluster{}, "")
-	if err != nil {
-		return errors.Wrap(err, "failed to remove cephcluster finalizer")
-	}
+func (r *ReconcileCephCluster) removeFinalizers(client client.Client, clusterName types.NamespacedName) error {
 
 	// Remove finalizer for rook-ceph-mon secret
-	name = types.NamespacedName{Name: mon.AppName, Namespace: name.Namespace}
-	err = r.removeFinalizer(client, name, &corev1.Secret{}, mon.DisasterProtectionFinalizerName)
+	name := types.NamespacedName{Name: mon.AppName, Namespace: clusterName.Namespace}
+	err := r.removeFinalizer(client, name, &corev1.Secret{}, mon.DisasterProtectionFinalizerName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove finalizer for the secret %q", name.Name)
 	}
 
 	// Remove finalizer for rook-ceph-mon-endpoints configmap
-	name = types.NamespacedName{Name: mon.EndpointConfigMapName, Namespace: name.Namespace}
+	name = types.NamespacedName{Name: mon.EndpointConfigMapName, Namespace: clusterName.Namespace}
 	err = r.removeFinalizer(client, name, &corev1.ConfigMap{}, mon.DisasterProtectionFinalizerName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove finalizer for the configmap %q", name.Name)
 	}
+
+	// Remove cephcluster finalizer
+	err = r.removeFinalizer(client, clusterName, &cephv1.CephCluster{}, "")
+	if err != nil {
+		return errors.Wrap(err, "failed to remove cephcluster finalizer")
+	}
+
 	return nil
 }
 
