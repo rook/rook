@@ -18,7 +18,6 @@ package v1
 
 import (
 	"reflect"
-	"strconv"
 
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -73,11 +72,10 @@ func validateUpdatedCephCluster(updatedCephCluster *CephCluster, found *CephClus
 		return errors.Errorf("invalid update: DataDirHostPath change from %q to %q is not allowed", found.Spec.DataDirHostPath, updatedCephCluster.Spec.DataDirHostPath)
 	}
 
-	if updatedCephCluster.Spec.Network.HostNetwork != found.Spec.Network.HostNetwork {
-		return errors.Errorf("invalid update: HostNetwork change from %q to %q is not allowed", strconv.FormatBool(found.Spec.Network.HostNetwork), strconv.FormatBool(updatedCephCluster.Spec.Network.HostNetwork))
-	}
-
-	if updatedCephCluster.Spec.Network.Provider != found.Spec.Network.Provider {
+	// Allow an attempt to enable or disable host networking, but not other provider changes
+	oldProvider := updatedCephCluster.Spec.Network.Provider
+	newProvider := found.Spec.Network.Provider
+	if oldProvider != newProvider && oldProvider != "host" && newProvider != "host" {
 		return errors.Errorf("invalid update: Provider change from %q to %q is not allowed", found.Spec.Network.Provider, updatedCephCluster.Spec.Network.Provider)
 	}
 
