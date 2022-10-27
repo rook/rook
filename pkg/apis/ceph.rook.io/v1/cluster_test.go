@@ -38,7 +38,7 @@ func Test_validateUpdatedCephCluster(t *testing.T) {
 		{"even mon count", args{&CephCluster{Spec: ClusterSpec{Mon: MonSpec{Count: 2}}}, &CephCluster{}}, false},
 		{"good mon count", args{&CephCluster{Spec: ClusterSpec{Mon: MonSpec{Count: 3}}}, &CephCluster{}}, false},
 		{"changed DataDirHostPath", args{&CephCluster{Spec: ClusterSpec{DataDirHostPath: "foo"}}, &CephCluster{Spec: ClusterSpec{DataDirHostPath: "bar"}}}, true},
-		{"changed HostNetwork", args{&CephCluster{Spec: ClusterSpec{Network: NetworkSpec{HostNetwork: false}}}, &CephCluster{Spec: ClusterSpec{Network: NetworkSpec{HostNetwork: true}}}}, true},
+		{"changed network provider", args{&CephCluster{Spec: ClusterSpec{Network: NetworkSpec{Provider: "foo"}}}, &CephCluster{Spec: ClusterSpec{Network: NetworkSpec{Provider: "bar"}}}}, true},
 		{"changed storageClassDeviceSet encryption", args{&CephCluster{Spec: ClusterSpec{Storage: StorageScopeSpec{StorageClassDeviceSets: []StorageClassDeviceSet{{Name: "foo", Encrypted: false}}}}}, &CephCluster{Spec: ClusterSpec{Storage: StorageScopeSpec{StorageClassDeviceSets: []StorageClassDeviceSet{{Name: "foo", Encrypted: true}}}}}}, true},
 	}
 	for _, tt := range tests {

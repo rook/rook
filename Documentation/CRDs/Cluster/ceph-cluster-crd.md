@@ -186,6 +186,12 @@ Configure the network that will be enabled for the cluster and services.
 
 To use host networking, set `provider: host`.
 
+If the host networking setting is changed in a cluster where mons are already running, the existing mons will
+remain running with the same network settings with which they were created. To complete the conversion
+to or from host networking after you update this setting, you will need to
+[failover the mons](../../Storage-Configuration/Advanced/ceph-mon-health.md#failing-over-a-monitor)
+in order to have mons on the desired network configuration.
+
 #### Multus
 
 Rook supports addition of public and cluster network for ceph using Multus
