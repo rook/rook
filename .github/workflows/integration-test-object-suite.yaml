@@ -50,7 +50,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-object-suite-artifact-${{ matrix.kubernetes-versions }}

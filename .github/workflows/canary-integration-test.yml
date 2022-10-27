@@ -1358,7 +1358,7 @@ jobs:
           # ceph-image: # use default
 
       - name: upload test result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: rgw-multisite-testing
@@ -1396,7 +1396,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: upload test result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: encryption-pvc-kms-ibm-kp

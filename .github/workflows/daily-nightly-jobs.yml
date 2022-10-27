@@ -90,7 +90,7 @@ jobs:
           name: canary-arm64
 
       - name: upload canary test result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: canary-arm64
@@ -125,7 +125,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-smoke-suite-pacific-artifact
@@ -160,7 +160,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-smoke-suite-quincy-artifact
@@ -195,7 +195,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-smoke-suite-master-artifact
@@ -230,7 +230,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-object-suite-pacific-artifact
@@ -265,7 +265,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-object-suite-master-artifact
@@ -300,7 +300,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-upgrade-suite-pacific-artifact
@@ -335,7 +335,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: ceph-upgrade-suite-quincy-artifact
@@ -361,7 +361,7 @@ jobs:
           ceph-image: quay.io/ceph/daemon-base:${{ matrix.ceph-image-tag }}
 
       - name: upload test result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: rgw-multisite-testing-ceph-${{ matrix.ceph-image-tag }}
@@ -387,7 +387,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: upload test result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: encryption-pvc-kms-ibm-kp
