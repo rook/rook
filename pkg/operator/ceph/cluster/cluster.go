@@ -615,7 +615,7 @@ func (c *cluster) configureMsgr2() error {
 		}
 
 		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
-		if err := monStore.AddSettingsToMonDB("global", globalConfigSettings); err != nil {
+		if err := monStore.SetAll("global", globalConfigSettings); err != nil {
 			return err
 		}
 	}
@@ -631,7 +631,7 @@ func (c *cluster) configureMsgr2() error {
 				"ms_osd_compress_mode": compressionSetting,
 			}
 			logger.Infof("setting msgr2 compression mode to %q", compressionSetting)
-			if err := monStore.AddSettingsToMonDB("global", globalConfigSettings); err != nil {
+			if err := monStore.SetAll("global", globalConfigSettings); err != nil {
 				return err
 			}
 		} else {
