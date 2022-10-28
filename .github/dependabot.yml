@@ -5,6 +5,9 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    ignore:
+      - dependency-name: "k8s.io/*"
+      - dependency-name: "sigs.k8s.io/controller-runtime"
 
   # Dependencies listed in .github/workflows/*.yml
   - package-ecosystem: "github-actions"
