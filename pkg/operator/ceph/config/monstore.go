@@ -18,7 +18,6 @@ package config
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -157,26 +156,6 @@ func (m *MonStore) DeleteDaemon(who string) error {
 	return nil
 }
 
-// SetAll sets all configs from the overrides in the centralized mon configuration database.
-// See MonStore.Set for more.
-func (m *MonStore) SetAll(options ...Option) error {
-	var errs []error
-	for _, override := range options {
-		err := m.Set(override.Who, override.Option, override.Value)
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) > 0 {
-		retErr := errors.New("failed to set one or more Ceph configs")
-		for _, err := range errs {
-			retErr = errors.Wrapf(err, "%v", retErr)
-		}
-		return retErr
-	}
-	return nil
-}
-
 // DeleteAll deletes all provided configs from the overrides in the centralized mon configuration database.
 // See MonStore.Delete for more.
 func (m *MonStore) DeleteAll(options ...Option) error {
@@ -212,14 +191,13 @@ func (m *MonStore) SetKeyValue(key, value string) error {
 	return nil
 }
 
-func (m *MonStore) AddSettingsToMonDB(clientName string, settings map[string]string) error {
-
-	assimilateConfPath, err := ioutil.TempFile("", "")
+func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
+	assimilateConfPath, err := os.CreateTemp("", "")
 	if err != nil {
 		return errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
 	}
 
-	err = ioutil.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
+	err = os.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
 	if err != nil {
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
 	}
@@ -247,7 +225,7 @@ func (m *MonStore) AddSettingsToMonDB(clientName string, settings map[string]str
 		return errors.Wrapf(err, "failed to save config file %s", assimilateConfPath.Name())
 	}
 
-	fileContent, err := ioutil.ReadFile(assimilateConfPath.Name())
+	fileContent, err := os.ReadFile(assimilateConfPath.Name())
 	if err != nil {
 		logger.Errorf("failed to open assimilate input file %s. %c", assimilateConfPath.Name(), err)
 	}
@@ -260,11 +238,11 @@ func (m *MonStore) AddSettingsToMonDB(clientName string, settings map[string]str
 	if err != nil {
 		logger.Errorf("failed to run command ceph %s", args)
 
-		fileContent, err := ioutil.ReadFile(assimilateConfPath.Name() + ".out")
+		fileContent, err := os.ReadFile(assimilateConfPath.Name() + ".out")
 		if err != nil {
 			logger.Errorf("failed to open assimilate output file %s.out. %v", assimilateConfPath.Name(), err)
 		}
-		logger.Infof("failed to apply ceph settings:\n%s", string(fileContent))
+		logger.Errorf("failed to apply ceph settings:\n%s", string(fileContent))
 
 		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
 			"output: %s", string(out))

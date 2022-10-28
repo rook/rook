@@ -45,8 +45,8 @@ var (
 	NetworkSelectors = []string{PublicNetworkSelectorKeyName, ClusterNetworkSelectorKeyName}
 )
 
-func generateNetworkSettings(ctx context.Context, clusterdContext *clusterd.Context, namespace string, networkSelectors map[string]string) ([]Option, error) {
-	cephNetworks := []Option{}
+func generateNetworkSettings(ctx context.Context, clusterdContext *clusterd.Context, namespace string, networkSelectors map[string]string) (map[string]string, error) {
+	cephNetworks := map[string]string{}
 
 	for _, selectorKey := range NetworkSelectors {
 		// skip if selector is not specified
@@ -62,22 +62,23 @@ func generateNetworkSettings(ctx context.Context, clusterdContext *clusterd.Cont
 		netDefinition, err := clusterdContext.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(ctx, nad, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				return []Option{}, errors.Wrapf(err, "specified network attachment definition %q in namespace %q for selector %q does not exist", nad, namespace, selectorKey)
+				return cephNetworks, errors.Wrapf(err, "specified network attachment definition %q in namespace %q for selector %q does not exist", nad, namespace, selectorKey)
 			}
-			return []Option{}, errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selectorKey)
+			return cephNetworks, errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selectorKey)
 		}
 
 		// Get network attachment definition configuration
 		netConfig, err := k8sutil.GetNetworkAttachmentConfig(*netDefinition)
 		if err != nil {
-			return []Option{}, errors.Wrapf(err, "failed to get network attachment definition configuration for selector %q", selectorKey)
+			return cephNetworks, errors.Wrapf(err, "failed to get network attachment definition configuration for selector %q", selectorKey)
 		}
 
 		networkRange := getNetworkRange(netConfig)
 		if networkRange != "" {
-			cephNetworks = append(cephNetworks, configOverride("global", fmt.Sprintf("%s_network", selectorKey), networkRange))
+			key := fmt.Sprintf("%s_network", selectorKey)
+			cephNetworks[key] = networkRange
 		} else {
-			return []Option{}, errors.Errorf("empty subnet from network attachment definition %q", networkSelectors[selectorKey])
+			return cephNetworks, errors.Errorf("empty subnet from network attachment definition %q", networkSelectors[selectorKey])
 		}
 	}
 

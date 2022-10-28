@@ -18,7 +18,6 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	networkv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
@@ -48,13 +47,6 @@ func TestGenerateNetworkSettings(t *testing.T) {
 	t.Run("only cluster network", func(*testing.T) {
 		netSelector := map[string]string{"cluster": "cluster-network-attach-def"}
 		networks := []networkv1.NetworkAttachmentDefinition{getClusterNetwork()}
-		expectedNetworks := []Option{
-			{
-				Who:    "global",
-				Option: "cluster_network",
-				Value:  "172.18.0.0/16",
-			},
-		}
 		ctxt := context.TODO()
 		ns := "rook-ceph"
 		clientset := testop.New(t, 1)
@@ -69,7 +61,8 @@ func TestGenerateNetworkSettings(t *testing.T) {
 		}
 		cephNetwork, err := generateNetworkSettings(context.TODO(), clusterdContext, ns, netSelector)
 		assert.NoError(t, err)
-		assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
+		assert.Equal(t, "172.18.0.0/16", cephNetwork["cluster_network"])
+		assert.Equal(t, 1, len(cephNetwork))
 	})
 
 	t.Run("only public network", func(*testing.T) {
@@ -82,21 +75,14 @@ func TestGenerateNetworkSettings(t *testing.T) {
 		}
 		netSelector := map[string]string{"public": "public-network-attach-def"}
 		networks := []networkv1.NetworkAttachmentDefinition{getPublicNetwork()}
-		expectedNetworks := []Option{
-			{
-				Who:    "global",
-				Option: "public_network",
-				Value:  "192.168.0.0/24",
-			},
-		}
 		for i := range networks {
 			_, err := clusterdContext.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctx, &networks[i], metav1.CreateOptions{})
 			assert.NoError(t, err)
 		}
 		cephNetwork, err := generateNetworkSettings(ctx, clusterdContext, ns, netSelector)
 		assert.NoError(t, err)
-		assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
-
+		assert.Equal(t, "192.168.0.0/24", cephNetwork["public_network"])
+		assert.Equal(t, 1, len(cephNetwork))
 	})
 
 	t.Run("public and cluster network", func(*testing.T) {
@@ -112,26 +98,15 @@ func TestGenerateNetworkSettings(t *testing.T) {
 			"cluster": "cluster-network-attach-def",
 		}
 		networks := []networkv1.NetworkAttachmentDefinition{getPublicNetwork(), getClusterNetwork()}
-		expectedNetworks := []Option{
-			{
-				Who:    "global",
-				Option: "public_network",
-				Value:  "192.168.0.0/24",
-			},
-			{
-				Who:    "global",
-				Option: "cluster_network",
-				Value:  "172.18.0.0/16",
-			},
-		}
 		for i := range networks {
 			_, err := clusterdContext.NetworkClient.NetworkAttachmentDefinitions(ns).Create(ctx, &networks[i], metav1.CreateOptions{})
 			assert.NoError(t, err)
 		}
 		cephNetwork, err := generateNetworkSettings(ctx, clusterdContext, ns, netSelector)
 		assert.NoError(t, err)
-		assert.ElementsMatch(t, cephNetwork, expectedNetworks, fmt.Sprintf("networks: %+v", cephNetwork))
-
+		assert.Equal(t, "172.18.0.0/16", cephNetwork["cluster_network"])
+		assert.Equal(t, "192.168.0.0/24", cephNetwork["public_network"])
+		assert.Equal(t, 2, len(cephNetwork))
 	})
 }
 
