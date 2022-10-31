@@ -258,11 +258,13 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver
 		Command: []string{
 			"ceph-crash",
 		},
-		Image:           cephImage,
-		Env:             envVars,
-		VolumeMounts:    volumeMounts,
-		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		SecurityContext: controller.PodSecurityContext(),
+		Image:        cephImage,
+		Env:          envVars,
+		VolumeMounts: volumeMounts,
+		Resources:    cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
+		// Initialize the security context with the ceph user since the ceph-crash script does not have an argument
+		// to run as the ceph user
+		SecurityContext: controller.CephSecurityContext(),
 	}
 
 	return container
