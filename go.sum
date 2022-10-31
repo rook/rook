@@ -1011,8 +1011,8 @@ github.com/hashicorp/vault/api v1.0.5-0.20200215224050-f6547fa8e820/go.mod h1:3f
 github.com/hashicorp/vault/api v1.0.5-0.20200317185738-82f498082f02/go.mod h1:3f12BMfgDGjTsTtIUj+ZKZwSobQpZtYGFIEehOv5z1o=
 github.com/hashicorp/vault/api v1.3.0/go.mod h1:EabNQLI0VWbWoGlA+oBLC8PXmR9D60aUVgQGvangFWQ=
 github.com/hashicorp/vault/api v1.8.0/go.mod h1:uJrw6D3y9Rv7hhmS17JQC50jbPDAZdjZoTtrCCxxs7E=
-github.com/hashicorp/vault/api v1.8.1 h1:bMieWIe6dAlqAAPReZO/8zYtXaWUg/21umwqGZpEjCI=
-github.com/hashicorp/vault/api v1.8.1/go.mod h1:uJrw6D3y9Rv7hhmS17JQC50jbPDAZdjZoTtrCCxxs7E=
+github.com/hashicorp/vault/api v1.8.2 h1:C7OL9YtOtwQbTKI9ogB0A1wffRbCN+rH/LLCHO3d8HM=
+github.com/hashicorp/vault/api v1.8.2/go.mod h1:ML8aYzBIhY5m1MD1B2Q0JV89cC85YVH4t5kBaZiyVaE=
 github.com/hashicorp/vault/api/auth/approle v0.1.1/go.mod h1:mHOLgh//xDx4dpqXoq6tS8Ob0FoCFWLU2ibJ26Lfmag=
 github.com/hashicorp/vault/api/auth/approle v0.3.0 h1:Ib0oCNXsCq/QZhPYtXPzJEbGS5WR/KoZf8c84QoFdkU=
 github.com/hashicorp/vault/api/auth/approle v0.3.0/go.mod h1:hm51TbjzUkPO0Y17wkrpwOpvyyMRpXJNueTHiG04t3k=
