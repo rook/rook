@@ -38,6 +38,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/utils/pointer"
 )
 
 const (
@@ -53,6 +54,7 @@ const (
 	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
 	ServiceExternalMetricName               = "http-external-metrics"
+	CephUserID                              = 167
 	livenessProbeTimeoutSeconds       int32 = 5
 	livenessProbeInitialDelaySeconds  int32 = 10
 	startupProbeFailuresDaemonDefault int32 = 6 // multiply by 10 = effective startup timeout
@@ -654,6 +656,14 @@ func PodSecurityContext() *v1.SecurityContext {
 	return &v1.SecurityContext{
 		Privileged: &privileged,
 	}
+}
+
+// PodSecurityContext detects if the pod needs privileges to run
+func CephSecurityContext() *v1.SecurityContext {
+	context := PodSecurityContext()
+	context.RunAsUser = pointer.Int64(CephUserID)
+	context.RunAsGroup = pointer.Int64(CephUserID)
+	return context
 }
 
 // PrivilegedContext returns a privileged Pod security context
