@@ -121,6 +121,9 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 			{Name: sanitizeDataSource, Value: cluster.Spec.CleanupPolicy.SanitizeDisks.DataSource.String()},
 			{Name: sanitizeIteration, Value: strconv.Itoa(int(cluster.Spec.CleanupPolicy.SanitizeDisks.Iteration))},
 		}...)
+		if controller.LoopDevicesAllowed() {
+			envVars = append(envVars, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
+		}
 	}
 
 	// Run a UID 0 since ceph-volume does not support running non-root

@@ -218,6 +218,11 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		ds.Spec.Template.ObjectMeta.Labels = podLabels
 	}
 
+	if controller.LoopDevicesAllowed() {
+		ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env,
+			v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
+	}
+
 	_, err = d.clientset.AppsV1().DaemonSets(namespace).Create(ctx, ds, metav1.CreateOptions{})
 	if err != nil {
 		if !k8serrors.IsAlreadyExists(err) {

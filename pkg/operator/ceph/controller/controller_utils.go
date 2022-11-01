@@ -82,6 +82,9 @@ var (
 
 	// OperatorCephBaseImageVersion is the ceph version in the operator image
 	OperatorCephBaseImageVersion string
+
+	// loopDevicesAllowed indicates whether loop devices are allowed to be used
+	loopDevicesAllowed = false
 )
 
 func DiscoveryDaemonEnabled(data map[string]string) bool {
@@ -97,6 +100,20 @@ func SetCephCommandsTimeout(data map[string]string) {
 		timeoutSeconds = 15
 	}
 	exec.CephCommandsTimeout = time.Duration(timeoutSeconds) * time.Second
+}
+
+func SetAllowLoopDevices(data map[string]string) {
+	strLoopDevicesAllowed := k8sutil.GetValue(data, "ROOK_CEPH_ALLOW_LOOP_DEVICES", "false")
+	var err error
+	loopDevicesAllowed, err = strconv.ParseBool(strLoopDevicesAllowed)
+	if err != nil {
+		logger.Warningf("ROOK_CEPH_ALLOW_LOOP_DEVICES is set to an invalid value %v, set the default value false", strLoopDevicesAllowed)
+		loopDevicesAllowed = false
+	}
+}
+
+func LoopDevicesAllowed() bool {
+	return loopDevicesAllowed
 }
 
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.

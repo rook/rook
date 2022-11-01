@@ -92,6 +92,20 @@ func TestSetCephCommandsTimeout(t *testing.T) {
 	assert.Equal(t, 1*time.Second, exec.CephCommandsTimeout)
 }
 
+func TestSetAllowLoopDevices(t *testing.T) {
+	SetAllowLoopDevices(map[string]string{})
+	assert.False(t, LoopDevicesAllowed())
+
+	SetAllowLoopDevices(map[string]string{"ROOK_CEPH_ALLOW_LOOP_DEVICES": "foo"})
+	assert.False(t, LoopDevicesAllowed())
+
+	SetAllowLoopDevices(map[string]string{"ROOK_CEPH_ALLOW_LOOP_DEVICES": "false"})
+	assert.False(t, LoopDevicesAllowed())
+
+	SetAllowLoopDevices(map[string]string{"ROOK_CEPH_ALLOW_LOOP_DEVICES": "true"})
+	assert.True(t, LoopDevicesAllowed())
+}
+
 func TestIsReadyToReconcile(t *testing.T) {
 	scheme := scheme.Scheme
 	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})

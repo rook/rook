@@ -8,6 +8,7 @@ data:
   ROOK_LOG_LEVEL: {{ .Values.logLevel | quote }}
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: {{ .Values.cephCommandsTimeoutSeconds | quote }}
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: {{ .Values.enableOBCWatchOperatorNamespace | quote }}
+  ROOK_CEPH_ALLOW_LOOP_DEVICES: {{ .Values.allowLoopDevices | quote }}
 {{- if .Values.csi }}
   ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
