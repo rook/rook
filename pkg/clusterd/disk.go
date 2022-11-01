@@ -19,6 +19,7 @@ package clusterd
 import (
 	"errors"
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 	"strconv"
@@ -41,7 +42,8 @@ func supportedDeviceType(device string) bool {
 		device == sys.LVMType ||
 		device == sys.MultiPath ||
 		device == sys.PartType ||
-		device == sys.LinearType
+		device == sys.LinearType ||
+		(getAllowLoopDevices() && device == sys.LoopType)
 }
 
 // GetDeviceEmpty check whether a device is completely empty
@@ -212,4 +214,8 @@ func PopulateDeviceUdevInfo(d string, executor exec.Executor, disk *sys.LocalDis
 	}
 
 	return disk, nil
+}
+
+func getAllowLoopDevices() bool {
+	return os.Getenv("CEPH_VOLUME_ALLOW_LOOP_DEVICES") == "true"
 }

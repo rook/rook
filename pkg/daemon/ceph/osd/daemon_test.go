@@ -379,6 +379,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
 		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"},                       // has filesystem
 		{Name: "dm-0", RealPath: "/dev/mapper/vg1-lv1", DevLinks: "/dev/mapper/vg1-lv1", Type: sys.LVMType}, // `useAllDevices` and  `device{,Path}Filter` don't pick up logical volumes
+		{Name: "loop0", RealPath: "/dev/loop0", Type: sys.LoopType},
 	}
 
 	version := cephver.Quincy
@@ -522,6 +523,58 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries), mapping)
+	getOsdUUID = func(device *sys.LocalDisk) (string, error) {
+		return "", nil
+	}
+
+	// loop device
+	os.Setenv("CEPH_VOLUME_ALLOW_LOOP_DEVICES", "true")
+	defer os.Unsetenv("CEPH_VOLUME_ALLOW_LOOP_DEVICES")
+	context.Devices = []*sys.LocalDisk{
+		{Name: "loop0", RealPath: "/dev/loop0", Type: sys.LoopType},
+		{Name: "loop1", RealPath: "/dev/loop1", Type: sys.LoopType},
+		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealPath: "/dev/sda"},
+	}
+
+	// loop device: Ceph version is too old
+	agent.pvcBacked = false
+	agent.devices = []DesiredDevice{{Name: "loop0"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
+	// loop device: specify a loop device
+	agent.clusterInfo.CephVersion = cephver.CephVersion{
+		Major: 17,
+		Minor: 2,
+		Extra: 4,
+	}
+	agent.pvcBacked = false
+	agent.devices = []DesiredDevice{{Name: "loop0"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["loop0"].Data)
+
+	// loop device: useAllDevices
+	agent.devices = []DesiredDevice{{Name: "all"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sda"].Data)
+
+	// loop device: deviceFilter
+	agent.devices = []DesiredDevice{{Name: "loop0", IsFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
+	// loop device: devicePathFilter
+	agent.devices = []DesiredDevice{{Name: "^/dev/loop.$", IsDevicePathFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+	agent.clusterInfo.CephVersion = cephver.Quincy
 }
 
 func TestGetVolumeGroupName(t *testing.T) {

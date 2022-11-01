@@ -134,6 +134,8 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 		return opcontroller.ImmediateRetryResult, err
 	}
 
+	opcontroller.SetAllowLoopDevices(r.config.Parameters)
+
 	// Reconcile webhook secret
 	// This is done in the predicate function
 

@@ -237,6 +237,10 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		copyBinariesMount,
 	}...)
 
+	if controller.LoopDevicesAllowed() {
+		envVars = append(envVars, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
+	}
+
 	// If the OSD runs on PVC
 	if osdProps.onPVC() {
 		volumeMounts = append(volumeMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
