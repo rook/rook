@@ -57,18 +57,10 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     kubectl -n rook-ceph get configmap -o yaml > configmaps.yaml
     ```
 
-3.  Back up and remove the `ValidatingWebhookConfiguration`. This is the resource which connects Rook custom resources to the
-    operator pod's validating webhook. Because the operator is unavailable, we must temporarily disable the valdiating webhook in
-    order to make changes.
-
-    1.  Save the `ValidatingWebhookConfiguration` responsible for controlling Rook resources. (These are not namespaced
-        resources.)
-
-        ```console
-        kubectl get ValidatingWebhookConfiguration rook-ceph-webhook -o yaml > rook-ceph-webhook.yaml
-        ```
-
-    2.  Delete the `ValidatingWebhookConfiguration`.
+3.  (Optional, if webhook is enabled)
+    Delete the `ValidatingWebhookConfiguration`. This is the resource which connects Rook custom resources
+    to the operator pod's validating webhook. Because the operator is unavailable, we must temporarily disable
+    the valdiating webhook in order to make changes.
 
         ```console
         kubectl delete ValidatingWebhookConfiguration rook-ceph-webhook
@@ -144,20 +136,13 @@ the CRs to their prior state without even necessarily suffering cluster downtime
       2.  Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
       3.  Create the CR again
 
-8.  Restore the `ValidatingWebhookConfiguration`.
-
-    ```console
-    kubectl create -f rook-ceph-webhook.yaml
-    ```
-
-9.  Scale up the operator
+8.  Scale up the operator
 
     ```console
     kubectl -n rook-ceph scale --replicas=1 deploy/rook-ceph-operator
     ```
 
-
-10. Watch the operator log to confirm that the reconcile completes successfully.
+9.  Watch the operator log to confirm that the reconcile completes successfully.
 
     ```console
     kubectl -n rook-ceph logs -f deployment/rook-ceph-operator
