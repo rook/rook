@@ -95,6 +95,7 @@ ceph-mon \
 
 Patch the `rook-ceph-mon-b` Deployment to stop this mon working without deleting the mon pod:
 
+<<<<<<< HEAD
 ```console
 kubectl -n rook-ceph patch deployment rook-ceph-mon-b  --type='json' -p '[{"op":"remove", "path":"/spec/template/spec/containers/0/livenessProbe"}]'
 
@@ -166,6 +167,12 @@ ceph-mon \
     --public-bind-addr=$ROOK_POD_IP \
     --inject-monmap=${monmap_path}
 ```
+=======
+3.  (Optional, if webhook is enabled)
+    Delete the `ValidatingWebhookConfiguration`. This is the resource which connects Rook custom resources
+    to the operator pod's validating webhook. Because the operator is unavailable, we must temporarily disable
+    the valdiating webhook in order to make changes.
+>>>>>>> 0dbfc6649 (docs: update disaster recovery guide for webhook)
 
 Exit the shell to continue.
 
@@ -219,20 +226,28 @@ Start the rook [toolbox](ceph-toolbox.md) and verify the status of the cluster.
 ceph -s
 ```
 
+<<<<<<< HEAD
 The status should show one mon in quorum. If the status looks good, your cluster should be healthy again.
 
 ### Restart the operator
 
 Start the rook operator again to resume monitoring the health of the cluster.
+=======
+8.  Scale up the operator
+>>>>>>> 0dbfc6649 (docs: update disaster recovery guide for webhook)
 
 ```console
 # create the operator. it is safe to ignore the errors that a number of resources already exist.
 kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas=1
 ```
 
+<<<<<<< HEAD
 The operator will automatically add more mons to increase the quorum size again, depending on the `mon.count`.
 
 ## Restoring CRDs After Deletion
+=======
+9.  Watch the operator log to confirm that the reconcile completes successfully.
+>>>>>>> 0dbfc6649 (docs: update disaster recovery guide for webhook)
 
 When the Rook CRDs are deleted, the Rook operator will respond to the deletion event to attempt to clean up the cluster resources.
 If any data appears present in the cluster, Rook will refuse to allow the resources to be deleted since the operator will
