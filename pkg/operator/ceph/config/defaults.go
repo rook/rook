@@ -37,11 +37,6 @@ func DefaultFlags(fsid, mountedKeyringPath string) []string {
 	return flags
 }
 
-// makes it possible to be slightly less verbose to create a ConfigOverride here
-func configOverride(who, option, value string) Option {
-	return Option{Who: who, Option: option, Value: value}
-}
-
 func LoggingFlags() []string {
 	return []string{
 		// For containers, we're expected to log everything to stderr
@@ -57,18 +52,16 @@ func LoggingFlags() []string {
 
 // DefaultCentralizedConfigs returns the default configuration options Rook will set in Ceph's
 // centralized config store.
-func DefaultCentralizedConfigs(cephVersion version.CephVersion) []Option {
-	overrides := []Option{
-		configOverride("global", "mon allow pool delete", "true"),
-		configOverride("global", "mon cluster log file", ""),
-		configOverride("global", "mon allow pool size one", "true"),
+func DefaultCentralizedConfigs(cephVersion version.CephVersion) map[string]string {
+	overrides := map[string]string{
+		"mon allow pool delete":   "true",
+		"mon cluster log file":    "",
+		"mon allow pool size one": "true",
 	}
 
 	// Every release before Quincy will enable PG auto repair on Bluestore OSDs
 	if !cephVersion.IsAtLeastQuincy() {
-		overrides = append(overrides, []Option{
-			configOverride("global", "osd scrub auto repair", "true"),
-		}...)
+		overrides["osd scrub auto repair"] = "true"
 	}
 
 	return overrides

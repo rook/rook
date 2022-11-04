@@ -18,12 +18,15 @@ package config
 
 import (
 	"encoding/json"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
+	"gopkg.in/ini.v1"
 )
 
 // MonStore provides methods for setting Ceph configurations in the centralized mon
@@ -153,26 +156,6 @@ func (m *MonStore) DeleteDaemon(who string) error {
 	return nil
 }
 
-// SetAll sets all configs from the overrides in the centralized mon configuration database.
-// See MonStore.Set for more.
-func (m *MonStore) SetAll(options ...Option) error {
-	var errs []error
-	for _, override := range options {
-		err := m.Set(override.Who, override.Option, override.Value)
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) > 0 {
-		retErr := errors.New("failed to set one or more Ceph configs")
-		for _, err := range errs {
-			retErr = errors.Wrapf(err, "%v", retErr)
-		}
-		return retErr
-	}
-	return nil
-}
-
 // DeleteAll deletes all provided configs from the overrides in the centralized mon configuration database.
 // See MonStore.Delete for more.
 func (m *MonStore) DeleteAll(options ...Option) error {
@@ -205,5 +188,66 @@ func (m *MonStore) SetKeyValue(key, value string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to set %q in the mon config-key store. output: %s", key, string(out))
 	}
+	return nil
+}
+
+func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
+	assimilateConfPath, err := os.CreateTemp("", "")
+	if err != nil {
+		return errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
+	}
+
+	err = os.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
+	if err != nil {
+		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
+	}
+
+	defer func() {
+		err := os.Remove(assimilateConfPath.Name())
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", assimilateConfPath.Name(), err)
+		}
+	}()
+
+	configFile := ini.Empty()
+	s, err := configFile.NewSection(clientName)
+	if err != nil {
+		return err
+	}
+
+	for key, val := range settings {
+		if _, err := s.NewKey(key, val); err != nil {
+			return errors.Wrapf(err, "failed to add key %s", key)
+		}
+	}
+
+	if err := configFile.SaveTo(assimilateConfPath.Name()); err != nil {
+		return errors.Wrapf(err, "failed to save config file %s", assimilateConfPath.Name())
+	}
+
+	fileContent, err := os.ReadFile(assimilateConfPath.Name())
+	if err != nil {
+		logger.Errorf("failed to open assimilate input file %s. %c", assimilateConfPath.Name(), err)
+	}
+	logger.Infof("applying ceph settings:\n%s", string(fileContent))
+
+	args := []string{"config", "assimilate-conf", "-i", assimilateConfPath.Name(), "-o", assimilateConfPath.Name() + ".out"}
+	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
+
+	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		logger.Errorf("failed to run command ceph %s", args)
+
+		fileContent, err := os.ReadFile(assimilateConfPath.Name() + ".out")
+		if err != nil {
+			logger.Errorf("failed to open assimilate output file %s.out. %v", assimilateConfPath.Name(), err)
+		}
+		logger.Errorf("failed to apply ceph settings:\n%s", string(fileContent))
+
+		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
+			"output: %s", string(out))
+	}
+
+	logger.Info("successfully applied settings to the mon configuration database")
 	return nil
 }

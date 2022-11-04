@@ -196,49 +196,23 @@ func TestMonStore_SetAll(t *testing.T) {
 
 	// create a mock command runner which creates a simple string of the command it ran, and allow
 	// us to cause it to return an error when it detects a keyword.
-	execedCmds := []string{}
-	execInjectErrOnKeyword := "donotinjectanerror"
+	appliedSettings := false
 	executor.MockExecuteCommandWithTimeout =
 		func(timeout time.Duration, command string, args ...string) (string, error) {
-			execedCmd := command + " " + strings.Join(args, " ")
-			execedCmds = append(execedCmds, execedCmd)
-			k := execInjectErrOnKeyword
-			if strings.Contains(execedCmd, k) {
-				return "output from cmd with error on keyword: " + k, errors.Errorf("mocked error on keyword: " + k)
-			}
+			appliedSettings = true
 			return "", nil
 		}
 
 	monStore := GetMonStore(ctx, client.AdminTestClusterInfo("mycluster"))
 
-	cfgOverrides := []Option{
-		configOverride("global", "debug ms", "10"), // setting w/ spaces converts to underscores
-		configOverride("osd.0", "debug-osd", "20"), // setting w/ dashes converts to underscores
-		configOverride("mds.*", "debug_mds", "15"), // setting w/ underscores remains the same
+	cfgOverrides := map[string]string{
+		"debug ms":  "10", // setting w/ spaces converts to underscores
+		"debug-osd": "20", // setting w/ dashes converts to underscores
+		"debug_mds": "15", // setting w/ underscores remains the same
 	}
 
 	// commands w/ no error
-	e := monStore.SetAll(cfgOverrides...)
+	e := monStore.SetAll("osd.0", cfgOverrides)
 	assert.NoError(t, e)
-	assert.Len(t, execedCmds, 3)
-	assert.Contains(t, execedCmds[0], " global debug_ms 10 ")
-	assert.Contains(t, execedCmds[1], " osd.0 debug_osd 20 ")
-	assert.Contains(t, execedCmds[2], " mds.* debug_mds 15 ")
-
-	// commands w/ one error
-	// keep cfgOverrides from last test
-	execInjectErrOnKeyword = "debug_osd"
-	execedCmds = execedCmds[:0] // empty execedCmds slice
-	e = monStore.SetAll(cfgOverrides...)
-	assert.Error(t, e)
-	// Rook should not return error before trying to set all config overrides
-	assert.Len(t, execedCmds, 3)
-
-	// all commands return error
-	// keep cfgOverrides
-	execInjectErrOnKeyword = "debug"
-	execedCmds = execedCmds[:0]
-	e = monStore.SetAll(cfgOverrides...)
-	assert.Error(t, e)
-	assert.Len(t, execedCmds, 3)
+	assert.True(t, appliedSettings)
 }
