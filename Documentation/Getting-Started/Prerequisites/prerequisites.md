@@ -116,10 +116,10 @@ They have to be bind-mounted as volumes in the CephFS and RBD plugin pods.
 
 If you install Rook with Helm, uncomment these example settings in `values.yaml`:
 
-- `csiCephFSPluginVolume`
-- `csiCephFSPluginVolumeMount`
-- `csiRBDPluginVolume`
-- `csiRBDPluginVolumeMount`
+- `csi.csiCephFSPluginVolume`
+- `csi.csiCephFSPluginVolumeMount`
+- `csi.csiRBDPluginVolume`
+- `csi.csiRBDPluginVolumeMount`
 
 If you deploy without Helm, add those same values to the corresponding environment variables in the operator pod,
 or the corresponding keys in its `ConfigMap`:
