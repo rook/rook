@@ -213,7 +213,7 @@ data:
   CSI_RBD_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiRBDPluginVolumeMount | quote }}
 {{- end }}
 {{- if .Values.csi.csiCephFSPluginVolume }}
-  CSI_CEPHFS_PLUGIN_VOLUME: {{ toYaml .Values.csi.csiRBDPluginVolumes | quote }}
+  CSI_CEPHFS_PLUGIN_VOLUME: {{ toYaml .Values.csi.csiCephFSPluginVolume | quote }}
 {{- end }}
 {{- if .Values.csi.csiCephFSPluginVolumeMount }}
   CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiCephFSPluginVolumeMount | quote }}
