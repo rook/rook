@@ -102,7 +102,7 @@ func getComputeResource(opConfig map[string]string, key string) []k8sutil.Contai
 	var err error
 
 	if resourceRaw := k8sutil.GetValue(opConfig, key, ""); resourceRaw != "" {
-		resource, err = k8sutil.YamlToContainerResource(resourceRaw)
+		resource, err = k8sutil.YamlToContainerResourceArray(resourceRaw)
 		if err != nil {
 			logger.Warningf("failed to parse %q. %v", resourceRaw, err)
 		}
