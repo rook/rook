@@ -138,18 +138,6 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		deleteStore := true
 		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable)
 	})
-	if tlsEnable {
-		// test that a third object store can be created (and deleted) while the first exists
-		s.T().Run("run a third object store with broken tls", func(t *testing.T) {
-			otherStoreName := "broken-" + storeName
-			// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-			// and then deletes it.
-			deleteStore := true
-			objectStoreServicePrefix = objectStoreServicePrefixUniq
-			runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable)
-			objectStoreServicePrefix = objectStoreServicePrefixUniq
-		})
-	}
 
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
@@ -249,7 +237,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		t.Run("update quota limits", func(t *testing.T) {
 			poErr := helper.BucketClient.UpdateObc(obcName, bucketStorageClassName, bucketname, newMaxObject, true)
 			assert.Nil(t, poErr)
-			updated := utils.Retry(5, 2*time.Second, "OBC is updated", func() bool {
+			updated := utils.Retry(20, 2*time.Second, "OBC is updated", func() bool {
 				return helper.BucketClient.CheckOBMaxObject(obcName, newMaxObject)
 			})
 			assert.True(t, updated)

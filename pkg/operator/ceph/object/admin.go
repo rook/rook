@@ -117,7 +117,7 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 	objContext := NewContext(context, clusterInfo, store.Name)
 	objContext.UID = string(store.UID)
 
-	if err := UpdateEndpoint(objContext, &store.Spec); err != nil {
+	if err := UpdateEndpoint(objContext, store); err != nil {
 		return nil, err
 	}
 
@@ -133,14 +133,14 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 }
 
 // UpdateEndpoint updates an object.Context using the latest info from the CephObjectStore spec
-func UpdateEndpoint(objContext *Context, spec *cephv1.ObjectStoreSpec) error {
+func UpdateEndpoint(objContext *Context, store *cephv1.CephObjectStore) error {
 	nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
 
-	port, err := spec.GetPort()
+	port, err := store.Spec.GetPort()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get port for object store %q", nsName)
 	}
-	objContext.Endpoint = BuildDNSEndpoint(BuildDomainName(objContext.Name, objContext.clusterInfo.Namespace), port, spec.IsTLSEnabled())
+	objContext.Endpoint = BuildDNSEndpoint(GetDomainName(store), port, store.Spec.IsTLSEnabled())
 
 	return nil
 }

@@ -11564,46 +11564,16 @@ spec:
                       nullable: true
                       type: string
                     externalRgwEndpoints:
-                      description: ExternalRgwEndpoints points to external rgw endpoint(s)
+                      description: ExternalRgwEndpoints points to external RGW endpoint(s). Multiple endpoints can be given, but for stability of ObjectBucketClaims, we highly recommend that users give only a single external RGW endpoint that is a load balancer that sends requests to the multiple RGWs.
                       items:
-                        description: EndpointAddress is a tuple that describes single IP address.
+                        description: EndpointAddress is a tuple that describes a single IP address or host name. This is a subset of Kubernetes's v1.EndpointAddress.
                         properties:
                           hostname:
                             description: The Hostname of this endpoint
                             type: string
                           ip:
-                            description: 'The IP of this endpoint. May not be loopback (127.0.0.0/8), link-local (169.254.0.0/16), or link-local multicast ((224.0.0.0/24). IPv6 is also accepted but not fully supported on all platforms. Also, certain kubernetes components, like kube-proxy, are not IPv6 ready. TODO: This should allow hostname or IP, See #4447.'
+                            description: The IP of this endpoint.
                             type: string
-                          nodeName:
-                            description: 'Optional: Node hosting this endpoint. This can be used to determine endpoints local to a node.'
-                            type: string
-                          targetRef:
-                            description: Reference to object providing the endpoint.
-                            properties:
-                              apiVersion:
-                                description: API version of the referent.
-                                type: string
-                              fieldPath:
-                                description: 'If referring to a piece of an object instead of an entire object, this string should contain a valid JSON/Go field access statement, such as desiredState.manifest.containers[2]. For example, if the object reference is to a container within a pod, this would take on a value like: "spec.containers{name}" (where "name" refers to the name of the container that triggered the event) or if no container name is specified "spec.containers[2]" (container with index 2 in this pod). This syntax is chosen only to have some well-defined way of referencing a part of an object. TODO: this design is not final and this field is subject to change in the future.'
-                                type: string
-                              kind:
-                                description: 'Kind of the referent. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-                                type: string
-                              name:
-                                description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names'
-                                type: string
-                              namespace:
-                                description: 'Namespace of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/'
-                                type: string
-                              resourceVersion:
-                                description: 'Specific resourceVersion to which this reference is made, if any. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#concurrency-control-and-consistency'
-                                type: string
-                              uid:
-                                description: 'UID of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#uids'
-                                type: string
-                            type: object
-                        required:
-                          - ip
                         type: object
                       nullable: true
                       type: array
@@ -12799,6 +12769,17 @@ spec:
                         type: string
                     type: object
                   type: array
+                endpoints:
+                  properties:
+                    insecure:
+                      items:
+                        type: string
+                      type: array
+                    secure:
+                      items:
+                        type: string
+                      type: array
+                  type: object
                 info:
                   additionalProperties:
                     type: string

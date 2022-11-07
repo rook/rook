@@ -316,7 +316,7 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 
 	// external with endpoints, success
-	s.Spec.Gateway.ExternalRgwEndpoints = []v1.EndpointAddress{
+	s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
 		{
 			IP: "192.168.0.1",
 		},

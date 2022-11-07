@@ -179,6 +179,8 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	if cephObjectStore.Status == nil {
 		// The store is not available so let's not build the status Info yet
 		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{})
+	} else {
+		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore))
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -368,22 +370,48 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	if cephObjectStore.Spec.IsExternal() {
 		logger.Info("reconciling external object store")
 
-		// RECONCILE SERVICE
-		logger.Info("reconciling object store service")
-		err = cfg.reconcileService(cephObjectStore)
+		// Before v1.11, Rook created a Service and custom Endpoints that routed to external RGW
+		// endpoints. This causes problems if the external endpoint has TLS certificates that block
+		// connections to other endpoints. This also makes it impossible to create an external mode
+		// CephObjectStore that references another CephObjectStore's Service endpoint in the same
+		// Kubernetes cluster.
+		//
+		// TODO: this code block can be removed once OBCs are no longer supported. The legacy
+		// service can also be removed at that point.
+		service := cfg.generateService(cephObjectStore)
+		clientset := cfg.context.Clientset
+		clusterCtx := cfg.clusterInfo.Context
+		_, err = clientset.CoreV1().Services(service.Namespace).Get(clusterCtx, service.Name, metav1.GetOptions{})
 		if err != nil {
-			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
+			if kerrors.IsNotFound(err) {
+				// We do not need to create Services/Endpoints for new CephObjectStores.
+			} else {
+				return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName,
+					"failed to determine if legacy external service exists", err)
+			}
+		} else {
+			// For any legacy users that have an external mode CephObjectStore successfully using
+			// the Service/Endpoints and who have already created OBCs,we  leave the legacy
+			// Service/Endpoints in place. We need to update legacy services if the user edits the
+			// externalRgwEndpoint -- perhaps their RGW node changed IPs.
+
+			// RECONCILE SERVICE
+			logger.Info("reconciling legacy external object store service")
+			err = cfg.reconcileService(cephObjectStore)
+			if err != nil {
+				return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
+			}
+
+			// RECONCILE ENDPOINTS
+			// Always add the endpoint AFTER the service otherwise it will get overridden
+			logger.Info("reconciling legacy external object store endpoint")
+			err = cfg.reconcileExternalEndpoint(cephObjectStore)
+			if err != nil {
+				return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile external endpoint", err)
+			}
 		}
 
-		// RECONCILE ENDPOINTS
-		// Always add the endpoint AFTER the service otherwise it will get overridden
-		logger.Info("reconciling external object store endpoint")
-		err = cfg.reconcileExternalEndpoint(cephObjectStore)
-		if err != nil {
-			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile external endpoint", err)
-		}
-
-		if err := UpdateEndpoint(objContext, &cephObjectStore.Spec); err != nil {
+		if err := UpdateEndpoint(objContext, cephObjectStore); err != nil {
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to set endpoint", err)
 		}
 	} else {
@@ -415,7 +443,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to reconcile service", err)
 		}
 
-		if err := UpdateEndpoint(objContext, &cephObjectStore.Spec); err != nil {
+		if err := UpdateEndpoint(objContext, cephObjectStore); err != nil {
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to set endpoint", err)
 		}
 

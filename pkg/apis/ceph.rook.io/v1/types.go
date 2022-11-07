@@ -1423,10 +1423,12 @@ type GatewaySpec struct {
 	// +optional
 	PriorityClassName string `json:"priorityClassName,omitempty"`
 
-	// ExternalRgwEndpoints points to external rgw endpoint(s)
+	// ExternalRgwEndpoints points to external RGW endpoint(s). Multiple endpoints can be given, but
+	// for stability of ObjectBucketClaims, we highly recommend that users give only a single
+	// external RGW endpoint that is a load balancer that sends requests to the multiple RGWs.
 	// +nullable
 	// +optional
-	ExternalRgwEndpoints []v1.EndpointAddress `json:"externalRgwEndpoints,omitempty"`
+	ExternalRgwEndpoints []EndpointAddress `json:"externalRgwEndpoints,omitempty"`
 
 	// The configuration related to add/set on each rgw service.
 	// +optional
@@ -1438,6 +1440,18 @@ type GatewaySpec struct {
 	// +nullable
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
+}
+
+// EndpointAddress is a tuple that describes a single IP address or host name. This is a subset of
+// Kubernetes's v1.EndpointAddress.
+// +structType=atomic
+type EndpointAddress struct {
+	// The IP of this endpoint.
+	// +optional
+	IP string `json:"ip" protobuf:"bytes,1,opt,name=ip"`
+	// The Hostname of this endpoint
+	// +optional
+	Hostname string `json:"hostname,omitempty" protobuf:"bytes,3,opt,name=hostname"`
 }
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
@@ -1453,12 +1467,21 @@ type ObjectStoreStatus struct {
 	// +optional
 	Message string `json:"message,omitempty"`
 	// +optional
+	Endpoints ObjectEndpoints `json:"endpoints"`
+	// +optional
 	// +nullable
 	Info       map[string]string `json:"info,omitempty"`
 	Conditions []Condition       `json:"conditions,omitempty"`
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+}
+
+type ObjectEndpoints struct {
+	// +optional
+	Insecure []string `json:"insecure"`
+	// +optional
+	Secure []string `json:"secure"`
 }
 
 // CephObjectStoreUser represents a Ceph Object Store Gateway User

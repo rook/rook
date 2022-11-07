@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	"github.com/rook/rook/pkg/operator/ceph/object/topic"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
@@ -209,17 +208,7 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 }
 
 func getCephObjectStoreName(ob bktv1alpha1.ObjectBucket) (types.NamespacedName, error) {
-	// parse the following string: <prefix>-rgw-<store>.<namespace>.svc
-	// to ge the object store name and namespace
-	logger.Debugf("BucketHost of %q is %q",
-		types.NamespacedName{Name: ob.Name, Namespace: ob.Namespace}.String(),
-		ob.Spec.Connection.Endpoint.BucketHost,
-	)
-	objectStoreName, err := object.ParseDomainName(ob.Spec.Connection.Endpoint.BucketHost)
-	if err != nil {
-		return types.NamespacedName{}, errors.Wrapf(err, "malformed BucketHost %q", ob.Spec.Endpoint.BucketHost)
-	}
-	return objectStoreName, nil
+	return bucket.GetObjectStoreNameFromBucket(&ob)
 }
 
 // verify that object store is configured correctly for OB, CephBucketNotification and CephBucketTopic

@@ -108,7 +108,12 @@ The gateway settings correspond to the RGW daemon settings.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.
-* `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways (works with external mode). This setting will be ignored if the `CephCluster` does not have `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster) for more details.
+* `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
+  (works with external mode). This setting will be ignored if the `CephCluster` does not have
+  `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)
+  for more details. Multiple endpoints can be given, but for stability of ObjectBucketClaims, we
+	highly recommend that users give only a single external RGW endpoint that is a load balancer that
+	sends requests to the multiple RGWs.
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
 * `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
