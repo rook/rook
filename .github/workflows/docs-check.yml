@@ -34,7 +34,9 @@ jobs:
           python-version: 3.9
 
       - name: Install mkdocs and dependencies
-        run: cd build/release/ && make deps.docs
+        run: |
+          sudo apt-get -q install -y python3-pygit2
+          cd build/release/ && make deps.docs
 
       - name: Build documentation using mkdocs
         run: make docs-build
