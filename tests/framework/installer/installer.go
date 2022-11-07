@@ -18,7 +18,9 @@ package installer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
+	"text/template"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/utils"
@@ -58,4 +60,17 @@ func checkError(t *testing.T, err error, message string) {
 		return
 	}
 	assert.NoError(t, err, "%s. %+v", message, err)
+}
+
+func renderTemplate(tmplSrc string, data any) string {
+	tmpl, err := template.New("template").Parse(tmplSrc)
+	if err != nil {
+		panic(fmt.Errorf("syntax error in template: %s", err))
+	}
+	var b strings.Builder
+	err = tmpl.Execute(&b, data)
+	if err != nil {
+		panic(fmt.Errorf("error while rendering the template: %s", err))
+	}
+	return b.String()
 }

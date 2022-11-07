@@ -73,7 +73,7 @@ func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
-	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS)
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, false)
 
 	if deleteStore {
 		t.Run("delete object store", func(t *testing.T) {
@@ -84,7 +84,7 @@ func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.
 }
 
 // create a CephObjectStore and wait for it to report ready status
-func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool) {
+func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool, swiftAndKeystone bool) {
 	logger.Infof("Create Object Store %q with replica count %d", storeName, replicaSize)
 	rgwServiceName := "rook-ceph-rgw-" + storeName
 	if tlsEnable {
@@ -93,7 +93,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		})
 	}
 	t.Run("create CephObjectStore", func(t *testing.T) {
-		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable)
+		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable, swiftAndKeystone)
 		assert.Nil(t, err)
 	})
 

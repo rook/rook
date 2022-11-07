@@ -282,7 +282,7 @@ func (h *CephInstaller) CreateFileSystemConfiguration(values map[string]interfac
 
 // CreateObjectStoreConfiguration creates an object store configuration
 func (h *CephInstaller) CreateObjectStoreConfiguration(values map[string]interface{}, name, scName string) error {
-	testObjectStoreBytes := []byte(h.Manifests.GetObjectStore(name, 2, 8080, false))
+	testObjectStoreBytes := []byte(h.Manifests.GetObjectStore(name, 2, 8080, false, false))
 	var testObjectStoreCRD map[string]interface{}
 	if err := yaml.Unmarshal(testObjectStoreBytes, &testObjectStoreCRD); err != nil {
 		return err
