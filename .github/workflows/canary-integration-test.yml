@@ -1430,7 +1430,7 @@ jobs:
           go-version: 1.18
 
       - name: setup minikube
-        uses: manusa/actions-setup-minikube@v2.7.0
+        uses: manusa/actions-setup-minikube@v2.7.1
         with:
           minikube version: "v1.26.1"
           kubernetes version: "v1.23.0"
