@@ -71,7 +71,7 @@ func TestMergeResourceRequirements(t *testing.T) {
 	assert.Equal(t, "1337", result.Requests.Memory().String())
 }
 
-func TestYamlToContainerResource(t *testing.T) {
+func TestYamlToContainerResourceArray(t *testing.T) {
 	var validData string = `
 - name: rbdplugin
   resource:
@@ -89,7 +89,7 @@ func TestYamlToContainerResource(t *testing.T) {
     limits:
       memory: 512Mi
       cpu: 250m`
-	res, err := YamlToContainerResource(validData)
+	res, err := YamlToContainerResourceArray(validData)
 	assert.Len(t, res, 2)
 	assert.NoError(t, err)
 
@@ -99,11 +99,32 @@ func TestYamlToContainerResource(t *testing.T) {
 	invalid:
 	  memry: 512Mi
 	  cpu: 250m`
-	res, err = YamlToContainerResource(invalidData)
+	res, err = YamlToContainerResourceArray(invalidData)
 	assert.Len(t, res, 0)
 	assert.Error(t, err)
 }
 
+func TestYamlToContainerResource(t *testing.T) {
+	var validData string = `
+  resources:
+    requests:
+      memory: 512Mi
+      cpu: 250m
+    limits:
+      memory: 512Mi
+      cpu: 250m`
+	res, err := YamlToContainerResource(validData)
+	assert.NoError(t, err)
+	assert.Equal(t, res.Requests.Memory().String(), "512Mi")
+	var invalidData string = `
+	invalid:
+	  data: 512Mi
+	invalid:
+	  memry: 512Mi
+	  cpu: 250m`
+	res, err = YamlToContainerResource(invalidData)
+	assert.Error(t, err)
+}
 func TestValidateOwner(t *testing.T) {
 	// global-scoped owner
 	ownerRef := &metav1.OwnerReference{}
