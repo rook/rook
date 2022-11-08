@@ -12798,10 +12798,12 @@ spec:
                     insecure:
                       items:
                         type: string
+                      nullable: true
                       type: array
                     secure:
                       items:
                         type: string
+                      nullable: true
                       type: array
                   type: object
                 info:

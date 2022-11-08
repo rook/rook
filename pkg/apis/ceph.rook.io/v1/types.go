@@ -1494,8 +1494,10 @@ type BucketStatus struct {
 
 type ObjectEndpoints struct {
 	// +optional
+	// +nullable
 	Insecure []string `json:"insecure"`
 	// +optional
+	// +nullable
 	Secure []string `json:"secure"`
 }
 
