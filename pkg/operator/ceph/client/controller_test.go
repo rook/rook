@@ -295,6 +295,10 @@ func TestCephClientController(t *testing.T) {
 	cephClientSecret, err := c.Clientset.CoreV1().Secrets(namespace).Get(ctx, cephClient.Status.Info["secretName"], metav1.GetOptions{})
 	assert.NoError(t, err)
 	assert.NotEmpty(t, cephClientSecret.StringData)
+	assert.Contains(t, cephClientSecret.StringData, "userID")
+	assert.Contains(t, cephClientSecret.StringData, "userKey")
+	assert.Contains(t, cephClientSecret.StringData, "adminID")
+	assert.Contains(t, cephClientSecret.StringData, "adminKey")
 }
 
 func TestBuildUpdateStatusInfo(t *testing.T) {
