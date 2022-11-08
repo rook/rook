@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -141,7 +142,15 @@ func (c *bucketChecker) checkObjectStoreHealth() error {
 	*/
 
 	// Keep admin ops context up-to date if there are config changes
-	if err := UpdateEndpoint(&c.objContext.Context, c.objectStoreSpec); err != nil {
+	minimalStore := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			// UpdateEndpoint needs the name and namespace, plus the spec of the store passed to it
+			Name:      c.namespacedName.Name,
+			Namespace: c.namespacedName.Namespace,
+		},
+		Spec: *c.objectStoreSpec,
+	}
+	if err := UpdateEndpoint(&c.objContext.Context, minimalStore); err != nil {
 		return errors.Wrapf(err, "failed to parse updated CephObjectStore spec")
 	}
 
