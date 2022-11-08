@@ -40,20 +40,20 @@ function print_k8s_cluster_status() {
 }
 
 function prepare_loop_devices() {
-    if [ $# -ne 1 ]; then
-        echo "usage: $0 loop_deivce_count"
-        exit 1
-    fi
-    OSD_COUNT=$1
-    if [ $OSD_COUNT -le 0 ]; then
-        echo "Invalid OSD_COUNT $OSD_COUNT. OSD_COUNT must be larger than 0."
-        exit 1
-    fi
-    for i in $(seq 1 $OSD_COUNT); do
-        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
-        sudo losetup /dev/loop${i} ~/data${i}.img
-    done
-    sudo lsblk
+  if [ $# -ne 1 ]; then
+    echo "usage: $0 loop_deivce_count"
+    exit 1
+  fi
+  OSD_COUNT=$1
+  if [ $OSD_COUNT -le 0 ]; then
+    echo "Invalid OSD_COUNT $OSD_COUNT. OSD_COUNT must be larger than 0."
+    exit 1
+  fi
+  for i in $(seq 1 $OSD_COUNT); do
+    sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
+    sudo losetup /dev/loop${i} ~/data${i}.img
+  done
+  sudo lsblk
 }
 
 function use_local_disk() {
@@ -205,7 +205,7 @@ function validate_yaml() {
   kubectl apply -f "${keda_url}"
 
   # skipping folders and some yamls that are only for openshift.
-  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'psp*')"
+  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'psp*' -and -not -name 'kustomization*')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
   # shellcheck disable=SC2086 # '-f manifest1.yaml -f manifest2.yaml etc.' should not be quoted
   kubectl create ${with_f_arg} --dry-run=client
