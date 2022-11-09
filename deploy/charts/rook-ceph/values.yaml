@@ -49,7 +49,7 @@ rbacEnable: true
 
 ## If true, create & use PSP resources
 ##
-pspEnable: true
+pspEnable: false
 
 # Set the priority class for the rook operator deployment if desired
 # priorityClassName: class

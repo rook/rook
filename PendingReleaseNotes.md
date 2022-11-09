@@ -4,3 +4,5 @@
 
 
 ## Features
+
+- Change `pspEnable` default value to `false` in helm charts

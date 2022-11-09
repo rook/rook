@@ -53,7 +53,7 @@ monitoring:
     annotations: {}
 
 # If true, create & use PSP resources. Set this to the same value as the rook-ceph chart.
-pspEnable: true
+pspEnable: false
 
 # imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
 # imagePullSecrets:
