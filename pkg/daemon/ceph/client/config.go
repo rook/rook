@@ -247,15 +247,18 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 // PopulateMonHostMembers extracts a list of just the monitor names, which will populate the "mon initial members"
 // and "mon hosts" global config field
 func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
-	monMembers := make([]string, len(clusterInfo.Monitors))
-	monHosts := make([]string, len(clusterInfo.Monitors))
+	var monMembers []string
+	var monHosts []string
 
-	i := 0
 	for _, monitor := range clusterInfo.Monitors {
-		monMembers[i] = monitor.Name
+		if monitor.OutOfQuorum {
+			logger.Warningf("skipping adding mon %q to config file, detected out of quorum", monitor.Name)
+			continue
+		}
+		monMembers = append(monMembers, monitor.Name)
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
 		if clusterInfo.RequireMsgr2 {
-			monHosts[i] = fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port)
+			monHosts = append(monHosts, fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port))
 		} else {
 			// Detect the current port if the mon already exists
 			// so the same msgr1 port can be preserved if needed (6789 or 6790)
@@ -266,9 +269,8 @@ func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
 			}
 			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
 			msgr1Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(currentMonPort)))
-			monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+			monHosts = append(monHosts, "[v2:"+msgr2Endpoint+",v1:"+msgr1Endpoint+"]")
 		}
-		i++
 	}
 
 	return monMembers, monHosts
