@@ -54,6 +54,9 @@ pspEnable: true
 # Set the priority class for the rook operator deployment if desired
 # priorityClassName: class
 
+# If true, loop devices are allowed to be used for osds in test clusters
+allowLoopDevices: false
+
 ## Settings for whether to disable the drivers or other daemons if they are not
 ## needed
 csi:

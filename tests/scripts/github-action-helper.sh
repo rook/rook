@@ -39,6 +39,23 @@ function print_k8s_cluster_status() {
   kubectl get pods -n kube-system
 }
 
+function prepare_loop_devices() {
+    if [ $# -ne 1 ]; then
+        echo "usage: $0 loop_deivce_count"
+        exit 1
+    fi
+    OSD_COUNT=$1
+    if [ $OSD_COUNT -le 0 ]; then
+        echo "Invalid OSD_COUNT $OSD_COUNT. OSD_COUNT must be larger than 0."
+        exit 1
+    fi
+    for i in $(seq 1 $OSD_COUNT); do
+        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
+        sudo losetup /dev/loop${i} ~/data${i}.img
+    done
+    sudo lsblk
+}
+
 function use_local_disk() {
   BLOCK_DATA_PART=${BLOCK}1
   sudo apt purge snapd -y
@@ -204,6 +221,9 @@ function deploy_manifest_with_local_build() {
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
   fi
+  if [[ "$ALLOW_LOOP_DEVICES" = "true" ]]; then
+    sed -i "s|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"false\"|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"true\"|g" $1
+  fi
   sed -i "s|ROOK_LOG_LEVEL:.*|ROOK_LOG_LEVEL: DEBUG|g" "$1"
   kubectl create -f $1
 }
@@ -231,6 +251,9 @@ function deploy_cluster() {
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then
     sed -i "s|#deviceFilter:|devices:\n      - name: \"/dev/test-rook-vg/test-rook-lv\"|g" cluster-test.yaml
+  elif [ "$1" = "loop" ]; then
+    # add both /dev/sdX1 and loop device to test them at the same time
+    sed -i "s|#deviceFilter:|devices:\n      - name: \"${BLOCK}\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
   else
     echo "invalid argument: $*" >&2
     exit 1

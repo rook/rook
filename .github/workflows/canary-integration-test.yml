@@ -238,14 +238,20 @@ jobs:
           BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 1
+
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster
+        run: |
+          export ALLOW_LOOP_DEVICES=true
+          tests/scripts/github-action-helper.sh deploy_cluster loop
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
       - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
@@ -507,17 +513,23 @@ jobs:
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 1
+
       - name: create cluster prerequisites
         run: |
           BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
           tests/scripts/localPathPV.sh "$BLOCK"
+          tests/scripts/loopDevicePV.sh 1
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
       - name: deploy cluster
         run: |
+          yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
@@ -526,7 +538,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
       - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
@@ -541,6 +553,7 @@ jobs:
           BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
           sudo head --bytes=60 ${BLOCK}1
           sudo head --bytes=60 ${BLOCK}2
+          sudo head --bytes=60 /dev/loop1
 
       - name: collect common logs
         if: always()
