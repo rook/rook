@@ -1,5 +1,5 @@
 ---
-title: Block Pool CRD
+title: CephBlockPool CRD
 ---
 
 Rook allows creation and customization of storage pools through the custom resource definitions (CRDs). The following settings are available for pools.

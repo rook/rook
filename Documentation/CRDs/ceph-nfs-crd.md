@@ -1,5 +1,5 @@
 ---
-title: NFS Server CRD
+title: CephNFS CRD
 ---
 
 Rook allows exporting NFS shares of a CephFilesystem or CephObjectStore through the CephNFS custom

@@ -1,5 +1,5 @@
 ---
-title: Filesystem CRD
+title: CephFilesystem CRD
 ---
 
 Rook allows creation and customization of shared filesystems through the custom resource definitions (CRDs). The following settings are available for Ceph filesystems.

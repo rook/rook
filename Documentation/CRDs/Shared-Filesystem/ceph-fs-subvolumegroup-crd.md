@@ -1,5 +1,5 @@
 ---
-title: Filesystem SubVolume Group CRD
+title: FilesystemSubVolumeGroup CRD
 ---
 
 !!! info
