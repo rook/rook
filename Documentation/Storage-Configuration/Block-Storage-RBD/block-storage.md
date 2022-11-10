@@ -59,8 +59,13 @@ parameters:
     # RBD image format. Defaults to "2".
     imageFormat: "2"
 
-    # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
-    imageFeatures: layering
+    # RBD image features. Available for imageFormat: "2". CSI
+    # RBD currently supports `layering`, `journaling`, `exclusive-lock`,
+    # `object-map`, `fast-diff`, `deep-flatten` features.
+    # Refer https://docs.ceph.com/en/latest/rbd/rbd-config-ref/#image-features
+    # for image feature dependencies.
+    # imageFeatures: "layering,journaling,exclusive-lock,object-map,fast-diff"
+    imageFeatures: "layering"
 
     # The secrets contain Ceph admin credentials.
     csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner

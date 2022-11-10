@@ -47,20 +47,25 @@ parameters:
   # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
   # unmapOptions: force
 
-   # (optional) Set it to true to encrypt each volume with encryption keys
-   # from a key management system (KMS)
-   # encrypted: "true"
+  # (optional) Set it to true to encrypt each volume with encryption keys
+  # from a key management system (KMS)
+  # encrypted: "true"
 
-   # (optional) Use external key management system (KMS) for encryption key by
-   # specifying a unique ID matching a KMS ConfigMap. The ID is only used for
-   # correlation to configmap entry.
-   # encryptionKMSID: <kms-config-id>
+  # (optional) Use external key management system (KMS) for encryption key by
+  # specifying a unique ID matching a KMS ConfigMap. The ID is only used for
+  # correlation to configmap entry.
+  # encryptionKMSID: <kms-config-id>
 
   # RBD image format. Defaults to "2".
   imageFormat: "2"
 
-  # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
-  imageFeatures: layering
+  # RBD image features. Available for imageFormat: "2". CSI
+  # RBD currently supports `layering`, `journaling`, `exclusive-lock`,
+  # `object-map`, `fast-diff`, `deep-flatten` features.
+  # Refer https://docs.ceph.com/en/latest/rbd/rbd-config-ref/#image-features
+  # for image feature dependencies.
+  # imageFeatures: "layering,journaling,exclusive-lock,object-map,fast-diff"
+  imageFeatures: "layering"
 
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator
   # in the same namespace as the cluster.
