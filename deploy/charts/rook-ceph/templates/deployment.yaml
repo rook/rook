@@ -74,6 +74,10 @@ spec:
         - name: DISCOVER_AGENT_POD_LABELS
           value: {{ .Values.discover.podLabels }}
 {{- end }}
+{{- if .Values.discover.resources }}
+        - name: DISCOVER_DAEMON_RESOURCES
+          value: {{ .Values.discover.resources }}
+{{- end }}
 {{- end }}
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"

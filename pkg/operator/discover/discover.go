@@ -54,6 +54,7 @@ const (
 	deviceInUseClusterAttr                = "rook.io/cluster"
 	discoverIntervalEnv                   = "ROOK_DISCOVER_DEVICES_INTERVAL"
 	defaultDiscoverInterval               = "60m"
+	discoverDaemonResourcesEnv            = "DISCOVER_DAEMON_RESOURCES"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-discover")
@@ -84,6 +85,12 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		"--discover-interval", getEnvVar(discoverIntervalEnv, defaultDiscoverInterval)}
 	if useCephVolume {
 		discoveryParameters = append(discoveryParameters, "--use-ceph-volume")
+	}
+
+	discoverDaemonResourcesRaw := os.Getenv(discoverDaemonResourcesEnv)
+	discoverDaemonResources, err := k8sutil.YamlToContainerResource(discoverDaemonResourcesRaw)
+	if err != nil {
+		logger.Warningf("failed to parse.%s %v", discoverDaemonResourcesRaw, err)
 	}
 
 	ds := &apps.DaemonSet{
@@ -130,6 +137,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 									ReadOnly:  true,
 								},
 							},
+							Resources: discoverDaemonResources,
 							Env: []v1.EnvVar{
 								k8sutil.NamespaceEnvVar(),
 								k8sutil.NodeEnvVar(),

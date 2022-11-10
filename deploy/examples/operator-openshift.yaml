@@ -655,6 +655,16 @@ spec:
             - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
               value: "false"
 
+            # - name: DISCOVER_DAEMON_RESOURCES
+            #   value: |
+            #     resources:
+            #       limits:
+            #         cpu: 500m
+            #         memory: 512Mi
+            #       requests:
+            #         cpu: 100m
+            #         memory: 128Mi
+
             # Time to wait until the node controller will move Rook pods to other
             # nodes after detecting an unreachable node.
             # Pods affected by this setting are:

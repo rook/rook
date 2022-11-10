@@ -451,7 +451,14 @@ cephCommandsTimeoutSeconds: "15"
 #     operator: Exists
 #     effect: NoSchedule
 #   nodeAffinity: key1=value1,value2; key2=value3
-#   podLabels: "key1=value1,key2=value2"
+#   podLabels:  "key1=value1,key2=value2"
+#   resources:
+#   - limits:
+#       cpu: 500m
+#       memory: 512Mi
+#   - requests:
+#       cpu: 100m
+#       memory: 128Mi
 
 disableAdmissionController: false
 
