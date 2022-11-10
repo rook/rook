@@ -1,5 +1,5 @@
 ---
-title: Cluster CRD
+title: CephCluster CRD
 ---
 
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).

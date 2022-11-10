@@ -1,5 +1,5 @@
 ---
-title: Client CRD
+title: CephClient CRD
 ---
 
 Rook allows creation and updating clients through the custom resource definitions (CRDs).

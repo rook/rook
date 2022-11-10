@@ -1,5 +1,5 @@
 ---
-title: RBD Mirror CRD
+title: CephRBDMirror CRD
 ---
 
 Rook allows creation and updating rbd-mirror daemon(s) through the custom resource definitions (CRDs).
