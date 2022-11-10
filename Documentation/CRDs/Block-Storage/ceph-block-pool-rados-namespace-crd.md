@@ -1,5 +1,5 @@
 ---
-title: Block Pool RADOS Namespace CRD
+title: CephBlockPoolRados Namespace CRD
 ---
 
 This guide assumes you have created a Rook cluster as explained in the main [Quickstart guide](../../Getting-Started/quickstart.md)

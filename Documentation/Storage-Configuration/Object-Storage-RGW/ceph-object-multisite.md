@@ -23,11 +23,11 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 
 ## Creating Object Multisite
 
-If an admin wants to set up multisite on a Rook Ceph cluster, the admin should create:
+If an admin wants to set up multisite on a Rook Ceph cluster, the following resources must be created:
 
-1. A [realm](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-realm-settings)
-1. A [zonegroup](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-group-settings)
-1. A [zone](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-settings)
+1. A [realm](../../CRDs/Object-Storage/ceph-object-realm-crd.md#settings)
+1. A [zonegroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings)
+1. A [zone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings)
 1. A ceph object store with the `zone` section
 
 object-multisite.yaml in the [examples](https://github.com/rook/rook/blob/master/deploy/examples/) directory can be used to create the multisite CRDs.
@@ -44,7 +44,10 @@ The zone will create the pools for the object-store(s) that are in the zone to u
 
 When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted, neither are the pools created by the zone. See the "Multisite Cleanup" section for more information.
 
-For more information on the multisite CRDs please read [ceph-object-multisite-crd](../../CRDs/Object-Storage/ceph-object-multisite-crd.md).
+For more information on the multisite CRDs, see the related CRDs:
+- [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-realm-crd.md)
+- [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md)
+- [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md)
 
 ## Pulling a Realm
 
@@ -172,9 +175,9 @@ kubectl create -f realm-a-keys.yaml
 
 Once the admin knows the endpoint and the secret for the keys has been created, the admin should create:
 
-1. A [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-realm-settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
-1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-group-settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the realm was pulled from.
-1. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-settings) referring to the CephObjectZoneGroup created above.
+1. A [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-realm-crd.md#settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
+1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the realm was pulled from.
+1. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings) referring to the CephObjectZoneGroup created above.
 1. A CephObjectStore referring to the new CephObjectZone resource.
 
 object-multisite-pull-realm.yaml (with changes) in the [examples](https://github.com/rook/rook/blob/master/deploy/examples/) directory can be used to create the multisite CRDs.
@@ -337,7 +340,7 @@ spec:
   #   - "http://rgw-a.fqdn"
 ```
 
-Now modify the existing `CephObjectStore` CR to exclude pool settings and add a reference to the zone. 
+Now modify the existing `CephObjectStore` CR to exclude pool settings and add a reference to the zone.
 
 ```yaml
 apiVersion: ceph.rook.io/v1

@@ -1,5 +1,5 @@
 ---
-title: Object Store User CRD
+title: CephObjectStoreUser CRD
 ---
 
 Rook allows creation and customization of object store users through the custom resource definitions (CRDs). The following settings are available

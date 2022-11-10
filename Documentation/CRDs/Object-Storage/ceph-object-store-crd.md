@@ -1,5 +1,5 @@
 ---
-title: Object Store CRD
+title: CephObjectStore CRD
 ---
 
 Rook allows creation and customization of object stores through the custom resource definitions (CRDs). The following settings are available for Ceph object stores.
@@ -142,7 +142,7 @@ All the other settings from the gateway section will be ignored, except for `sec
 
 ## Zone Settings
 
-The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-multisite-crd.md).
+The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-zone-crd.md).
 
 * `name`: the name of the ceph-object-zone the object store will be in.
 
@@ -253,6 +253,6 @@ Rook will warn about which buckets are blocking deletion in three ways:
 1. A status condition will be added to the CephObjectStore resource
 1. An error will be added to the Rook Ceph Operator log
 
-If the CephObjectStore is configured in a [multisite setup](ceph-object-multisite-crd.md) the above conditions are applicable only to stores that belong to a single master zone.
+If the CephObjectStore is configured in a [multisite setup](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) the above conditions are applicable only to stores that belong to a single master zone.
 Otherwise the conditions are ignored. Even if the store is removed the user can access the
 data from a peer object store.
