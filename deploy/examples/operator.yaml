@@ -129,6 +129,9 @@ data:
   # CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_RBD_PLUGIN_UPDATE_STRATEGY: "OnDelete"
+  # A maxUnavailable parameter of CSI RBD plugin daemonset update strategy.
+  # Default value is 1.
+  # CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: "1"
 
   # CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
