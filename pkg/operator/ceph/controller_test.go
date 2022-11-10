@@ -197,4 +197,50 @@ func TestOperatorController(t *testing.T) {
 		assert.Equal(t, 1, len(ds.Items), ds)
 		assert.Equal(t, "rook-discover", ds.Items[0].Name, ds)
 	})
+
+	t.Run("success - cm set for allowing loop devices", func(t *testing.T) {
+		fakeClientSet := test.New(t, 1)
+		test.SetFakeKubernetesVersion(fakeClientSet, "v1.21.0")
+		c := &clusterd.Context{
+			Clientset:     fakeClientSet,
+			RookClientset: rookclient.NewSimpleClientset(),
+		}
+
+		// Register operator types with the runtime scheme.
+		// s := scheme.Scheme
+		s := clientgoscheme.Scheme
+		// s.AddKnownTypes(cephv1.SchemeGroupVersion, &v1.ConfigMap{})
+
+		opConfigCM := &v1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      controller.OperatorSettingConfigMapName,
+				Namespace: namespace,
+			},
+			Data: map[string]string{
+				"ROOK_CEPH_ALLOW_LOOP_DEVICES": "true",
+			},
+		}
+
+		object := []runtime.Object{
+			opConfigCM,
+		}
+		// Create a fake client to mock API calls.
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+		// Create a ReconcileCSI object with the scheme and fake client.
+		r := &ReconcileConfig{
+			client:  cl,
+			context: c,
+			config: controller.OperatorConfig{
+				OperatorNamespace: namespace,
+				Image:             "rook",
+				ServiceAccount:    "foo",
+			},
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+		assert.True(t, controller.LoopDevicesAllowed())
+	})
 }

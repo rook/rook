@@ -44,7 +44,9 @@ const (
 	MultiPath = "mpath"
 	// LinearType is a linear type
 	LinearType = "linear"
-	sgdiskCmd  = "sgdisk"
+	// LoopType is a loop device type
+	LoopType  = "loop"
+	sgdiskCmd = "sgdisk"
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
 	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
