@@ -201,10 +201,13 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.NFSPluginUpdateStrategy = rollingUpdate
 	}
 
+	// Default values are based on Kubernetes official documentation.
+	// https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/#daemonset-update-strategy
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.RBDPluginUpdateStrategy = onDelete
 	} else {
 		CSIParam.RBDPluginUpdateStrategy = rollingUpdate
+		CSIParam.RBDPluginUpdateStrategyMaxUnavailable = k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE", "1")
 	}
 
 	CSIParam.EnablePluginSelinuxHostMount = false

@@ -9,6 +9,10 @@ spec:
       app: csi-rbdplugin
   updateStrategy:
     type: {{ .RBDPluginUpdateStrategy }}
+    {{ if eq .RBDPluginUpdateStrategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .RBDPluginUpdateStrategyMaxUnavailable }}
+    {{ end }}
   template:
     metadata:
       labels:
