@@ -187,9 +187,9 @@ type ContainerResource struct {
 	Resource v1.ResourceRequirements `json:"resource"`
 }
 
-// YamlToContainerResource takes raw YAML string and converts it to array of
+// YamlToContainerResourceArray takes raw YAML string and converts it to array of
 // ContainerResource
-func YamlToContainerResource(raw string) ([]ContainerResource, error) {
+func YamlToContainerResourceArray(raw string) ([]ContainerResource, error) {
 	resources := []ContainerResource{}
 	if raw == "" {
 		return resources, nil
@@ -203,4 +203,25 @@ func YamlToContainerResource(raw string) ([]ContainerResource, error) {
 		return resources, err
 	}
 	return resources, nil
+}
+
+type resourcesRequirements struct {
+	Resources v1.ResourceRequirements `json:"resources"`
+}
+
+// YamlToContainerResource takes raw YAML string and converts it to resourcesrequirements
+func YamlToContainerResource(raw string) (v1.ResourceRequirements, error) {
+	resources := resourcesRequirements{}
+	if raw == "" {
+		return resources.Resources, nil
+	}
+	rawJSON, err := yaml.ToJSON([]byte(raw))
+	if err != nil {
+		return resources.Resources, err
+	}
+	err = json.Unmarshal(rawJSON, &resources)
+	if err != nil {
+		return resources.Resources, err
+	}
+	return resources.Resources, nil
 }
