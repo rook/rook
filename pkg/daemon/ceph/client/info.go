@@ -63,6 +63,8 @@ type ClusterInfo struct {
 type MonInfo struct {
 	Name     string `json:"name"`
 	Endpoint string `json:"endpoint"`
+	// Whether detected out of quorum by rook. May be different from actual ceph quorum.
+	OutOfQuorum bool `json:"outOfQuorum"`
 }
 
 // CephCred represents the Ceph cluster username and key used by the operator.
