@@ -33,6 +33,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -349,6 +350,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		blockPathEnvVariable(osd.BlockPath),
 		cvModeEnvVariable(osd.CVMode),
 		dataDeviceClassEnvVar(osd.DeviceClass),
+		k8sutil.PodIPEnvVar("ROOK_POD_IP"),
 	}...)
 	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir, false), []v1.EnvVar{
 		{Name: "ROOK_OSD_ID", Value: osdID},
@@ -464,6 +466,17 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
 	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
 
+	osdLabels := c.getOSDLabels(osd, failureDomainValue, osdProps.portable)
+	clusterIP, err := c.createOSDService(osd, osdLabels)
+	if err != nil {
+		logger.Errorf("failed to configure osd service for osd.%d. %v", osd.ID, err)
+	} else {
+		args = append(args, []string{
+			fmt.Sprintf("--public-addr=%s", clusterIP),
+			fmt.Sprintf("--public-bind-addr=$(ROOK_POD_IP)"),
+		}...)
+	}
+
 	initContainers := make([]v1.Container, 0, 4)
 	if doConfigInit {
 		initContainers = append(initContainers,
@@ -550,7 +563,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   AppName,
-			Labels: c.getOSDLabels(osd, failureDomainValue, osdProps.portable),
+			Labels: osdLabels,
 		},
 		Spec: v1.PodSpec{
 			RestartPolicy:      v1.RestartPolicyAlways,
@@ -574,6 +587,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					StartupProbe:    controller.GenerateStartupProbeExecDaemon(opconfig.OsdType, osdID),
 					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
 					WorkingDir:      opconfig.VarLogCephDir,
+					Ports: []v1.ContainerPort{
+						{
+							Name:          "osd-port",
+							ContainerPort: 6800,
+							Protocol:      v1.ProtocolTCP,
+						},
+					},
 				},
 			},
 			Volumes:       volumes,
@@ -666,7 +686,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.ObjectMeta)
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	err := c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
+	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
+	err = c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd deployment %q", deployment.Name)
 	}
@@ -679,6 +700,42 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	return deployment, nil
+}
+
+func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (string, error) {
+	selectorLabels := map[string]string{
+		k8sutil.AppAttr: AppName,
+		"ceph-osd-id":   strconv.FormatInt(int64(osd.ID), 10),
+	}
+	svcDef := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("rook-ceph-osd-%d", osd.ID),
+			Namespace: c.clusterInfo.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: selectorLabels,
+			Ports: []v1.ServicePort{
+				{
+					Name:       "osd-port",
+					Port:       6800,
+					TargetPort: intstr.FromInt(6800),
+					Protocol:   v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+	err := c.clusterInfo.OwnerInfo.SetOwnerReference(svcDef)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to set owner reference to osd service %q", svcDef.Name)
+	}
+
+	svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, svcDef)
+	if err != nil {
+		return "", err
+	}
+
+	return svc.Spec.ClusterIP, err
 }
 
 // applyAllPlacementIfNeeded apply spec.placement.all if OnlyApplyOSDPlacement set to false
