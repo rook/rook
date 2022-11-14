@@ -35,7 +35,7 @@ require (
 	k8s.io/api v0.25.4
 	k8s.io/apimachinery v0.25.4
 	k8s.io/client-go v0.25.4
-	k8s.io/cloud-provider v0.25.3
+	k8s.io/cloud-provider v0.25.4
 	k8s.io/utils v0.0.0-20221012122500-cfd413dd9e85
 	sigs.k8s.io/controller-runtime v0.13.1
 	sigs.k8s.io/yaml v1.3.0
@@ -252,7 +252,7 @@ require (
 	gopkg.in/square/go-jose.v2 v2.6.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.25.3 // indirect
-	k8s.io/component-base v0.25.3 // indirect
+	k8s.io/component-base v0.25.4 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/klog/v2 v2.80.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
