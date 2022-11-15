@@ -51,7 +51,7 @@ const (
 	blockPVCMetadataMapperInitContainer           = "blkdevmapper-metadata"
 	blockPVCWalMapperInitContainer                = "blkdevmapper-wal"
 	activatePVCOSDInitContainer                   = "activate"
-	expandPVCOSDInitContainer                     = "expand-bluefs"
+	expandOSDInitContainer                        = "expand-bluefs"
 	expandEncryptedPVCOSDInitContainer            = "expand-encrypted-bluefs"
 	encryptedPVCStatusOSDInitContainer            = "encrypted-block-status"
 	encryptionKeyFileName                         = "luks_key"
@@ -528,6 +528,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		volumes = append(volumes, activateOSDVolume...)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 		initContainers = append(initContainers, *activateOSDContainer)
+		initContainers = append(initContainers, c.getExpandInitContainer(osdProps, c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd))
 	}
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
@@ -1153,7 +1154,7 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 	osdDataPath := activateOSDMountPath + osdID
 
 	return v1.Container{
-		Name:            expandPVCOSDInitContainer,
+		Name:            expandOSDInitContainer,
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Command: []string{
@@ -1161,6 +1162,27 @@ func (c *Cluster) getExpandPVCInitContainer(osdProps osdProperties, osdID string
 		},
 		Args:            []string{"bluefs-bdev-expand", "--path", osdDataPath},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(osdDataPath, osdProps.pvc.ClaimName)},
+		SecurityContext: controller.PrivilegedContext(true),
+		Resources:       osdProps.resources,
+	}
+}
+
+func (c *Cluster) getExpandInitContainer(osdProps osdProperties, configDir, namespace, osdID string, osdInfo OSDInfo) v1.Container {
+	// Output example is in the comments at the beginning of `getExpandPVCInitContainer()`.
+	osdDataPath := activateOSDMountPath + osdID
+
+	return v1.Container{
+		Name:            expandOSDInitContainer,
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		Command: []string{
+			"ceph-bluestore-tool",
+		},
+		Args: []string{"bluefs-bdev-expand", "--path", osdDataPath},
+		VolumeMounts: []v1.VolumeMount{
+			{Name: activateOSDVolumeName, MountPath: osdDataPath},
+			{Name: "devices", MountPath: "/dev"},
+		},
 		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
 	}
