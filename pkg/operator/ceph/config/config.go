@@ -59,6 +59,9 @@ const (
 	// CrashType defines the crash collector DaemonType
 	CrashType = "crashcollector"
 
+	// CephExporterType defines the ceph-exporter DaemonType
+	CephExporterType = "ceph-exporter"
+
 	// CephUser is the Linux Ceph username
 	CephUser = "ceph"
 

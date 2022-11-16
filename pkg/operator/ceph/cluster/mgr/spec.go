@@ -43,7 +43,7 @@ const (
 func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error) {
 	logger.Debugf("mgrConfig: %+v", mgrConfig)
 
-	volumes := controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName)
+	volumes := controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName, c.spec.DataDirHostPath, false)
 	if c.spec.Network.IsMultus() {
 		adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
 		volumes = append(volumes, adminKeyringVol)
@@ -141,7 +141,7 @@ func (c *Cluster) makeChownInitContainer(mgrConfig *mgrConfig) v1.Container {
 		*mgrConfig.DataPathMap,
 		c.spec.CephVersion.Image,
 		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName, false),
 		cephv1.GetMgrResources(c.spec.Resources),
 		controller.PodSecurityContext(),
 	)
@@ -164,7 +164,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		),
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		VolumeMounts:    controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName),
+		VolumeMounts:    controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName, false),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "mgr",
@@ -244,7 +244,7 @@ func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Containe
 		Args:            []string{"infinity"},
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		VolumeMounts:    append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName), adminKeyringVolMount),
+		VolumeMounts:    append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName, false), adminKeyringVolMount),
 		Env:             append(controller.DaemonEnvVars(c.spec.CephVersion.Image), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),
 		SecurityContext: controller.PodSecurityContext(),

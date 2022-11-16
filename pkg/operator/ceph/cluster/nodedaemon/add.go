@@ -43,6 +43,7 @@ const (
 	controllerName = "ceph-nodedaemon-controller"
 	// AppName is the value to the "app" label for the ceph-crash pods
 	crashCollectorAppName = "rook-ceph-crashcollector"
+	cephExporterAppName   = "rook-ceph-exporter"
 	prunerName            = "rook-ceph-crashcollector-pruner"
 	// NodeNameLabel is a node name label
 	NodeNameLabel = "node_name"
