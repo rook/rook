@@ -230,11 +230,11 @@ If any issue exists in the snapshot Create/Delete operation you can check the lo
 kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-snapshotter
 ```
 
-If you see an error such as:
+If you see an error about a volume already existing such as:
 
 ```console
 GRPC error: rpc error: code = Aborted desc = an operation with the given Volume ID
-0001-0009-rook-ceph-0000000000000001-8d0ba728-0e17-11eb-a680-ce6eecc894de already >exists.
+0001-0009-rook-ceph-0000000000000001-8d0ba728-0e17-11eb-a680-ce6eecc894de already exists.
 ```
 
 The issue typically is in the Ceph cluster or network connectivity. If the issue is
