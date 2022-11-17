@@ -42,7 +42,7 @@ Execute the following steps on each peer cluster to create mirror
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: mirroredpool
+  name: mirrored-pool
   namespace: rook-ceph
 spec:
   replicated:
@@ -79,22 +79,22 @@ The following steps enable bootstrapping peers to discover and
 * For Bootstrapping a peer cluster its bootstrap secret is required. To determine the name of the secret that contains the bootstrap secret execute the following command on the remote cluster (cluster-2)
 
 ```console
-[cluster-2]$ kubectl get cephblockpool.ceph.rook.io/mirroredpool -n rook-ceph -ojsonpath='{.status.info.rbdMirrorBootstrapPeerSecretName}'
+[cluster-2]$ kubectl get cephblockpool.ceph.rook.io/mirrored-pool -n rook-ceph -ojsonpath='{.status.info.rbdMirrorBootstrapPeerSecretName}'
 ```
 
-Here, `pool-peer-token-mirroredpool` is the desired bootstrap secret name.
+Here, `pool-peer-token-mirrored-pool` is the desired bootstrap secret name.
 
-* The secret pool-peer-token-mirroredpool contains all the information related to the token and needs to be injected to the peer, to fetch the decoded secret:
+* The secret pool-peer-token-mirrored-pool contains all the information related to the token and needs to be injected to the peer, to fetch the decoded secret:
 
 ```console
-[cluster-2]$ kubectl get secret -n rook-ceph pool-peer-token-mirroredpool -o jsonpath='{.data.token}'|base64 -d
+[cluster-2]$ kubectl get secret -n rook-ceph pool-peer-token-mirrored-pool -o jsonpath='{.data.token}'|base64 -d
 eyJmc2lkIjoiNGQ1YmNiNDAtNDY3YS00OWVkLThjMGEtOWVhOGJkNDY2OTE3IiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDZ3hmZGdxN013R0JBQWZzcUtCaGpZVjJUZDRxVzJYQm5kemc9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMzkuMzY6MzMwMCx2MToxOTIuMTY4LjM5LjM2OjY3ODldIn0=
 ```
 
 * With this Decoded value, create a secret on the primary site (cluster-1):
 
 ```console
-[cluster-1]$ kubectl -n rook-ceph create secret generic rbd-primary-site-secret --from-literal=token=eyJmc2lkIjoiNGQ1YmNiNDAtNDY3YS00OWVkLThjMGEtOWVhOGJkNDY2OTE3IiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDZ3hmZGdxN013R0JBQWZzcUtCaGpZVjJUZDRxVzJYQm5kemc9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMzkuMzY6MzMwMCx2MToxOTIuMTY4LjM5LjM2OjY3ODldIn0= --from-literal=pool=mirroredpool
+[cluster-1]$ kubectl -n rook-ceph create secret generic rbd-primary-site-secret --from-literal=token=eyJmc2lkIjoiNGQ1YmNiNDAtNDY3YS00OWVkLThjMGEtOWVhOGJkNDY2OTE3IiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDZ3hmZGdxN013R0JBQWZzcUtCaGpZVjJUZDRxVzJYQm5kemc9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMzkuMzY6MzMwMCx2MToxOTIuMTY4LjM5LjM2OjY3ODldIn0= --from-literal=pool=mirrored-pool
 ```
 
 * This completes the bootstrap process for cluster-1 to be peered with cluster-2.
@@ -119,7 +119,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephRBDMirror
 metadata:
   name: my-rbd-mirror
-  namespace: openshift-storage
+  namespace: rook-ceph
 spec:
   # the number of rbd-mirror daemons to deploy
   count: 1
@@ -141,7 +141,7 @@ rook-ceph-rbd-mirror-a-6985b47c8c-dpv4k  1/1  Running  0  10s
 * Verify that daemon health is OK
 
 ```console
-kubectl get cephblockpools.ceph.rook.io mirroredpool -n rook-ceph -o jsonpath='{.status.mirroringStatus.summary}'
+kubectl get cephblockpools.ceph.rook.io mirrored-pool -n rook-ceph -o jsonpath='{.status.mirroringStatus.summary}'
 {"daemon_health":"OK","health":"OK","image_health":"OK","states":{"replaying":1}}
 ```
 
@@ -155,7 +155,7 @@ Each pool can have its own peer. To add the peer information, patch the already 
 to update the CephBlockPool CRD.
 
 ```console
-[cluster-1]$ kubectl -n rook-ceph patch cephblockpool mirroredpool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["rbd-primary-site-secret"]}}}}'
+[cluster-1]$ kubectl -n rook-ceph patch cephblockpool mirrored-pool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["rbd-primary-site-secret"]}}}}'
 ```
 
 ## Create VolumeReplication CRDs
