@@ -214,16 +214,9 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		mon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
 		mon.EndpointEnvVar(),
-		mon.SecretEnvVar(),
 		mon.CephUsernameEnvVar(),
 		mon.CephSecretEnvVar(),
 		k8sutil.ConfigOverrideEnvVar(),
-		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
-				Key:                  "fsid",
-			},
-		}},
 		{Name: "ROOK_DASHBOARD_ENABLED", Value: strconv.FormatBool(c.spec.Dashboard.Enabled)},
 		{Name: "ROOK_MONITORING_ENABLED", Value: strconv.FormatBool(c.spec.Monitoring.Enabled)},
 		{Name: "ROOK_UPDATE_INTERVAL", Value: "15s"},
