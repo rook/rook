@@ -56,7 +56,7 @@ var (
 	cephEnvConfigFile = "/etc/sysconfig/ceph"
 )
 
-func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
+func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string, prepare bool) []v1.EnvVar {
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(osdProps.crushHostname),
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerInfo.GetUID())},
@@ -65,19 +65,22 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		opmon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
 		opmon.EndpointEnvVar(),
-		opmon.SecretEnvVar(),
-		opmon.CephUsernameEnvVar(),
-		opmon.CephSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
-		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
-				Key:                  "fsid",
-			},
-		}},
 		k8sutil.NodeEnvVar(),
 		{Name: CrushRootVarName, Value: client.GetCrushRootFromSpec(&c.spec)},
+	}
+	if prepare {
+		envVars = append(envVars, []v1.EnvVar{
+			opmon.CephUsernameEnvVar(),
+			opmon.CephSecretEnvVar(),
+			{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
+					Key:                  "fsid",
+				},
+			}},
+		}...)
 	}
 
 	// Give a hint to the prepare pod for what the host in the CRUSH map should be

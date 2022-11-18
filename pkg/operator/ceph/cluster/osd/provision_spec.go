@@ -192,7 +192,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 }
 
 func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount, provisionConfig *provisionConfig) (v1.Container, error) {
-	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir)
+	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir, true)
 
 	// enable debug logging in the prepare job
 	envVars = append(envVars, setDebugLogLevelEnvVar(true))
