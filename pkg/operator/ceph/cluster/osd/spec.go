@@ -871,7 +871,7 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), encryptionDMName(pvcName, cryptBlockType), encryptionDMPath(pvcName, cryptBlockType)),
+			fmt.Sprintf(openEncryptedBlock, c.clusterInfo.FSID, pvcName, encryptionKeyPath(), encryptionBlockDestinationCopy(mountPath, blockType), EncryptionDMName(pvcName, cryptBlockType), EncryptionDMPath(pvcName, cryptBlockType)),
 		},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, volumeMountPVCName), getDeviceMapperMount()},
 		SecurityContext: controller.PrivilegedContext(true),
@@ -958,7 +958,7 @@ func (c *Cluster) generateEncryptionCopyBlockContainer(resources v1.ResourceRequ
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(blockDevMapper, encryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)),
+			fmt.Sprintf(blockDevMapper, EncryptionDMPath(pvcName, blockType), path.Join(mountPath, blockName)),
 		},
 		// volumeMountPVCName is crucial, especially when the block we copy is the metadata block
 		// its value must be the name of the block PV so that all init containers use the same bridge (the emptyDir shared by all the init containers)
@@ -1187,7 +1187,7 @@ func (c *Cluster) getExpandEncryptedPVCInitContainer(mountPath string, osdProps 
 		Command: []string{
 			"cryptsetup",
 		},
-		Args:            []string{"--verbose", "resize", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		Args:            []string{"--verbose", "resize", EncryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
 		VolumeMounts:    volMount,
 		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
@@ -1218,7 +1218,7 @@ func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps 
 		Command: []string{
 			"cryptsetup",
 		},
-		Args:            []string{"--verbose", "status", encryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
+		Args:            []string{"--verbose", "status", EncryptionDMName(osdProps.pvc.ClaimName, DmcryptBlockType)},
 		VolumeMounts:    []v1.VolumeMount{getPvcOSDBridgeMountActivate(mountPath, osdProps.pvc.ClaimName)},
 		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,

@@ -22,6 +22,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -32,8 +33,9 @@ import (
 )
 
 const (
-	cryptsetupBinary = "cryptsetup"
-	dmsetupBinary    = "dmsetup"
+	cryptsetupBinary   = "cryptsetup"
+	dmsetupBinary      = "dmsetup"
+	luksOpenCmdTimeOut = 90 * time.Second
 )
 
 var (
@@ -158,6 +160,16 @@ func dumpLUKS(context *clusterd.Context, disk string) (string, error) {
 	}
 
 	return cryptsetupOut, nil
+}
+
+func openEncryptedDevice(context *clusterd.Context, disk, target, passphrase string) error {
+	args := []string{"luksOpen", "--verbose", "--allow-discards", disk, target}
+	err := context.Executor.ExecuteCommandWithStdin(luksOpenCmdTimeOut, cryptsetupBinary, &passphrase, args...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to open encrypted device %q", disk)
+	}
+
+	return nil
 }
 
 func isCephEncryptedBlock(context *clusterd.Context, currentClusterFSID string, disk string) bool {
