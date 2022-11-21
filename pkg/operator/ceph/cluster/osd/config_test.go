@@ -46,9 +46,9 @@ func TestEncryptionBlockDestinationCopy(t *testing.T) {
 }
 
 func TestEncryptionDMPath(t *testing.T) {
-	assert.Equal(t, "/dev/mapper/set1-data-0-6rqdn-block-dmcrypt", encryptionDMPath("set1-data-0-6rqdn", DmcryptBlockType))
+	assert.Equal(t, "/dev/mapper/set1-data-0-6rqdn-block-dmcrypt", EncryptionDMPath("set1-data-0-6rqdn", DmcryptBlockType))
 }
 
 func TestEncryptionDMName(t *testing.T) {
-	assert.Equal(t, "set1-data-0-6rqdn-block-dmcrypt", encryptionDMName("set1-data-0-6rqdn", DmcryptBlockType))
+	assert.Equal(t, "set1-data-0-6rqdn-block-dmcrypt", EncryptionDMName("set1-data-0-6rqdn", DmcryptBlockType))
 }

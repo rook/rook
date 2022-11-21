@@ -956,17 +956,32 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 				}
 			}
 			if encryptedBlock == "" {
-				// The encrypted block is not opened, this is an extreme corner case
-				// The OSD deployment has been removed manually AND the node rebooted
-				// So we need to re-open the block to re-hydrate the OSDInfo.
-				//
-				// Handling this case would mean, writing the encryption key on a temporary file, then call
-				// luksOpen to open the encrypted block and then call ceph-volume to list against the opened
-				// encrypted block.
-				// We don't implement this, yet and return an error.
-				return nil, errors.Errorf("failed to find the encrypted block device for %q, not opened?", block)
-			}
+				// The encrypted block is not opened.
+				// The encrypted device is closed in some cases when
+				// the OSD deployment has been removed manually accompanied
+				// by any of following cases:
+				// - node reboot
+				// - csi managed PVC being unmounted etc
+				// Let's re-open the block to re-hydrate the OSDInfo.
+				logger.Debugf("encrypted block device %q is not open, opening it now", block)
+				passphrase := os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName)
+				if passphrase == "" {
+					return nil, errors.Errorf("encryption passphrase is empty in env var %q", oposd.CephVolumeEncryptedKeyEnvVarName)
+				}
+				pvcName := os.Getenv(oposd.PVCNameEnvVarName)
+				if pvcName == "" {
+					return nil, errors.Errorf("pvc name is empty in env var %q", oposd.PVCNameEnvVarName)
+				}
 
+				target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+				err = openEncryptedDevice(context, block, target, passphrase)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to open encrypted block device %q on %q", block, target)
+				}
+
+				// ceph-volume prefers to use /dev/mapper/<name>
+				encryptedBlock = oposd.EncryptionDMPath(pvcName, oposd.DmcryptBlockType)
+			}
 			// If we have one child device, it should be the encrypted block but still verifying it
 			isDeviceEncrypted, err := sys.IsDeviceEncrypted(context.Executor, encryptedBlock)
 			if err != nil {

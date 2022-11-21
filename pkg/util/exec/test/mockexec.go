@@ -34,12 +34,22 @@ type MockExecutor struct {
 	MockExecuteCommandWithOutput         func(command string, arg ...string) (string, error)
 	MockExecuteCommandWithCombinedOutput func(command string, arg ...string) (string, error)
 	MockExecuteCommandWithTimeout        func(timeout time.Duration, command string, arg ...string) (string, error)
+	MockExecuteCommandWithStdin          func(timeout time.Duration, command string, stdin *string, arg ...string) error
 }
 
 // ExecuteCommand mocks ExecuteCommand
 func (e *MockExecutor) ExecuteCommand(command string, arg ...string) error {
 	if e.MockExecuteCommand != nil {
 		return e.MockExecuteCommand(command, arg...)
+	}
+
+	return nil
+}
+
+// ExecuteCommandWithStdin starts a process, provides stdin and wait for its completion with timeout.
+func (e *MockExecutor) ExecuteCommandWithStdin(timeout time.Duration, command string, stdin *string, arg ...string) error {
+	if e.MockExecuteCommand != nil {
+		return e.MockExecuteCommandWithStdin(timeout, command, stdin, arg...)
 	}
 
 	return nil

@@ -38,6 +38,12 @@ func (e *TranslateCommandExecutor) ExecuteCommand(command string, arg ...string)
 	return e.Executor.ExecuteCommand(transCommand, transArgs...)
 }
 
+// ExecuteCommandWithStdin starts a process, provides stdin and wait for its completion with timeout.
+func (e *TranslateCommandExecutor) ExecuteCommandWithStdin(timeout time.Duration, command string, stdin *string, arg ...string) error {
+	transCommand, transArgs := e.Translator(command, arg...)
+	return e.Executor.ExecuteCommandWithStdin(timeout, transCommand, stdin, transArgs...)
+}
+
 // ExecuteCommandWithEnv starts a process with an env variable and wait for its completion
 func (e *TranslateCommandExecutor) ExecuteCommandWithEnv(env []string, command string, arg ...string) error {
 	transCommand, transArgs := e.Translator(command, arg...)

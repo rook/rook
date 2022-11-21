@@ -46,12 +46,12 @@ func encryptionKeyPath() string {
 	return path.Join(opconfig.EtcCephDir, encryptionKeyFileName)
 }
 
-func encryptionDMName(pvcName, blockType string) string {
+func EncryptionDMName(pvcName, blockType string) string {
 	return fmt.Sprintf("%s-%s", pvcName, blockType)
 }
 
-func encryptionDMPath(pvcName, blockType string) string {
-	return path.Join("/dev/mapper", encryptionDMName(pvcName, blockType))
+func EncryptionDMPath(pvcName, blockType string) string {
+	return path.Join("/dev/mapper", EncryptionDMName(pvcName, blockType))
 }
 
 func encryptionBlockDestinationCopy(mountPath, blockType string) string {
