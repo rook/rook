@@ -59,6 +59,8 @@ plugins:
   - exclude:
       glob:
         - README.md
+        - "*.gotmpl"
+        - "*.gotmpl.md"
   - awesome-pages
   - macros:
       module_name: .docs/macros/includes/main
@@ -77,7 +79,7 @@ plugins:
       css_dir: css             # the directory to put the version selector's CSS
       javascript_dir: js       # the directory to put the version selector's JS
       canonical_version: null  # the version for <link rel="canonical">; `null`
-                               # uses the version specified via `mike deploy`
+        # uses the version specified via `mike deploy`
 markdown_extensions:
   - admonition
   - attr_list
@@ -111,7 +113,7 @@ extra:
   social:
     - icon: fontawesome/brands/slack
       link: https://slack.rook.io/
-    - icon: fontawesome/brands/twitter 
+    - icon: fontawesome/brands/twitter
       link: https://twitter.com/rook_io
     - icon: fontawesome/solid/envelopes-bulk
       link: 'https://groups.google.com/forum/#!forum/rook-dev'
