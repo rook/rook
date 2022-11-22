@@ -1,4 +1,5 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+set -e
 set -u
 # Copyright 2016 The Rook Authors. All rights reserved.
 #

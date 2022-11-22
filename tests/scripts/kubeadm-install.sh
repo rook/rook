@@ -1,4 +1,5 @@
-#!/bin/bash +e
+#!/usr/bin/env bash
+set +e
 
 KUBE_VERSION=${1:-"v1.15.12"}
 null_str=

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 export OLM_SKIP_PKG_FILE_GEN="true"
