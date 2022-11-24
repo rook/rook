@@ -44,6 +44,9 @@ data:
 {{- if .Values.csi.rbdPluginUpdateStrategy }}
   CSI_RBD_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.rbdPluginUpdateStrategy | quote }}
 {{- end }}
+{{- if .Values.csi.rbdPluginUpdateStrategyMaxUnavailable }}
+  CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.rbdPluginUpdateStrategyMaxUnavailable | quote }}
+{{- end }}
 {{- if .Values.csi.kubeletDirPath }}
   ROOK_CSI_KUBELET_DIR_PATH: {{ .Values.csi.kubeletDirPath | quote }}
 {{- end }}
