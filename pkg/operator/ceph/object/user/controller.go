@@ -403,6 +403,15 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 		userConfig.MaxBuckets = user.Spec.Quotas.MaxBuckets
 	}
 
+	if user.Spec.AccessKey != "" && user.Spec.SecretKey != "" {
+		userConfig.Keys = []admin.UserKeySpec{
+			{
+				User:      user.Name,
+				AccessKey: user.Spec.AccessKey,
+				SecretKey: user.Spec.SecretKey,
+			},
+		}
+	}
 	if user.Spec.Capabilities != nil {
 		if user.Spec.Capabilities.User != "" {
 			userConfig.UserCaps += fmt.Sprintf("users=%s;", user.Spec.Capabilities.User)

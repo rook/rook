@@ -407,6 +407,23 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 					}, nil
 				}
 			}
+			if req.Method == http.MethodGet {
+				if req.URL.RawQuery == "access-key=53S6B9S809NUP19IJ2K3&format=json&uid=my-user" ||
+					req.URL.RawQuery == "access-key=53S6B9S809NUP19IJ2K3&format=json" {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+					}, nil
+				}
+			}
+			if req.Method == http.MethodPost {
+				if req.URL.RawQuery == "access-key=53S6B9S809NUP19IJ2K3&display-name=my-user&format=json&max-buckets=200&secret-key=1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR&uid=my-user" {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+					}, nil
+				}
+			}
 
 			return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)
 		},
@@ -501,6 +518,14 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Bucket: "read",
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
+		userConfig = generateUserConfig(objectUser)
+		r.userConfig = &userConfig
+		err = r.createOrUpdateCephUser(objectUser)
+		assert.NoError(t, err)
+	})
+	t.Run("setting access key and secret key for the user", func(t *testing.T) {
+		objectUser.Spec.AccessKey = "53S6B9S809NUP19IJ2K3"
+		objectUser.Spec.SecretKey = "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR"
 		userConfig = generateUserConfig(objectUser)
 		r.userConfig = &userConfig
 		err = r.createOrUpdateCephUser(objectUser)

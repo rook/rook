@@ -12844,6 +12844,9 @@ spec:
             spec:
               description: ObjectStoreUserSpec represent the spec of an Objectstoreuser
               properties:
+                accessKey:
+                  nullable: true
+                  type: string
                 capabilities:
                   description: Additional admin-level capabilities for the Ceph object store user
                   nullable: true
@@ -12914,6 +12917,9 @@ spec:
                       pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                       x-kubernetes-int-or-string: true
                   type: object
+                secretKey:
+                  nullable: true
+                  type: string
                 store:
                   description: The store the user will be created in
                   type: string
