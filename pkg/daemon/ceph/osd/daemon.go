@@ -455,10 +455,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		} else if len(desiredDevices) == 1 && desiredDevices[0].Name == "all" {
 			// user has specified all devices, use the current one for data
 			if device.Type == sys.LVMType {
-				logger.Infof("logical volume %q is not picked by `useAllDevices: true`. please specify the exact device name (e.g. /dev/vg/lv) instead", device.Name)
+				logger.Infof("logical volume %q is not picked by `useAllDevices: true`. please specify the exact device name (e.g. /dev/vg/lv) in `devices` field instead", device.Name)
 				continue
 			} else if device.Type == sys.LoopType {
-				logger.Infof("loop device %q is not picked by `useAllDevices: true`. please specify the exact device name (e.g. /dev/loop0) instead", device.Name)
+				logger.Infof("loop device %q is not picked by `useAllDevices: true`. please specify the exact device name (e.g. /dev/loop0) in `devices` field  instead", device.Name)
 				continue
 			}
 			deviceInfo = &DeviceOsdIDEntry{Data: unassignedOSDID, DeviceInfo: device}
@@ -469,10 +469,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				if desiredDevice.IsFilter {
 					// the desired devices is a regular expression
 					if device.Type == sys.LVMType {
-						logger.Infof("logical volume %q is not picked by `deviceFilter`. please specify the exact device name (e.g. /dev/vg/lv) instead", device.Name)
+						logger.Infof("logical volume %q is not picked by `deviceFilter`. please specify the exact device name (e.g. /dev/vg/lv) in `devices` field instead", device.Name)
 						continue
 					} else if device.Type == sys.LoopType {
-						logger.Infof("loop device %q is not picked by `deviceFilter`. please specify the exact device name (e.g. /dev/loop0) instead", device.Name)
+						logger.Infof("loop device %q is not picked by `deviceFilter`. please specify the exact device name (e.g. /dev/loop0) in `devices` field instead", device.Name)
 						continue
 					}
 					matched, err = regexp.Match(desiredDevice.Name, []byte(device.Name))
@@ -486,10 +486,10 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 					}
 				} else if desiredDevice.IsDevicePathFilter {
 					if device.Type == sys.LVMType {
-						logger.Infof("logical volume %q is not picked by `devicePathFilter`. please specify the exact device name (e.g. /dev/vg/lv) instead", device.Name)
+						logger.Infof("logical volume %q is not picked by `devicePathFilter`. please specify the exact device name (e.g. /dev/vg/lv) in `devices` field instead", device.Name)
 						continue
 					} else if device.Type == sys.LoopType {
-						logger.Infof("loop device %q is not picked by `devicePathFilter`. please specify the exact device name (e.g. /dev/loop0) instead", device.Name)
+						logger.Infof("loop device %q is not picked by `devicePathFilter`. please specify the exact device name (e.g. /dev/loop0) in `devices` field instead", device.Name)
 						continue
 					}
 					pathnames := append(strings.Fields(device.DevLinks), filepath.Join("/dev", device.Name))
