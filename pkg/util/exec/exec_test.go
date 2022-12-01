@@ -19,6 +19,7 @@ package exec
 import (
 	"os/exec"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -115,4 +116,66 @@ func TestExtractExitCode(t *testing.T) {
 func TestFakeTimeoutError(t *testing.T) {
 	assert.True(t, IsTimeout(exectest.FakeTimeoutError("blah")))
 	assert.True(t, IsTimeout(exectest.FakeTimeoutError("")))
+}
+
+func TestExecuteCommandWithTimeout(t *testing.T) {
+	type args struct {
+		timeout time.Duration
+		command string
+		stdin   *string
+		arg     []string
+	}
+	testString := "hello"
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "test stdin",
+			args: args{
+				timeout: 30 * time.Second,
+				command: "cat",
+				stdin:   &testString,
+				arg:     []string{},
+			},
+			want:    testString,
+			wantErr: false,
+		},
+		{
+			name: "test nil stdin",
+			args: args{
+				timeout: 30 * time.Second,
+				command: "echo",
+				stdin:   nil,
+				arg:     []string{testString},
+			},
+			want:    testString,
+			wantErr: false,
+		},
+		{
+			name: "test timeout",
+			args: args{
+				timeout: 0 * time.Second,
+				command: "cat",
+				stdin:   &testString,
+				arg:     []string{},
+			},
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := executeCommandWithTimeout(tt.args.timeout, tt.args.command, tt.args.stdin, tt.args.arg...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("executeCommandWithTimeout() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("executeCommandWithTimeout() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
