@@ -30,7 +30,7 @@ var requiredEnvVars = []string{
 	"CONTAINER_IMAGE", "POD_NAME", "POD_NAMESPACE", "NODE_NAME",
 	"ROOK_CEPH_MON_HOST", "ROOK_CEPH_MON_INITIAL_MEMBERS",
 	"POD_CPU_LIMIT", "POD_MEMORY_LIMIT", "POD_MEMORY_REQUEST",
-	"POD_CPU_REQUEST",
+	"POD_CPU_REQUEST", "CEPH_USE_RANDOM_NONCE",
 }
 
 // A ContainersTester is a helper exposing methods for testing required Ceph specifications common
@@ -130,6 +130,9 @@ func (ct *ContainersTester) AssertEnvVarsContainCephRequirements() {
 			case "POD_CPU_REQUEST":
 				assert.Equal(ct.t, "requests.cpu", e.ValueFrom.ResourceFieldRef.Resource,
 					"POD_CPU_REQUEST env var does not have the appropriate source:", e)
+			case "CEPH_USE_RANDOM_NONCE":
+				assert.Equal(ct.t, "true", e.Value,
+					"CEPH_USE_RANDOM_NONCE env var does not have the appropriate source:", e)
 			}
 		}
 		vars := FindDuplicateEnvVars(c)
