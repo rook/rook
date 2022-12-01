@@ -28,16 +28,16 @@ import (
 )
 
 // updateStatus updates a fs CR with the given status
-func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) *cephv1.CephFilesystem {
 	fs := &cephv1.CephFilesystem{}
 	err := r.client.Get(r.opManagerContext, namespacedName, fs)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephFilesystem resource not found. Ignoring since object must be deleted.")
-			return
+			return nil
 		}
 		logger.Warningf("failed to retrieve filesystem %q to update status to %q. %v", namespacedName, status, err)
-		return
+		return nil
 	}
 
 	if fs.Status == nil {
@@ -51,9 +51,10 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 	}
 	if err := reporting.UpdateStatus(r.client, fs); err != nil {
 		logger.Warningf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
-		return
+		return nil
 	}
 	logger.Debugf("filesystem %q status updated to %q", fs.Name, status)
+	return fs
 }
 
 // updateStatusBucket updates an object with a given status
