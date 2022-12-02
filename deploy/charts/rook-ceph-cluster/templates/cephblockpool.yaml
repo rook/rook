@@ -30,5 +30,11 @@ mountOptions:
   - {{ . }}
   {{- end }}
 {{- end }}
+{{ if $blockpool.storageClass.allowedTopologies }}
+allowedTopologies:
+{{ with $blockpool.storageClass.allowedTopologies }}
+{{ toYaml . | indent 2 }}
+{{ end }}
+{{ end }}
 {{ end }}
 {{ end }}
