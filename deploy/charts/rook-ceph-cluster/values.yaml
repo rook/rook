@@ -508,10 +508,10 @@ cephFileSystems:
         csi.storage.k8s.io/controller-expand-secret-namespace: "{{ .Release.Namespace }}"
         csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
         csi.storage.k8s.io/node-stage-secret-namespace: "{{ .Release.Namespace }}"
-        # Specify the filesystem type of the volume. If not specified, csi-provisioner
-        # will set default as `ext4`. Note that `xfs` is not recommended due to potential deadlock
-        # in hyperconverged settings where the volume is mounted on the same node as the osds.
-        csi.storage.k8s.io/fstype: ext4
+        # (optional) The driver can use either ceph-fuse (fuse) or ceph kernel client (kernel)
+        # If omitted, default volume mounter will be used - this is determined by probing for ceph-fuse
+        # or by setting the default mounter explicitly via --volumemounter command-line argument.
+        # mounter: kernel
 
 # -- Settings for the filesystem snapshot class
 # @default -- See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots)
