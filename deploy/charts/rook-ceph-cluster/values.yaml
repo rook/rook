@@ -2,16 +2,18 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# Namespace of the main rook operator
+# -- Namespace of the main rook operator
 operatorNamespace: rook-ceph
 
-# The metadata.name of the CephCluster CR. The default name is the same as the namespace.
-# clusterName: rook-ceph
+# -- The metadata.name of the CephCluster CR
+# @default -- The same as the namespace
+clusterName:
 
-# Ability to override the kubernetes version used in rendering the helm chart
-# kubeVersion: 1.21
+# -- Optional override of the target kubernetes version
+kubeVersion:
 
-# Ability to override ceph.conf
+# -- Cluster ceph.conf override
+configOverride:
 # configOverride: |
 #   [global]
 #   mon_allow_pool_delete = true
@@ -20,10 +22,15 @@ operatorNamespace: rook-ceph
 
 # Installs a debugging toolbox deployment
 toolbox:
+  # -- Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)
   enabled: false
+  # -- Toolbox image
   image: rook/ceph:VERSION
+  # -- Toolbox tolerations
   tolerations: []
+  # -- Toolbox affinity
   affinity: {}
+  # -- Toolbox resources
   resources:
     limits:
       cpu: "500m"
@@ -31,16 +38,16 @@ toolbox:
     requests:
       cpu: "100m"
       memory: "128Mi"
-  # Set the priority class for the toolbox if desired
-  # priorityClassName: class
+  # -- Set the priority class for the toolbox if desired
+  priorityClassName:
 
-# monitoring requires Prometheus to be pre-installed
 monitoring:
-  # enabling will also create RBAC rules to allow Operator to create ServiceMonitors
+  # -- Enable Prometheus integration, will also create necessary RBAC rules to allow Operator to create ServiceMonitors.
+  # Monitoring requires Prometheus to be pre-installed
   enabled: false
-  # whether to create the prometheus rules
+  # -- Whether to create the Prometheus rules for Ceph alerts
   createPrometheusRules: false
-  # the namespace in which to create the prometheus rules, if different from the rook cluster namespace
+  # -- The namespace in which to create the prometheus rules, if different from the rook cluster namespace
   # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
   # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
   rulesNamespaceOverride:
@@ -49,10 +56,12 @@ monitoring:
   # externalMgrPrometheusPort: <port>
   # allow adding custom labels and annotations to the prometheus rule
   prometheusRule:
+    # -- Labels applied to PrometheusRule
     labels: {}
+    # -- Annotations applied to PrometheusRule
     annotations: {}
 
-# If true, create & use PSP resources. Set this to the same value as the rook-ceph chart.
+# -- Create & use PSP resources. Set this to the same value as the rook-ceph chart.
 pspEnable: false
 
 # imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts.
@@ -60,8 +69,10 @@ pspEnable: false
 # - name: my-registry-secret
 
 # All values below are taken from the CephCluster CRD
-# More information can be found at [Ceph Cluster CRD](/Documentation/CRDs/ceph-cluster-crd.md)
+# -- Cluster configuration.
+# @default -- See [below](#ceph-cluster-spec)
 cephClusterSpec:
+  # For more details, check https://rook.io/docs/rook/v1.10/CRDs/Cluster/ceph-cluster-crd/
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
     # v16 is Pacific, v17 is Quincy.
@@ -83,7 +94,7 @@ cephClusterSpec:
   # Whether or not upgrade should continue even if a check fails
   # This means Ceph's status could be degraded and we don't recommend upgrading but you might decide otherwise
   # Use at your OWN risk
-  # To understand Rook's upgrade process of Ceph, read https://rook.io/docs/rook/latest/ceph-upgrade.html#ceph-version-upgrades
+  # To understand Rook's upgrade process of Ceph, read https://rook.io/docs/rook/v1.10/Upgrade/ceph-upgrade/
   skipUpgradeChecks: false
 
   # Whether or not continue if PGs are not clean during an upgrade
@@ -368,6 +379,7 @@ cephClusterSpec:
         disabled: false
 
 ingress:
+  # -- Enable an ingress for the ceph-dashboard
   dashboard:
     {}
     # annotations:
@@ -389,6 +401,8 @@ ingress:
     ## to set the ingress class
     # ingressClassName: nginx
 
+# -- A list of CephBlockPool configurations to deploy
+# @default -- See [below](#ceph-block-pools)
 cephBlockPools:
   - name: ceph-blockpool
     # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md#spec for available configuration
@@ -443,6 +457,8 @@ cephBlockPools:
         # in hyperconverged settings where the volume is mounted on the same node as the osds.
         csi.storage.k8s.io/fstype: ext4
 
+# -- A list of CephFileSystem configurations to deploy
+# @default -- See [below](#ceph-file-systems)
 cephFileSystems:
   - name: ceph-filesystem
     # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Shared-Filesystem/ceph-filesystem-crd.md#filesystem-settings for available configuration
@@ -490,6 +506,8 @@ cephFileSystems:
         # in hyperconverged settings where the volume is mounted on the same node as the osds.
         csi.storage.k8s.io/fstype: ext4
 
+# -- Settings for the filesystem snapshot class
+# @default -- See [CephFS Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#cephfs-snapshots)
 cephFileSystemVolumeSnapshotClass:
   enabled: false
   name: ceph-filesystem
@@ -497,9 +515,11 @@ cephFileSystemVolumeSnapshotClass:
   deletionPolicy: Delete
   annotations: {}
   labels: {}
-  # see https://rook.io/docs/rook/latest/ceph-csi-snapshot.html#cephfs-snapshots for available configuration
+  # see https://rook.io/docs/rook/v1.10/Storage-Configuration/Ceph-CSI/ceph-csi-snapshot/#cephfs-snapshots for available configuration
   parameters: {}
 
+# -- Settings for the block pool snapshot class
+# @default -- See [RBD Snapshots](../Storage-Configuration/Ceph-CSI/ceph-csi-snapshot.md#rbd-snapshots)
 cephBlockPoolsVolumeSnapshotClass:
   enabled: false
   name: ceph-block
@@ -507,9 +527,11 @@ cephBlockPoolsVolumeSnapshotClass:
   deletionPolicy: Delete
   annotations: {}
   labels: {}
-  # see https://rook.io/docs/rook/latest/ceph-csi-snapshot.html#rbd-snapshots for available configuration
+  # see https://rook.io/docs/rook/v1.10/Storage-Configuration/Ceph-CSI/ceph-csi-snapshot/#rbd-snapshots for available configuration
   parameters: {}
 
+# -- A list of CephObjectStore configurations to deploy
+# @default -- See [below](#ceph-object-stores)
 cephObjectStores:
   - name: ceph-objectstore
     # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Object-Storage/ceph-object-store-crd.md#object-store-settings for available configuration

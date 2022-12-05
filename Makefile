@@ -196,6 +196,16 @@ gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 	HELM=$(HELM) ./build/rbac/gen-psp.sh
 
+helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm charts
+	$(HELM_DOCS) -c deploy/charts/rook-ceph \
+		-o ../../../Documentation/Helm-Charts/operator-chart.md \
+		-t ../../../Documentation/Helm-Charts/operator-chart.gotmpl.md \
+		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
+	$(HELM_DOCS) -c deploy/charts/rook-ceph-cluster \
+		-o ../../../Documentation/Helm-Charts/ceph-cluster-chart.md \
+		-t ../../../Documentation/Helm-Charts/ceph-cluster-chart.gotmpl.md \
+		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
+
 docs-preview: ## Preview the documentation through mkdocs
 	mkdocs serve
 
