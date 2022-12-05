@@ -335,7 +335,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 
 	osdID := strconv.Itoa(osd.ID)
-	envVars := c.getConfigEnvVars(osdProps, dataDir)
+	envVars := c.getConfigEnvVars(osdProps, dataDir, false)
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.spec.CephVersion.Image)...)
 	envVars = append(envVars, []v1.EnvVar{
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
@@ -350,7 +350,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		cvModeEnvVariable(osd.CVMode),
 		dataDeviceClassEnvVar(osd.DeviceClass),
 	}...)
-	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir), []v1.EnvVar{
+	configEnvVars := append(c.getConfigEnvVars(osdProps, dataDir, false), []v1.EnvVar{
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_CEPH_VERSION", Value: c.clusterInfo.CephVersion.CephVersionFormatted()},
 		{Name: "ROOK_IS_DEVICE", Value: "true"},
@@ -882,7 +882,7 @@ func (c *Cluster) generateEncryptionOpenBlockContainer(resources v1.ResourceRequ
 func (c *Cluster) generateVaultGetKEK(osdProps osdProperties) v1.Container {
 	keyName := osdProps.pvc.ClaimName
 	keyPath := encryptionKeyPath()
-	envVars := c.getConfigEnvVars(osdProps, "")
+	envVars := c.getConfigEnvVars(osdProps, "", false)
 	envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
 
 	return v1.Container{
