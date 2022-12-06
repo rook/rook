@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -51,6 +52,7 @@ const (
 	AccessKeyName         = "access-key"
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
+	rgwRadosPoolPgNum     = "8"
 )
 
 var (
@@ -66,7 +68,8 @@ var (
 	dataPoolName = "rgw.buckets.data"
 
 	// An user with system privileges for dashboard service
-	DashboardUser = "dashboard-admin"
+	DashboardUser                       = "dashboard-admin"
+	cephVersionRGWRadosPoolPgNumRemoved = cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}
 )
 
 type idType struct {
@@ -736,7 +739,13 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	}
 
 	// get the default PG count for rgw metadata pools
-	metadataPoolPGs, err := config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
+	var err error
+	var metadataPoolPGs string
+	if context.clusterInfo.CephVersion.IsAtLeast(cephVersionRGWRadosPoolPgNumRemoved) {
+		metadataPoolPGs = rgwRadosPoolPgNum
+	} else {
+		metadataPoolPGs, err = config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
+	}
 	if err != nil {
 		logger.Warningf("failed to adjust the PG count for rgw metadata pools. using the general default. %v", err)
 		metadataPoolPGs = cephclient.DefaultPGCount
