@@ -23,7 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
@@ -97,7 +97,7 @@ var MachineDisruptionBudgetAddToManagerFuncs = []func(manager.Manager, *controll
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager (entrypoint for controller)
 var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Context, opcontroller.OperatorConfig) error{
-	crash.Add,
+	nodedaemon.Add,
 	pool.Add,
 	objectuser.Add,
 	realm.Add,

@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package crash
+package nodedaemon
 
 import (
 	"context"
@@ -40,10 +40,10 @@ import (
 )
 
 const (
-	controllerName = "ceph-crashcollector-controller"
+	controllerName = "ceph-nodedaemon-controller"
 	// AppName is the value to the "app" label for the ceph-crash pods
-	AppName    = "rook-ceph-crashcollector"
-	prunerName = "rook-ceph-crashcollector-pruner"
+	crashCollectorAppName = "rook-ceph-crashcollector"
+	prunerName            = "rook-ceph-crashcollector-pruner"
 	// NodeNameLabel is a node name label
 	NodeNameLabel = "node_name"
 )
@@ -103,7 +103,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			}
 			labels := deployment.GetLabels()
 			appName, ok := labels[k8sutil.AppAttr]
-			if !ok || appName != AppName {
+			if !ok || appName != crashCollectorAppName {
 				return []reconcile.Request{}
 			}
 			nodeName, ok := deployment.Spec.Template.ObjectMeta.Labels[NodeNameLabel]
@@ -119,8 +119,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return errors.Wrap(err, "failed to watch for changes on the ceph-crash deployment")
 	}
 
-	// Watch for changes to the ceph pod nodename and enqueue their nodes
-	logger.Debugf("watch for changes to the ceph pod nodename and enqueue their nodes")
+	// Watch for changes to the ceph pods and enqueue their nodes
+	logger.Debugf("watch for changes to the ceph pods and enqueue their nodes")
 	err = c.Watch(
 		&source.Kind{Type: &corev1.Pod{}},
 		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(obj client.Object) []reconcile.Request {
@@ -173,7 +173,8 @@ func isCephPod(labels map[string]string, podName string) bool {
 	// the crash collector pod will start and environment variable like 'ROOK_CEPH_MON_HOST'
 	// will be empty since the monitors don't exist yet
 	isCanaryPod := strings.Contains(podName, "-canary-")
-	if ok && !isCanaryPod {
+	isCrashCollectorPod := strings.Contains(podName, "-crashcollector-")
+	if ok && !isCanaryPod && !isCrashCollectorPod {
 		logger.Debugf("%q is a ceph pod!", podName)
 		return true
 	}

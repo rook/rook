@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package crash
+package nodedaemon
 
 import (
 	"context"
@@ -25,12 +25,10 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/batch/v1"
-	"k8s.io/api/batch/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/rook/rook/pkg/operator/ceph/file/mds"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
@@ -48,7 +46,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -76,8 +73,7 @@ type ReconcileNode struct {
 	opConfig         opcontroller.OperatorConfig
 }
 
-// Reconcile reconciles a node and ensures that it has a crashcollector deployment
-// attached to it.
+// Reconcile reconciles a node and ensures that it has necessary node-monitoring daemons.
 // The Controller will requeue the Request to be processed again if an error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileNode) Reconcile(context context.Context, request reconcile.Request) (reconcile.Result, error) {
@@ -97,8 +93,8 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, node)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			// if a node is not present, check if there are any crashcollector deployment for that node and delete it.
-			err := r.listCrashCollectorAndDelete(request.Name, "")
+			// if a node is not present, check if there are any node daemons to remove
+			err := r.listNodeDaemonsAndDelete(request.Name, "")
 			if err != nil {
 				logger.Errorf("failed to list and delete crash collector deployment on node %q; user should delete them manually. %v", request.Name, err)
 			}
@@ -116,6 +112,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		return reconcile.Result{}, errors.Wrap(err, "failed to list all ceph pods")
 	}
 
+	// Get all the namespaces where the Ceph daemons are running
 	namespaceToPodList := make(map[string][]corev1.Pod)
 	for _, cephPod := range cephPods {
 		podNamespace := cephPod.GetNamespace()
@@ -129,6 +126,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		}
 	}
 
+	// For each cephcluster, reconcile the node daemons
 	for namespace, cephPods := range namespaceToPodList {
 		// get dataDirHostPath from the CephCluster
 		cephClusters := &cephv1.CephClusterList{}
@@ -146,32 +144,13 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			logger.Errorf("more than one CephCluster found in the namespace %q, choosing the first one %q", namespace, cephCluster.GetName())
 		}
 
-		// If the crash controller is disabled in the spec let's do a noop
-		if cephCluster.Spec.CrashCollector.Disable {
-			deploymentList := &appsv1.DeploymentList{}
-			namespaceListOpts := client.InNamespace(namespace)
-
-			// Try to fetch the list of existing deployment and remove them
-			err := r.client.List(r.opManagerContext, deploymentList, client.MatchingLabels{k8sutil.AppAttr: AppName}, namespaceListOpts)
-			if err != nil {
-				logger.Errorf("failed to list crash collector deployments in namespace %q, delete it/them manually. %v", namespace, err)
-				return reconcile.Result{}, nil
-			}
-
-			//  Try to delete all the crash deployments
-			for _, d := range deploymentList.Items {
-				err := r.deleteCrashCollector(d)
-				if err != nil {
-					logger.Errorf("failed to delete crash collector deployment %q in namespace %q, delete it manually. %v", d.Name, d.Namespace, err)
-					continue
-				}
-				logger.Infof("crash collector deployment %q in namespace %q successfully removed", d.Name, d.Namespace)
-			}
-
+		allDisabled := r.removeDisabledNodeDaemons(cephCluster.Spec, namespace)
+		if allDisabled {
 			return reconcile.Result{}, nil
 		}
 
 		// checking if secret "rook-ceph-crash-collector-keyring" is present which is required to create crashcollector pods
+		// this is also an indicator that other daemons can be started
 		secret := &corev1.Secret{}
 		err = r.client.Get(r.opManagerContext, types.NamespacedName{Name: crashCollectorKeyName, Namespace: namespace}, secret)
 		if err != nil {
@@ -202,29 +181,98 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 
-		// If the node has Ceph pods we create a crash collector
+		// If the node has Ceph pods we create the daemons
 		if hasCephPods {
 			tolerations := uniqueTolerations.ToList()
-			op, err := r.createOrUpdateCephCrash(*node, tolerations, cephCluster, cephVersion)
+			err := r.createOrUpdateNodeDaemons(*node, tolerations, cephCluster, cephVersion)
 			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "node reconcile failed on op %q", op)
+				return reconcile.Result{}, errors.Wrap(err, "node reconcile failed")
 			}
-			logger.Debugf("deployment successfully reconciled for node %q. operation: %q", request.Name, op)
+		} else {
 			// If there are no Ceph pods, check that there are no crash collector pods in case Ceph pods moved to another node
 			// Thus the crash collector must be removed from that node
-		} else {
-			err := r.listCrashCollectorAndDelete(request.Name, namespace)
+			err := r.listNodeDaemonsAndDelete(request.Name, namespace)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to list and delete crash collector deployments in namespace %q on node %q", namespace, request.Name)
 			}
 		}
 
-		if err := r.reconcileCrashRetention(namespace, cephCluster, cephVersion); err != nil {
+		if err := r.reconcileCrashPruner(namespace, cephCluster, cephVersion); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
+	if !cephCluster.Spec.CrashCollector.Disable {
+		op, err := r.createOrUpdateCephCrash(node, tolerations, cephCluster, cephVersion)
+		if err != nil {
+			if op == "unchanged" {
+				logger.Debugf("crash collector unchanged on node %q", node.Name)
+			} else {
+				return errors.Wrapf(err, "crash collector reconcile failed on op %q", op)
+			}
+		} else {
+			logger.Debugf("crash collector successfully reconciled for node %q. operation: %q", node.Name, op)
+		}
+	}
+
+	return nil
+}
+
+func (r *ReconcileNode) removeDisabledNodeDaemons(spec cephv1.ClusterSpec, namespace string) bool {
+	// If the daemons are disabled in the spec let's remove them
+	allDisabled := true
+	if spec.CrashCollector.Disable {
+		r.deleteNodeDaemon(crashCollectorAppName, namespace)
+	} else {
+		allDisabled = false
+	}
+
+	return allDisabled
+}
+
+func (r *ReconcileNode) listDeploymentAndDelete(appName, nodeName, ns string) error {
+	deploymentList := &appsv1.DeploymentList{}
+	namespaceListOpts := client.InNamespace(ns)
+	err := r.client.List(r.opManagerContext, deploymentList, client.MatchingLabels{k8sutil.AppAttr: appName, NodeNameLabel: nodeName}, namespaceListOpts)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list crash collector deployments in namespace %q", ns)
+	}
+	for _, d := range deploymentList.Items {
+		logger.Infof("deleting deployment %q for node %q", d.ObjectMeta.Name, nodeName)
+		err := r.deleteDeployment(d)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete crash collector deployment %q in namespace %q", d.Name, d.Namespace)
+		}
+		logger.Infof("successfully removed crash collector deployment %q in namespace %q from node %q", d.Name, d.Namespace, nodeName)
+	}
+
+	return nil
+}
+
+func (r *ReconcileNode) deleteNodeDaemon(appName, namespace string) {
+	deploymentList := &appsv1.DeploymentList{}
+	namespaceListOpts := client.InNamespace(namespace)
+
+	// Try to fetch the list of existing deployment and remove them
+	err := r.client.List(r.opManagerContext, deploymentList, client.MatchingLabels{k8sutil.AppAttr: appName}, namespaceListOpts)
+	if err != nil {
+		logger.Errorf("failed to list crash collector deployments in namespace %q, delete it/them manually. %v", namespace, err)
+		return
+	}
+
+	//  Try to delete all the node daemons
+	for _, d := range deploymentList.Items {
+		err := r.deleteDeployment(d)
+		if err != nil {
+			logger.Errorf("failed to delete crash collector deployment %q in namespace %q, delete it manually. %v", d.Name, d.Namespace, err)
+			continue
+		}
+		logger.Infof("crash collector deployment %q in namespace %q successfully removed", d.Name, d.Namespace)
+	}
 }
 
 func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
@@ -244,26 +292,17 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 	return cephPods, nil
 }
 
-func (r *ReconcileNode) listCrashCollectorAndDelete(nodeName, ns string) error {
-	deploymentList := &appsv1.DeploymentList{}
-	namespaceListOpts := client.InNamespace(ns)
-	err := r.client.List(r.opManagerContext, deploymentList, client.MatchingLabels{k8sutil.AppAttr: AppName, NodeNameLabel: nodeName}, namespaceListOpts)
-	if err != nil {
-		return errors.Wrapf(err, "failed to list crash collector deployments in namespace %q", ns)
-	}
-	for _, d := range deploymentList.Items {
-		logger.Infof("deleting deployment %q for node %q", d.ObjectMeta.Name, nodeName)
-		err := r.deleteCrashCollector(d)
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete crash collector deployment %q in namespace %q", d.Name, d.Namespace)
-		}
-		logger.Infof("successfully removed crash collector deployment %q in namespace %q from node %q", d.Name, d.Namespace, nodeName)
+func (r *ReconcileNode) listNodeDaemonsAndDelete(nodeName, ns string) error {
+	// delete the crash daemons on the given node
+	if err := r.listDeploymentAndDelete(crashCollectorAppName, nodeName, ns); err != nil {
+		return errors.Wrap(err, "failed to delete crash collector")
 	}
 
 	return nil
 }
 
-func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error {
+func (r *ReconcileNode) deleteDeployment(deployment appsv1.Deployment) error {
+	// delete a specific deployment)
 	deploymentName := deployment.ObjectMeta.Name
 	namespace := deployment.ObjectMeta.Namespace
 	dep := &appsv1.Deployment{
@@ -275,52 +314,8 @@ func (r *ReconcileNode) deleteCrashCollector(deployment appsv1.Deployment) error
 
 	err := r.client.Delete(r.opManagerContext, dep)
 	if err != nil && !kerrors.IsNotFound(err) {
-		return errors.Wrapf(err, "could not delete crash collector deployment %q", deploymentName)
+		return errors.Wrapf(err, "could not delete deployment %q in namespace %q", deploymentName, namespace)
 	}
 
-	return nil
-}
-
-func (r *ReconcileNode) reconcileCrashRetention(namespace string, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
-	k8sVersion, err := k8sutil.GetK8SVersion(r.context.Clientset)
-	if err != nil {
-		return errors.Wrap(err, "failed to get k8s version")
-	}
-	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(MinVersionForCronV1))
-
-	objectMeta := metav1.ObjectMeta{
-		Name:      prunerName,
-		Namespace: namespace,
-	}
-
-	if cephCluster.Spec.CrashCollector.DaysToRetain == 0 {
-		logger.Debug("deleting cronjob if it exists...")
-
-		var cronJob client.Object
-		// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
-		if useCronJobV1 {
-			cronJob = &v1.CronJob{ObjectMeta: objectMeta}
-		} else {
-			cronJob = &v1beta1.CronJob{ObjectMeta: objectMeta}
-		}
-
-		err := r.client.Delete(r.opManagerContext, cronJob)
-		if err != nil {
-			if kerrors.IsNotFound(err) {
-				logger.Debug("cronJob resource not found. Ignoring since object must be deleted.")
-			} else {
-				return err
-			}
-		} else {
-			logger.Debug("successfully deleted crash pruner cronjob.")
-		}
-	} else {
-		logger.Debugf("daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
-		op, err := r.createOrUpdateCephCron(cephCluster, cephVersion, useCronJobV1)
-		if err != nil {
-			return errors.Wrapf(err, "node reconcile failed on op %q", op)
-		}
-		logger.Debugf("cronjob successfully reconciled. operation: %q", op)
-	}
 	return nil
 }
