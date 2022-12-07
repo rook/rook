@@ -628,6 +628,9 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 	var clusterNamespaces []string
 	for _, manifest := range manifests {
 		clusterNamespaces = append(clusterNamespaces, manifest.Settings().Namespace)
+		// Gather pod restart count and alert
+		h.k8shelper.GetPodRestartsFromNamespace(manifest.Settings().Namespace, h.T().Name(), utils.TestEnvName())
+
 	}
 
 	// Gather logs after status checks
