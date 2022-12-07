@@ -56,7 +56,6 @@ generating_crds_v1() {
   "$CONTROLLER_GEN_BIN_PATH" "$CRD_OPTIONS" paths="./pkg/apis/ceph.rook.io/v1" output:crd:artifacts:config="$OLM_CATALOG_DIR"
   # the csv upgrade is failing on the volumeClaimTemplate.metadata.annotations.crushDeviceClass unless we preserve the annotations as an unknown field
   $YQ_BIN_PATH eval --inplace '.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.storage.properties.storageClassDeviceSets.items.properties.volumeClaimTemplates.items.properties.metadata.properties.annotations.x-kubernetes-preserve-unknown-fields = true' "${OLM_CATALOG_DIR}"/ceph.rook.io_cephclusters.yaml
-  $YQ_BIN_PATH eval --inplace '.spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.security.properties.sssd.properties.sidecar.properties.sssdConfigFile.properties.volumeSource.properties.hostPath |= with(select(.description != null);.description |= sub("--- ", ""))' "${OLM_CATALOG_DIR}"/ceph.rook.io_cephnfses.yaml
 }
 
 generating_main_crd() {
