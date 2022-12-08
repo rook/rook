@@ -33,9 +33,10 @@ import (
 )
 
 const (
-	cryptsetupBinary   = "cryptsetup"
-	dmsetupBinary      = "dmsetup"
-	luksOpenCmdTimeOut = 90 * time.Second
+	cryptsetupBinary                = "cryptsetup"
+	dmsetupBinary                   = "dmsetup"
+	luksOpenCmdTimeOut              = 90 * time.Second
+	removeEncryptedDeviceCmdTimeOut = 30 * time.Second
 )
 
 var (
@@ -168,6 +169,18 @@ func openEncryptedDevice(context *clusterd.Context, disk, target, passphrase str
 	if err != nil {
 		return errors.Wrapf(err, "failed to open encrypted device %q", disk)
 	}
+
+	return nil
+}
+
+func removeEncryptedDevice(context *clusterd.Context, target string) error {
+	args := []string{"remove", "--force", target}
+	output, err := context.Executor.ExecuteCommandWithTimeout(removeEncryptedDeviceCmdTimeOut, "dmsetup", args...)
+	// ignore error if no device was found.
+	if err != nil {
+		return errors.Wrapf(err, "failed to remove dm device %q: %q", target, output)
+	}
+	logger.Debugf("successfully removed stale dm device %q", target)
 
 	return nil
 }
