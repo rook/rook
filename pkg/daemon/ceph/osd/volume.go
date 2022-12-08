@@ -974,6 +974,11 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 				}
 
 				target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+				// remove stale dm device left by previous OSD.
+				err = removeEncryptedDevice(context, target)
+				if err != nil {
+					logger.Warningf("failed to remove stale dm device %q: %q", target, err)
+				}
 				err = openEncryptedDevice(context, block, target, passphrase)
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to open encrypted block device %q on %q", block, target)
