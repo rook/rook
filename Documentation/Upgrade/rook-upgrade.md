@@ -14,6 +14,11 @@ We welcome feedback and opening issues!
 
 ## Supported Versions
 
+!!! note
+    Currently we are providing fixes and patches for 1.9 and above.
+    The upgrade for older version are quite stable and seamless,
+    User can opt for support(open a issue) if the upgrading has a problem
+
 This guide is for upgrading from **Rook v1.9.x to Rook v1.10.x**.
 
 Please refer to the upgrade guides from previous releases for supported upgrade paths.
