@@ -290,5 +290,6 @@ func legacyDeviceSetPVCID(deviceSetName string, setIndex int) string {
 // It includes the pvcTemplateName in it
 func deviceSetPVCID(deviceSetName, pvcTemplateName string, setIndex int) string {
 	cleanName := strings.Replace(pvcTemplateName, " ", "-", -1)
+	deviceSetName = strings.Replace(deviceSetName, ".", "-", -1)
 	return fmt.Sprintf("%s-%s-%d", deviceSetName, cleanName, setIndex)
 }
