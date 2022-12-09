@@ -371,6 +371,8 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				// This handles the case where the OSD deployment has been removed and the prepare
 				// job kicks in again to re-deploy the OSD.
 				continue
+			} else if device.Filesystem == "mpath_member" && agent.pvcBacked {
+				logger.Infof("allowing multipath disk %q with filesystem %q", device.Name, device.Filesystem)
 			} else {
 				logger.Infof("skipping device %q because it contains a filesystem %q", device.Name, device.Filesystem)
 				continue
