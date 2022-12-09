@@ -270,3 +270,17 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(pvcs.Items))
 }
+
+func TestPVCName(t *testing.T) {
+	id := deviceSetPVCID("mydeviceset", "a", 0)
+	assert.Equal(t, "mydeviceset-a-0", id)
+
+	id = deviceSetPVCID("mydeviceset", "a", 10)
+	assert.Equal(t, "mydeviceset-a-10", id)
+
+	id = deviceSetPVCID("device-set", "a", 10)
+	assert.Equal(t, "device-set-a-10", id)
+
+	id = deviceSetPVCID("device.set.with.dots", "b", 10)
+	assert.Equal(t, "device-set-with-dots-b-10", id)
+}
