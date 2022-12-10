@@ -34,7 +34,7 @@ import (
 	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
@@ -1577,7 +1577,7 @@ func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get k8s version")
 	}
-	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(crash.MinVersionForCronV1))
+	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(nodedaemon.MinVersionForCronV1))
 	for i := 0; i < RetryLoop; i++ {
 		var err error
 		if useCronJobV1 {

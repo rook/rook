@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package crash
+package nodedaemon
 
 import (
 	"testing"
@@ -22,22 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIsCephPod(t *testing.T) {
-	labels := make(map[string]string)
-
-	labels["foo"] = "bar"
-	podName := "ceph"
-	b := isCephPod(labels, podName)
-	assert.False(t, b)
-
-	// Label is correct but this is a canary pod, this is not valid!
-	podName = "rook-ceph-mon-b-canary-664f5bf8cd-697hh"
-	labels["rook_cluster"] = "rook-ceph"
-	b = isCephPod(labels, podName)
-	assert.False(t, b)
-
-	// Label is correct and this is not a canary pod
-	podName = "rook-ceph-mon"
-	b = isCephPod(labels, podName)
-	assert.True(t, b)
+func TestCephCrashCollectorKeyringCaps(t *testing.T) {
+	caps := cephCrashCollectorKeyringCaps()
+	assert.Equal(t, caps, []string{"mon", "allow profile crash", "mgr", "allow rw"})
 }
