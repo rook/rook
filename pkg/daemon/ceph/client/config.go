@@ -293,7 +293,7 @@ func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
-	err = ioutil.WriteFile(DefaultConfigFilePath(), src, 0444)
+	err = ioutil.WriteFile(DefaultConfigFilePath(), src, 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", DefaultConfigFilePath())
 	}
