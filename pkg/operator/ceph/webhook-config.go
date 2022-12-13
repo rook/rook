@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	admv1 "k8s.io/api/admissionregistration/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -255,23 +254,17 @@ func webhookRules(name, resource, resourceServicePath string) admv1.ValidatingWe
 	}
 }
 
-func deleteIssuerAndCertificate(ctx context.Context, certMgrClient *cs.CertmanagerV1Client, clusterdContext *clusterd.Context) error {
+// No need to return err here since we are just deleting and not handle errors
+func deleteWebhookResources(ctx context.Context, certMgrClient *cs.CertmanagerV1Client, clusterdContext *clusterd.Context) {
+	logger.Infof("deleting validating webhook %s", webhookConfigName)
+	_ = clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(ctx, webhookConfigName, metav1.DeleteOptions{})
 
-	err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(ctx, webhookConfigName, metav1.DeleteOptions{})
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Errorf("failed to delete validating webhook %s. %v", webhookConfigName, err)
-		return err
-	}
-	err = certMgrClient.Certificates(namespace).Delete(ctx, certificateName, metav1.DeleteOptions{})
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Errorf("failed to delete issuer %s. %v", issuerName, err)
-		return err
-	}
+	logger.Infof("deleting webhook cert manager Certificate %s", certificateName)
+	_ = certMgrClient.Certificates(namespace).Delete(ctx, certificateName, metav1.DeleteOptions{})
 
-	err = certMgrClient.Issuers(namespace).Delete(ctx, issuerName, metav1.DeleteOptions{})
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Errorf("failed to delete certificate %s. %v", certificateName, err)
-		return err
-	}
-	return nil
+	logger.Info("deleting webhook cert manager Issuer %s", issuerName)
+	_ = certMgrClient.Issuers(namespace).Delete(ctx, issuerName, metav1.DeleteOptions{})
+
+	logger.Info("deleting validating webhook service %s", admissionControllerAppName)
+	_ = clusterdContext.Clientset.CoreV1().Services(namespace).Delete(ctx, admissionControllerAppName, metav1.DeleteOptions{})
 }
