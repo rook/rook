@@ -38,9 +38,3 @@ func CephUsernameEnvVar() v1.EnvVar {
 	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: opcontroller.CephUsernameKey}
 	return v1.EnvVar{Name: "ROOK_CEPH_USERNAME", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
-
-// CephSecretEnvVar is the ceph secret environment var
-func CephSecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: AppName}, Key: opcontroller.CephUserSecretKey}
-	return v1.EnvVar{Name: "ROOK_CEPH_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
-}
