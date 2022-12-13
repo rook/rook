@@ -18,6 +18,7 @@ package operator
 
 import (
 	"context"
+	"os"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -79,14 +80,14 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	if err != nil {
 		return err
 	}
-
-	// Watch for Secret (admission controller secret)
-	err = c.Watch(&source.Kind{
-		Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
-	if err != nil {
-		return err
+	if os.Getenv(webhookEnv) == "false" {
+		// Watch for Secret (admission controller secret)
+		err = c.Watch(&source.Kind{
+			Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
 }
 

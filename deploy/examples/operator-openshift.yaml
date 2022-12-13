@@ -616,6 +616,9 @@ spec:
               name: https-webhook
               protocol: TCP
           env:
+            - name: ROOK_DISABLE_ADMISSION_CONTROLLER
+              value: "false"
+
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
             # Rook Discover toleration. Will tolerate all taints with all keys.

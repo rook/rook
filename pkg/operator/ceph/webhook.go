@@ -52,10 +52,9 @@ func createWebhook(ctx context.Context, context *clusterd.Context) (bool, error)
 	}
 
 	if os.Getenv(webhookEnv) == "true" {
-		logger.Info("delete Issuer and Certificate since secret is not found")
-		if err = deleteIssuerAndCertificate(ctx, certMgrClient, context); err != nil {
-			logger.Errorf("failed to delete issuer or certificate. %v", err)
-		}
+		logger.Info("delete webhook resources since webhook is disabled")
+
+		deleteWebhookResources(ctx, certMgrClient, context)
 		return false, nil
 	}
 
@@ -84,9 +83,8 @@ func createWebhook(ctx context.Context, context *clusterd.Context) (bool, error)
 		if apierrors.IsNotFound(err) {
 			// If secret is not found. All good ! Proceed with rook without admission controllers
 			logger.Info("delete Issuer and Certificate since secret is not found")
-			if err = deleteIssuerAndCertificate(ctx, certMgrClient, context); err != nil {
-				logger.Infof("could not delete issuer or certificate. %v", err)
-			}
+			deleteWebhookResources(ctx, certMgrClient, context)
+
 			logger.Infof("admission webhook secret %q not found. proceeding without the admission controller", admissionControllerAppName)
 			return false, nil
 		}
