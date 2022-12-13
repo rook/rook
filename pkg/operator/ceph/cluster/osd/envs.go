@@ -73,7 +73,6 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string, prepa
 	if prepare {
 		envVars = append(envVars, []v1.EnvVar{
 			opmon.CephUsernameEnvVar(),
-			opmon.CephSecretEnvVar(),
 			{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
 				SecretKeyRef: &v1.SecretKeySelector{
 					LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
