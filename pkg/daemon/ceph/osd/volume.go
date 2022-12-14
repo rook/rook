@@ -276,13 +276,6 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 			var deviceArg string
 
 			deviceArg = device.Config.Name
-			logger.Info("devlink names:")
-			for _, devlink := range device.PersistentDevicePaths {
-				logger.Info(devlink)
-				if strings.HasPrefix(devlink, "/dev/mapper") {
-					deviceArg = devlink
-				}
-			}
 
 			immediateExecuteArgs := append(baseArgs, []string{
 				"--data",
@@ -586,12 +579,6 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 
 			logger.Infof("configuring new LVM device %s", name)
 			deviceArg := path.Join("/dev", name)
-			// ceph-volume prefers to use /dev/mapper/<name> if the device has this kind of alias
-			for _, devlink := range device.PersistentDevicePaths {
-				if strings.HasPrefix(devlink, "/dev/mapper") {
-					deviceArg = devlink
-				}
-			}
 
 			deviceOSDCount := osdsPerDeviceCount
 			if device.Config.OSDsPerDevice > 1 {
