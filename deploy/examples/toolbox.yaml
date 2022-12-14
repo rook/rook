@@ -68,10 +68,16 @@ spec:
                 done
               }
 
+              # read the secret from an env var (for backward compatibility), or from the secret file
+              ceph_secret=${ROOK_CEPH_SECRET}
+              if [[ "$ceph_secret" == "" ]]; then
+                ceph_secret=$(cat /var/lib/rook-ceph-mon/secret.keyring)
+              fi
+
               # create the keyring file
               cat <<EOF > ${KEYRING_FILE}
               [${ROOK_CEPH_USERNAME}]
-              key = ${ROOK_CEPH_SECRET}
+              key = ${ceph_secret}
               EOF
 
               # write the initial config file
@@ -91,17 +97,22 @@ spec:
                 secretKeyRef:
                   name: rook-ceph-mon
                   key: ceph-username
-            - name: ROOK_CEPH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: rook-ceph-mon
-                  key: ceph-secret
           volumeMounts:
             - mountPath: /etc/ceph
               name: ceph-config
             - name: mon-endpoint-volume
               mountPath: /etc/rook
+            - name: ceph-admin-secret
+              mountPath: /var/lib/rook-ceph-mon
+              readOnly: true
       volumes:
+        - name: ceph-admin-secret
+          secret:
+            secretName: rook-ceph-mon
+            optional: false
+            items:
+              - key: ceph-secret
+                path: secret.keyring
         - name: mon-endpoint-volume
           configMap:
             name: rook-ceph-mon-endpoints
