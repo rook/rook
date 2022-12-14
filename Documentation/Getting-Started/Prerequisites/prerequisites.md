@@ -7,7 +7,7 @@ and Rook is granted the required privileges (see below for more information).
 
 ## Minimum Version
 
-Kubernetes **v1.19** or higher is supported for the Ceph operator.
+Kubernetes **v1.21** or higher is supported for the Ceph operator.
 
 ## CPU Architecture
 
@@ -126,15 +126,15 @@ They have to be bind-mounted as volumes in the CephFS and RBD plugin pods.
 
 If you install Rook with Helm, uncomment these example settings in `values.yaml`:
 
-- `csi.csiCephFSPluginVolume`
-- `csi.csiCephFSPluginVolumeMount`
-- `csi.csiRBDPluginVolume`
-- `csi.csiRBDPluginVolumeMount`
+* `csi.csiCephFSPluginVolume`
+* `csi.csiCephFSPluginVolumeMount`
+* `csi.csiRBDPluginVolume`
+* `csi.csiRBDPluginVolumeMount`
 
 If you deploy without Helm, add those same values to the corresponding environment variables in the operator pod,
 or the corresponding keys in its `ConfigMap`:
 
-- `CSI_CEPHFS_PLUGIN_VOLUME`
-- `CSI_CEPHFS_PLUGIN_VOLUME_MOUNT`
-- `CSI_RBD_PLUGIN_VOLUME`
-- `CSI_RBD_PLUGIN_VOLUME_MOUNT`
+* `CSI_CEPHFS_PLUGIN_VOLUME`
+* `CSI_CEPHFS_PLUGIN_VOLUME_MOUNT`
+* `CSI_RBD_PLUGIN_VOLUME`
+* `CSI_RBD_PLUGIN_VOLUME_MOUNT`
