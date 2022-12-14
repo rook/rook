@@ -339,8 +339,6 @@ EXPORT {
 }
 ```
 
->>>>>>> 005000212 (nfs: add kerberos client security support)
-
 <!-- LINKS -->
 [NFS-Ganesha]: https://github.com/nfs-ganesha/nfs-ganesha/wiki
 [CephFS]: http://docs.ceph.com/docs/master/cephfs/nfs/
