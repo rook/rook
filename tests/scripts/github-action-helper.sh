@@ -444,7 +444,7 @@ function write_object_read_from_replica_cluster() {
   local test_object_name="${test_bucket_name}-1mib-test.dat"
   fallocate -l 1M "$test_object_name"
   # ensure that test file has unique data
-  echo "$test_object_name" >> "$test_object_name"
+  echo "$test_object_name" >>"$test_object_name"
 
   s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
   s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
@@ -457,7 +457,7 @@ function write_object_read_from_replica_cluster() {
   (
     sleep 60
     kill -s SIGUSR1 $$
-  ) 2> /dev/null &
+  ) 2>/dev/null &
   trap "{ S3CMD_ERROR=1; break; }" SIGUSR1
 
   until s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force; do
@@ -485,7 +485,7 @@ function test_multisite_object_replication() {
   cluster_2_ip=$(get_clusterip rook-ceph-secondary rook-ceph-rgw-zone-b-multisite-store)
 
   cd deploy/examples
-  cat <<- EOF > s3cfg
+  cat <<-EOF >s3cfg
 	[default]
 	host_bucket = no.way
 	use_https = False
@@ -614,6 +614,26 @@ function test_csi_nfs_workload {
   kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-nfsplugin --field-selector=status.phase=Running -o name)"
   kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
+}
+
+function install_minikube_with_none_driver() {
+  CRICTL_VERSION="v1.26.0"
+  MINIKUBE_VERSION="v1.29.0"
+
+  sudo apt update
+  sudo apt install -y conntrack socat
+  curl -LO https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube_latest_amd64.deb
+  sudo dpkg -i minikube_latest_amd64.deb
+  rm -f minikube_latest_amd64.deb
+  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.0/cri-dockerd_0.3.0.3-0.ubuntu-focal_amd64.deb
+  sudo dpkg -i cri-dockerd_0.3.0.3-0.ubuntu-focal_amd64.deb
+  rm -f cri-dockerd_0.3.0.3-0.ubuntu-focal_amd64.deb
+  wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz
+  sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
+  rm -f crictl-$CRICTL_VERSION-linux-amd64.tar.gz
+  sudo sysctl fs.protected_regular=0
+  export MINIKUBE_HOME=$HOME CHANGE_MINIKUBE_NONE_USER=true KUBECONFIG=$HOME/.kube/config
+  sudo -E minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
 }
 
 FUNCTION="$1"
