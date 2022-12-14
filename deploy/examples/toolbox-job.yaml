@@ -20,16 +20,13 @@ spec:
                 secretKeyRef:
                   name: rook-ceph-mon
                   key: ceph-username
-            - name: ROOK_CEPH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: rook-ceph-mon
-                  key: ceph-secret
           volumeMounts:
             - mountPath: /etc/ceph
               name: ceph-config
             - name: mon-endpoint-volume
               mountPath: /etc/rook
+            - name: ceph-admin-secret
+              mountPath: /var/lib/rook-ceph-mon
       containers:
         - name: script
           image: rook/ceph:master
@@ -47,6 +44,13 @@ spec:
               # example: print the ceph status
               ceph status
       volumes:
+        - name: ceph-admin-secret
+          secret:
+            secretName: rook-ceph-mon
+            optional: false
+            items:
+              - key: ceph-secret
+                path: secret.keyring
         - name: mon-endpoint-volume
           configMap:
             name: rook-ceph-mon-endpoints
