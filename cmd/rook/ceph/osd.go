@@ -166,7 +166,7 @@ func verifyConfigFlags(configCmd *cobra.Command) error {
 	if err := flags.VerifyRequiredFlags(configCmd, required); err != nil {
 		return err
 	}
-	required = []string{"mon-endpoints", "mon-secret", "ceph-username", "ceph-secret"}
+	required = []string{"mon-endpoints", "ceph-username", "ceph-secret"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}
