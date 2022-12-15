@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -74,6 +75,11 @@ var (
 	osdIDsToRemove          string
 	preservePVC             string
 	forceOSDRemoval         string
+)
+
+const (
+	//#nosec G101 -- This is only an env var name
+	fallbackCephSecretEnvVar = "ROOK_CEPH_SECRET"
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -166,7 +172,7 @@ func verifyConfigFlags(configCmd *cobra.Command) error {
 	if err := flags.VerifyRequiredFlags(configCmd, required); err != nil {
 		return err
 	}
-	required = []string{"mon-endpoints", "ceph-username", "ceph-secret"}
+	required = []string{"mon-endpoints", "ceph-username"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}
@@ -190,6 +196,10 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 func prepareOSD(cmd *cobra.Command, args []string) error {
 	if err := verifyConfigFlags(provisionCmd); err != nil {
 		return err
+	}
+
+	if err := readCephSecret(path.Join(mon.CephSecretMountPath, mon.CephSecretFilename)); err != nil {
+		rook.TerminateFatal(err)
 	}
 
 	var dataDevices []osddaemon.DesiredDevice
@@ -257,9 +267,13 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 	if err := flags.VerifyRequiredFlags(osdRemoveCmd, required); err != nil {
 		return err
 	}
-	required = []string{"mon-endpoints", "ceph-username", "ceph-secret"}
+	required = []string{"mon-endpoints", "ceph-username"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
+	}
+
+	if err := readCephSecret(path.Join(mon.CephSecretMountPath, mon.CephSecretFilename)); err != nil {
+		rook.TerminateFatal(err)
 	}
 
 	commonOSDInit(osdRemoveCmd)
@@ -347,4 +361,27 @@ func parseDevices(devices string) ([]osddaemon.DesiredDevice, error) {
 
 	logger.Infof("desired devices to configure osds: %+v", result)
 	return result, nil
+}
+
+// Populate the ceph admin secret from a file
+// This is more secret than using an environment variable for the secret
+// since environment variables are easier to access than a file inside the container.
+func readCephSecret(path string) error {
+	secret, err := os.ReadFile(path)
+	if err != nil {
+		// For backward compatibility we need to check if the env var is still set
+		adminSecretEnv := os.Getenv(fallbackCephSecretEnvVar)
+		if adminSecretEnv == "" {
+			// Go ahead and fail since neither the file could be loaded nor is the env var set
+			return errors.Wrapf(err, "failed to read ceph secret file from %q", mon.CephSecretMountPath)
+		}
+		logger.Warningf("loaded admin secret from env var %s instead of from file", fallbackCephSecretEnvVar)
+		secret = []byte(adminSecretEnv)
+	}
+
+	clusterInfo.CephCred.Secret = string(secret)
+	if clusterInfo.CephCred.Secret == "" {
+		return errors.New("ceph admin secret not found")
+	}
+	return nil
 }

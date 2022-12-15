@@ -60,11 +60,6 @@ spec:
                 secretKeyRef:
                   key: ceph-username
                   name: rook-ceph-mon
-            - name: ROOK_CEPH_SECRET
-              valueFrom:
-                secretKeyRef:
-                  key: ceph-secret
-                  name: rook-ceph-mon
             - name: ROOK_CONFIG_DIR
               value: /var/lib/rook
             - name: ROOK_CEPH_CONFIG_OVERRIDE
@@ -81,7 +76,16 @@ spec:
               name: ceph-conf-emptydir
             - mountPath: /var/lib/rook
               name: rook-config
+            - name: ceph-admin-secret
+              mountPath: /var/lib/rook-ceph-mon
       volumes:
+        - name: ceph-admin-secret
+          secret:
+            secretName: rook-ceph-mon
+            optional: false
+            items:
+              - key: ceph-secret
+                path: secret.keyring
         - emptyDir: {}
           name: ceph-conf-emptydir
         - emptyDir: {}
