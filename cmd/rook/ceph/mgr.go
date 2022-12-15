@@ -17,6 +17,7 @@ limitations under the License.
 package ceph
 
 import (
+	"path"
 	"time"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -67,6 +68,10 @@ func init() {
 func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
 	clusterInfo.Context = cmd.Context()
+
+	if err := readCephSecret(path.Join(mon.CephSecretMountPath, mon.CephSecretFilename)); err != nil {
+		rook.TerminateFatal(err)
+	}
 
 	context := createContext()
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)

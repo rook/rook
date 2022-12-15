@@ -24,9 +24,18 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	v1 "k8s.io/api/core/v1"
 )
 
 const (
+	//#nosec G101 -- This is only a path name
+	CephSecretMountPath = "/var/lib/rook-ceph-mon"
+	//#nosec G101 -- This is only a filename
+	CephSecretFilename = "secret.keyring"
+	//#nosec G101 -- This is only a volume name
+	cephSecretVolumeName = "ceph-admin-secret"
+
 	// All mons share the same keyring
 	keyringStoreName = "rook-ceph-mons"
 
@@ -66,4 +75,26 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephclient.Cl
 	}
 
 	return nil
+}
+
+// CephSecretVolume is a volume for the ceph admin secret
+func CephSecretVolume() v1.Volume {
+	return v1.Volume{
+		Name: cephSecretVolumeName,
+		VolumeSource: v1.VolumeSource{
+			Secret: &v1.SecretVolumeSource{
+				SecretName: AppName,
+				Items:      []v1.KeyToPath{{Key: opcontroller.CephUserSecretKey, Path: CephSecretFilename}},
+			},
+		},
+	}
+}
+
+// CephSecretVolumeMount is a mount for the ceph admin secret
+func CephSecretVolumeMount() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      cephSecretVolumeName,
+		MountPath: CephSecretMountPath,
+		ReadOnly:  true,
+	}
 }
