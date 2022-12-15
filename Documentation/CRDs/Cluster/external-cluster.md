@@ -163,3 +163,18 @@ spec:
   cephVersion:
     image: quay.io/ceph/ceph:v17.2.5 # Should match external cluster version
 ```
+
+##  Exporting Rook to another cluster
+
+If you have multiple K8s clusters running, and want to use the local `rook-ceph` cluster as the central storage,
+you can export the settings from this cluster with the following steps.
+
+1) Copy create-external-cluster-resources.py into the directory `/etc/ceph/` of the toolbox.
+   ```console
+   toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+   kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
+   ```
+2) Exec to the toolbox pod and execute create-external-cluster-resources.py with needed options to create required [users and keys](#supported-features).
+
+!!! important
+   For other clusters to connect to storage in this cluster, Rook must be configured with a networking configuration that is accessible from other clusters. Most commonly this is done by enabling host networking in the CephCluster CR so the Ceph daemons will be addressable by their host IPs.
