@@ -29,8 +29,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/machinedisruption"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/file/subvolumegroup"
@@ -47,8 +45,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool/radosnamespace"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
-	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -63,8 +59,6 @@ const (
 var (
 	resourcesSchemeFuncs = []func(*runtime.Scheme) error{
 		clientgoscheme.AddToScheme,
-		mapiv1.AddToScheme,
-		healthchecking.AddToScheme,
 		cephv1.AddToScheme,
 	}
 )
@@ -87,12 +81,6 @@ var (
 // AddToManagerFuncsMaintenance is a list of functions to add all Controllers to the Manager (entrypoint for controller)
 var AddToManagerFuncsMaintenance = []func(manager.Manager, *controllerconfig.Context) error{
 	clusterdisruption.Add,
-}
-
-// MachineDisruptionBudgetAddToManagerFuncs is a list of fencing related functions to add all Controllers to the Manager (entrypoint for controller)
-var MachineDisruptionBudgetAddToManagerFuncs = []func(manager.Manager, *controllerconfig.Context) error{
-	machinelabel.Add,
-	machinedisruption.Add,
 }
 
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager (entrypoint for controller)
@@ -146,15 +134,6 @@ func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, 
 	for _, f := range AddToManagerFuncsMaintenance {
 		if err := f(m, c); err != nil {
 			return err
-		}
-	}
-
-	// If machine disruption budget is enabled let's add the controllers
-	if EnableMachineDisruptionBudget {
-		for _, f := range MachineDisruptionBudgetAddToManagerFuncs {
-			if err := f(m, c); err != nil {
-				return err
-			}
 		}
 	}
 

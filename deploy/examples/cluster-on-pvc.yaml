@@ -183,8 +183,6 @@ spec:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
     pgHealthCheckTimeout: 0
-    manageMachineDisruptionBudgets: false
-    machineDisruptionBudgetNamespace: openshift-machine-api
   # security oriented settings
   # security:
   # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file

@@ -2208,11 +2208,11 @@ type DisruptionManagementSpec struct {
 	// +optional
 	PGHealthCheckTimeout time.Duration `json:"pgHealthCheckTimeout,omitempty"`
 
-	// This enables management of machinedisruptionbudgets
+	// Deprecated. This enables management of machinedisruptionbudgets.
 	// +optional
 	ManageMachineDisruptionBudgets bool `json:"manageMachineDisruptionBudgets,omitempty"`
 
-	// Namespace to look for MDBs by the machineDisruptionBudgetController
+	// Deprecated. Namespace to look for MDBs by the machineDisruptionBudgetController
 	// +optional
 	MachineDisruptionBudgetNamespace string `json:"machineDisruptionBudgetNamespace,omitempty"`
 }

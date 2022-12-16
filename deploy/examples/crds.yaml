@@ -1013,10 +1013,10 @@ spec:
                   nullable: true
                   properties:
                     machineDisruptionBudgetNamespace:
-                      description: Namespace to look for MDBs by the machineDisruptionBudgetController
+                      description: Deprecated. Namespace to look for MDBs by the machineDisruptionBudgetController
                       type: string
                     manageMachineDisruptionBudgets:
-                      description: This enables management of machinedisruptionbudgets
+                      description: Deprecated. This enables management of machinedisruptionbudgets.
                       type: boolean
                     managePodBudgets:
                       description: This enables management of poddisruptionbudgets
