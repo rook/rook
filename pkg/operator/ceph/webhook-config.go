@@ -257,14 +257,26 @@ func webhookRules(name, resource, resourceServicePath string) admv1.ValidatingWe
 // No need to return err here since we are just deleting and not handle errors
 func deleteWebhookResources(ctx context.Context, certMgrClient *cs.CertmanagerV1Client, clusterdContext *clusterd.Context) {
 	logger.Infof("deleting validating webhook %s", webhookConfigName)
-	_ = clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(ctx, webhookConfigName, metav1.DeleteOptions{})
+	err := clusterdContext.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(ctx, webhookConfigName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		logger.Errorf("failed to delete validating webhook %s. %v", webhookConfigName, err)
+	}
 
 	logger.Infof("deleting webhook cert manager Certificate %s", certificateName)
-	_ = certMgrClient.Certificates(namespace).Delete(ctx, certificateName, metav1.DeleteOptions{})
+	err = certMgrClient.Certificates(namespace).Delete(ctx, certificateName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		logger.Errorf("failed to delete webhook cert manager Certificate %s. %v", certificateName, err)
+	}
 
 	logger.Info("deleting webhook cert manager Issuer %s", issuerName)
-	_ = certMgrClient.Issuers(namespace).Delete(ctx, issuerName, metav1.DeleteOptions{})
+	err = certMgrClient.Issuers(namespace).Delete(ctx, issuerName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		logger.Errorf("failed to delete webhook cert manager Issuer %s. %v", issuerName, err)
+	}
 
 	logger.Info("deleting validating webhook service %s", admissionControllerAppName)
-	_ = clusterdContext.Clientset.CoreV1().Services(namespace).Delete(ctx, admissionControllerAppName, metav1.DeleteOptions{})
+	err = clusterdContext.Clientset.CoreV1().Services(namespace).Delete(ctx, admissionControllerAppName, metav1.DeleteOptions{})
+	if err != nil && !apierrors.IsNotFound(err) {
+		logger.Errorf("failed to delete validating webhook service %s. %v", admissionControllerAppName, err)
+	}
 }
