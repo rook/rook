@@ -350,11 +350,6 @@ cephClusterSpec:
     # Operator will continue with the next drain if the timeout exceeds. It only works if `managePodBudgets` is `true`.
     # No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
     pgHealthCheckTimeout: 0
-    # If true, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy.
-    # Only available on OpenShift.
-    manageMachineDisruptionBudgets: false
-    # Namespace in which to watch for the MachineDisruptionBudgets.
-    machineDisruptionBudgetNamespace: openshift-machine-api
 
   # Configure the healthcheck and liveness probes for ceph pods.
   # Valid values for daemons are 'mon', 'osd', 'status'

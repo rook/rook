@@ -87,8 +87,6 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `disruptionManagement`: The section for configuring management of daemon disruptions
   * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
   * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
-  * `manageMachineDisruptionBudgets`: if `true`, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy. Only available on OpenShift.
-  * `machineDisruptionBudgetNamespace`: the namespace in which to watch the MachineDisruptionBudgets.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the OSDs are `out` and `safe-to-destroy` when they are removed.
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 * `security`: [security page for key management configuration](../../Storage-Configuration/Advanced/key-management-system.md)
@@ -446,7 +444,7 @@ The Rook Ceph operator creates a Job called `rook-ceph-detect-version` to detect
 
 To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
 The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node`.
-Specific node affinity and tolerations that only apply to the `mon` daemons in this example require the label
+Specific node affinity and tolerations that only apply to the`mon`daemons in this example require the label
 `role=storage-mon-node` and also tolerate the control plane taint.
 
 ```yaml
