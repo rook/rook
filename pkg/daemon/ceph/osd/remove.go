@@ -107,11 +107,11 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		} else {
 			// If we arrive here and forceOSDRemoval is true, we should proceed with the OSD removal
 			if forceOSDRemoval {
-				logger.Infof("osd.%d is NOT be ok to destroy but force removal is enabled so proceeding with removal", osdID)
+				logger.Infof("osd.%d is NOT ok to destroy but force removal is enabled so proceeding with removal", osdID)
 				break
 			}
 			// Else we wait until the OSD can be removed
-			logger.Warningf("osd.%d is NOT be ok to destroy, retrying in 1m until success", osdID)
+			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 1m until success", osdID)
 			time.Sleep(1 * time.Minute)
 		}
 	}
