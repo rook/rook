@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -126,6 +127,12 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		if err != nil {
 			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 		}
+	}
+
+	// Create cluster-wide RBD bootstrap peer token
+	_, err = controller.CreateBootstrapPeerSecret(cluster.context, cluster.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: cluster.namespacedName.Name, Namespace: cluster.Namespace}}, cluster.ownerInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
 	// enable monitoring if `monitoring: enabled: true`
