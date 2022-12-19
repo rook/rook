@@ -75,6 +75,7 @@ The `cephBlockPools` array in the values file will define a list of CephBlockPoo
 | `storageClass.reclaimPolicy` | The default [Reclaim Policy](https://kubernetes.io/docs/concepts/storage/storage-classes/#reclaim-policy) to apply to PVCs created with this storage class. | `Delete` |
 | `storageClass.allowVolumeExpansion` | Whether [volume expansion](https://kubernetes.io/docs/concepts/storage/storage-classes/#allow-volume-expansion) is allowed by default. | `true` |
 | `storageClass.mountOptions` | Specifies the mount options for storageClass | `[]` |
+| `storageClass.allowedTopologies` | Specifies the [allowedTopologies](https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies) for storageClass | `[]` |
 
 ### **Ceph File Systems**
 

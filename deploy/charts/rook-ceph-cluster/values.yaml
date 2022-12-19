@@ -415,6 +415,12 @@ cephBlockPools:
       reclaimPolicy: Delete
       allowVolumeExpansion: true
       mountOptions: []
+      # see https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies
+      allowedTopologies: []
+#        - matchLabelExpressions:
+#            - key: rook-ceph-role
+#              values:
+#                - storage-node
       # see https://github.com/rook/rook/blob/master/Documentation/ceph-block.md#provision-storage for available configuration
       parameters:
         # (optional) mapOptions is a comma-separated list of map options.
