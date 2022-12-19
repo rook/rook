@@ -25,7 +25,7 @@ One of the solutions, to achieve the same, is [RBD mirroring](https://docs.ceph.
 
 !!! note
     This document sheds light on rbd mirroring and how to set it up using rook.
-    For steps on failover or failback scenarios
+    See also the topic on [Failover and Failback](rbd-async-disaster-recovery-failover-failback.md)
 
 ## Create RBD Pools
 
