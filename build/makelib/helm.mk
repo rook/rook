@@ -52,3 +52,18 @@ $(HELM_INDEX): $(HELM) $(HELM_OUTPUT_DIR)
 	@$(HELM) repo index $(HELM_OUTPUT_DIR)
 
 helm.build: $(HELM_INDEX)
+
+# ====================================================================================
+# Makefile helper functions for helm-docs: https://github.com/norwoodj/helm-docs
+#
+
+HELM_DOCS_VERSION := v1.11.0
+HELM_DOCS := $(TOOLS_HOST_DIR)/helm-docs-$(HELM_DOCS_VERSION)
+HELM_DOCS_REPO := github.com/norwoodj/helm-docs/cmd/helm-docs
+
+$(HELM_DOCS): ## Installs helm-docs
+	@echo === installing helm-docs
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@GOBIN=$(TOOLS_HOST_DIR)/tmp GO111MODULE=on go install $(HELM_DOCS_REPO)@$(HELM_DOCS_VERSION)
+	@mv $(TOOLS_HOST_DIR)/tmp/helm-docs $(HELM_DOCS)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
