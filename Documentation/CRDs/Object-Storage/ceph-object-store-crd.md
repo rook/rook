@@ -168,7 +168,6 @@ The following CRD settings are available:
 
 * `healthCheck`: main object store health monitoring section
   * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
-  * `livenessProbe`: Disable, or override timing and threshold values of the object gateway liveness probe.
   * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
 
 Here is a complete example:
@@ -177,10 +176,6 @@ Here is a complete example:
 healthCheck:
   startupProbe:
     disabled: false
-  livenessProbe:
-    disabled: false
-    periodSeconds: 30
-    failureThreshold: 13
   readinessProbe:
     disabled: false
     periodSeconds: 5

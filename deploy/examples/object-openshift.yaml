@@ -99,7 +99,7 @@ spec:
   # service endpoint healthcheck
   healthCheck:
     # Configure the pod probes for the rgw daemon
-    livenessProbe:
+    startupProbe:
       disabled: false
     readinessProbe:
       disabled: false
