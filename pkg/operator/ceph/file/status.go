@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 )
 
 // updateStatus updates a fs CR with the given status
@@ -49,7 +50,9 @@ func (r *ReconcileCephFilesystem) updateStatus(observedGeneration int64, namespa
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		fs.Status.ObservedGeneration = observedGeneration
 	}
-	if err := reporting.UpdateStatus(r.client, fs); err != nil {
+	if err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+		return reporting.UpdateStatus(r.client, fs)
+	}); err != nil {
 		logger.Warningf("failed to set filesystem %q status to %q. %v", fs.Name, status, err)
 		return
 	}
