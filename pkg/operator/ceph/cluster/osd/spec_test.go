@@ -159,11 +159,19 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, c.clusterInfo.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 1, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
-	assert.Equal(t, 2, len(deployment.Spec.Template.Spec.InitContainers))
+	assert.Equal(t, 3, len(deployment.Spec.Template.Spec.InitContainers))
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
 	assert.Equal(t, "activate", initCont.Name)
 	assert.Equal(t, 4, len(initCont.VolumeMounts))
+	initCont = deployment.Spec.Template.Spec.InitContainers[1]
+	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
+	assert.Equal(t, "expand-bluefs", initCont.Name)
+	assert.Equal(t, 2, len(initCont.VolumeMounts))
+	initCont = deployment.Spec.Template.Spec.InitContainers[2]
+	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
+	assert.Equal(t, "chown-container-data-dir", initCont.Name)
+	assert.Equal(t, 7, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
