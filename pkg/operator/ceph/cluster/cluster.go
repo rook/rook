@@ -214,6 +214,9 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 			controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionFalse, cephv1.ClusterProgressingReason, err.Error())
 			return errors.Wrap(err, "failed to configure local ceph cluster")
 		}
+
+		// Asynchronously report the telemetry to allow another reconcile to proceed if needed
+		go cluster.reportTelemetry()
 	}
 
 	// Populate ClusterInfo with the last value
@@ -222,9 +225,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 
 	// Start the monitoring if not already started
 	c.configureCephMonitoring(cluster, cluster.ClusterInfo)
-
-	// Asynchronously report the telemetry to allow another reconcile to proceed if needed
-	go cluster.reportTelemetry()
 
 	return nil
 }
