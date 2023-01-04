@@ -117,7 +117,6 @@ func (h *CephInstaller) configureRookCephClusterViaHelm(upgrade bool) error {
 	values["configOverride"] = clusterCustomSettings
 	values["toolbox"] = map[string]interface{}{
 		"enabled":   true,
-		"image":     "rook/ceph:" + h.settings.RookVersion,
 		"resources": nil,
 	}
 	values["monitoring"] = map[string]interface{}{
