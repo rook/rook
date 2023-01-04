@@ -2,9 +2,6 @@
 title: Object Bucket Notifications
 ---
 
-!!! info
-    This feature is **experimental**
-
 Rook supports the creation of bucket notifications via two custom resources:
 
 * a `CephBucketNotification` is a custom resource the defines: topic, events and filters of a bucket notification, and is described by a Custom Resource Definition (CRD) shown below. Bucket notifications are associated with a bucket by setting labels on the Object Bucket claim (OBC).
