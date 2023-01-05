@@ -194,9 +194,9 @@ The dashboards have been created by [@galexrt](https://github.com/galexrt). For 
 
 The following Grafana dashboards are available:
 
-* [Ceph - Cluster](https://grafana.com/dashboards/2842)
-* [Ceph - OSD (Single)](https://grafana.com/dashboards/5336)
-* [Ceph - Pools](https://grafana.com/dashboards/5342)
+* [Ceph - Cluster](https://grafana.com/grafana/dashboards/2842)
+* [Ceph - OSD (Single)](https://grafana.com/grafana/dashboards/5336)
+* [Ceph - Pools](https://grafana.com/grafana/dashboards/5342)
 
 ## Updates and Upgrades
 
