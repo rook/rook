@@ -72,6 +72,12 @@ pspEnable: false
 # -- Cluster configuration.
 # @default -- See [below](#ceph-cluster-spec)
 cephClusterSpec:
+  # This cluster spec example is for a converged cluster where all the Ceph daemons are running locally,
+  # as in the host-based example (cluster.yaml). For a different configuration such as a
+  # PVC-based cluster (cluster-on-pvc.yaml), external cluster (cluster-external.yaml),
+  # or stretch cluster (cluster-stretched.yaml), replace this entire `cephClusterSpec`
+  # with the specs from those examples.
+
   # For more details, check https://rook.io/docs/rook/v1.10/CRDs/Cluster/ceph-cluster-crd/
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
