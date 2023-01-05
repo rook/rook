@@ -269,8 +269,14 @@ cephClusterSpec:
         cpu: "1000m"
         memory: "4Gi"
     prepareosd:
-      # limits: It is not recommended to set limits on the OSD prepare job since it's a one-time burst for memory
-      # that must be allowed to complete without an OOM kill
+      # limits: It is not recommended to set limits on the OSD prepare job
+      #         since it's a one-time burst for memory that must be allowed to
+      #         complete without an OOM kill.  Note however that if a k8s
+      #         limitRange guardrail is defined external to Rook, the lack of
+      #         a limit here may result in a sync failure, in which case a
+      #         limit should be added.  1200Mi may suffice for up to 15Ti
+      #         OSDs ; for larger devices 2Gi may be required.
+      #         cf. https://github.com/rook/rook/pull/11103
       requests:
         cpu: "500m"
         memory: "50Mi"
