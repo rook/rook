@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     if: github.repository == 'rook/rook'
     steps:
-      - uses: actions/stale@v6
+      - uses: actions/stale@v7
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-issue-stale: 60
