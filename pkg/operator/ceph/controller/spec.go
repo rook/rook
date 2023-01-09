@@ -50,11 +50,11 @@ const (
 	crashVolumeName                         = "rook-ceph-crash"
 	daemonSocketDir                         = "/run/ceph"
 	daemonSocketsSubPath                    = "/exporter"
-	configDir                               = "/var/lib/rook/rook-ceph"
 	logCollector                            = "log-collector"
 	DaemonIDLabel                           = "ceph_daemon_id"
 	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
+	ExternalCephExporterName                = "rook-ceph-exporter-external"
 	ServiceExternalMetricName               = "http-external-metrics"
 	CephUserID                              = 167
 	livenessProbeTimeoutSeconds       int32 = 5
@@ -176,7 +176,7 @@ func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGener
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
 		hostPathType := v1.HostPathDirectoryOrCreate
-		sockDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath + daemonSocketsSubPath, Type: &hostPathType}}
+		sockDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(dataDirHostPath, daemonSocketsSubPath), Type: &hostPathType}}
 	}
 	configVolume, _ := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
@@ -206,10 +206,8 @@ func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 		configMount,
 		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
 	}
+	v = append(v, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
 	v = append(v, StoredLogAndCrashVolumeMount(dataPaths.ContainerLogDir(), dataPaths.ContainerCrashDir())...)
-	if dataPaths.HostDataDir != "" {
-		v = append(v, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
-	}
 
 	return v
 }
@@ -222,7 +220,7 @@ func RookVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 }
 
 // DaemonVolumesBase returns the common / static set of volumes.
-func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string, isExporter bool) []v1.Volume {
+func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
 	configOverrideVolume, _ := configOverrideConfigMapVolumeAndMount()
 	vols := []v1.Volume{
 		configOverrideVolume,
@@ -233,13 +231,8 @@ func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string
 	// data is persisted to host
 	if dataDirHostPath != "" {
 		hostPathType := v1.HostPathDirectoryOrCreate
-		configHostPathType := v1.HostPathDirectory
-		src := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath + daemonSocketsSubPath, Type: &hostPathType}}
+		src := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(dataDirHostPath, daemonSocketsSubPath), Type: &hostPathType}}
 		vols = append(vols, v1.Volume{Name: "ceph-daemons-sock-dir", VolumeSource: src})
-		if isExporter {
-			src = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: configDir, Type: &configHostPathType}}
-			vols = append(vols, v1.Volume{Name: "ceph-conf-dir", VolumeSource: src})
-		}
 	}
 	if dataPaths.HostLogAndCrashDir != "" {
 		// logs are not persisted to host
@@ -290,8 +283,8 @@ func DaemonVolumesContainsPVC(volumes []v1.Volume) bool {
 
 // DaemonVolumes returns the pod volumes used by all Ceph daemons. If keyring resource name is
 // empty, there will be no keyring volume created from a secret.
-func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string, isExporter bool) []v1.Volume {
-	vols := DaemonVolumesBase(dataPaths, keyringResourceName, dataDirHostPath, isExporter)
+func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
+	vols := DaemonVolumesBase(dataPaths, keyringResourceName, dataDirHostPath)
 	vols = append(vols, DaemonVolumesDataHostPath(dataPaths)...)
 	return vols
 }
@@ -299,14 +292,13 @@ func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string, da
 // DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
 // volume mounts are shared by most all Ceph daemon containers, both init and standard. If keyring
 // resource name is empty, there will be no keyring mounted in the container.
-func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string, isExporter bool) []v1.VolumeMount {
+func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.VolumeMount {
 	_, configOverrideMount := configOverrideConfigMapVolumeAndMount()
 	mounts := []v1.VolumeMount{
 		configOverrideMount,
 	}
-	mounts = append(mounts, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
-	if isExporter {
-		mounts = append(mounts, v1.VolumeMount{Name: "ceph-conf-dir", MountPath: configDir})
+	if dataDirHostPath != "" {
+		mounts = append(mounts, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
 	}
 	if keyringResourceName != "" {
 		mounts = append(mounts, keyring.VolumeMount().Resource(keyringResourceName))
@@ -490,6 +482,7 @@ func ChownCephDataDirsInitContainer(
 	volumeMounts []v1.VolumeMount,
 	resources v1.ResourceRequirements,
 	securityContext *v1.SecurityContext,
+	configDir string,
 ) v1.Container {
 	args := make([]string, 0, 5)
 	args = append(args,
@@ -500,6 +493,10 @@ func ChownCephDataDirsInitContainer(
 		config.VarLibCephCrashDir,
 		daemonSocketDir,
 	)
+	if configDir != "" {
+		args = append(args, configDir)
+	}
+
 	if dpm.ContainerDataDir != "" {
 		args = append(args, dpm.ContainerDataDir)
 	}
@@ -792,7 +789,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
-		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", false),
+		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
 		SecurityContext: PodSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)

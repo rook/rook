@@ -544,6 +544,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			volumeMounts,
 			osdProps.resources,
 			securityContext,
+			"",
 		))
 
 	podTemplateSpec := v1.PodTemplateSpec{

@@ -57,6 +57,11 @@ func GetCleanupAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyCleanup)
 }
 
+// GetCephExporterAnnotations returns the Annotations for the MGR service
+func GetCephExporterAnnotations(a AnnotationsSpec) Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyCephExporter)
+}
+
 func GetClusterMetadataAnnotations(a AnnotationsSpec) Annotations {
 	return a[KeyClusterMetadata]
 }

@@ -63,3 +63,11 @@ func GetCrashCollectorPriorityClassName(p PriorityClassNamesSpec) string {
 	}
 	return p[KeyCrashCollector]
 }
+
+// GetCephExporterPriorityClassName returns the priority class name for the ceph-exporter
+func GetCephExporterPriorityClassName(p PriorityClassNamesSpec) string {
+	if _, ok := p[KeyCephExporter]; !ok {
+		return p.All()
+	}
+	return p[KeyCephExporter]
+}
