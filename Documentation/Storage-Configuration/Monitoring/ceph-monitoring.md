@@ -34,7 +34,13 @@ Once the Prometheus operator is in the `Running` state, proceed to the next sect
 
 ## Prometheus Instances
 
-With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
+With the Prometheus operator running, we can create service monitors that will watch the Rook cluster.
+
+There are two sources for metrics collection:
+
+- Prometheus manager module: It is responsible for exposing all metrics other than ceph daemons performance counters.
+- Ceph exporter: It is responsible for exposing only ceph daemons performance counters as prometheus metrics.
+
 From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
@@ -46,6 +52,7 @@ Create the service monitor as well as the Prometheus server pod and service:
 
 ```console
 kubectl create -f service-monitor.yaml
+kubectl create -f exporter-service-monitor.yaml
 kubectl create -f prometheus.yaml
 kubectl create -f prometheus-service.yaml
 ```
@@ -194,9 +201,9 @@ The dashboards have been created by [@galexrt](https://github.com/galexrt). For 
 
 The following Grafana dashboards are available:
 
-* [Ceph - Cluster](https://grafana.com/grafana/dashboards/2842)
-* [Ceph - OSD (Single)](https://grafana.com/grafana/dashboards/5336)
-* [Ceph - Pools](https://grafana.com/grafana/dashboards/5342)
+- [Ceph - Cluster](https://grafana.com/grafana/dashboards/2842)
+- [Ceph - OSD (Single)](https://grafana.com/grafana/dashboards/5336)
+- [Ceph - Pools](https://grafana.com/grafana/dashboards/5342)
 
 ## Updates and Upgrades
 

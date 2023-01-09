@@ -48,6 +48,7 @@ func TestPodSpec(t *testing.T) {
 			CephVersion: cephv1.CephVersionSpec{
 				Image: "quay.io/ceph/ceph:v16",
 			},
+			DataDirHostPath: "/var/lib/rook/",
 		},
 	}
 

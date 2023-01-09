@@ -68,8 +68,9 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		clusterInfo,
 		&clusterd.Context{Clientset: clientset},
 		&cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:testversion"},
-			Network:     network,
+			CephVersion:     cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:testversion"},
+			Network:         network,
+			DataDirHostPath: "/var/lib/rook/",
 		},
 		fs,
 		&k8sutil.OwnerInfo{},

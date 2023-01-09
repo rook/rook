@@ -44,7 +44,7 @@ const (
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
 	ResourcesKeyCleanup = "cleanup"
 	// ResourcesKeyCleanup represents the name of resource in the CR for ceph-exporter
-	ResourcesKeyCephExporter = "ceph-exporter"
+	ResourcesKeyCephExporter = "exporter"
 )
 
 // GetMgrResources returns the placement for the MGR service

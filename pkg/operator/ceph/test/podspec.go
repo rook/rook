@@ -81,6 +81,7 @@ func (ps *PodSpecTester) AssertVolumesMeetCephRequirements(
 	if daemonType != config.RbdMirrorType && daemonType != config.FilesystemMirrorType {
 		requiredVols = append(requiredVols, "ceph-daemon-data")
 	}
+	requiredVols = append(requiredVols, "ceph-daemons-sock-dir")
 	vols := []string{}
 
 	for _, v := range ps.spec.Volumes {

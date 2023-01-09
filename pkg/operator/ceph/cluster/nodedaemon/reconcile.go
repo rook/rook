@@ -144,7 +144,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			logger.Errorf("more than one CephCluster found in the namespace %q, choosing the first one %q", namespace, cephCluster.GetName())
 		}
 
-		allDisabled := r.removeDisabledNodeDaemons(cephCluster.Spec, namespace)
+		allDisabled := r.removeDisabledCrashCollectorDaemons(cephCluster.Spec, namespace) && r.removeDisabledCephExporterDaemons(cephCluster.Spec, namespace)
 		if allDisabled {
 			return reconcile.Result{}, nil
 		}
@@ -228,25 +228,42 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 			}
 		} else {
 			logger.Debugf("ceph exporter successfully reconciled for node %q. operation: %q", node.Name, op)
+			// create the metrics service
+			service, err := MakeCephExporterMetricsService(cephCluster, exporterServiceMetricName, r.scheme)
+			if err != nil {
+				return err
+			}
+			if _, err := k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, cephCluster.Namespace, service); err != nil {
+				return errors.Wrap(err, "failed to create ceph-exporter metrics service")
+			}
+
+			if err := EnableCephExporterServiceMonitor(cephCluster, r.scheme, r.opManagerContext); err != nil {
+				return errors.Wrap(err, "failed to enable service monitor")
+			}
+			logger.Debug("service monitor for ceph exporter was enabled successfully")
+
 		}
 	}
 
 	return nil
 }
 
-func (r *ReconcileNode) removeDisabledNodeDaemons(spec cephv1.ClusterSpec, namespace string) bool {
-	// If the daemons are disabled in the spec let's remove them
-	allDisabled := true
+func (r *ReconcileNode) removeDisabledCrashCollectorDaemons(spec cephv1.ClusterSpec, namespace string) bool {
+	// If the crash daemons are disabled in the spec let's remove them
 	if spec.CrashCollector.Disable {
 		r.deleteNodeDaemon(crashCollectorAppName, namespace)
 	}
+
+	return spec.CrashCollector.Disable
+}
+
+func (r *ReconcileNode) removeDisabledCephExporterDaemons(spec cephv1.ClusterSpec, namespace string) bool {
+	// If the ceph-exporter daemons are disabled in the spec let's remove them
 	if !spec.Monitoring.Enabled {
 		r.deleteNodeDaemon(cephExporterAppName, namespace)
-	} else {
-		allDisabled = false
 	}
 
-	return allDisabled
+	return !spec.Monitoring.Enabled
 }
 
 func (r *ReconcileNode) listDeploymentAndDelete(appName, nodeName, ns string) error {
@@ -262,7 +279,7 @@ func (r *ReconcileNode) listDeploymentAndDelete(appName, nodeName, ns string) er
 		if err != nil {
 			return errors.Wrapf(err, "failed to delete deployment %q in namespace %q", d.Name, d.Namespace)
 		}
-		logger.Infof("successfully removed crash deployment %q in namespace %q from node %q", d.Name, d.Namespace, nodeName)
+		logger.Infof("successfully removed deployment %q in namespace %q from node %q", d.Name, d.Namespace, nodeName)
 	}
 
 	return nil

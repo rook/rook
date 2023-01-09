@@ -73,7 +73,7 @@ func GetCrashCollectorLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyCrashCollector)
 }
 
-func GetCephExporterCollectorLabels(a LabelsSpec) Labels {
+func GetCephExporterLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyCephExporter)
 }
 
