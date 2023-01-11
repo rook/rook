@@ -57,7 +57,7 @@ The following components will allow a resource requirement to be set for:
 * `osd`
 
 The `mds` and `rgw` components are configured through the CRD that creates them.
-The `mds` are created through the `Filesystem` CRD and the `rgw` through the `ObjectStore` CRD.
+The `mds` are created through the `CephFilesystem` CRD and the `rgw` through the `CephObjectStore` CRD.
 There will be a `resources` section added to their respective specification to allow user defined requests/limits.
 
 #### Special Case: OSD
