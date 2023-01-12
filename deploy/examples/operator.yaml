@@ -489,6 +489,8 @@ data:
   # The CSI GRPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 
+  ROOK_DISABLE_ADMISSION_CONTROLLER: "true"
+
   # Enable topology based provisioning.
   CSI_ENABLE_TOPOLOGY: "false"
   # Domain labels define which node labels to use as domains
@@ -618,9 +620,6 @@ spec:
             #  --> ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS: 5 seconds
             - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
               value: "5"
-
-            - name: ROOK_DISABLE_ADMISSION_CONTROLLER
-              value: "false"
 
             # The name of the node to pass with the downward API
             - name: NODE_NAME
