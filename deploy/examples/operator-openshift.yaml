@@ -547,6 +547,8 @@ data:
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
   # CSIADDONS_PORT: "9070"
 
+  ROOK_DISABLE_ADMISSION_CONTROLLER: "true"
+
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
 
@@ -616,9 +618,6 @@ spec:
               name: https-webhook
               protocol: TCP
           env:
-            - name: ROOK_DISABLE_ADMISSION_CONTROLLER
-              value: "false"
-
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
             # Rook Discover toleration. Will tolerate all taints with all keys.

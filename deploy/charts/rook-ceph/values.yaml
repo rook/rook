@@ -553,8 +553,8 @@ discover:
   #       cpu: 100m
   #       memory: 128Mi
 
-# -- Disable adnissions controller
-disableAdmissionController: false
+# -- Whether to disable the admission controller
+disableAdmissionController: true
 
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false

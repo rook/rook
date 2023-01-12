@@ -87,8 +87,6 @@ spec:
           value: "{{ .Values.discoverDaemonUdev }}"
         - name: ROOK_ENABLE_DISCOVERY_DAEMON
           value: "{{ .Values.enableDiscoveryDaemon }}"
-        - name: ROOK_DISABLE_ADMISSION_CONTROLLER
-          value: "{{ .Values.disableAdmissionController }}"
 
         - name: NODE_NAME
           valueFrom:
