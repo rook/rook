@@ -314,11 +314,6 @@ parameters:
   imageFeatures: layering
   csi.storage.k8s.io/fstype: ext4
 `
-	if m.settings.ConnectionsEncrypted {
-		// encryption requires either the 5.11 kernel or the nbd mounter. Until the newer
-		// kernel is available in minikube, we need to test with nbd.
-		sc += "  mounter: rbd-nbd"
-	}
 	return sc
 }
 
