@@ -604,14 +604,18 @@ func (c *cluster) configureMsgr2() error {
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
 	if c.Spec.Network.Connections.Encryption != nil {
 		encryptionSetting := "crc secure"
+		// crc mode, if denied agree to secure mode
+		defaultRBDMapOptions := "ms_mode=prefer-crc"
 		if c.Spec.Network.Connections.Encryption.Enabled {
 			encryptionSetting = "secure"
+			defaultRBDMapOptions = "ms_mode=secure"
 		}
 
 		globalConfigSettings := map[string]string{
-			"ms_cluster_mode": encryptionSetting,
-			"ms_service_mode": encryptionSetting,
-			"ms_client_mode":  encryptionSetting,
+			"ms_cluster_mode":         encryptionSetting,
+			"ms_service_mode":         encryptionSetting,
+			"ms_client_mode":          encryptionSetting,
+			"rbd_default_map_options": defaultRBDMapOptions,
 		}
 
 		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
