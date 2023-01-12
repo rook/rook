@@ -25,6 +25,7 @@ import (
 	cs "github.com/jetstack/cert-manager/pkg/client/clientset/versioned/typed/certmanager/v1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +37,6 @@ import (
 const (
 	admissionControllerAppName       = "rook-ceph-admission-controller"
 	tlsPort                    int32 = 443
-	webhookEnv                       = "ROOK_DISABLE_ADMISSION_CONTROLLER"
 )
 
 var (
@@ -51,7 +51,12 @@ func createWebhook(ctx context.Context, context *clusterd.Context) (bool, error)
 		return false, nil
 	}
 
-	if os.Getenv(webhookEnv) == "true" {
+	value, err := k8sutil.GetOperatorSetting(ctx, context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_DISABLE_ADMISSION_CONTROLLER", "true")
+	if err != nil {
+		return false, err
+	}
+
+	if value == "true" {
 		logger.Info("delete webhook resources since webhook is disabled")
 
 		deleteWebhookResources(ctx, certMgrClient, context)
