@@ -93,6 +93,7 @@ rules:
       - create
       - update
       - delete
+      - patch
   - apiGroups:
       - apps
     resources:
