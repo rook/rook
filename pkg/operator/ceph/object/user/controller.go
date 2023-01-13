@@ -550,7 +550,14 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 
 // Delete the user
 func (r *ReconcileObjectStoreUser) deleteUser(u *cephv1.CephObjectStoreUser) error {
-	err := r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name})
+	buckets, err := r.objContext.AdminOpsClient.ListUsersBuckets(r.opManagerContext, u.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list ceph object user buckets of user %q.", u.Name)
+	}
+	if len(buckets) > 0 {
+		return errors.Errorf("There exists buckets %v for object user %s", u.Name, buckets)
+	}
+	err = r.objContext.AdminOpsClient.RemoveUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			logger.Warningf("user %q does not exist, nothing to remove", u.Name)

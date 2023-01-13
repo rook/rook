@@ -141,28 +141,28 @@ func TestMaxSizeToInt64(t *testing.T) {
 }
 
 func TestProvisioner_setAdditionalSettings(t *testing.T) {
-	newProvisioner := func(t *testing.T, getUserResult string, putValsSeen *[]string) *Provisioner {
+	newProvisioner := func(t *testing.T, getBucketResult string, putValsSeen *[]string) *Provisioner {
 		mockClient := &object.MockClient{
 			MockDo: func(req *http.Request) (*http.Response, error) {
-				// t.Logf("HTTP req: %#v", req)
+				// t.Logf("HTTP req: %#v", req.URL)
 				t.Logf("HTTP %s: %s %s", req.Method, req.URL.Path, req.URL.RawQuery)
 
-				assert.Contains(t, req.URL.RawQuery, "&uid=bob")
+				assert.Contains(t, req.URL.RawQuery, "bucket=test-bucket")
 
 				if req.Method == http.MethodGet {
-					if req.URL.Path == "my.endpoint.net/admin/user" {
+					if req.URL.Path == "my.endpoint.net/admin/bucket" {
 						statusCode := 200
-						if getUserResult == "" {
+						if getBucketResult == "" {
 							statusCode = 500
 						}
 						return &http.Response{
 							StatusCode: statusCode,
-							Body:       io.NopCloser(bytes.NewReader([]byte(getUserResult))),
+							Body:       io.NopCloser(bytes.NewReader([]byte(getBucketResult))),
 						}, nil
 					}
 				}
 				if req.Method == http.MethodPut {
-					if req.URL.Path == "my.endpoint.net/admin/user" {
+					if req.URL.Path == "my.endpoint.net/admin/bucket" {
 						*putValsSeen = append(*putValsSeen, req.URL.RawQuery)
 						return &http.Response{
 							StatusCode: 200,
@@ -182,6 +182,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 				Context: context.Background(),
 			},
 			cephUserName:   "bob",
+			bucketName:     "test-bucket",
 			adminOpsClient: adminClient,
 		}
 
@@ -191,11 +192,13 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 	t.Run("quota should remain disabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
-			`{"user_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
+			`{"bucket_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
 			&putValsSeen,
 		)
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			BucketName: "test-bucket",
+			UserID:     "bob",
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{},
@@ -209,11 +212,13 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 	t.Run("quota should be disabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
-			`{"user_quota":{"enabled":true,"max_size":-1,"max_objects":2}}`,
+			`{"bucket_quota":{"enabled":true,"max_size":-1,"max_objects":2}}`,
 			&putValsSeen,
 		)
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			BucketName: "test-bucket",
+			UserID:     "bob",
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{},
@@ -230,11 +235,13 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 	t.Run("maxSize quota should be enabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
-			`{"user_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
+			`{"bucket_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
 			&putValsSeen,
 		)
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			UserID:     "bob",
+			BucketName: "test-bucket",
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{
@@ -250,19 +257,20 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		assert.NotEmpty(t, putWithValue(`enabled=true`, putValsSeen)) // at least one put enables
 
 		// there is only one time that max-size is set, and it's to the right value
-		assert.Equal(t, 1, numberOfPutsWithValue(`max-size`, putValsSeen))
-		assert.NotEmpty(t, putWithValue(`max-size=2`, putValsSeen))
-
+		assert.Equal(t, 1, numberOfPutsWithValue(`max-size-kb`, putValsSeen))
+		assert.NotEmpty(t, putWithValue(`max-size-kb=1`, putValsSeen))
 	})
 
 	t.Run("maxObjects quota should be enabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
-			`{"user_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
+			`{"bucket_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
 			&putValsSeen,
 		)
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			BucketName: "test-bucket",
+			UserID:     "bob",
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{
@@ -286,11 +294,13 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 	t.Run("maxObjects and maxSize quotas should be enabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
-			`{"user_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
+			`{"bucket_quota":{"enabled":false,"max_size":-1,"max_objects":-1}}`,
 			&putValsSeen,
 		)
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			BucketName: "test-bucket",
+			UserID:     "bob",
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{
@@ -307,8 +317,8 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		assert.NotEmpty(t, putWithValue(`enabled=true`, putValsSeen)) // at least one put enables
 
 		// there is only one time that max-size is set, and it's to the right value
-		assert.Equal(t, 1, numberOfPutsWithValue(`max-size`, putValsSeen))
-		assert.NotEmpty(t, putWithValue(`max-size=2`, putValsSeen))
+		assert.Equal(t, 1, numberOfPutsWithValue(`max-size-kb`, putValsSeen))
+		assert.NotEmpty(t, putWithValue(`max-size-kb=1`, putValsSeen))
 
 		// there is only one time max-objects is set, and it's to the right value
 		assert.NotEmpty(t, putWithValue(`max-objects=3`, putValsSeen))
@@ -318,15 +328,17 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 	t.Run("quotas are enabled and need updated enabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
-			`{"user_quota":{"enabled":true,"max_size":1,"max_objects":1}}`,
+			`{"bucket_quota":{"enabled":true,"max_size":1,"max_objects":1}}`,
 			&putValsSeen,
 		)
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			BucketName: "test-bucket",
+			UserID:     "bob",
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{
-						"maxSize":    "2",
+						"maxSize":    "200",
 						"maxObjects": "3",
 					},
 				},
@@ -337,8 +349,8 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		assert.Zero(t, numberOfPutsWithValue(`enabled=false`, putValsSeen)) // no puts should disable
 
 		// there is only one time that max-size is set, and it's to the right value
-		assert.Equal(t, 1, numberOfPutsWithValue(`max-size`, putValsSeen))
-		assert.NotEmpty(t, putWithValue(`max-size=2`, putValsSeen))
+		assert.Equal(t, 1, numberOfPutsWithValue(`max-size-kb`, putValsSeen))
+		assert.NotEmpty(t, putWithValue(`max-size-kb=1`, putValsSeen))
 
 		// there is only one time max-objects is set, and it's to the right value
 		assert.NotEmpty(t, putWithValue(`max-objects=3`, putValsSeen))

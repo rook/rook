@@ -98,6 +98,10 @@ func (p *Provisioner) getCephCluster() (*cephv1.CephCluster, error) {
 	return &cephCluster.Items[0], err
 }
 
+func UserID(AdditionalConfig map[string]string) string {
+	return AdditionalConfig["userID"]
+}
+
 func MaxObjectQuota(AdditionalConfig map[string]string) string {
 	return AdditionalConfig["maxObjects"]
 }
