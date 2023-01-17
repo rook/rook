@@ -33,11 +33,11 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 ### FilesystemMirror Settings
 
-- `placement`: The cephfs-mirror pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml).
-- `annotations`: Key value pair list of annotations to add.
-- `labels`: Key value pair list of labels to add.
-- `resources`: The resource requirements for the cephfs-mirror pods.
-- `priorityClassName`: The priority class to set on the cephfs-mirror pods.
+* `placement`: The cephfs-mirror pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml).
+* `annotations`: Key value pair list of annotations to add.
+* `labels`: Key value pair list of labels to add.
+* `resources`: The resource requirements for the cephfs-mirror pods.
+* `priorityClassName`: The priority class to set on the cephfs-mirror pods.
 
 ## Configuring mirroring peers
 
