@@ -24,69 +24,69 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 * `external`:
-  * `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](external-cluster.md). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
+    * `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](external-cluster.md). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
 * `cephVersion`: The version information for launching the ceph daemons.
-  * `image`: The image used for running the ceph daemons. For example, `quay.io/ceph/ceph:v16.2.9` or `v17.2.5`. For more details read the [container images section](#ceph-container-images).
+    * `image`: The image used for running the ceph daemons. For example, `quay.io/ceph/ceph:v16.2.9` or `v17.2.5`. For more details read the [container images section](#ceph-container-images).
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v17` will be updated each time a new Quincy build is released.
   Using the `v17` tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
-  * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `pacific` and `quincy` are supported. Future versions such as `reef` (v18) would require this to be set to `true`. Should be set to `false` in production.
+    * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `pacific` and `quincy` are supported. Future versions such as `reef` (v18) would require this to be set to `true`. Should be set to `false` in production.
   `imagePullPolicy`: The image pull policy for the ceph daemon pods. Possible values are `Always`, `IfNotPresent`, and `Never`.
   The default is `IfNotPresent`.
 * `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. Following paths and any of their subpaths **must not be used**: `/etc/ceph`, `/rook` or `/var/log/ceph`.
-  * **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
+    * **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 * `skipUpgradeChecks`: if set to true Rook won't perform any upgrade checks on Ceph daemons during an upgrade. Use this at **YOUR OWN RISK**, only if you know what you're doing. To understand Rook's upgrade process of Ceph, read the [upgrade doc](../../Upgrade/rook-upgrade.md#ceph-version-upgrades).
 * `continueUpgradeAfterChecksEvenIfNotHealthy`: if set to true Rook will continue the OSD daemon upgrade process even if the PGs are not clean, or continue with the MDS upgrade even the file system is not healthy.
 * `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](../../Storage-Configuration/Monitoring/ceph-dashboard.md).
-  * `enabled`: Whether to enable the dashboard to view cluster status
-  * `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
-  * `port`: Allows to change the default port where the dashboard is served
-  * `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
+    * `enabled`: Whether to enable the dashboard to view cluster status
+    * `urlPrefix`: Allows to serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
+    * `port`: Allows to change the default port where the dashboard is served
+    * `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
 * `monitoring`: Settings for monitoring Ceph using Prometheus. To enable monitoring on your cluster see the [monitoring guide](../../Storage-Configuration/Monitoring/ceph-monitoring.md#prometheus-alerts).
-  * `enabled`: Whether to enable prometheus based monitoring for this cluster
-  * `externalMgrEndpoints`: external cluster manager endpoints
-  * `externalMgrPrometheusPort`: external prometheus manager module port. See [external cluster configuration](#external-cluster) for more details.
-  * `rulesNamespace`: Namespace to deploy prometheusRule. If empty, namespace of the cluster will be used.
+    * `enabled`: Whether to enable prometheus based monitoring for this cluster
+    * `externalMgrEndpoints`: external cluster manager endpoints
+    * `externalMgrPrometheusPort`: external prometheus manager module port. See [external cluster configuration](#external-cluster) for more details.
+    * `rulesNamespace`: Namespace to deploy prometheusRule. If empty, namespace of the cluster will be used.
       Recommended:
-    * If you have a single Rook cluster, set the `rulesNamespace` to the same namespace as the cluster or keep it empty.
-    * If you have multiple Rook clusters in the same Kubernetes cluster, choose the same namespace to set `rulesNamespace` for all the clusters (ideally, namespace with prometheus deployed). Otherwise, you will get duplicate alerts with duplicate alert definitions.
+        * If you have a single Rook cluster, set the `rulesNamespace` to the same namespace as the cluster or keep it empty.
+        * If you have multiple Rook clusters in the same Kubernetes cluster, choose the same namespace to set `rulesNamespace` for all the clusters (ideally, namespace with prometheus deployed). Otherwise, you will get duplicate alerts with duplicate alert definitions.
 * `network`: For the network settings for the cluster, refer to the [network configuration settings](#network-configuration-settings)
 * `mon`: contains mon related options [mon settings](#mon-settings)
 For more details on the mons and when to choose a number other than `3`, see the [mon health doc](../../Storage-Configuration/Advanced/ceph-mon-health.md).
 * `mgr`: manager top level section
-  * `count`: set number of ceph managers between `1` to `2`. The default value is 2.
+    * `count`: set number of ceph managers between `1` to `2`. The default value is 2.
     If there are two managers, it is important for all mgr services point to the active mgr and not the passive mgr. Therefore, Rook will
     automatically update all services (in the cluster namespace) that have a label `app=rook-ceph-mgr` with a selector pointing to the
     active mgr. This commonly applies to services for the dashboard or the prometheus metrics collector.
-  * `modules`: is the list of Ceph manager modules to enable
+    * `modules`: is the list of Ceph manager modules to enable
 * `crashCollector`: The settings for crash collector daemon(s).
-  * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
-  * `daysToRetain`: specifies the number of days to keep crash entries in the Ceph cluster. By default the entries are kept indefinitely.
+    * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
+    * `daysToRetain`: specifies the number of days to keep crash entries in the Ceph cluster. By default the entries are kept indefinitely.
 * `logCollector`: The settings for log collector daemon.
-  * `enabled`: if set to `true`, the log collector will run as a side-car next to each Ceph daemon. The Ceph configuration option `log_to_file` will be turned on, meaning Ceph daemons will log on files in addition to still logging to container's stdout. These logs will be rotated. In case a daemon terminates with a segfault, the coredump files will be commonly be generated in `/var/lib/systemd/coredump` directory on the host, depending on the underlying OS location. (default: `true`)
-  * `periodicity`: how often to rotate daemon's log. (default: 24h). Specified with a time suffix which may be `h` for hours or `d` for days. **Rotating too often will slightly impact the daemon's performance since the signal briefly interrupts the program.**
+    * `enabled`: if set to `true`, the log collector will run as a side-car next to each Ceph daemon. The Ceph configuration option `log_to_file` will be turned on, meaning Ceph daemons will log on files in addition to still logging to container's stdout. These logs will be rotated. In case a daemon terminates with a segfault, the coredump files will be commonly be generated in `/var/lib/systemd/coredump` directory on the host, depending on the underlying OS location. (default: `true`)
+    * `periodicity`: how often to rotate daemon's log. (default: 24h). Specified with a time suffix which may be `h` for hours or `d` for days. **Rotating too often will slightly impact the daemon's performance since the signal briefly interrupts the program.**
 * `annotations`: [annotations configuration settings](#annotations-and-labels)
 * `labels`: [labels configuration settings](#annotations-and-labels)
 * `placement`: [placement configuration settings](#placement-configuration-settings)
 * `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
 * `priorityClassNames`: [priority class names configuration settings](#priority-class-names)
 * `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
-  * `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
+    * `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
   If individual nodes are specified under the `nodes` field, then `useAllNodes` must be set to `false`.
-  * `nodes`: Names of individual nodes in the cluster that should have their storage included in accordance with either the cluster level configuration specified above or any node specific overrides described in the next section below.
+    * `nodes`: Names of individual nodes in the cluster that should have their storage included in accordance with either the cluster level configuration specified above or any node specific overrides described in the next section below.
   `useAllNodes` must be set to `false` to use specific nodes and their config.
   See [node settings](#node-settings) below.
-  * `config`: Config settings applied to all OSDs on the node unless overridden by `devices`. See the [config settings](#osd-configuration-settings) below.
-  * [storage selection settings](#storage-selection-settings)
-  * [Storage Class Device Sets](#storage-class-device-sets)
-  * `onlyApplyOSDPlacement`: Whether the placement specific for OSDs is merged with the `all` placement. If `false`, the OSD placement will be merged with the `all` placement. If true, the `OSD placement will be applied` and the `all` placement will be ignored. The placement for OSDs is computed from several different places depending on the type of OSD:
-    * For non-PVCs: `placement.all` and `placement.osd`
-    * For PVCs: `placement.all` and inside the storageClassDeviceSets from the `placement` or `preparePlacement`
+    * `config`: Config settings applied to all OSDs on the node unless overridden by `devices`. See the [config settings](#osd-configuration-settings) below.
+    * [storage selection settings](#storage-selection-settings)
+    * [Storage Class Device Sets](#storage-class-device-sets)
+    * `onlyApplyOSDPlacement`: Whether the placement specific for OSDs is merged with the `all` placement. If `false`, the OSD placement will be merged with the `all` placement. If true, the `OSD placement will be applied` and the `all` placement will be ignored. The placement for OSDs is computed from several different places depending on the type of OSD:
+        * For non-PVCs: `placement.all` and `placement.osd`
+        * For PVCs: `placement.all` and inside the storageClassDeviceSets from the `placement` or `preparePlacement`
 * `disruptionManagement`: The section for configuring management of daemon disruptions
-  * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
-  * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
+    * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
+    * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the OSDs are `out` and `safe-to-destroy` when they are removed.
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 * `security`: [security page for key management configuration](../../Storage-Configuration/Advanced/key-management-system.md)
@@ -126,13 +126,13 @@ A specific will contain a specific release of Ceph as well as security fixes fro
   number of monitors increases, or when a monitor fails and is recreated. An
   [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
 * `stretchCluster`: The stretch cluster settings that define the zones (or other failure domain labels) across which to configure the cluster.
-  * `failureDomainLabel`: The label that is expected on each node where the cluster is expected to be deployed. The labels must be found
+    * `failureDomainLabel`: The label that is expected on each node where the cluster is expected to be deployed. The labels must be found
     in the list of well-known [topology labels](#osd-topology).
-  * `subFailureDomain`: With a zone, the data replicas must be spread across OSDs in the subFailureDomain. The default is `host`.
-  * `zones`: The failure domain names where the Mons and OSDs are expected to be deployed. There must be **three zones** specified in the list.
+    * `subFailureDomain`: With a zone, the data replicas must be spread across OSDs in the subFailureDomain. The default is `host`.
+    * `zones`: The failure domain names where the Mons and OSDs are expected to be deployed. There must be **three zones** specified in the list.
     This element is always named `zone` even if a non-default `failureDomainLabel` is specified. The elements have two values:
-    * `name`: The name of the zone, which is the value of the domain label.
-    * `arbiter`: Whether the zone is expected to be the arbiter zone which only runs a single mon. Exactly one zone must be labeled `true`.
+        * `name`: The name of the zone, which is the value of the domain label.
+        * `arbiter`: Whether the zone is expected to be the arbiter zone which only runs a single mon. Exactly one zone must be labeled `true`.
       The two zones that are not the arbiter zone are expected to have OSDs deployed.
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
@@ -164,16 +164,16 @@ Configure the network that will be enabled for the cluster and services.
 * `ipFamily`: Specifies the network stack Ceph daemons should listen on.
 * `dualStack`: Specifies that Ceph daemon should listen on both IPv4 and IPv6 network stacks.
 * `connections`: Settings for network connections using Ceph's msgr2 protocol
-  * `encryption`: Settings for encryption on the wire to Ceph daemons
-    * `enabled`: Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
-      The default is false. When encryption is enabled, all communication between clients and Ceph daemons, or between
-      Ceph daemons will be encrypted. When encryption is not enabled, clients still establish a strong initial authentication
-      and data integrity is still validated with a crc check.
-      IMPORTANT: Encryption requires the 5.11 kernel for the latest nbd and cephfs drivers. Alternatively for testing only,
-      set "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
-      The nbd and fuse drivers are *not* recommended in production since restarting the csi driver pod will disconnect the volumes.
-  * `compression`:
-    * `enabled`: Whether to compress the data in transit across the wire. The default is false.
+    * `encryption`: Settings for encryption on the wire to Ceph daemons
+        * `enabled`: Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
+          The default is false. When encryption is enabled, all communication between clients and Ceph daemons, or between
+          Ceph daemons will be encrypted. When encryption is not enabled, clients still establish a strong initial authentication
+          and data integrity is still validated with a crc check.
+          **IMPORTANT**: Encryption requires the 5.11 kernel for the latest nbd and cephfs drivers. Alternatively for testing only,
+          set "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
+          The nbd and fuse drivers are *not* recommended in production since restarting the csi driver pod will disconnect the volumes.
+    * `compression`:
+        * `enabled`: Whether to compress the data in transit across the wire. The default is false.
       Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
 
 !!! caution
@@ -277,8 +277,8 @@ spec:
     cluster: default/rook-cluster-nw
   ```
 
-  * This format is required in order to use the NetworkAttachmentDefinition across namespaces.
-  * In Openshift, to use a NetworkAttachmentDefinition (NAD) across namespaces, the NAD must be deployed in the `default` namespace. The NAD is then referenced with the namespace: `default/rook-public-nw`
+    * This format is required in order to use the NetworkAttachmentDefinition across namespaces.
+    * In Openshift, to use a NetworkAttachmentDefinition (NAD) across namespaces, the NAD must be deployed in the `default` namespace. The NAD is then referenced with the namespace: `default/rook-public-nw`
 
 #### Known limitations with Multus
 
@@ -330,18 +330,18 @@ This feature is only available when `useAllNodes` has been set to `false`.
 Below are the settings for host-based cluster. This type of cluster can specify devices for OSDs, both at the cluster and individual node level, for selecting which storage resources will be included in the cluster.
 
 * `useAllDevices`: `true` or `false`, indicating whether all devices found on nodes in the cluster should be automatically consumed by OSDs. **Not recommended** unless you have a very controlled environment where you will not risk formatting of devices with existing data. When `true`, all devices and partitions will be used. Is overridden by `deviceFilter` if specified. LVM logical volumes are not picked by `useAllDevices`.
-  * `deviceFilter`: A regular expression for short kernel names of devices (e.g. `sda`) that allows selection of devices and partitions to be consumed by OSDs.  LVM logical volumes are not picked by `deviceFilter`.If individual devices have been specified for a node then this filter will be ignored.  This field uses [golang regular expression syntax](https://golang.org/pkg/regexp/syntax/). For example:
-  * `sdb`: Only selects the `sdb` device if found
-  * `^sd.`: Selects all devices starting with `sd`
-  * `^sd[a-d]`: Selects devices starting with `sda`, `sdb`, `sdc`, and `sdd` if found
-  * `^s`: Selects all devices that start with `s`
-  * `^[^r]`: Selects all devices that do *not* start with `r`
+    * `deviceFilter`: A regular expression for short kernel names of devices (e.g. `sda`) that allows selection of devices and partitions to be consumed by OSDs.  LVM logical volumes are not picked by `deviceFilter`.If individual devices have been specified for a node then this filter will be ignored.  This field uses [golang regular expression syntax](https://golang.org/pkg/regexp/syntax/). For example:
+    * `sdb`: Only selects the `sdb` device if found
+    * `^sd.`: Selects all devices starting with `sd`
+    * `^sd[a-d]`: Selects devices starting with `sda`, `sdb`, `sdc`, and `sdd` if found
+    * `^s`: Selects all devices that start with `s`
+    * `^[^r]`: Selects all devices that do *not* start with `r`
 * `devicePathFilter`: A regular expression for device paths (e.g. `/dev/disk/by-path/pci-0:1:2:3-scsi-1`) that allows selection of devices and partitions to be consumed by OSDs.  LVM logical volumes are not picked by `devicePathFilter`.If individual devices or `deviceFilter` have been specified for a node then this filter will be ignored.  This field uses [golang regular expression syntax](https://golang.org/pkg/regexp/syntax/). For example:
-  * `^/dev/sd.`: Selects all devices starting with `sd`
-  * `^/dev/disk/by-path/pci-.*`: Selects all devices which are connected to PCI bus
+    * `^/dev/sd.`: Selects all devices starting with `sd`
+    * `^/dev/disk/by-path/pci-.*`: Selects all devices which are connected to PCI bus
 * `devices`: A list of individual device names belonging to this node to include in the storage cluster.
-  * `name`: The name of the devices and partitions (e.g., `sda`). The full udev path can also be specified for devices, partitions, and logical volumes (e.g. `/dev/disk/by-id/ata-ST4000DM004-XXXX` - this will not change after reboots).
-  * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
+    * `name`: The name of the devices and partitions (e.g., `sda`). The full udev path can also be specified for devices, partitions, and logical volumes (e.g. `/dev/disk/by-id/ata-ST4000DM004-XXXX` - this will not change after reboots).
+    * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 
 Host-based cluster supports raw device, partition, and logical volume. Be sure to see the
 [quickstart doc prerequisites](../../Getting-Started/quickstart.md#prerequisites) for additional considerations.
@@ -373,15 +373,15 @@ The following are the settings for Storage Class Device Sets which can be config
   section for the related labels.
 
 * `preparePlacement`: The placement criteria for the preparation of the OSD devices. Creating OSDs is a two-step process and the prepare job may require different placement than the OSD daemons. If the `preparePlacement` is not specified, the `placement` will instead be applied for consistent placement for the OSD prepare jobs and OSD deployments. The `preparePlacement` is only useful for `portable` OSDs in the device sets. OSDs that are not portable will be tied to the host where the OSD prepare job initially runs.
-  * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
+    * For example, provisioning may require topology spread constraints across zones, but the OSD daemons may require constraints across hosts within the zones.
 * `portable`: If `true`, the OSDs will be allowed to move between nodes during failover. This requires a storage class that supports portability (e.g. `aws-ebs`, but not the local storage provisioner). If `false`, the OSDs will be assigned to a node permanently. Rook will configure Ceph's CRUSH map to support the portability.
 * `tuneDeviceClass`: For example, Ceph cannot detect AWS volumes as HDDs from the storage class "gp2", so you can improve Ceph performance by setting this to true.
 * `tuneFastDeviceClass`: For example, Ceph cannot detect Azure disks as SSDs from the storage class "managed-premium", so you can improve Ceph performance by setting this to true..
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
-  * `resources.requests.storage`: The desired capacity for the underlying storage devices.
-  * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported. If you want to use logical volume, please see [known issue of OSD on LV-backed PVC](../../Troubleshooting/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
-  * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
-  * `accessModes`: The access mode for the PVC to be bound by OSD.
+    * `resources.requests.storage`: The desired capacity for the underlying storage devices.
+    * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported. If you want to use logical volume, please see [known issue of OSD on LV-backed PVC](../../Troubleshooting/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
+    * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
+    * `accessModes`: The access mode for the PVC to be bound by OSD.
 * `schedulerName`: Scheduler name for OSD pod placement. (Optional)
 * `encrypted`: whether to encrypt all the OSDs in a given storageClassDeviceSet
 
@@ -535,11 +535,11 @@ If a user configures a limit or request value that is too low, Rook will still r
 For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
 
 * `requests`: Requests for cpu or memory.
-  * `cpu`: Request for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
-  * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
+    * `cpu`: Request for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
+    * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 * `limits`: Limits for cpu or memory.
-  * `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
-  * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
+    * `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
+    * `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
 !!! warning
     Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
@@ -825,10 +825,10 @@ The `cleanupPolicy` has several fields:
   Because this cleanup policy is destructive, after the confirmation is set to `yes-really-destroy-data`
   Rook will stop configuring the cluster as if the cluster is about to be destroyed.
 * `sanitizeDisks`: sanitizeDisks represents advanced settings that can be used to delete data on drives.
-  * `method`: indicates if the entire disk should be sanitized or simply ceph's metadata. Possible choices are `quick` (default) or `complete`
-  * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are `zero` (default) or `random`.
+    * `method`: indicates if the entire disk should be sanitized or simply ceph's metadata. Possible choices are `quick` (default) or `complete`
+    * `dataSource`: indicate where to get random bytes from to write on the disk. Possible choices are `zero` (default) or `random`.
   Using random sources will consume entropy from the system and will take much more time then the zero source
-  * `iteration`: overwrite N times instead of the default (1). Takes an integer value
+    * `iteration`: overwrite N times instead of the default (1). Takes an integer value
 * `allowUninstallWithVolumes`: If set to true, then the cephCluster deletion doesn't wait for the PVCs to be deleted. Default is `false`.
 
 To automate activation of the cleanup, you can use the following command. **WARNING: DATA WILL BE PERMANENTLY DELETED**:

@@ -29,4 +29,4 @@ spec:
 ### Spec
 
 * `pull`: This optional section is for the pulling the realm for another ceph cluster.
-  * `endpoint`: The endpoint in the realm from another ceph cluster you want to pull from. This endpoint must be in the master zone of the master zone group of the realm.
+    * `endpoint`: The endpoint in the realm from another ceph cluster you want to pull from. This endpoint must be in the master zone of the master zone group of the realm.

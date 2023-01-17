@@ -30,8 +30,8 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 ### CephFilesystemSubVolumeGroup metadata
 
-- `name`: The name that will be used for the Ceph Filesystem subvolume group.
+* `name`: The name that will be used for the Ceph Filesystem subvolume group.
 
 ### CephFilesystemSubVolumeGroup spec
 
-- `filesystemName`: The metadata name of the CephFilesystem CR where the subvolume group will be created.
+* `filesystemName`: The metadata name of the CephFilesystem CR where the subvolume group will be created.

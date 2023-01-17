@@ -53,7 +53,7 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 
   If you update `customEndpoints` to return to an empty list, you must the Rook operator to automatically add the CephObjectStore service endpoint to Ceph's internal configuration.
 
- * `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the CephObjectZone will remain when it is deleted. This is a security measure to avoid accidental loss of data. It is set to 'true' by default.
+* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the CephObjectZone will remain when it is deleted. This is a security measure to avoid accidental loss of data. It is set to 'true' by default.
 
   It is better to check whether data synced with other peer zones before triggering the deletion to avoid accidental loss of data via steps mentioned [here](https://docs.ceph.com/en/latest/radosgw/multisite/#check-synchronization-status)
 
