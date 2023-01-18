@@ -506,6 +506,7 @@ func TestCheckRGWKMS(t *testing.T) {
 		c := setupTest()
 		configureSSE(t, c, true, false)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v1"
 		b, err := c.CheckRGWKMS()
 		assert.False(t, b)
 		assert.Error(t, err)
@@ -614,6 +615,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 		c := setupTest()
 		configureSSE(t, c, false, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_BACKEND"] = "v1"
 		b, err := c.CheckRGWSSES3Enabled()
 		assert.False(t, b)
 		assert.Error(t, err)
