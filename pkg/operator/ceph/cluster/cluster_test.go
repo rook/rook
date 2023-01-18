@@ -183,6 +183,9 @@ func TestConfigureMsgr2(t *testing.T) {
 						}
 						return "", nil
 					}
+					if args[0] == "config" && args[1] == "rm" {
+						return "", nil
+					}
 
 					return "", errors.Errorf("unexpected ceph command %q", args)
 				},
