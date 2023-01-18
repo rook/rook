@@ -304,7 +304,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	NFSDriverName = tp.DriverNamePrefix + "nfs.csi.ceph.com"
 
 	if CustomCSICephConfigExists {
-		CSIParam.MountCustomCephConf = v.SupportsCustomCephConf()
+		tp.Param.MountCustomCephConf = v.SupportsCustomCephConf()
 	}
 
 	csiDriverobj = v1CsiDriver{}
