@@ -426,7 +426,7 @@ function restart_operator() {
 function write_object_to_cluster1_read_from_cluster2() {
   cd deploy/examples/
   echo "[default]" >s3cfg
-  echo "host_bucket = no.way.in.hell" >>./s3cfg
+  echo "host_bucket = no.way" >>./s3cfg
   echo "use_https = False" >>./s3cfg
   fallocate -l 1M ./1M.dat
   echo "hello world" >>./1M.dat
