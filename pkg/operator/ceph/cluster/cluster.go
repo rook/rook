@@ -596,51 +596,54 @@ func (c *cluster) reportTelemetry() {
 }
 
 func (c *cluster) configureMsgr2() error {
-	if c.Spec.Network.Connections == nil {
-		return nil
+	encryptionSetting := "secure"
+	defaultRBDMapOptions := "ms_mode=secure"
+	encryptionGlobalConfigSettings := map[string]string{
+		"ms_cluster_mode":         encryptionSetting,
+		"ms_service_mode":         encryptionSetting,
+		"ms_client_mode":          encryptionSetting,
+		"rbd_default_map_options": defaultRBDMapOptions,
 	}
-
-	// Set network encryption
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
-	if c.Spec.Network.Connections.Encryption != nil {
-		encryptionSetting := "crc secure"
-		// crc mode, if denied agree to secure mode
-		defaultRBDMapOptions := "ms_mode=prefer-crc"
-		if c.Spec.Network.Connections.Encryption.Enabled {
-			encryptionSetting = "secure"
-			defaultRBDMapOptions = "ms_mode=secure"
-		}
 
-		globalConfigSettings := map[string]string{
-			"ms_cluster_mode":         encryptionSetting,
-			"ms_service_mode":         encryptionSetting,
-			"ms_client_mode":          encryptionSetting,
-			"rbd_default_map_options": defaultRBDMapOptions,
+	// If the user has disabled encryption, remove the encryption settings
+	if c.Spec.Network.Connections == nil || c.Spec.Network.Connections.Encryption == nil || !c.Spec.Network.Connections.Encryption.Enabled {
+		encryptionConfig := []config.Option{}
+		for k := range encryptionGlobalConfigSettings {
+			encryptionConfig = append(encryptionConfig, config.Option{Who: "global", Option: k})
 		}
-
+		if err := monStore.DeleteAll(encryptionConfig...); err != nil {
+			return errors.Wrap(err, "failed to delete msgr2 encryption settings")
+		}
+	} else {
 		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
-		if err := monStore.SetAll("global", globalConfigSettings); err != nil {
+		if err := monStore.SetAll("global", encryptionGlobalConfigSettings); err != nil {
 			return err
 		}
 	}
 
 	// Set network compression
-	if c.Spec.Network.Connections.Compression != nil {
-		if c.ClusterInfo.CephVersion.IsAtLeastQuincy() {
-			compressionSetting := "none"
-			if c.Spec.Network.Connections.Compression.Enabled {
-				compressionSetting = "force"
+	if c.ClusterInfo.CephVersion.IsAtLeastQuincy() {
+		if c.Spec.Network.Connections == nil || c.Spec.Network.Connections.Compression == nil || !c.Spec.Network.Connections.Compression.Enabled {
+			encryptionConfig := []config.Option{
+				{Who: "global", Option: "ms_osd_compress_mode"},
 			}
+			if err := monStore.DeleteAll(encryptionConfig...); err != nil {
+				return errors.Wrap(err, "failed to delete msgr2 compression settings")
+			}
+		} else {
 			globalConfigSettings := map[string]string{
-				"ms_osd_compress_mode": compressionSetting,
+				"ms_osd_compress_mode": "force",
 			}
-			logger.Infof("setting msgr2 compression mode to %q", compressionSetting)
+			logger.Infof("setting msgr2 compression mode to %q", "force")
 			if err := monStore.SetAll("global", globalConfigSettings); err != nil {
 				return err
 			}
-		} else {
-			logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
 		}
+
+	} else {
+		logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
 	}
+
 	return nil
 }
