@@ -97,7 +97,7 @@ log file = /tmp/ceph-$pid.log
 
 With the files we've created, you should be able to query the cluster by setting Ceph ENV variables and running `ceph status`:
 
-```
+```console
 export CEPH_CONF=/libsqliteceph/ceph.conf;
 export CEPH_KEYRING=/libsqliteceph/ceph.keyring;
 export CEPH_ARGS=--id example;

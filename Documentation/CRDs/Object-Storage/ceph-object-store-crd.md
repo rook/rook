@@ -167,12 +167,12 @@ Rook will be default monitor the state of the object store endpoints.
 The following CRD settings are available:
 
 * `healthCheck`: main object store health monitoring section
-  * `bucket`: Rook checks that the object store is usable regularly. This is explained in more
+    * `bucket`: Rook checks that the object store is usable regularly. This is explained in more
     detail below. Use this config to disable or change the interval at which Rook verifies the
     object store connectivity.
-  * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
-  * `livenessProbe`: Disable, or override timing and threshold values of the object gateway liveness probe.
-  * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
+    * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
+    * `livenessProbe`: Disable, or override timing and threshold values of the object gateway liveness probe.
+    * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
 
 Here is a complete example:
 
@@ -244,9 +244,7 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 ```
 
 * TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
-
 * `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
-
 * `AWS-SSE:S3` requires Ceph Quincy (v17.2.3) and later.
 
 ## Deleting a CephObjectStore
