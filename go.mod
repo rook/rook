@@ -31,7 +31,7 @@ require (
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.25.4
-	k8s.io/apimachinery v0.25.4
+	k8s.io/apimachinery v0.26.1
 	k8s.io/client-go v0.25.4
 	k8s.io/cloud-provider v0.25.4
 	k8s.io/utils v0.0.0-20221108210102-8e77b1f39fe2
