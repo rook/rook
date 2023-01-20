@@ -332,3 +332,43 @@ The flow for getting a fix into a release branch is:
 3. After your PR is merged to master, the mergify bot will automatically open a PR with your commits backported to the release branch
 4. If there are any conflicts you will need to resolve them by pulling the branch, resolving the conflicts and force push back the branch
 5. After the CI is green, the bot will automatically merge the backport PR.
+
+## Testing changes and debugging issues in Ceph manager modules
+
+The Ceph manager modules are written in Python and can be individually and dynamically loaded from the manager. We can take advantage of this feature in order to test changes and to debug issues in the modules.
+This is just a hack to test/debug quickly and easily any modification in the manager modules.
+
+The ceph dashboard and the rook orchestrator modules are probably the two modules more prone to have modifications affecting the rook cluster, and therefore it is interesting to know how to debug and test changes easily in these modules.
+
+The way to proceed is to make the modification directly in the manager module and reload it:
+
+1. Update the cluster so only a single mgr pod is running. Set the `mgr.count: 1` in the CephCluster CR if it is not already.
+
+Now shell into the manager container:
+```console
+kubectl exec -n rook-ceph --stdin --tty $(kubectl get pod -n rook-ceph -l ceph_daemon_type=mgr,instance=a  -o jsonpath='{.items[0].metadata.name}') -c mgr  -- /bin/bash
+```
+
+2. Make the modifications needed in the required manager module.
+
+The source code of all the manager modules is in:
+```console
+/usr/share/ceph/mgr/
+```
+
+Enter the folder of the manager module to make your changes.
+
+!!! Note
+    If the manager pod is restarted for whatever reason, all the modifications made in the mgr container will be lost.
+
+3. Restart the manager module modified to test/debug the modifications:
+
+Example for restarting the rook manager module with the [krew plugin](https://github.com/rook/kubectl-rook-ceph):
+```console
+kubectl rook-ceph ceph mgr module disable rook
+kubectl rook-ceph ceph mgr module enable rook
+```
+
+Once the module is restarted the modifications will be running in the active manager, and you will be able to test/debug them.  
+Is a good practice to have the manager container log always visible to realize immediately any kind of problem during the restart of the module (maybe a syntax error?), and to debug your changes.
+
