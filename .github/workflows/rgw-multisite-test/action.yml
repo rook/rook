@@ -70,7 +70,8 @@ runs:
 
     - name: write an object to one cluster, read from the other
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: tests/scripts/github-action-helper.sh write_object_to_cluster1_read_from_cluster2
+      run: |
+        tests/scripts/github-action-helper.sh test_multisite_object_replication
 
     # if this test fails, it could mean the RGW `period get` or `period update` output has changed
     - name: RGW configuration period should be committed on first reconcile and not be committed on second reconcile

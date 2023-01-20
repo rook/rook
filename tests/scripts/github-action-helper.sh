@@ -423,28 +423,82 @@ function restart_operator() {
   "${get_pod_cmd[@]}"
 }
 
-function write_object_to_cluster1_read_from_cluster2() {
-  cd deploy/examples/
-  echo "[default]" >s3cfg
-  echo "host_bucket = no.way.in.hell" >>./s3cfg
-  echo "use_https = False" >>./s3cfg
-  fallocate -l 1M ./1M.dat
-  echo "hello world" >>./1M.dat
-  CLUSTER_1_IP_ADDR=$(kubectl -n rook-ceph get svc rook-ceph-rgw-multisite-store -o jsonpath="{.spec.clusterIP}")
-  BASE64_ACCESS_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.access-key}")
-  BASE64_SECRET_KEY=$(kubectl -n rook-ceph get secrets realm-a-keys -o jsonpath="{.data.secret-key}")
-  ACCESS_KEY=$(echo ${BASE64_ACCESS_KEY} | base64 --decode)
-  SECRET_KEY=$(echo ${BASE64_SECRET_KEY} | base64 --decode)
-  s3cmd -v -d --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} mb s3://bkt
-  s3cmd -v -d --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_1_IP_ADDR} put ./1M.dat s3://bkt
-  CLUSTER_2_IP_ADDR=$(kubectl -n rook-ceph-secondary get svc rook-ceph-rgw-zone-b-multisite-store -o jsonpath="{.spec.clusterIP}")
-  timeout 60 bash <<EOF
-until s3cmd -v -d --config=s3cfg --access_key=${ACCESS_KEY} --secret_key=${SECRET_KEY} --host=${CLUSTER_2_IP_ADDR} get s3://bkt/1M.dat 1M-get.dat --force; do
-  echo "waiting for object to be replicated"
-  sleep 5
-done
-EOF
-  diff 1M.dat 1M-get.dat
+function get_clusterip() {
+  local ns=${1?namespace is required}
+  local cluster_name=${2?cluster name is required}
+
+  kubectl -n "$ns" get svc "$cluster_name" -o jsonpath="{.spec.clusterIP}"
+}
+
+function get_secret_key() {
+  local ns=${1?namespace is required}
+  local secret_name=${2?secret name is required}
+  local key=${3?skey is required}
+
+  kubectl -n "$ns" get secrets "$secret_name" -o jsonpath="{.data.$key}" | base64 --decode
+}
+
+function s3cmd() {
+  command timeout 20 s3cmd -v --config=s3cfg --access_key="${S3CMD_ACCESS_KEY}" --secret_key="${S3CMD_SECRET_KEY}" "$@"
+}
+
+function write_object_read_from_replica_cluster() {
+  local write_cluster_ip=${1?ip address of cluster to write to is required}
+  local read_cluster_ip=${2?ip address of cluster to read from is required}
+  local test_bucket_name=${3?name of the test bucket is required}
+
+  local test_object_name="${test_bucket_name}-1mib-test.dat"
+  fallocate -l 1M "$test_object_name"
+  # ensure that test file has unique data
+  echo "$test_object_name" >> "$test_object_name"
+
+  s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
+  s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
+
+  # Schedule a signal for 60s into the future as a timeout on retrying s3cmd.
+  # This voodoo is to avoid running everything under a new shell started by
+  # `timeout`, as there would be no way to pass functions to as it wouldn't be
+  # a direct sub-shell.
+  S3CMD_ERROR=0
+  (
+    sleep 60
+    kill -s SIGUSR1 $$
+  ) 2> /dev/null &
+  trap "{ S3CMD_ERROR=1; break; }" SIGUSR1
+
+  until s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force; do
+    echo "waiting for object to be replicated"
+    sleep 5
+  done
+
+  if [[ $S3CMD_ERROR != 0 ]]; then
+    echo "s3cmd failed"
+    exit $S3CMD_ERROR
+  fi
+
+  diff "$test_object_name" "${test_object_name}.get"
+}
+
+function test_multisite_object_replication() {
+  S3CMD_ACCESS_KEY=$(get_secret_key rook-ceph realm-a-keys access-key)
+  readonly S3CMD_ACCESS_KEY
+  S3CMD_SECRET_KEY=$(get_secret_key rook-ceph realm-a-keys secret-key)
+  readonly S3CMD_SECRET_KEY
+
+  local cluster_1_ip
+  cluster_1_ip=$(get_clusterip rook-ceph rook-ceph-rgw-multisite-store)
+  local cluster_2_ip
+  cluster_2_ip=$(get_clusterip rook-ceph-secondary rook-ceph-rgw-zone-b-multisite-store)
+
+  cd deploy/examples
+  cat <<- EOF > s3cfg
+	[default]
+	host_bucket = no.way
+	use_https = False
+	EOF
+
+  write_object_read_from_replica_cluster "$cluster_1_ip" "$cluster_2_ip" test1
+  write_object_read_from_replica_cluster "$cluster_2_ip" "$cluster_1_ip" test2
 }
 
 function create_helm_tag() {
