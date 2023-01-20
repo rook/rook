@@ -61,6 +61,7 @@ func (s *NFSSuite) SetupSuite() {
 		ChangeHostName:            true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.ReturnCephVersion(),
+		SkipClusterCleanup:        true,
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
