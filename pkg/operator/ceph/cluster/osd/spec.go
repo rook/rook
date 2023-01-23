@@ -66,6 +66,8 @@ const (
 	bluestoreMetadataName = "block.db"
 	bluestoreWalName      = "block.wal"
 	tempEtcCephDir        = "/etc/temp-ceph"
+	osdPortv1             = 6801
+	osdPortv2             = 6800
 )
 
 const (
@@ -467,14 +469,26 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
 
 	osdLabels := c.getOSDLabels(osd, failureDomainValue, osdProps.portable)
-	clusterIP, err := c.createOSDService(osd, osdLabels)
-	if err != nil {
-		logger.Errorf("failed to configure osd service for osd.%d. %v", osd.ID, err)
-	} else {
+
+	if osd.ExportService {
+		osdService, err := c.createOSDService(osd, osdLabels)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to configure osd service for osd.%d", osd.ID)
+		}
+
+		exportedIP, err := k8sutil.ExportService(c.clusterInfo.Context, c.context, osdService)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to export service %q", osdService.Name)
+		}
+
+		logger.Infof("osd.%d exported IP is %q", osd.ID, exportedIP)
+
 		args = append(args, []string{
-			fmt.Sprintf("--public-addr=%s", clusterIP),
-			fmt.Sprintf("--public-bind-addr=$(ROOK_POD_IP)"),
+			fmt.Sprintf("--public-addr=%s", exportedIP),
+			"--public-bind-addr=$(ROOK_POD_IP)",
+			"--cluster-addr=$(ROOK_POD_IP)",
 		}...)
+
 	}
 
 	initContainers := make([]v1.Container, 0, 4)
@@ -560,6 +574,30 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"",
 		))
 
+	var ports []v1.ContainerPort
+	if c.spec.RequireMsgr2() {
+		ports = []v1.ContainerPort{
+			{
+				Name:          "osd-port-v2",
+				ContainerPort: osdPortv2,
+				Protocol:      v1.ProtocolTCP,
+			},
+		}
+	} else {
+		ports = []v1.ContainerPort{
+			{
+				Name:          "osd-port-v1",
+				ContainerPort: osdPortv1,
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "osd-port-v2",
+				ContainerPort: osdPortv2,
+				Protocol:      v1.ProtocolTCP,
+			},
+		}
+	}
+
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   AppName,
@@ -587,13 +625,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					StartupProbe:    controller.GenerateStartupProbeExecDaemon(opconfig.OsdType, osdID),
 					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
 					WorkingDir:      opconfig.VarLogCephDir,
-					Ports: []v1.ContainerPort{
-						{
-							Name:          "osd-port",
-							ContainerPort: 6800,
-							Protocol:      v1.ProtocolTCP,
-						},
-					},
+					Ports:           ports,
 				},
 			},
 			Volumes:       volumes,
@@ -686,8 +718,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.ObjectMeta)
 	cephv1.GetOSDLabels(c.spec.Labels).ApplyToObjectMeta(&deployment.Spec.Template.ObjectMeta)
 	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	controller.AddCephVersionLabelToDeployment(c.clusterInfo.CephVersion, deployment)
-	err = c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(deployment)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd deployment %q", deployment.Name)
 	}
@@ -702,11 +733,39 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	return deployment, nil
 }
 
-func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (string, error) {
+func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (*v1.Service, error) {
 	selectorLabels := map[string]string{
 		k8sutil.AppAttr: AppName,
 		"ceph-osd-id":   strconv.FormatInt(int64(osd.ID), 10),
 	}
+
+	var ports []v1.ServicePort
+	if c.spec.RequireMsgr2() {
+		ports = []v1.ServicePort{
+			{
+				Name:       "osd-port-v2",
+				Port:       osdPortv2,
+				TargetPort: intstr.FromInt(osdPortv2),
+				Protocol:   v1.ProtocolTCP,
+			},
+		}
+	} else {
+		ports = []v1.ServicePort{
+			{
+				Name:       "osd-port-v1",
+				Port:       osdPortv1,
+				TargetPort: intstr.FromInt(osdPortv1),
+				Protocol:   v1.ProtocolTCP,
+			},
+			{
+				Name:       "osd-port-v2",
+				Port:       osdPortv2,
+				TargetPort: intstr.FromInt(osdPortv2),
+				Protocol:   v1.ProtocolTCP,
+			},
+		}
+	}
+
 	svcDef := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("rook-ceph-osd-%d", osd.ID),
@@ -715,27 +774,23 @@ func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (strin
 		},
 		Spec: v1.ServiceSpec{
 			Selector: selectorLabels,
-			Ports: []v1.ServicePort{
-				{
-					Name:       "osd-port",
-					Port:       6800,
-					TargetPort: intstr.FromInt(6800),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
+			Ports:    ports,
 		},
 	}
+
 	err := c.clusterInfo.OwnerInfo.SetOwnerReference(svcDef)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to set owner reference to osd service %q", svcDef.Name)
+		return nil, errors.Wrapf(err, "failed to set owner reference to osd service %q", svcDef.Name)
 	}
 
 	svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, svcDef)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return svc.Spec.ClusterIP, err
+	logger.Infof("osd.%d cluster IP is %q", osd.ID, svc.Spec.ClusterIP)
+
+	return svc, nil
 }
 
 // applyAllPlacementIfNeeded apply spec.placement.all if OnlyApplyOSDPlacement set to false

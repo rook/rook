@@ -910,3 +910,31 @@ func TestOSDPlacement(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(job.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
 }
+
+func TestCreateOSDService(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns"}
+	clusterInfo.SetName("test")
+	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
+	spec := cephv1.ClusterSpec{
+		Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{RequireMsgr2: false}},
+	}
+	c := New(context, clusterInfo, spec, "rook/rook:myversion")
+	osd := OSDInfo{
+		ID:     0,
+		CVMode: "raw",
+	}
+	service, err := c.createOSDService(osd, map[string]string{})
+	assert.NoError(t, err)
+	// the clusterIP will not be set in a mock service
+	assert.Equal(t, "", service.Spec.ClusterIP)
+	assert.Equal(t, 2, len(service.Spec.Ports))
+
+	c.spec.Network.Connections.RequireMsgr2 = true
+	service, err = c.createOSDService(osd, map[string]string{})
+	assert.NoError(t, err)
+	// only 6800 port is added if RequireMsgr2 is enabled
+	assert.Equal(t, 1, len(service.Spec.Ports))
+	assert.Equal(t, int32(osdPortv2), service.Spec.Ports[0].Port)
+}
