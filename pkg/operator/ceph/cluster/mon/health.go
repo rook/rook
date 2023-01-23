@@ -340,7 +340,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	if allMonsInQuorum && len(quorumStatus.MonMap.Mons) == desiredMonCount {
 		// remove any pending/not needed mon canary deployment if everything is ok
 		logger.Debug("mon cluster is healthy, removing any existing canary deployment")
-		c.removeCanaryDeployments()
+		c.removeCanaryDeployments(monCanaryLabelSelector)
 
 		// Check whether two healthy mons are on the same node when they should not be.
 		// This should be a rare event to find them on the same node, so we just need to check
@@ -348,6 +348,21 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		if needToCheckMonsOnSameNode {
 			needToCheckMonsOnSameNode = false
 			return c.evictMonIfMultipleOnSameNode()
+		}
+	}
+
+	// failover mon if `multiClusterService` is enabled but mon service is not exported
+	if allMonsInQuorum && c.spec.Network.MultiClusterService.Enabled {
+		for _, mon := range c.ClusterInfo.Monitors {
+			monResourceName := resourceName(mon.Name)
+			isAlreadyExported, err := k8sutil.IsServiceExported(c.ClusterInfo.Context, c.context, monResourceName, c.ClusterInfo.Namespace)
+			if err != nil {
+				return errors.Wrapf(err, "failed to check if the service %q is already exported", mon.Name)
+			}
+			if !isAlreadyExported {
+				c.failMon(len(c.ClusterInfo.Monitors), desiredMonCount, mon.Name)
+				return nil
+			}
 		}
 	}
 
@@ -659,11 +674,20 @@ func (c *Cluster) failoverMon(name string) error {
 		m.UseHostNetwork = true
 	} else {
 		// Create the service endpoint
-		serviceIP, err := c.createService(m)
+		monService, err := c.createService(m)
 		if err != nil {
 			return errors.Wrap(err, "failed to create mon service")
 		}
-		m.PublicIP = serviceIP
+		if c.spec.Network.MultiClusterService.Enabled {
+			exportedIP, err := c.exportService(monService, m.DaemonName)
+			if err != nil {
+				return errors.Wrapf(err, "failed to export service %q", monService.Name)
+			}
+			logger.Infof("mon %q exported IP is %s", m.DaemonName, exportedIP)
+			m.PublicIP = exportedIP
+		} else {
+			m.PublicIP = monService.Spec.ClusterIP
+		}
 	}
 	c.ClusterInfo.Monitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 

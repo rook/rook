@@ -253,6 +253,13 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 		}
 	}
 
+	if cluster.Spec.Network.MultiClusterService.Enabled {
+		serviceExportVersion := cephver.CephVersion{Major: 17, Minor: 2, Extra: 6}
+		if !cephVersion.IsAtLeast(serviceExportVersion) {
+			return errors.Errorf("minimum ceph version to support multi cluster service is %q, but is running %s", serviceExportVersion.String(), cephVersion.String())
+		}
+	}
+
 	controller.UpdateCondition(c.OpManagerCtx, c.context, c.namespacedName, k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, "Configuring the Ceph cluster")
 
 	cluster.ClusterInfo.Context = c.OpManagerCtx

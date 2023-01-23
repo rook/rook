@@ -368,7 +368,24 @@ func createDaemonOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisio
 	updateConditionFunc(c.clusterInfo.Context, c.context, c.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 
 	_, err = k8sutil.CreateDeployment(c.clusterInfo.Context, c.context.Clientset, d)
-	return errors.Wrapf(err, "failed to create deployment for OSD %d on PVC %q", osd.ID, pvcName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create deployment for OSD %d on PVC %q", osd.ID, pvcName)
+	}
+
+	if c.spec.Network.MultiClusterService.Enabled {
+		osd.ExportService = true
+		updatedDeployment, err := deploymentOnPVC(c, osd, pvcName, config)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update external IP in deployment for OSD %d on PVC %q", osd.ID, pvcName)
+		}
+
+		_, err = k8sutil.CreateOrUpdateDeployment(c.clusterInfo.Context, c.context.Clientset, updatedDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update osd %d deployment args with external IP", osd.ID)
+		}
+	}
+
+	return nil
 }
 
 func createDaemonOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisionConfig) error {
@@ -381,5 +398,22 @@ func createDaemonOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provis
 	updateConditionFunc(c.clusterInfo.Context, c.context, c.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 
 	_, err = k8sutil.CreateDeployment(c.clusterInfo.Context, c.context.Clientset, d)
-	return errors.Wrapf(err, "failed to create deployment for OSD %d on node %q", osd.ID, nodeName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create deployment for OSD %d on node %q", osd.ID, nodeName)
+	}
+
+	if c.spec.Network.MultiClusterService.Enabled {
+		osd.ExportService = true
+		updatedDeployment, err := deploymentOnNode(c, osd, nodeName, config)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update external IP in deployment for OSD %d on node %q", osd.ID, nodeName)
+		}
+
+		_, err = k8sutil.CreateOrUpdateDeployment(c.clusterInfo.Context, c.context.Clientset, updatedDeployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update osd %d deployment args with external IP", osd.ID)
+		}
+	}
+
+	return nil
 }
