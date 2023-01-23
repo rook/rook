@@ -1135,6 +1135,15 @@ class RadosJSON:
                 )
                 raise Exception(err_msg)
 
+        # if it is python2, don't check for ceph version for adding `info=read` cap(rgw_validation)
+        if sys.version_info.major < 3:
+            jsonoutput = json.loads(output)
+            return (
+                jsonoutput["keys"][0]["access_key"],
+                jsonoutput["keys"][0]["secret_key"],
+                False,
+            )
+
         # separately add info=read caps for rgw-endpoint ip validation
         info_cap_supported = True
         cmd = [
