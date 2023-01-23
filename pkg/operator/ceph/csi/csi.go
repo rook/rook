@@ -217,8 +217,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
 
-	CSIParam.ResizerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
-
 	logLevel := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LOG_LEVEL", "")
 	CSIParam.LogLevel = defaultLogLevel
 	if logLevel != "" {
@@ -259,13 +257,14 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		logger.Errorf("failed to get nodes. Defaulting the number of replicas of provisioner pods to %d. %v", CSIParam.ProvisionerReplicas, err)
 	}
 
-	CSIParam.CSIPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
-	CSIParam.RegistrarImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
-	CSIParam.ProvisionerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
-	CSIParam.AttacherImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)
-	CSIParam.SnapshotterImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
+	CSIParam.CSIPluginImage = getImage(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
+	CSIParam.RegistrarImage = getImage(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
+	CSIParam.ProvisionerImage = getImage(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
+	CSIParam.AttacherImage = getImage(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)
+	CSIParam.SnapshotterImage = getImage(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
+	CSIParam.ResizerImage = getImage(r.opConfig.Parameters, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 	CSIParam.KubeletDirPath = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
-	CSIParam.CSIAddonsImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
+	CSIParam.CSIAddonsImage = getImage(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
 	CSIParam.CSIDomainLabels = k8sutil.GetValue(r.opConfig.Parameters, "CSI_TOPOLOGY_DOMAIN_LABELS", "")
 	csiCephFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)
