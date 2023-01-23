@@ -2158,8 +2158,19 @@ type NetworkSpec struct {
 	// DualStack determines whether Ceph daemons should listen on both IPv4 and IPv6
 	// +optional
 	DualStack bool `json:"dualStack,omitempty"`
+
+	// Enable multiClusterService to export the Services between peer clusters
+	// +optional
+	MultiClusterService MultiClusterServiceSpec `json:"multiClusterService,omitempty"`
 }
 
+type MultiClusterServiceSpec struct {
+	// Enable multiClusterService to export the mon and OSD services to peer cluster.
+	// Ensure that peer clusters are connected using an MCS API compatible application,
+	// like Globalnet Submariner.
+	// +optional
+	Enabled bool `json:"enabled,omitempty"`
+}
 type ConnectionsSpec struct {
 	// Encryption settings for the network connections.
 	// +nullable
