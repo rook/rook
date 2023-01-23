@@ -3,7 +3,7 @@ module github.com/rook/rook
 go 1.18
 
 require (
-	github.com/IBM/keyprotect-go-client v0.9.1
+	github.com/IBM/keyprotect-go-client v0.9.2
 	github.com/aws/aws-sdk-go v1.44.157
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/go-ceph v0.18.0
