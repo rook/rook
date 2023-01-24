@@ -251,3 +251,54 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+1)
 
 }
+
+func Test_getImage(t *testing.T) {
+	type args struct {
+		data         map[string]string
+		settingName  string
+		defaultImage string
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "test with default image",
+			args: args{
+				data:         map[string]string{},
+				settingName:  "ROOK_CSI_CEPH_IMAGE",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.7.2",
+			},
+			want: DefaultCSIPluginImage,
+		},
+		{
+			name: "test with user image",
+			args: args{
+				data: map[string]string{
+					"ROOK_CSI_CEPH_IMAGE": "registry.io/private/cephcsi:v8",
+				},
+				settingName:  "ROOK_CSI_CEPH_IMAGE",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.7.2",
+			},
+			want: "registry.io/private/cephcsi:v8",
+		},
+		{
+			name: "test with user image without version",
+			args: args{
+				data: map[string]string{
+					"ROOK_CSI_CEPH_IMAGE": "registry.io/private/cephcsi",
+				},
+				settingName:  "ROOK_CSI_CEPH_IMAGE",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.7.2",
+			},
+			want: "registry.io/private/cephcsi:v3.7.2",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := getImage(tt.args.data, tt.args.settingName, tt.args.defaultImage)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
