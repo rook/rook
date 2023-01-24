@@ -18,6 +18,7 @@ package csi
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 	"text/template"
@@ -251,4 +252,16 @@ func applyVolumeMountToContainer(opConfig map[string]string, configName, contain
 			}
 		}
 	}
+}
+
+// getImage returns the image for the given setting name. If the image does not contain version,
+// the default version is appended from the default image.
+func getImage(data map[string]string, settingName, defaultImage string) string {
+	image := k8sutil.GetValue(data, settingName, defaultImage)
+	if !strings.Contains(image, ":") {
+		version := strings.SplitN(defaultImage, ":", 2)[1]
+		image = fmt.Sprintf("%s:%s", image, version)
+	}
+
+	return image
 }
