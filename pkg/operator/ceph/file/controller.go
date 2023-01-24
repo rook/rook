@@ -194,9 +194,13 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephFilesystem, errors.Wrap(err, "failed to add finalizer")
 	}
 
-	// The CR was just created, initializing status fields
+	// The CR was just created, initialize status as 'Progressing'
 	if cephFilesystem.Status == nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus, nil)
+		updatedCephFS := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing, nil)
+		if updatedCephFS == nil || updatedCephFS.Status == nil {
+			return reconcile.Result{}, *cephFilesystem, errors.Errorf("failed to update ceph filesystem status")
+		}
+		cephFilesystem = updatedCephFS
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -369,8 +373,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 				// update ObservedGeneration in status at the end of reconcile
 				// Set Ready status, we are done reconciling
-				r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem))
-				statusUpdated = true
+				if r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem)) != nil {
+					statusUpdated = true
+				}
 
 				// Run go routine check for mirroring status
 				if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
