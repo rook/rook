@@ -12,10 +12,9 @@ clusterName:
 # -- Optional override of the target kubernetes version
 kubeVersion:
 
-# -- Cluster ceph.conf override
-configOverride:
-# configOverride: |
-#   [global]
+# -- Cluster ceph.conf override - default value initialises empty config map per rook issue #11302
+configOverride: |
+  [global]
 #   mon_allow_pool_delete = true
 #   osd_pool_default_size = 3
 #   osd_pool_default_min_size = 2

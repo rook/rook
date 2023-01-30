@@ -65,7 +65,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `cephFileSystems` | A list of CephFileSystem configurations to deploy | See [below](#ceph-file-systems) |
 | `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
-| `configOverride` | Cluster ceph.conf override | `nil` |
+| `configOverride` | Cluster ceph.conf override - default value initialises empty config map per rook issue #11302 | `"[global]\n"` |
 | `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{}` |
 | `kubeVersion` | Optional override of the target kubernetes version | `nil` |
 | `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts | `false` |
