@@ -96,7 +96,14 @@ application pod.
 
 ### Connecting to an export directly
 After a PVC is created successfully, the `share` parameter set on the resulting PV contains the
-`share` path which can be used as the export path when [mounting the export manually](nfs.md#mounting-exports).
+`share` path which can be used as the export path when
+[mounting the export manually](nfs.md#mounting-exports). In the example below
+`/0001-0009-rook-ceph-0000000000000001-55c910f9-a1af-11ed-9772-1a471870b2f5` is the export path.
+
+```console
+$ kubectl get pv pvc-b559f225-de79-451b-a327-3dbec1f95a1c -o jsonpath='{.spec.csi.volumeAttributes}'
+/0001-0009-rook-ceph-0000000000000001-55c910f9-a1af-11ed-9772-1a471870b2f5
+```
 
 ## Taking snapshots of NFS exports
 
