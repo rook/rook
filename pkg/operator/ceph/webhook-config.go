@@ -268,13 +268,13 @@ func deleteWebhookResources(ctx context.Context, certMgrClient *cs.CertmanagerV1
 		logger.Errorf("failed to delete webhook cert manager Certificate %s. %v", certificateName, err)
 	}
 
-	logger.Info("deleting webhook cert manager Issuer %s", issuerName)
+	logger.Infof("deleting webhook cert manager Issuer %q", issuerName)
 	err = certMgrClient.Issuers(namespace).Delete(ctx, issuerName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		logger.Errorf("failed to delete webhook cert manager Issuer %s. %v", issuerName, err)
 	}
 
-	logger.Info("deleting validating webhook service %s", admissionControllerAppName)
+	logger.Infof("deleting validating webhook service %q", admissionControllerAppName)
 	err = clusterdContext.Clientset.CoreV1().Services(namespace).Delete(ctx, admissionControllerAppName, metav1.DeleteOptions{})
 	if err != nil && !apierrors.IsNotFound(err) {
 		logger.Errorf("failed to delete validating webhook service %s. %v", admissionControllerAppName, err)
