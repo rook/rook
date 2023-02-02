@@ -216,7 +216,7 @@ groups:
           summary: OSD(s) too full for backfill operations
           description: |
             An OSD has reached the BACKFILL FULL threshold. This will prevent rebalance operations
-            from completing. 
+            from completing.
             Use 'ceph health detail' and 'ceph osd df' to identify the problem.
 
             To resolve, add capacity to the affected OSD's failure domain, restore down/out OSDs, or delete unwanted data.
@@ -659,10 +659,11 @@ groups:
           ) / (
             increase(node_network_receive_packets_total{device!="lo"}[1m]) +
             increase(node_network_transmit_packets_total{device!="lo"}[1m])
-          ) >= 0.0001 or (
+          ) >= 0.005 or (
             increase(node_network_receive_drop_total{device!="lo"}[1m]) +
             increase(node_network_transmit_drop_total{device!="lo"}[1m])
-          ) >= 10
+          ) >= 75
+        for: 1m
         labels:
           severity: warning
           type: ceph_default
@@ -670,8 +671,8 @@ groups:
         annotations:
           summary: One or more NICs reports packet drops
           description: >
-            Node {{ $labels.instance }} experiences packet drop > 0.01% or >
-            10 packets/s on interface {{ $labels.device }}.
+            Node {{ $labels.instance }} experiences packet drop > 0.5% or >
+            75 packets/s on interface {{ $labels.device }}.
 
       - alert: CephNodeNetworkPacketErrors
         expr: |
