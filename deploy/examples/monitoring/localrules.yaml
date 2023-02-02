@@ -680,8 +680,8 @@ spec:
           annotations:
             summary: One or more NICs reports packet drops
             description: >
-              Node {{ $labels.instance }} experiences packet drop > 0.01% or >
-              10 packets/s on interface {{ $labels.device }}.
+              Node {{ $labels.instance }} experiences packet drop > 0.5% or >
+              75 packets/s on interface {{ $labels.device }}.
 
         - alert: CephNodeNetworkPacketErrors
           expr: |
