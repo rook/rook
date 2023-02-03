@@ -189,16 +189,22 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.CSIEnableMetadata = true
 	}
 
+	// Default values are based on Kubernetes official documentation.
+	// https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/#daemonset-update-strategy
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.CephFSPluginUpdateStrategy = onDelete
 	} else {
 		CSIParam.CephFSPluginUpdateStrategy = rollingUpdate
+		CSIParam.CephFSPluginUpdateStrategyMaxUnavailable = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE", "1")
 	}
 
+	// Default values are based on Kubernetes official documentation.
+	// https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/#daemonset-update-strategy
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.NFSPluginUpdateStrategy = onDelete
 	} else {
 		CSIParam.NFSPluginUpdateStrategy = rollingUpdate
+		CSIParam.NFSPluginUpdateStrategyMaxUnavailable = k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE", "1")
 	}
 
 	// Default values are based on Kubernetes official documentation.

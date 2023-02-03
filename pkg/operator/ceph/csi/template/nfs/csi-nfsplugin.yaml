@@ -9,6 +9,10 @@ spec:
       app: csi-nfsplugin
   updateStrategy:
     type: {{ .NFSPluginUpdateStrategy }}
+    {{ if eq .NFSPluginUpdateStrategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .NFSPluginUpdateStrategyMaxUnavailable }}
+    {{ end }}
   template:
     metadata:
       labels:

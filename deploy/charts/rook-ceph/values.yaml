@@ -146,9 +146,17 @@ csi:
   # @default -- `RollingUpdate`
   cephFSPluginUpdateStrategy:
 
+  # -- A maxUnavailable parameter of CSI CephFS plugin daemonset update strategy.
+  # @default -- `1`
+  cephFSPluginUpdateStrategyMaxUnavailable:
+
   # -- CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate
   # @default -- `RollingUpdate`
   nfsPluginUpdateStrategy:
+
+  # -- A maxUnavailable parameter of CSI NFS plugin daemonset update strategy.
+  # @default -- `1`
+  nfsPluginUpdateStrategyMaxUnavailable:
 
   # -- Set GRPC timeout for csi containers (in seconds). It should be >= 120. If this value is not set or is invalid, it defaults to 150
   grpcTimeoutInSeconds: 150

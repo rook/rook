@@ -9,6 +9,10 @@ spec:
       app: csi-cephfsplugin
   updateStrategy:
     type: {{ .CephFSPluginUpdateStrategy }}
+    {{ if eq .CephFSPluginUpdateStrategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .CephFSPluginUpdateStrategyMaxUnavailable }}
+    {{ end }}
   template:
     metadata:
       labels:

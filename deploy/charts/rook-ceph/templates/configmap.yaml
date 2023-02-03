@@ -30,8 +30,14 @@ data:
 {{- if .Values.csi.cephFSPluginUpdateStrategy }}
   CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}
 {{- end }}
+{{- if .Values.csi.rbdPluginUpdateStrategyMaxUnavailable }}
+  CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.cephFSPluginUpdateStrategyMaxUnavailable | quote }}
+{{- end }}
 {{- if .Values.csi.nfsPluginUpdateStrategy }}
   CSI_NFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.nfsPluginUpdateStrategy | quote }}
+{{- end }}
+{{- if .Values.csi.nfsPluginUpdateStrategyMaxUnavailable }}
+  CSI_NFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.nfsPluginUpdateStrategyMaxUnavailable | quote }}
 {{- end }}
 {{- if .Values.csi.rbdFSGroupPolicy }}
   CSI_RBD_FSGROUPPOLICY: {{ .Values.csi.rbdFSGroupPolicy | quote }}
