@@ -495,7 +495,7 @@ jobs:
         timeout-minutes: 60
 
   pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -531,6 +531,7 @@ jobs:
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -602,6 +603,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -659,6 +661,7 @@ jobs:
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -718,6 +721,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -793,6 +797,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl create -f tests/manifests/cm.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
@@ -851,6 +856,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -916,6 +922,7 @@ jobs:
           yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
@@ -1002,6 +1009,7 @@ jobs:
           yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+          kubectl create -f tests/manifests/cm.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
