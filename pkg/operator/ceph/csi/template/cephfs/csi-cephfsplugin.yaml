@@ -68,6 +68,9 @@ spec:
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
             - "--metricspath=/metrics"
             - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            {{ if .CephFSKernelMountOptions }}
+            - "--kernelmountoptions={{ .CephFSKernelMountOptions }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:

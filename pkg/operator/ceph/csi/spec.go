@@ -50,6 +50,7 @@ type Param struct {
 	EnableCSIGRPCMetrics                  string
 	KubeletDirPath                        string
 	ForceCephFSKernelClient               string
+	CephFSKernelMountOptions              string
 	CephFSPluginUpdateStrategy            string
 	NFSPluginUpdateStrategy               string
 	RBDPluginUpdateStrategy               string

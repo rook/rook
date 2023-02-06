@@ -172,6 +172,7 @@ Configure the network that will be enabled for the cluster and services.
           **IMPORTANT**: Encryption requires the 5.11 kernel for the latest nbd and cephfs drivers. Alternatively for testing only,
           set "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
           The nbd and fuse drivers are *not* recommended in production since restarting the csi driver pod will disconnect the volumes.
+          If this setting is enabled, CephFS volumes also require setting `CSI_CEPHFS_KERNEL_MOUNT_OPTIONS` to `"ms_mode=secure"` in operator.yaml.
     * `compression`:
         * `enabled`: Whether to compress the data in transit across the wire. The default is false.
       Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.

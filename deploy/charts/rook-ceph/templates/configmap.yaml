@@ -45,6 +45,9 @@ data:
 {{- if .Values.csi.rbdPluginUpdateStrategy }}
   CSI_RBD_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.rbdPluginUpdateStrategy | quote }}
 {{- end }}
+{{- if .Values.csi.cephFSKernelMountOptions }}
+  CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: {{ .Values.csi.cephFSKernelMountOptions | quote }}
+{{- end }}
 {{- if .Values.csi.rbdPluginUpdateStrategyMaxUnavailable }}
   CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.rbdPluginUpdateStrategyMaxUnavailable | quote }}
 {{- end }}
