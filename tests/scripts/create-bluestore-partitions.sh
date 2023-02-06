@@ -112,15 +112,19 @@ if [ -n "$WIPE_ONLY" ]; then
   exit
 fi
 
+PART_COUNT=$OSD_COUNT
+
 if [ -z "$WIPE_ONLY" ]; then
   if [ -n "$BLUESTORE_TYPE" ]; then
     case "$BLUESTORE_TYPE" in
     block.db)
       create_partition block.db
+      PART_COUNT=$((PART_COUNT+1))
       ;;
     block.wal)
       create_partition block.db
       create_partition block.wal
+      PART_COUNT=$((PART_COUNT+2))
       ;;
     *)
       printf "invalid bluestore configuration %q" "$BLUESTORE_TYPE" >&2
@@ -132,6 +136,10 @@ if [ -z "$WIPE_ONLY" ]; then
   # Create final block partitions
   create_block_partition "$OSD_COUNT"
 fi
+
+for i in $(seq 1 $PART_COUNT) ; do
+  sudo dd if=/dev/zero of="$DISK""$i" bs=1M count=20 oflag=direct,dsync
+done
 
 # Inform the kernel of partition table changes
 sudo partprobe "$DISK"
