@@ -29,15 +29,31 @@ mkdir -p $GOPATH/src/github.com/rook
 cd $GOPATH/src/github.com/rook
 
 # Clone your fork, where <user> is your GitHub account name
-$ git clone https://github.com/<user>/rook.git
-cd rook
+git clone https://github.com/<user>/rook.git
 ```
+
+### Add Upstream Remote
+
+First you will need to add the upstream remote to your local git:
+
+```console
+# Add 'upstream' to the list of remotes
+cd rook
+git remote add upstream https://github.com/rook/rook.git
+
+# Verify the remote was added
+git remote -v
+```
+
+Now you should have at least `origin` and `upstream` remotes. You can also add other remotes to collaborate with other contributors.
 
 ### Build
 
-Building Rook Ceph is simple.
+Before building the project you have to fetch the upstream to synchronize tags.
 
 ```console
+# Fetch all from 'upstream'
+git fetch -a
 make build
 ```
 
@@ -64,20 +80,6 @@ A set of recommended settings when working on Rook, can be found [here](https://
 
 !!! tip
     VS Code should automatically use these settings through the `.vscode/settings.json` file.
-
-### Add Upstream Remote
-
-First you will need to add the upstream remote to your local git:
-
-```console
-# Add 'upstream' to the list of remotes
-git remote add upstream https://github.com/rook/rook.git
-
-# Verify the remote was added
-git remote -v
-```
-
-Now you should have at least `origin` and `upstream` remotes. You can also add other remotes to collaborate with other contributors.
 
 ### Self assign Issue
 
