@@ -22,207 +22,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  canary:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-      - name: confirm device configuration
-        run: |
-          sudo lsblk
-          sudo blkid
-
-      - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
-
-      - name: test external script create-external-cluster-resources.py
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
-          mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
-          kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
-          kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
-          kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
-          kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
-          timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
-          # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-
-      - name: dry run external script create-external-cluster-resources.py
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run
-
-      - name: test external script create-external-cluster-resources.py if users already exist with different caps
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # update client.csi-rbd-provisioner csi user caps
-          # print client.csi-rbd-provisioner user before update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
-          # print client.csi-rbd-provisioner user after update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
-          # print client.csi-rbd-provisioner user after running script
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-
-      - name: run external script create-external-cluster-resources.py unit tests
-        run: |
-          kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 -m unittest /etc/ceph/create-external-cluster-resources-tests.py
-
-      - name: wait for the subvolumegroup to be created
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
-
-      - name: test subvolumegroup validation
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # pass the correct subvolumegroup and cephfs_filesystem flag name
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
-          # pass the wrong subvolumegroup name
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group); then
-            echo "unexpectedly succeeded after passing the wrong subvolumegroup name: $output"
-            exit 1
-          else
-            echo "script failed because wrong subvolumegroup name was passed"
-          fi
-
-      - name: test of rados namespace
-        run: |
-          kubectl create -f deploy/examples/radosnamespace.yaml
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
-          kubectl delete -f deploy/examples/radosnamespace.yaml
-
-      - name: test rados namespace validation
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
-          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace1
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosNamespace1
-           # test the rados namespace which not exit for replicapool(false testing)
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
-            echo "unexpectedly succeeded after passing the wrong rados namespace: $output"
-            exit 1
-          else
-            echo "script failed because wrong rados namespace was passed"
-          fi
-
-      - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cluster-name rookstorage --restricted-auth-permission true
-
-      - name: test external script with restricted_auth_permission flag
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --cluster-name rookstorage --restricted-auth-permission true
-
-      - name: test the upgrade flag
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-          # update the existing non-restricted client auth with the new ones
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
-          # print ugraded client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-
-      - name: test the upgrade flag for restricted auth user
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
-          # restricted auth user need to provide --rbd-data-pool-name,
-          #  --cluster-name and --run-as-user flag while upgrading
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
-          # print ugraded client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
-
-      - name: validate-rgw-endpoint
-        run: |
-          rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # pass the valid rgw-endpoint of same ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-          # pass the invalid rgw-endpoint of different ceph cluster
-          if output=$(timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"); then
-            echo "unexpectedly succeeded after passing the wrong rgw-endpoint: $output"
-            exit 1
-          else
-            echo "validation failed because wrong endpoint was provided"
-          fi
-          # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-          # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: test osd removal jobs
-        run: |
-          kubectl -n rook-ceph delete deploy/rook-ceph-operator
-          kubectl -n rook-ceph delete deploy/rook-ceph-osd-1 --grace-period=0 --force
-          sed -i 's/<OSD-IDs>/1/' deploy/examples/osd-purge.yaml
-          # the CI must force the deletion since we use replica 1 on 2 OSDs
-          sed -i 's/false/true/' deploy/examples/osd-purge.yaml
-          sed -i 's|rook/ceph:.*|rook/ceph:local-build|' deploy/examples/osd-purge.yaml
-          kubectl -n rook-ceph create -f deploy/examples/osd-purge.yaml
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- ceph status
-          # wait until osd.1 is removed from the osd tree
-          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
-          kubectl -n rook-ceph exec $toolbox -- ceph status
-          kubectl -n rook-ceph exec $toolbox -- ceph osd tree
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-      - name: consider debugging
-        if: failure() && github.event_name == 'pull_request'
-        run: |
-          # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
-          if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-            echo USE_TMATE=1 >> $GITHUB_ENV
-          fi
-
-      - name: set up tmate session for debugging
-        if: failure() && env.USE_TMATE
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
-
   raw-disk:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -288,6 +95,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -347,11 +158,14 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -412,6 +226,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -463,6 +281,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -527,6 +349,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -612,6 +438,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -673,6 +503,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -737,6 +571,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -818,6 +656,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -881,6 +723,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -945,6 +791,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -1037,6 +887,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -1111,6 +965,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
@@ -1177,6 +1035,10 @@ jobs:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: confirm device configuration
+        run: |
+          sudo lsblk
+          sudo blkid
       - name: checkout
         uses: actions/checkout@v3
         with:
