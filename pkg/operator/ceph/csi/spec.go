@@ -62,6 +62,7 @@ type Param struct {
 	ImagePullPolicy                       string
 	CSIClusterName                        string
 	CSIDomainLabels                       string
+	CrushLocationLabels                   string
 	GRPCTimeout                           time.Duration
 	CSIEnableMetadata                     bool
 	EnablePluginSelinuxHostMount          bool
@@ -76,6 +77,7 @@ type Param struct {
 	EnableCSIEncryption                   bool
 	EnableCSITopology                     bool
 	EnableLiveness                        bool
+	EnableReadAffinity                    bool
 	LogLevel                              uint8
 	SidecarLogLevel                       uint8
 	CephFSGRPCMetricsPort                 uint16

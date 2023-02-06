@@ -17,7 +17,7 @@ limitations under the License.
 // Package config provides methods for generating the Ceph config for a Ceph cluster and for
 // producing a "ceph.conf" compatible file from the config as well as Ceph command line-compatible
 // flags.
-package osd
+package topology
 
 import (
 	"testing"
@@ -144,4 +144,18 @@ func TestTopologyLabels(t *testing.T) {
 	assert.Equal(t, 1, len(topology))
 	assert.Equal(t, "zone", topology["zone"])
 	assert.Equal(t, "topology.kubernetes.io/zone=zone", affinity)
+}
+
+func TestGetDefaultTopologyLabels(t *testing.T) {
+	expectedLabels := "kubernetes.io/hostname," +
+		"topology.kubernetes.io/region," +
+		"topology.kubernetes.io/zone," +
+		"topology.rook.io/chassis," +
+		"topology.rook.io/rack," +
+		"topology.rook.io/row," +
+		"topology.rook.io/pdu," +
+		"topology.rook.io/pod," +
+		"topology.rook.io/room," +
+		"topology.rook.io/datacenter"
+	assert.Equal(t, expectedLabels, GetDefaultTopologyLabels())
 }
