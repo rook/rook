@@ -50,7 +50,7 @@ function prepare_loop_devices() {
         exit 1
     fi
     for i in $(seq 1 $OSD_COUNT); do
-        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
+        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0 oflag=direct,dsync
         sudo losetup /dev/loop${i} ~/data${i}.img
     done
     sudo lsblk
@@ -83,7 +83,7 @@ function use_local_disk_for_integration_test() {
   # search for the device since it keeps changing between sda and sdb
   PARTITION="${BLOCK}1"
   sudo wipefs --all --force "$PARTITION"
-  sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
+  sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1 oflag=direct,dsync
   sudo lsblk --bytes
   # add a udev rule to force the disk partitions to ceph
   # we have observed that some runners keep detaching/re-attaching the additional disk overriding the permissions to the default root:disk

@@ -36,7 +36,7 @@ function usage {
 
 function wipe_disk {
   sudo sgdisk --zap-all -- "$DISK"
-  sudo dd if=/dev/zero of="$DISK" bs=1M count=10
+  sudo dd if=/dev/zero of="$DISK" bs=1M count=10 oflag=direct,dsync
   if [ -n "$WIPE_ONLY" ]; then
     # `parted "$DISK -s print" exits with 1 if the partition label doesn't exist.
     # It's no problem in "--wipe-only" mode
