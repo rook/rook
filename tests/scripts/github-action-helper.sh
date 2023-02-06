@@ -68,7 +68,7 @@ function use_local_disk() {
   else
     # it's the hosted runner!
     sudo sgdisk --zap-all -- "${BLOCK}"
-    sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=10 oflag=direct,dsync
+    sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=100 oflag=direct,dsync
     sudo parted -s "${BLOCK}" mklabel gpt
   fi
   sudo lsblk

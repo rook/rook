@@ -36,7 +36,7 @@ function usage {
 
 function wipe_disk {
   sudo sgdisk --zap-all -- "$DISK"
-  sudo dd if=/dev/zero of="$DISK" bs=1M count=10 oflag=direct,dsync
+  sudo dd if=/dev/zero of="$DISK" bs=1M count=100 oflag=direct,dsync
   if [ -n "$WIPE_ONLY" ]; then
     # `parted "$DISK -s print" exits with 1 if the partition label doesn't exist.
     # It's no problem in "--wipe-only" mode
@@ -138,7 +138,7 @@ if [ -z "$WIPE_ONLY" ]; then
 fi
 
 for i in $(seq 1 $PART_COUNT) ; do
-  sudo dd if=/dev/zero of="$DISK""$i" bs=1M count=20 oflag=direct,dsync
+  sudo dd if=/dev/zero of="$DISK""$i" bs=1M count=100 oflag=direct,dsync
 done
 
 # Inform the kernel of partition table changes
@@ -149,4 +149,5 @@ sudo udevadm settle
 
 # Print drives
 sudo lsblk
+sudo blkid
 sudo parted "$DISK" -s print
