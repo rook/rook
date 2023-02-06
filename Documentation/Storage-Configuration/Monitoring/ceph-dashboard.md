@@ -75,7 +75,7 @@ Information about physical disks is available only in [Rook host clusters](../..
 
 The Rook manager module is required by the dashboard to obtain the information about physical disks, but it is disabled by default. Before it is enabled, the dashboard 'Physical Disks' section will show an error message.
 
-To prepare the Rook manager module to be used in the dashboard, modify your cluster CRD:
+To prepare the Rook manager module to be used in the dashboard, modify your Ceph Cluster CRD:
 
 ```yaml
   mgr:
@@ -87,17 +87,18 @@ To prepare the Rook manager module to be used in the dashboard, modify your clus
 And apply the changes:
 
 ```console
-$ kubectl apply cluster.yaml
+$ kubectl apply -f cluster.yaml
 ```
 
 Once the Rook manager module is enabled as the orchestrator backend, there are two settings required for showing disk information:
-- `ROOK_ENABLE_DISCOVERY_DAEMON`: Set to `true` to provide the dashboard the information about physical disks. The default is `false`.
-- `ROOK_DISCOVER_DEVICES_INTERVAL`: The interval for changes to be refreshed in the set of physical disks in the cluster. The default is `60` minutes.  
+
+* `ROOK_ENABLE_DISCOVERY_DAEMON`: Set to `true` to provide the dashboard the information about physical disks. The default is `false`.
+* `ROOK_DISCOVER_DEVICES_INTERVAL`: The interval for changes to be refreshed in the set of physical disks in the cluster. The default is `60` minutes.
 
 Modify the operator.yaml, and apply the changes:
 
 ```console
-$ kubectl apply operator.yaml
+$ kubectl apply -f operator.yaml
 ```
 
 ## Viewing the Dashboard External to the Cluster
