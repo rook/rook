@@ -55,6 +55,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.allowUnsupportedVersion` | Allow starting an unsupported ceph-csi image | `false` |
 | `csi.attacher.image` | Kubernetes CSI Attacher image | `registry.k8s.io/sig-storage/csi-attacher:v4.1.0` |
 | `csi.cephFSFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
+| `csi.cephFSKernelMountOptions` | Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options. Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR | `nil` |
 | `csi.cephFSPluginUpdateStrategy` | CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.cephcsi.image` | Ceph CSI image | `quay.io/cephcsi/cephcsi:v3.7.2` |
 | `csi.cephfsGrpcMetricsPort` | CSI CephFS driver GRPC metrics port | `9091` |
