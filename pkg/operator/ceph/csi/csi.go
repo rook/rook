@@ -22,8 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 )
@@ -87,6 +89,11 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true")); err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
 	}
+
+	if CSIParam.EnableReadAffinity, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_READ_AFFINITY", "false")); err != nil {
+		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_READ_AFFINITY'")
+	}
+	CSIParam.CrushLocationLabels = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CRUSH_LOCATION_LABELS", topology.GetDefaultTopologyLabels())
 
 	// If not set or set to anything but "false", the kernel client will be enabled
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_FORCE_CEPHFS_KERNEL_CLIENT", "true"), "false") {

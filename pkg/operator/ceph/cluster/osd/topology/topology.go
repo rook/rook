@@ -17,10 +17,11 @@ limitations under the License.
 // Package config provides methods for generating the Ceph config for a Ceph cluster and for
 // producing a "ceph.conf" compatible file from the config as well as Ceph command line-compatible
 // flags.
-package osd
+package topology
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	corev1 "k8s.io/api/core/v1"
@@ -120,4 +121,14 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 
 func formatTopologyAffinity(label, value string) string {
 	return fmt.Sprintf("%s=%s", label, value)
+}
+
+// GetDefaultTopologyLabels returns the supported default topology labels.
+func GetDefaultTopologyLabels() string {
+	Labels := []string{corev1.LabelHostname, corev1.LabelZoneRegionStable, corev1.LabelZoneFailureDomainStable}
+	for _, label := range CRUSHTopologyLabels {
+		Labels = append(Labels, topologyLabelPrefix+label)
+	}
+
+	return strings.Join(Labels, ",")
 }
