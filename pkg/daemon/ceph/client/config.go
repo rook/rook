@@ -257,16 +257,13 @@ func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
 		}
 		monMembers = append(monMembers, monitor.Name)
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
-		if clusterInfo.RequireMsgr2 {
+		// Detect the current port if the mon already exists
+		// so the same msgr1 port can be preserved if needed (6789 or 6790)
+		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
+
+		if currentMonPort == Msgr2port {
 			monHosts = append(monHosts, fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port))
 		} else {
-			// Detect the current port if the mon already exists
-			// so the same msgr1 port can be preserved if needed (6789 or 6790)
-			currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
-			// Ensure we're setting a msgr1 port, rather than duplicating msgr2
-			if currentMonPort == Msgr2port {
-				currentMonPort = Msgr1port
-			}
 			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
 			msgr1Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(currentMonPort)))
 			monHosts = append(monHosts, "[v2:"+msgr2Endpoint+",v1:"+msgr1Endpoint+"]")
