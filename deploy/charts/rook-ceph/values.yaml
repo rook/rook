@@ -518,6 +518,17 @@ csi:
     # - topology.kubernetes.io/zone
     # - topology.rook.io/rack
 
+  readAffinity:
+    # -- Enable read affinity for RBD volumes. Recommended to
+    # set to true if running kernel 5.8 or newer.
+    # @default -- `false`
+    enabled: false
+    # -- Define which node labels to use
+    # as CRUSH location. This should correspond to the values set
+    # in the CRUSH map.
+    # @default -- labels listed [here](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology)
+    crushLocationLabels:
+
 # -- Enable discovery daemon
 enableDiscoveryDaemon: false
 
