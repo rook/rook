@@ -238,3 +238,33 @@ parameters:
 ```
 
 * PVCs created using the new storageclass will be encrypted.
+
+## Enable Read affinity for RBD volumes
+
+Ceph CSI supports mapping RBD volumes with krbd options to allow
+serving reads from an OSD in proximity to the client, according to
+OSD locations defined in the CRUSH map and topology labels on nodes.
+
+Refer to the [krbd-options](https://docs.ceph.com/en/latest/man/8/rbd/#kernel-rbd-krbd-options)
+for more details.
+
+Execute the following steps:
+
+* Patch the `rook-ceph-operator-config` configmap using the following
+command.
+```console
+kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_READ_AFFINITY": "true"'
+```
+
+* Add topology labels to the Kubernetes nodes. The same labels may be used as mentioned in the
+[OSD topology](../../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) topic.
+
+* (optional) Rook will pass the labels mentioned in [osd-topology](../../CRDs/Cluster/ceph-cluster-crd.md#osd-topology)
+as the default set of labels. This can overridden to supply custom labels by updating the
+`CSI_CRUSH_LOCATION_LABELS` value in the `rook-ceph-operator-config` configmap.
+
+Ceph CSI will extract the CRUSH location from the topology labels found on the node
+and pass it though krbd options during mapping RBD volumes.
+
+!!! note
+    This requires kernel version 5.8 or higher.
