@@ -1,5 +1,6 @@
 nav:
     - intro.md
+    - glossary.md
     - Prerequisites
     - quickstart.md
     - storage-architecture.md
