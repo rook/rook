@@ -50,7 +50,7 @@ function prepare_loop_devices() {
         exit 1
     fi
     for i in $(seq 1 $OSD_COUNT); do
-        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
+        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6500 count=0
         sudo losetup /dev/loop${i} ~/data${i}.img
     done
     sudo lsblk
@@ -110,21 +110,6 @@ function use_local_disk_for_integration_test() {
 function create_partitions_for_osds() {
   tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
   sudo lsblk
-}
-
-function create_bluestore_partitions_and_pvcs() {
-  BLOCK_PART="$BLOCK"2
-  DB_PART="$BLOCK"1
-  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
-  tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
-}
-
-function create_bluestore_partitions_and_pvcs_for_wal() {
-  BLOCK_PART="$BLOCK"3
-  DB_PART="$BLOCK"1
-  WAL_PART="$BLOCK"2
-  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
-  tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
 }
 
 function collect_udev_logs_in_background() {
@@ -221,9 +206,7 @@ function deploy_manifest_with_local_build() {
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
     sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
   fi
-  if [[ "$ALLOW_LOOP_DEVICES" = "true" ]]; then
-    sed -i "s|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"false\"|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"true\"|g" $1
-  fi
+  sed -i "s|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"false\"|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"true\"|g" $1
   sed -i "s|ROOK_LOG_LEVEL:.*|ROOK_LOG_LEVEL: DEBUG|g" "$1"
   kubectl create -f $1
 }

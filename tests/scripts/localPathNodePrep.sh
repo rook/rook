@@ -16,20 +16,6 @@
 
 set -ex
 
-test_scratch_device=/dev/nvme0n1
-if [ $# -ge 1 ] ; then
-  test_scratch_device=$1
-fi
-
-#############
-# VARIABLES #
-#############
-osd_count=2
-db_device=$2
-wal_device=$3
-sudo lsblk
-sudo test ! -b "${test_scratch_device}" && echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2 && exit 1
-
 #############
 # FUNCTIONS #
 #############
@@ -121,47 +107,6 @@ spec:
 eof
 }
 
-function create_osd_pvc() {
-  local osd_count=$1
-  local storage=6Gi
-
-  for osd in $(seq 1 "$osd_count"); do
-    path=${test_scratch_device}${osd}
-    if [ "$osd_count" -eq 1 ]; then
-      path=$test_scratch_device
-      storage=10Gi
-    fi
-
-    cat <<eof | kubectl apply -f -
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: local-vol$((4 + osd))
-  labels:
-    type: local
-spec:
-  storageClassName: manual
-  capacity:
-    storage: "$storage"
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  volumeMode: Block
-  local:
-    path: "$path"
-  nodeAffinity:
-      required:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: rook.io/has-disk
-                operator: In
-                values:
-                - "true"
-eof
-  done
-}
-
 function create_create_sc() {
 cat <<eof | kubectl apply -f -
 ---
@@ -175,99 +120,9 @@ reclaimPolicy: Delete
 eof
 }
 
-function add_db_pvc {
-cat <<eof | kubectl apply -f -
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: local-vol8
-  labels:
-    type: local
-spec:
-  storageClassName: manual
-  capacity:
-    storage: 2Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  volumeMode: Block
-  local:
-    path: "${db_device}"
-  nodeAffinity:
-      required:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: rook.io/has-disk
-                operator: In
-                values:
-                - "true"
-eof
-}
-
-function add_wal_pvc {
-cat <<eof | kubectl apply -f -
----
-apiVersion: v1
-kind: PersistentVolume
-metadata:
-  name: local-vol9
-  labels:
-    type: local
-spec:
-  storageClassName: manual
-  capacity:
-    storage: 2Gi
-  accessModes:
-    - ReadWriteOnce
-  persistentVolumeReclaimPolicy: Retain
-  volumeMode: Block
-  local:
-    path: "${wal_device}"
-  nodeAffinity:
-      required:
-        nodeSelectorTerms:
-          - matchExpressions:
-              - key: rook.io/has-disk
-                operator: In
-                values:
-                - "true"
-eof
-}
-
 ########
 # MAIN #
 ########
 prepare_node
 create_mon_pvc
-
-
-# Add a db device if needed
-if [ -n "$db_device" ]; then
-  osd_count=1
-  add_db_pvc
-fi
-
-# Add a wal device if needed
-if [ -n "$wal_device" ]; then
-  osd_count=1
-  add_wal_pvc
-fi
-
-# For the LVM scenario
-scratch_dev_type=$(lsblk --noheadings --output TYPE "$test_scratch_device")
-if [[ "$scratch_dev_type" == "lvm" ]]; then
-  osd_count=1
-fi
-
-# For the ceph_integration suite
-# It's an env var set by the gitaction action when running TestCephMultiClusterDeploySuite not a misspell
-# shellcheck disable=SC2153
-if [[ -n "$TEST_SCRATCH_DEVICE" ]]; then
-  osd_count=1
-fi
-
-create_osd_pvc "$osd_count"
 create_create_sc
-
-kubectl get pv -o wide

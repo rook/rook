@@ -244,7 +244,6 @@ jobs:
 
       - name: deploy cluster
         run: |
-          export ALLOW_LOOP_DEVICES=true
           tests/scripts/github-action-helper.sh deploy_cluster loop
 
       - name: wait for prepare pod
@@ -508,29 +507,25 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: use local disk and create partitions for osds
+      - name: use local disk
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: prepare loop devices for osds
-        run: |
-          tests/scripts/github-action-helper.sh prepare_loop_devices 1
 
       - name: create cluster prerequisites
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-          tests/scripts/localPathPV.sh "$BLOCK"
-          tests/scripts/loopDevicePV.sh 1
+          tests/scripts/localPathNodePrep.sh
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 3
+          tests/scripts/loopDevicePV.sh 3
 
       - name: deploy cluster
         run: |
-          yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -549,11 +544,13 @@ jobs:
           kubectl -n rook-ceph delete cephcluster rook-ceph
           kubectl -n rook-ceph logs deploy/rook-ceph-operator
           tests/scripts/github-action-helper.sh wait_for_cleanup_pod
+
+      - name: teardown loop devices
+        run: |
           lsblk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
-          sudo head --bytes=60 ${BLOCK}1
-          sudo head --bytes=60 ${BLOCK}2
-          sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
+          #sudo head --bytes=60 /dev/loop3
 
       - name: collect common logs
         if: always()
@@ -591,11 +588,15 @@ jobs:
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
 
-      - name: create bluestore partitions and PVCs
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
-
       - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+        run: |
+          tests/scripts/localPathNodePrep.sh
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 3
+          tests/scripts/loopDevicePV.sh 3
 
       - name: deploy cluster
         run: |
@@ -610,6 +611,13 @@ jobs:
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
+          #sudo head --bytes=60 /dev/loop3
 
       - name: collect common logs
         if: always()
@@ -647,11 +655,15 @@ jobs:
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
 
-      - name: create bluestore partitions and PVCs for wal
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
-
       - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+        run: |
+          tests/scripts/localPathNodePrep.sh
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 3
+          tests/scripts/loopDevicePV.sh 3
 
       - name: deploy rook
         run: |
@@ -669,6 +681,13 @@ jobs:
         run: |
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
           kubectl -n rook-ceph get pods
+
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
+          #sudo head --bytes=60 /dev/loop3
 
       - name: collect common logs
         if: always()
@@ -703,21 +722,24 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: use local disk and create partitions for osds
+      - name: use local disk
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: create cluster prerequisites
         run: |
-          tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+          tests/scripts/localPathNodePrep.sh
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 2
+          tests/scripts/loopDevicePV.sh 2
 
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -745,6 +767,12 @@ jobs:
           sudo head --bytes=60 ${BLOCK}1
           sudo head --bytes=60 ${BLOCK}2
           sudo lsblk
+
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
 
       - name: collect common logs
         if: always()
@@ -782,11 +810,15 @@ jobs:
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
 
-      - name: create bluestore partitions and PVCs
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
-
       - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+        run: |
+          tests/scripts/localPathNodePrep.sh
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 2
+          tests/scripts/loopDevicePV.sh 2
 
       - name: deploy cluster
         run: |
@@ -803,6 +835,12 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
+
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
 
       - name: collect common logs
         if: always()
@@ -840,11 +878,15 @@ jobs:
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
 
-      - name: create bluestore partitions and PVCs for wal
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
-
       - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+        run: |
+          tests/scripts/localPathNodePrep.sh
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 3
+          tests/scripts/loopDevicePV.sh 3
 
       - name: deploy rook
         run: |
@@ -862,6 +904,13 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
+
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
+          #sudo head --bytes=60 /dev/loop3
 
       - name: collect common logs
         if: always()
@@ -896,15 +945,19 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: use local disk and create partitions for osds
+      - name: use local disk
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: create cluster prerequisites
         run: |
-          tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+          tests/scripts/localPathNodePrep.sh
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 2
+          tests/scripts/loopDevicePV.sh 2
 
       - name: deploy vault
         run: tests/scripts/deploy-validate-vault.sh deploy
@@ -915,7 +968,6 @@ jobs:
           cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
@@ -950,6 +1002,12 @@ jobs:
           tests/scripts/validate_cluster.sh rgw
           tests/scripts/deploy-validate-vault.sh validate_rgw
 
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
+
       - name: collect common logs
         if: always()
         uses: ./.github/workflows/collect-logs
@@ -983,15 +1041,19 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: use local disk and create partitions for osds
+      - name: use local disk
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: create cluster prerequisites
         run: |
-          tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+          tests/scripts/localPathNodePrep.sh
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 2
+          tests/scripts/loopDevicePV.sh 2
 
       - name: deploy vault
         run: KUBERNETES_AUTH=true tests/scripts/deploy-validate-vault.sh deploy
@@ -1001,7 +1063,6 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
           yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
@@ -1018,6 +1079,12 @@ jobs:
         run: |
           tests/scripts/deploy-validate-vault.sh validate_osd
           sudo lsblk
+
+      - name: teardown loop devices
+        run: |
+          lsblk
+          #sudo head --bytes=60 /dev/loop1
+          #sudo head --bytes=60 /dev/loop2
 
       - name: collect common logs
         if: always()
@@ -1053,7 +1120,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+        run: |
+          tests/scripts/localPathNodePrep.sh
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -1062,7 +1131,7 @@ jobs:
         run: |
           BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
           tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
-          tests/scripts/localPathPV.sh /dev/test-rook-vg/test-rook-lv
+          tests/scripts/localPathOSDPV.sh /dev/test-rook-vg/test-rook-lv
 
       - name: deploy cluster
         run: |
@@ -1481,7 +1550,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd_multus 2
+        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd_multus 1
 
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated

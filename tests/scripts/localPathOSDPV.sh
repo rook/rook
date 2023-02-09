@@ -16,29 +16,39 @@
 
 set -ex
 
+test_scratch_device=/dev/nvme0n1
+if [ $# -ge 1 ] ; then
+  test_scratch_device=$1
+fi
+
 #############
 # VARIABLES #
 #############
-osd_count=$1
+osd_count=1
 sudo lsblk
+sudo test ! -b "${test_scratch_device}" && echo "invalid scratch device, not a block device: ${test_scratch_device}" >&2 && exit 1
 
 #############
 # FUNCTIONS #
 #############
 
-function add_loop_dev_pv() {
+function create_osd_pvc() {
   local osd_count=$1
   local storage=6Gi
 
   for osd in $(seq 1 "$osd_count"); do
-    path=/dev/loop${osd}
+    path=${test_scratch_device}${osd}
+    if [ "$osd_count" -eq 1 ]; then
+      path=$test_scratch_device
+      storage=10Gi
+    fi
 
     cat <<eof | kubectl apply -f -
 ---
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: local-vol-loop-dev$osd
+  name: local-vol$((4 + osd))
   labels:
     type: local
 spec:
@@ -66,6 +76,7 @@ eof
 ########
 # MAIN #
 ########
-add_loop_dev_pv "$osd_count"
+
+create_osd_pvc "$osd_count"
 
 kubectl get pv -o wide

@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	localPathPVCmd = "tests/scripts/localPathPV.sh"
+	localPathPVCmd = "tests/scripts/localPathNodePrep.sh"
 )
 
 // *************************************************************

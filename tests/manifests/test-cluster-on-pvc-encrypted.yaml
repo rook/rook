@@ -34,7 +34,7 @@ spec:
             spec:
               resources:
                 requests:
-                  storage: 10Gi
+                  storage: 6Gi
               storageClassName: manual
               volumeMode: Block
               accessModes:

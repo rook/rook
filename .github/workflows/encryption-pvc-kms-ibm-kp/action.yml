@@ -31,12 +31,16 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/github-action-helper.sh use_local_disk
-        tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+    - name: prepare loop devices for osds
+      run: |
+        tests/scripts/github-action-helper.sh prepare_loop_devices 2
+        tests/scripts/loopDevicePV.sh 2
 
     - name: create cluster prerequisites
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/localPathNodePrep.sh
         tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy cluster
@@ -70,6 +74,12 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         sudo lsblk
+
+    - name: teardown loop devices
+      run: |
+        lsblk
+        sudo head --bytes=60 /dev/loop1
+        sudo head --bytes=60 /dev/loop2
 
     - name: collect common logs
       if: always()
