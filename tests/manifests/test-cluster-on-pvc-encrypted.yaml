@@ -14,7 +14,8 @@ spec:
           requests:
             storage: 5Gi
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.3
+    image: quay.io/ceph/daemon-base:latest-quincy-devel
+    allowUnsupported: true
   dashboard:
     enabled: false
   network:
