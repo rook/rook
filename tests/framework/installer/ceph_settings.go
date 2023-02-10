@@ -46,6 +46,7 @@ type TestCephSettings struct {
 	DirectMountToolbox          bool
 	ConnectionsEncrypted        bool
 	ConnectionsCompressed       bool
+	RequireMsgr2                bool
 	EnableVolumeReplication     bool
 	TestNFSCSI                  bool
 	ChangeHostName              bool
