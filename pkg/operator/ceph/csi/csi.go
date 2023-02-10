@@ -274,6 +274,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	CSIParam.CSIRBDPodLabels = k8sutil.ParseStringToLabels(csiRBDPodLabels)
 	CSIParam.CSIClusterName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CLUSTER_NAME", "")
 	CSIParam.ImagePullPolicy = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_IMAGE_PULL_POLICY", DefaultCSIImagePullPolicy)
+	CSIParam.CephFSKernelMountOptions = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "")
 
 	return nil
 }
