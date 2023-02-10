@@ -145,7 +145,24 @@ cephClusterSpec:
     ssl: true
 
   # Network configuration, see: https://github.com/rook/rook/blob/master/Documentation/CRDs/ceph-cluster-crd.md#network-configuration-settings
-  # network:
+  network:
+    connections:
+      # Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
+      # The default is false. When encryption is enabled, all communication between clients and Ceph daemons, or between Ceph daemons will be encrypted.
+      # When encryption is not enabled, clients still establish a strong initial authentication and data integrity is still validated with a crc check.
+      # IMPORTANT: Encryption requires the 5.11 kernel for the latest nbd and cephfs drivers. Alternatively for testing only,
+      # you can set the "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
+      # The nbd and fuse drivers are *not* recommended in production since restarting the csi driver pod will disconnect the volumes.
+      encryption:
+        enabled: false
+      # Whether to compress the data in transit across the wire. The default is false.
+      # Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
+      compression:
+        enabled: false
+      # Whether to require communication over msgr2. If true, the msgr v1 port (6789) will be disabled
+      # and clients will be required to connect to the Ceph cluster with the v2 port (3300).
+      # Requires a kernel that supports msgr v2 (kernel 5.11 or CentOS 8.4 or newer).
+      requireMsgr2: false
   #   # enable host networking
   #   provider: host
   #   # EXPERIMENTAL: enable the Multus network provider

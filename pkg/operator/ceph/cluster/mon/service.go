@@ -40,9 +40,9 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		return "", errors.Wrapf(err, "failed to set owner reference to mon service %q", svcDef.Name)
 	}
 
-	// If the cluster doesn't require msgr2 we allow msgr1 as well
-	if !c.ClusterInfo.RequireMsgr2 {
-		addServicePort(svcDef, "tcp-msgr1", DefaultMsgr1Port)
+	// If the mon port was not msgr2, add the msgr1 port
+	if mon.Port != DefaultMsgr2Port {
+		addServicePort(svcDef, "tcp-msgr1", mon.Port)
 	}
 	addServicePort(svcDef, "tcp-msgr2", DefaultMsgr2Port)
 

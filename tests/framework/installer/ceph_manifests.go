@@ -159,6 +159,7 @@ spec:
   network:
     hostNetwork: false
     connections:
+      requireMsgr2: ` + strconv.FormatBool(m.settings.RequireMsgr2) + `
       encryption:
         enabled: ` + strconv.FormatBool(m.settings.ConnectionsEncrypted) + `
       compression:

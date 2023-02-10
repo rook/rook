@@ -320,11 +320,11 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		WorkingDir:    config.VarLogCephDir,
 	}
 
-	if !c.spec.RequireMsgr2() {
+	if monConfig.Port != DefaultMsgr2Port {
 		// Add messenger 1 port
 		container.Ports = append(container.Ports, corev1.ContainerPort{
 			Name:          "tcp-msgr1",
-			ContainerPort: DefaultMsgr1Port,
+			ContainerPort: monConfig.Port,
 			Protocol:      corev1.ProtocolTCP,
 		})
 	}
