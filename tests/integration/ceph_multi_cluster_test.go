@@ -83,6 +83,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		EnableAdmissionController: true,
 		RookVersion:               installer.LocalBuildTag,
 		CephVersion:               installer.PacificVersion,
+		RequireMsgr2:              true,
 	}
 	s.settings.ApplyEnvVars()
 	externalSettings := &installer.TestCephSettings{

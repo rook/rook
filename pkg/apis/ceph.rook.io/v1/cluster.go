@@ -33,6 +33,9 @@ func (c *ClusterSpec) RequireMsgr2() bool {
 	if c.Network.Connections == nil {
 		return false
 	}
+	if c.Network.Connections.RequireMsgr2 {
+		return true
+	}
 	if c.Network.Connections.Compression != nil && c.Network.Connections.Compression.Enabled {
 		return true
 	}

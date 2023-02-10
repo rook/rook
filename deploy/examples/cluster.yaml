@@ -88,6 +88,10 @@ spec:
       # Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
       compression:
         enabled: false
+      # Whether to require communication over msgr2. If true, the msgr v1 port (6789) will be disabled
+      # and clients will be required to connect to the Ceph cluster with the v2 port (3300).
+      # Requires a kernel that supports msgr v2 (kernel 5.11 or CentOS 8.4 or newer).
+      requireMsgr2: false
     # enable host networking
     #provider: host
     # enable the Multus network provider
