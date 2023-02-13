@@ -1,6 +1,7 @@
 #################################################################################################################
 # Create a filesystem with settings with replication enabled for a production environment.
 # A minimum of 3 OSDs on different nodes are required in this example.
+# If one mds daemon per node is too restrictive, see the podAntiAffinity below.
 #  kubectl create -f filesystem.yaml
 #################################################################################################################
 
@@ -72,6 +73,12 @@ spec:
                   operator: In
                   values:
                     - rook-ceph-mds
+            ## Add this if you want to allow mds daemons for different filesystems to run on one
+            ## node. The value in "values" must match .metadata.name.
+            #    - key: rook_file_system
+            #          operator: In
+            #          values:
+            #            - myfs
             # topologyKey: kubernetes.io/hostname will place MDS across different hosts
             topologyKey: kubernetes.io/hostname
         preferredDuringSchedulingIgnoredDuringExecution:
