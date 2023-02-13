@@ -58,7 +58,6 @@ func init() {
 	Cmd.AddCommand(cleanUpCmd,
 		operatorCmd,
 		osdCmd,
-		mgrCmd,
 		configCmd)
 }
 
