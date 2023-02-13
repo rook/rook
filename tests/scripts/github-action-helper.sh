@@ -187,12 +187,6 @@ function validate_yaml() {
   cd deploy/examples
   kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
 
-  # create and use PSPs on k8s versions older than 1.21
-  kube_minor_ver="$(kubectl version -o json | jq -r '.serverVersion.minor')"
-  if [[ "$kube_minor_ver" -lt 21 ]]; then
-    kubectl create -f psp.yaml
-  fi
-
   # create the volume replication CRDs
   replication_version=v0.3.0
   replication_url="https://raw.githubusercontent.com/csi-addons/volume-replication-operator/${replication_version}/config/crd/bases"
