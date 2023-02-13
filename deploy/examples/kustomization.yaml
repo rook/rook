@@ -1,0 +1,8 @@
+# Adds namespace to all resources.
+namespace: rook-ceph
+
+resources:
+  - crds.yaml
+  - common.yaml
+  - operator-openshift.yaml
+  - csi/nfs/rbac.yaml
