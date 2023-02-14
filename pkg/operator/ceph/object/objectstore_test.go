@@ -237,6 +237,15 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 	})
 }
 
+func TestRGWPGNumVersion(t *testing.T) {
+	assert.False(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 15, Minor: 2, Extra: 9}))
+	assert.False(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 16, Minor: 2, Extra: 10}))
+	assert.True(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 16, Minor: 2, Extra: 11}))
+	assert.False(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 17, Minor: 2, Extra: 1}))
+	assert.True(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}))
+	assert.True(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}))
+}
+
 func TestCheckDashboardUser(t *testing.T) {
 	storeName := "myobject"
 	executor := &exectest.MockExecutor{
