@@ -118,6 +118,8 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
+# Change how CRDs are generated for CSVs
+build.common: export NO_OB_OBC_VOL_GEN=true MAX_DESC_LEN=0
 build.common: build.version helm.build mod.check crds gen-rbac
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
