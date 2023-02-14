@@ -79,6 +79,7 @@ CEPH_CLIENT_ID=%s
 PERIODICITY=%s
 LOG_ROTATE_CEPH_FILE=/etc/logrotate.d/ceph
 LOG_MAX_SIZE=%s
+ROTATE=%s
 
 # edit the logrotate file to only rotate a specific daemon log
 # otherwise we will logrotate log files without reloading certain daemons
@@ -87,6 +88,9 @@ sed -i "s|*.log|$CEPH_CLIENT_ID.log|" "$LOG_ROTATE_CEPH_FILE"
 
 # replace default daily with given user input
 sed --in-place "s/daily/$PERIODICITY/g" "$LOG_ROTATE_CEPH_FILE"
+
+# replace rotate count, default 7 for all ceph daemons other than rbd-mirror
+sed --in-place "s/rotate 7/rotate $ROTATE/g" "$LOG_ROTATE_CEPH_FILE"
 
 if [ "$LOG_MAX_SIZE" != "0" ]; then
 	# adding maxsize $LOG_MAX_SIZE at the 4th line of the logrotate config file with 4 spaces to maintain indentation
@@ -692,7 +696,13 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 			size = 1
 			logger.Info("maxLogSize is 0M setting to minimum of 1M")
 		}
+
 		maxLogSize = resource.MustParse(fmt.Sprintf("%dM", size))
+	}
+
+	rotation := "7"
+	if strings.Contains(daemonID, "-client.rbd-mirror") {
+		rotation = "28"
 	}
 
 	var periodicity string
@@ -714,7 +724,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 			"-e", // Exit immediately if a command exits with a non-zero status.
 			"-m", // Terminal job control, allows job to be terminated by SIGTERM
 			"-c", // Command to run
-			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String()),
+			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String(), rotation),
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
