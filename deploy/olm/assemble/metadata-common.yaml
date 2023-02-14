@@ -238,7 +238,7 @@ metadata:
   annotations:
     tectonic-visibility: ocs
     repository: https://github.com/rook/rook
-    containerImage: rook/ceph:v1.2.2
+    containerImage: '{{.RookOperatorImage}}'
     alm-examples: |-
       [
         {
