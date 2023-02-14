@@ -68,8 +68,9 @@ var (
 	dataPoolName = "rgw.buckets.data"
 
 	// An user with system privileges for dashboard service
-	DashboardUser                       = "dashboard-admin"
-	cephVersionRGWRadosPoolPgNumRemoved = cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}
+	DashboardUser                 = "dashboard-admin"
+	rgwPgNumRemovedQuincyVersion  = cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}
+	rgwPgNumRemovedPacificVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 11}
 )
 
 type idType struct {
@@ -741,7 +742,7 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	// get the default PG count for rgw metadata pools
 	var err error
 	var metadataPoolPGs string
-	if context.clusterInfo.CephVersion.IsAtLeast(cephVersionRGWRadosPoolPgNumRemoved) {
+	if rgwRadosPGNumIsNew(context.clusterInfo.CephVersion) {
 		metadataPoolPGs = rgwRadosPoolPgNum
 	} else {
 		metadataPoolPGs, err = config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
@@ -760,6 +761,19 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	}
 
 	return nil
+}
+
+// Check if this is a recent release of ceph where the legacy rgw_rados_pool_pg_num_min
+// is no longer available.
+func rgwRadosPGNumIsNew(cephVer cephver.CephVersion) bool {
+	if cephVer.IsPacific() && cephVer.IsAtLeast(rgwPgNumRemovedPacificVersion) {
+		return true
+	}
+	if cephVer.IsAtLeast(rgwPgNumRemovedQuincyVersion) {
+		return true
+	}
+	// the legacy setting should still be checked
+	return false
 }
 
 // configurePoolsConcurrently checks if operator pod resources are set or not
