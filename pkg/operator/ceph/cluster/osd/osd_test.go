@@ -436,6 +436,14 @@ func TestGetOSDInfo(t *testing.T) {
 		DataPathMap: opconfig.NewDatalessDaemonDataPathMap(c.clusterInfo.Namespace, c.spec.DataDirHostPath),
 	}
 
+	t.Run("version labels are on deployment and not pod spec", func(t *testing.T) {
+		d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
+		assert.NotEqual(t, "", d1.Labels["rook-version"])
+		assert.Equal(t, "", d1.Spec.Template.Labels["rook-version"])
+		assert.NotEqual(t, "", d1.Labels["ceph-version"])
+		assert.Equal(t, "", d1.Spec.Template.Labels["ceph-version"])
+	})
+
 	t.Run("get info from PVC-based OSDs", func(t *testing.T) {
 		d1, _ := c.makeDeployment(osdProp, osd1, dataPathMap)
 		osdInfo1, _ := c.getOSDInfo(d1)
