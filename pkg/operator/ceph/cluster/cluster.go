@@ -60,6 +60,7 @@ type cluster struct {
 	context            *clusterd.Context
 	Namespace          string
 	Spec               *cephv1.ClusterSpec
+	clusterMetadata    metav1.ObjectMeta
 	namespacedName     types.NamespacedName
 	mons               *mon.Cluster
 	ownerInfo          *k8sutil.OwnerInfo
@@ -76,6 +77,7 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		ClusterInfo:        client.AdminClusterInfo(ctx, c.Namespace, c.Name),
 		Namespace:          c.Namespace,
 		Spec:               &c.Spec,
+		clusterMetadata:    c.ObjectMeta,
 		context:            context,
 		namespacedName:     types.NamespacedName{Namespace: c.Namespace, Name: c.Name},
 		monitoringRoutines: make(map[string]*controller.ClusterHealth),
@@ -91,7 +93,7 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 func (c *cluster) reconcileCephDaemons(rookImage string, cephVersion cephver.CephVersion) error {
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
-	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerInfo)
+	err := populateConfigOverrideConfigMap(c.context, c.Namespace, c.ownerInfo, c.clusterMetadata)
 	if err != nil {
 		return errors.Wrap(err, "failed to populate config override config map")
 	}
@@ -197,7 +199,6 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		} else {
 			clusterInfo.OwnerInfo = cluster.ownerInfo
 			clusterInfo.SetName(c.namespacedName.Name)
-			clusterInfo.RequireMsgr2 = cluster.Spec.RequireMsgr2()
 			cluster.ClusterInfo = clusterInfo
 		}
 		// If the local cluster has already been configured, immediately start monitoring the cluster.

@@ -164,6 +164,9 @@ Configure the network that will be enabled for the cluster and services.
 * `ipFamily`: Specifies the network stack Ceph daemons should listen on.
 * `dualStack`: Specifies that Ceph daemon should listen on both IPv4 and IPv6 network stacks.
 * `connections`: Settings for network connections using Ceph's msgr2 protocol
+    * `requireMsgr2`: Whether to require communication over msgr2. If true, the msgr v1 port (6789) will be disabled
+        and clients will be required to connect to the Ceph cluster with the v2 port (3300).
+        Requires a kernel that supports msgr2 (kernel 5.11 or CentOS 8.4 or newer). Default is false.
     * `encryption`: Settings for encryption on the wire to Ceph daemons
         * `enabled`: Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
           The default is false. When encryption is enabled, all communication between clients and Ceph daemons, or between
@@ -172,6 +175,7 @@ Configure the network that will be enabled for the cluster and services.
           **IMPORTANT**: Encryption requires the 5.11 kernel for the latest nbd and cephfs drivers. Alternatively for testing only,
           set "mounter: rbd-nbd" in the rbd storage class, or "mounter: fuse" in the cephfs storage class.
           The nbd and fuse drivers are *not* recommended in production since restarting the csi driver pod will disconnect the volumes.
+          If this setting is enabled, CephFS volumes also require setting `CSI_CEPHFS_KERNEL_MOUNT_OPTIONS` to `"ms_mode=secure"` in operator.yaml.
     * `compression`:
         * `enabled`: Whether to compress the data in transit across the wire. The default is false.
       Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.

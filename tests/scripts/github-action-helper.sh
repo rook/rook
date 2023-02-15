@@ -40,20 +40,20 @@ function print_k8s_cluster_status() {
 }
 
 function prepare_loop_devices() {
-    if [ $# -ne 1 ]; then
-        echo "usage: $0 loop_deivce_count"
-        exit 1
-    fi
-    OSD_COUNT=$1
-    if [ $OSD_COUNT -le 0 ]; then
-        echo "Invalid OSD_COUNT $OSD_COUNT. OSD_COUNT must be larger than 0."
-        exit 1
-    fi
-    for i in $(seq 1 $OSD_COUNT); do
-        sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
-        sudo losetup /dev/loop${i} ~/data${i}.img
-    done
-    sudo lsblk
+  if [ $# -ne 1 ]; then
+    echo "usage: $0 loop_deivce_count"
+    exit 1
+  fi
+  OSD_COUNT=$1
+  if [ $OSD_COUNT -le 0 ]; then
+    echo "Invalid OSD_COUNT $OSD_COUNT. OSD_COUNT must be larger than 0."
+    exit 1
+  fi
+  for i in $(seq 1 $OSD_COUNT); do
+    sudo dd if=/dev/zero of=~/data${i}.img bs=1M seek=6144 count=0
+    sudo losetup /dev/loop${i} ~/data${i}.img
+  done
+  sudo lsblk
 }
 
 function use_local_disk() {
@@ -187,12 +187,6 @@ function validate_yaml() {
   cd deploy/examples
   kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
 
-  # create and use PSPs on k8s versions older than 1.21
-  kube_minor_ver="$(kubectl version -o json | jq -r '.serverVersion.minor')"
-  if [[ "$kube_minor_ver" -lt 21 ]]; then
-    kubectl create -f psp.yaml
-  fi
-
   # create the volume replication CRDs
   replication_version=v0.3.0
   replication_url="https://raw.githubusercontent.com/csi-addons/volume-replication-operator/${replication_version}/config/crd/bases"
@@ -205,7 +199,7 @@ function validate_yaml() {
   kubectl apply -f "${keda_url}"
 
   # skipping folders and some yamls that are only for openshift.
-  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'psp*')"
+  manifests="$(find . -maxdepth 1 -type f -name '*.yaml' -and -not -name '*openshift*' -and -not -name 'scc*' -and -not -name 'psp*' -and -not -name 'kustomization*')"
   with_f_arg="$(echo "$manifests" | awk '{printf " -f %s",$1}')" # don't add newline
   # shellcheck disable=SC2086 # '-f manifest1.yaml -f manifest2.yaml etc.' should not be quoted
   kubectl create ${with_f_arg} --dry-run=client
@@ -450,7 +444,7 @@ function write_object_read_from_replica_cluster() {
   local test_object_name="${test_bucket_name}-1mib-test.dat"
   fallocate -l 1M "$test_object_name"
   # ensure that test file has unique data
-  echo "$test_object_name" >> "$test_object_name"
+  echo "$test_object_name" >>"$test_object_name"
 
   s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
   s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
@@ -463,7 +457,7 @@ function write_object_read_from_replica_cluster() {
   (
     sleep 60
     kill -s SIGUSR1 $$
-  ) 2> /dev/null &
+  ) 2>/dev/null &
   trap "{ S3CMD_ERROR=1; break; }" SIGUSR1
 
   until s3cmd --host="${read_cluster_ip}" get "s3://${test_bucket_name}/${test_object_name}" "${test_object_name}.get" --force; do
@@ -491,7 +485,7 @@ function test_multisite_object_replication() {
   cluster_2_ip=$(get_clusterip rook-ceph-secondary rook-ceph-rgw-zone-b-multisite-store)
 
   cd deploy/examples
-  cat <<- EOF > s3cfg
+  cat <<-EOF >s3cfg
 	[default]
 	host_bucket = no.way
 	use_https = False
@@ -620,6 +614,26 @@ function test_csi_nfs_workload {
   kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-nfsplugin --field-selector=status.phase=Running -o name)"
   kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
+}
+
+function install_minikube_with_none_driver() {
+  CRICTL_VERSION="v1.26.0"
+  MINIKUBE_VERSION="v1.29.0"
+
+  sudo apt update
+  sudo apt install -y conntrack socat
+  curl -LO https://storage.googleapis.com/minikube/releases/$MINIKUBE_VERSION/minikube_latest_amd64.deb
+  sudo dpkg -i minikube_latest_amd64.deb
+  rm -f minikube_latest_amd64.deb
+  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.0/cri-dockerd_0.3.0.3-0.ubuntu-focal_amd64.deb
+  sudo dpkg -i cri-dockerd_0.3.0.3-0.ubuntu-focal_amd64.deb
+  rm -f cri-dockerd_0.3.0.3-0.ubuntu-focal_amd64.deb
+  wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz
+  sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
+  rm -f crictl-$CRICTL_VERSION-linux-amd64.tar.gz
+  sudo sysctl fs.protected_regular=0
+  export MINIKUBE_HOME=$HOME CHANGE_MINIKUBE_NONE_USER=true KUBECONFIG=$HOME/.kube/config
+  sudo -E minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
 }
 
 FUNCTION="$1"

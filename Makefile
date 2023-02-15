@@ -178,9 +178,9 @@ prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
 # Change how CRDs are generated for CSVs
-csv-ceph: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
-csv-ceph: export NO_OB_OBC_VOL_GEN=true
-csv-ceph: csv-clean crds ## Generate a CSV file for OLM.
+csv: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
+csv: export NO_OB_OBC_VOL_GEN=true
+csv: csv-clean crds ## Generate a CSV file for OLM.
 	$(MAKE) -C images/ceph csv
 
 csv-clean: ## Remove existing OLM files.

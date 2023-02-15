@@ -132,7 +132,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		"--foreground",
 	)
 
-	if !c.clusterSpec.Network.IsHost() {
+	if !c.clusterSpec.Network.IsHost() && !c.clusterSpec.Network.IsMultus() {
 		args = append(args,
 			cephconfig.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}

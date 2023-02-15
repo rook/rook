@@ -2170,6 +2170,12 @@ type ConnectionsSpec struct {
 	// +nullable
 	// +optional
 	Compression *CompressionSpec `json:"compression,omitempty"`
+
+	// Whether to require msgr2 (port 3300) even if compression or encryption are not enabled.
+	// If true, the msgr1 port (6789) will be disabled.
+	// Requires a kernel that supports msgr2 (kernel 5.11 or CentOS 8.4 or newer).
+	// +optional
+	RequireMsgr2 bool `json:"requireMsgr2,omitempty"`
 }
 
 type EncryptionSpec struct {

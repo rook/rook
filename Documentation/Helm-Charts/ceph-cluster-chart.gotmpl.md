@@ -60,6 +60,12 @@ The following table lists the configurable parameters of the rook-operator chart
 The `CephCluster` CRD takes its spec from `cephClusterSpec.*`. This is not an exhaustive list of parameters.
 For the full list, see the [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md) topic.
 
+The cluster spec example is for a converged cluster where all the Ceph daemons are running locally,
+as in the host-based example (cluster.yaml). For a different configuration such as a
+PVC-based cluster (cluster-on-pvc.yaml), external cluster (cluster-external.yaml),
+or stretch cluster (cluster-stretched.yaml), replace this entire `cephClusterSpec`
+with the specs from those examples.
+
 ### **Ceph Block Pools**
 
 The `cephBlockPools` array in the values file will define a list of CephBlockPool as described in the table below.
