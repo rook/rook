@@ -59,7 +59,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of crashcollector deployment %q", deploy.Name)
 	}
 
-	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
+	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "", cephCluster.Spec.DataDirHostPath)
 	volumes = append(volumes, keyring.Volume().CrashCollector())
 
 	mutateFunc := func() error {
@@ -140,7 +140,7 @@ func getCrashDirInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		SecurityContext: controller.PodSecurityContext(),
 		Resources:       cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
-		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, ""),
+		VolumeMounts:    controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath),
 	}
 	return container
 }
@@ -152,9 +152,10 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 		*dataPathMap,
 		cephCluster.Spec.CephVersion.Image,
 		controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
-		controller.DaemonVolumeMounts(dataPathMap, ""),
+		controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath),
 		cephv1.GetCrashCollectorResources(cephCluster.Spec.Resources),
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
@@ -163,7 +164,7 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	crashEnvVar := generateCrashEnvVar()
 	envVars := append(controller.DaemonEnvVars(cephImage), crashEnvVar)
-	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "")
+	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
 	volumeMounts = append(volumeMounts, keyring.VolumeMount().CrashCollector())
 
 	container := corev1.Container{

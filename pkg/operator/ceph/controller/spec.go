@@ -49,10 +49,12 @@ const (
 	volumeMountSubPath                      = "data"
 	crashVolumeName                         = "rook-ceph-crash"
 	daemonSocketDir                         = "/run/ceph"
+	daemonSocketsSubPath                    = "/exporter"
 	logCollector                            = "log-collector"
 	DaemonIDLabel                           = "ceph_daemon_id"
 	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
+	ExternalCephExporterName                = "rook-ceph-exporter-external"
 	ServiceExternalMetricName               = "http-external-metrics"
 	CephUserID                              = 167
 	livenessProbeTimeoutSeconds       int32 = 5
@@ -170,8 +172,11 @@ func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGeneratedInPod bool) []v1.Volume {
 
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	sockDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
+		hostPathType := v1.HostPathDirectoryOrCreate
+		sockDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(dataDirHostPath, daemonSocketsSubPath), Type: &hostPathType}}
 	}
 	configVolume, _ := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
@@ -182,6 +187,7 @@ func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGener
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		configVolume,
 	}
+	v = append(v, v1.Volume{Name: "ceph-daemons-sock-dir", VolumeSource: sockDirSource})
 	v = append(v, StoredLogAndCrashVolume(dataPaths.HostLogDir(), dataPaths.HostCrashDir())...)
 
 	return v
@@ -200,6 +206,7 @@ func CephVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 		configMount,
 		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
 	}
+	v = append(v, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
 	v = append(v, StoredLogAndCrashVolumeMount(dataPaths.ContainerLogDir(), dataPaths.ContainerCrashDir())...)
 
 	return v
@@ -213,13 +220,19 @@ func RookVolumeMounts(dataPaths *config.DataPathMap, confGeneratedInPod bool) []
 }
 
 // DaemonVolumesBase returns the common / static set of volumes.
-func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
+func DaemonVolumesBase(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
 	configOverrideVolume, _ := configOverrideConfigMapVolumeAndMount()
 	vols := []v1.Volume{
 		configOverrideVolume,
 	}
 	if keyringResourceName != "" {
 		vols = append(vols, keyring.Volume().Resource(keyringResourceName))
+	}
+	// data is persisted to host
+	if dataDirHostPath != "" {
+		hostPathType := v1.HostPathDirectoryOrCreate
+		src := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(dataDirHostPath, daemonSocketsSubPath), Type: &hostPathType}}
+		vols = append(vols, v1.Volume{Name: "ceph-daemons-sock-dir", VolumeSource: src})
 	}
 	if dataPaths.HostLogAndCrashDir != "" {
 		// logs are not persisted to host
@@ -270,8 +283,8 @@ func DaemonVolumesContainsPVC(volumes []v1.Volume) bool {
 
 // DaemonVolumes returns the pod volumes used by all Ceph daemons. If keyring resource name is
 // empty, there will be no keyring volume created from a secret.
-func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []v1.Volume {
-	vols := DaemonVolumesBase(dataPaths, keyringResourceName)
+func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.Volume {
+	vols := DaemonVolumesBase(dataPaths, keyringResourceName, dataDirHostPath)
 	vols = append(vols, DaemonVolumesDataHostPath(dataPaths)...)
 	return vols
 }
@@ -279,10 +292,13 @@ func DaemonVolumes(dataPaths *config.DataPathMap, keyringResourceName string) []
 // DaemonVolumeMounts returns volume mounts which correspond to the DaemonVolumes. These
 // volume mounts are shared by most all Ceph daemon containers, both init and standard. If keyring
 // resource name is empty, there will be no keyring mounted in the container.
-func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string) []v1.VolumeMount {
+func DaemonVolumeMounts(dataPaths *config.DataPathMap, keyringResourceName string, dataDirHostPath string) []v1.VolumeMount {
 	_, configOverrideMount := configOverrideConfigMapVolumeAndMount()
 	mounts := []v1.VolumeMount{
 		configOverrideMount,
+	}
+	if dataDirHostPath != "" {
+		mounts = append(mounts, v1.VolumeMount{Name: "ceph-daemons-sock-dir", MountPath: daemonSocketDir})
 	}
 	if keyringResourceName != "" {
 		mounts = append(mounts, keyring.VolumeMount().Resource(keyringResourceName))
@@ -466,6 +482,7 @@ func ChownCephDataDirsInitContainer(
 	volumeMounts []v1.VolumeMount,
 	resources v1.ResourceRequirements,
 	securityContext *v1.SecurityContext,
+	configDir string,
 ) v1.Container {
 	args := make([]string, 0, 5)
 	args = append(args,
@@ -474,7 +491,12 @@ func ChownCephDataDirsInitContainer(
 		"ceph:ceph",
 		config.VarLogCephDir,
 		config.VarLibCephCrashDir,
+		daemonSocketDir,
 	)
+	if configDir != "" {
+		args = append(args, configDir)
+	}
+
 	if dpm.ContainerDataDir != "" {
 		args = append(args, dpm.ContainerDataDir)
 	}
@@ -767,7 +789,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
-		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), ""),
+		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
 		SecurityContext: PodSecurityContext(),
 		Resources:       cephv1.GetLogCollectorResources(c.Resources),
 		// We need a TTY for the bash job control (enabled by -m)

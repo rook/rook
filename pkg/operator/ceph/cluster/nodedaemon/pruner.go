@@ -91,7 +91,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 		Namespace: cephCluster.GetNamespace(),
 	}
 	// Adding volumes to pods containing data needed to connect to the ceph cluster.
-	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "")
+	volumes := controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "", cephCluster.Spec.DataDirHostPath)
 	volumes = append(volumes, keyring.Volume().CrashCollector())
 
 	// labels for the pod, the deployment, and the deploymentSelector
@@ -173,7 +173,7 @@ func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion cephver.
 	cephImage := cephCluster.Spec.CephVersion.Image
 	envVars := append(controller.DaemonEnvVars(cephImage), generateCrashEnvVar())
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
-	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "")
+	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
 	volumeMounts = append(volumeMounts, keyring.VolumeMount().CrashCollector())
 
 	container := corev1.Container{

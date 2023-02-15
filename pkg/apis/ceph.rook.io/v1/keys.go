@@ -29,4 +29,5 @@ const (
 	KeyMonitoring      KeyType = "monitoring"
 	KeyCrashCollector  KeyType = "crashcollector"
 	KeyClusterMetadata KeyType = "clusterMetadata"
+	KeyCephExporter    KeyType = "exporter"
 )

@@ -43,6 +43,8 @@ const (
 	ResourcesKeyFilesystemMirror = "fsmirror"
 	// ResourcesKeyCleanup represents the name of resource in the CR for the cleanup
 	ResourcesKeyCleanup = "cleanup"
+	// ResourcesKeyCleanup represents the name of resource in the CR for ceph-exporter
+	ResourcesKeyCephExporter = "exporter"
 )
 
 // GetMgrResources returns the placement for the MGR service
@@ -96,4 +98,9 @@ func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 // GetCleanupResources returns the placement for the cleanup job
 func GetCleanupResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCleanup]
+}
+
+// GetCleanupResources returns the placement for the cleanup job
+func GetCephExporterResources(p ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyCephExporter]
 }

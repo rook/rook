@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: rook-ceph-exporter
+  namespace: rook-ceph
+  labels:
+    team: rook
+spec:
+  namespaceSelector:
+    matchNames:
+      - rook-ceph
+  selector:
+    matchLabels:
+      app: rook-ceph-exporter
+      rook_cluster: rook-ceph
+      ceph_daemon_id: exporter
+  endpoints:
+    - port: ceph-exporter-http-metrics
+      path: /metrics
+      interval: 5s

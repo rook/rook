@@ -146,7 +146,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		Containers:    []v1.Container{rgwDaemonContainer},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: append(
-			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
+			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolume(),
 		),
 		HostNetwork:        hostNetwork,
@@ -258,7 +258,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) v1.Container {
 	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleSourceCustomDir, ReadOnly: true}
-	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), caBundleMount)
+	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), caBundleMount)
 	updatedCaBundleDir := "/tmp/new-ca-bundle/"
 	updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: updatedCaBundleDir, ReadOnly: false}
 	volumeMounts = append(volumeMounts, updatedBundleMount)
@@ -308,7 +308,7 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig, kmsEnabled
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), vaultVolMounts...),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), vaultVolMounts...),
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 	}
@@ -319,9 +319,10 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 		*c.DataPathMap,
 		c.clusterSpec.CephVersion.Image,
 		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
-		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 		c.store.Spec.Gateway.Resources,
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
@@ -355,7 +356,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
 		),
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
 		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),

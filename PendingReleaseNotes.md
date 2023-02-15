@@ -14,3 +14,4 @@
 - Change `pspEnable` default value to `false` in helm charts, and remove documentation for enabling PSP since the min supported K8s version is 1.21 where PSPs were deprecated.
 - [Bucket notifications and topics](https://rook.io/docs/rook/latest/Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-notifications/)
   for object stores moved to stable from experimental.
+- Introduce [Ceph exporter](https://github.com/rook/rook/blob/master/design/ceph/ceph-exporter.md) as the new source of metrics based on performance counters coming from every Ceph daemon.

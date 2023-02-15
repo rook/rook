@@ -104,6 +104,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 				"TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES": "134217728",
 			},
 		},
+		DataDirHostPath: "/var/lib/rook/",
 	}
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
@@ -142,10 +143,10 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, corev1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, "my-priority-class", deployment.Spec.Template.Spec.PriorityClassName)
 	if devMountNeeded && len(dataDir) > 0 {
-		assert.Equal(t, 8, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if devMountNeeded && len(dataDir) == 0 {
-		assert.Equal(t, 8, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Volumes))
@@ -171,12 +172,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	initCont = deployment.Spec.Template.Spec.InitContainers[2]
 	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
 	assert.Equal(t, "chown-container-data-dir", initCont.Name)
-	assert.Equal(t, 7, len(initCont.VolumeMounts))
+	assert.Equal(t, 8, len(initCont.VolumeMounts))
 
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, spec.CephVersion.Image, cont.Image)
-	assert.Equal(t, 7, len(cont.VolumeMounts))
+	assert.Equal(t, 8, len(cont.VolumeMounts))
 	assert.Equal(t, "ceph-osd", cont.Command[0])
 	verifyEnvVar(t, cont.Env, "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES", "134217728", true)
 
@@ -204,11 +205,11 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[3].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	initCont = deployment.Spec.Template.Spec.InitContainers[0]
-	assert.Equal(t, 4, len(initCont.VolumeMounts), initCont.VolumeMounts)
+	assert.Equal(t, 5, len(initCont.VolumeMounts), initCont.VolumeMounts)
 	blkInitCont := deployment.Spec.Template.Spec.InitContainers[2]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 9, len(cont.VolumeMounts), cont.VolumeMounts)
 
 	// Test OSD on PVC with RAW
 	osd = OSDInfo{
@@ -225,7 +226,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[3].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 6, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 
 	// Test with encrypted OSD on PVC with RAW
 	osdProp.encrypted = true
@@ -245,9 +246,9 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[7].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	osdProp.encrypted = false
-	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test OSD on PVC with RAW and metadata device
 	osd = OSDInfo{
@@ -266,12 +267,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[4].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 6, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	blkMetaInitCont := deployment.Spec.Template.Spec.InitContainers[2]
 	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
-	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test encrypted OSD on PVC with RAW and metadata device
 	osd = OSDInfo{
@@ -297,13 +298,13 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[10].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[8]
 	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
 	osdProp.encrypted = false
-	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, 12, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test OSD on PVC with RAW / metadata and wal device
 	osd = OSDInfo{
@@ -324,12 +325,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[5].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 6, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[2]
 	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
-	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, 12, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test encrypted OSD on PVC with RAW / metadata and wal device
 	osd = OSDInfo{
@@ -359,12 +360,12 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[13].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
 	blkInitCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, 1, len(blkInitCont.VolumeDevices))
 	blkMetaInitCont = deployment.Spec.Template.Spec.InitContainers[11]
 	assert.Equal(t, 1, len(blkMetaInitCont.VolumeDevices))
-	assert.Equal(t, 13, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, 14, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// Test with encrypted OSD on PVC with RAW with KMS
 	osdProp.encrypted = true
@@ -387,8 +388,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[8].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
-	assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes) // One more than the encryption with k8s for the kek get init container
+	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes) // One more than the encryption with k8s for the kek get init container
 
 	// Test with encrypted OSD on PVC with RAW with KMS
 	osdProp.encrypted = true
@@ -411,8 +412,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, "chown-container-data-dir", deployment.Spec.Template.Spec.InitContainers[8].Name)
 	assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Containers))
 	cont = deployment.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, 7, len(cont.VolumeMounts), cont.VolumeMounts)
-	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
+	assert.Equal(t, 8, len(cont.VolumeMounts), cont.VolumeMounts)
+	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// Test with encrypted OSD on PVC with RAW with KMS with TLS
 	osdProp.encrypted = true
@@ -423,8 +424,8 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
-	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)                                     // One more than the encryption with k8s for the kek get init container
-	assert.Equal(t, 3, len(deployment.Spec.Template.Spec.Volumes[7].VolumeSource.Projected.Sources), deployment.Spec.Template.Spec.Volumes[0]) // 3 more since we have the tls secrets
+	assert.Equal(t, 11, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)                                     // One more than the encryption with k8s for the kek get init container
+	assert.Equal(t, 3, len(deployment.Spec.Template.Spec.Volumes[8].VolumeSource.Projected.Sources), deployment.Spec.Template.Spec.Volumes[0]) // 3 more since we have the tls secrets
 	osdProp.encrypted = false
 
 	// Test tune Fast settings when OSD on PVC

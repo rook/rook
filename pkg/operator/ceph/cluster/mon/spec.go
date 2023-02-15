@@ -181,7 +181,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		RestartPolicy: corev1.RestartPolicyAlways,
 		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
 		// the base volumes at this point.
-		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
+		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		HostNetwork:       monConfig.UseHostNetwork,
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
 	}
@@ -239,9 +239,10 @@ func (c *Cluster) makeChownInitContainer(monConfig *monConfig) corev1.Container 
 		*monConfig.DataPathMap,
 		c.spec.CephVersion.Image,
 		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		cephv1.GetMonResources(c.spec.Resources),
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
@@ -260,7 +261,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) corev1.Container 
 		),
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		SecurityContext: controller.PodSecurityContext(),
 		// filesystem creation does not require ports to be exposed
 		Env:       controller.DaemonEnvVars(c.spec.CephVersion.Image),
@@ -301,7 +302,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		),
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		SecurityContext: controller.PodSecurityContext(),
 		Ports: []corev1.ContainerPort{
 			{

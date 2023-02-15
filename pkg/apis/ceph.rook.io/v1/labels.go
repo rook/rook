@@ -73,6 +73,10 @@ func GetCrashCollectorLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyCrashCollector)
 }
 
+func GetCephExporterLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyCephExporter)
+}
+
 func mergeAllLabelsWithKey(a LabelsSpec, name KeyType) Labels {
 	all := a.All()
 	if all != nil {

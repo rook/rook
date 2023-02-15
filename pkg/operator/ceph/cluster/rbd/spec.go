@@ -40,7 +40,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 				r.makeMirroringDaemonContainer(daemonConfig, rbdMirror),
 			},
 			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: rbdMirror.Spec.PriorityClassName,
 		},
@@ -101,9 +101,10 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 		*daemonConfig.DataPathMap,
 		r.cephClusterSpec.CephVersion.Image,
 		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
-		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		rbdMirror.Spec.Resources,
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
@@ -120,7 +121,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 		),
 		Image:           r.cephClusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
-		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
 		Resources:       rbdMirror.Spec.Resources,
 		SecurityContext: controller.PodSecurityContext(),
