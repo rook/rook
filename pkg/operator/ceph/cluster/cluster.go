@@ -598,17 +598,25 @@ func (c *cluster) reportTelemetry() {
 
 func (c *cluster) configureMsgr2() error {
 	encryptionSetting := "secure"
-	defaultRBDMapOptions := "ms_mode=secure"
+	rbdMapOptions := "rbd_default_map_options"
 	encryptionGlobalConfigSettings := map[string]string{
-		"ms_cluster_mode":         encryptionSetting,
-		"ms_service_mode":         encryptionSetting,
-		"ms_client_mode":          encryptionSetting,
-		"rbd_default_map_options": defaultRBDMapOptions,
+		"ms_cluster_mode": encryptionSetting,
+		"ms_service_mode": encryptionSetting,
+		"ms_client_mode":  encryptionSetting,
+		rbdMapOptions:     "ms_mode=secure",
 	}
 	monStore := config.GetMonStore(c.context, c.ClusterInfo)
 
-	// If the user has disabled encryption, remove the encryption settings
-	if c.Spec.Network.Connections == nil || c.Spec.Network.Connections.Encryption == nil || !c.Spec.Network.Connections.Encryption.Enabled {
+	encryptionEnabled := c.Spec.Network.Connections != nil &&
+		c.Spec.Network.Connections.Encryption != nil &&
+		c.Spec.Network.Connections.Encryption.Enabled
+
+	if encryptionEnabled {
+		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
+		if err := monStore.SetAll("global", encryptionGlobalConfigSettings); err != nil {
+			return err
+		}
+	} else {
 		encryptionConfig := []config.Option{}
 		for k := range encryptionGlobalConfigSettings {
 			encryptionConfig = append(encryptionConfig, config.Option{Who: "global", Option: k})
@@ -616,13 +624,15 @@ func (c *cluster) configureMsgr2() error {
 		if err := monStore.DeleteAll(encryptionConfig...); err != nil {
 			return errors.Wrap(err, "failed to delete msgr2 encryption settings")
 		}
-	} else {
-		logger.Infof("setting msgr2 encryption mode to %q", encryptionSetting)
-		if err := monStore.SetAll("global", encryptionGlobalConfigSettings); err != nil {
-			return err
+
+		// set default rbd map options to enable msgr2 in the kernel if it's
+		// required even with encryption disabled
+		if c.Spec.Network.Connections != nil && c.Spec.Network.Connections.RequireMsgr2 {
+			if err := monStore.SetAll("global", map[string]string{rbdMapOptions: "ms_mode=prefer-crc"}); err != nil {
+				return err
+			}
 		}
 	}
-
 	// Set network compression
 	if c.ClusterInfo.CephVersion.IsAtLeastQuincy() {
 		if c.Spec.Network.Connections == nil || c.Spec.Network.Connections.Compression == nil || !c.Spec.Network.Connections.Compression.Enabled {
