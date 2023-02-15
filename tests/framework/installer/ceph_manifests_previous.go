@@ -86,7 +86,13 @@ func (m *CephManifestsPreviousVersion) GetCommonExternal() string {
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsPreviousVersion) GetCephCluster() string {
-	return m.latest.GetCephCluster()
+	c := m.latest.GetCephCluster()
+
+	// Remove the requireMsgr2 setting if in v1.10
+	if m.settings.RookVersion == Version1_10 {
+		return strings.Replace(c, "requireMsgr2: false", "", 1)
+	}
+	return c
 }
 
 func (m *CephManifestsPreviousVersion) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
