@@ -75,7 +75,7 @@ example, when Rook v1.10.1 is released, the process of updating from v1.10.0 is 
 the following:
 
 ```console
-git clone --single-branch --depth=1 --branch v1.10.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.11.1 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -116,7 +116,6 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
   starting state.
 * All pods consuming Rook storage should be created, running, and in a steady state.
 
-
 ## Rook Operator Upgrade
 
 In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.9.10` to
@@ -148,7 +147,7 @@ by the Operator. Also update the Custom Resource Definitions (CRDs).
 Get the latest common resources manifests that contain the latest changes.
 
 ```console
-git clone --single-branch --depth=1 --branch master https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.11.0-beta.0 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -187,7 +186,7 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
-kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:master
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.11.0-beta.0
 ```
 
 ### **3. Update Ceph CSI**

@@ -44,7 +44,7 @@ There are two sources for metrics collection:
 From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
-$ git clone --single-branch --branch master https://github.com/rook/rook.git
+$ git clone --single-branch --branch v1.11.0-beta.0 https://github.com/rook/rook.git
 cd rook/deploy/examples/monitoring
 ```
 
@@ -105,9 +105,9 @@ A guide to how you can write your own Prometheus consoles can be found on the of
 
 To enable the Ceph Prometheus alerts via the helm charts, set the following properties in values.yaml:
 
-* rook-ceph chart:
+- rook-ceph chart:
   `monitoring.enabled: true`
-* rook-ceph-cluster chart:
+- rook-ceph-cluster chart:
   `monitoring.enabled: true`
   `monitoring.createPrometheusRules: true`
 
