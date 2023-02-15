@@ -190,6 +190,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		SecurityContext: controller.PodSecurityContext(),
 		StartupProbe:    controller.GenerateStartupProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
 		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
+		ReadinessProbe:  controller.GenerateMgrReadinessProbeExecDaemon(config.MgrType, mgrConfig.DaemonID),
 		WorkingDir:      config.VarLogCephDir,
 	}
 
