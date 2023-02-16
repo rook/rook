@@ -78,7 +78,7 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 	}
 }
 
-var waitForDeploymentToStart = k8sutil.WaitForDeploymentToStart
+var waitForPodsWithLabelToRun = k8sutil.WaitForPodsWithLabelToRun
 var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // for backward compatibility, default to 1 mgr
@@ -164,13 +164,9 @@ func (c *Cluster) Start() error {
 	// If we're waiting for the mgr deployments to start, it is a clean deployment
 	if len(deploymentsToWaitFor) > 0 {
 		config.DisableInsecureGlobalID(c.context, c.clusterInfo)
-	}
-
-	// If the mgr is newly created, wait for it to start before continuing with the service and
-	// module configuration
-	for _, d := range deploymentsToWaitFor {
-		if err := waitForDeploymentToStart(c.clusterInfo.Context, c.context, d); err != nil {
-			return errors.Wrapf(err, "failed to wait for mgr %q to start", d.Name)
+		mgrLabel := fmt.Sprintf("%s=%s", controller.DaemonTypeLabel, cephv1.KeyMgr)
+		if err := waitForPodsWithLabelToRun(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, mgrLabel); err != nil {
+			return errors.Wrap(err, "failed to wait for mgr pods to start")
 		}
 	}
 
