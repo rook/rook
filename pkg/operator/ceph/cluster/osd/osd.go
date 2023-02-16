@@ -26,22 +26,23 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/coreos/pkg/capnslog"
-	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
@@ -662,7 +663,7 @@ func getTopologyFromNode(ctx context.Context, clientset kubernetes.Interface, d 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get the node for topology affinity")
 	}
-	_, topologyAffinity := ExtractOSDTopologyFromLabels(node.Labels)
+	_, topologyAffinity := topology.ExtractOSDTopologyFromLabels(node.Labels)
 	logger.Infof("found osd %d topology affinity at %q", osd.ID, topologyAffinity)
 	return topologyAffinity, nil
 }
@@ -722,7 +723,7 @@ func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName strin
 }
 
 func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) string {
-	topology, topologyAffinity := ExtractOSDTopologyFromLabels(nodeLabels)
+	topology, topologyAffinity := topology.ExtractOSDTopologyFromLabels(nodeLabels)
 
 	keys := make([]string, 0, len(topology))
 	for k := range topology {

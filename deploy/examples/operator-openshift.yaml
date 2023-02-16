@@ -574,6 +574,16 @@ data:
   # NOTE: the value here serves as an example and needs to be
   # updated with node labels that define domains of interest
   # CSI_TOPOLOGY_DOMAIN_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
+
+  # Enable read affinity for RBD volumes. Recommended to
+  # set to true if running kernel 5.8 or newer.
+  CSI_ENABLE_READ_AFFINITY: "false"
+  # CRUSH location labels define which node labels to use
+  # as CRUSH location. This should correspond to the values set in
+  # the CRUSH map.
+  # Defaults to all the labels mentioned in
+  # https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/#osd-topology
+  # CSI_CRUSH_LOCATION_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
