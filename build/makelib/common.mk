@@ -24,6 +24,13 @@ else
 $(error "please install 'shasum' or 'sha256sum'")
 endif
 
+ifeq ($(origin DOCKERCMD),undefined)
+DOCKERCMD?=$(shell docker version >/dev/null 2>&1 && echo docker)
+ifeq ($(DOCKERCMD),)
+DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
+endif
+endif
+
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
