@@ -17,13 +17,6 @@
 
 override GOOS=linux
 
-ifeq ($(origin DOCKERCMD),undefined)
-DOCKERCMD?=$(shell docker version >/dev/null 2>&1 && echo docker)
-ifeq ($(DOCKERCMD),)
-DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
-endif
-endif
-
 # include the common make file
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/../build/makelib/common.mk
