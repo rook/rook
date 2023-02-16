@@ -51,7 +51,7 @@ const (
 	daemonSocketDir                         = "/run/ceph"
 	logCollector                            = "log-collector"
 	DaemonIDLabel                           = "ceph_daemon_id"
-	daemonTypeLabel                         = "ceph_daemon_type"
+	DaemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
 	ServiceExternalMetricName               = "http-external-metrics"
 	CephUserID                              = 167
@@ -403,7 +403,7 @@ func CephDaemonAppLabels(appName, namespace, daemonType, daemonID, parentName, r
 
 	// New labels cannot be applied to match selectors during upgrade
 	if includeNewLabels {
-		labels[daemonTypeLabel] = daemonType
+		labels[DaemonTypeLabel] = daemonType
 		k8sutil.AddRecommendedLabels(labels, "ceph-"+daemonType, parentName, resourceKind, daemonID)
 	}
 	labels[DaemonIDLabel] = daemonID
