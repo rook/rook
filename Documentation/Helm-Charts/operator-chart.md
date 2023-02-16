@@ -110,6 +110,8 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.rbdPluginUpdateStrategy` | CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.rbdPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI RBD plugin daemonset update strategy. | `1` |
 | `csi.rbdPodLabels` | Labels to add to the CSI RBD Deployments and DaemonSets Pods | `nil` |
+| `csi.readAffinity.crushLocationLabels` | Define which node labels to use as CRUSH location. This should correspond to the values set in the CRUSH map. | labels listed [here](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) |
+| `csi.readAffinity.enabled` | Enable read affinity for RBD volumes. Recommended to set to true if running kernel 5.8 or newer. | `false` |
 | `csi.registrar.image` | Kubernetes CSI registrar image | `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.7.0` |
 | `csi.resizer.image` | Kubernetes CSI resizer image | `registry.k8s.io/sig-storage/csi-resizer:v1.7.0` |
 | `csi.sidecarLogLevel` | Set logging level for Kubernetes-csi sidecar containers. Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity. | `0` |

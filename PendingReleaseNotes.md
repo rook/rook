@@ -15,3 +15,4 @@
 - [Bucket notifications and topics](https://rook.io/docs/rook/latest/Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-notifications/)
   for object stores moved to stable from experimental.
 - Introduce [Ceph exporter](https://github.com/rook/rook/blob/master/design/ceph/ceph-exporter.md) as the new source of metrics based on performance counters coming from every Ceph daemon.
+- Added support to enable read affinity for RBD volumes. It leverages the [krbd map options](https://docs.ceph.com/en/latest/man/8/rbd/#kernel-rbd-krbd-options) to allow serving reads from an OSD in proximity to the client, according to OSD locations defined in the CRUSH map and topology labels on nodes.
