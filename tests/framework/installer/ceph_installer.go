@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
@@ -466,7 +465,7 @@ func (h *CephInstaller) initTestDir(namespace string) (string, error) {
 		}
 
 		var err error
-		if testDir, err = ioutil.TempDir(testDir, "test-"); err != nil {
+		if testDir, err = os.MkdirTemp(testDir, "test-"); err != nil {
 			return "", err
 		}
 	} else {

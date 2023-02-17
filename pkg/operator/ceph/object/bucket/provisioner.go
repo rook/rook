@@ -621,7 +621,7 @@ func (p *Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error
 		}
 	}
 
-	if *&objectUser.UserQuota.MaxSize != &maxSizeInt64 {
+	if objectUser.UserQuota.MaxSize != &maxSizeInt64 {
 		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxSize: &maxSizeInt64})
 		if err != nil {
 			return errors.Wrapf(err, "failed to set MaxSize=%v to user %q", maxSizeInt64, p.cephUserName)

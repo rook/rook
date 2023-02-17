@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -157,7 +157,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 						}
 						return &http.Response{
 							StatusCode: statusCode,
-							Body:       ioutil.NopCloser(bytes.NewReader([]byte(getUserResult))),
+							Body:       io.NopCloser(bytes.NewReader([]byte(getUserResult))),
 						}, nil
 					}
 				}
@@ -166,7 +166,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 						*putValsSeen = append(*putValsSeen, req.URL.RawQuery)
 						return &http.Response{
 							StatusCode: 200,
-							Body:       ioutil.NopCloser(bytes.NewReader([]byte(`[]`))),
+							Body:       io.NopCloser(bytes.NewReader([]byte(`[]`))),
 						}, nil
 					}
 				}
