@@ -75,11 +75,10 @@ var (
 
 type kmipKMS struct {
 	// standard KMIP configuration options
-	endpoint         string
-	tlsConfig        *tls.Config
-	uniqueIdentifier string
-	readTimeout      uint8
-	writeTimeout     uint8
+	endpoint     string
+	tlsConfig    *tls.Config
+	readTimeout  uint8
+	writeTimeout uint8
 }
 
 // InitKKMIP initializes the KMIP KMS.

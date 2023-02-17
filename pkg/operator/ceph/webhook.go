@@ -18,7 +18,6 @@ package operator
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -108,7 +107,7 @@ func createWebhook(ctx context.Context, context *clusterd.Context) (bool, error)
 		filePath := path.Join(certDir, k)
 		// We must use 0600 mode so that the files can be overridden each time the Secret is fetched
 		// to keep an updated content
-		err := ioutil.WriteFile(filePath, data, 0600)
+		err := os.WriteFile(filePath, data, 0600)
 		if err != nil {
 			return false, errors.Wrapf(err, "failed to write secret content to file %q", filePath)
 		}

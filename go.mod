@@ -1,6 +1,6 @@
 module github.com/rook/rook
 
-go 1.18
+go 1.19
 
 require (
 	github.com/IBM/keyprotect-go-client v0.9.2

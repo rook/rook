@@ -16,7 +16,7 @@ limitations under the License.
 package osd
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 	"testing"
@@ -41,7 +41,7 @@ func TestOSDBootstrap(t *testing.T) {
 	assert.Nil(t, err)
 
 	targetPath := path.Join(configDir, bootstrapOsdKeyring)
-	contents, err := ioutil.ReadFile(targetPath)
+	contents, err := os.ReadFile(targetPath)
 	assert.Nil(t, err)
 	assert.NotEqual(t, -1, strings.Index(string(contents), "[client.bootstrap-osd]"))
 	assert.NotEqual(t, -1, strings.Index(string(contents), "key = mysecurekey"))

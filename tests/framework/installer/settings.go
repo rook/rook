@@ -15,8 +15,9 @@ package installer
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
+	"os"
 	"path"
 	"regexp"
 	"time"
@@ -34,7 +35,7 @@ func readManifest(filename string) string {
 	}
 	manifest := path.Join(rootDir, "deploy/examples/", filename)
 	logger.Infof("Reading manifest: %s", manifest)
-	contents, err := ioutil.ReadFile(manifest)
+	contents, err := os.ReadFile(manifest)
 	if err != nil {
 		panic(errors.Wrapf(err, "failed to read manifest at %s", manifest))
 	}
@@ -73,7 +74,7 @@ func readManifestFromURL(url string) string {
 	}
 	defer response.Body.Close()
 
-	content, err := ioutil.ReadAll(response.Body)
+	content, err := io.ReadAll(response.Body)
 	if err != nil {
 		panic(errors.Wrapf(err, "failed to read content from %s", url))
 	}

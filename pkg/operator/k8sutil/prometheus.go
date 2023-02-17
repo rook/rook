@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
@@ -46,7 +46,7 @@ func getMonitoringClient() (*monitoringclient.Clientset, error) {
 
 // GetServiceMonitor returns servicemonitor or an error
 func GetServiceMonitor(filePath string) (*monitoringv1.ServiceMonitor, error) {
-	file, err := ioutil.ReadFile(filepath.Clean(filePath))
+	file, err := os.ReadFile(filepath.Clean(filePath))
 	if err != nil {
 		return nil, fmt.Errorf("servicemonitor file could not be fetched. %v", err)
 	}

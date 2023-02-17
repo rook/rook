@@ -509,19 +509,6 @@ func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
 	return probe, nil
 }
 
-func (c *clusterConfig) generateReadinessProbeScheme() v1.URIScheme {
-	// Default to HTTP
-	uriScheme := v1.URISchemeHTTP
-
-	// If rgw is configured to use a secured port we need get on https://
-	// Only do this when the Non-SSL port is not used
-	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.IsTLSEnabled() {
-		uriScheme = v1.URISchemeHTTPS
-	}
-
-	return uriScheme
-}
-
 func (c *clusterConfig) endpointInfo() (ProtocolType, *intstr.IntOrString) {
 	// The port the liveness probe needs to probe
 	// Assume we run on SDN by default
