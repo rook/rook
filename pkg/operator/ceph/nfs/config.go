@@ -18,8 +18,9 @@ package nfs
 
 import (
 	"fmt"
+	"io"
 	"io/fs"
-	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -163,7 +164,7 @@ func setKerberosRadosConfig(context *clusterd.Context, clusterInfo *cephclient.C
 	logger.Infof("ensuring kerberos configuration exists in rados namespace %s", radosInfoStr)
 
 	// write ganesha kerberos configuration block into a temp file
-	krbBlockFile, err := ioutil.TempFile("", "krb-block-file")
+	krbBlockFile, err := os.CreateTemp("", "krb-block-file")
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp file for ganesha kerberos configuration block for %s", radosInfoStr)
 	}
@@ -233,7 +234,7 @@ func atomicPrependToConfigObject(
 	objInfoString := fmt.Sprintf("rados://%s/%s/%s", radosPool, radosNamespace, objectName)
 
 	// read object into temp file
-	tempFile, err := ioutil.TempFile("", tmpFilePattern)
+	tempFile, err := os.CreateTemp("", tmpFilePattern)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp file for %s", objInfoString)
 	}
@@ -273,7 +274,7 @@ func atomicPrependToConfigObject(
 		return errors.Wrapf(err, "failed to get object %s", objInfoString)
 	}
 
-	rawObj, err := ioutil.ReadAll(tempFile)
+	rawObj, err := io.ReadAll(tempFile)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read object %s from temp file", objInfoString)
 	}
@@ -285,7 +286,7 @@ func atomicPrependToConfigObject(
 	logger.Debugf("rados object %s will have config block prepended: %s", objInfoString, configBlock)
 
 	newConfig := fmt.Sprintf("%s%s", configBlock, string(rawObj))
-	if err := ioutil.WriteFile(tempFile.Name(), []byte(newConfig), fs.FileMode(0644)); err != nil {
+	if err := os.WriteFile(tempFile.Name(), []byte(newConfig), fs.FileMode(0644)); err != nil {
 		return errors.Wrapf(err, "failed to write new config content for object %s to temp file", objInfoString)
 	}
 
@@ -308,7 +309,7 @@ func atomicRemoveFromConfigObject(context *clusterd.Context, clusterInfo *cephcl
 	objInfoString := fmt.Sprintf("rados://%s/%s/%s", radosPool, radosNamespace, objectName)
 
 	// read object into temp file
-	tempFile, err := ioutil.TempFile("", tmpFilePattern)
+	tempFile, err := os.CreateTemp("", tmpFilePattern)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temp file for %s", objInfoString)
 	}
@@ -348,7 +349,7 @@ func atomicRemoveFromConfigObject(context *clusterd.Context, clusterInfo *cephcl
 		return errors.Wrapf(err, "failed to get object %s", objInfoString)
 	}
 
-	rawObj, err := ioutil.ReadAll(tempFile)
+	rawObj, err := io.ReadAll(tempFile)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read object %s from temp file", objInfoString)
 	}
@@ -360,7 +361,7 @@ func atomicRemoveFromConfigObject(context *clusterd.Context, clusterInfo *cephcl
 	logger.Debugf("rados object %s will have config block removed: %s", objInfoString, configBlock)
 
 	newConfig := strings.ReplaceAll(string(rawObj), configBlock, "")
-	if err := ioutil.WriteFile(tempFile.Name(), []byte(newConfig), fs.FileMode(0644)); err != nil {
+	if err := os.WriteFile(tempFile.Name(), []byte(newConfig), fs.FileMode(0644)); err != nil {
 		return errors.Wrapf(err, "failed to write new config content for object %s to temp file", objInfoString)
 	}
 

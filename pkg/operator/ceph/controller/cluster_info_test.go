@@ -19,7 +19,6 @@ package controller
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -46,7 +45,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 			logger.Infof("COMMAND: %s %v", command, args)
 			if command == "ceph-authtool" && args[0] == "--create-keyring" {
 				filename := args[1]
-				assert.NoError(t, ioutil.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
+				assert.NoError(t, os.WriteFile(filename, []byte(fmt.Sprintf("key = %s", adminSecret)), 0600))
 			}
 			return "", nil
 		},

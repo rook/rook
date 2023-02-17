@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -273,9 +273,8 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		if device.Data == -1 {
 			logger.Infof("configuring new device %q", device.Config.Name)
 			var err error
-			var deviceArg string
 
-			deviceArg = device.Config.Name
+			deviceArg := device.Config.Name
 
 			immediateExecuteArgs := append(baseArgs, []string{
 				"--data",
@@ -363,7 +362,7 @@ func getEncryptedBlockPath(op, blockType string) string {
 // UpdateLVMConfig updates the lvm.conf file
 func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 
-	input, err := ioutil.ReadFile(lvmConfPath)
+	input, err := os.ReadFile(lvmConfPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read lvm config file %q", lvmConfPath)
 	}
@@ -392,7 +391,7 @@ func UpdateLVMConfig(context *clusterd.Context, onPVC, lvBackedPV bool) error {
 		}
 	}
 
-	if err = ioutil.WriteFile(lvmConfPath, output, 0600); err != nil {
+	if err = os.WriteFile(lvmConfPath, output, 0600); err != nil {
 		return errors.Wrapf(err, "failed to update lvm config file %q", lvmConfPath)
 	}
 
@@ -888,7 +887,7 @@ func readCVLogContent(cvLogFilePath string) string {
 	defer cvLogFile.Close()
 
 	// Read c-v log file
-	b, err := ioutil.ReadAll(cvLogFile)
+	b, err := io.ReadAll(cvLogFile)
 	if err != nil {
 		logger.Errorf("failed to read ceph-volume log file %q. %v", cvLogFilePath, err)
 		return ""

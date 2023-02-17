@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -51,13 +50,13 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 
 	// Token file
 	tokenFilePattern := fmt.Sprintf("rbd-mirror-token-%s", poolName)
-	tokenFilePath, err := ioutil.TempFile("/tmp", tokenFilePattern)
+	tokenFilePath, err := os.CreateTemp("/tmp", tokenFilePattern)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temporary token file for pool %q", poolName)
 	}
 
 	// Write token into a file
-	err = ioutil.WriteFile(tokenFilePath.Name(), token, 0400)
+	err = os.WriteFile(tokenFilePath.Name(), token, 0400)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write token to file %q", tokenFilePath.Name())
 	}

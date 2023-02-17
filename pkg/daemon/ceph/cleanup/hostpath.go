@@ -17,7 +17,6 @@ limitations under the License.
 package cleanup
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -74,7 +73,7 @@ func secretKeyMatch(monDir, monSecret string) (bool, error) {
 	if _, err := os.Stat(keyringDirPath); os.IsNotExist(err) {
 		return false, errors.Wrapf(err, "failed to read keyring %q for the mon directory %q", keyringDirPath, monDir)
 	}
-	contents, err := ioutil.ReadFile(filepath.Clean(keyringDirPath))
+	contents, err := os.ReadFile(filepath.Clean(keyringDirPath))
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to read keyring %q for the mon directory %q", keyringDirPath, monDir)
 	}

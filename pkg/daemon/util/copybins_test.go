@@ -17,7 +17,6 @@ limitations under the License.
 package util
 
 import (
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -49,7 +48,7 @@ func TestCopyBinary(t *testing.T) {
 	}
 
 	fileText := func(binPath string) string {
-		b, err := ioutil.ReadFile(binPath)
+		b, err := os.ReadFile(binPath)
 		assert.NoError(t, err)
 		return string(b)
 	}

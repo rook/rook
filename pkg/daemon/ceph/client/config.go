@@ -19,7 +19,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -286,15 +285,15 @@ func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
-	src, err := ioutil.ReadFile(filepath.Clean(confFilePath))
+	src, err := os.ReadFile(filepath.Clean(confFilePath))
 	if err != nil {
 		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
-	err = ioutil.WriteFile(DefaultConfigFilePath(), src, 0600)
+	err = os.WriteFile(DefaultConfigFilePath(), src, 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", DefaultConfigFilePath())
 	}
-	dst, err := ioutil.ReadFile(DefaultConfigFilePath())
+	dst, err := os.ReadFile(DefaultConfigFilePath())
 	if err == nil {
 		logger.Debugf("config file @ %s:\n%s", DefaultConfigFilePath(), dst)
 	} else {

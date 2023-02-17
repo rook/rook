@@ -448,7 +448,7 @@ func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper
 	}
 	isPVListZero := k8sh.WaitUntilZeroPVs()
 	if !isPVListZero {
-		assert.Fail(s.T(), fmt.Sprintf("PV list is not zero"))
+		assert.Fail(s.T(), "PV list is not zero")
 	}
 	logger.Infof("File system consumer deleted")
 }
