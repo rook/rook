@@ -78,7 +78,6 @@ do.build:
 	@cp ../../tests/ceph-status-out $(TEMP)/rook-external/test-data/
 
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
-	@$(MAKE) CSV_TEMPLATE_DIR=$(TEMP) generate-csv-templates
 	@$(MAKE) csv
 	@cp -r ../../build/csv $(TEMP)/ceph-csv-templates
 	@rm $(TEMP)/ceph-csv-templates/csv-gen.sh
@@ -100,28 +99,6 @@ endif
 # call this before building multiple arches in parallel to prevent parallel build processes from
 # conflicting
 prerequisites: $(OPERATOR_SDK) $(YQv3)
-
-# generate CSV template files into the directory defined by the env var CSV_TEMPLATE_DIR
-# CSV_TEMPLATE_DIR will be created if it doesn't already exist
-generate-csv-templates: $(OPERATOR_SDK) $(YQv3) ## Generate CSV templates for OLM into CSV_TEMPLATE_DIR
-	@if [[ -z "$(CSV_TEMPLATE_DIR)" ]]; then echo "CSV_TEMPLATE_DIR is not set"; exit 1; fi
-	@# first, copy the existing CRDs and OLM catalog directory to CSV_TEMPLATE_DIR
-	@# then, generate or copy all prerequisites into CSV_TEMPLATE_DIR (e.g., CRDs)
-	@# finally, generate the templates in-place using CSV_TEMPLATE_DIR as a staging dir
-	@mkdir -p $(CSV_TEMPLATE_DIR)
-	@cp -a ../../deploy $(CSV_TEMPLATE_DIR)/deploy
-
-	@set -eE;\
-	BEFORE_GEN_CRD_SIZE=$$(wc -l < $(MANIFESTS_DIR)/crds.yaml);\
-	$(MAKE) -C ../.. NO_OB_OBC_VOL_GEN=true MAX_DESC_LEN=0 BUILD_CRDS_INTO_DIR=$(CSV_TEMPLATE_DIR) crds;\
-	AFTER_GEN_CRD_SIZE=$$(wc -l < $(CSV_TEMPLATE_DIR)/deploy/examples/crds.yaml);\
-	if [ "$$BEFORE_GEN_CRD_SIZE" -le "$$AFTER_GEN_CRD_SIZE" ]; then\
-		echo "the new crd file must be smaller since the description fields were stripped!";\
-		echo "length before $$BEFORE_GEN_CRD_SIZE";\
-		echo "length after $$AFTER_GEN_CRD_SIZE";\
-		exit 1;\
-	fi
-	@echo " === Generated CSV templates"
 
 $(YQv3):
 	@echo === installing yq $(YQv3_VERSION) $(REAL_HOST_PLATFORM)
@@ -146,7 +123,7 @@ csv: $(OPERATOR_SDK) $(YQv3)
 
 csv-clean: ## Remove existing OLM files.
 	@rm -fr ../../build/csv/ceph/${go env GOARCH}
-	@rm -f ../../build/csv/ceph.clusterserviceversion.yaml
+	@rm -f ../../build/csv/rook-ceph.clusterserviceversion.yaml
 	@git restore $(MANIFESTS_DIR)/crds.yaml ../../deploy/charts/rook-ceph/templates/resources.yaml
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate
