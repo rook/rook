@@ -59,13 +59,6 @@ jobs:
 
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
-        run: |
-          # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
-          if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
-            echo USE_TMATE=1 >> $GITHUB_ENV
-          fi
-
-      - name: set up tmate session for debugging
-        if: failure() && env.USE_TMATE
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
