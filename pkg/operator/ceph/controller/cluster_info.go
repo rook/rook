@@ -20,7 +20,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -231,7 +230,7 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 		return "", errors.Wrap(err, "failed to gen secret")
 	}
 
-	contents, err := ioutil.ReadFile(filepath.Clean(path))
+	contents, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to read secret file")
 	}

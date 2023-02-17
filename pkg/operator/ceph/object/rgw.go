@@ -19,9 +19,9 @@ package object
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -425,7 +425,7 @@ func GetTlsCaCert(objContext *Context, objectStoreSpec *cephv1.ObjectStoreSpec) 
 			}
 		}
 	} else if objectStoreSpec.GetServiceServingCert() != "" {
-		tlsCert, err = ioutil.ReadFile(ServiceServingCertCAFile)
+		tlsCert, err = os.ReadFile(ServiceServingCertCAFile)
 		if err != nil {
 			return nil, false, errors.Wrapf(err, "failed to fetch TLS certificate from %q", ServiceServingCertCAFile)
 		}

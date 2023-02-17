@@ -20,7 +20,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -50,14 +50,14 @@ func TestDeleteOBCResource(t *testing.T) {
 						status, _ := json.Marshal(statusError{errCodeRemoveBucket, "requestid", "hostid"})
 						return &http.Response{
 							StatusCode: 404,
-							Body:       ioutil.NopCloser(bytes.NewReader([]byte(status))),
+							Body:       io.NopCloser(bytes.NewReader([]byte(status))),
 						}, nil
 					}
 					if req.Method == http.MethodGet {
 						status, _ := json.Marshal(statusError{errCodeGetBucketInfo, "requestid", "hostid"})
 						return &http.Response{
 							StatusCode: 404,
-							Body:       ioutil.NopCloser(bytes.NewReader([]byte(status))),
+							Body:       io.NopCloser(bytes.NewReader([]byte(status))),
 						}, nil
 					}
 				}

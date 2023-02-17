@@ -21,7 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -295,7 +295,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 						(req.URL.RawQuery == "format=json&uid=my-user" && req.Method == http.MethodGet && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") {
 						return &http.Response{
 							StatusCode: 200,
-							Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+							Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 						}, nil
 					}
 					return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)
@@ -366,7 +366,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 				if req.URL.RawQuery == "format=json&uid=my-user" {
 					return &http.Response{
 						StatusCode: 200,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+						Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 					}, nil
 				}
 			}
@@ -378,7 +378,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 					req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=200&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" {
 					return &http.Response{
 						StatusCode: 200,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+						Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 					}, nil
 				}
 			}
@@ -387,7 +387,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 				if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" {
 					return &http.Response{
 						StatusCode: 200,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte(`[]`))),
+						Body:       io.NopCloser(bytes.NewReader([]byte(`[]`))),
 					}, nil
 				}
 			}
@@ -398,12 +398,12 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 					req.URL.RawQuery == "enabled=true&format=json&max-objects=10000&max-size=10000000000&quota=&quota-type=user&uid=my-user" {
 					return &http.Response{
 						StatusCode: 200,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+						Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 					}, nil
 				} else if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" {
 					return &http.Response{
 						StatusCode: 200,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCapsJSON))),
+						Body:       io.NopCloser(bytes.NewReader([]byte(userCapsJSON))),
 					}, nil
 				}
 			}

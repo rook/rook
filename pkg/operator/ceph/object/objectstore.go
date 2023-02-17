@@ -313,8 +313,7 @@ func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
 	realmKey, ok := secret.Data[keyName]
 
 	if !ok {
-		return "", errors.New(fmt.Sprintf("failed to find key %q in secret %q data. ", keyName, secret.Name) +
-			"user likely created or modified the secret manually and should add the missing key back into the secret")
+		return "", fmt.Errorf("failed to find key %q in secret %q data. user likely created or modified the secret manually and should add the missing key back into the secret", keyName, secret.Name)
 	}
 
 	return string(realmKey), nil

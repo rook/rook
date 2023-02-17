@@ -18,7 +18,7 @@ package installer
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 
 	"github.com/rook/rook/tests/framework/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -77,7 +77,7 @@ reclaimPolicy: Delete
 	}
 	yamlToCreate := fmt.Sprintf(storageClass, hostPathStorageClassName)
 	for i := 0; i < count; i++ {
-		tempDir, err := ioutil.TempDir("", "example")
+		tempDir, err := os.MkdirTemp("", "example")
 		if err != nil {
 			return fmt.Errorf("failed to create temp dir. %v", err)
 		}

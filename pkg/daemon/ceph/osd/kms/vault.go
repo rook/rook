@@ -18,7 +18,6 @@ package kms
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -48,7 +47,7 @@ var (
 
 // Used for unit tests mocking too as well as production code
 var (
-	createTmpFile      = ioutil.TempFile
+	createTmpFile      = os.CreateTemp
 	getRemoveCertFiles = getRemoveCertFilesFunc
 )
 
@@ -148,7 +147,7 @@ func configTLS(ctx context.Context, clusterdContext *clusterd.Context, namespace
 			}
 
 			// Write into a file
-			err = ioutil.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0444)
+			err = os.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0444)
 			if err != nil {
 				return nil, removeCertFiles, errors.Wrapf(err, "failed to write k8s secret %q content to a file", tlsSecretName)
 			}

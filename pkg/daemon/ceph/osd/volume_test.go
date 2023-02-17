@@ -19,7 +19,6 @@ package osd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -313,7 +312,7 @@ func createPVCAvailableDevices() *DeviceOsdMapping {
 
 func TestConfigureCVDevices(t *testing.T) {
 	originalLVMConfPath := lvmConfPath
-	lvmConfPathTemp, err := ioutil.TempFile("", "lvmconf")
+	lvmConfPathTemp, err := os.CreateTemp("", "lvmconf")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +342,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
-				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="/mnt/set1-data-0-rpf2k" KNAME="/dev/dm-1, a ...interface{})`), nil
+				return `SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="/mnt/set1-data-0-rpf2k" KNAME="/dev/dm-1, a ...interface{})`, nil
 			}
 			if command == "sgdisk" {
 				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
@@ -1360,7 +1359,7 @@ func TestGetDatabaseSize(t *testing.T) {
 }
 
 func TestPrintCVLogContent(t *testing.T) {
-	tmp, err := ioutil.TempFile("", "cv-log")
+	tmp, err := os.CreateTemp("", "cv-log")
 	assert.Nil(t, err)
 
 	defer os.Remove(tmp.Name())
