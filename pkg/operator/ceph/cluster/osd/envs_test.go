@@ -17,7 +17,6 @@ limitations under the License.
 package osd
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -75,7 +74,7 @@ func TestGetTcmallocMaxTotalThreadCacheBytes(t *testing.T) {
 	assert.Equal(t, "", v.Value)
 
 	// File and arg are empty so we can an empty value
-	file, err := ioutil.TempFile("", "")
+	file, err := os.CreateTemp("", "")
 	assert.NoError(t, err)
 	defer os.Remove(file.Name())
 	cephEnvConfigFile = file.Name()
@@ -87,7 +86,7 @@ func TestGetTcmallocMaxTotalThreadCacheBytes(t *testing.T) {
 	assert.Equal(t, "67108864", v.Value)
 
 	// Read the file now
-	err = ioutil.WriteFile(file.Name(), sysconfig, 0444)
+	err = os.WriteFile(file.Name(), sysconfig, 0444)
 	assert.NoError(t, err)
 	v = getTcmallocMaxTotalThreadCacheBytes("")
 	assert.Equal(t, "134217728", v.Value)

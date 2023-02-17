@@ -19,7 +19,6 @@ package test
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
@@ -31,10 +30,10 @@ func CreateConfigDir(configDir string) error {
 	if err := os.MkdirAll(configDir, 0700); err != nil {
 		return errors.Wrap(err, "error while creating directory")
 	}
-	if err := ioutil.WriteFile(path.Join(configDir, "client.admin.keyring"), []byte("key = adminsecret"), 0600); err != nil {
+	if err := os.WriteFile(path.Join(configDir, "client.admin.keyring"), []byte("key = adminsecret"), 0600); err != nil {
 		return errors.Wrap(err, "admin writefile error")
 	}
-	if err := ioutil.WriteFile(path.Join(configDir, "mon.keyring"), []byte("key = monsecret"), 0600); err != nil {
+	if err := os.WriteFile(path.Join(configDir, "mon.keyring"), []byte("key = monsecret"), 0600); err != nil {
 		return errors.Wrap(err, "mon writefile error")
 	}
 	return nil

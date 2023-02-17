@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -199,7 +199,7 @@ func getManifestFromURL(url string) (string, error) {
 		return "", errors.Wrapf(err, "failed to get manifest from url %s", url)
 	}
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to read manifest from url %s", url)
 	}

@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -280,7 +280,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 				if req.Method == http.MethodGet && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/bucket" {
 					return &http.Response{
 						StatusCode: 200,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte(bucket))),
+						Body:       io.NopCloser(bytes.NewReader([]byte(bucket))),
 					}, nil
 				}
 				return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)

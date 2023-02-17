@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -293,11 +293,11 @@ func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *ut
 		CmdArgs: []string{tlscertdir, rgwServiceName, namespace}}
 	cmdOut := utils.ExecuteCommand(cmdArgs)
 	require.NoError(t, cmdOut.Err)
-	tlsKeyIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))
+	tlsKeyIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))
 	require.NoError(t, err)
-	tlsCertIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".crt"))
+	tlsCertIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".crt"))
 	require.NoError(t, err)
-	tlsCaCertIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".ca"))
+	tlsCaCertIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".ca"))
 	require.NoError(t, err)
 	secretCertOut := fmt.Sprintf("%s%s%s", tlsKeyIn, tlsCertIn, tlsCaCertIn)
 	tlsK8sSecret := &v1.Secret{
