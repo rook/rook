@@ -1007,13 +1007,13 @@ func disableRGWDashboard(context *Context) {
 	logger.Info("done disabling the dashboard api secret key")
 }
 
-func errorOrIsNotFound(err error, msg string, args ...string) error {
+func errorOrIsNotFound(err error, msg string, args ...interface{}) error {
 	// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
 	// The caller can nicely handle the error and not overflow the op logs with misleading error messages
 	if kerrors.IsNotFound(err) {
 		return err
 	}
-	return errors.Wrapf(err, msg, args)
+	return errors.Wrapf(err, msg, args...)
 }
 
 // ShouldUpdateZoneEndpointList checks whether zone endpoint list need to be updated or not
