@@ -296,6 +296,8 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Update max bucket if necessary
+	logger.Tracef("user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
+		user.ID, user.Caps, user.UserCaps, user.OpMask)
 	if *user.MaxBuckets != *r.userConfig.MaxBuckets {
 		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *r.userConfig)
 		if err != nil {
@@ -305,17 +307,22 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Update caps if necessary
+	user.UserCaps = generateUserCaps(user)
 	if user.UserCaps != r.userConfig.UserCaps {
 		// If they are no caps to be removed, the API will return an error "missing user capabilities"
 		if user.UserCaps != "" {
+			logger.Tracef("remove capabilities %s from user %s", user.UserCaps, r.userConfig.ID)
 			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, r.userConfig.ID, user.UserCaps)
 			if err != nil {
 				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", r.userConfig.ID)
 			}
 		}
-		_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, r.userConfig.ID, r.userConfig.UserCaps)
-		if err != nil {
-			return errors.Wrapf(err, "failed to update ceph object user %q capabilities", r.userConfig.ID)
+		if r.userConfig.UserCaps != "" {
+			logger.Tracef("set capabilities %s for user %s", r.userConfig.UserCaps, r.userConfig.ID)
+			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, r.userConfig.ID, r.userConfig.UserCaps)
+			if err != nil {
+				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", r.userConfig.ID)
+			}
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
@@ -382,6 +389,14 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	r.objContext = opsContext
 
 	return nil
+}
+
+func generateUserCaps(user admin.User) string {
+	var caps string
+	for _, c := range user.Caps {
+		caps += fmt.Sprintf("%s=%s;", c.Type, c.Perm)
+	}
+	return caps
 }
 
 func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
