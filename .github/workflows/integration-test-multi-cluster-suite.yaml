@@ -59,6 +59,7 @@ jobs:
 
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
+        timeout-minutes: 60
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}

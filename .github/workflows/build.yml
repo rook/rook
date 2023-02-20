@@ -72,6 +72,8 @@ jobs:
         run: tests/scripts/validate_modified_files.sh gen-rbac
 
       - name: consider debugging
+        if: failure()
+        timeout-minutes: 60
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -105,6 +107,7 @@ jobs:
 
       - name: consider debugging
         if: failure()
+        timeout-minutes: 60
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
