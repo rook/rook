@@ -96,8 +96,10 @@ func ListFilesystems(context *clusterd.Context, clusterInfo *ClusterInfo) ([]Cep
 	return filesystems, nil
 }
 
-// GetFilesystem gets detailed status information about a Ceph filesystem.
-func GetFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) (*CephFilesystemDetails, error) {
+var GetFilesystem = getFilesystem
+
+// getFilesystem gets detailed status information about a Ceph filesystem.
+func getFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) (*CephFilesystemDetails, error) {
 	args := []string{"fs", "get", fsName}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -183,7 +185,7 @@ func SetNumMDSRanks(context *clusterd.Context, clusterInfo *ClusterInfo, fsName 
 
 // FailAllStandbyReplayMDS: fail all mds in up:standby-replay state
 func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
-	fs, err := GetFilesystem(context, clusterInfo, fsName)
+	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fail standby-replay MDSes for fs %q", fsName)
 	}
@@ -199,7 +201,7 @@ func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo
 
 // GetMdsIdByRank get mds ID from the given rank
 func GetMdsIdByRank(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, rank int32) (string, error) {
-	fs, err := GetFilesystem(context, clusterInfo, fsName)
+	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get ceph fs dump")
 	}
@@ -230,7 +232,7 @@ func WaitForActiveRanks(
 	logger.Infof("waiting %.2f second(s) for number of active mds daemons for fs %s to become %s",
 		float64(timeout/time.Second), fsName, countText)
 	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
-		fs, err := GetFilesystem(context, clusterInfo, fsName)
+		fs, err := getFilesystem(context, clusterInfo, fsName)
 		if err != nil {
 			logger.Errorf(
 				"Error getting filesystem %q details while waiting for num mds ranks to become %d. %v",
@@ -295,7 +297,7 @@ func FailFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName 
 // RemoveFilesystem performs software configuration steps to remove a Ceph filesystem and its
 // backing pools.
 func RemoveFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, preservePoolsOnDelete bool) error {
-	fs, err := GetFilesystem(context, clusterInfo, fsName)
+	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return errors.Wrapf(err, "filesystem %s not found", fsName)
 	}
