@@ -80,7 +80,7 @@ func TestDeleteOBCResource(t *testing.T) {
 		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient("NoSuchBucket", "", false))
 		assert.NoError(t, err)
 		p.adminOpsClient = adminClient
-		err = p.deleteOBCResource("bucket")
+		err = p.deleteOBCResource("bucket", true)
 		assert.NoError(t, err)
 	})
 
@@ -88,7 +88,7 @@ func TestDeleteOBCResource(t *testing.T) {
 		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient("NoSuchKey", "NoSuchBucket", false))
 		assert.NoError(t, err)
 		p.adminOpsClient = adminClient
-		err = p.deleteOBCResource("bucket")
+		err = p.deleteOBCResource("bucket", true)
 		assert.NoError(t, err)
 	})
 
@@ -96,14 +96,14 @@ func TestDeleteOBCResource(t *testing.T) {
 		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient("NoSuchKey", "NoSuchKey", false))
 		assert.NoError(t, err)
 		p.adminOpsClient = adminClient
-		err = p.deleteOBCResource("bucket")
+		err = p.deleteOBCResource("bucket", true)
 		assert.Error(t, err)
 	})
 	t.Run("remove bucket successfully", func(t *testing.T) {
 		adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient("", "", true))
 		assert.NoError(t, err)
 		p.adminOpsClient = adminClient
-		err = p.deleteOBCResource("bucket")
+		err = p.deleteOBCResource("bucket", true)
 		assert.NoError(t, err)
 	})
 }

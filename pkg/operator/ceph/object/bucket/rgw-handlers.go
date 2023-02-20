@@ -16,6 +16,32 @@ func (p *Provisioner) bucketExists(name string) (bool, error) {
 	return true, nil
 }
 
+// Create a Ceph user based on the passed-in name or a generated name. Return the
+// accessKeys and set user name and keys in receiver.
+func (p *Provisioner) createCephUser(username string) (accKey string, secKey string, err error) {
+	accKey, secKey, err = p.getCephUser(username)
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			p.cephUserName = username
+
+			logger.Infof("creating Ceph os user %q", username)
+			userConfig := admin.User{
+				ID:          username,
+				DisplayName: p.cephUserName,
+			}
+			u, err := p.adminOpsClient.CreateUser(p.clusterInfo.Context, userConfig)
+			if err != nil {
+				return "", "", errors.Wrapf(err, "failed to create ceph object user %v", userConfig.ID)
+			}
+			logger.Infof("successfully created Ceph user %q with access keys", username)
+			return u.Keys[0].AccessKey, u.Keys[0].SecretKey, nil
+		} else {
+			return "", "", errors.Wrapf(err, "failed to get ceph user %q", username)
+		}
+	}
+	return accKey, secKey, nil
+}
+
 // Get a Ceph user based on the passed-in name or a generated name. Return the
 // accessKeys and set user name and keys in receiver.
 func (p *Provisioner) getCephUser(username string) (accKey string, secKey string, err error) {
@@ -47,12 +73,12 @@ func (p *Provisioner) genUserName(obcName, obcNamespace string) string {
 }
 
 // Delete the bucket created by OBC with help of radosgw-admin commands
-func (p *Provisioner) deleteOBCResource(bucketName string) error {
+func (p *Provisioner) deleteOBCResource(bucketName string, ignoreUser bool) error {
 
 	logger.Infof("deleting bucket %q from Ceph user %q ", bucketName, p.cephUserName)
 	if len(bucketName) > 0 {
 		// delete bucket with purge option to remove all objects
-		thePurge := false
+		thePurge := true
 		err := p.adminOpsClient.RemoveBucket(p.clusterInfo.Context, admin.Bucket{Bucket: bucketName, PurgeObject: &thePurge})
 		if err == nil {
 			logger.Infof("bucket %q successfully deleted", bucketName)
@@ -71,6 +97,17 @@ func (p *Provisioner) deleteOBCResource(bucketName string) error {
 			}
 		} else {
 			return errors.Wrapf(err, "failed to delete bucket %q", bucketName)
+		}
+	}
+	if !ignoreUser && len(p.cephUserName) > 0 {
+		err := p.adminOpsClient.RemoveUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName})
+		if err != nil {
+			if errors.Is(err, admin.ErrNoSuchUser) {
+				logger.Warningf("user %q does not exist, nothing to delete. %v", p.cephUserName, err)
+			}
+			logger.Warningf("failed to delete user %q. %v", p.cephUserName, err)
+		} else {
+			logger.Infof("user %q successfully deleted", p.cephUserName)
 		}
 	}
 	return nil
