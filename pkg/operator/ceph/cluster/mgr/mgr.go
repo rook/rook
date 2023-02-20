@@ -28,7 +28,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
@@ -79,7 +78,6 @@ func New(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, spec ce
 }
 
 var waitForPodsWithLabelToRun = k8sutil.WaitForPodsWithLabelToRun
-var updateDeploymentAndWait = mon.UpdateCephDeploymentAndWait
 
 // for backward compatibility, default to 1 mgr
 func (c *Cluster) getReplicas() int {
@@ -151,8 +149,16 @@ func (c *Cluster) Start() error {
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
 
-			if err := updateDeploymentAndWait(c.context, c.clusterInfo, d, config.MgrType, mgrConfig.DaemonID, c.spec.SkipUpgradeChecks, false); err != nil {
-				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
+			_, err = c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, d, metav1.UpdateOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "failed to update mgr deployment %q", resourceName)
+			}
+			if len(daemonIDs) > 1 {
+				// wait for the updated mgr to start running if we have more than one mgr
+				daemonLabels := fmt.Sprintf("%s=%s,%s=%s", controller.DaemonTypeLabel, cephv1.KeyMgr, controller.DaemonIDLabel, daemonID)
+				if err := waitForPodsWithLabelToRun(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, daemonLabels); err != nil {
+					return errors.Wrapf(err, "failed to wait for mgr pod %q to run", daemonID)
+				}
 			}
 		} else {
 			// wait for the new deployment
@@ -164,6 +170,8 @@ func (c *Cluster) Start() error {
 	// If we're waiting for the mgr deployments to start, it is a clean deployment
 	if len(deploymentsToWaitFor) > 0 {
 		config.DisableInsecureGlobalID(c.context, c.clusterInfo)
+
+		// Wait for the new mgr pods to start
 		mgrLabel := fmt.Sprintf("%s=%s", controller.DaemonTypeLabel, cephv1.KeyMgr)
 		if err := waitForPodsWithLabelToRun(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, mgrLabel); err != nil {
 			return errors.Wrap(err, "failed to wait for mgr pods to start")
