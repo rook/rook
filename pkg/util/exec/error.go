@@ -44,6 +44,9 @@ func ExitStatus(err error) (int, bool) {
 
 	case *CephCLIError:
 		return ExitStatus(e.err)
+	case syscall.Errno:
+		return int(e), true
+
 	}
 	return 0, false
 }
