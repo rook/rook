@@ -99,13 +99,14 @@ Also update optional resources like Prometheus monitoring noted more fully in th
 
 ## Helm
 
-* The minimum supported Helm version is **v3.2.0**
-
 If you have installed Rook via the Helm chart, Helm will handle some details of the upgrade for you.
 The upgrade steps in this guide will clarify if Helm manages the step for you.
 
 The `rook-ceph` helm chart upgrade performs the Rook upgrade.
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](#ceph-version-upgrades) if the Ceph image is updated.
+
+!!! note
+    Be sure to update to a [supported Helm version](https://helm.sh/docs/topics/version_skew/#supported-version-skew)
 
 ## Cluster Health
 
