@@ -226,7 +226,8 @@ func podStatusWithLabel(ctx context.Context, clientset kubernetes.Interface, nam
 	running := 0
 	notRunning := 0
 	for _, pod := range pods.Items {
-		if pod.Status.Phase == v1.PodRunning {
+		// The pod must be in running state and not deleted
+		if pod.Status.Phase == v1.PodRunning && pod.DeletionTimestamp.IsZero() {
 			running++
 		} else {
 			notRunning++

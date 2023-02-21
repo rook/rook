@@ -31,12 +31,10 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
@@ -47,8 +45,6 @@ import (
 )
 
 func TestStartMgr(t *testing.T) {
-	var deploymentsUpdated *[]*apps.Deployment
-	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -97,16 +93,12 @@ func TestStartMgr(t *testing.T) {
 	err = c.Start()
 	assert.NoError(t, err)
 	validateStart(t, c)
-	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
-	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	c.spec.Dashboard.URLPrefix = "/test"
 	c.spec.Dashboard.Port = 12345
 	err = c.Start()
 	assert.NoError(t, err)
 	validateStart(t, c)
-	assert.ElementsMatch(t, []string{"rook-ceph-mgr-a"}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
-	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// starting with more replicas
 	c.spec.Mgr.Count = 2

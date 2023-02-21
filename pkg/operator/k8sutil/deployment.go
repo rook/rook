@@ -149,16 +149,16 @@ func WaitForPodsWithLabelToRun(ctx context.Context, clientset kubernetes.Interfa
 	sleepTime := 5
 	attempts := 60
 	for i := 0; i < attempts; i++ {
+		logger.Infof("waiting for all pods with label %s to be in running state", label)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
 		allRunning, err := PodsWithLabelAreAllRunning(ctx, clientset, namespace, label)
 		if err != nil {
 			return errors.Wrapf(err, "failed to query pods with label %s to be in running state", label)
 		}
 		if allRunning {
-			logger.Infof("All pods with label %s are running", label)
+			logger.Infof("all pods with label %s are running", label)
 			return nil
 		}
-		logger.Infof("Waiting for all pods with label %s to be in running state", label)
-		time.Sleep(time.Duration(sleepTime) * time.Second)
 	}
 	return fmt.Errorf("gave up waiting for all pods with label %s to run", label)
 }
