@@ -41,7 +41,7 @@ type clientCluster struct {
 	context   *clusterd.Context
 }
 
-var nodesCheckedForReconcile = sets.NewString()
+var nodesCheckedForReconcile = sets.New[string]()
 
 func newClientCluster(client client.Client, namespace string, context *clusterd.Context) *clientCluster {
 	return &clientCluster{

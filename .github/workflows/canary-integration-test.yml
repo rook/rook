@@ -1348,7 +1348,7 @@ jobs:
         uses: manusa/actions-setup-minikube@v2.7.2
         with:
           minikube version: "v1.26.1"
-          kubernetes version: "v1.23.0"
+          kubernetes version: "v1.26.1"
           start args: --memory 6g --cpus=2 --addons ingress --cni=calico
           github token: ${{ secrets.GITHUB_TOKEN }}
 
