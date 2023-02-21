@@ -49,11 +49,11 @@ In Ceph Quincy (v17), the `device_health_metrics` pool was renamed to `.mgr`. Ce
 migration automatically. If you do not use CephBlockPool to customize the configuration of the
 `device_health_metrics` pool, the pool rename will be automatic.
 
-If you do use CephBlockPool to customize the configuration of the `device_health_metrics` pool, you
+If you use CephBlockPool to customize the configuration of the `device_health_metrics` pool, you
 will need two extra steps after the Ceph upgrade is complete. Once upgrade is complete:
 
 1. Create a new CephBlockPool to configure the `.mgr` built-in pool. You can reference the example
-[builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
+   [builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
 2. Delete the old CephBlockPool that represents the `device_health_metrics` pool.
 
 ### CephNFS User Consideration
