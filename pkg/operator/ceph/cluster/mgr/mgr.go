@@ -236,16 +236,18 @@ func (c *Cluster) reconcileServices() error {
 		}
 	}
 
-	return c.updateServiceSelectors()
+	c.updateServiceSelectors()
+	return nil
 }
 
 // For the upgrade scenario: remove any selector DaemonIDLabel from the all
 // the services since new mgr HA doesn't rely on this label anymore.
-func (c *Cluster) updateServiceSelectors() error {
+func (c *Cluster) updateServiceSelectors() {
 	selector := metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"}
 	services, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).List(c.clusterInfo.Context, selector)
 	if err != nil {
-		return errors.Wrap(err, "failed to query mgr services to update")
+		logger.Errorf("failed to query mgr services to update: %v", err)
+		return
 	}
 	for i, service := range services.Items {
 		if service.Spec.Selector == nil {
@@ -264,7 +266,6 @@ func (c *Cluster) updateServiceSelectors() error {
 		}
 
 	}
-	return nil
 }
 
 func (c *Cluster) configureModules(daemonIDs []string) {

@@ -324,6 +324,5 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 }
 
 func (c *Cluster) selectorLabels() map[string]string {
-	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
-	return labels
+	return controller.AppLabels(AppName, c.clusterInfo.Namespace)
 }
