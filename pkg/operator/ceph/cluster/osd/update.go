@@ -45,17 +45,17 @@ var (
 type updateConfig struct {
 	cluster             *Cluster
 	provisionConfig     *provisionConfig
-	queue               *updateQueue   // these OSDs need updated
-	numUpdatesNeeded    int            // the number of OSDs that needed updating
-	deployments         *existenceList // these OSDs have existing deployments
-	osdsToSkipReconcile sets.String    // these OSDs should not be updated during reconcile
+	queue               *updateQueue     // these OSDs need updated
+	numUpdatesNeeded    int              // the number of OSDs that needed updating
+	deployments         *existenceList   // these OSDs have existing deployments
+	osdsToSkipReconcile sets.Set[string] // these OSDs should not be updated during reconcile
 }
 
 func (c *Cluster) newUpdateConfig(
 	provisionConfig *provisionConfig,
 	queue *updateQueue,
 	deployments *existenceList,
-	osdsToSkipReconcile sets.String,
+	osdsToSkipReconcile sets.Set[string],
 ) *updateConfig {
 	return &updateConfig{
 		c,

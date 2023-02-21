@@ -363,7 +363,7 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 	}
 	logger.Infof("successfully created rbd-mirror bootstrap peer token for cluster %q", clusterInfo.NamespacedName().Name)
 
-	mons := sets.NewString()
+	mons := sets.New[string]()
 	for _, mon := range clusterInfo.Monitors {
 		mons.Insert(mon.Endpoint)
 	}
@@ -372,7 +372,7 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 		ClusterFSID: clusterInfo.FSID,
 		ClientID:    rbdMirrorPeerKeyringID,
 		Key:         key,
-		MonHost:     strings.Join(mons.List(), ","),
+		MonHost:     strings.Join(sets.List(mons), ","),
 		Namespace:   clusterInfo.Namespace,
 	}
 
