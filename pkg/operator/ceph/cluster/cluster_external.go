@@ -210,7 +210,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 	)
 
 	// Create external monitoring Service
-	service, err := manager.MakeMetricsService(opcontroller.ExternalMgrAppName, "", opcontroller.ServiceExternalMetricName)
+	service, err := manager.MakeMetricsService(opcontroller.ExternalMgrAppName, opcontroller.ServiceExternalMetricName)
 	if err != nil {
 		return err
 	}
@@ -230,7 +230,7 @@ func (c *ClusterController) configureExternalClusterMonitoring(context *clusterd
 	// Deploy external ServiceMonitor
 	logger.Info("creating external service monitor")
 	// servicemonitor takes some metadata from the service for easy mapping
-	err = manager.EnableServiceMonitor("")
+	err = manager.EnableServiceMonitor()
 	if err != nil {
 		logger.Errorf("failed to enable external service monitor. %v", err)
 	} else {
