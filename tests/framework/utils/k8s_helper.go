@@ -227,6 +227,9 @@ func (k8sh *K8sHelper) ExecToolboxWithRetry(retries int, namespace, command stri
 // ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) error {
 	args := []string{action, "-f", "-"}
+	if action == "apply" {
+		args = []string{"apply", "--server-side=true", "--force-conflicts", "-f", "-"}
+	}
 	maxManifestCharsToPrint := 4000
 	if len(manifest) > maxManifestCharsToPrint {
 		logger.Infof("kubectl %s manifest (too long to print)", action)
