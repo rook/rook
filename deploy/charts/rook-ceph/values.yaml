@@ -456,7 +456,7 @@ csi:
 
   cephcsi:
     # -- Ceph CSI image
-    # @default -- `quay.io/cephcsi/cephcsi:v3.7.2`
+    # @default -- `quay.io/cephcsi/cephcsi:v3.8.0`
     image:
 
   registrar:

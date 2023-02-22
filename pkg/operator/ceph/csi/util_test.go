@@ -268,7 +268,7 @@ func Test_getImage(t *testing.T) {
 			args: args{
 				data:         map[string]string{},
 				settingName:  "ROOK_CSI_CEPH_IMAGE",
-				defaultImage: "quay.io/cephcsi/cephcsi:v3.7.2",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.8.0",
 			},
 			want: DefaultCSIPluginImage,
 		},
@@ -279,7 +279,7 @@ func Test_getImage(t *testing.T) {
 					"ROOK_CSI_CEPH_IMAGE": "registry.io/private/cephcsi:v8",
 				},
 				settingName:  "ROOK_CSI_CEPH_IMAGE",
-				defaultImage: "quay.io/cephcsi/cephcsi:v3.7.2",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.8.0",
 			},
 			want: "registry.io/private/cephcsi:v8",
 		},
@@ -290,9 +290,9 @@ func Test_getImage(t *testing.T) {
 					"ROOK_CSI_CEPH_IMAGE": "registry.io/private/cephcsi",
 				},
 				settingName:  "ROOK_CSI_CEPH_IMAGE",
-				defaultImage: "quay.io/cephcsi/cephcsi:v3.7.2",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.8.0",
 			},
-			want: "registry.io/private/cephcsi:v3.7.2",
+			want: "registry.io/private/cephcsi:v3.8.0",
 		},
 	}
 	for _, tt := range tests {
