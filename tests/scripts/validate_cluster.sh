@@ -55,7 +55,10 @@ function test_demo_mgr {
 
 function test_demo_osd {
   # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq \"$OSD_COUNT osds: $OSD_COUNT up.*, $OSD_COUNT in.*\"")
+  ret_val=$(wait_for_daemon "$EXEC_COMMAND -s | grep -sq \"$OSD_COUNT osds: $OSD_COUNT up.*, $OSD_COUNT in.*\"")
+  # debug info for an intermittent failure
+  echo "Return value = $ret_val"
+  return $ret_val
 }
 
 function test_demo_rgw {
