@@ -70,9 +70,8 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	}
 	cephv1.GetMgrPlacement(c.spec.Placement).ApplyToPodSpec(&podSpec.Spec)
 
-	// Run the sidecar and require anti affinity only if there are multiple mgrs
+	// Require anti affinity only if there are multiple mgrs
 	if c.spec.Mgr.Count > 1 {
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeMgrSidecarContainer(mgrConfig))
 		matchLabels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, mon.CephSecretVolume())
 
@@ -209,35 +208,6 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	return container
 }
 
-func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
-	envVars := []v1.EnvVar{
-		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerInfo.GetUID())},
-		{Name: "ROOK_CLUSTER_NAME", Value: string(c.clusterInfo.NamespacedName().Name)},
-		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-		mon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
-		mon.EndpointEnvVar(),
-		mon.CephUsernameEnvVar(),
-		k8sutil.ConfigOverrideEnvVar(),
-		{Name: "ROOK_DASHBOARD_ENABLED", Value: strconv.FormatBool(c.spec.Dashboard.Enabled)},
-		{Name: "ROOK_MONITORING_ENABLED", Value: strconv.FormatBool(c.spec.Monitoring.Enabled)},
-		{Name: "ROOK_UPDATE_INTERVAL", Value: "15s"},
-		{Name: "ROOK_DAEMON_NAME", Value: mgrConfig.DaemonID},
-		{Name: "ROOK_CEPH_VERSION", Value: "ceph version " + c.clusterInfo.CephVersion.String()},
-	}
-
-	return v1.Container{
-		Args:            []string{"ceph", "mgr", "watch-active"},
-		Name:            "watch-active",
-		Image:           c.rookVersion,
-		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
-		Env:             envVars,
-		Resources:       cephv1.GetMgrSidecarResources(c.spec.Resources),
-		SecurityContext: controller.PrivilegedContext(true),
-		VolumeMounts:    []v1.VolumeMount{mon.CephSecretVolumeMount()},
-	}
-}
-
 func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Container {
 	_, adminKeyringVolMount := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
 	container := v1.Container{
@@ -256,8 +226,8 @@ func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Containe
 }
 
 // MakeMetricsService generates the Kubernetes service object for the monitoring service
-func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName string) (*v1.Service, error) {
-	labels := c.selectorLabels(activeDaemon)
+func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Service, error) {
+	labels := c.selectorLabels()
 
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -289,8 +259,8 @@ func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName s
 	return svc, nil
 }
 
-func (c *Cluster) makeDashboardService(name, activeDaemon string) (*v1.Service, error) {
-	labels := c.selectorLabels(activeDaemon)
+func (c *Cluster) makeDashboardService(name string) (*v1.Service, error) {
+	labels := c.selectorLabels()
 
 	portName := "https-dashboard"
 	if !c.spec.Dashboard.SSL {
@@ -353,10 +323,6 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 	return envVars
 }
 
-func (c *Cluster) selectorLabels(activeDaemon string) map[string]string {
-	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
-	if activeDaemon != "" {
-		labels[controller.DaemonIDLabel] = activeDaemon
-	}
-	return labels
+func (c *Cluster) selectorLabels() map[string]string {
+	return controller.AppLabels(AppName, c.clusterInfo.Namespace)
 }

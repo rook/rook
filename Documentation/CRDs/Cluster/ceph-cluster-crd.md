@@ -57,9 +57,8 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 For more details on the mons and when to choose a number other than `3`, see the [mon health doc](../../Storage-Configuration/Advanced/ceph-mon-health.md).
 * `mgr`: manager top level section
     * `count`: set number of ceph managers between `1` to `2`. The default value is 2.
-    If there are two managers, it is important for all mgr services point to the active mgr and not the passive mgr. Therefore, Rook will
-    automatically update all services (in the cluster namespace) that have a label `app=rook-ceph-mgr` with a selector pointing to the
-    active mgr. This commonly applies to services for the dashboard or the prometheus metrics collector.
+    If there are two managers, all mgr services will point to the active mgr. Due to a readiness probe,
+	the standby mgr pod stays in the `not-Ready` state until Ceph internally changes it to active state.
     * `modules`: is the list of Ceph manager modules to enable
 * `crashCollector`: The settings for crash collector daemon(s).
     * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
@@ -505,9 +504,6 @@ You can set resource requests/limits for Rook components through the [Resource R
 * `osd-<deviceClass>`: Set resource requests/limits for OSDs on a specific device class. Rook will automatically detect `hdd`,
   `ssd`, or `nvme` device classes. Custom device classes can also be set.
 * `mgr`: Set resource requests/limits for MGRs
-* `mgr-sidecar`: Set resource requests/limits for the MGR sidecar, which is only created when `mgr.count: 2`.
-  The sidecar requires very few resources since it only executes every 15 seconds to query Ceph for the active
-  mgr and update the mgr services if the active mgr changed.
 * `prepareosd`: Set resource requests/limits for OSD prepare job
 * `crashcollector`: Set resource requests/limits for crash. This pod runs wherever there is a Ceph pod running.
 It scrapes for Ceph daemon core dumps and sends them to the Ceph manager crash module so that core dumps are centralized and can be easily listed/accessed.
@@ -522,7 +518,6 @@ If a user configures a limit or request value that is too low, Rook will still r
 * `mgr`: 512MB
 * `osd`: 2048MB
 * `crashcollector`: 60MB
-* `mgr-sidecar`: 100MB limit, 40MB requests
 * `prepareosd`: no limits (see the note)
 
 !!! note
