@@ -109,7 +109,6 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
   starting state.
 * All pods consuming Rook storage should be created, running, and in a steady state.
 
-
 ## Rook Operator Upgrade
 
 In the examples given in this guide, we will be upgrading a live Rook cluster running `v1.10.11` to
@@ -189,7 +188,7 @@ kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-cep
     If have not customized the CSI image versions, this is automatically updated.
 
 !!! important
-    The minimum supported version of Ceph-CSI is v3.6.0.
+    The minimum supported version of Ceph-CSI is v3.7.0.
 
 If you have specified custom CSI images, we recommended you update to the latest Ceph-CSI drivers.
 See the [CSI Custom Images](../Storage-Configuration/Ceph-CSI/custom-images.md) documentation.

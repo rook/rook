@@ -1,5 +1,5 @@
  quay.io/ceph/ceph:v17.2.5
- quay.io/cephcsi/cephcsi:v3.7.2
+ quay.io/cephcsi/cephcsi:v3.8.0
  quay.io/csiaddons/k8s-sidecar:v0.5.0
  registry.k8s.io/sig-storage/csi-attacher:v4.1.0
  registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.7.0

@@ -6,11 +6,10 @@ title: CSI provisioner and driver
     This feature is experimental and will not support upgrades to future versions.
 
 In version 1.9.1, Rook is able to deploy the experimental NFS Ceph CSI driver. This requires Ceph
-CSI version 3.6.0 or above. We recommend Ceph v16.2.7 or above.
+CSI version 3.7.0 or above. We recommend Ceph v16.2.7 or above.
 
 For this section, we will refer to Rook's deployment examples in the
 [deploy/examples](https://github.com/rook/rook/tree/master/deploy/examples) directory.
-
 
 ## Enabling the CSI drivers
 
@@ -95,6 +94,7 @@ See `deploy/examples/csi/nfs/pod.yaml` for an example of how a PVC can be connec
 application pod.
 
 ### Connecting to an export directly
+
 After a PVC is created successfully, the `share` parameter set on the resulting PV contains the
 `share` path which can be used as the export path when
 [mounting the export manually](nfs.md#mounting-exports). In the example below
