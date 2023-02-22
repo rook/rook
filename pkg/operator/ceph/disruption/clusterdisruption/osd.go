@@ -528,9 +528,9 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 		return nil, nil, nil, errors.Wrap(err, "failed to list osd deployments")
 	}
 
-	allFailureDomains := sets.NewString()
-	nodeDrainFailureDomains := sets.NewString()
-	osdDownFailureDomains := sets.NewString()
+	allFailureDomains := sets.New[string]()
+	nodeDrainFailureDomains := sets.New[string]()
+	osdDownFailureDomains := sets.New[string]()
 
 	for _, deployment := range osdDeploymentList.Items {
 		labels := deployment.Spec.Template.ObjectMeta.GetLabels()
@@ -565,7 +565,7 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 			allFailureDomains.Insert(failureDomainName)
 		}
 	}
-	return allFailureDomains.List(), nodeDrainFailureDomains.List(), osdDownFailureDomains.List(), nil
+	return sets.List(allFailureDomains), sets.List(nodeDrainFailureDomains), sets.List(osdDownFailureDomains), nil
 }
 
 func (r *ReconcileClusterDisruption) hasPGHealthCheckTimedout(pdbStateMap *corev1.ConfigMap) bool {

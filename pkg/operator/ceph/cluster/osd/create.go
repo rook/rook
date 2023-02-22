@@ -32,9 +32,9 @@ import (
 type createConfig struct {
 	cluster                  *Cluster
 	provisionConfig          *provisionConfig
-	awaitingStatusConfigMaps sets.String    // These status configmaps were created for OSD prepare jobs
-	finishedStatusConfigMaps sets.String    // Status configmaps are added here as provisioning is completed for them
-	deployments              *existenceList // these OSDs have existing deployments
+	awaitingStatusConfigMaps sets.Set[string] // These status configmaps were created for OSD prepare jobs
+	finishedStatusConfigMaps sets.Set[string] // Status configmaps are added here as provisioning is completed for them
+	deployments              *existenceList   // these OSDs have existing deployments
 }
 
 // allow overriding these functions for unit tests
@@ -47,17 +47,17 @@ var (
 
 func (c *Cluster) newCreateConfig(
 	provisionConfig *provisionConfig,
-	awaitingStatusConfigMaps sets.String,
+	awaitingStatusConfigMaps sets.Set[string],
 	deployments *existenceList,
 ) *createConfig {
 	if awaitingStatusConfigMaps == nil {
-		awaitingStatusConfigMaps = sets.NewString()
+		awaitingStatusConfigMaps = sets.New[string]()
 	}
 	return &createConfig{
 		c,
 		provisionConfig,
 		awaitingStatusConfigMaps,
-		sets.NewString(),
+		sets.New[string](),
 		deployments,
 	}
 }
@@ -122,23 +122,23 @@ func (c *createConfig) doneWithStatus(nodeOrPVCName string) {
 //
 // Creation of prepare jobs is most directly related to creating new OSDs. And we want to keep all
 // usage of awaitingStatusConfigMaps in this file.
-func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provisionErrors) (sets.String, error) {
+func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provisionErrors) (sets.Set[string], error) {
 	// Parsing storageClassDeviceSets and parsing it to volume sources
 	c.prepareStorageClassDeviceSets(errs)
 
 	// no valid VolumeSource is ready to run an osd
 	if len(c.deviceSets) == 0 {
 		logger.Info("no storageClassDeviceSets defined to configure OSDs on PVCs")
-		return sets.NewString(), nil
+		return sets.New[string](), nil
 	}
 
 	existingDeployments, err := c.getExistingOSDDeploymentsOnPVCs()
 	if err != nil {
 		errs.addError("failed to provision OSDs on PVCs. failed to query existing OSD deployments on PVCs. %v", err)
-		return sets.NewString(), nil
+		return sets.New[string](), nil
 	}
 
-	awaitingStatusConfigMaps := sets.NewString()
+	awaitingStatusConfigMaps := sets.New[string]()
 	for _, volume := range c.deviceSets {
 		if c.clusterInfo.Context.Err() != nil {
 			return awaitingStatusConfigMaps, c.clusterInfo.Context.Err()
@@ -244,10 +244,10 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 //
 // Creation of prepare jobs is most directly related to creating new OSDs. And we want to keep all
 // usage of awaitingStatusConfigMaps in this file.
-func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *provisionErrors) (sets.String, error) {
+func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *provisionErrors) (sets.Set[string], error) {
 	if !c.spec.Storage.UseAllNodes && len(c.spec.Storage.Nodes) == 0 {
 		logger.Info("no nodes are defined for configuring OSDs on raw devices")
-		return sets.NewString(), nil
+		return sets.New[string](), nil
 	}
 
 	if c.spec.Storage.UseAllNodes {
@@ -259,7 +259,7 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		hostnameMap, err := k8sutil.GetNodeHostNames(c.clusterInfo.Context, c.context.Clientset)
 		if err != nil {
 			errs.addError("failed to provision OSDs on nodes. failed to get node hostnames. %v", err)
-			return sets.NewString(), nil
+			return sets.New[string](), nil
 		}
 		c.spec.Storage.Nodes = nil
 		for _, hostname := range hostnameMap {
@@ -281,15 +281,15 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 	// no valid node is ready to run an osd
 	if len(validNodes) == 0 {
 		logger.Warningf("no valid nodes available to run osds on nodes in namespace %q", c.clusterInfo.Namespace)
-		return sets.NewString(), nil
+		return sets.New[string](), nil
 	}
 
 	if len(c.spec.DataDirHostPath) == 0 {
 		errs.addError("failed to provision OSDs on nodes. user has specified valid nodes for storage, but dataDirHostPath is empty. user must set CephCluster dataDirHostPath")
-		return sets.NewString(), nil
+		return sets.New[string](), nil
 	}
 
-	awaitingStatusConfigMaps := sets.NewString()
+	awaitingStatusConfigMaps := sets.New[string]()
 	for _, node := range c.ValidStorage.Nodes {
 		if c.clusterInfo.Context.Err() != nil {
 			return awaitingStatusConfigMaps, c.clusterInfo.Context.Err()

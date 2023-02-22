@@ -111,7 +111,7 @@ func Test_updateExistingOSDs(t *testing.T) {
 		}
 		c = New(ctx, clusterInfo, spec, "rook/rook:master")
 		config := c.newProvisionConfig()
-		updateConfig = c.newUpdateConfig(config, updateQueue, existingDeployments, sets.NewString())
+		updateConfig = c.newUpdateConfig(config, updateQueue, existingDeployments, sets.New[string]())
 
 		// prepare outputs
 		deploymentsUpdated = []string{}

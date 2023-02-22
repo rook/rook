@@ -204,7 +204,7 @@ func (c *Cluster) Start() error {
 	updateConfig := c.newUpdateConfig(config, updateQueue, deployments, osdsToSkipReconcile)
 
 	// prepare for creating new OSDs
-	statusConfigMaps := sets.NewString()
+	statusConfigMaps := sets.New[string]()
 
 	logger.Info("start provisioning the OSDs on PVCs, if needed")
 	pvcConfigMaps, err := c.startProvisioningOverPVCs(config, errs)
@@ -244,7 +244,7 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
-func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
+func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.Set[string], error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
 	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
@@ -252,7 +252,7 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
 	}
 
-	result := sets.NewString()
+	result := sets.New[string]()
 	for _, deployment := range deployments.Items {
 		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
 			result.Insert(pvcID)
@@ -262,7 +262,7 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
 	return result, nil
 }
 
-func (c *Cluster) getOSDsToSkipReconcile() (sets.String, error) {
+func (c *Cluster) getOSDsToSkipReconcile() (sets.Set[string], error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
 
 	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
@@ -270,7 +270,7 @@ func (c *Cluster) getOSDsToSkipReconcile() (sets.String, error) {
 		return nil, errors.Wrap(err, "failed to query OSDs to skip reconcile")
 	}
 
-	result := sets.NewString()
+	result := sets.New[string]()
 	for _, deployment := range deployments.Items {
 		if osdID, ok := deployment.Labels[OsdIdLabelKey]; ok {
 			result.Insert(osdID)
