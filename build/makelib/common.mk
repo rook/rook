@@ -38,7 +38,7 @@ GOARCH := $(word 2, $(subst _, ,$(PLATFORM)))
 export GOOS GOARCH
 endif
 
-ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_amd64 linux_arm64
+ALL_PLATFORMS ?= darwin_amd64 darwin_arm64 windows_amd64 linux_amd64 linux_arm64
 
 export GOARM
 
@@ -83,7 +83,7 @@ endif
 
 # a registry that is scoped to the current build tree on this host
 ifeq ($(origin BUILD_REGISTRY), undefined)
-BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | $(SHA256CMD) | cut -c1-8)
+BUILD_REGISTRY := build-$(shell echo "$(HOSTNAME)-$(ROOT_DIR)" | $(SHA256CMD) | cut -c1-8)
 endif
 ifeq ($(BUILD_REGISTRY),build-)
 $(error Failed to get unique ID for host+dir. Check that '$(SHA256CMD)' functions or override SHA256CMD)

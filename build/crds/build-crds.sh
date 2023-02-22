@@ -114,9 +114,3 @@ echo "---" >>"$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
 $YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >>"$CEPH_CRDS_FILE_PATH"
 
 build_helm_resources
-
-# remove the x-kubernetes-list-type: atomic and x-kubernetes-list-type: set from the crds.yaml and resources.yaml
-sed -i '/x-kubernetes-list-type: atomic/d' "$CEPH_CRDS_FILE_PATH"
-sed -i '/x-kubernetes-list-type: set/d' "$CEPH_CRDS_FILE_PATH"
-sed -i '/x-kubernetes-list-type: atomic/d' "$CEPH_HELM_CRDS_FILE_PATH"
-sed -i '/x-kubernetes-list-type: set/d' "$CEPH_HELM_CRDS_FILE_PATH"
