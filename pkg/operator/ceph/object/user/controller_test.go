@@ -21,6 +21,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -67,7 +68,7 @@ const (
 	"caps": [
 		{
 			"type": "users",
-			"perms": "*"
+			"perm": "*"
 		}
 	],
 	"op_mask": "read, write, delete",
@@ -298,6 +299,12 @@ func TestCephObjectStoreUserController(t *testing.T) {
 							Body:       ioutil.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 						}, nil
 					}
+					if req.Method == http.MethodDelete && req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3D%2A%3B" {
+						return &http.Response{
+							StatusCode: 200,
+							Body:       io.NopCloser(bytes.NewReader([]byte(`[]`))),
+						}, nil
+					}
 					return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)
 				},
 			}
@@ -388,6 +395,12 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 					return &http.Response{
 						StatusCode: 200,
 						Body:       ioutil.NopCloser(bytes.NewReader([]byte(`[]`))),
+					}, nil
+				}
+				if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3D%2A%3B" {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte(`[]`))),
 					}, nil
 				}
 			}
