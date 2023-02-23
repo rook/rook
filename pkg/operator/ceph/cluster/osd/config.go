@@ -58,7 +58,7 @@ func encryptionBlockDestinationCopy(mountPath, blockType string) string {
 	return path.Join(mountPath, blockType) + "-tmp"
 }
 
-func generateDmCryptKey() (string, error) {
+func GenerateDmCryptKey() (string, error) {
 	key, err := mgr.GenerateRandomBytes(dmCryptKeySize)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate random bytes")
