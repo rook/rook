@@ -94,3 +94,4 @@ runs:
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
         tests/scripts/collect-logs.sh
+        CLUSTER_NAMESPACE="rook-ceph-secondary" tests/scripts/collect-logs.sh

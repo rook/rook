@@ -368,9 +368,11 @@ func (r *ReconcileObjectZone) validateZoneCR(z *cephv1.CephObjectZone) error {
 	if z.Spec.ZoneGroup == "" {
 		return errors.New("missing zonegroup")
 	}
+	logger.Debugf("validating zone %q META POOL spec: %+v", z.Namespace+"/"+z.Name, z.Spec.MetadataPool) // TODO: remove
 	if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, r.clusterSpec, &z.Spec.MetadataPool); err != nil {
 		return errors.Wrap(err, "invalid metadata pool spec")
 	}
+	logger.Debugf("validating zone %q POOL spec: %+v", z.Namespace+"/"+z.Name, z.Spec.MetadataPool) // TODO: remove
 	if err := pool.ValidatePoolSpec(r.context, r.clusterInfo, r.clusterSpec, &z.Spec.DataPool); err != nil {
 		return errors.Wrap(err, "invalid data pool spec")
 	}

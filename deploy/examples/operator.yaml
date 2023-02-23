@@ -23,7 +23,7 @@ metadata:
   namespace: rook-ceph # namespace:operator
 data:
   # The logging level for the operator: ERROR | WARNING | INFO | DEBUG
-  ROOK_LOG_LEVEL: "INFO"
+  ROOK_LOG_LEVEL: "DEBUG"
 
   # Allow using loop devices for osds in test clusters.
   ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
