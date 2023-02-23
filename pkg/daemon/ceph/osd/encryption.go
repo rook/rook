@@ -30,6 +30,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/util"
 )
 
 const (
@@ -171,6 +172,123 @@ func openEncryptedDevice(context *clusterd.Context, disk, target, passphrase str
 	}
 
 	return nil
+}
+
+// removeEncryptionKeySlot removes the given key slot from the target disk.
+// This function ignores error indicating that the given key slot is not active.
+func removeEncryptionKeySlot(context *clusterd.Context, disk, passphrase, slot string) error {
+	passphraseFile, err := util.CreateTempFile(passphrase)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create passphrase file")
+	}
+	defer os.Remove(passphraseFile.Name())
+
+	args := []string{
+		"--verbose",
+		fmt.Sprintf("--key-file=%s", passphraseFile.Name()),
+		"luksKillSlot",
+		disk,
+		slot,
+	}
+	output, err := context.Executor.ExecuteCommandWithTimeout(luksOpenCmdTimeOut,
+		cryptsetupBinary, args...)
+	// ignore the error if the key slot is not active.
+	if err != nil && !strings.Contains(err.Error()+output, fmt.Sprintf("Keyslot %s is not active", slot)) {
+		return errors.Wrapf(err, "failed to remove key slot %q of encrypted device %q: %q",
+			slot, disk, output)
+	}
+
+	return nil
+}
+
+// ensureEncryptionKey ensures the given key is in the given slot of the target disk.
+// If the error, received from lukChangeKey cmd, shows that the key did not match,
+// the function will return false and no error signify that the given key is not in the slot.
+func ensureEncryptionKey(context *clusterd.Context, disk, passphrase, slot string) (bool, error) {
+	passphraseFile, err := util.CreateTempFile(passphrase)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to create passphrase file")
+	}
+	defer os.Remove(passphraseFile.Name())
+
+	args := []string{
+		"--verbose",
+		fmt.Sprintf("--key-file=%s", passphraseFile.Name()),
+		fmt.Sprintf("--key-slot=%s", slot),
+		"luksChangeKey",
+		disk,
+		passphraseFile.Name(),
+	}
+	output, err := context.Executor.ExecuteCommandWithTimeout(luksOpenCmdTimeOut,
+		cryptsetupBinary, args...)
+	if err != nil {
+		if strings.Contains(err.Error()+output, "No key available with this passphrase") {
+			// ignore the error if the key does not match the one in key slot and return false
+			// to signify no match.
+			return false, nil
+		}
+
+		return false, errors.Wrapf(err, "failed to ensure passphrase in slot %q of encrypted device %q: %q",
+			slot, disk, output)
+	}
+
+	return true, nil
+}
+
+// addEncryptionKey adds a new key to the given slot of the target disk.
+// If the given slot is filled:
+// - a check is done to see if the key in the give slot is the same as the new key
+//   - if the key is the same, nothing is done.
+//   - else, the slot is wiped and the new key is added.
+func addEncryptionKey(context *clusterd.Context, disk, passphrase, newPassphrase, slot string) error {
+	passphraseFile, err := util.CreateTempFile(passphrase)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create passphrase file")
+	}
+	defer os.Remove(passphraseFile.Name())
+
+	newPassphraseFile, err := util.CreateTempFile(newPassphrase)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create new passphrase file")
+	}
+	defer os.Remove(newPassphraseFile.Name())
+
+	args := []string{
+		"--verbose",
+		fmt.Sprintf("--key-file=%s", passphraseFile.Name()),
+		fmt.Sprintf("--key-slot=%s", slot),
+		"luksAddKey",
+		disk,
+		newPassphraseFile.Name(),
+	}
+	output, err := context.Executor.ExecuteCommandWithTimeout(luksOpenCmdTimeOut,
+		cryptsetupBinary, args...)
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error()+output, fmt.Sprintf("Key slot %s is full", slot)) {
+		// run ensureEncryptionKey to make sure the newPassphrase is the one that is set.
+		matched, err := ensureEncryptionKey(context, disk, newPassphrase, slot)
+		if err != nil {
+			return errors.Wrapf(err, "failed to ensure passphrase in slot %q of encrypted device %q", slot, disk)
+		}
+		// if newPassphrase is not one in the slot, then remove the key slot and
+		// add add the newPassphrase to it.
+		if !matched {
+			err = removeEncryptionKeySlot(context, disk, newPassphrase, slot)
+			if err != nil {
+				return errors.Wrapf(err, "failed to remove key slot %q of encrypted device %q", slot, disk)
+			}
+			err = addEncryptionKey(context, disk, passphrase, newPassphrase, slot)
+			if err != nil {
+				return errors.Wrapf(err, "failed to add new passphrase to slot %q encrypted device %q", slot, disk)
+			}
+		}
+		return nil
+	}
+
+	return errors.Wrapf(err, "failed to add new passphrase to encrypted device %q: %q",
+		disk, output)
 }
 
 func removeEncryptedDevice(context *clusterd.Context, target string) error {
