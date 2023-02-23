@@ -121,6 +121,7 @@ rules:
   - create
   - update
   - delete
+  - deletecollection
 # The Rook operator must be able to watch all ceph.rook.io resources to reconcile them.
 - apiGroups: ["ceph.rook.io"]
   resources:
@@ -207,6 +208,14 @@ rules:
   - update
   - delete
   - deletecollection
+- apiGroups:
+  - apps
+  resources:
+  # This is to add osd deployment owner ref on key rotation
+  # cron jobs.
+  - deployments/finalizers
+  verbs:
+  - update
 - apiGroups:
   - healthchecking.openshift.io
   resources:
