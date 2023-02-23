@@ -28,6 +28,8 @@ import (
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
 const (
@@ -210,4 +212,73 @@ func (c *Cluster) makeKeyRotationCronJob(pvcName string, osd OSDInfo, osdProps o
 	}
 
 	return cronJob, nil
+}
+
+// reconcileKeyRotationCronJobs reconciles the key rotation cron jobs for the OSDs.
+func (c *Cluster) reconcileKeyRotationCronJob() error {
+	if !c.spec.Security.KeyRotation.Enabled {
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, keyRotationCronJobAppName)}
+		err := c.context.Clientset.BatchV1().
+			CronJobs(c.clusterInfo.Namespace).
+			DeleteCollection(c.clusterInfo.Context,
+				metav1.DeleteOptions{},
+				listOpts)
+		if err != nil {
+			if client.IgnoreNotFound(err) != nil {
+				return errors.Wrap(err, "failed to delete key rotation cron jobs")
+			}
+			return nil
+		}
+		logger.Debugf("successfully deleted key rotation cron jobs")
+
+		return nil
+	}
+
+	// Get the list of OSDs backed by pvc.
+	osdListOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, osdListOpts)
+	if err != nil {
+		return errors.Wrap(err, "failed to query existing OSD deployments")
+	}
+
+	logger.Debugf("found %d osd deployments", len(deployments.Items))
+	for i := range deployments.Items {
+		osdDep := deployments.Items[i]
+		osd, err := c.getOSDInfo(&osdDep)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get osd info for osd %q", osdDep.Name)
+		}
+		pvcName := osdDep.Labels[OSDOverPVCLabelKey]
+		if pvcName == "" {
+			return errors.Errorf("pvc name label %q for osd %q is empty",
+				OSDOverPVCLabelKey, osdDep.Name)
+		}
+		osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
+		if err != nil {
+			return errors.Wrapf(err, "failed to generate config for osd %q", osdDep.Name)
+		}
+		if !osdProps.encrypted {
+			continue
+		}
+
+		logger.Infof("starting OSD key rotation cron job for osd %q", osd.ID)
+		cj, err := c.makeKeyRotationCronJob(pvcName, osd, osdProps)
+		if err != nil {
+			return errors.Wrap(err, "failed to make key rotation cron job")
+		}
+
+		err = ctrl.SetOwnerReference(&osdDep, cj, c.context.Client.Scheme())
+		if err != nil {
+			return errors.Wrapf(err, "failed to set controllerReference on cron job %q", cj.Name)
+		}
+
+		_, err = k8sutil.CreateOrUpdateCronJob(c.clusterInfo.Context, c.context.Clientset, cj)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create or update key rotation cron job %q", cj.Name)
+		}
+		logger.Infof("started OSD key rotation cron job %q", cj.Name)
+	}
+	logger.Infof("successfully started OSD key rotation cron jobs")
+
+	return nil
 }
