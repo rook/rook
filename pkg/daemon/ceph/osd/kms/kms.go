@@ -151,8 +151,16 @@ func (c *Config) PutSecret(secretName, secretValue string) error {
 // GetSecret returns an encrypted key from a KMS
 func (c *Config) GetSecret(secretName string) (string, error) {
 	var value string
+	if c.IsK8s() {
+		// Retrieve the secret from Kubernetes Secrets
+		value, err := c.getKubernetesSecret(secretName)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get secret from kubernetes secret")
+		}
+		return value, nil
+	}
 	if c.IsVault() {
-		// Store the secret in Vault
+		// Retrieve the secret from Vault
 		v, err := InitVault(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
 		if err != nil {
 			return "", errors.Wrap(err, "failed to init vault")
@@ -193,6 +201,22 @@ func (c *Config) GetSecret(secretName string) (string, error) {
 	}
 
 	return value, nil
+}
+
+// UpdateSecret updates the encrypted key in a KMS
+func (c *Config) UpdateSecret(secretName, secretValue string) error {
+	// If Kubernetes Secret KMS is selected (default)
+	if c.IsK8s() {
+		// Update the secret in Kubernetes Secrets
+		err := c.updateSecretInKubernetes(secretName, secretValue)
+		if err != nil {
+			return errors.Wrap(err, "failed to update secret in kubernetes secret")
+		}
+
+		return nil
+	}
+
+	return errors.Errorf("update secret is not supported for the %q KMS", c.Provider)
 }
 
 // DeleteSecret deletes an encrypted key from a KMS
