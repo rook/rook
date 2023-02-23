@@ -3,6 +3,7 @@ title: Key Management System
 ---
 
 Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](#pvc-based-cluster).
+Rook also has the ability to rotate encryption keys of OSDs using a cron job per OSD.
 By default, the Key Encryption Keys (also known as Data Encryption Keys) are stored in a Kubernetes Secret.
 However, if a Key Management System exists Rook is capable of using it.
 
@@ -12,6 +13,12 @@ The `security` section contains settings related to encryption of the cluster.
   * `kms`: Key Management System settings
     * `connectionDetails`: the list of parameters representing kms connection details
     * `tokenSecretName`: the name of the Kubernetes Secret containing the kms authentication token
+  * `keyRotation`: Key Rotation settings
+    * `enabled`: whether key rotation is enabled or not, default is `false`
+    * `schedule`: the schedule, written in [cron format](https://en.wikipedia.org/wiki/Cron), with which key rotation [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) is created, default value is `"@weekly"`.
+
+!!! note
+    Currently key rotation is only supported for the default type, where the Key Encryption Keys are stored in a Kubernetes Secret.
 
 Supported KMS providers:
 
