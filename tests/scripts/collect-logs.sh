@@ -10,7 +10,7 @@ set -x
 LOG_DIR="${LOG_DIR%/}" # remove trailing slash if necessary
 mkdir -p "${LOG_DIR}"
 
-CEPH_CMD="kubectl -n ${CLUSTER_NAMESPACE} exec deploy/rook-ceph-tools -- ceph --connect-timeout 3"
+CEPH_CMD="kubectl -n ${CLUSTER_NAMESPACE} exec deploy/rook-ceph-tools -- ceph --connect-timeout 10"
 
 $CEPH_CMD -s >"${LOG_DIR}"/ceph-status.txt
 $CEPH_CMD osd dump >"${LOG_DIR}"/ceph-osd-dump.txt

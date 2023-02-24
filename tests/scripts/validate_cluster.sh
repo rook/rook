@@ -25,7 +25,7 @@ OSD_COUNT=$2
 #############
 # FUNCTIONS #
 #############
-EXEC_COMMAND="kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}') -- ceph --connect-timeout 3"
+EXEC_COMMAND="kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}') -- ceph --connect-timeout 10"
 
 function wait_for_daemon () {
   timeout=90
@@ -55,7 +55,10 @@ function test_demo_mgr {
 
 function test_demo_osd {
   # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq \"$OSD_COUNT osds: $OSD_COUNT up.*, $OSD_COUNT in.*\"")
+  ret_val=$(wait_for_daemon "$EXEC_COMMAND -s | grep -sq \"$OSD_COUNT osds: $OSD_COUNT up.*, $OSD_COUNT in.*\"")
+  # debug info for an intermittent failure
+  echo "Return value = $ret_val"
+  return $ret_val
 }
 
 function test_demo_rgw {
