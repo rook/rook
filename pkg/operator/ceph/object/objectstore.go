@@ -711,7 +711,7 @@ func missingPools(context *Context) ([]string, error) {
 	if err != nil {
 		return []string{}, errors.Wrapf(err, "failed to determine if pools are missing. failed to list pools")
 	}
-	existingPools := sets.NewString()
+	existingPools := sets.New[string]()
 	for _, summary := range existingPoolSummaries {
 		existingPools.Insert(summary.Name)
 	}

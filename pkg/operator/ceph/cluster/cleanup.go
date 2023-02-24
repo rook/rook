@@ -218,7 +218,7 @@ func (c *ClusterController) waitForCephDaemonCleanUp(context context.Context, cl
 // getCephHosts returns a list of host names where ceph daemon pods are running
 func (c *ClusterController) getCephHosts(namespace string) ([]string, error) {
 	cephAppNames := []string{mon.AppName, mgr.AppName, osd.AppName, object.AppName, mds.AppName, rbd.AppName, mirror.AppName}
-	nodeNameList := sets.NewString()
+	nodeNameList := sets.New[string]()
 	hostNameList := []string{}
 	var b strings.Builder
 

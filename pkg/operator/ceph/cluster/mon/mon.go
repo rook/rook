@@ -206,7 +206,7 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 		return nil, errors.Wrap(err, "failed to check for mons to skip reconcile")
 	}
 	if monsToSkipReconcile.Len() > 0 {
-		logger.Warningf("skipping mon reconcile since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, monsToSkipReconcile.List())
+		logger.Warningf("skipping mon reconcile since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
 		return c.ClusterInfo, nil
 	}
 
@@ -1485,7 +1485,7 @@ func (c *Cluster) releaseOrchestrationLock() {
 	logger.Debugf("Released lock for mon orchestration")
 }
 
-func (c *Cluster) getMonsToSkipReconcile() (sets.String, error) {
+func (c *Cluster) getMonsToSkipReconcile() (sets.Set[string], error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
 
 	deployments, err := c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).List(c.ClusterInfo.Context, listOpts)
@@ -1493,7 +1493,7 @@ func (c *Cluster) getMonsToSkipReconcile() (sets.String, error) {
 		return nil, errors.Wrap(err, "failed to query mons to skip reconcile")
 	}
 
-	result := sets.NewString()
+	result := sets.New[string]()
 	for _, deployment := range deployments.Items {
 		if monID, ok := deployment.Labels[config.MonType]; ok {
 			logger.Infof("found mon %q pod to skip reconcile", monID)
