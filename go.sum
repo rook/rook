@@ -822,8 +822,8 @@ github.com/hashicorp/go-kms-wrapping v0.5.1/go.mod h1:cGIibZmMx9qlxS1pZTUrEgGqA+
 github.com/hashicorp/go-kms-wrapping/entropy v0.1.0/go.mod h1:d1g9WGtAunDNpek8jUIEJnBlbgKS1N2Q61QkHiZyR1g=
 github.com/hashicorp/go-kms-wrapping/entropy/v2 v2.0.0 h1:pSjQfW3vPtrOTcasTUKgCTQT7OGPPTTMVRrOfU6FJD8=
 github.com/hashicorp/go-kms-wrapping/entropy/v2 v2.0.0/go.mod h1:xvb32K2keAc+R8DSFG2IwDcydK9DBQE+fGA5fsw6hSk=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.5 h1:rOFDv+3k05mnW0oaDLffhVUwg03Csn0mvfO98Wdd2bE=
-github.com/hashicorp/go-kms-wrapping/v2 v2.0.5/go.mod h1:sDQAfwJGv25uGPZA04x87ERglCG6avnRcBT9wYoMII8=
+github.com/hashicorp/go-kms-wrapping/v2 v2.0.7 h1:P+dh3M6k5aNl2wXrA9s6zquMHWPaYIkotCffiMIYt6U=
+github.com/hashicorp/go-kms-wrapping/v2 v2.0.7/go.mod h1:sDQAfwJGv25uGPZA04x87ERglCG6avnRcBT9wYoMII8=
 github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 v2.0.4 h1:ws2CPDuXMKwaBb2z/duBCdnB9pSxlN2nuDZWXcVj6RU=
 github.com/hashicorp/go-kms-wrapping/wrappers/aead/v2 v2.0.4/go.mod h1:dDxt3GXi5QONVHYrJi2+EjsJLCUs59FktZQA8ZMnm+U=
 github.com/hashicorp/go-kms-wrapping/wrappers/alicloudkms/v2 v2.0.1 h1:ydUCtmr8f9F+mHZ1iCsvzqFTXqNVpewX3s9zcYipMKI=
@@ -1017,8 +1017,8 @@ github.com/hashicorp/vault/sdk v0.1.14-0.20200427170607-03332aaf8d18/go.mod h1:W
 github.com/hashicorp/vault/sdk v0.1.14-0.20200429182704-29fce8f27ce4/go.mod h1:WX57W2PwkrOPQ6rVQk+dy5/htHIaB4aBM70EwKThu10=
 github.com/hashicorp/vault/sdk v0.3.0/go.mod h1:aZ3fNuL5VNydQk8GcLJ2TV8YCRVvyaakYkhZRoVuhj0=
 github.com/hashicorp/vault/sdk v0.6.0/go.mod h1:+DRpzoXIdMvKc88R4qxr+edwy/RvH5QK8itmxLiDHLc=
-github.com/hashicorp/vault/sdk v0.6.1-0.20221102145943-1e9b0a1225c3 h1:Wf6EUjtmzkNcbK2fKPJYyX5146C75EzmfMFXgtFilQ8=
-github.com/hashicorp/vault/sdk v0.6.1-0.20221102145943-1e9b0a1225c3/go.mod h1:h25xhm657j/WX0QYIK43fGeEzaQ4zG/A55vRe+09Q2U=
+github.com/hashicorp/vault/sdk v0.8.1 h1:bdlhIpxBmJuOZ5Anumao1xeiLocR2eQrBRuJynZfTac=
+github.com/hashicorp/vault/sdk v0.8.1/go.mod h1:kEpyfUU2ECGWf6XohKVFzvJ97ybSnXvxsTsBkbeVcQg=
 github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443 h1:O/pT5C1Q3mVXMyuqg7yuAWUg/jMZR1/0QTzTRdNR6Uw=
 github.com/hashicorp/vic v1.5.1-0.20190403131502-bbfe86ec9443/go.mod h1:bEpDU35nTu0ey1EXjwNwPjI9xErAsoOCmcMb9GKvyxo=
 github.com/hashicorp/yamux v0.0.0-20180604194846-3520598351bb/go.mod h1:+NfK9FKeTrX5uv1uIXGdwYDTeHna2qgaIlx54MXqjAM=
@@ -1444,7 +1444,7 @@ github.com/rogpeppe/go-internal v1.1.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFR
 github.com/rogpeppe/go-internal v1.2.2/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.3.0/go.mod h1:M8bDsm7K2OlrFYOpmOWEs/qY81heoFRclV5y23lUDJ4=
 github.com/rogpeppe/go-internal v1.6.1/go.mod h1:xXDCJY+GAPziupqXw64V24skbSoqbTEfhy4qGm1nDQc=
-github.com/rogpeppe/go-internal v1.8.1 h1:geMPLpDpQOgVyCg5z5GoRwLHepNdb71NXb67XFkP+Eg=
+github.com/rogpeppe/go-internal v1.9.0 h1:73kH8U+JUqXU8lRuOHeVHaa/SZPifC7BkcraZVejAe8=
 github.com/rs/zerolog v1.4.0/go.mod h1:YbFCdg8HfsridGWAh22vktObvhZbQsZXe4/zB0OKkWU=
 github.com/russross/blackfriday v1.5.2/go.mod h1:JO/DiYxRf+HjHt06OyowR9PTA263kcR/rfWxYHBV53g=
 github.com/russross/blackfriday/v2 v2.0.1/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
