@@ -61,7 +61,7 @@ type RemotePodCommandExecutor struct {
 // ExecWithOptions executes a command in the specified container,
 // returning stdout, stderr and error. `options` allowed for
 // additional parameters to be passed.
-func (e *RemotePodCommandExecutor) ExecWithOptions(options ExecOptions) (string, string, error) {
+func (e *RemotePodCommandExecutor) ExecWithOptions(ctx context.Context, options ExecOptions) (string, string, error) {
 	const tty = false
 
 	logger.Debugf("ExecWithOptions %+v", options)
@@ -82,7 +82,7 @@ func (e *RemotePodCommandExecutor) ExecWithOptions(options ExecOptions) (string,
 	}, scheme.ParameterCodec)
 
 	var stdout, stderr bytes.Buffer
-	err := execute(http.MethodPost, req.URL(), e.RestClient, options.Stdin, &stdout, &stderr, tty)
+	err := execute(ctx, http.MethodPost, req.URL(), e.RestClient, options.Stdin, &stdout, &stderr, tty)
 
 	if options.PreserveWhitespace {
 		return stdout.String(), stderr.String(), err
@@ -103,7 +103,7 @@ func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutput(ctx cont
 		return "", "", errors.Errorf("no pods found with selector %q", appLabel)
 	}
 
-	return e.ExecWithOptions(ExecOptions{
+	return e.ExecWithOptions(ctx, ExecOptions{
 		Command:   cmd,
 		Namespace: namespace,
 		// Always pick the first pod, it's always 1 unless stretched cluster is enabled
@@ -117,12 +117,12 @@ func (e *RemotePodCommandExecutor) ExecCommandInContainerWithFullOutput(ctx cont
 	})
 }
 
-func execute(method string, url *url.URL, config *rest.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
+func execute(ctx context.Context, method string, url *url.URL, config *rest.Config, stdin io.Reader, stdout, stderr io.Writer, tty bool) error {
 	exec, err := remotecommand.NewSPDYExecutor(config, method, url)
 	if err != nil {
 		return err
 	}
-	return exec.Stream(remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:  stdin,
 		Stdout: stdout,
 		Stderr: stderr,

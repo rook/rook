@@ -33,6 +33,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var (
@@ -168,7 +169,7 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		return errors.Wrap(err, "failed to check for mons to skip reconcile")
 	}
 	if monsToSkipReconcile.Len() > 0 {
-		logger.Warningf("skipping mon health check since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, monsToSkipReconcile.List())
+		logger.Warningf("skipping mon health check since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
 		return nil
 	}
 

@@ -78,7 +78,7 @@ section for instructions on how to change the default namespaces in `common.yaml
 Then apply the latest changes from v1.11 and update the Rook Operator image.
 
 ```console
-kubectl apply -f common.yaml -f crds.yaml
+kubectl apply --server-side -f common.yaml -f crds.yaml
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.11.1
 ```
 
@@ -158,7 +158,7 @@ sed -i.bak \
 **Apply the resources.**
 
 ```console
-kubectl apply -f common.yaml -f crds.yaml
+kubectl apply --server-side -f common.yaml -f crds.yaml
 ```
 
 #### **Prometheus Updates**

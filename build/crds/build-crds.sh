@@ -20,12 +20,12 @@ set -o pipefail
 # set BUILD_CRDS_INTO_DIR to build the CRD results into the given dir instead of in-place
 : "${BUILD_CRDS_INTO_DIR:=}"
 
-SCRIPT_ROOT=$( cd "$( dirname "${BASH_SOURCE[0]}" )/../.." && pwd -P)
+SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 CONTROLLER_GEN_BIN_PATH=$1
 YQ_BIN_PATH=$2
 : "${MAX_DESC_LEN:=-1}"
 # allowDangerousTypes is used to accept float64
-CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,trivialVersions=true,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
+CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
 
 DESTINATION_ROOT="$SCRIPT_ROOT"
 if [[ -n "$BUILD_CRDS_INTO_DIR" ]]; then
@@ -59,9 +59,9 @@ generating_crds_v1() {
 }
 
 generating_main_crd() {
-  true > "$CEPH_CRDS_FILE_PATH"
-  true > "$CEPH_HELM_CRDS_FILE_PATH"
-cat <<EOF > "$CEPH_CRDS_FILE_PATH"
+  true >"$CEPH_CRDS_FILE_PATH"
+  true >"$CEPH_HELM_CRDS_FILE_PATH"
+  cat <<EOF >"$CEPH_CRDS_FILE_PATH"
 ##############################################################################
 # Create the CRDs that are necessary before creating your Rook cluster.
 # These resources *must* be created before the cluster.yaml or their variants.
@@ -110,7 +110,7 @@ while read -r line; do
   CRD_FILES+=("$line")
 done < <(find "$OLM_CATALOG_DIR" -type f -name '*.yaml' | sort)
 
-echo "---" >> "$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
-$YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >> "$CEPH_CRDS_FILE_PATH"
+echo "---" >>"$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
+$YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >>"$CEPH_CRDS_FILE_PATH"
 
 build_helm_resources

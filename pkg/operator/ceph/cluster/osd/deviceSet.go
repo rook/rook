@@ -141,7 +141,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet cephv1.StorageClassDe
 	var crushDeviceClass string
 	var crushInitialWeight string
 	var crushPrimaryAffinity string
-	typesFound := sets.NewString()
+	typesFound := sets.New[string]()
 	for _, pvcTemplate := range newDeviceSet.VolumeClaimTemplates {
 		if pvcTemplate.Name == "" {
 			// For backward compatibility a blank name must be treated as a data volume
@@ -257,14 +257,14 @@ func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.
 }
 
 // GetExistingPVCs fetches the list of OSD PVCs
-func GetExistingPVCs(ctx context.Context, clusterdContext *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, map[string]sets.String, error) {
+func GetExistingPVCs(ctx context.Context, clusterdContext *clusterd.Context, namespace string) (map[string]*v1.PersistentVolumeClaim, map[string]sets.Set[string], error) {
 	selector := metav1.ListOptions{LabelSelector: CephDeviceSetPVCIDLabelKey}
 	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(ctx, selector)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to detect PVCs")
 	}
 	result := map[string]*v1.PersistentVolumeClaim{}
-	uniqueOSDsPerDeviceSet := map[string]sets.String{}
+	uniqueOSDsPerDeviceSet := map[string]sets.Set[string]{}
 	for i, pvc := range pvcs.Items {
 		// Populate the PVCs based on their unique name across all the device sets
 		pvcID := pvc.Labels[CephDeviceSetPVCIDLabelKey]
@@ -274,7 +274,7 @@ func GetExistingPVCs(ctx context.Context, clusterdContext *clusterd.Context, nam
 		deviceSet := pvc.Labels[CephDeviceSetLabelKey]
 		pvcIndex := pvc.Labels[CephSetIndexLabelKey]
 		if _, ok := uniqueOSDsPerDeviceSet[deviceSet]; !ok {
-			uniqueOSDsPerDeviceSet[deviceSet] = sets.NewString()
+			uniqueOSDsPerDeviceSet[deviceSet] = sets.New[string]()
 		}
 		uniqueOSDsPerDeviceSet[deviceSet].Insert(pvcIndex)
 	}
