@@ -329,6 +329,31 @@ function wait_for_ceph_to_be_ready() {
   kubectl -n rook-ceph get pods
 }
 
+function verify_key_rotation(){
+  pvc_name=$(kubectl get pvc -n rook-ceph -l ceph.rook.io/setIndex=0 -o jsonpath='{.items[0].metadata.name}')
+  old_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
+  runtime="3 minutes"
+  endtime=$(date -ud "$runtime" +%s)
+  while [[ $(date -u +%s) -le $endtime ]]
+  do
+      echo "Time Now: `date +%H:%M:%S`"
+      new_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
+      if [ "$old_key" != "$new_key" ]; then
+        echo "encryption passphrase is successfully rotated"
+        exit 0
+      fi
+      echo "encryption passphrase is not rotated, sleeping for 10 seconds"
+      sleep 10s
+  done
+  new_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
+  if [ "$old_key" == "$new_key" ]; then
+    echo "encryption passphrase is not rotated"
+    exit 1
+  else
+    echo "encryption passphrase is successfully rotated"
+  fi
+}
+
 function check_ownerreferences() {
   curl -L https://github.com/kubernetes-sigs/kubectl-check-ownerreferences/releases/download/v0.2.0/kubectl-check-ownerreferences-linux-amd64.tar.gz -o kubectl-check-ownerreferences-linux-amd64.tar.gz
   tar xzvf kubectl-check-ownerreferences-linux-amd64.tar.gz
