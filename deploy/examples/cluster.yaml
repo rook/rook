@@ -110,6 +110,12 @@ spec:
     #ipFamily: "IPv6"
     # Ceph daemons to listen on both IPv4 and Ipv6 networks
     #dualStack: false
+    # Enable multiClusterService to export the mon and OSD services to peer cluster.
+    # This is useful to support RBD mirroring between two clusters having overlapping CIDRs.
+    # Ensure that peer clusters are connected using an MCS API compatible application, like Globalnet Submariner.
+    #multiClusterService:
+    #  enabled: false
+
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false

@@ -16,4 +16,6 @@
   for object stores moved to stable from experimental.
 - Introduce [Ceph exporter](https://github.com/rook/rook/blob/master/design/ceph/ceph-exporter.md) as the new source of metrics based on performance counters coming from every Ceph daemon.
 - Added support to enable read affinity for RBD volumes. It leverages the [krbd map options](https://docs.ceph.com/en/latest/man/8/rbd/#kernel-rbd-krbd-options) to allow serving reads from an OSD in proximity to the client, according to OSD locations defined in the CRUSH map and topology labels on nodes.
-- Update golang version to (v1.19)[https://github.com/rook/rook/pull/11692]
+- Update golang version to [v1.19](https://github.com/rook/rook/pull/11692) and K8s version to [v1.26.1](#11740)
+- Added support for [multi cluster service](https://github.com/rook/rook/blob/master/design/ceph/multi-cluster-service.md) to export mon and OSD services across multiple clusters with overlapping CIDRs. The clusters should be connected together using MCS API compatible applications like [submariner globalnet](https://submariner.io/getting-started/architecture/globalnet/). This helps establishing rbd mirroring between peer clusters with overlapping CIDRs for disaster recovery scenarios. This feature is supported for Ceph version v17.2.6 or later.
+- Update golang version to (v1.19)[https://github.com/rook/rook/pull/11692] and K8s version to (v1.26.1)[https://github.com/rook/rook/pull/11740]

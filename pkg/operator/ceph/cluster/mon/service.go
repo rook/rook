@@ -17,6 +17,8 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -24,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Cluster) createService(mon *monConfig) (string, error) {
+func (c *Cluster) createService(mon *monConfig) (*v1.Service, error) {
 	svcDef := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mon.ResourceName,
@@ -37,7 +39,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	}
 	err := c.ownerInfo.SetOwnerReference(svcDef)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to set owner reference to mon service %q", svcDef.Name)
+		return nil, errors.Wrapf(err, "failed to set owner reference to mon service %q", svcDef.Name)
 	}
 
 	// If the mon port was not msgr2, add the msgr1 port
@@ -59,14 +61,29 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 
 	s, err := k8sutil.CreateOrUpdateService(c.ClusterInfo.Context, c.context.Clientset, c.Namespace, svcDef)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to create service for mon %s", mon.DaemonName)
+		return nil, errors.Wrapf(err, "failed to create service for mon %s", mon.DaemonName)
 	}
 
 	if s == nil {
 		logger.Errorf("service ip not found for mon %q. if this is not a unit test, this is an error", mon.ResourceName)
-		return "", nil
+		return nil, nil
 	}
 
-	logger.Infof("mon %q ip is %s", mon.DaemonName, s.Spec.ClusterIP)
-	return s.Spec.ClusterIP, nil
+	logger.Infof("mon %q cluster IP is %s", mon.DaemonName, s.Spec.ClusterIP)
+	return s, nil
+}
+
+func (c *Cluster) exportService(service *v1.Service, monDaemon string) (string, error) {
+	logger.Infof("exporting service %q", service.Name)
+	exportedIP, err := k8sutil.ExportService(c.ClusterInfo.Context, c.context, service)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to export service %q", service.Name)
+	}
+	logger.Infof("mon %q exported IP is %s", service.Name, exportedIP)
+
+	// remove mon canary deployment only after the service is exported because DNS
+	// query on <service>.<ns>.svc.clusterset.local requires the mon pod be running
+	c.removeCanaryDeployments(monCanaryLabelSelector + fmt.Sprintf(",mon=%s", monDaemon))
+
+	return exportedIP, nil
 }
