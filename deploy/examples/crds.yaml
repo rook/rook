@@ -1903,6 +1903,13 @@ spec:
                         - IPv6
                       nullable: true
                       type: string
+                    multiClusterService:
+                      description: Enable multiClusterService to export the Services between peer clusters
+                      properties:
+                        enabled:
+                          description: Enable multiClusterService to export the mon and OSD services to peer cluster. Ensure that peer clusters are connected using an MCS API compatible application, like Globalnet Submariner.
+                          type: boolean
+                      type: object
                     provider:
                       description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
                       nullable: true

@@ -154,10 +154,14 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 		}
 
 		var updatedDep *appsv1.Deployment
+
+		if c.cluster.spec.Network.MultiClusterService.Enabled {
+			osdInfo.ExportService = true
+		}
+
 		if osdIsOnPVC(dep) {
 			logger.Infof("updating OSD %d on PVC %q", osdID, nodeOrPVCName)
 			updatedDep, err = deploymentOnPVCFunc(c.cluster, osdInfo, nodeOrPVCName, c.provisionConfig)
-
 			message := fmt.Sprintf("Processing OSD %d on PVC %q", osdID, nodeOrPVCName)
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		} else {
@@ -173,7 +177,6 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 
 			logger.Infof("updating OSD %d on node %q", osdID, nodeOrPVCName)
 			updatedDep, err = deploymentOnNodeFunc(c.cluster, osdInfo, nodeOrPVCName, c.provisionConfig)
-
 			message := fmt.Sprintf("Processing OSD %d on node %q", osdID, nodeOrPVCName)
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		}

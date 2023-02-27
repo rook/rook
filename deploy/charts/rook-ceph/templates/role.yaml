@@ -53,6 +53,13 @@ rules:
   - get
   - create
   - delete
+- apiGroups:
+  - multicluster.x-k8s.io
+  resources:
+  - serviceexports
+  verbs:
+  - get
+  - create
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
