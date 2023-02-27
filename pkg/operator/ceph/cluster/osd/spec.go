@@ -167,6 +167,15 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 	fi
 	[[ -z "$DEVICE" ]] && { echo "no device" ; exit 1 ; }
 
+	# If a kernel device name change happens and a block device file
+	# in the OSD directory becomes missing, this OSD fails to start
+	# continuously. This problem can be resolved by confirming
+	# the validity of the device file and recreating it if necessary.
+	OSD_BLOCK_PATH=/var/lib/ceph/osd/ceph-$OSD_ID/block
+	if [ -L $OSD_BLOCK_PATH -a "$(readlink $OSD_BLOCK_PATH)" != $DEVICE ] ; then
+		rm $OSD_BLOCK_PATH
+	fi
+
 	# ceph-volume raw mode only supports bluestore so we don't need to pass a store flag
 	ceph-volume raw activate --device "$DEVICE" --no-systemd --no-tmpfs
 fi
