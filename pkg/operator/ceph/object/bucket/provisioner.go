@@ -503,27 +503,6 @@ func (p *Provisioner) setObjectContext() error {
 	return nil
 }
 
-// setObjectStoreDomainName sets the provisioner.storeDomainName and provisioner.port
-// must be called after setObjectStoreName and setObjectStoreNamespace
-func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error {
-	// make sure the object store actually exists
-	store, err := p.getObjectStore()
-	if err != nil {
-		return err
-	}
-	p.storeDomainName = object.GetDomainName(store)
-	return nil
-}
-
-func (p *Provisioner) setObjectStorePort() error {
-	store, err := p.getObjectStore()
-	if err != nil {
-		return errors.Wrap(err, "failed to get cephObjectStore")
-	}
-	p.storePort, err = store.Spec.GetPort()
-	return err
-}
-
 func (p *Provisioner) setObjectStoreName(sc *storagev1.StorageClass) {
 	p.objectStoreName = sc.Parameters[ObjectStoreName]
 }
@@ -548,27 +527,25 @@ func (p Provisioner) getObjectStoreEndpoint() string {
 }
 
 func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
-	endpoint := getObjectStoreEndpoint(sc)
 	// if endpoint is present, let's introspect it
-	if endpoint != "" {
-		p.storeDomainName = cephutil.GetIPFromEndpoint(endpoint)
-		if p.storeDomainName == "" {
-			return errors.New("failed to discover endpoint IP (is empty)")
-		}
-		p.storePort = cephutil.GetPortFromEndpoint(endpoint)
-		if p.storePort == 0 {
-			return errors.New("failed to discover endpoint port (is empty)")
-		}
+	endpoint := getObjectStoreEndpoint(sc)
+	if endpoint == "" {
 		// If no endpoint exists let's see if CephObjectStore exists
-	} else {
-		if err := p.setObjectStoreDomainName(sc); err != nil {
-			return errors.Wrap(err, "failed to set object store domain name")
+		store, err := p.getObjectStore()
+		if err != nil {
+			return err
 		}
-		if err := p.setObjectStorePort(); err != nil {
-			return errors.Wrap(err, "failed to set object store port")
-		}
+		// trim the http(s) prefix from the endpoint
+		endpoint = strings.TrimPrefix(strings.TrimPrefix(object.GetEndpointFromStatus(store), "http://"), "https://")
 	}
-
+	p.storeDomainName = cephutil.GetIPFromEndpoint(endpoint)
+	if p.storeDomainName == "" {
+		return errors.New("failed to discover endpoint IP (is empty)")
+	}
+	p.storePort = cephutil.GetPortFromEndpoint(endpoint)
+	if p.storePort == 0 {
+		return errors.New("failed to discover endpoint port (is empty)")
+	}
 	return nil
 }
 
@@ -691,8 +668,7 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	// Build endpoint
-	s3endpoint := object.BuildDNSEndpoint(object.GetDomainName(cephObjectStore), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
-
+	s3endpoint := object.GetEndpointFromStatus(cephObjectStore)
 	// If DEBUG level is set we will mutate the HTTP client for printing request and response
 	if logger.LevelAt(capnslog.DEBUG) {
 		p.adminOpsClient, err = admin.New(s3endpoint, accessKey, secretKey, object.NewDebugHTTPClient(httpClient, logger))

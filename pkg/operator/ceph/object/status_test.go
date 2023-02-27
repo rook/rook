@@ -58,3 +58,27 @@ func TestBuildStatusInfo(t *testing.T) {
 	assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", statusInfo["endpoint"])
 	assert.Equal(t, "https://rook-ceph-rgw-my-store.rook-ceph.svc:443", statusInfo["secureEndpoint"])
 }
+
+func TestGetEndpointFromStatus(t *testing.T) {
+	type args struct {
+		objectStore *cephv1.CephObjectStore
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{"no status", args{&cephv1.CephObjectStore{}}, ""},
+		{"no endpoint", args{&cephv1.CephObjectStore{Status: &cephv1.ObjectStoreStatus{}}}, ""},
+		{"http endpoint is present", args{&cephv1.CephObjectStore{Status: &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "http://rook-ceph-rgw-my-store.rook-ceph.svc:80"}}}}, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80"},
+		{"https endpoint is present", args{&cephv1.CephObjectStore{Status: &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "https://rook-ceph-rgw-my-store.rook-ceph.svc:443"}}}}, "https://rook-ceph-rgw-my-store.rook-ceph.svc:443"},
+		{"both http and https endpoints are present", args{&cephv1.CephObjectStore{Status: &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", "secureEndpoint": "https://rook-ceph-rgw-my-store.rook-ceph.svc:443"}}}}, "https://rook-ceph-rgw-my-store.rook-ceph.svc:443"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetEndpointFromStatus(tt.args.objectStore); got != tt.want {
+				t.Errorf("GetEndpointFromStatus() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

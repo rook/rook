@@ -103,3 +103,16 @@ func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string 
 
 	return m
 }
+
+func GetEndpointFromStatus(objectStore *cephv1.CephObjectStore) string {
+	if objectStore.Status == nil {
+		return ""
+	}
+	if len(objectStore.Status.Info["secureEndpoint"]) > 0 {
+		return objectStore.Status.Info["secureEndpoint"]
+	}
+	if len(objectStore.Status.Info["endpoint"]) > 0 {
+		return objectStore.Status.Info["endpoint"]
+	}
+	return ""
+}

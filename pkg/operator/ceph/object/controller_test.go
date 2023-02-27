@@ -347,6 +347,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			},
 			Spec:     cephv1.ObjectStoreSpec{MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}, DataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}},
 			TypeMeta: controllerTypeMeta,
+			Status:   &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "http://rook-ceph-rgw-my-store.rook-ceph.svc:80"}},
 		}
 		objectStore.Spec.Gateway.Port = 80
 
@@ -643,7 +644,8 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephObjectStore",
 		},
-		Spec: cephv1.ObjectStoreSpec{},
+		Spec:   cephv1.ObjectStoreSpec{},
+		Status: &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "http://rook-ceph-rgw-my-store.rook-ceph.svc:80"}},
 	}
 
 	objectStore.Spec.Zone.Name = zoneName
@@ -836,11 +838,12 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 		TypeMeta: metav1.TypeMeta{
 			Kind: "CephObjectStore",
 		},
-		Spec: cephv1.ObjectStoreSpec{},
+		Spec:   cephv1.ObjectStoreSpec{},
+		Status: &cephv1.ObjectStoreStatus{Info: map[string]string{"endpoint": "http://1.2.3.4:80"}},
 	}
 
 	externalObjectStore.Spec.Gateway.Port = 81
-	externalObjectStore.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{{IP: ""}}
+	externalObjectStore.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{{IP: "1.2.3.4"}}
 
 	rgwAdminOpsUserSecret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
