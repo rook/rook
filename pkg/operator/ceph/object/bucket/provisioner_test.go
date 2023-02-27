@@ -90,6 +90,12 @@ func TestPopulateDomainAndPort(t *testing.T) {
 				Port: int32(80),
 			},
 		},
+		Status: &cephv1.ObjectStoreStatus{
+			Phase: cephv1.ConditionReady,
+			Info: map[string]string{
+				"endpoint": "http://rook-ceph-rgw-test-store.ns.svc:80",
+			},
+		},
 	}
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
