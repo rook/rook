@@ -43,6 +43,13 @@ func (k *KerberosSpec) GetPrincipalName() string {
 	return k.PrincipalName
 }
 
+func (n *CephNFS) IsHostNetwork(c *ClusterSpec) bool {
+	if n.Spec.Server.HostNetwork != nil {
+		return *n.Spec.Server.HostNetwork
+	}
+	return c.Network.IsHost()
+}
+
 func (n *CephNFS) ValidateCreate() error {
 	return n.Spec.Security.Validate()
 }

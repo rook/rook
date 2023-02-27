@@ -101,6 +101,8 @@ The `server` spec sets configuration for Rook-created NFS-Ganesha server pods.
 * `logLevel`: The log level that NFS-Ganesha servers should output.</br>
   Default value: `NIV_INFO`</br>
   Supported values: `NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG | NIV_FULL_DEBUG | NB_LOG_LEVEL`
+* `hostNetwork`: Whether host networking is enabled for the NFS server pod(s). If not set, the network
+  settings from the CephCluster CR will be applied.
 
 ### Security
 

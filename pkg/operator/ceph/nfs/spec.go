@@ -63,7 +63,8 @@ func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemo
 		},
 	}
 
-	if r.cephClusterSpec.Network.IsHost() {
+	hostNetwork := nfs.IsHostNetwork(r.cephClusterSpec)
+	if hostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
@@ -101,6 +102,11 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 			Labels:    getLabels(nfs, cfg.ID, true),
 		},
 	}
+
+	// If host network is defined on Spec.Server.HostNetwork, use it.
+	// elsedefault to whatever the cluster has defined
+	hostNetwork := nfs.IsHostNetwork(r.cephClusterSpec)
+
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	controller.AddCephVersionLabelToDeployment(r.clusterInfo.CephVersion, deployment)
 	nfs.Spec.Server.Annotations.ApplyToObjectMeta(&deployment.ObjectMeta)
@@ -128,7 +134,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 			nfsConfigVol,
 			dbusVol,
 		},
-		HostNetwork:       r.cephClusterSpec.Network.IsHost(),
+		HostNetwork:       hostNetwork,
 		PriorityClassName: nfs.Spec.Server.PriorityClassName,
 		// for kerberos, nfs-ganesha uses the hostname via getaddrinfo() and uses that when
 		// connecting to the krb server. give all ganesha servers the same hostname so they can all
@@ -143,7 +149,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
 
-	if r.cephClusterSpec.Network.IsHost() {
+	if hostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	nfs.Spec.Server.Placement.ApplyToPodSpec(&podSpec)
@@ -166,7 +172,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		Spec: podSpec,
 	}
 
-	if r.cephClusterSpec.Network.IsHost() {
+	if hostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if r.cephClusterSpec.Network.IsMultus() {
 		if err := k8sutil.ApplyMultus(r.cephClusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
