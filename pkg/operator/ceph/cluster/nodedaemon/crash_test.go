@@ -102,4 +102,6 @@ func TestCreateOrUpdateCephCrash(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, true, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "test-priority-class", podSpec.Spec.PriorityClassName)
+	assert.NotEqual(t, "", deploy.ObjectMeta.Labels["rook-version"])
+	assert.Equal(t, "", podSpec.ObjectMeta.Labels["rook-version"])
 }
