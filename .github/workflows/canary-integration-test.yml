@@ -177,6 +177,20 @@ jobs:
           # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
           timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
 
+      - name: validate multisite
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          # create realm
+          kubectl -n rook-ceph exec $toolbox -- radosgw-admin realm create --rgw-realm=realm1
+          # pass correct realm
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm1
+          # pass wrong realm
+          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm3); then
+            exit 1
+          else
+            echo "script failed because wrong realm was passed"
+          fi
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 

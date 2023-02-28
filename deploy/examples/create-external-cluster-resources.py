@@ -429,6 +429,12 @@ class RadosJSON:
             required=False,
             help="provides the name of the subvolume group",
         )
+        output_group.add_argument(
+            "--rgw-realm-name",
+            default="",
+            required=False,
+            help="provides the name of the rgw-realm",
+        )
 
         upgrade_group = argP.add_argument_group("upgrade")
         upgrade_group.add_argument(
@@ -1105,6 +1111,8 @@ class RadosJSON:
             "Rook RGW Admin Ops user",
             "--caps",
             "buckets=*;users=*;usage=read;metadata=read;zone=read",
+            "--rgw-realm",
+            self._arg_parser.rgw_realm_name,
         ]
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + " ".join(cmd))
@@ -1305,6 +1313,24 @@ class RadosJSON:
                 ).format(self._arg_parser.rgw_endpoint, rgw_fsid, fsid)
             )
 
+    def validate_rgw_realm_name(self):
+        if self._arg_parser.rgw_realm_name != "":
+            cmd = [
+                "radosgw-admin",
+                "realm",
+                "get",
+                "--rgw-realm",
+                self._arg_parser.rgw_realm_name,
+            ]
+            try:
+                output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+            except subprocess.CalledProcessError as execErr:
+                err_msg = (
+                    "failed to execute command %s. Output: %s. Code: %s. Error: %s"
+                    % (cmd, execErr.output, execErr.returncode, execErr.stderr)
+                )
+                raise Exception(err_msg)
+
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -1318,6 +1344,7 @@ class RadosJSON:
         self.validate_pool()
         self.validate_rados_namespace()
         self.validate_subvolume_group()
+        self.validate_rgw_realm_name()
         self._excluded_keys.add("CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
@@ -1367,6 +1394,7 @@ class RadosJSON:
         self.out_map[
             "RBD_METADATA_EC_POOL_NAME"
         ] = self.validate_rgw_metadata_ec_pool_name()
+        self.out_map["RGW_REALM_NAME"] = self._arg_parser.rgw_realm_name
         self.out_map["RGW_POOL_PREFIX"] = self._arg_parser.rgw_pool_prefix
         if self._arg_parser.rgw_endpoint:
             if self._arg_parser.dry_run:
