@@ -92,13 +92,20 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 
 		deploy.ObjectMeta.Labels = deploymentLabels
 		cephv1.GetCrashCollectorLabels(cephCluster.Spec.Labels).ApplyToObjectMeta(&deploy.ObjectMeta)
-		k8sutil.AddRookVersionLabelToDeployment(deploy)
 		if cephVersion != nil {
 			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
 		}
+
+		//  make a copy labels for pod to avoid rook version gets added to pod spec
+		podLabels := map[string]string{}
+		for key, value := range deploymentLabels {
+			podLabels[key] = value
+		}
+		k8sutil.AddRookVersionLabelToDeployment(deploy)
+
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: deploymentLabels,
+				Labels: podLabels,
 			},
 			Spec: corev1.PodSpec{
 				NodeSelector: nodeSelector,
