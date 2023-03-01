@@ -207,13 +207,12 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 func getMultisiteForObjectStore(ctx context.Context, clusterdContext *clusterd.Context, spec *cephv1.ObjectStoreSpec, namespace, name string) (string, string, string, error) {
 
 	if spec.IsExternal() {
-		// Currently external cluster with zones/zonegroup/realm are not supported, will be
-		// fixed by https://github.com/rook/rook/issues/6342. So if user does not create
-		// zone/zonegroup, RGW internally creates zone/zonegroup named as `default`, hence
-		// Rook can set this value in the object context fields.
+		// In https://github.com/rook/rook/issues/6342, it was determined that
+		// a multisite context isn't needed for external mode CephObjectStores.
+		// The context is only needed for managing an object store, which isn't
+		// happening in external mode.
 		return "", "default", "default", nil
 	}
-
 	if spec.IsMultisite() {
 		zone, err := clusterdContext.RookClientset.CephV1().CephObjectZones(namespace).Get(ctx, spec.Zone.Name, metav1.GetOptions{})
 		if err != nil {
