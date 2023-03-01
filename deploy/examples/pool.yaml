@@ -30,6 +30,8 @@ spec:
   #crushRoot: my-root
   # The Ceph CRUSH device class associated with the CRUSH replicated rule
   # For reference: https://docs.ceph.com/docs/master/rados/operations/crush-map/#device-classes
+  # If device classes are specified, ensure this property is added to every pool in the cluster,
+  # otherwise Ceph will warn about pools with overlapping roots.
   #deviceClass: my-class
   # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
   # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
@@ -60,5 +62,5 @@ spec:
   # quota in bytes and/or objects, default value is 0 (unlimited)
   # see https://docs.ceph.com/en/latest/rados/operations/pools/#set-pool-quotas
   # quotas:
-    # maxSize: "10Gi" # valid suffixes include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei
-    # maxObjects: 1000000000 # 1 billion objects
+  #   maxSize: "10Gi" # valid suffixes include k, M, G, T, P, E, Ki, Mi, Gi, Ti, Pi, Ei
+  #   maxObjects: 1000000000 # 1 billion objects
