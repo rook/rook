@@ -38,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
@@ -95,6 +96,17 @@ func (c *Cluster) Start() error {
 	err := controller.CheckPodMemory(cephv1.ResourcesKeyMDS, c.fs.Spec.MetadataServer.Resources, cephMdsPodMinimumMemory)
 	if err != nil {
 		return errors.Wrap(err, "error checking pod memory")
+	}
+
+	mdsToSkipReconcile, err := k8sutil.GetAppsToSkipReconcile(c.clusterInfo.Context, c.context,
+		c.clusterInfo.Namespace, AppName, config.MdsType)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for mds to skip reconcile")
+	}
+	if mdsToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping mds reconcile since mds are labeled with %s: %v",
+			cephv1.SkipReconcileLabelKey, sets.List(mdsToSkipReconcile))
+		return nil
 	}
 
 	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to

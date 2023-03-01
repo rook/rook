@@ -203,12 +203,14 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 
 	logger.Infof("targeting the mon count %d", c.spec.Mon.Count)
 
-	monsToSkipReconcile, err := c.getMonsToSkipReconcile()
+	monsToSkipReconcile, err := k8sutil.GetAppsToSkipReconcile(c.ClusterInfo.Context, c.context,
+		c.ClusterInfo.Namespace, AppName, config.MonType)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to check for mons to skip reconcile")
 	}
 	if monsToSkipReconcile.Len() > 0 {
-		logger.Warningf("skipping mon reconcile since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
+		logger.Warningf("skipping mon reconcile since mons are labeled with %s: %v",
+			cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
 		return c.ClusterInfo, nil
 	}
 
@@ -1502,23 +1504,4 @@ func (c *Cluster) acquireOrchestrationLock() {
 func (c *Cluster) releaseOrchestrationLock() {
 	c.orchestrationMutex.Unlock()
 	logger.Debugf("Released lock for mon orchestration")
-}
-
-func (c *Cluster) getMonsToSkipReconcile() (sets.Set[string], error) {
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
-
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).List(c.ClusterInfo.Context, listOpts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query mons to skip reconcile")
-	}
-
-	result := sets.New[string]()
-	for _, deployment := range deployments.Items {
-		if monID, ok := deployment.Labels[config.MonType]; ok {
-			logger.Infof("found mon %q pod to skip reconcile", monID)
-			result.Insert(monID)
-		}
-	}
-
-	return result, nil
 }

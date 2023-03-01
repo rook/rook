@@ -25,6 +25,11 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
+	v1 "k8s.io/api/apps/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -33,9 +38,6 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
-	v1 "k8s.io/api/apps/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
@@ -110,6 +112,20 @@ func (c *Cluster) Start() error {
 
 	logger.Infof("start running mgr")
 	daemonIDs := c.getDaemonIDs()
+
+	logger.Infof("targeting the mgr count %d", c.spec.Mgr.Count)
+
+	mgrsToSkipReconcile, err := k8sutil.GetAppsToSkipReconcile(c.clusterInfo.Context, c.context,
+		c.clusterInfo.Namespace, AppName, config.MgrType)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for mgrs to skip reconcile")
+	}
+	if mgrsToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping mgr reconcile since mgrs are labeled with %s: %v",
+			cephv1.SkipReconcileLabelKey, sets.List(mgrsToSkipReconcile))
+		return nil
+	}
+
 	var deploymentsToWaitFor []*v1.Deployment
 
 	for _, daemonID := range daemonIDs {

@@ -18,6 +18,7 @@ limitations under the License.
 package k8sutil
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -27,9 +28,12 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	rookversion "github.com/rook/rook/pkg/version"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
@@ -277,4 +281,23 @@ func cutMiddle(input string, toSize int) string {
 	buf := []byte(input)
 
 	return string(buf[:lenLeft-1]) + "--" + string(buf[len(input)-lenRight+1:])
+}
+
+func GetAppsToSkipReconcile(ctx context.Context, clusterdContext *clusterd.Context, namespace, appName, appType string) (sets.Set[string], error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", AppAttr, appName, cephv1.SkipReconcileLabelKey)}
+
+	deployments, err := clusterdContext.Clientset.AppsV1().Deployments(namespace).List(ctx, listOpts)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to query %s to skip reconcile", appType)
+	}
+
+	result := sets.New[string]()
+	for _, deployment := range deployments.Items {
+		if appID, ok := deployment.Labels[appType]; ok {
+			logger.Infof("found %s %q pod to skip reconcile", appType, appID)
+			result.Insert(appID)
+		}
+	}
+
+	return result, nil
 }

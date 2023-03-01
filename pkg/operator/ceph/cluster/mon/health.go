@@ -27,6 +27,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
+	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -164,12 +165,14 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 		return errors.New("skipping mon health check since there are no monitors")
 	}
 
-	monsToSkipReconcile, err := c.getMonsToSkipReconcile()
+	monsToSkipReconcile, err := k8sutil.GetAppsToSkipReconcile(c.ClusterInfo.Context, c.context,
+		c.ClusterInfo.Namespace, AppName, config.MonType)
 	if err != nil {
 		return errors.Wrap(err, "failed to check for mons to skip reconcile")
 	}
 	if monsToSkipReconcile.Len() > 0 {
-		logger.Warningf("skipping mon health check since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
+		logger.Warningf("skipping mon health check since mons are labeled with %s: %v",
+			cephv1.SkipReconcileLabelKey, sets.List(monsToSkipReconcile))
 		return nil
 	}
 
