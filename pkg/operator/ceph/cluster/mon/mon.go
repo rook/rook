@@ -528,7 +528,7 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig, error) {
 	existingCount := len(c.ClusterInfo.Monitors)
 	for i := len(c.ClusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
-		zone, err := c.findAvailableZoneIfStretched(mons)
+		zone, err := c.findAvailableZone(mons)
 		if err != nil {
 			return existingCount, mons, errors.Wrap(err, "stretch zone not available")
 		}
@@ -595,8 +595,8 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	}
 }
 
-func (c *Cluster) findAvailableZoneIfStretched(mons []*monConfig) (string, error) {
-	if !c.spec.IsStretchCluster() {
+func (c *Cluster) findAvailableZone(mons []*monConfig) (string, error) {
+	if !c.spec.IsStretchCluster() && !(len(c.spec.Mon.Zones) > 0) {
 		return "", nil
 	}
 
@@ -609,8 +609,15 @@ func (c *Cluster) findAvailableZoneIfStretched(mons []*monConfig) (string, error
 		zoneCount[m.Zone]++
 	}
 
+	var zones []cephv1.MonZoneSpec
+	if c.spec.IsStretchCluster() {
+		zones = c.spec.Mon.StretchCluster.Zones
+	} else {
+		zones = c.spec.Mon.Zones
+	}
+
 	// Find a zone in the stretch cluster that still needs an assignment
-	for _, zone := range c.spec.Mon.StretchCluster.Zones {
+	for _, zone := range zones {
 		count, ok := zoneCount[zone.Name]
 		if !ok {
 			// The zone isn't currently assigned to any mon, so return it
@@ -919,8 +926,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			} else {
 				logger.Infof("mon %q placement using native scheduler", mon.DaemonName)
 			}
-
-			if c.spec.IsStretchCluster() {
+			if (len(c.spec.Mon.Zones) > 0) || c.spec.IsStretchCluster() {
 				if schedule == nil {
 					schedule = &controller.MonScheduleInfo{}
 				}
@@ -945,21 +951,29 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 }
 
 func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeClaim {
-	if !c.spec.IsStretchCluster() {
-		return c.spec.Mon.VolumeClaimTemplate
-	}
 
-	// If a stretch cluster, a zone can override the template from the default.
-	for _, zone := range c.spec.Mon.StretchCluster.Zones {
-		if zone.Name == mon.Zone {
-			if zone.VolumeClaimTemplate != nil {
-				// Found an override for the volume claim template in the zone
-				return zone.VolumeClaimTemplate
+	if c.spec.IsStretchCluster() || len(c.spec.Mon.Zones) > 0 {
+		// If a stretch cluster, a zone can override the template from the default.
+
+		var zones []cephv1.MonZoneSpec
+		if c.spec.IsStretchCluster() {
+			zones = c.spec.Mon.StretchCluster.Zones
+		} else {
+			zones = c.spec.Mon.Zones
+		}
+		//TODO: check if it works for all zones or not
+		for _, zone := range zones {
+			if zone.Name == mon.Zone {
+				if zone.VolumeClaimTemplate != nil {
+					// Found an override for the volume claim template in the zone
+					return zone.VolumeClaimTemplate
+				}
+				break
 			}
-			break
 		}
 	}
-	// Return the default template since one wasn't found in the zone
+
+	// Return the default template since one wasn't found in the zone or zone was not specified
 	return c.spec.Mon.VolumeClaimTemplate
 }
 
