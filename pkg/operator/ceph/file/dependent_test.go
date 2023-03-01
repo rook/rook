@@ -19,6 +19,7 @@ package file
 import (
 	"context"
 	"fmt"
+	"syscall"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -75,8 +76,27 @@ func TestCephFilesystemDependents(t *testing.T) {
 	) (client.SubvolumeList, error) {
 		return client.SubvolumeList{}, nil
 	}
+	noCephFilesystem := func(
+		context *clusterd.Context, clusterInfo *client.ClusterInfo, fsName string,
+	) (*client.CephFilesystemDetails, error) {
+		return nil, syscall.Errno(2)
+	}
+	existsCephFilesystem := func(
+		context *clusterd.Context, clusterInfo *client.ClusterInfo, fsName string,
+	) (*client.CephFilesystemDetails, error) {
+		return &client.CephFilesystemDetails{}, nil
+	}
+
+	t.Run("no CephFilesystem found", func(t *testing.T) {
+		client.GetFilesystem = noCephFilesystem
+		c := newClusterdCtx()
+		deps, err := CephFilesystemDependents(c, clusterInfo, fs)
+		assert.NoError(t, err)
+		assert.True(t, deps.Empty())
+	})
 
 	t.Run("no blocking dependents", func(t *testing.T) {
+		client.GetFilesystem = existsCephFilesystem
 		client.ListSubvolumeGroups = noSubvolumeGroups
 		client.ListSubvolumesInGroup = noSubvolumes
 
