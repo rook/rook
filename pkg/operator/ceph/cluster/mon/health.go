@@ -618,7 +618,7 @@ func (c *Cluster) failoverMon(name string) error {
 	// remove the failed mon from a local list of the existing mons for finding a stretch zone
 	existingMons := c.clusterInfoToMonConfigWithExclude(name)
 
-	zone, err := c.findAvailableZoneIfStretched(existingMons)
+	zone, err := c.findAvailableZone(existingMons)
 	if err != nil {
 		return errors.Wrap(err, "failed to find available stretch zone")
 	}
