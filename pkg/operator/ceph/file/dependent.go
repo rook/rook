@@ -18,13 +18,16 @@ package file
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/pkg/errors"
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/dependents"
+	kexec "github.com/rook/rook/pkg/util/exec"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,15 +53,36 @@ var ignoredDependentSubvolumeGroups = []string{"_nogroup", "_index", "_legacy", 
 // groups with no subvolumes don't block deletion.
 var CephFilesystemDependents = cephFilesystemDependents
 
+// check filesystem whether it exists
+func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, name, nsName string) (bool, error) {
+	_, err := cephclient.GetFilesystem(clusterdCtx, clusterInfo, name)
+	if err != nil {
+		if code, ok := kexec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+			logger.Infof("filesystem %q deletion will continue without checking for dependencies since the the filesystem does not exist within Ceph", nsName)
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to check for existence of CephFilesystem %q", nsName)
+	}
+	return true, nil
+}
+
 // with above, allow this to be overridden for unit testing
 func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
 	nsName := fmt.Sprintf("%s/%s", filesystem.Namespace, filesystem.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephFilesystem %q", nsName)
 
-	// subvolume groups that contain subvolumes
-	deps, err := subvolumeGroupDependents(clusterdCtx, clusterInfo, filesystem)
+	deps := dependents.NewDependentList()
+	fsExists, err := filesystemExists(clusterdCtx, clusterInfo, filesystem.Name, nsName)
 	if err != nil {
-		return deps, errors.Wrapf(err, baseErrMsg)
+		return deps, nil
+	}
+
+	// subvolume groups that contain subvolumes
+	if fsExists {
+		deps, err = subvolumeGroupDependents(clusterdCtx, clusterInfo, filesystem)
+		if err != nil {
+			return deps, errors.Wrapf(err, baseErrMsg)
+		}
 	}
 
 	// CephFilesystemSubVolumeGroups
