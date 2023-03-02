@@ -583,30 +583,6 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"",
 		))
 
-	var ports []v1.ContainerPort
-	if c.spec.RequireMsgr2() {
-		ports = []v1.ContainerPort{
-			{
-				Name:          "osd-port-v2",
-				ContainerPort: osdPortv2,
-				Protocol:      v1.ProtocolTCP,
-			},
-		}
-	} else {
-		ports = []v1.ContainerPort{
-			{
-				Name:          "osd-port-v1",
-				ContainerPort: osdPortv1,
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "osd-port-v2",
-				ContainerPort: osdPortv2,
-				Protocol:      v1.ProtocolTCP,
-			},
-		}
-	}
-
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   AppName,
@@ -634,12 +610,16 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					StartupProbe:    controller.GenerateStartupProbeExecDaemon(opconfig.OsdType, osdID),
 					LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(opconfig.OsdType, osdID),
 					WorkingDir:      opconfig.VarLogCephDir,
-					Ports:           ports,
 				},
 			},
 			Volumes:       volumes,
 			SchedulerName: osdProps.schedulerName,
 		},
+	}
+
+	// add OSD container port only if service export is enabled
+	if osd.ExportService {
+		podTemplateSpec.Spec.Containers[0].Ports = c.getOSDContainerPorts()
 	}
 
 	// If the log collector is enabled we add the side-car container
@@ -748,33 +728,6 @@ func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (*v1.S
 		"ceph-osd-id":   strconv.FormatInt(int64(osd.ID), 10),
 	}
 
-	var ports []v1.ServicePort
-	if c.spec.RequireMsgr2() {
-		ports = []v1.ServicePort{
-			{
-				Name:       "osd-port-v2",
-				Port:       osdPortv2,
-				TargetPort: intstr.FromInt(osdPortv2),
-				Protocol:   v1.ProtocolTCP,
-			},
-		}
-	} else {
-		ports = []v1.ServicePort{
-			{
-				Name:       "osd-port-v1",
-				Port:       osdPortv1,
-				TargetPort: intstr.FromInt(osdPortv1),
-				Protocol:   v1.ProtocolTCP,
-			},
-			{
-				Name:       "osd-port-v2",
-				Port:       osdPortv2,
-				TargetPort: intstr.FromInt(osdPortv2),
-				Protocol:   v1.ProtocolTCP,
-			},
-		}
-	}
-
 	svcDef := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("rook-ceph-osd-%d", osd.ID),
@@ -783,7 +736,7 @@ func (c *Cluster) createOSDService(osd OSDInfo, labels map[string]string) (*v1.S
 		},
 		Spec: v1.ServiceSpec{
 			Selector: selectorLabels,
-			Ports:    ports,
+			Ports:    c.getOSDServicePorts(),
 		},
 	}
 
@@ -1376,4 +1329,63 @@ func (c *Cluster) getEncryptedStatusPVCInitContainer(mountPath string, osdProps 
 		SecurityContext: controller.PrivilegedContext(true),
 		Resources:       osdProps.resources,
 	}
+}
+
+func (c *Cluster) getOSDContainerPorts() []v1.ContainerPort {
+	var ports []v1.ContainerPort
+	if c.spec.RequireMsgr2() {
+		ports = []v1.ContainerPort{
+			{
+				Name:          "osd-port-v2",
+				ContainerPort: osdPortv2,
+				Protocol:      v1.ProtocolTCP,
+			},
+		}
+	} else {
+		ports = []v1.ContainerPort{
+			{
+				Name:          "osd-port-v1",
+				ContainerPort: osdPortv1,
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "osd-port-v2",
+				ContainerPort: osdPortv2,
+				Protocol:      v1.ProtocolTCP,
+			},
+		}
+	}
+
+	return ports
+}
+
+func (c *Cluster) getOSDServicePorts() []v1.ServicePort {
+	var ports []v1.ServicePort
+	if c.spec.RequireMsgr2() {
+		ports = []v1.ServicePort{
+			{
+				Name:       "osd-port-v2",
+				Port:       osdPortv2,
+				TargetPort: intstr.FromInt(osdPortv2),
+				Protocol:   v1.ProtocolTCP,
+			},
+		}
+	} else {
+		ports = []v1.ServicePort{
+			{
+				Name:       "osd-port-v1",
+				Port:       osdPortv1,
+				TargetPort: intstr.FromInt(osdPortv1),
+				Protocol:   v1.ProtocolTCP,
+			},
+			{
+				Name:       "osd-port-v2",
+				Port:       osdPortv2,
+				TargetPort: intstr.FromInt(osdPortv2),
+				Protocol:   v1.ProtocolTCP,
+			},
+		}
+	}
+
+	return ports
 }
