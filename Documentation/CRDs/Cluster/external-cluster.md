@@ -56,6 +56,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool, used for creating CephFS StorageClass
 - `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a RadosNamespaces
 - `--subvolume-group`: (optional) Provides the name of the subvolume group, used for creating CephFS PVC in a subvolumeGroup
+- `--rgw-realm-name`: (optional) Provides the name of the rgw-realm
 - `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
 - `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 
