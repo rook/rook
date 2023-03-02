@@ -509,10 +509,9 @@ function deploy_multus() {
 
   # install whereabouts
   kubectl apply \
-    -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/v0.5.3/doc/crds/daemonset-install.yaml \
-    -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/v0.5.3/doc/crds/ip-reconciler-job.yaml \
-    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/v0.5.3/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
-    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/v0.5.3/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
+    -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/daemonset-install.yaml \
+    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
+    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
 
   # create the rook-ceph namespace if it doesn't exist, the NAD will go in this namespace
   kubectl create namespace rook-ceph || true
