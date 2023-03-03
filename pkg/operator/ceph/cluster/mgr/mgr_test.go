@@ -138,7 +138,9 @@ func validateStart(t *testing.T, c *Cluster) {
 		assert.Equal(t, map[string]string{"my": "annotation"}, d.Spec.Template.Annotations)
 		assert.Contains(t, d.Spec.Template.Labels, "my-label-key")
 		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
-		assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
+		if c.spec.Mgr.Count == 1 {
+			assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
+		}
 	}
 
 	// verify we have exactly the expected number of deployments and not extra
@@ -185,9 +187,9 @@ func TestUpdateServiceSelectors(t *testing.T) {
 	// Make sure we remove the daemon_id label from the selector
 	// of all services with a label "app=rook-ceph-mgr"
 	t.Run("remove daemon_id from mgr services", func(t *testing.T) {
-		svc1 := corev1.Service{
+		svc_1 := corev1.Service{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "svc1",
+				Name: "svc_1",
 				Labels: map[string]string{
 					"app":                    "rook-ceph-mgr",
 					"svc":                    "rook-ceph-mgr",
@@ -200,30 +202,31 @@ func TestUpdateServiceSelectors(t *testing.T) {
 					controller.DaemonIDLabel: "a",
 				}},
 		}
-		svc2 := corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: "svc2"},
+		svc_2 := corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "svc_2"},
 			Spec: corev1.ServiceSpec{
 				Selector: map[string]string{
 					"app":                    "rook-ceph-mgr",
 					controller.DaemonIDLabel: "a",
 				}},
 		}
-		_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc1, metav1.CreateOptions{})
+		_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc_1, metav1.CreateOptions{})
 		assert.NoError(t, err)
-		_, err2 := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc2, metav1.CreateOptions{})
-		assert.NoError(t, err2)
+		_, err_2 := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc_2, metav1.CreateOptions{})
+		assert.NoError(t, err_2)
 
-		// Check the the label has been only removed from svc1
-		c.updateServiceSelectors()
-
-		updatedService1, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(clusterInfo.Context, "svc1", metav1.GetOptions{})
+		// Check the the label has been only removed from svc_1
+		err = c.updateServiceSelectors()
 		assert.NoError(t, err)
-		_, hasDaemonLabel := updatedService1.Spec.Selector[controller.DaemonIDLabel]
+
+		updated_svc_1, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(clusterInfo.Context, "svc_1", metav1.GetOptions{})
+		assert.NoError(t, err)
+		_, hasDaemonLabel := updated_svc_1.Spec.Selector[controller.DaemonIDLabel]
 		assert.Equal(t, hasDaemonLabel, false)
 
-		updatedService2, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(clusterInfo.Context, "svc2", metav1.GetOptions{})
+		updated_svc_2, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(clusterInfo.Context, "svc_2", metav1.GetOptions{})
 		assert.NoError(t, err)
-		_, hasDaemonLabel = updatedService2.Spec.Selector[controller.DaemonIDLabel]
+		_, hasDaemonLabel = updated_svc_2.Spec.Selector[controller.DaemonIDLabel]
 		assert.Equal(t, hasDaemonLabel, true)
 
 	})
