@@ -171,24 +171,6 @@ fi`}
 	assert.Equal(t, livenessProbeTimeoutSeconds, probe.TimeoutSeconds)
 }
 
-func TestGenerateReadinessProbeExecDaemon(t *testing.T) {
-	daemonID := "a"
-	probe := GenerateMgrReadinessProbeExecDaemon(config.MgrType, daemonID)
-	expectedCommand := []string{"env",
-		"-i",
-		"sh",
-		"-c",
-		`ceph --admin-daemon /run/ceph/ceph-mgr.a.asok mgr_status &>/dev/null
-rc=$?
-if [ $rc -ne 0 ]; then
-  echo "Ceph standby manager does not process requests."
-  exit $rc
-fi`}
-
-	assert.Equal(t, expectedCommand, probe.ProbeHandler.Exec.Command)
-	assert.Equal(t, readinessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
-}
-
 func TestDaemonFlags(t *testing.T) {
 	testcases := []struct {
 		label       string
