@@ -54,8 +54,8 @@ var (
 	dashboardInitWaitTime = 5 * time.Second
 )
 
-func (c *Cluster) configureDashboardService() error {
-	dashboardService, err := c.makeDashboardService(AppName)
+func (c *Cluster) configureDashboardService(activeDaemon string) error {
+	dashboardService, err := c.makeDashboardService(AppName, activeDaemon)
 	if err != nil {
 		return err
 	}
