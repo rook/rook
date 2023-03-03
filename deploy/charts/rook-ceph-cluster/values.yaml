@@ -303,6 +303,13 @@ cephClusterSpec:
       requests:
         cpu: "500m"
         memory: "50Mi"
+    mgr-sidecar:
+      limits:
+        cpu: "500m"
+        memory: "100Mi"
+      requests:
+        cpu: "100m"
+        memory: "40Mi"
     crashcollector:
       limits:
         cpu: "500m"

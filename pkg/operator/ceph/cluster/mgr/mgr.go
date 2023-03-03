@@ -177,7 +177,18 @@ func (c *Cluster) Start() error {
 	// check if any extra mgrs need to be removed
 	c.removeExtraMgrs(daemonIDs)
 
+	activeMgr := daemonIDs[0]
 	if len(daemonIDs) > 1 {
+		// When multiple mgrs are running, the mgr sidecar for the active mgr
+		// will create the services. However, the sidecar will only reconcile all
+		// the services when the active mgr changes. Here as part of the regular reconcile
+		// we trigger reconciling all the services to ensure they are current.
+		activeMgr, err = c.getActiveMgr()
+		if err != nil || activeMgr == "" {
+			activeMgr = ""
+			logger.Infof("cannot reconcile mgr services, no active mgr found. err=%v", err)
+		}
+
 		// reconcile mgr PDB
 		if err := c.reconcileMgrPDB(); err != nil {
 			return errors.Wrap(err, "failed to reconcile mgr PDB")
@@ -186,9 +197,10 @@ func (c *Cluster) Start() error {
 		// delete MGR PDB as the count is less than 2
 		c.deleteMgrPDB()
 	}
-
-	if err := c.reconcileServices(); err != nil {
-		return errors.Wrap(err, "failed to enable mgr services")
+	if activeMgr != "" {
+		if err := c.reconcileServices(activeMgr); err != nil {
+			return errors.Wrap(err, "failed to enable mgr services")
+		}
 	}
 
 	// configure the mgr modules
@@ -209,15 +221,55 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 	}
 }
 
-// reconcile the services, if the active mgr is not detected, use the default mgr
-func (c *Cluster) reconcileServices() error {
+// ReconcileActiveMgrServices reconciles the services if the active mgr is the one running
+// in the sidecar
+func (c *Cluster) ReconcileActiveMgrServices(daemonNameToUpdate string) error {
+	// If the services are already set to this daemon, no need to attempt to update
+	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, AppName, metav1.GetOptions{})
+	if err != nil {
+		logger.Errorf("failed to check current mgr service, proceeding to update. %v", err)
+	} else {
+		currentDaemon := svc.Spec.Selector[controller.DaemonIDLabel]
+		if currentDaemon == daemonNameToUpdate {
+			logger.Infof("mgr services already set to daemon %q, no need to update", daemonNameToUpdate)
+			return nil
+		}
+		logger.Infof("mgr service currently set to %q, checking if need to update to %q", currentDaemon, daemonNameToUpdate)
+	}
 
-	if err := c.configureDashboardService(); err != nil {
+	activeName, err := c.getActiveMgr()
+	if err != nil {
+		return err
+	}
+	if activeName == "" {
+		return errors.New("active mgr not found")
+	}
+	if daemonNameToUpdate != activeName {
+		logger.Infof("no need for the mgr update since the active mgr is %q, rather than the local mgr %q", activeName, daemonNameToUpdate)
+		return nil
+	}
+
+	return c.reconcileServices(activeName)
+}
+
+func (c *Cluster) getActiveMgr() (string, error) {
+	mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to get mgr stat for the active mgr")
+	}
+	return mgrStat.ActiveName, nil
+}
+
+// reconcile the services, if the active mgr is not detected, use the default mgr
+func (c *Cluster) reconcileServices(activeDaemon string) error {
+	logger.Infof("setting services to point to mgr %q", activeDaemon)
+
+	if err := c.configureDashboardService(activeDaemon); err != nil {
 		return errors.Wrap(err, "failed to configure dashboard svc")
 	}
 
 	// create the metrics service
-	service, err := c.MakeMetricsService(AppName, serviceMetricName)
+	service, err := c.MakeMetricsService(AppName, activeDaemon, serviceMetricName)
 	if err != nil {
 		return err
 	}
@@ -227,17 +279,17 @@ func (c *Cluster) reconcileServices() error {
 
 	// enable monitoring if `monitoring: enabled: true`
 	if c.spec.Monitoring.Enabled {
-		if err := c.EnableServiceMonitor(); err != nil {
+		if err := c.EnableServiceMonitor(activeDaemon); err != nil {
 			return errors.Wrap(err, "failed to enable service monitor")
 		}
 	}
 
-	return c.updateServiceSelectors()
+	return c.updateServiceSelectors(activeDaemon)
 }
 
-// For the upgrade scenario: remove any selector DaemonIDLabel from the all
-// the services since new mgr HA doesn't rely on this label anymore.
-func (c *Cluster) updateServiceSelectors() error {
+// Make a best effort to update the services that have been labeled for being updated
+// when the mgr has changed. They might be services for node ports, ingress, etc
+func (c *Cluster) updateServiceSelectors(activeDaemon string) error {
 	selector := metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"}
 	services, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).List(c.clusterInfo.Context, selector)
 	if err != nil {
@@ -245,20 +297,21 @@ func (c *Cluster) updateServiceSelectors() error {
 	}
 	for i, service := range services.Items {
 		if service.Spec.Selector == nil {
+			service.Spec.Selector = map[string]string{}
+		}
+		// Update the selector on the service to point to the active mgr
+		if service.Spec.Selector[controller.DaemonIDLabel] == activeDaemon {
+			logger.Infof("no need to update service %q", service.Name)
 			continue
 		}
-		// Check if the service has a DaemonIDLabel (legacy mgr HA implementation) and remove it
-		_, hasDaemonLabel := service.Spec.Selector[controller.DaemonIDLabel]
-		if hasDaemonLabel {
-			delete(service.Spec.Selector, controller.DaemonIDLabel)
-			logger.Infof("removing %s selector label on mgr service %q", controller.DaemonIDLabel, service.Name)
-			if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, &services.Items[i], metav1.UpdateOptions{}); err != nil {
-				logger.Errorf("failed to update service %q. %v", service.Name, err)
-			} else {
-				logger.Infof("service %q successfully updated", service.Name)
-			}
+		// Update the service to point to the new active mgr
+		service.Spec.Selector[controller.DaemonIDLabel] = activeDaemon
+		logger.Infof("updating selector on mgr service %q to active mgr %q", service.Name, activeDaemon)
+		if _, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, &services.Items[i], metav1.UpdateOptions{}); err != nil {
+			logger.Errorf("failed to update service %q. %v", service.Name, err)
+		} else {
+			logger.Infof("service %q successfully updated to active mgr %q", service.Name, activeDaemon)
 		}
-
 	}
 	return nil
 }
@@ -377,7 +430,7 @@ func wellKnownModule(name string) bool {
 }
 
 // EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
-func (c *Cluster) EnableServiceMonitor() error {
+func (c *Cluster) EnableServiceMonitor(activeDaemon string) error {
 	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
 	if err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
@@ -394,7 +447,7 @@ func (c *Cluster) EnableServiceMonitor() error {
 		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)
 	}
 	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{c.clusterInfo.Namespace}
-	serviceMonitor.Spec.Selector.MatchLabels = c.selectorLabels()
+	serviceMonitor.Spec.Selector.MatchLabels = c.selectorLabels(activeDaemon)
 
 	applyMonitoringLabels(c, serviceMonitor)
 

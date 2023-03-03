@@ -131,7 +131,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	}
 
 	dashboardInitWaitTime = 0
-	err := c.configureDashboardService()
+	err := c.configureDashboardService("a")
 	assert.NoError(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
@@ -148,7 +148,7 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	// disable the dashboard
 	c.spec.Dashboard.Enabled = false
-	err = c.configureDashboardService()
+	err = c.configureDashboardService("a")
 	assert.Nil(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
@@ -163,7 +163,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	// Set the port to something over 1024 and confirm the port and targetPort are the same
 	c.spec.Dashboard.Enabled = true
 	c.spec.Dashboard.Port = 1025
-	err = c.configureDashboardService()
+	err = c.configureDashboardService("a")
 	assert.Nil(t, err)
 
 	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
@@ -175,7 +175,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	// Fall back to the default port
 	c.spec.Dashboard.Enabled = true
 	c.spec.Dashboard.Port = 0
-	err = c.configureDashboardService()
+	err = c.configureDashboardService("a")
 	assert.Nil(t, err)
 
 	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
