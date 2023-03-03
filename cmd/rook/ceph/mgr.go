@@ -96,12 +96,13 @@ func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	clusterInfo.CephVersion = *version
 
 	m := mgr.New(context, &clusterInfo, clusterSpec, "")
+	prevActiveMgr := "unknown"
 	for {
-		err := m.ReconcileActiveMgrServices(daemonName)
+		prevActiveMgr, err = m.UpdateActiveMgrLabel(daemonName, prevActiveMgr)
 		if err != nil {
 			logger.Errorf("failed to reconcile services. %v", err)
 		} else {
-			logger.Infof("successfully reconciled services. checking again in %ds", (int)(interval.Seconds()))
+			logger.Infof("successfully checked mgr_role label. checking again in %ds", (int)(interval.Seconds()))
 		}
 		time.Sleep(interval)
 	}

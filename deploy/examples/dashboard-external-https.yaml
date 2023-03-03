@@ -14,6 +14,7 @@ spec:
       targetPort: 8443
   selector:
     app: rook-ceph-mgr
+    mgr_role: active
     rook_cluster: rook-ceph
   sessionAffinity: None
   type: NodePort

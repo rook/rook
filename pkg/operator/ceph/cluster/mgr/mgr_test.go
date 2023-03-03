@@ -31,6 +31,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -45,10 +46,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
-func TestStartMgr(t *testing.T) {
-	var deploymentsUpdated *[]*apps.Deployment
-	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
-
+func createNewCluster(t *testing.T) *Cluster {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Execute: %s %v", command, args)
@@ -92,8 +90,17 @@ func TestStartMgr(t *testing.T) {
 	c := New(ctx, clusterInfo, clusterSpec, "myversion")
 	defer os.RemoveAll(c.spec.DataDirHostPath)
 
+	return c
+}
+
+func TestStartMgr(t *testing.T) {
+	var deploymentsUpdated *[]*apps.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
+	c := createNewCluster(t)
+
 	// start a basic service
-	err = c.Start()
+	err := c.Start()
 	assert.NoError(t, err)
 	validateStart(t, c)
 	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
@@ -176,6 +183,49 @@ func validateServices(t *testing.T, c *Cluster) {
 	}
 }
 
+func TestActiveMgrLabels(t *testing.T) {
+	var deploymentsUpdated *[]*apps.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
+	c := createNewCluster(t)
+	err := c.Start()
+	assert.NoError(t, err)
+	validateStart(t, c)
+
+	mgrNames := []string{"a", "b"}
+	for i := 0; i < c.spec.Mgr.Count; i++ {
+		// Simulate the Mgr pod having been created
+		daemonName := mgrNames[i]
+		mgrPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name: fmt.Sprintf("rook-ceph-mgr-%s", daemonName),
+			Labels: map[string]string{k8sutil.AppAttr: "rook-ceph-mgr",
+				"instance":       daemonName,
+				"ceph_daemon_id": daemonName,
+				"mgr":            daemonName,
+				"rook_cluster":   "ns"}}}
+		_, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, mgrPod, metav1.CreateOptions{})
+		assert.NoError(t, err)
+	}
+
+	for i := 0; i < c.spec.Mgr.Count; i++ {
+		daemonName := mgrNames[i]
+		_, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(context.TODO(), fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
+		assert.NoError(t, err)
+		_, err = c.UpdateActiveMgrLabel(daemonName, "")
+		assert.NoError(t, err)
+		pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"})
+		assert.NoError(t, err)
+		assert.Contains(t, pods.Items[i].Labels, "mgr_role")
+		if daemonName == "a" {
+			assert.Equal(t, pods.Items[i].Labels["mgr_role"], "active")
+		} else if daemonName == "b" {
+			assert.Equal(t, pods.Items[i].Labels["mgr_role"], "standby")
+		}
+	}
+
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+}
+
 func TestUpdateServiceSelectors(t *testing.T) {
 	clientset := testop.New(t, 3)
 	ctx := &clusterd.Context{Clientset: clientset}
@@ -188,116 +238,54 @@ func TestUpdateServiceSelectors(t *testing.T) {
 	}
 	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
 
-	t.Run("initial active daemon", func(t *testing.T) {
-		activeDaemon := "a"
-		err := c.reconcileServices(activeDaemon)
-		assert.NoError(t, err)
-		validateServiceActiveDaemon(t, c, activeDaemon, 2, 0)
-	})
-
-	t.Run("update active daemon", func(t *testing.T) {
-		activeDaemon := "b"
-		err := c.updateServiceSelectors(activeDaemon)
-		assert.NoError(t, err)
-		validateServiceActiveDaemon(t, c, activeDaemon, 2, 0)
-	})
-
-	t.Run("skip non-mgr services", func(t *testing.T) {
-		svc := corev1.Service{ObjectMeta: metav1.ObjectMeta{Name: "mysvc"}}
-		_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc, metav1.CreateOptions{})
-		assert.NoError(t, err)
-
-		activeDaemon := "c"
-		err = c.updateServiceSelectors(activeDaemon)
-		assert.NoError(t, err)
-		validateServiceActiveDaemon(t, c, activeDaemon, 2, 1)
-	})
-}
-
-func validateServiceActiveDaemon(t *testing.T, c *Cluster, activeDaemon string, expectedUpdated, expectedSkipped int) {
-	services, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{})
-	assert.NoError(t, err)
-	skipped := 0
-	updated := 0
-	for _, service := range services.Items {
-		if service.Labels["app"] == "rook-ceph-mgr" {
-			updated++
-			assert.Equal(t, activeDaemon, service.Spec.Selector[controller.DaemonIDLabel])
-		} else {
-			skipped++
-			assert.Equal(t, "", service.Spec.Selector[controller.DaemonIDLabel])
+	// Make sure we remove the daemon_id label from the selector
+	// of all services with a label "app=rook-ceph-mgr"
+	t.Run("remove daemon_id from mgr services", func(t *testing.T) {
+		svc1 := corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "svc1",
+				Labels: map[string]string{
+					"app":                    "rook-ceph-mgr",
+					"svc":                    "rook-ceph-mgr",
+					controller.DaemonIDLabel: "a",
+				},
+			},
+			Spec: corev1.ServiceSpec{
+				Selector: map[string]string{
+					"app":                    "rook-ceph-mgr",
+					controller.DaemonIDLabel: "a",
+				}},
 		}
-	}
-	assert.Equal(t, expectedUpdated, updated)
-	assert.Equal(t, expectedSkipped, skipped)
-}
+		svc2 := corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: "svc2"},
+			Spec: corev1.ServiceSpec{
+				Selector: map[string]string{
+					"app":                    "rook-ceph-mgr",
+					controller.DaemonIDLabel: "a",
+				}},
+		}
+		_, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc1, metav1.CreateOptions{})
+		assert.NoError(t, err)
+		_, err2 := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Create(clusterInfo.Context, &svc2, metav1.CreateOptions{})
+		assert.NoError(t, err2)
 
-func TestMgrSidecarReconcile(t *testing.T) {
-	activeMgr := "a"
-	calledMgrStat := false
-	spec := cephv1.ClusterSpec{
-		Mgr: cephv1.MgrSpec{Count: 1},
-		Dashboard: cephv1.DashboardSpec{
-			Enabled: true,
-			Port:    7000,
-		},
-	}
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			logger.Infof("Command: %s %v", command, args)
-			if args[1] == "stat" {
-				calledMgrStat = true
-			}
-			return fmt.Sprintf(`{"active_name":"%s"}`, activeMgr), nil
-		},
-	}
-	clientset := testop.New(t, 3)
-	configDir := t.TempDir()
-	ctx := &clusterd.Context{
-		Executor:  executor,
-		ConfigDir: configDir,
-		Clientset: clientset,
-	}
-	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
-	clusterInfo.SetName("test")
-	c := &Cluster{spec: spec, context: ctx, clusterInfo: clusterInfo}
+		// Check the the label has been only removed from svc1
+		c.updateServiceSelectors()
 
-	// Update services according to the active mgr
-	calledMgrStat = false
-	clusterInfo.CephVersion = cephver.CephVersion{Major: 17, Minor: 2, Build: 0}
-	err := c.ReconcileActiveMgrServices(activeMgr)
-	assert.NoError(t, err)
-	assert.True(t, calledMgrStat)
-	validateServices(t, c)
-	validateServiceMatches(t, c, "a")
+		// Make sure we remove controller.DaemonIDLabel label from all services tagged as 'app: rook-ceph-mgr'
+		// and we add the selector label "mgr_role" set to "active"
+		updatedService1, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(clusterInfo.Context, "svc1", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.NotContains(t, updatedService1.Spec.Selector, controller.DaemonIDLabel)
+		assert.Contains(t, updatedService1.Spec.Selector, "mgr_role")
+		assert.Equal(t, updatedService1.Spec.Selector["mgr_role"], "active")
 
-	// nothing is created or updated when the requested mgr is not the active mgr
-	clusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Build: 5}
-	err = c.ReconcileActiveMgrServices("b")
-	assert.NoError(t, err)
-	assert.True(t, calledMgrStat)
-	_, err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
-	assert.True(t, kerrors.IsNotFound(err))
-
-	// nothing is updated when the requested mgr is not the active mgr
-	activeMgr = "b"
-	err = c.ReconcileActiveMgrServices("b")
-	assert.NoError(t, err)
-	validateServices(t, c)
-	validateServiceMatches(t, c, "b")
-}
-
-func validateServiceMatches(t *testing.T, c *Cluster, expectedActive string) {
-	// The service labels should match the active mgr
-	svc, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(context.TODO(), "rook-ceph-mgr", metav1.GetOptions{})
-	assert.NoError(t, err)
-	matchDaemon, ok := svc.Spec.Selector["ceph_daemon_id"]
-	assert.True(t, ok)
-	assert.Equal(t, expectedActive, matchDaemon)
-
-	// clean up the service for the next test
-	err = c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Delete(context.TODO(), "rook-ceph-mgr", metav1.DeleteOptions{})
-	assert.NoError(t, err)
+		// Make sure services not tagged as 'app: rook-ceph-mgr' are not modified
+		updatedService2, err := c.context.Clientset.CoreV1().Services(c.clusterInfo.Namespace).Get(clusterInfo.Context, "svc2", metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Contains(t, updatedService2.Spec.Selector, controller.DaemonIDLabel)
+		assert.NotContains(t, updatedService2.Spec.Selector, "mgr_role")
+	})
 }
 
 func TestConfigureModules(t *testing.T) {

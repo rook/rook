@@ -57,9 +57,10 @@ If this value is empty, each pod will get an ephemeral directory to store their 
 For more details on the mons and when to choose a number other than `3`, see the [mon health doc](../../Storage-Configuration/Advanced/ceph-mon-health.md).
 * `mgr`: manager top level section
     * `count`: set number of ceph managers between `1` to `2`. The default value is 2.
-    If there are two managers, it is important for all mgr services point to the active mgr and not the passive mgr. Therefore, Rook will
-    automatically update all services (in the cluster namespace) that have a label `app=rook-ceph-mgr` with a selector pointing to the
-    active mgr. This commonly applies to services for the dashboard or the prometheus metrics collector.
+    If there are two managers, it is important for all mgr services point to the active mgr and not the standby mgr. Rook automatically
+	updates the label `mgr_role` on the mgr pods to be either `active` or `standby`. Therefore, services need just to add the label
+    `mgr_role=active` to their selector to point to the active mgr. This applies to all services that rely on the ceph mgr such as
+	the dashboard or the prometheus metrics collector.
     * `modules`: is the list of Ceph manager modules to enable
 * `crashCollector`: The settings for crash collector daemon(s).
     * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
