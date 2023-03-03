@@ -42,7 +42,6 @@ import (
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
@@ -59,8 +58,8 @@ func TestStartMgr(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
-	waitForPodsWithLabelToRun = func(ctx context.Context, clientset kubernetes.Interface, namespace, label string) error {
-		logger.Infof("simulated mgr deployment waiting for deployment")
+	waitForDeploymentToStart = func(ctx context.Context, clusterdContext *clusterd.Context, deployment *apps.Deployment) error {
+		logger.Infof("simulated mgr deployment starting")
 		return nil
 	}
 
