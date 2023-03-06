@@ -533,15 +533,6 @@ spec:
             type: "ceph_default"
     - name: "pools"
       rules:
-        - alert: "CephPoolGrowthWarning"
-          annotations:
-            description: "Pool '{{ $labels.name }}' will be full in less than 5 days assuming the average fill-up rate of the past 48 hours."
-            summary: "Pool growth rate may soon exceed capacity"
-          expr: "(predict_linear(ceph_pool_percent_used[2d], 3600 * 24 * 5) * on(pool_id, instance) group_right() ceph_pool_metadata) >= 95"
-          labels:
-            oid: "1.3.6.1.4.1.50495.1.2.1.9.2"
-            severity: "warning"
-            type: "ceph_default"
         - alert: "CephPoolBackfillFull"
           annotations:
             description: "A pool is approaching the near full threshold, which will prevent recovery/backfill operations from completing. Consider adding more capacity."
@@ -592,18 +583,6 @@ spec:
             summary: "{{ $labels.ceph_daemon }} operations are slow to complete"
             description: "{{ $labels.ceph_daemon }} operations are taking too long to process (complaint time exceeded)"
             documentation: "https://docs.ceph.com/en/latest/rados/operations/health-checks#slow-ops"
-    - name: "PrometheusServer"
-      rules:
-        - alert: "PrometheusJobMissing"
-          annotations:
-            description: "The prometheus job that scrapes from Ceph is no longer defined, this will effectively mean you'll have no metrics or alerts for the cluster.  Please review the job definitions in the prometheus.yml file of the prometheus instance."
-            summary: "The scrape job for Ceph is missing from Prometheus"
-          expr: "absent(up{job=\"ceph\"})"
-          for: "30s"
-          labels:
-            oid: "1.3.6.1.4.1.50495.1.2.1.12.1"
-            severity: "critical"
-            type: "ceph_default"
     - name: "rados"
       rules:
         - alert: "CephObjectMissing"
