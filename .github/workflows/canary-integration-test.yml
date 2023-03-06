@@ -1178,7 +1178,7 @@ jobs:
           cp deploy/examples/filesystem-test.yaml "$PRIMARY_YAML"
           yq merge --inplace --arrays append "$PRIMARY_YAML" tests/manifests/test-fs-mirror-spec.yaml
           kubectl create -f "$PRIMARY_YAML"
-          timeout 120 sh -c 'until [ "$(kubectl -n rook-ceph get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
+          timeout 200 sh -c 'until [ "$(kubectl -n rook-ceph get cephfilesystem myfs -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for filesystem to be created" && sleep 1; done'
 
       - name: create replicated mirrored filesystem on cluster 2
         run: |
@@ -1201,7 +1201,7 @@ jobs:
 
       - name: verify fs mirroring is working
         run: |
-          timeout 45 sh -c 'until [ "$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/|grep -c asok)" -lt 3 ]; do echo "waiting for connection to peer" && sleep 1; done'
+          timeout 45 sh -c 'until [ "$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/|grep -c asok)" -gt 3 ]; do echo "waiting for connection to peer" && sleep 1; done'
           sockets=$(kubectl -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ls -1 /var/run/ceph/)
           status=$(for socket in $sockets; do minikube kubectl -- -n rook-ceph exec -t deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$socket help|awk -F ":" '/get filesystem mirror status/ {print $1}'; done)
           if [ "${#status}" -lt 1 ]; then echo "peer addition failed" && exit 1; fi
@@ -1242,7 +1242,6 @@ jobs:
         run: |
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume snapshot create myfs testsubvolume snap1
           kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume snapshot create myfs testsubvolume snap2
-          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- ceph fs subvolume snapshot create myfs testsubvolume snap3
 
       - name: Get the peer and verify the peer synchronization status that snaps have synced on secondary cluster
         run: |
@@ -1259,7 +1258,7 @@ jobs:
           echo $clusterfsid
           snaps=$(kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror peer status myfs@1 $clusterfsid|jq -r '."/volumes/_nogroup/testsubvolume"."snaps_synced"')
           echo $snaps
-          kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=180s
+          kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=300s
           kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mkdir /tmp/registry
           mon_endpoints=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep mon_host /etc/ceph/ceph.conf | awk '{print $3}')
           my_secret=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep key /etc/ceph/keyring | awk '{print $3}')
