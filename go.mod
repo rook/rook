@@ -14,7 +14,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/vault v1.12.2
 	github.com/hashicorp/vault-plugin-secrets-kv v0.13.3
-	github.com/hashicorp/vault/api v1.8.2
+	github.com/hashicorp/vault/api v1.9.0
 	github.com/hashicorp/vault/sdk v0.6.1-0.20221102145943-1e9b0a1225c3
 	github.com/jetstack/cert-manager v1.7.3
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.3.0
