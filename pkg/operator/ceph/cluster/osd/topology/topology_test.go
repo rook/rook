@@ -103,17 +103,6 @@ func TestTopologyLabels(t *testing.T) {
 	assert.Equal(t, "d1", topology["datacenter"])
 	assert.Equal(t, "topology.rook.io/rack=rack1", affinity)
 
-	// ensure deprecated k8s labels are loaded
-	nodeLabels = map[string]string{
-		corev1.LabelZoneRegion:        "r1",
-		corev1.LabelZoneFailureDomain: "z1",
-	}
-	topology, affinity = extractTopologyFromLabels(nodeLabels)
-	assert.Equal(t, 2, len(topology))
-	assert.Equal(t, "r1", topology["region"])
-	assert.Equal(t, "z1", topology["zone"])
-	assert.Equal(t, "failure-domain.beta.kubernetes.io/zone=z1", affinity)
-
 	// ensure deprecated k8s labels are overridden
 	nodeLabels = map[string]string{
 		corev1.LabelZoneRegionStable:        "r1",

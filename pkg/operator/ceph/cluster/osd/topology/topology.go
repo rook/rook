@@ -64,31 +64,17 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 	// not including the host name
 	var topologyAffinity string
 
-	// check for the region k8s topology label that was deprecated in 1.17
-	const regionLabel = "region"
-	region, ok := labels[corev1.LabelZoneRegion]
-	if ok {
-		topology[regionLabel] = region
-		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneRegion, region)
-	}
-
 	// check for the region k8s topology label that is GA in 1.17.
-	region, ok = labels[corev1.LabelZoneRegionStable]
+	const regionLabel = "region"
+	region, ok := labels[corev1.LabelZoneRegionStable]
 	if ok {
 		topology[regionLabel] = region
 		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneRegionStable, region)
 	}
 
-	// check for the zone k8s topology label that was deprecated in 1.17
-	const zoneLabel = "zone"
-	zone, ok := labels[corev1.LabelZoneFailureDomain]
-	if ok {
-		topology[zoneLabel] = zone
-		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomain, zone)
-	}
-
 	// check for the zone k8s topology label that is GA in 1.17.
-	zone, ok = labels[corev1.LabelZoneFailureDomainStable]
+	const zoneLabel = "zone"
+	zone, ok := labels[corev1.LabelZoneFailureDomainStable]
 	if ok {
 		topology[zoneLabel] = zone
 		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomainStable, zone)
