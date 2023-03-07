@@ -79,6 +79,15 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, false, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
+	assert.Equal(t, 8, len(podSpec.Spec.Containers[0].Args))
+	assert.Equal(t, "--sock-dir", podSpec.Spec.Containers[0].Args[0])
+	assert.Equal(t, "/run/ceph", podSpec.Spec.Containers[0].Args[1])
+	assert.Equal(t, "--port", podSpec.Spec.Containers[0].Args[2])
+	assert.Equal(t, "9926", podSpec.Spec.Containers[0].Args[3])
+	assert.Equal(t, "--prio-limit", podSpec.Spec.Containers[0].Args[4])
+	assert.Equal(t, "5", podSpec.Spec.Containers[0].Args[5])
+	assert.Equal(t, "--stats-period", podSpec.Spec.Containers[0].Args[6])
+	assert.Equal(t, "5", podSpec.Spec.Containers[0].Args[7])
 
 	cephCluster.Spec.Labels[cephv1.KeyCephExporter] = map[string]string{"foo": "bar"}
 	cephCluster.Spec.Network.HostNetwork = true
