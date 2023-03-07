@@ -144,25 +144,6 @@ func WaitForDeploymentToStart(ctx context.Context, clusterdContext *clusterd.Con
 	return fmt.Errorf("gave up waiting for deployment %q to update", deployment.Name)
 }
 
-func WaitForPodsWithLabelToRun(ctx context.Context, clientset kubernetes.Interface, namespace, label string) error {
-	// wait for the pods to run for a maximum of 300 sec
-	sleepTime := 5
-	attempts := 60
-	for i := 0; i < attempts; i++ {
-		logger.Infof("waiting for all pods with label %s to be in running state", label)
-		time.Sleep(time.Duration(sleepTime) * time.Second)
-		allRunning, err := PodsWithLabelAreAllRunning(ctx, clientset, namespace, label)
-		if err != nil {
-			return errors.Wrapf(err, "failed to query pods with label %s to be in running state", label)
-		}
-		if allRunning {
-			logger.Infof("all pods with label %s are running", label)
-			return nil
-		}
-	}
-	return fmt.Errorf("gave up waiting for all pods with label %s to run", label)
-}
-
 // DeploymentNames returns a list of the names of deployments in the deployment list
 func DeploymentNames(deployments *appsv1.DeploymentList) (names []string) {
 	for _, d := range deployments.Items {

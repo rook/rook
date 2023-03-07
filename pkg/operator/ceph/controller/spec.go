@@ -52,15 +52,13 @@ const (
 	daemonSocketsSubPath                    = "/exporter"
 	logCollector                            = "log-collector"
 	DaemonIDLabel                           = "ceph_daemon_id"
-	DaemonTypeLabel                         = "ceph_daemon_type"
+	daemonTypeLabel                         = "ceph_daemon_type"
 	ExternalMgrAppName                      = "rook-ceph-mgr-external"
 	ExternalCephExporterName                = "rook-ceph-exporter-external"
 	ServiceExternalMetricName               = "http-external-metrics"
 	CephUserID                              = 167
 	livenessProbeTimeoutSeconds       int32 = 5
 	livenessProbeInitialDelaySeconds  int32 = 10
-	readinessProbePeriodSeconds       int32 = 5
-	readinessProbeInitialDelaySeconds int32 = 5
 	startupProbeFailuresDaemonDefault int32 = 6 // multiply by 10 = effective startup timeout
 	// The OSD requires a long timeout in case the OSD is taking extra time to
 	// scrub data during startup. We don't want the probe to disrupt the OSD update
@@ -425,7 +423,7 @@ func CephDaemonAppLabels(appName, namespace, daemonType, daemonID, parentName, r
 
 	// New labels cannot be applied to match selectors during upgrade
 	if includeNewLabels {
-		labels[DaemonTypeLabel] = daemonType
+		labels[daemonTypeLabel] = daemonType
 		k8sutil.AddRecommendedLabels(labels, "ceph-"+daemonType, parentName, resourceKind, daemonID)
 	}
 	labels[DaemonIDLabel] = daemonID
@@ -591,78 +589,41 @@ func StoredLogAndCrashVolumeMount(varLogCephDir, varLibCephCrashDir string) []v1
 	}
 }
 
-// Generate an exec ProbeHandler
-func GenProbeHandler(command []string) v1.ProbeHandler {
-	return v1.ProbeHandler{
-		Exec: &v1.ExecAction{
-			Command: command,
-		},
-	}
-}
-
 // GenerateLivenessProbeExecDaemon generates a liveness probe that makes sure a daemon has a socket,
 // that it can be called, and that it returns 0
 func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
-	// Run with env -i to clean env variables in the exec context
-	// This avoids conflict with the CEPH_ARGS env
-	//
-	// Example:
-	// env -i sh -c "ceph --admin-daemon /run/ceph/ceph-osd.0.asok status"
-	//
-	// Ceph gives pretty un-diagnostic error message when `ceph status` or `ceph mon_status` command fails.
-	// Add a clear message after Ceph's to help.
-	// ref: https://github.com/rook/rook/issues/9846
 	confDaemon := getDaemonConfig(daemonType, daemonID)
-	command := []string{
-		"env",
-		"-i",
-		"sh",
-		"-c",
-		fmt.Sprintf(`outp="$(ceph --admin-daemon %s %s 2>&1)"
+
+	return &v1.Probe{
+		ProbeHandler: v1.ProbeHandler{
+			Exec: &v1.ExecAction{
+				// Run with env -i to clean env variables in the exec context
+				// This avoids conflict with the CEPH_ARGS env
+				//
+				// Example:
+				// env -i sh -c "ceph --admin-daemon /run/ceph/ceph-osd.0.asok status"
+				//
+				// Ceph gives pretty un-diagnostic error message when `ceph status` or `ceph mon_status` command fails.
+				// Add a clear message after Ceph's to help.
+				// ref: https://github.com/rook/rook/issues/9846
+				Command: []string{
+					"env",
+					"-i",
+					"sh",
+					"-c",
+					fmt.Sprintf(`outp="$(ceph --admin-daemon %s %s 2>&1)"
 rc=$?
 if [ $rc -ne 0 ]; then
   echo "ceph daemon health check failed with the following output:"
   echo "$outp" | sed -e 's/^/> /g'
   exit $rc
 fi`,
-			confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
-	}
-
-	return &v1.Probe{
-		ProbeHandler:        GenProbeHandler(command),
+						confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
+				},
+			},
+		},
 		InitialDelaySeconds: livenessProbeInitialDelaySeconds,
 		TimeoutSeconds:      livenessProbeTimeoutSeconds,
-	}
-}
-
-// GenerateMgrReadinessProbeExecDaemon generates a readiness probe that makes sure
-// a mgr daemon is ready to process traffic
-func GenerateMgrReadinessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
-	// Run with env -i to clean env variables in the exec context
-	// This avoids conflict with the CEPH_ARGS env
-	//
-	// Example:
-	// env -i sh -c "ceph --admin-daemon /run/ceph/ceph-mgr.a.asok mgr_status"
-	//
-	confDaemon := getDaemonConfig(daemonType, daemonID)
-	command := []string{
-		"env",
-		"-i",
-		"sh",
-		"-c",
-		fmt.Sprintf(`ceph --admin-daemon %s mgr_status &>/dev/null
-rc=$?
-if [ $rc -ne 0 ]; then
-  echo "Ceph standby manager does not process requests."
-  exit $rc
-fi`,
-			confDaemon.buildSocketPath()),
-	}
-
-	return &v1.Probe{
-		ProbeHandler:        GenProbeHandler(command),
-		InitialDelaySeconds: readinessProbeInitialDelaySeconds,
-		PeriodSeconds:       readinessProbePeriodSeconds,
 	}
 }
 
