@@ -17,7 +17,9 @@ limitations under the License.
 package osd
 
 import (
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -81,6 +83,153 @@ func TestCloseEncryptedDevice(t *testing.T) {
 	context := &clusterd.Context{Executor: executor}
 	err := CloseEncryptedDevice(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt")
 	assert.NoError(t, err)
+}
+
+func TestRemoveEncryptionKeySlot(t *testing.T) {
+	t.Run("given key slot is active", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && args[2] == "luksKillSlot" {
+				return "success", nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		context := &clusterd.Context{Executor: executor}
+		err := removeEncryptionKeySlot(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "0")
+		assert.NoError(t, err)
+	})
+	t.Run("given key slot is not active", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+
+			return "Keyslot 0 is not active", errors.New("Failed")
+		}
+
+		context := &clusterd.Context{Executor: executor}
+		err := removeEncryptionKeySlot(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "0")
+		assert.NoError(t, err)
+	})
+}
+
+func TestEnsureEncryptionKey(t *testing.T) {
+	t.Run("given passphrase matches with the one in key slot", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && strings.HasPrefix(args[2], "--key-slot=") &&
+				args[3] == "luksChangeKey" {
+				return "success", nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		context := &clusterd.Context{Executor: executor}
+		matched, err := ensureEncryptionKey(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "0")
+		assert.NoError(t, err)
+		assert.True(t, matched)
+	})
+
+	t.Run("given passphrase does not matching with the one in key slot", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			return "No key available with this passphrase", errors.New("Failed")
+		}
+
+		context := &clusterd.Context{Executor: executor}
+		matched, err := ensureEncryptionKey(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "0")
+		assert.NoError(t, err)
+		assert.False(t, matched)
+	})
+}
+
+func TestAddEncryptionKey(t *testing.T) {
+	t.Run("given key slot is empty.", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && strings.HasPrefix(args[2], "--key-slot=") &&
+				args[3] == "luksAddKey" {
+				return "success", nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		context := &clusterd.Context{Executor: executor}
+		err := addEncryptionKey(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "newPassphrase", "0")
+		assert.NoError(t, err)
+	})
+
+	t.Run("given key slot is already filled with newPassphrase.", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && strings.HasPrefix(args[2], "--key-slot=") &&
+				args[3] == "luksAddKey" {
+				return "Key slot 0 is full", errors.New("Failed")
+			}
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && strings.HasPrefix(args[2], "--key-slot=") &&
+				args[3] == "luksChangeKey" {
+				return "success", nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		context := &clusterd.Context{Executor: executor}
+		err := addEncryptionKey(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "newPassphrase", "0")
+		assert.NoError(t, err)
+	})
+
+	t.Run("given key slot is already filled but does not match with newPassphrase", func(t *testing.T) {
+		failedOnce := false
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithTimeout = func(duration time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && strings.HasPrefix(args[2], "--key-slot=") &&
+				args[3] == "luksAddKey" {
+				if failedOnce {
+					return "success", nil
+				}
+				failedOnce = true
+				return "Key slot 0 is full", errors.New("Failed")
+			}
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && strings.HasPrefix(args[2], "--key-slot=") &&
+				args[3] == "luksChangeKey" {
+				return "No key available with this passphrase", errors.New("Failed")
+			}
+			if command == "cryptsetup" && args[0] == "--verbose" &&
+				strings.HasPrefix(args[1], "--key-file=") && args[2] == "luksKillSlot" {
+				return "success", nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		context := &clusterd.Context{Executor: executor}
+		err := addEncryptionKey(context, "/dev/mapper/ceph-43e9efed-0676-4731-b75a-a4c42ece1bb1-xvdbr-block-dmcrypt",
+			"passphrase", "newPassphrase", "0")
+		assert.NoError(t, err)
+	})
 }
 
 func TestDmsetupVersion(t *testing.T) {

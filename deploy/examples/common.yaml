@@ -260,6 +260,7 @@ rules:
       - create
       - update
       - delete
+      - deletecollection
   # The Rook operator must be able to watch all ceph.rook.io resources to reconcile them.
   - apiGroups: ["ceph.rook.io"]
     resources:
@@ -346,6 +347,14 @@ rules:
       - update
       - delete
       - deletecollection
+  - apiGroups:
+      - apps
+    resources:
+      # This is to add osd deployment owner ref on key rotation
+      # cron jobs.
+      - deployments/finalizers
+    verbs:
+      - update
   - apiGroups:
       - healthchecking.openshift.io
     resources:
@@ -801,10 +810,10 @@ metadata:
   namespace: rook-ceph # namespace:cluster
 rules:
   # this is needed for rook's "key-management" CLI to fetch the vault token from the secret when
-  # validating the connection details
+  # validating the connection details and for key rotation operations.
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get"]
+    verbs: ["get", "update"]
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list", "watch", "create", "update", "delete"]
