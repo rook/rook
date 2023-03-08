@@ -437,6 +437,9 @@ func (s *UpgradeSuite) upgradeToMaster() {
 	s.installer.Manifests = installer.NewCephManifests(s.settings)
 
 	if s.settings.UseHelm {
+		logger.Info("Requiring msgr2 during helm upgrade to test the port conversion from 6789 to 3300")
+		s.settings.RequireMsgr2 = true
+
 		// Upgrade the operator chart
 		err := s.installer.UpgradeRookOperatorViaHelm()
 		require.NoError(s.T(), err, "failed to upgrade the operator chart")
