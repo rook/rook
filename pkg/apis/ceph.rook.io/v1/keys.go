@@ -24,6 +24,7 @@ const (
 	KeyMonArbiter      KeyType = "arbiter"
 	KeyMgr             KeyType = "mgr"
 	KeyOSDPrepare      KeyType = "prepareosd"
+	KeyRotation        KeyType = "keyrotation"
 	KeyOSD             KeyType = "osd"
 	KeyCleanup         KeyType = "cleanup"
 	KeyMonitoring      KeyType = "monitoring"

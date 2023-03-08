@@ -744,11 +744,6 @@ jobs:
           kubectl -n rook-ceph get secrets
           sudo lsblk
 
-      - name: test osd deployment removal and re-hydration
-        run: |
-          kubectl -n rook-ceph delete deploy/rook-ceph-osd-0
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
       - name: teardown cluster with cleanup policy
         run: |
           kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
@@ -866,6 +861,7 @@ jobs:
           cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
@@ -876,6 +872,14 @@ jobs:
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
+
+      - name: wait and verify key rotation
+        run: tests/scripts/github-action-helper.sh verify_key_rotation
+
+      - name: test osd deployment removal and re-hydration
+        run: |
+          kubectl -n rook-ceph delete deploy/rook-ceph-osd-0
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
       - name: collect common logs
         if: always()

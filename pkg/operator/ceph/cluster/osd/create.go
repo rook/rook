@@ -187,7 +187,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 		if osdProps.encrypted {
 			// create encryption Kubernetes Secret if the PVC is encrypted
-			key, err := generateDmCryptKey()
+			key, err := GenerateDmCryptKey()
 			if err != nil {
 				errMsg := fmt.Sprintf("failed to generate dmcrypt key for osd claim %q. %v", osdProps.pvc.ClaimName, err)
 				errs.addError(errMsg)
