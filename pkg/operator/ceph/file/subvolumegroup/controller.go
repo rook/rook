@@ -267,7 +267,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 	// config map, so no special care is needed in this controller
 	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
 		Namespace: r.clusterInfo.Namespace,
-		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors),
+		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
 		CephFS: &csi.CsiCephFSSpec{
 			SubvolumeGroup: cephFilesystemSubVolumeGroup.Name,
 		},
