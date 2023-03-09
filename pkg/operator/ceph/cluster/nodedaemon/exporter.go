@@ -87,6 +87,8 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 			k8sutil.AppAttr:      cephExporterAppName,
 			NodeNameLabel:        node.GetName(),
 		}
+		deploymentLabels[controller.DaemonIDLabel] = "exporter"
+		deploymentLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
 
 		selectorLabels := map[string]string{
 			corev1.LabelHostname: nodeHostnameLabel,
