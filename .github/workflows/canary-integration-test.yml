@@ -1422,6 +1422,54 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+  host-network-enabled:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+      - name: create cluster prerequisites
+        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: deploy cluster
+        run: tests/scripts/github-action-helper.sh deploy_cluster enable_host_network
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+      - name: check-ownerreferences
+        run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: host-network-enabled
+
+      - name: consider debugging
+        # if: failure() && github.event_name == 'pull_request'
+        if: always()
+        timeout-minutes: 60
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
