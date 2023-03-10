@@ -363,7 +363,7 @@ func (h *CephInstaller) CreateRookExternalCluster(externalManifests CephManifest
 	}
 
 	var clusterStatus cephv1.ClusterStatus
-	for i := 0; i < 8; i++ {
+	for i := 0; i < 16; i++ {
 		ctx := context.TODO()
 		clusterResource, err := h.k8shelper.RookClientset.CephV1().CephClusters(externalSettings.Namespace).Get(ctx, externalSettings.ClusterName, metav1.GetOptions{})
 		if err != nil {
