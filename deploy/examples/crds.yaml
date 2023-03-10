@@ -863,6 +863,10 @@ spec:
         - jsonPath: .spec.external.enable
           name: External
           type: boolean
+        - description: Ceph FSID
+          jsonPath: .status.ceph.fsid
+          name: FSID
+          type: string
       name: v1
       schema:
         openAPIV3Schema:
