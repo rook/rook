@@ -113,7 +113,8 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 
 	// Save CSI configmap
-	err = csi.SaveClusterConfig(c.context.Clientset, c.namespacedName.Namespace, cluster.ClusterInfo, &csi.CsiClusterConfigEntry{Namespace: cluster.ClusterInfo.Namespace, Monitors: csi.MonEndpoints(cluster.ClusterInfo.Monitors)})
+	monEndpoints := csi.MonEndpoints(cluster.ClusterInfo.Monitors, cluster.Spec.RequireMsgr2())
+	err = csi.SaveClusterConfig(c.context.Clientset, c.namespacedName.Namespace, cluster.ClusterInfo, &csi.CsiClusterConfigEntry{Namespace: cluster.ClusterInfo.Namespace, Monitors: monEndpoints})
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
