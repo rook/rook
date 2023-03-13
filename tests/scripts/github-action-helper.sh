@@ -248,6 +248,9 @@ function deploy_cluster() {
   elif [ "$1" = "loop" ]; then
     # add both /dev/sdX1 and loop device to test them at the same time
     sed -i "s|#deviceFilter:|devices:\n      - name: \"${BLOCK}\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
+  elif [ "$1" = "enable_host_network" ]; then
+    yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
+    yq w -i -d1 cluster-test.yaml spec.network.provider "host"
   else
     echo "invalid argument: $*" >&2
     exit 1
