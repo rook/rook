@@ -276,3 +276,94 @@ and deleting the other deployments. An example command to do this is `k -n rook-
 1. Copy the endpoints configmap from the old cluster: `rook-ceph-mon-endpoints`
 1. Scale the rook operator up again : `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 1`
 1. Wait until the reconciliation is over.
+
+## Restoring the Rook cluster after the Rook namespace is deleted
+
+When the rook-ceph namespace is accidentally deleted, the good news is that the cluster can be restored. With the content in the directory `dataDirHostPath` and the original OSD disks, the ceph cluster could be restored with this guide.
+
+You need to manually create a ConfigMap and a Secret to make it work. The information required for the ConfigMap and Secret can be found in the `dataDirHostPath` directory.
+
+The first resource is the secret named `rook-ceph-mon` as seen in this example below:
+
+```yaml
+apiVersion: v1
+data:
+  ceph-secret: QVFCZ0h6VmorcVNhSGhBQXVtVktNcjcrczNOWW9Oa2psYkErS0E9PQ==
+  ceph-username: Y2xpZW50LmFkbWlu
+  fsid: M2YyNzE4NDEtNjE4OC00N2MxLWIzZmQtOTBmZDRmOTc4Yzc2
+  mon-secret: QVFCZ0h6VmorcVNhSGhBQXVtVktNcjcrczNOWW9Oa2psYkErS0E9PQ==
+kind: Secret
+metadata:
+  finalizers:
+  - ceph.rook.io/disaster-protection
+  name: rook-ceph-mon
+  namespace: rook-ceph
+  ownerReferences: null
+type: kubernetes.io/rook
+
+```
+
+The values for the secret can be found in `$dataDirHostPath/rook-ceph/client.admin.keyring` and `$dataDirHostPath/rook-ceph/rook-ceph.config`.
+- `ceph-secret` and `mon-secret` are to be filled with the `client.admin`'s keyring contents.
+- `ceph-username`: set to the string `client.admin`
+- `fsid`: set to the original ceph cluster id.
+
+All the fields in data section need to be encoded in base64. Coding could be done like this:
+```console
+echo -n "string to code" | base64 -i -
+```
+Now save the secret as `rook-ceph-mon.yaml`, to be created later in the restore.
+
+The second resource is the configmap named rook-ceph-mon-endpoints as seen in this example below:
+
+```yaml
+apiVersion: v1
+data:
+  csi-cluster-config-json: '[{"clusterID":"rook-ceph","monitors":["169.169.241.153:6789","169.169.82.57:6789","169.169.7.81:6789"],"namespace":""}]'
+  data: k=169.169.241.153:6789,m=169.169.82.57:6789,o=169.169.7.81:6789
+  mapping: '{"node":{"k":{"Name":"10.138.55.111","Hostname":"10.138.55.111","Address":"10.138.55.111"},"m":{"Name":"10.138.55.120","Hostname":"10.138.55.120","Address":"10.138.55.120"},"o":{"Name":"10.138.55.112","Hostname":"10.138.55.112","Address":"10.138.55.112"}}}'
+  maxMonId: "15"
+kind: ConfigMap
+metadata:
+  finalizers:
+  - ceph.rook.io/disaster-protection
+  name: rook-ceph-mon-endpoints
+  namespace: rook-ceph
+  ownerReferences: null
+```
+
+The Monitor's service IPs are kept in the monitor data store and you need to create them by original ones. After you create this configmap with the original service IPs, the rook operator will create the correct services for you with IPs matching in the monitor data store. Along with monitor ids, their service IPs and mapping relationship of them can be found in dataDirHostPath/rook-ceph/rook-ceph.config, for example:
+
+```console
+[global]
+fsid                = 3f271841-6188-47c1-b3fd-90fd4f978c76
+mon initial members = m o k
+mon host            = [v2:169.169.82.57:3300,v1:169.169.82.57:6789],[v2:169.169.7.81:3300,v1:169.169.7.81:6789],[v2:169.169.241.153:3300,v1:169.169.241.153:6789]
+```
+
+`mon initial members` and `mon host` are holding sequences of monitors' id and IP respectively; the sequence are going in the same order among monitors as a result you can tell which monitors have which service IP addresses. Modify your `rook-ceph-mon-endpoints.yaml` on fields `csi-cluster-config-json` and `data` based on the understanding of `rook-ceph.config` above.
+The field `mapping` tells rook where to schedule monitor's pods. you could search in `dataDirHostPath` in all Ceph cluster hosts for `mon-m,mon-o,mon-k`. If you find `mon-m` in host `10.138.55.120`, you should fill `10.138.55.120` in field `mapping` for `m`. Others are the same.
+Update the `maxMonId` to be the max numeric ID of the highest monitor ID. For example, 15 is the 0-based ID for mon `o`.
+Now save this configmap in the file rook-ceph-mon-endpoints.yaml, to be created later in the restore.
+
+Now that you have the info for the secret and the configmap, you are ready to restore the running cluster.
+
+Deploy Rook Ceph using the YAML files or Helm, with the same settings you had previously.
+
+```console
+kubectl create -f crds.yaml -f common.yaml -f operator.yaml
+```
+
+After the operator is running, create the configmap and secret you have just crafted:
+
+```console
+kubectl create -f rook-ceph-mon.yaml -f rook-ceph-mon-endpoints.yaml
+```
+
+Create your Ceph cluster CR (if possible, with the same settings as existed previously):
+
+```console
+kubectl create -f cluster.yaml
+```
+
+Now your Rook Ceph cluster should be running again.
