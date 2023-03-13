@@ -67,12 +67,11 @@ func rookTopologyLabelsOrdered() []string {
 }
 
 func allKubernetesTopologyLabelsOrdered() []string {
-	return append([]string{corev1.LabelFailureDomainBetaRegion, // deprecated label for backwards compatibility
-		corev1.LabelTopologyRegion,
-		corev1.LabelZoneFailureDomain, // deprecated label for backwards compatibility,
-		corev1.LabelTopologyZone,
-		labelHostname},
-		rookTopologyLabelsOrdered()...,
+	return append(
+		append([]string{corev1.LabelTopologyRegion,
+			corev1.LabelTopologyZone},
+			rookTopologyLabelsOrdered()...),
+		labelHostname, //  host is the lowest level in the crush map hierarchy
 	)
 }
 
