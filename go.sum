@@ -432,8 +432,8 @@ github.com/gammazero/workerpool v0.0.0-20190406235159-88d534f22b56 h1:VzbudKn/nv
 github.com/gammazero/workerpool v0.0.0-20190406235159-88d534f22b56/go.mod h1:w9RqFVO2BM3xwWEcAB8Fwp0OviTBBEiRmSBDfbXnd3w=
 github.com/gemalto/flume v0.13.0 h1:EEeQvAxyFys3BH8IxEU7ZpM6Kr1sYn20HuZq6dgyMR8=
 github.com/gemalto/flume v0.13.0/go.mod h1:3iOEZiK/HD8SnFTqHCQoOHQKaHlBY0b6z55P8SLaOzk=
-github.com/gemalto/kmip-go v0.0.8 h1:RvKWTd2ACxOs7OF1f6SvPYebjmQbN0myfDHVQmX/k8g=
-github.com/gemalto/kmip-go v0.0.8/go.mod h1:7bAnjuzri8yGoJMwngnAd0HdXMRDQU+l1Zaiz12Tr68=
+github.com/gemalto/kmip-go v0.0.9 h1:PMm0j3k5l7H6BIp13+V6aq0mvp0O3YlKVHkDweLkzik=
+github.com/gemalto/kmip-go v0.0.9/go.mod h1:YBUgKtkYpGCL+xA1oClQrMYTWDvHN/A2wSh2LmT5+JY=
 github.com/getkin/kin-openapi v0.76.0/go.mod h1:660oXbgy5JFMKreazJaQTw7o+X00qeSyhcnluiMv+Xg=
 github.com/ghodss/yaml v0.0.0-20150909031657-73d445a93680/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=
 github.com/ghodss/yaml v1.0.0/go.mod h1:4dBDuWmgqj2HViK6kFavaiC9ZROes6MMH2rRYeMEF04=

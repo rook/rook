@@ -8,7 +8,7 @@ require (
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/go-ceph v0.18.0
 	github.com/coreos/pkg v0.0.0-20220810130054-c7d1c02cb6cf
-	github.com/gemalto/kmip-go v0.0.8
+	github.com/gemalto/kmip-go v0.0.9
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
