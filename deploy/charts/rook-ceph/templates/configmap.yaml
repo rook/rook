@@ -232,4 +232,7 @@ data:
 {{- if .Values.csi.csiCephFSPluginVolumeMount }}
   CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: {{ toYaml .Values.csi.csiCephFSPluginVolumeMount | quote }}
 {{- end }}
+  CSI_CEPHFS_ATTACH_REQUIRED: {{ .Values.csi.cephFSAttachRequired | quote }}
+  CSI_RBD_ATTACH_REQUIRED: {{ .Values.csi.rbdAttachRequired | quote }}
+  CSI_NFS_ATTACH_REQUIRED: {{ .Values.csi.nfsAttachRequired | quote }}
 {{- end }}

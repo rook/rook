@@ -283,5 +283,17 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	CSIParam.ImagePullPolicy = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_IMAGE_PULL_POLICY", DefaultCSIImagePullPolicy)
 	CSIParam.CephFSKernelMountOptions = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "")
 
+	CSIParam.CephFSAttachRequired = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.CephFSAttachRequired = false
+	}
+	CSIParam.RBDAttachRequired = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.RBDAttachRequired = false
+	}
+	CSIParam.NFSAttachRequired = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.NFSAttachRequired = false
+	}
 	return nil
 }
