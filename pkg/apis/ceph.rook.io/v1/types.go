@@ -1458,6 +1458,12 @@ type GatewaySpec struct {
 	// +nullable
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
+
+	// Whether rgw dashboard is enabled for the rgw daemon. If not set, the rgw dashboard will be enabled.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	DashboardEnabled *bool `json:"dashboardEnabled,omitempty"`
 }
 
 // EndpointAddress is a tuple that describes a single IP address or host name. This is a subset of
