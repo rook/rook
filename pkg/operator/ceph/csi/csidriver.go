@@ -68,9 +68,9 @@ func (d v1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kubernet
 		return err
 	}
 
-	// As FSGroupPolicy field is immutable, should be set only during create time.
-	// if the request is to change the FSGroupPolicy, we are deleting the CSIDriver object and creating it.
-	if driver.Spec.FSGroupPolicy != nil && csiDriver.Spec.FSGroupPolicy != nil && *driver.Spec.FSGroupPolicy != *csiDriver.Spec.FSGroupPolicy {
+	// As FSGroupPolicy and AttachRequired fields are immutable, should be set only during create time.
+	// if the request is to change the FSGroupPolicy or AttachRequired, we are deleting the CSIDriver object and creating it.
+	if (driver.Spec.FSGroupPolicy != nil && csiDriver.Spec.FSGroupPolicy != nil && *driver.Spec.FSGroupPolicy != *csiDriver.Spec.FSGroupPolicy) || *driver.Spec.AttachRequired != *csiDriver.Spec.AttachRequired {
 		d.csiClient = csidrivers
 		d.csiDriver = csiDriver
 		return d.reCreateCSIDriverInfo(ctx)

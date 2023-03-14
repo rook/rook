@@ -21,6 +21,7 @@ spec:
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
       containers:
+        {{ if .NFSAttachRequired }}
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
@@ -39,6 +40,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         {{ if .EnableNFSSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}

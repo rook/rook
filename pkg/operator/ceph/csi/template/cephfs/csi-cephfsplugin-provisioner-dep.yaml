@@ -22,6 +22,7 @@ spec:
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
       containers:
+        {{ if .CephFSAttachRequired }}
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
@@ -40,6 +41,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         {{ if .EnableCephFSSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
