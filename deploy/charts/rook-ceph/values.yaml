@@ -378,6 +378,14 @@ csi:
         limits:
           memory: 1Gi
           cpu: 500m
+    - name : csi-attacher
+      resource:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m
 
   # -- CEPH CSI NFS plugin resource requirement list
   # @default -- see values.yaml
