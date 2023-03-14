@@ -1999,6 +1999,11 @@ type GaneshaServerSpec struct {
 	// LogLevel set logging level
 	// +optional
 	LogLevel string `json:"logLevel,omitempty"`
+
+	// Whether host networking is enabled for the Ganesha server. If not set, the network settings from the cluster CR will be applied.
+	// +nullable
+	// +optional
+	HostNetwork *bool `json:"hostNetwork,omitempty"`
 }
 
 // NFSSecuritySpec represents security configurations for an NFS server pod

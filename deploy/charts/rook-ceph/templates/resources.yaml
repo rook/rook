@@ -10981,6 +10981,10 @@ spec:
                       nullable: true
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
+                    hostNetwork:
+                      description: Whether host networking is enabled for the Ganesha server. If not set, the network settings from the cluster CR will be applied.
+                      nullable: true
+                      type: boolean
                     labels:
                       additionalProperties:
                         type: string
