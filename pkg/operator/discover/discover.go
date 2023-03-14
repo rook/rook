@@ -357,9 +357,7 @@ func ListDevicesInUse(ctx context.Context, clusterdContext *clusterd.Context, na
 			logger.Warningf("failed to unmarshal %s", deviceJson)
 			continue
 		}
-		for i := range d {
-			devices = append(devices, d[i])
-		}
+		devices = append(devices, d...)
 	}
 	logger.Debugf("devices in use %+v", devices)
 	return devices, nil
