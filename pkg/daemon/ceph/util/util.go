@@ -53,5 +53,7 @@ func GetPortFromEndpoint(endpoint string) int32 {
 			logger.Errorf("failed to convert %q to integer. %v", portString, err)
 		}
 	}
-	return int32(port)
+	//#nosec G109 -- This is just a lower bit to bigger bit conversion
+	portInt32 := int32(port)
+	return portInt32
 }
