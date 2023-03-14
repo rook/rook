@@ -445,6 +445,14 @@ data:
   #      limits:
   #        memory: 1Gi
   #        cpu: 500m
+  #  - name : csi-attacher
+  #    resource:
+  #      requests:
+  #        memory: 128Mi
+  #        cpu: 100m
+  #      limits:
+  #        memory: 256Mi
+  #        cpu: 200m
   # (Optional) CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   # CSI_NFS_PLUGIN_RESOURCE: |

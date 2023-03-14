@@ -656,7 +656,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		}
 	}
 	if EnableNFS {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), false)
+		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), true)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", NFSDriverName)
 		}
