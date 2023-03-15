@@ -54,4 +54,6 @@ function generate_csv() {
     rm -rf "../../build/csv/ceph/$PLATFORM"
 }
 
-generate_csv
+if [ "$PLATFORM" == "amd64" ]; then
+    generate_csv
+fi
