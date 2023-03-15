@@ -42,22 +42,26 @@ func TestOrderedCRUSHLabels(t *testing.T) {
 func TestCleanTopologyLabels(t *testing.T) {
 	// load all the expected labels
 	nodeLabels := map[string]string{
-		corev1.LabelZoneRegionStable:        "r.region",
-		corev1.LabelZoneFailureDomainStable: "z.zone",
-		"kubernetes.io/hostname":            "host.name",
-		"topology.rook.io/rack":             "r.rack",
-		"topology.rook.io/row":              "r.row",
-		"topology.rook.io/datacenter":       "d.datacenter",
-	}
+		corev1.LabelZoneRegionStable:  "r.region",
+		"kubernetes.io/hostname":      "host.name",
+		"topology.rook.io/rack":       "r.rack",
+		"topology.rook.io/row":        "r.row",
+		"topology.rook.io/datacenter": "d.datacenter",
+		"topology.rook.io/room":       "test",
+		"topology.rook.io/chassis":    "test",
+		"topology.rook.io/pod":        "test"}
 	topology, affinity := ExtractOSDTopologyFromLabels(nodeLabels)
 	assert.Equal(t, 6, len(topology))
 	assert.Equal(t, "r-region", topology["region"])
-	assert.Equal(t, "z-zone", topology["zone"])
 	assert.Equal(t, "host-name", topology["host"])
 	assert.Equal(t, "r-rack", topology["rack"])
 	assert.Equal(t, "r-row", topology["row"])
 	assert.Equal(t, "d-datacenter", topology["datacenter"])
-	assert.Equal(t, "topology.rook.io/rack=r.rack", affinity)
+	assert.Equal(t, "topology.rook.io/chassis=test", affinity)
+	assert.Equal(t, "test", topology["chassis"])
+	assert.Equal(t, "", topology["pod"])
+	assert.Equal(t, "", topology["room"])
+
 }
 
 func TestTopologyLabels(t *testing.T) {
@@ -86,46 +90,20 @@ func TestTopologyLabels(t *testing.T) {
 
 	// load all the expected labels
 	nodeLabels = map[string]string{
-		corev1.LabelZoneRegionStable:        "r1",
-		corev1.LabelZoneFailureDomainStable: "z1",
-		"kubernetes.io/hostname":            "myhost",
-		"topology.rook.io/rack":             "rack1",
-		"topology.rook.io/row":              "row1",
-		"topology.rook.io/datacenter":       "d1",
+		corev1.LabelZoneRegionStable:  "r1",
+		"kubernetes.io/hostname":      "myhost",
+		"topology.rook.io/rack":       "rack1",
+		"topology.rook.io/row":        "row1",
+		"topology.rook.io/datacenter": "d1",
 	}
 	topology, affinity = extractTopologyFromLabels(nodeLabels)
-	assert.Equal(t, 6, len(topology))
+	assert.Equal(t, 5, len(topology))
 	assert.Equal(t, "r1", topology["region"])
-	assert.Equal(t, "z1", topology["zone"])
 	assert.Equal(t, "myhost", topology["host"])
 	assert.Equal(t, "rack1", topology["rack"])
 	assert.Equal(t, "row1", topology["row"])
 	assert.Equal(t, "d1", topology["datacenter"])
 	assert.Equal(t, "topology.rook.io/rack=rack1", affinity)
-
-	// ensure deprecated k8s labels are loaded
-	nodeLabels = map[string]string{
-		corev1.LabelZoneRegion:        "r1",
-		corev1.LabelZoneFailureDomain: "z1",
-	}
-	topology, affinity = extractTopologyFromLabels(nodeLabels)
-	assert.Equal(t, 2, len(topology))
-	assert.Equal(t, "r1", topology["region"])
-	assert.Equal(t, "z1", topology["zone"])
-	assert.Equal(t, "failure-domain.beta.kubernetes.io/zone=z1", affinity)
-
-	// ensure deprecated k8s labels are overridden
-	nodeLabels = map[string]string{
-		corev1.LabelZoneRegionStable:        "r1",
-		corev1.LabelZoneFailureDomainStable: "z1",
-		corev1.LabelZoneRegion:              "oldregion",
-		corev1.LabelZoneFailureDomain:       "oldzone",
-	}
-	topology, affinity = extractTopologyFromLabels(nodeLabels)
-	assert.Equal(t, 2, len(topology))
-	assert.Equal(t, "r1", topology["region"])
-	assert.Equal(t, "z1", topology["zone"])
-	assert.Equal(t, "topology.kubernetes.io/zone=z1", affinity)
 
 	// invalid labels under topology.rook.io return an error
 	nodeLabels = map[string]string{
@@ -134,16 +112,6 @@ func TestTopologyLabels(t *testing.T) {
 	topology, affinity = extractTopologyFromLabels(nodeLabels)
 	assert.Equal(t, 0, len(topology))
 	assert.Equal(t, "", affinity)
-
-	// ignore the region k8s topology label when it has the same value as the k8s zone label
-	nodeLabels = map[string]string{
-		corev1.LabelZoneRegionStable:        "zone",
-		corev1.LabelZoneFailureDomainStable: "zone",
-	}
-	topology, affinity = extractTopologyFromLabels(nodeLabels)
-	assert.Equal(t, 1, len(topology))
-	assert.Equal(t, "zone", topology["zone"])
-	assert.Equal(t, "topology.kubernetes.io/zone=zone", affinity)
 }
 
 func TestGetDefaultTopologyLabels(t *testing.T) {
