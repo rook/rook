@@ -141,6 +141,9 @@ func NewComplexClientset(t *testing.T) *fake.Clientset {
 		}
 		obj := createAction.GetObject()
 		objMeta, err := meta.Accessor(obj)
+		if err != nil {
+			panic(fmt.Errorf("failed to objMeta"))
+		}
 		resource := action.GetResource().Resource
 		name := objMeta.GetName()
 

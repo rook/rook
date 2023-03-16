@@ -355,9 +355,7 @@ func TestCephObjectStoreController(t *testing.T) {
 			objectStore,
 		}
 
-		for i := range additionalObjects {
-			objects = append(objects, additionalObjects[i])
-		}
+		objects = append(objects, additionalObjects...)
 
 		executor := &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
