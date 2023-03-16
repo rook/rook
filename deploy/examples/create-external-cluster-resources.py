@@ -1545,8 +1545,8 @@ class RadosJSON:
                     "name": "ceph-rbd",
                     "kind": "StorageClass",
                     "data": {
-                        "dataPool": self.out_map["RBD_METADATA_EC_POOL_NAME"],
-                        "pool": self.out_map["RBD_POOL_NAME"],
+                        "dataPool": self.out_map["RBD_POOL_NAME"],
+                        "pool": self.out_map["RBD_METADATA_EC_POOL_NAME"],
                         "csi.storage.k8s.io/provisioner-secret-name": "rook-{}".format(
                             self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"]
                         ),

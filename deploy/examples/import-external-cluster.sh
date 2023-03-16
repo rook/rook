@@ -200,8 +200,8 @@ metadata:
 provisioner: $RBD_PROVISIONER
 parameters:
   clusterID: $CLUSTER_ID_RBD
-  pool: $RBD_POOL_NAME
-  dataPool: $RBD_METADATA_EC_POOL_NAME
+  pool: $RBD_METADATA_EC_POOL_NAME
+  dataPool: $RBD_POOL_NAME
   imageFormat: "2"
   imageFeatures: $ROOK_RBD_FEATURES
   csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
