@@ -41,6 +41,10 @@ func (s *ObjectStoreSpec) IsTLSEnabled() bool {
 	return s.Gateway.SecurePort != 0 && (s.Gateway.SSLCertificateRef != "" || s.GetServiceServingCert() != "")
 }
 
+func (s *ObjectStoreSpec) IsRGWDashboardEnabled() bool {
+	return s.Gateway.DashboardEnabled == nil || *s.Gateway.DashboardEnabled
+}
+
 func (s *ObjectStoreSpec) GetPort() (int32, error) {
 	if s.IsTLSEnabled() {
 		return s.Gateway.SecurePort, nil

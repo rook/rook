@@ -82,8 +82,12 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 		return nil
 	}
 
-	if err = enableRGWDashboard(objContext); err != nil {
-		logger.Warningf("failed to enable dashboard for rgw. %v", err)
+	if c.clusterSpec.Dashboard.Enabled {
+		if !c.store.Spec.IsRGWDashboardEnabled() {
+			disableRGWDashboard(objContext)
+		} else if err = enableRGWDashboard(objContext); err != nil {
+			logger.Warningf("failed to enable dashboard for rgw. %v", err)
+		}
 	}
 
 	logger.Infof("created object store %q in namespace %q", c.store.Name, c.store.Namespace)
