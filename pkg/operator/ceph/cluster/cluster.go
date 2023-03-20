@@ -634,7 +634,7 @@ func (c *cluster) configureMsgr2() error {
 
 		// set default rbd map options to enable msgr2 in the kernel if it's
 		// required even with encryption disabled
-		if c.Spec.Network.Connections != nil && c.Spec.Network.Connections.RequireMsgr2 {
+		if c.Spec.RequireMsgr2() {
 			if err := monStore.SetAll("global", map[string]string{rbdMapOptions: "ms_mode=prefer-crc"}); err != nil {
 				return err
 			}
