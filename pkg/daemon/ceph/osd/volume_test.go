@@ -343,7 +343,7 @@ func TestConfigureCVDevices(t *testing.T) {
 		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 			logger.Infof("[MockExecuteCommandWithOutput] %s %v", command, args)
 			if command == "lsblk" && args[0] == mountedDev {
-				return fmt.Sprintf(`SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="/mnt/set1-data-0-rpf2k" KNAME="/dev/dm-1, a ...interface{})`), nil
+				return `SIZE="17179869184" ROTA="1" RO="0" TYPE="lvm" PKNAME="" NAME="/mnt/set1-data-0-rpf2k" KNAME="/dev/dm-1, a ...interface{})`, nil
 			}
 			if command == "sgdisk" {
 				return "Disk identifier (GUID): 18484D7E-5287-4CE9-AC73-D02FB69055CE", nil
