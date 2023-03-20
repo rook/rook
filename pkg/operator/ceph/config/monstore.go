@@ -236,7 +236,7 @@ func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
 
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
-		logger.Errorf("failed to run command ceph %s", args)
+		logger.Errorf("failed to run command ceph %s: %v", args, err)
 
 		fileContent, err := os.ReadFile(assimilateConfPath.Name() + ".out")
 		if err != nil {
