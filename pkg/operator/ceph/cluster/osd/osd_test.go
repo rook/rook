@@ -570,18 +570,18 @@ func TestDetectCrushLocation(t *testing.T) {
 
 	// update the location with valid topology labels
 	nodeLabels = map[string]string{
-		"failure-domain.beta.kubernetes.io/region": "region1",
-		"failure-domain.beta.kubernetes.io/zone":   "zone1",
-		"topology.rook.io/rack":                    "rack1",
-		"topology.rook.io/row":                     "row1",
+		"topology.kubernetes.io/region": "region1",
+		"topology.kubernetes.io/zone":   "zone",
+		"topology.rook.io/rack":         "rack1",
+		"topology.rook.io/row":          "row1",
 	}
-
+	// sorted in alphabetical order
 	expected := []string{
 		"host=foo",
 		"rack=rack1",
 		"region=region1",
 		"row=row1",
-		"zone=zone1",
+		"zone=zone",
 	}
 	updateLocationWithNodeLabels(&location, nodeLabels)
 

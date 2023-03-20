@@ -43,6 +43,7 @@ var (
 
 const (
 	topologyLabelPrefix = "topology.rook.io/"
+	labelHostname       = "kubernetes.io/hostname"
 )
 
 // ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
@@ -56,6 +57,33 @@ func ExtractOSDTopologyFromLabels(labels map[string]string) (map[string]string, 
 	return topology, topologyAffinity
 }
 
+func rookTopologyLabelsOrdered() []string {
+	topologyLabelsOrdered := []string{}
+	for i := len(CRUSHTopologyLabels) - 1; i >= 0; i-- {
+		label := CRUSHTopologyLabels[i]
+		topologyLabelsOrdered = append(topologyLabelsOrdered, topologyLabelPrefix+label)
+	}
+	return topologyLabelsOrdered
+}
+
+func allKubernetesTopologyLabelsOrdered() []string {
+	return append(
+		append([]string{corev1.LabelTopologyRegion,
+			corev1.LabelTopologyZone},
+			rookTopologyLabelsOrdered()...),
+		labelHostname, //  host is the lowest level in the crush map hierarchy
+	)
+}
+
+func kubernetesTopologyLabelToCRUSHLabel(label string) string {
+	crushLabel := strings.Split(label, "/")
+	if crushLabel[len(crushLabel)-1] == "hostname" {
+		// kubernetes uses "kubernetes.io/hostname" whereas CRUSH uses "host"
+		return "host"
+	}
+	return crushLabel[len(crushLabel)-1]
+}
+
 // ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
 func extractTopologyFromLabels(labels map[string]string) (map[string]string, string) {
 	topology := make(map[string]string)
@@ -63,59 +91,34 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 	// The topology affinity for the osd is the lowest topology label found in the hierarchy,
 	// not including the host name
 	var topologyAffinity string
-
-	// check for the region k8s topology label that was deprecated in 1.17
-	const regionLabel = "region"
-	region, ok := labels[corev1.LabelZoneRegion]
-	if ok {
-		topology[regionLabel] = region
-		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneRegion, region)
-	}
-
-	// check for the region k8s topology label that is GA in 1.17.
-	region, ok = labels[corev1.LabelZoneRegionStable]
-	if ok {
-		topology[regionLabel] = region
-		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneRegionStable, region)
-	}
-
-	// check for the zone k8s topology label that was deprecated in 1.17
-	const zoneLabel = "zone"
-	zone, ok := labels[corev1.LabelZoneFailureDomain]
-	if ok {
-		topology[zoneLabel] = zone
-		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomain, zone)
-	}
-
-	// check for the zone k8s topology label that is GA in 1.17.
-	zone, ok = labels[corev1.LabelZoneFailureDomainStable]
-	if ok {
-		topology[zoneLabel] = zone
-		topologyAffinity = formatTopologyAffinity(corev1.LabelZoneFailureDomainStable, zone)
-	}
-
-	// ignore the region k8s topology label when it has the same value as the k8s zone label
-	if topology[regionLabel] == topology[zoneLabel] {
-		delete(topology, regionLabel)
-	}
-
-	// get host
-	host, ok := labels[corev1.LabelHostname]
-	if ok {
-		topology["host"] = host
-	}
+	allKubernetesTopologyLabels := allKubernetesTopologyLabelsOrdered()
 
 	// get the labels for the CRUSH map hierarchy
-	// iterate in reverse order so that the last topology found will be the lowest level in the hierarchy
+	// iterate in a way so the last topology found will be the lowest level in the hierarchy
 	// for the topology affinity
-	for i := len(CRUSHTopologyLabels) - 1; i >= 0; i-- {
-		topologyID := CRUSHTopologyLabels[i]
-		label := topologyLabelPrefix + topologyID
+	for _, label := range allKubernetesTopologyLabels {
+		topologyID := kubernetesTopologyLabelToCRUSHLabel(label)
 		if value, ok := labels[label]; ok {
 			topology[topologyID] = value
-			topologyAffinity = formatTopologyAffinity(label, value)
+			if topologyID != "host" {
+				topologyAffinity = formatTopologyAffinity(label, value)
+			}
 		}
 	}
+	// iterate in lowest to highest order as the lowest level should be sustained and higher level duplicate
+	// should be removed
+	duplicateTopology := make(map[string]int)
+	for i := len(allKubernetesTopologyLabels) - 1; i >= 0; i-- {
+		topologyLabel := allKubernetesTopologyLabels[i]
+		if value, ok := labels[topologyLabel]; ok {
+			if _, ok := duplicateTopology[value]; ok {
+				delete(topology, kubernetesTopologyLabelToCRUSHLabel(topologyLabel))
+			} else {
+				duplicateTopology[value] = 1
+			}
+		}
+	}
+
 	return topology, topologyAffinity
 }
 
