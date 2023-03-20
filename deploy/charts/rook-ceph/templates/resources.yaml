@@ -11948,6 +11948,11 @@ spec:
                       description: The name of the secret that stores custom ca-bundle with root and intermediate certificates.
                       nullable: true
                       type: string
+                    dashboardEnabled:
+                      description: Whether rgw dashboard is enabled for the rgw daemon. If not set, the rgw dashboard will be enabled.
+                      nullable: true
+                      type: boolean
+                      x-kubernetes-preserve-unknown-fields: true
                     externalRgwEndpoints:
                       description: ExternalRgwEndpoints points to external RGW endpoint(s). Multiple endpoints can be given, but for stability of ObjectBucketClaims, we highly recommend that users give only a single external RGW endpoint that is a load balancer that sends requests to the multiple RGWs.
                       items:
