@@ -18,6 +18,9 @@ limitations under the License.
 package cluster
 
 import (
+	"flag"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +34,8 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gopkg.in/ini.v1"
 )
 
 func TestPreClusterStartValidation(t *testing.T) {
@@ -153,60 +158,137 @@ func TestPreMonChecks(t *testing.T) {
 
 func TestConfigureMsgr2(t *testing.T) {
 	type fields struct {
-		encryptionExpected  bool
-		compressionExpected bool
-		cephVersion         cephver.CephVersion
-		Spec                *cephv1.ClusterSpec
+		expectedGlobalConfigSettings map[string]string
+		cephVersion                  cephver.CephVersion
+		Spec                         *cephv1.ClusterSpec
 	}
 
 	tests := []struct {
 		name   string
 		fields fields
 	}{
-		{"default settings", fields{false, false, cephver.CephVersion{Major: 15}, &cephv1.ClusterSpec{}}},
-		{"encryption enabled", fields{true, false, cephver.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Encryption: &cephv1.EncryptionSpec{Enabled: true}}}}}},
-		{"compression enabled old version", fields{false, false, cephver.CephVersion{Major: 16}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
-		{"compression enabled good version", fields{false, true, cephver.CephVersion{Major: 17}, &cephv1.ClusterSpec{Network: cephv1.NetworkSpec{Connections: &cephv1.ConnectionsSpec{Compression: &cephv1.CompressionSpec{Enabled: true}}}}}},
+		{
+			name: "default settings",
+			fields: fields{
+				expectedGlobalConfigSettings: nil,
+				cephVersion:                  cephver.CephVersion{Major: 15},
+				Spec:                         &cephv1.ClusterSpec{},
+			},
+		},
+		{
+			name: "encryption enabled",
+			fields: fields{
+				expectedGlobalConfigSettings: map[string]string{
+					"ms_cluster_mode":         "secure",
+					"ms_service_mode":         "secure",
+					"ms_client_mode":          "secure",
+					"rbd_default_map_options": "ms_mode=secure",
+				},
+				cephVersion: cephver.CephVersion{Major: 16},
+				Spec: &cephv1.ClusterSpec{
+					Network: cephv1.NetworkSpec{
+						Connections: &cephv1.ConnectionsSpec{
+							Encryption: &cephv1.EncryptionSpec{
+								Enabled: true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "compression enabled old version",
+			fields: fields{
+				expectedGlobalConfigSettings: map[string]string{
+					"rbd_default_map_options": "ms_mode=prefer-crc",
+				},
+				cephVersion: cephver.CephVersion{Major: 16},
+				Spec: &cephv1.ClusterSpec{
+					Network: cephv1.NetworkSpec{
+						Connections: &cephv1.ConnectionsSpec{
+							Compression: &cephv1.CompressionSpec{
+								Enabled: true,
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "compression enabled good version",
+			fields: fields{
+				expectedGlobalConfigSettings: map[string]string{
+					"rbd_default_map_options": "ms_mode=prefer-crc",
+				},
+				cephVersion: cephver.CephVersion{Major: 17},
+				Spec: &cephv1.ClusterSpec{
+					Network: cephv1.NetworkSpec{
+						Connections: &cephv1.ConnectionsSpec{
+							Compression: &cephv1.CompressionSpec{
+								Enabled: true,
+							},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			enabledCompression := false
-			enabledEncryption := false
-			executor := &exectest.MockExecutor{
-				MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-					if args[0] == "config" && args[1] == "assimilate-conf" && args[2] == "-i" && args[4] == "-o" {
-						if tt.fields.Spec.Network.Connections.Encryption != nil && tt.fields.Spec.Network.Connections.Compression == nil {
-							enabledEncryption = true
-						} else if tt.fields.Spec.Network.Connections.Encryption == nil && tt.fields.Spec.Network.Connections.Compression != nil {
-							enabledCompression = true
-						}
-						return "", nil
-					}
-					if args[0] == "config" && args[1] == "rm" {
-						return "", nil
-					}
+			var configFile *ini.File
 
-					return "", errors.Errorf("unexpected ceph command %q", args)
-				},
-			}
 			clusterInfo := cephclient.AdminTestClusterInfo("rook-ceph")
 			clusterInfo.CephVersion = tt.fields.cephVersion
-			context := &clusterd.Context{
-				Clientset: testop.New(t, 3),
-				Executor:  executor,
-			}
+
 			c := &cluster{
 				ClusterInfo: clusterInfo,
-				Spec:        tt.fields.Spec,
-				context:     context,
 				Namespace:   "rook-ceph",
+				Spec:        tt.fields.Spec,
+				context: &clusterd.Context{
+					Clientset: testop.New(t, 3),
+					Executor: &exectest.MockExecutor{
+						MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+							joinedArgs := strings.Join(args, " ")
+							switch {
+							case strings.HasPrefix(joinedArgs, "config assimilate-conf"):
+								fs := flag.NewFlagSet("", flag.ContinueOnError)
+								inputFile := fs.String("i", "", "")
+
+								if err := fs.Parse(args[2:4]); err != nil {
+									return "", fmt.Errorf("parse flags: %w", err)
+								}
+
+								f, err := ini.Load(*inputFile)
+								if err != nil {
+									return "", fmt.Errorf("load ini file: %w", err)
+								}
+								configFile = f
+
+								fallthrough
+							case
+								strings.HasPrefix(joinedArgs, "config rm"),
+								strings.HasPrefix(joinedArgs, "config get global rbd_default_map_options"):
+								return "", nil
+							}
+							return "", errors.Errorf("unexpected ceph command %q", args)
+						},
+					},
+				},
 			}
 
 			err := c.configureMsgr2()
-			assert.NoError(t, err)
-			assert.Equal(t, tt.fields.compressionExpected, enabledCompression)
-			assert.Equal(t, tt.fields.encryptionExpected, enabledEncryption)
+			require.NoError(t, err)
+
+			if assert.Equal(t, tt.fields.expectedGlobalConfigSettings == nil, configFile == nil) {
+				return
+			}
+
+			section := configFile.Section("global")
+			for k, v := range tt.fields.expectedGlobalConfigSettings {
+				assert.Equal(t, v, section.Key(k).String(), k)
+			}
+			assert.Len(t, section.Keys(), len(tt.fields.expectedGlobalConfigSettings))
 		})
 	}
 }
