@@ -199,3 +199,73 @@ the size of the cluster.
     ceph orch set backend ""
     ceph mgr module disable rook
     ```
+
+#### Manual configuration of NFS exports
+
+* Create a [Ceph Client User](https://docs.ceph.com/en/latest/rados/operations/user-management/) for
+  NFS-Ganesha to use to connect to the CephFS instance that will be exported.
+
+    ```bash
+    ceph auth add client.nfs.examplefs.1 mds 'allow rw path=/' mon 'allow r' osd 'allow rw pool=.nfs namespace=examplefs, allow rw tag cephfs data=examplefs'
+    added key for client.nfs.examplefs.1
+    ```
+
+* Lookup the Ceph Client User's access `key` and retain it for use in the export configuration.
+
+    ```bash
+    $ ceph auth get client.nfs.examplefs.1
+    [client.nfs.examplefs.1]
+      key = AXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX==
+      caps mds = "allow rw path=/"
+      caps mon = "allow r"
+      caps osd = "allow rw pool=.nfs namespace=examplefs, allow rw tag cephfs data=examplefs"
+    exported keyring for client.nfs.examplefs.1
+    ```
+
+* Create rados object(s) with configuration for the export(s). The `nfs` module appears to create these objects named `export-1`, `export-2`, etc.
+
+    ```bash
+    cat << EOF > export-1
+    EXPORT {
+        FSAL {
+            name = "CEPH";
+            user_id = "nfs.examplefs.1";
+            filesystem = "examplefs";
+            secret_access_key = "AXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX==";
+        }
+        export_id = 1;
+        path = "/";
+        pseudo = "/examplefs";
+        access_type = "RW";
+        squash = "none";
+        attr_expiration_time = 0;
+        security_label = true;
+        protocols = 4;
+        transports = "TCP";
+    }
+    EOF
+    rados --pool .nfs --namespace examplefs put export-1 export-1
+    rados --pool .nfs --namespace examplefs get export-1 -
+    ```
+
+* Create the rados object which NFS-Ganesha will inspect to discover export configuration(s).
+    The name of the object NFS-Ganesha is "watching" for configuration of exports may be verified by
+    inspecting the `ganesha.conf` file in the relevant NFS pods. E.g.:
+    `kubectl exec -ti rook-ceph-nfs-examplefs-a-5f7789c8c9-5rlbz -- cat /etc/ganesha/ganesha.conf`
+
+    Note that there is a blank (double newline) at the end of the object when it is created by the `nfs` module.
+
+    ```bash
+    cat << EOF > conf-nfs.examplefs
+    %url "rados://.nfs/examplefs/export-1"
+
+    EOF
+    rados --pool .nfs --namespace examplefs put conf-nfs.examplefs conf-nfs.examplefs
+    rados --pool .nfs --namespace examplefs get conf-nfs.examplefs -
+    ```
+
+* Restart the NFS-Ganesha pod(s) to force picking up the new configuration.
+
+    ```bash
+    kubectl -n rook-ceph delete pod -lceph_daemon_type=nfs,ceph_nfs=examplefs
+    ```

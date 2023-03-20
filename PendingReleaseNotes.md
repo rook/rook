@@ -4,3 +4,5 @@
 
 
 ## Features
+
+- document manual NFS export configuration
