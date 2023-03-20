@@ -71,7 +71,7 @@ func CreateTempFile(content string) (*os.File, error) {
 	}
 
 	// Write content into file
-	err = ioutil.WriteFile(file.Name(), []byte(content), 0440)
+	err = os.WriteFile(file.Name(), []byte(content), 0400)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to write content into file")
 	}

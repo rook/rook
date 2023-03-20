@@ -148,7 +148,7 @@ func configTLS(ctx context.Context, clusterdContext *clusterd.Context, namespace
 			}
 
 			// Write into a file
-			err = ioutil.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0444)
+			err = os.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0400)
 			if err != nil {
 				return nil, removeCertFiles, errors.Wrapf(err, "failed to write k8s secret %q content to a file", tlsSecretName)
 			}

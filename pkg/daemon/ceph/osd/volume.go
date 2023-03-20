@@ -273,9 +273,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 		if device.Data == -1 {
 			logger.Infof("configuring new device %q", device.Config.Name)
 			var err error
-			var deviceArg string
-
-			deviceArg = device.Config.Name
+			deviceArg := device.Config.Name
 
 			immediateExecuteArgs := append(baseArgs, []string{
 				"--data",
