@@ -62,32 +62,24 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj.main()
             self.fail("Function should have thrown an Exception")
         except ext.ExecutionFailureException as err:
-            print("Exception thrown successfully: {}".format(err))
+            print(f"Exception thrown successfully: {err}")
 
     def test_method_create_cephCSIKeyring_cephFSProvisioner(self):
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
             "client.csi-cephfs-provisioner"
         )
-        print(
-            "cephCSIKeyring without restricting it to a metadata pool. {}".format(
-                csiKeyring
-            )
-        )
+        print(f"cephCSIKeyring without restricting it to a metadata pool. {csiKeyring}")
         self.rjObj._arg_parser.restricted_auth_permission = True
         self.rjObj._arg_parser.cluster_name = "openshift-storage"
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
             "client.csi-cephfs-provisioner"
         )
-        print("cephCSIKeyring for a specific cluster. {}".format(csiKeyring))
+        print(f"cephCSIKeyring for a specific cluster. {csiKeyring}")
         self.rjObj._arg_parser.cephfs_filesystem_name = "myfs"
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
             "client.csi-cephfs-provisioner"
         )
-        print(
-            "cephCSIKeyring for a specific metadata pool and cluster. {}".format(
-                csiKeyring
-            )
-        )
+        print(f"cephCSIKeyring for a specific metadata pool and cluster. {csiKeyring}")
 
     def test_non_zero_return_and_error(self):
         self.rjObj.cluster.return_val = 1
@@ -96,7 +88,7 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj.create_checkerKey()
             self.fail("Failed to raise an exception, 'ext.ExecutionFailureException'")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error.\nError: {}".format(err))
+            print(f"Successfully thrown error.\nError: {err}")
 
     def test_multi_filesystem_scenario(self):
         cmd_key = self.rjObj.cluster.cmd_names["fs ls"]
@@ -113,30 +105,28 @@ class TestRadosJSON(unittest.TestCase):
             print("As we are returning silently, no error thrown as expected")
         except ext.ExecutionFailureException as err:
             self.fail(
-                "Supposed to get returned silently, but instead error thrown: {}".format(
-                    err
-                )
+                f"Supposed to get returned silently, but instead error thrown: {err}"
             )
         # pass an existing filesystem name
         try:
             self.rjObj._arg_parser.cephfs_filesystem_name = second_fs_details["name"]
             self.rjObj.get_cephfs_data_pool_details()
         except ext.ExecutionFailureException as err:
-            self.fail("Should not have thrown error: {}".format(err))
+            self.fail(f"Should not have thrown error: {err}")
         # pass a non-existing filesystem name
         try:
             self.rjObj._arg_parser.cephfs_filesystem_name += "-non-existing-fs-name"
             self.rjObj.get_cephfs_data_pool_details()
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
         # empty file-system array
         try:
             self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps([])
             self.rjObj.get_cephfs_data_pool_details()
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
 
     def test_multi_data_pool_scenario(self):
         cmd_key = self.rjObj.cluster.cmd_names["fs ls"]
@@ -145,7 +135,7 @@ class TestRadosJSON(unittest.TestCase):
         first_fs_details = cmd_json_out[0]
         new_data_pool_name = "myfs-data1"
         first_fs_details["data_pools"].append(new_data_pool_name)
-        print("Modified JSON Cmd Out: {}".format(cmd_json_out))
+        print(f"Modified JSON Cmd Out: {cmd_json_out}")
         self.rjObj._arg_parser.cephfs_data_pool_name = new_data_pool_name
         self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
         self.rjObj.get_cephfs_data_pool_details()
@@ -156,7 +146,7 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj.get_cephfs_data_pool_details()
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
         # empty data-pool scenario
         first_fs_details["data_pools"] = []
         self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
@@ -164,7 +154,7 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj.get_cephfs_data_pool_details()
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
 
     def test_valid_rgw_endpoint(self):
         self.rjObj._invalid_endpoint("10.10.212.133:8000")
@@ -173,42 +163,38 @@ class TestRadosJSON(unittest.TestCase):
             self.rjObj._invalid_endpoint("10.10.212.133:238000")
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
         # out of range IP
         try:
             self.rjObj._invalid_endpoint("10.1033.212.133:8000")
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
         # malformatted IP
         try:
             self.rjObj._invalid_endpoint("10.103..212.133:8000")
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
         try:
             self.rjObj._invalid_endpoint("10.103.212.133::8000")
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
         try:
             self.rjObj._invalid_endpoint("10.10.103.212.133:8000")
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
 
     def test_convert_fqdn_rgw_endpoint_to_ip(self):
         try:
             rgw_endpoint_ip = self.rjObj.convert_fqdn_rgw_endpoint_to_ip(
                 "www.redhat.com:80"
             )
-            print(
-                "Successfully Converted www.redhat.com to it's IP {}".format(
-                    rgw_endpoint_ip
-                )
-            )
+            print(f"Successfully Converted www.redhat.com to it's IP {rgw_endpoint_ip}")
         except ext.ExecutionFailureException as err:
-            print("Successfully thrown error: {}".format(err))
+            print(f"Successfully thrown error: {err}")
 
     def test_upgrade_user_permissions(self):
         self.rjObj = ext.RadosJSON(
@@ -250,16 +236,10 @@ class TestRadosJSON(unittest.TestCase):
             mon_ips, mon_port = self.rjObj.get_active_and_standby_mgrs()
             mon_ip = mon_ips.split(",")[0]
             if check_ip_val and check_ip_val != mon_ip:
-                self.fail(
-                    "Expected IP: {}, Returned IP: {}".format(check_ip_val, mon_ip)
-                )
+                self.fail(f"Expected IP: {check_ip_val}, Returned IP: {mon_ip}")
             if check_port_val and check_port_val != mon_port:
-                self.fail(
-                    "Expected Port: '{}', Returned Port: '{}'".format(
-                        check_port_val, mon_port
-                    )
-                )
-            print("MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
+                self.fail(f"Expected Port: {check_port_val}, Returned Port: {mon_port}")
+            print(f"MonIP: {mon_ip}, MonPort: {mon_port}")
 
         invalid_ip_ports = [
             ("10.22.31.131.43", "5334"),
@@ -279,7 +259,7 @@ class TestRadosJSON(unittest.TestCase):
                 self.rjObj._arg_parser.monitoring_endpoint_port = new_mon_port
             try:
                 mon_ip, mon_port = self.rjObj.get_active_and_standby_mgrs()
-                print("[Wrong] MonIP: {}, MonPort: {}".format(mon_ip, mon_port))
+                print(f"[Wrong] MonIP: {mon_ip}, MonPort: {mon_port}")
                 self.fail("An exception was expected")
             except ext.ExecutionFailureException as err:
-                print("Exception thrown successfully: {}".format(err))
+                print(f"Exception thrown successfully: {err}")
