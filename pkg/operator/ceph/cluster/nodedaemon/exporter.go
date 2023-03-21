@@ -71,12 +71,8 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of ceph-exporter deployment %q", deploy.Name)
 	}
 
-	configDir := path.Join(cephCluster.Spec.DataDirHostPath, cephCluster.Namespace)
-	configHostPathType := v1.HostPathDirectory
-	src := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: configDir, Type: &configHostPathType}}
 	volumes := append(
 		controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "", cephCluster.Spec.DataDirHostPath),
-		v1.Volume{Name: "ceph-conf-dir", VolumeSource: src},
 		keyring.Volume().Admin())
 
 	mutateFunc := func() error {
@@ -142,8 +138,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 
 func getCephExporterChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container {
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
-	configDir := path.Join(cephCluster.Spec.DataDirHostPath, cephCluster.Namespace)
-	mounts := append(controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath), v1.VolumeMount{Name: "ceph-conf-dir", MountPath: configDir})
+	mounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
 
 	return controller.ChownCephDataDirsInitContainer(
 		*dataPathMap,
