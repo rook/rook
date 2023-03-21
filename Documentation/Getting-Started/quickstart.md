@@ -35,7 +35,7 @@ In order to configure the Ceph storage cluster, at least one of these local stor
 A simple Rook cluster can be created with the following kubectl commands and [example manifests](https://github.com/rook/rook/blob/master/deploy/examples).
 
 ```console
-$ git clone --single-branch --branch v1.11.1 https://github.com/rook/rook.git
+$ git clone --single-branch --branch v1.11.2 https://github.com/rook/rook.git
 cd rook/deploy/examples
 kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 kubectl create -f cluster.yaml
