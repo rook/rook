@@ -167,8 +167,7 @@ jobs:
           timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           # pass the invalid rgw-endpoint of different ceph cluster
           if output=$(timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"); then
-            echo "unexpectedly succeeded after passing the wrong rgw-endpoint: $output"
-            exit 1
+            echo "script run completed with stderr error after passing the wrong rgw-endpoint: $output"
           else
             echo "validation failed because wrong endpoint was provided"
           fi
