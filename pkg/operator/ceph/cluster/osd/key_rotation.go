@@ -193,6 +193,11 @@ func (c *Cluster) makeKeyRotationCronJob(pvcName string, osd OSDInfo, osdProps o
 		return nil, err
 	}
 	c.applyResourcesToAllContainers(&podSpec.Spec, cephv1.GetOSDResources(c.spec.Resources, osd.DeviceClass))
+	schedule := c.spec.Security.KeyRotation.Schedule
+	if schedule == "" {
+		// default to rotate keyrings weekly (default is in code since default in crds causes issues)
+		schedule = "@weekly"
+	}
 	cronJob := &batch.CronJob{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        keyRotationCronJobName(osd.ID),
@@ -202,7 +207,7 @@ func (c *Cluster) makeKeyRotationCronJob(pvcName string, osd OSDInfo, osdProps o
 		},
 		Spec: batch.CronJobSpec{
 			ConcurrencyPolicy: batch.ForbidConcurrent,
-			Schedule:          c.spec.Security.KeyRotation.Schedule,
+			Schedule:          schedule,
 			JobTemplate: batch.JobTemplateSpec{
 				Spec: batch.JobSpec{
 					Template: *podSpec,
