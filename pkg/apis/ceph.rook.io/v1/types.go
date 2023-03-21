@@ -281,7 +281,6 @@ type KeyRotationSpec struct {
 	Enabled bool `json:"enabled,omitempty"`
 	// Schedule represents the cron schedule for key rotation.
 	// +optional
-	// +kubebuilder:default="@weekly"
 	Schedule string `json:"schedule,omitempty"`
 }
 

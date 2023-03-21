@@ -2561,7 +2561,6 @@ spec:
                           description: Enabled represents whether the key rotation is enabled.
                           type: boolean
                         schedule:
-                          default: '@weekly'
                           description: Schedule represents the cron schedule for key rotation.
                           type: string
                       type: object
@@ -13021,7 +13020,6 @@ spec:
                           description: Enabled represents whether the key rotation is enabled.
                           type: boolean
                         schedule:
-                          default: '@weekly'
                           description: Schedule represents the cron schedule for key rotation.
                           type: string
                       type: object
