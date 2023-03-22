@@ -517,6 +517,14 @@ data:
   #      limits:
   #        memory: 1Gi
   #        cpu: 500m
+  #  - name : csi-attacher
+  #    resource:
+  #      requests:
+  #        memory: 128Mi
+  #        cpu: 100m
+  #      limits:
+  #        memory: 256Mi
+  #        cpu: 200m
   # (Optional) CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   # CSI_NFS_PLUGIN_RESOURCE: |
@@ -584,6 +592,17 @@ data:
   # Defaults to all the labels mentioned in
   # https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/#osd-topology
   # CSI_CRUSH_LOCATION_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
+
+  # Whether to skip any attach operation altogether for CephCSI PVCs.
+  # See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
+  # If set to false it skips the volume attachments and makes the creation of pods using the CephCSI PVC fast.
+  # **WARNING** It's highly discouraged to use this for RWO volumes. for RBD PVC it can cause data corruption,
+  # csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set to false
+  # since we'll have no VolumeAttachments to determine which node the PVC is mounted on.
+  # Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
+  CSI_CEPHFS_ATTACH_REQUIRED: "true"
+  CSI_RBD_ATTACH_REQUIRED: "true"
+  CSI_NFS_ATTACH_REQUIRED: "true"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT

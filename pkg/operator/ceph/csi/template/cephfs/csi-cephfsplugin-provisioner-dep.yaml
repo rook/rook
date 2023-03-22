@@ -22,6 +22,7 @@ spec:
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
       containers:
+        {{ if .CephFSAttachRequired }}
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
@@ -33,7 +34,6 @@ spec:
             - "--leader-election-lease-duration=137s"
             - "--leader-election-renew-deadline=107s"
             - "--leader-election-retry-period=26s"
-            - "--default-fstype=ext4"
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
@@ -41,6 +41,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         {{ if .EnableCephFSSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
