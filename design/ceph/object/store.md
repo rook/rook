@@ -119,3 +119,60 @@ Specifying this section also ensures that the pool section in the ceph-object-zo
   zone:
     name: "name"
 ```
+
+### LDAP
+
+The Ceph Object Gateway supports integrating with LDAP for authenticating and creating users, please refer [here](https://docs.ceph.com/docs/master/radosgw/ldap-auth/). This means that the `rgw backend user` is also required to be part of groups in the LDAP server otherwise, authentication will fail. The `rgw backend user` can be generated from `CephObjectStoreUser` or `ObjectBucketClaim` CRDs. For the both resources credentials are saved in Kubernetes Secrets which may not be valid with `LDAP Server`, user need to follow the steps mentioned [here](https://docs.ceph.com/en/latest/radosgw/ldap-auth/#generating-an-access-token-for-ldap-authentication).The following settings need to be configured in the RGW server:
+```
+rgw ldap binddn =
+rgw ldap secret = /etc/ceph/ldap/bindpass.secret
+rgw ldap uri =
+rgw ldap searchdn =
+rgw ldap dnattr =
+rgw ldap searchfilter =
+rgw s3 auth use ldap = true
+```
+So the CRD for the Ceph Object Store will be modified to include the above changes:
+
+```yaml
+spec:
+  security
+    ldap:
+      config:
+        uri: ldaps://ldap-server:636
+        binddn: "uid=ceph,cn=users,cn=accounts,dc=example,dc=com"
+        searchdn: "cn=users,cn=accounts,dc=example,dc=com"
+        dnattr: "uid"
+        searchfilter: "memberof=cn=s3,cn=groups,cn=accounts,dc=example,dc=com"
+      credential:
+        volumeSource:
+          secret:
+            secretName: object-my-store-ldap-creds
+            defaultMode: 0600 #required
+
+```
+
+The `config` section includes options used for RGW wrt LDAP server. These options are strongly typed rather than string map approach since very less chance to modify in future.
+
+* `uri`: It specifies the address of LDAP server to use.* `binddn`: The bind domain for the service account used by RGW server.
+* `searchdn`: The search domain where can it look for the user details.
+* `dnattr`: The attribute being used in the constructed search filter to match a username, this can either be `uid` or `cn`.
+* `searchfilter`: A generic search filter. If `dnattr` is set, this filter is `&()`'d together with the automatically constructed filter.
+
+The `credential` defines where the password for accessing ldap server should be sourced from
+
+* `volumeSource`: this is a standard Kubernetes VolumeSource for the Kerberos keytab file like
+      what is normally used to configure Volumes for a Pod. For example, a Secret or HostPath.
+      There are two requirements for the source's content:
+    1. The config file must be mountable via `subPath: password`. For example, in a Secret, the
+        data item must be named `password`, or `items` must be defined to select the key and
+        give it path `password`. A HostPath directory must have the `password` file.
+    2. The volume or config file must have mode 0600.
+
+The CA bundle for ldap can be added to the `caBundleRef` option in `Gateway` settings:
+
+```yaml
+spec:
+  gateway:
+    caBundleRef: #ldaps-cabundle
+```
