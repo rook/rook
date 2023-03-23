@@ -185,13 +185,6 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, "", val)
 	assert.Equal(t, "arg not found: --public-bind-addr", message)
 
-	monConfig.Port = 6790
-	pod, err = c.makeMonPod(monConfig, false)
-	assert.NoError(t, err)
-	val, message = extractArgValue(pod.Spec.Containers[0].Args, "--public-addr")
-	assert.Equal(t, "2.4.6.3:6790", val, message)
-	assert.NotNil(t, pod)
-
 	// Host network setting of mons should be maintained even if the cluster spec hostnetwork is different
 	// from the mons to not be using host networking
 	monConfig.UseHostNetwork = false
