@@ -531,19 +531,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 
 				if matched {
 					matchedDevice = desiredDevice
-					if matchedDevice.DeviceClass == "" {
-						classNotSet := true
-						if agent.pvcBacked {
-							crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
-							if crushDeviceClass != "" {
-								matchedDevice.DeviceClass = crushDeviceClass
-								classNotSet = false
-							}
-						}
-						if classNotSet {
-							matchedDevice.DeviceClass = sys.GetDiskDeviceClass(device)
-						}
-					}
+					matchedDevice.UpdateDeviceClass(agent, device)
 					break
 				}
 			}
