@@ -196,3 +196,13 @@ func TestListDevicesChildListDevicesChild(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 3, len(child))
 }
+
+func TestGetDiskDeviceClass(t *testing.T) {
+	d := &LocalDisk{}
+	assert.Equal(t, "ssd", GetDiskDeviceClass(d))
+	d.Rotational = true
+	assert.Equal(t, "hdd", GetDiskDeviceClass(d))
+	d.Rotational = false
+	d.RealPath = "nvme"
+	assert.Equal(t, "nvme", GetDiskDeviceClass(d))
+}
