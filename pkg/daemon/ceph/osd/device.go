@@ -18,7 +18,9 @@ package osd
 
 import (
 	"encoding/json"
+	"os"
 
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -66,4 +68,30 @@ type DeviceOsdIDEntry struct {
 func (m *DeviceOsdMapping) String() string {
 	b, _ := json.Marshal(m)
 	return string(b)
+}
+
+func (d *DesiredDevice) UpdateDeviceClass(agent *OsdAgent, device *sys.LocalDisk) {
+	// Rook sets the storage class of a device with the following priority.
+	//
+	// 1. the device-level configuration
+	// 2. the global or node-local configuration
+	// 3. the default value estimated from sysfs.
+	if d.DeviceClass != "" {
+		return
+	}
+
+	if agent.pvcBacked {
+		crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
+		if crushDeviceClass != "" {
+			d.DeviceClass = crushDeviceClass
+			return
+		}
+	} else {
+		if agent.storeConfig.DeviceClass != "" {
+			d.DeviceClass = agent.storeConfig.DeviceClass
+			return
+		}
+	}
+
+	d.DeviceClass = sys.GetDiskDeviceClass(device)
 }
