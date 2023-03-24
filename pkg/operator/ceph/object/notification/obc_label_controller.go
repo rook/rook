@@ -44,7 +44,9 @@ import (
 )
 
 const (
-	notificationLabelPrefix = "bucket-notification-"
+	notificationLabelPrefix   = "bucket-notification-"
+	bucketProvisionerLabelKey = "bucket-provisioner"
+	bucketProvisionerLabelVal = "ceph.rook.io-bucket"
 )
 
 // ReconcileOBCLabels reconciles a ObjectBucketClaim labels
@@ -119,11 +121,18 @@ func (r *ReconcileOBCLabels) reconcile(request reconcile.Request) (reconcile.Res
 	if err := r.client.Get(r.opManagerContext, bucketName, &ob); err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to retrieve ObjectBucket %q", bucketName)
 	}
+
+	// validate if the bucket is provisioned by the ceph provisioner
+	if !strings.Contains(ob.Labels[bucketProvisionerLabelKey], bucketProvisionerLabelVal) {
+		logger.Debugf("ObjectBucket %q was not provisioned by the ceph object store provisioner and tagged with provisioner %q. ignoring",
+			bucketName, ob.Labels[bucketProvisionerLabelKey])
+		return reconcile.Result{}, nil
+	}
+	// validate object store name
 	objectStoreName, err := getCephObjectStoreName(ob)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get object store from ObjectBucket %q", bucketName)
 	}
-
 	// Populate clusterInfo during each reconcile
 	clusterInfo, clusterSpec, err := getReadyCluster(r.client, r.opManagerContext, *r.context, objectStoreName.Namespace)
 	if err != nil {
