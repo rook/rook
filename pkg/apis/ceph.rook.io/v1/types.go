@@ -337,6 +337,16 @@ type MonitoringSpec struct {
 	// +kubebuilder:validation:Maximum=65535
 	// +optional
 	ExternalMgrPrometheusPort uint16 `json:"externalMgrPrometheusPort,omitempty"`
+
+	// Port is the prometheus server port
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
+	// +optional
+	Port int `json:"port,omitempty"`
+
+	// Interval determines prometheus scrape interval
+	// +optional
+	Interval *metav1.Duration `json:"interval,omitempty"`
 }
 
 // ClusterStatus represents the status of a Ceph cluster

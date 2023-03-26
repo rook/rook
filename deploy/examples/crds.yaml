@@ -1865,6 +1865,14 @@ spec:
                       maximum: 65535
                       minimum: 0
                       type: integer
+                    interval:
+                      description: Interval determines prometheus scrape interval
+                      type: string
+                    port:
+                      description: Port is the prometheus server port
+                      maximum: 65535
+                      minimum: 0
+                      type: integer
                   type: object
                 network:
                   description: Network related configuration

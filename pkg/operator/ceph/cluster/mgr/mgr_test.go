@@ -446,3 +446,100 @@ func TestCluster_enableBalancerModule(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestCluster_configurePrometheusModule(t *testing.T) {
+	modulesEnabled := 0
+	modulesDisabled := 0
+	configSettings := map[string]string{}
+	lastModuleConfigured := ""
+	modulesGetOutput := ""
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if command == "ceph" && len(args) > 3 {
+				if args[0] == "mgr" && args[1] == "module" {
+					if args[2] == "enable" {
+						modulesEnabled++
+					}
+					if args[2] == "disable" {
+						modulesDisabled++
+					}
+					lastModuleConfigured = args[3]
+				}
+			}
+			return "", nil //return "{\"key\":\"mysecurekey\"}", nil
+		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "config" && args[1] == "set" && args[2] == "mgr" {
+				configSettings[args[3]] = args[4]
+			}
+			if args[0] == "config" && args[1] == "get" && args[2] == "mgr" {
+				return modulesGetOutput, nil
+			}
+			return "", nil
+		},
+	}
+
+	c := &Cluster{
+		context:     &clusterd.Context{Executor: executor, Clientset: testop.New(t, 3)},
+		clusterInfo: cephclient.AdminTestClusterInfo("mycluster"),
+		spec: cephv1.ClusterSpec{
+			Monitoring: cephv1.MonitoringSpec{
+				Enabled: false,
+			},
+		},
+	}
+	// Disable prometheus module
+	err := c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 0, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled)
+	assert.Equal(t, PrometheusModuleName, lastModuleConfigured)
+
+	// Enable prometheus module, no changed
+	modulesDisabled = 0
+	c.spec.Monitoring.Enabled = true
+	err = c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 1, modulesEnabled)
+	assert.Equal(t, 0, modulesDisabled)
+
+	// Enable prometheus module, port changed
+	modulesEnabled = 0
+	c.spec.Monitoring.Port = 30001
+	err = c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled)
+	assert.Equal(t, "30001", configSettings["mgr/prometheus/server_port"])
+	assert.Equal(t, 1, len(configSettings))
+
+	modulesEnabled = 0
+	modulesDisabled = 0
+	c.spec.Monitoring.Interval = &metav1.Duration{
+		Duration: 30 * time.Second,
+	}
+	modulesGetOutput = "30"
+	configSettings = make(map[string]string)
+	err = c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled)
+	assert.Equal(t, "30001", configSettings["mgr/prometheus/server_port"])
+	assert.Equal(t, 1, len(configSettings))
+
+	// Enable prometheus module, port and interval changed
+	modulesEnabled = 0
+	modulesDisabled = 0
+	c.spec.Monitoring.Port = 30002
+	c.spec.Monitoring.Interval = &metav1.Duration{
+		Duration: 60 * time.Second,
+	}
+	err = c.configurePrometheusModule()
+	assert.NoError(t, err)
+	assert.Equal(t, 2, modulesEnabled)
+	assert.Equal(t, 1, modulesDisabled)
+	assert.Equal(t, "30002", configSettings["mgr/prometheus/server_port"])
+	assert.Equal(t, "60", configSettings["mgr/prometheus/scrape_interval"])
+
+}
