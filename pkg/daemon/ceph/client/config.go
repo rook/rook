@@ -261,7 +261,8 @@ func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
 		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
 
 		if currentMonPort == Msgr2port {
-			monHosts = append(monHosts, fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port))
+			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
+			monHosts = append(monHosts, "[v2:"+msgr2Endpoint+"]")
 		} else {
 			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
 			msgr1Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(currentMonPort)))
