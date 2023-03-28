@@ -46,7 +46,7 @@ spec:
     sslCertificateRef:
     # The port that RGW pods will listen on (http)
     port: 80
-    # The port that RGW pods will listen on (https). An ssl certificate is required.
+    # The port that RGW pods will listen on (https). A ssl certificate is required.
     # securePort: 443
     # The number of pods in the rgw deployment
     instances: 1
