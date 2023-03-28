@@ -11,9 +11,9 @@ spec:
       - rook-ceph
   selector:
     matchLabels:
+      mgr_role: active
       app: rook-ceph-mgr
       rook_cluster: rook-ceph
-      ceph_daemon_id: a
   endpoints:
   - port: http-metrics
     path: /metrics

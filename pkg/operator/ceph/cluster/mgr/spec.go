@@ -255,8 +255,10 @@ func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Containe
 }
 
 // MakeMetricsService generates the Kubernetes service object for the monitoring service
-func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName string) (*v1.Service, error) {
-	labels := c.selectorLabels(activeDaemon)
+func (c *Cluster) MakeMetricsService(name, servicePortMetricName string) (*v1.Service, error) {
+
+	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
+	selectorLabels := c.buildSelectorLabels(labels)
 
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -278,7 +280,7 @@ func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName s
 
 	// If the cluster is external we don't need to add the selector
 	if name != controller.ExternalMgrAppName {
-		svc.Spec.Selector = labels
+		svc.Spec.Selector = selectorLabels
 	}
 
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(svc)
@@ -288,8 +290,10 @@ func (c *Cluster) MakeMetricsService(name, activeDaemon, servicePortMetricName s
 	return svc, nil
 }
 
-func (c *Cluster) makeDashboardService(name, activeDaemon string) (*v1.Service, error) {
-	labels := c.selectorLabels(activeDaemon)
+func (c *Cluster) makeDashboardService(name string) (*v1.Service, error) {
+
+	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
+	selectorLabels := c.buildSelectorLabels(labels)
 
 	portName := "https-dashboard"
 	if !c.spec.Dashboard.SSL {
@@ -302,7 +306,7 @@ func (c *Cluster) makeDashboardService(name, activeDaemon string) (*v1.Service, 
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
-			Selector: labels,
+			Selector: selectorLabels,
 			Type:     v1.ServiceTypeClusterIP,
 			Ports: []v1.ServicePort{
 				{
@@ -352,10 +356,11 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 	return envVars
 }
 
-func (c *Cluster) selectorLabels(activeDaemon string) map[string]string {
-	labels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
-	if activeDaemon != "" {
-		labels[controller.DaemonIDLabel] = activeDaemon
+func (c *Cluster) buildSelectorLabels(labels map[string]string) map[string]string {
+	selectorLabels := make(map[string]string)
+	for k, v := range labels {
+		selectorLabels[k] = v
 	}
-	return labels
+	selectorLabels["mgr_role"] = "active"
+	return selectorLabels
 }
