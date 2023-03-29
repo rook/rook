@@ -369,15 +369,20 @@ func TestMonEndpoints(t *testing.T) {
 		verifyEndpointPort(t, endpoints, "3300")
 	})
 
-	t.Run("bad endpoint", func(t *testing.T) {
+	t.Run("ipv6 endpoint conversion", func(t *testing.T) {
 		monInfo := map[string]*cephclient.MonInfo{
-			"a": {Name: "a", Endpoint: "1.2.3.4:5:6789"},
-			"b": {Name: "b", Endpoint: "1.2.3.5:6789"},
-			"c": {Name: "c", Endpoint: "1.2.3.6:6789"},
+			"a": {Name: "a", Endpoint: "[fd07:aaaa:bbbb:cccc::11]:6789"},
+			"b": {Name: "a", Endpoint: "[1234:6789:bbbb:cccc::11]:6789"},
 		}
 		endpoints := MonEndpoints(monInfo, true)
 		assert.Equal(t, 2, len(endpoints))
 		verifyEndpointPort(t, endpoints, "3300")
+		for _, endpoint := range endpoints {
+			// Verify that the v1 port inside the ipv6 address will not be replaced
+			if strings.HasPrefix(endpoint, "[1234") {
+				assert.True(t, strings.HasPrefix(endpoint, "[1234:6789"))
+			}
+		}
 	})
 }
 

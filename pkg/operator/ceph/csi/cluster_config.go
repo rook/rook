@@ -108,13 +108,10 @@ func MonEndpoints(mons map[string]*cephclient.MonInfo, requireMsgr2 bool) []stri
 		endpoint := m.Endpoint
 		if requireMsgr2 {
 			logger.Debugf("evaluating mon %q for msgr1 on endpoint %q", m.Name, m.Endpoint)
-			if strings.HasSuffix(m.Endpoint, fmt.Sprintf(":%d", client.Msgr1port)) {
-				parts := strings.Split(m.Endpoint, ":")
-				if len(parts) != 2 {
-					logger.Errorf("endpoint %q does not contain two parts to extract the port", m.Endpoint)
-					continue
-				}
-				endpoint = fmt.Sprintf("%s:%d", parts[0], client.Msgr2port)
+			msgr1Suffix := fmt.Sprintf(":%d", client.Msgr1port)
+			if strings.HasSuffix(m.Endpoint, msgr1Suffix) {
+				address := m.Endpoint[0:strings.LastIndex(m.Endpoint, msgr1Suffix)]
+				endpoint = fmt.Sprintf("%s:%d", address, client.Msgr2port)
 				logger.Debugf("mon %q will use the msgrv2 port: %q", m.Name, endpoint)
 			}
 		}
