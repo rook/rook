@@ -1,0 +1,76 @@
+name: Canary integration tests
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  lvm:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: validate-yaml
+        run: tests/scripts/github-action-helper.sh validate_yaml
+
+      - name: use local disk as OSD
+        run: |
+          BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+      - name: create LV on disk
+        run: |
+          BLOCK=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)
+          tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
+
+      - name: deploy cluster
+        run: tests/scripts/github-action-helper.sh deploy_cluster lvm
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+      - name: check-ownerreferences
+        run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: canary
+
+      - name: consider debugging
+        if: failure() && github.event_name == 'pull_request'
+        timeout-minutes: 60
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}

@@ -1,0 +1,55 @@
+name: Canary integration tests
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  encryption-pvc-kms-ibm-kp:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: run encryption KMS IBM Key Protect
+        uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
+        if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
+        env:
+          IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
+          IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
+        with:
+          ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
+          ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: upload test result
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: encryption-pvc-kms-ibm-kp
+          path: test
+
+      - name: consider debugging
+        if: failure() && github.event_name == 'pull_request'
+        timeout-minutes: 60
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
