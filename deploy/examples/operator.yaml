@@ -563,9 +563,10 @@ spec:
           image: rook/ceph:master
           args: ["ceph", "operator"]
           securityContext:
-            runAsNonRoot: true
-            runAsUser: 2016
-            runAsGroup: 2016
+            capabilities:
+              drop:
+                - ALL
+            allowPrivilegeEscalation: false
           volumeMounts:
             - mountPath: /var/lib/rook
               name: rook-config
@@ -691,4 +692,11 @@ spec:
           emptyDir: {}
         - name: webhook-cert
           emptyDir: {}
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        runAsNonRoot: true
+        fsGroup: 2000
+        seccompProfile:
+          type: RuntimeDefault
 # OLM: END OPERATOR DEPLOYMENT
