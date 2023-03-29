@@ -23,7 +23,9 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,4 +48,37 @@ func TestOSDBootstrap(t *testing.T) {
 	assert.NotEqual(t, -1, strings.Index(string(contents), "[client.bootstrap-osd]"))
 	assert.NotEqual(t, -1, strings.Index(string(contents), "key = mysecurekey"))
 	assert.NotEqual(t, -1, strings.Index(string(contents), "caps mon = \"allow profile bootstrap-osd\""))
+}
+
+func TestUpdateDeviceClass(t *testing.T) {
+	d := &DesiredDevice{}
+	agent := &OsdAgent{}
+	disk := &sys.LocalDisk{}
+
+	d.DeviceClass = "test"
+	d.UpdateDeviceClass(agent, disk)
+	assert.Equal(t, "test", d.DeviceClass)
+
+	d.DeviceClass = ""
+	agent.pvcBacked = true
+	t.Setenv(osd.CrushDeviceClassVarName, "test")
+	d.UpdateDeviceClass(agent, disk)
+	assert.Equal(t, "test", d.DeviceClass)
+
+	d.DeviceClass = ""
+	t.Setenv(osd.CrushDeviceClassVarName, "")
+	d.UpdateDeviceClass(agent, disk)
+	t.Log(d)
+	t.Log(disk)
+	assert.Equal(t, "ssd", d.DeviceClass)
+
+	d.DeviceClass = ""
+	agent.pvcBacked = false
+	d.UpdateDeviceClass(agent, disk)
+	assert.Equal(t, "ssd", d.DeviceClass)
+
+	d.DeviceClass = ""
+	agent.storeConfig.DeviceClass = "test"
+	d.UpdateDeviceClass(agent, disk)
+	assert.Equal(t, "test", d.DeviceClass)
 }
