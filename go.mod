@@ -12,7 +12,7 @@ require (
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0
-	github.com/hashicorp/vault v1.13.0
+	github.com/hashicorp/vault v1.13.1
 	github.com/hashicorp/vault-plugin-secrets-kv v0.14.3
 	github.com/hashicorp/vault/api v1.9.0
 	github.com/hashicorp/vault/sdk v0.8.1
