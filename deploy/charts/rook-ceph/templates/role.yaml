@@ -44,6 +44,7 @@ rules:
   - cronjobs
   verbs:
   - delete
+  - deletecollection
 - apiGroups:
   - cert-manager.io
   resources:
