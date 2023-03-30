@@ -945,8 +945,13 @@ github.com/hashicorp/serf v0.8.2/go.mod h1:6hOLApaqBFA1NXqRQAsxw9QxuDEvNxSQRwA/J
 github.com/hashicorp/serf v0.8.3/go.mod h1:UpNcs7fFbpKIyZaUuSW6EPiH+eZC7OuyFD+wc1oal+k=
 github.com/hashicorp/serf v0.9.7 h1:hkdgbqizGQHuU5IPqYM1JdSMV8nKfpuOnZYXssk9muY=
 github.com/hashicorp/vault v1.4.2/go.mod h1:500fLOj7p92Ys4X265LizqF78MzmHJUf1jV1zNJt060=
+<<<<<<< HEAD
 github.com/hashicorp/vault v1.12.2 h1:PwyIICn7BPEK3WwttT9JS/raCDQfAR1EvgeC4t1VfUw=
 github.com/hashicorp/vault v1.12.2/go.mod h1:8vvin/hC1qj3wIiW2TDS5nwgmkXYMf6H1Qje69OI/mw=
+=======
+github.com/hashicorp/vault v1.13.1 h1:4Q31hCWCwD2XRCwGL+9gsrCwxn6+ngToBgjT0FCTG+M=
+github.com/hashicorp/vault v1.13.1/go.mod h1:aD5a/VHOADe8hiMHx4rYJwv6W6+1WYlco/hf8MWbYaw=
+>>>>>>> 433c6bcee (build: update vault to 1.13.1)
 github.com/hashicorp/vault-plugin-auth-alicloud v0.5.5/go.mod h1:sQ+VNwPQlemgXHXikYH6onfH9gPwDZ1GUVRLz0ZvHx8=
 github.com/hashicorp/vault-plugin-auth-alicloud v0.13.0 h1:qQTzTw5qrnQurdE5nuXebltQ0JLJprxm5X8Lg4tCfd4=
 github.com/hashicorp/vault-plugin-auth-azure v0.5.6-0.20200422235613-1b5c70f9ef68/go.mod h1:RCVBsf8AJndh4c6iGZtvVZFui9SG0Bj9fnF0SodNIkw=
@@ -968,7 +973,11 @@ github.com/hashicorp/vault-plugin-auth-oci v0.5.4/go.mod h1:j05O2b9fw2Q82NxDPhHM
 github.com/hashicorp/vault-plugin-auth-oci v0.12.0 h1:7Tuj5q+rwyPm1aS1rsLg2TRo2QIrPTz1qNHGDkUvz18=
 github.com/hashicorp/vault-plugin-database-couchbase v0.8.0 h1:lDZ1OazKfSPIb1DXLbq7NCf1BZwB1cFN3OG3NedXB/s=
 github.com/hashicorp/vault-plugin-database-elasticsearch v0.5.4/go.mod h1:QjGrrxcRXv/4XkEZAlM0VMZEa3uxKAICFqDj27FP/48=
+<<<<<<< HEAD
 github.com/hashicorp/vault-plugin-database-elasticsearch v0.12.0 h1:g+jD35qUZlDcS2YWQBqXbfpMNBTvGEvRzSYjwLgWOK4=
+=======
+github.com/hashicorp/vault-plugin-database-elasticsearch v0.13.1 h1:nVO6F8V69E2fAQklh/Ds+EypVMutN4iIlt3sat9qW9M=
+>>>>>>> 433c6bcee (build: update vault to 1.13.1)
 github.com/hashicorp/vault-plugin-database-mongodbatlas v0.1.2-0.20200520204052-f840e9d4895c/go.mod h1:MP3kfr0N+7miOTZFwKv952b9VkXM4S2Q6YtQCiNKWq8=
 github.com/hashicorp/vault-plugin-database-mongodbatlas v0.8.0 h1:wx/9Dh9YGGU7GiijwRfwPFBlWdmBEdf6n2VhgTdRtJU=
 github.com/hashicorp/vault-plugin-database-redis v0.1.0 h1:fDT32ZphGdvVdenvieWb+ZjWmCOHFtZ1Qjv581BloHw=
@@ -992,8 +1001,13 @@ github.com/hashicorp/vault-plugin-secrets-kv v0.13.3/go.mod h1:ikPuEWi2rHaGQCHZu
 github.com/hashicorp/vault-plugin-secrets-mongodbatlas v0.1.2/go.mod h1:YRW9zn9NZNitRlPYNAWRp/YEdKCF/X8aOg8IYSxFT5Y=
 github.com/hashicorp/vault-plugin-secrets-mongodbatlas v0.8.0 h1:VREm+cJGUXcPCakaYVxQt8wTVqTwJclsIIk2XuqpPbs=
 github.com/hashicorp/vault-plugin-secrets-openldap v0.1.3-0.20200518214608-746aba5fead6/go.mod h1:9Cy4Jp779BjuIOhYLjEfH3M3QCUxZgPnvJ3tAOOmof4=
+<<<<<<< HEAD
 github.com/hashicorp/vault-plugin-secrets-openldap v0.9.0 h1:/6FQzNB4zjep7O14pkVOapwRJvnQ4gINGAc1Ss1IYg8=
 github.com/hashicorp/vault-plugin-secrets-terraform v0.6.0 h1:N5s1ojXyG8gBZlx6BdqE04LviR0rw4vX1dDDMdnEzX8=
+=======
+github.com/hashicorp/vault-plugin-secrets-openldap v0.10.1 h1:EN3/iEjPPmcpX9yihybQNHvewc+YoJw7aoKsio1WK5s=
+github.com/hashicorp/vault-plugin-secrets-terraform v0.7.0 h1:jgJpVKhV0Eh6EjpUEIf7VYH2D6D0xW2Lry9/3PI8hy0=
+>>>>>>> 433c6bcee (build: update vault to 1.13.1)
 github.com/hashicorp/vault/api v1.0.1/go.mod h1:AV/+M5VPDpB90arloVX0rVDUIHkONiwz5Uza9HRtpUE=
 github.com/hashicorp/vault/api v1.0.5-0.20190730042357-746c0b111519/go.mod h1:i9PKqwFko/s/aihU1uuHGh/FaQS+Xcgvd9dvnfAvQb0=
 github.com/hashicorp/vault/api v1.0.5-0.20191122173911-80fcc7907c78/go.mod h1:Uf8LaHyrYsgVgHzO2tMZKhqRGlL3UJ6XaSwW2EA1Iqo=
