@@ -104,7 +104,7 @@ func (c *Cluster) configureDashboardModules() error {
 	}
 	if hasChanged {
 		logger.Info("dashboard config has changed. restarting the dashboard module")
-		return c.restartDashboard()
+		return c.restartMgrModule(dashboardModuleName)
 	}
 	return nil
 }
@@ -303,15 +303,4 @@ func decodeSecret(secret *v1.Secret) (string, error) {
 		return "", errors.New("password not found in secret")
 	}
 	return string(password), nil
-}
-
-func (c *Cluster) restartDashboard() error {
-	logger.Info("restarting the mgr module")
-	if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
-		return errors.Wrapf(err, "failed to disable mgr module %q.", dashboardModuleName)
-	}
-	if err := client.MgrEnableModule(c.context, c.clusterInfo, dashboardModuleName, true); err != nil {
-		return errors.Wrapf(err, "failed to enable mgr module %q.", dashboardModuleName)
-	}
-	return nil
 }

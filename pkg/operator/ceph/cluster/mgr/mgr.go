@@ -20,6 +20,7 @@ package mgr
 import (
 	"fmt"
 	"path"
+	"strconv"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
 	"github.com/coreos/pkg/capnslog"
@@ -338,7 +339,7 @@ func (c *Cluster) updateServiceSelectors() {
 
 func (c *Cluster) configureModules(daemonIDs []string) {
 	// Configure the modules asynchronously so we can complete all the configuration much sooner.
-	startModuleConfiguration("prometheus", c.enablePrometheusModule)
+	startModuleConfiguration("prometheus", c.configurePrometheusModule)
 	startModuleConfiguration("dashboard", c.configureDashboardModules)
 
 	// It is a bit confusing but modules that are in the "always_on_modules" list
@@ -359,9 +360,58 @@ func startModuleConfiguration(description string, configureModules func() error)
 }
 
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
-func (c *Cluster) enablePrometheusModule() error {
-	if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, PrometheusModuleName, true); err != nil {
-		return errors.Wrap(err, "failed to enable mgr prometheus module")
+func (c *Cluster) configurePrometheusModule() error {
+	if c.spec.Monitoring.Enabled {
+		if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, PrometheusModuleName, true); err != nil {
+			return errors.Wrap(err, "failed to enable mgr prometheus module")
+		}
+	} else {
+		if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, PrometheusModuleName); err != nil {
+			logger.Errorf("failed to disable mgr prometheus module. %v", err)
+		}
+		return nil
+	}
+
+	var (
+		err                error
+		portHasChanged     bool
+		intervalHasChanged bool
+		daemonID           = "mgr"
+	)
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	// port
+	if c.spec.Monitoring.Port != 0 {
+		port := strconv.Itoa(c.spec.Monitoring.Port)
+		portHasChanged, err = monStore.SetIfChanged(daemonID, "mgr/prometheus/server_port", port)
+		if err != nil {
+			return err
+		}
+		logger.Infof("prometheus config will change, port: %s", port)
+	}
+	// scrape interval
+	if c.spec.Monitoring.Interval != nil {
+		interval := c.spec.Monitoring.Interval.Duration.Seconds()
+		intervalHasChanged, err = monStore.SetIfChanged(daemonID, "mgr/prometheus/scrape_interval", fmt.Sprintf("%v", interval))
+		if err != nil {
+			return err
+		}
+		logger.Infof("prometheus config will change, interval: %v", interval)
+	}
+
+	if portHasChanged || intervalHasChanged {
+		logger.Info("prometheus config has changed. restarting the prometheus module")
+		return c.restartMgrModule(PrometheusModuleName)
+	}
+	return nil
+}
+
+func (c *Cluster) restartMgrModule(name string) error {
+	logger.Infof("restarting the mgr module: %s", name)
+	if err := cephclient.MgrDisableModule(c.context, c.clusterInfo, name); err != nil {
+		return errors.Wrapf(err, "failed to disable mgr module %q.", name)
+	}
+	if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, name, true); err != nil {
+		return errors.Wrapf(err, "failed to enable mgr module %q.", name)
 	}
 	return nil
 }
