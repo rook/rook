@@ -45,6 +45,8 @@ spec:
     useAllNodes: true
     useAllDevices: true
     #deviceFilter:
+  monitoring:
+    enabled: false
   healthCheck:
     daemonHealth:
       mon:

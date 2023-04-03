@@ -252,6 +252,12 @@ function deploy_cluster() {
     echo "invalid argument: $*" >&2
     exit 1
   fi
+  # enable monitoring
+  yq w -i -d1 cluster-test.yaml spec.monitoring.enabled true
+  kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
+  kubectl create -f monitoring/rbac.yaml
+
+  # create the cluster resources
   kubectl create -f cluster-test.yaml
   kubectl create -f object-test.yaml
   kubectl create -f pool-test.yaml
