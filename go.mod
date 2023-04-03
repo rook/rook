@@ -22,8 +22,8 @@ require (
 	github.com/libopenstorage/secrets v0.0.0-20220823020833-2ecadaf59d8a
 	github.com/openshift/api v0.0.0-20210105115604-44119421ec6b
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.63.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.63.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.64.0
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.64.0
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2
