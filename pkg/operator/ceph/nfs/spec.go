@@ -35,10 +35,11 @@ import (
 
 const (
 	// AppName is the name of the app
-	AppName             = "rook-ceph-nfs"
-	ganeshaConfigVolume = "ganesha-config"
-	nfsPort             = 2049
-	ganeshaPid          = "/var/run/ganesha/ganesha.pid"
+	AppName               = "rook-ceph-nfs"
+	ganeshaConfigVolume   = "ganesha-config"
+	nfsPort               = 2049
+	ganeshaPid            = "/var/run/ganesha/ganesha.pid"
+	nfsGaneshaMetricsPort = 9587
 )
 
 func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemonConfig) *v1.Service {
@@ -57,6 +58,12 @@ func (r *ReconcileCephNFS) generateCephNFSService(nfs *cephv1.CephNFS, cfg daemo
 					Name:       "nfs",
 					Port:       nfsPort,
 					TargetPort: intstr.FromInt(int(nfsPort)),
+					Protocol:   v1.ProtocolTCP,
+				},
+				{
+					Name:       "nfs-metrics",
+					Port:       nfsGaneshaMetricsPort,
+					TargetPort: intstr.FromInt(int(nfsGaneshaMetricsPort)),
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
