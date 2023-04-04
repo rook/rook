@@ -65,6 +65,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ if .RBDAttachRequired }}
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
@@ -84,6 +85,7 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         {{ if .EnableRBDSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}

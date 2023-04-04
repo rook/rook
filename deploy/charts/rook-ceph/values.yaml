@@ -378,6 +378,14 @@ csi:
         limits:
           memory: 1Gi
           cpu: 500m
+    - name : csi-attacher
+      resource:
+        requests:
+          memory: 512Mi
+          cpu: 250m
+        limits:
+          memory: 1Gi
+          cpu: 500m
 
   # -- CEPH CSI NFS plugin resource requirement list
   # @default -- see values.yaml
@@ -528,6 +536,27 @@ csi:
     # in the CRUSH map.
     # @default -- labels listed [here](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology)
     crushLocationLabels:
+
+  # -- Whether to skip any attach operation altogether for CephFS PVCs. See more details
+  # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
+  # If cephFSAttachRequired is set to false it skips the volume attachments and makes the creation
+  # of pods using the CephFS PVC fast. **WARNING** It's highly discouraged to use this for
+  # CephFS RWO volumes. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
+  cephFSAttachRequired: true
+  # -- Whether to skip any attach operation altogether for RBD PVCs. See more details
+  # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
+  # If set to false it skips the volume attachments and makes the creation of pods using the RBD PVC fast.
+  # **WARNING** It's highly discouraged to use this for RWO volumes as it can cause data corruption.
+  # csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set
+  # to false since we'll have no VolumeAttachments to determine which node the PVC is mounted on.
+  # Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
+  rbdAttachRequired: true
+  # -- Whether to skip any attach operation altogether for NFS PVCs. See more details
+  # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
+  # If cephFSAttachRequired is set to false it skips the volume attachments and makes the creation
+  # of pods using the NFS PVC fast. **WARNING** It's highly discouraged to use this for
+  # NFS RWO volumes. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
+  nfsAttachRequired: true
 
 # -- Enable discovery daemon
 enableDiscoveryDaemon: false
