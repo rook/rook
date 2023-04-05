@@ -453,7 +453,7 @@ class RadosJSON:
             args_to_parse = sys.argv[1:]
         return argP.parse_args(args_to_parse)
 
-    def validate_rgw_metadata_ec_pool_name(self):
+    def validate_rbd_metadata_ec_pool_name(self):
         if self._arg_parser.rbd_metadata_ec_pool_name:
             rbd_metadata_ec_pool_name = self._arg_parser.rbd_metadata_ec_pool_name
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
@@ -1363,7 +1363,7 @@ class RadosJSON:
         self.out_map["RBD_POOL_NAME"] = self._arg_parser.rbd_data_pool_name
         self.out_map[
             "RBD_METADATA_EC_POOL_NAME"
-        ] = self.validate_rgw_metadata_ec_pool_name()
+        ] = self.validate_rbd_metadata_ec_pool_name()
         self.out_map["RGW_REALM_NAME"] = self._arg_parser.rgw_realm_name
         self.out_map["RGW_POOL_PREFIX"] = self._arg_parser.rgw_pool_prefix
         self.out_map["RGW_ENDPOINT"] = ""
