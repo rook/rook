@@ -88,11 +88,12 @@ func (c *Cluster) configureDashboardModules() error {
 		return nil
 	}
 
-	hasChanged, err := c.initializeSecureDashboard()
+	err := c.initializeSecureDashboard()
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize dashboard")
 	}
 
+	var hasChanged bool
 	for _, daemonID := range c.getDaemonIDs() {
 		changed, err := c.configureDashboardModuleSettings(daemonID)
 		if err != nil {
@@ -148,30 +149,33 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 	return hasChanged, nil
 }
 
-func (c *Cluster) initializeSecureDashboard() (bool, error) {
+func (c *Cluster) initializeSecureDashboard() error {
 	// we need to wait a short period after enabling the module before we can call the `ceph dashboard` commands.
 	time.Sleep(dashboardInitWaitTime)
 
 	password, err := c.getOrGenerateDashboardPassword()
 	if err != nil {
-		return false, errors.Wrap(err, "failed to generate a password for the ceph dashboard")
+		return errors.Wrap(err, "failed to generate a password for the ceph dashboard")
 	}
 
 	if c.spec.Dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
-			return false, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
+			return errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
 		}
 		if alreadyCreated {
-			return false, nil
+			return nil
+		}
+		if err := c.restartMgrModule(dashboardModuleName); err != nil {
+			logger.Warningf("failed to restart dashboard after generating ssl cert. %v", err)
 		}
 	}
 
 	if err := c.setLoginCredentials(password); err != nil {
-		return false, errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
+		return errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
 	}
 
-	return false, nil
+	return nil
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {
