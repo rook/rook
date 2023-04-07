@@ -7,7 +7,7 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}
   selector:
     matchLabels:
       app: rook-ceph-operator
