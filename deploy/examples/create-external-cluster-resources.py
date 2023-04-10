@@ -406,6 +406,12 @@ class RadosJSON:
             help="Ceph Manager prometheus exporter port",
         )
         output_group.add_argument(
+            "--skip-monitoring-endpoint",
+            default=False,
+            action="store_true",
+            help="Do not check for a monitoring endpoint for the Ceph cluster",
+        )
+        output_group.add_argument(
             "--rbd-metadata-ec-pool-name",
             default="",
             required=False,
@@ -710,9 +716,7 @@ class RadosJSON:
                 json_out.get("mgrmap", {}).get("services", {}).get("prometheus", "")
             )
             if not monitoring_endpoint:
-                raise ExecutionFailureException(
-                    "'prometheus' service not found, is the exporter enabled?.\n"
-                )
+                return "", ""
             # now check the stand-by mgr-s
             standby_arr = json_out.get("mgrmap", {}).get("standbys", [])
             for each_standby in standby_arr:
@@ -1388,10 +1392,13 @@ class RadosJSON:
                 self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"],
             ) = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         self.out_map["RGW_TLS_CERT"] = ""
-        (
-            self.out_map["MONITORING_ENDPOINT"],
-            self.out_map["MONITORING_ENDPOINT_PORT"],
-        ) = self.get_active_and_standby_mgrs()
+        self.out_map["MONITORING_ENDPOINT"] = ""
+        self.out_map["MONITORING_ENDPOINT_PORT"] = ""
+        if not self._arg_parser.skip_monitoring_endpoint:
+            (
+                self.out_map["MONITORING_ENDPOINT"],
+                self.out_map["MONITORING_ENDPOINT_PORT"],
+            ) = self.get_active_and_standby_mgrs()
         self.out_map["RBD_POOL_NAME"] = self._arg_parser.rbd_data_pool_name
         self.out_map[
             "RBD_METADATA_EC_POOL_NAME"
@@ -1458,15 +1465,23 @@ class RadosJSON:
                     "userKey": self.out_map["ROOK_EXTERNAL_USER_SECRET"],
                 },
             },
-            {
-                "name": "monitoring-endpoint",
-                "kind": "CephCluster",
-                "data": {
-                    "MonitoringEndpoint": self.out_map["MONITORING_ENDPOINT"],
-                    "MonitoringPort": self.out_map["MONITORING_ENDPOINT_PORT"],
-                },
-            },
         ]
+
+        # if 'MONITORING_ENDPOINT' exists, then only add 'monitoring-endpoint' to Cluster
+        if (
+            self.out_map["MONITORING_ENDPOINT"]
+            and self.out_map["MONITORING_ENDPOINT_PORT"]
+        ):
+            json_out.append(
+                {
+                    "name": "monitoring-endpoint",
+                    "kind": "CephCluster",
+                    "data": {
+                        "MonitoringEndpoint": self.out_map["MONITORING_ENDPOINT"],
+                        "MonitoringPort": self.out_map["MONITORING_ENDPOINT_PORT"],
+                    },
+                }
+            )
 
         # if 'CSI_RBD_NODE_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
         if (

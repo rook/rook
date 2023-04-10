@@ -263,3 +263,32 @@ class TestRadosJSON(unittest.TestCase):
                 self.fail("An exception was expected")
             except ext.ExecutionFailureException as err:
                 print(f"Exception thrown successfully: {err}")
+
+    def test_skip_monitoring_endpoint_no_prometheus(self):
+        cmd_key = '{"format": "json", "prefix": "status"}'
+        cmd_out = self.rjObj.cluster.cmd_output_map[cmd_key]
+        cmd_json_out = json.loads(cmd_out)
+        del cmd_json_out["mgrmap"]["services"]["prometheus"]
+        self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
+
+        endpoint, port = self.rjObj.get_active_and_standby_mgrs()
+        if endpoint != "" or port != "":
+            self.fail("Expected monitoring endpoint and port to be empty")
+
+        self.rjObj.main()
+
+        if self.rjObj.out_map["MONITORING_ENDPOINT"] != "":
+            self.fail("MONITORING_ENDPOINT should be empty")
+
+        if self.rjObj.out_map["MONITORING_ENDPOINT_PORT"] != "":
+            self.fail("MONITORING_ENDPOINT_PORT should be empty")
+
+    def test_skip_monitoring_endpoint(self):
+        self.rjObj._arg_parser.skip_monitoring_endpoint = True
+        self.rjObj.main()
+
+        if self.rjObj.out_map["MONITORING_ENDPOINT"] != "":
+            self.fail("MONITORING_ENDPOINT should be empty")
+
+        if self.rjObj.out_map["MONITORING_ENDPOINT_PORT"] != "":
+            self.fail("MONITORING_ENDPOINT_PORT should be empty")
