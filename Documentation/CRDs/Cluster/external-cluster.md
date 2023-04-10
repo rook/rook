@@ -39,6 +39,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
 - `--format bash`: The format of the output
 - `--rbd-data-pool-name`: The name of the RBD data pool
+- `--alias-rbd-data-pool-name`: Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore
 - `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>`
 - `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
 - `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
