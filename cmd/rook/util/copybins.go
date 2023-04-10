@@ -37,8 +37,9 @@ binary to a Kubernetes EmptyDir volume mounted at the given directory in a pod's
 init container. From the pod's main container, mount the volume which now
 contains the 'rook' binary, and call 'rook cmd-reporter run' from
 'rook' in order to run the desired command from a non-Rook container.`,
-	Args: cobra.NoArgs,
-	RunE: runCopyBins,
+	Args:   cobra.NoArgs,
+	RunE:   runCopyBins,
+	Hidden: true, // do not advertise to end users
 }
 
 func init() {
