@@ -145,9 +145,10 @@ The following table lists the configurable parameters of the rook-operator chart
 | `pspEnable` | If true, create & use PSP resources | `false` |
 | `rbacEnable` | If true, create & use RBAC resources | `true` |
 | `resources` | Pod resource requests & limits | `{"limits":{"cpu":"500m","memory":"512Mi"},"requests":{"cpu":"100m","memory":"128Mi"}}` |
+| `scaleDownOperator` | If true, scale down the rook operator. This is useful for administrative actions where the rook operator must be scaled down, while using gitops style tooling to deploy your helm charts. | `false` |
 | `tolerations` | List of Kubernetes [`tolerations`](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) to add to the Deployment. | `[]` |
 | `unreachableNodeTolerationSeconds` | Delay to use for the `node.kubernetes.io/unreachable` pod failure toleration to override the Kubernetes default of 5 minutes | `5` |
-| `useOperatorHostNetwork` | if true, run rook operator on the host network | `nil` |
+| `useOperatorHostNetwork` | If true, run rook operator on the host network | `nil` |
 
 [^1]: `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 
