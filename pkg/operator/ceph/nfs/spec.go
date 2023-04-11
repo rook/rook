@@ -147,11 +147,6 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		// connecting to the krb server. give all ganesha servers the same hostname so they can all
 		// use the same krb credentials to auth
 		Hostname: fmt.Sprintf("%s-%s", nfs.Namespace, nfs.Name),
-		DNSConfig: &v1.PodDNSConfig{
-			// for getaddrinfo() to get the hostname defined above, need to add localhost to
-			// searches in resolv.conf
-			Searches: []string{"localhost"},
-		},
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
