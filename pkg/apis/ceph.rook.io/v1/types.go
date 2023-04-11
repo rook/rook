@@ -2207,6 +2207,10 @@ type MultiClusterServiceSpec struct {
 	// like Globalnet Submariner.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+
+	// ClusterID uniquely identifies a cluster. It is used as a prefix to nslookup exported
+	// services. For example: <clusterid>.<svc>.<ns>.svc.clusterset.local
+	ClusterID string `json:"clusterID,omitempty"`
 }
 type ConnectionsSpec struct {
 	// Encryption settings for the network connections.

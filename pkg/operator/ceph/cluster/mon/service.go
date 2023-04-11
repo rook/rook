@@ -75,7 +75,7 @@ func (c *Cluster) createService(mon *monConfig) (*v1.Service, error) {
 
 func (c *Cluster) exportService(service *v1.Service, monDaemon string) (string, error) {
 	logger.Infof("exporting service %q", service.Name)
-	exportedIP, err := k8sutil.ExportService(c.ClusterInfo.Context, c.context, service)
+	exportedIP, err := k8sutil.ExportService(c.ClusterInfo.Context, c.context, service, c.spec.Network.MultiClusterService.ClusterID)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to export service %q", service.Name)
 	}
