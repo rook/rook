@@ -485,7 +485,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			return nil, errors.Wrapf(err, "failed to configure osd service for osd.%d", osd.ID)
 		}
 
-		exportedIP, err := k8sutil.ExportService(c.clusterInfo.Context, c.context, osdService)
+		exportedIP, err := k8sutil.ExportService(c.clusterInfo.Context, c.context, osdService, c.spec.Network.MultiClusterService.ClusterID)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to export service %q", osdService.Name)
 		}
