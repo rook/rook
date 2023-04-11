@@ -161,7 +161,7 @@ spec:
     enable: true
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.5 # Should match external cluster version
+    image: quay.io/ceph/ceph:v17.2.6 # Should match external cluster version
 ```
 
 ##  Exporting Rook to another cluster
