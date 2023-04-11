@@ -1920,6 +1920,9 @@ spec:
                     multiClusterService:
                       description: Enable multiClusterService to export the Services between peer clusters
                       properties:
+                        clusterID:
+                          description: 'ClusterID uniquely identifies a cluster. It is used as a prefix to nslookup exported services. For example: <clusterid>.<svc>.<ns>.svc.clusterset.local'
+                          type: string
                         enabled:
                           description: Enable multiClusterService to export the mon and OSD services to peer cluster. Ensure that peer clusters are connected using an MCS API compatible application, like Globalnet Submariner.
                           type: boolean
