@@ -370,6 +370,12 @@ class RadosJSON:
             help="Provides the name of the RBD datapool",
         )
         output_group.add_argument(
+            "--alias-rbd-data-pool-name",
+            default="",
+            required=False,
+            help="Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore",
+        )
+        output_group.add_argument(
             "--rgw-endpoint",
             default="",
             required=False,
@@ -816,6 +822,30 @@ class RadosJSON:
 
         return caps, entity
 
+    def get_entity(self, entity, rbd_pool_name, alias_rbd_pool_name, cluster_name):
+        if (
+            rbd_pool_name.count(".") != 0
+            or rbd_pool_name.count("_") != 0
+            or alias_rbd_pool_name != ""
+            # checking alias_rbd_pool_name is not empty as there maybe a special character used other than . or _
+        ):
+            if alias_rbd_pool_name == "":
+                raise ExecutionFailureException(
+                    "please set the '--alias-rbd-data-pool-name' flag as the rbd data pool name contains '.' or '_'"
+                )
+            if (
+                alias_rbd_pool_name.count(".") != 0
+                or alias_rbd_pool_name.count("_") != 0
+            ):
+                raise ExecutionFailureException(
+                    "'--alias-rbd-data-pool-name' flag value should not contain '.' or '_'"
+                )
+            entity = f"{entity}-{cluster_name}-{alias_rbd_pool_name}"
+        else:
+            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+
+        return entity
+
     def get_rbd_provisioner_caps_and_entity(self):
         entity = "client.csi-rbd-provisioner"
         caps = {
@@ -825,12 +855,15 @@ class RadosJSON:
         }
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
+            alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
             if rbd_pool_name == "" or cluster_name == "":
                 raise ExecutionFailureException(
                     "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
                 )
-            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+            entity = self.get_entity(
+                entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
+            )
             caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
         return caps, entity
@@ -843,12 +876,11 @@ class RadosJSON:
         }
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
+            alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
-            if rbd_pool_name == "" or cluster_name == "":
-                raise ExecutionFailureException(
-                    "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
-                )
-            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+            entity = self.get_entity(
+                entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
+            )
             caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
         return caps, entity
