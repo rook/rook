@@ -19,6 +19,7 @@ package notification
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -28,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
 	"github.com/rook/rook/pkg/operator/ceph/object/topic"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
@@ -67,6 +69,11 @@ type ReconcileNotifications struct {
 // Add creates a new CephBucketNotification controller and a new ObjectBucketClaim Controller and adds it to the Manager.
 // The Manager will set fields on the Controller and start it when the Manager is started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	if os.Getenv(object.DisableOBCEnvVar) == "true" {
+		logger.Info("skip running Object Bucket Notification controller")
+		return nil
+	}
+
 	if err := addNotificationReconciler(mgr, &ReconcileNotifications{
 		client:           mgr.GetClient(),
 		context:          context,
