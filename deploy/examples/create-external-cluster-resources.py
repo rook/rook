@@ -441,6 +441,18 @@ class RadosJSON:
             required=False,
             help="provides the name of the rgw-realm",
         )
+        output_group.add_argument(
+            "--rgw-zone-name",
+            default="",
+            required=False,
+            help="provides the name of the rgw-zone",
+        )
+        output_group.add_argument(
+            "--rgw-zonegroup-name",
+            default="",
+            required=False,
+            help="provides the name of the rgw-zonegroup",
+        )
 
         upgrade_group = argP.add_argument_group("upgrade")
         upgrade_group.add_argument(
@@ -1110,6 +1122,10 @@ class RadosJSON:
             "buckets=*;users=*;usage=read;metadata=read;zone=read",
             "--rgw-realm",
             self._arg_parser.rgw_realm_name,
+            "--rgw-zonegroup",
+            self._arg_parser.rgw_zonegroup_name,
+            "--rgw-zone",
+            self._arg_parser.rgw_zone_name,
         ]
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + " ".join(cmd))
@@ -1277,7 +1293,7 @@ class RadosJSON:
 
         return r1["info"]["storage_backends"][0]["cluster_id"], ""
 
-    def validate_rgw_endpoint(self):
+    def validate_rgw_endpoint(self, info_cap_supported):
         # if the 'cluster' instance is a dummy one,
         # don't try to reach out to the endpoint
         if isinstance(self.cluster, DummyRados):
@@ -1293,15 +1309,17 @@ class RadosJSON:
             return "-1"
 
         # check if the rgw endpoint is valid and belongs to the same cluster
-        fsid = self.get_fsid()
-        rgw_fsid, err = self.get_rgw_fsid(base_url, verify)
-        if err == "-1":
-            return "-1"
-        if fsid != rgw_fsid:
-            sys.stderr.write(
-                f"The provided rgw Endpoint, '{self._arg_parser.rgw_endpoint}', is invalid. We are validating by calling the adminops api through rgw-endpoint and validating the cluster_id '{rgw_fsid}' is equal to the ceph cluster fsid '{fsid}'"
-            )
-            return "-1"
+        # only check if info cap is supported
+        if info_cap_supported:
+            fsid = self.get_fsid()
+            rgw_fsid, err = self.get_rgw_fsid(base_url, verify)
+            if err == "-1":
+                return "-1"
+            if fsid != rgw_fsid:
+                sys.stderr.write(
+                    f"The provided rgw Endpoint, '{self._arg_parser.rgw_endpoint}', is invalid. We are validating by calling the adminops api through rgw-endpoint and validating the cluster_id '{rgw_fsid}' is equal to the ceph cluster fsid '{fsid}'"
+                )
+                return "-1"
 
         # check if the rgw endpoint exist
         # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
@@ -1312,22 +1330,22 @@ class RadosJSON:
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.control",
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.log",
             ]
-            if not self.cluster.pool_exists(self._arg_parser.rgw_pool_to_validate):
+            if not self.cluster.pool_exists(rgw_pool_to_validate):
                 sys.stderr.write(
-                    f"The provided pool, '{self._arg_parser.rgw_pool_to_validate}', does not exist"
+                    f"The provided pool, '{rgw_pool_to_validate}', does not exist"
                 )
                 return "-1"
 
         return ""
 
-    def validate_rgw_realm_name(self):
-        if self._arg_parser.rgw_realm_name != "":
+    def validate_rgw_multisite(self, rgw_multisite_config, rgw_multisite_config_flag):
+        if rgw_multisite_config != "":
             cmd = [
                 "radosgw-admin",
                 "realm",
                 "get",
-                "--rgw-realm",
-                self._arg_parser.rgw_realm_name,
+                rgw_multisite_config_flag,
+                rgw_multisite_config,
             ]
             try:
                 _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -1336,7 +1354,9 @@ class RadosJSON:
                     f"failed to execute command {cmd}. Output: {execErr.output}. "
                     f"Code: {execErr.returncode}. Error: {execErr.stderr}"
                 )
-                raise Exception(err_msg)
+                sys.stderr.write(err_msg)
+                return "-1"
+        return ""
 
     def _gen_output_map(self):
         if self.out_map:
@@ -1351,7 +1371,6 @@ class RadosJSON:
         self.validate_rbd_pool()
         self.validate_rados_namespace()
         self.validate_subvolume_group()
-        self.validate_rgw_realm_name()
         self._excluded_keys.add("CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
@@ -1403,21 +1422,28 @@ class RadosJSON:
         self.out_map[
             "RBD_METADATA_EC_POOL_NAME"
         ] = self.validate_rbd_metadata_ec_pool_name()
-        self.out_map["RGW_REALM_NAME"] = self._arg_parser.rgw_realm_name
         self.out_map["RGW_POOL_PREFIX"] = self._arg_parser.rgw_pool_prefix
         self.out_map["RGW_ENDPOINT"] = ""
         if self._arg_parser.rgw_endpoint:
             if self._arg_parser.dry_run:
                 self.create_rgw_admin_ops_user()
             else:
+                err = self.validate_rgw_multisite(
+                    self._arg_parser.rgw_realm_name, "--rgw-realm"
+                )
+                err = self.validate_rgw_multisite(
+                    self._arg_parser.rgw_zonegroup_name, "--rgw-zonegroup"
+                )
+                err = self.validate_rgw_multisite(
+                    self._arg_parser.rgw_zone_name, "--rgw-zone"
+                )
                 (
                     self.out_map["RGW_ADMIN_OPS_USER_ACCESS_KEY"],
                     self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"],
                     info_cap_supported,
                     err,
                 ) = self.create_rgw_admin_ops_user()
-                if info_cap_supported:
-                    err = self.validate_rgw_endpoint()
+                err = self.validate_rgw_endpoint(info_cap_supported)
                 if self._arg_parser.rgw_tls_cert_path:
                     self.out_map["RGW_TLS_CERT"] = self.validate_rgw_endpoint_tls_cert()
                 # if there is no error, set the RGW_ENDPOINT
