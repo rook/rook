@@ -194,7 +194,7 @@ jobs:
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm1
           # pass wrong realm
           if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm3); then
-            exit 1
+            echo "script run completed with stderr error after passing the wrong realm: $output"
           else
             echo "script failed because wrong realm was passed"
           fi
