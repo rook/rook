@@ -47,6 +47,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool, used for creating ECRBDStorageClass.
 - `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)
 - `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
+- `--skip-monitoring-endpoint`: (optional) Skip prometheus exporter endpoints, even if they are available. Useful if the prometheus module is not enabled
 - `--ceph-conf`: (optional) Provide a Ceph conf file
 - `--cluster-name`: (optional) Ceph cluster name
 - `--output`: (optional) Output will be stored into the provided file
