@@ -115,7 +115,7 @@ $ ceph osd down osd.<ID>
 ### Purge the OSD with Krew
 
 !!! note
-The `rook-ceph` Krew plugin must be [installed(https://github.com/rook/kubectl-rook-ceph#install)
+    The `rook-ceph` Krew plugin must be [installed](https://github.com/rook/kubectl-rook-ceph#install)
 
 ```bash
 kubectl rook-ceph rook purge-osd 0 --force
