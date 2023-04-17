@@ -15,7 +15,7 @@ require (
 	github.com/hashicorp/vault v1.13.1
 	github.com/hashicorp/vault-plugin-secrets-kv v0.14.3
 	github.com/hashicorp/vault/api v1.9.0
-	github.com/hashicorp/vault/sdk v0.8.1
+	github.com/hashicorp/vault/sdk v0.9.0
 	github.com/jetstack/cert-manager v1.7.3
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.3.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
