@@ -600,3 +600,15 @@ cephObjectStores:
       parameters:
         # note: objectStoreNamespace and objectStoreName are configured by the chart
         region: us-east-1
+    ingress:
+      # Enable an ingress for the ceph-objectstore
+      enabled: false
+      # annotations: {}
+      # host:
+      #   name: objectstore.example.com
+      #   path: /
+      # tls:
+      # - hosts:
+      #     - objectstore.example.com
+      #   secretName: ceph-objectstore-tls
+      # ingressClassName: nginx
