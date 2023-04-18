@@ -110,6 +110,12 @@ The `cephObjectStores` array in the values file will define a list of CephObject
 | `storageClass.name` | The name of the storage class | `ceph-bucket` |
 | `storageClass.parameters` | See [Object Store storage class](../Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-claim.md) documentation or the helm values.yaml for suitable values | see values.yaml |
 | `storageClass.reclaimPolicy` | The default [Reclaim Policy](https://kubernetes.io/docs/concepts/storage/storage-classes/#reclaim-policy) to apply to PVCs created with this storage class. | `Delete` |
+| `ingress.enabled` | Enable an ingress for the object store | `false` |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.host.name` | Ingress hostname | `""` |
+| `ingress.host.path` | Ingress path prefix | `/` |
+| `ingress.tls` | Ingress tls | `/` |
+| `ingress.ingressClassName` | Ingress tls | `""` |
 
 ### **Existing Clusters**
 
