@@ -72,12 +72,14 @@ func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSp
 }
 
 func addKerberosConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSpec) {
-	init, volume, ganeshaMount := generateKrbConfResources(r, nfs)
+	init, volume, ganeshaMounts := generateKrbConfResources(r, nfs)
 
 	pod.InitContainers = append(pod.InitContainers, *init)
 	pod.Volumes = append(pod.Volumes, *volume)
 	// assume the first container is the NFS-Ganesha container
-	pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, *ganeshaMount)
+	for _, m := range ganeshaMounts {
+		pod.Containers[0].VolumeMounts = append(pod.Containers[0].VolumeMounts, *m)
+	}
 
 	configVolSrc := nfs.Spec.Security.Kerberos.ConfigFiles.VolumeSource
 	if configVolSrc != nil {
@@ -187,9 +189,10 @@ ls --all --recursive /tmp/var/lib/sss/pipes`,
 func generateKrbConfResources(r *ReconcileCephNFS, nfs *cephv1.CephNFS) (
 	init *v1.Container,
 	volume *v1.Volume, // add these volumes to the pod
-	ganeshaMount *v1.VolumeMount, // add these volume mounts to the nfs-ganesha container
+	ganeshaMounts []*v1.VolumeMount, // add these volume mounts to the nfs-ganesha container
 ) {
 	generatedKrbConfVolName := "generated-krb5-conf"
+	kerberosDomainName := nfs.Spec.Security.Kerberos.DomainName
 
 	volume = &v1.Volume{
 		Name: generatedKrbConfVolName,
@@ -197,10 +200,28 @@ func generateKrbConfResources(r *ReconcileCephNFS, nfs *cephv1.CephNFS) (
 			EmptyDir: &v1.EmptyDirVolumeSource{},
 		},
 	}
-	ganeshaMount = &v1.VolumeMount{
+	krbConfMount := &v1.VolumeMount{
 		Name:      generatedKrbConfVolName,
 		MountPath: "/etc/krb5.conf",
 		SubPath:   "krb5.conf",
+	}
+	ganeshaMounts = append(ganeshaMounts, krbConfMount)
+
+	domainNameCommand := ""
+	domainName := nfs.Spec.Security.Kerberos.DomainName
+	if domainName != "" {
+		domainNameCommand = `
+cat << EOF > /tmp/etc/idmapd.conf
+[General]
+Domain = ` + kerberosDomainName + `
+EOF
+cat /etc/idmapd.conf`
+		idmapdConfMount := &v1.VolumeMount{
+			Name:      generatedKrbConfVolName,
+			MountPath: "/etc/idmapd.conf",
+			SubPath:   "idmapd.conf",
+		}
+		ganeshaMounts = append(ganeshaMounts, idmapdConfMount)
 	}
 
 	// the init container is needed to copy the starting content from the /var/lib/sss/pipes
@@ -216,7 +237,8 @@ default = STDERR
 
 includedir /etc/krb5.conf.rook/
 EOF
-cat /tmp/etc/krb5.conf`,
+cat /tmp/etc/krb5.conf
+` + domainNameCommand,
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{Name: generatedKrbConfVolName, MountPath: "/tmp/etc"},
@@ -225,7 +247,7 @@ cat /tmp/etc/krb5.conf`,
 		Resources: nfs.Spec.Server.Resources,
 	}
 
-	return init, volume, ganeshaMount
+	return init, volume, ganeshaMounts
 }
 
 func sssdConfigVolAndMount(volSource v1.VolumeSource) (v1.Volume, v1.VolumeMount) {
