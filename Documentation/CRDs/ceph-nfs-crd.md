@@ -55,6 +55,7 @@ spec:
   security:
     kerberos:
       principalName: "nfs"
+      domainName: "DOMAIN1.EXAMPLE.COM"
 
       configFiles:
         volumeSource:
@@ -114,6 +115,11 @@ The `security` spec sets security configuration for the NFS cluster.
     determine the full service principal name: `<principalName>/<namespace>-<name>@<realm>`.
     e.g., nfs/rook-ceph-my-nfs@example.net. For full details, see the
     [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#nfs-service-principals).
+  * `domainName`: this is the domain name used in the kerberos credentials. This is used to
+    configure idmap to map the kerberos credentials to uid/gid. Without this configured, NFS-Ganesha
+    will use the anonuid/anongid configured (default: -2) when accessing the local filesystem.
+    eg., DOMAIN1.EXAMPLE.COM.
+    [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#kerberos-domain-name).
   * `configFiles`: defines where the Kerberos configuration should be sourced from. Config
     files will be placed into the `/etc/krb5.conf.rook/` directory. For advanced usage, see the
     [NFS security doc](../Storage-Configuration/NFS/nfs-security.md#kerberos-configuration).
