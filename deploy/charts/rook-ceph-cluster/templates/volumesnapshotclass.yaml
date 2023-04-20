@@ -3,11 +3,7 @@
 
 ---
 {{- if default false $filesystemvsc.enabled }}
-{{- if .Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
 apiVersion: snapshot.storage.k8s.io/v1
-{{- else  }}
-apiVersion: snapshot.storage.k8s.io/v1beta1
-{{- end }}
 kind: VolumeSnapshotClass
 metadata:
   name: {{ $filesystemvsc.name }}
@@ -33,11 +29,7 @@ deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
 
 ---
 {{- if default false $blockpoolvsc.enabled }}
-{{- if .Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
 apiVersion: snapshot.storage.k8s.io/v1
-{{- else  }}
-apiVersion: snapshot.storage.k8s.io/v1beta1
-{{- end }}
 kind: VolumeSnapshotClass
 metadata:
   name: {{ $blockpoolvsc.name }}

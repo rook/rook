@@ -62,8 +62,12 @@ function test_demo_osd {
 }
 
 function test_demo_rgw {
-  # shellcheck disable=SC2046
-  return $(wait_for_daemon "$EXEC_COMMAND -s | grep -sq 'rgw:'")
+    timeout 360 bash -x <<-'EOF'
+    until [[ "$(kubectl -n rook-ceph get pods -l app=rook-ceph-rgw -o 'jsonpath={..status.conditions[?(@.type=="Ready")].status}')" == "True" ]]; do
+      echo "waiting for rgw pods to be ready"
+      sleep 5
+    done
+EOF
 }
 
 function test_demo_mds {

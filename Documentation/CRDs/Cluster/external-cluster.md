@@ -39,6 +39,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
 - `--format bash`: The format of the output
 - `--rbd-data-pool-name`: The name of the RBD data pool
+- `--alias-rbd-data-pool-name`: Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore
 - `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>`
 - `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
 - `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
@@ -46,6 +47,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool, used for creating ECRBDStorageClass.
 - `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)
 - `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
+- `--skip-monitoring-endpoint`: (optional) Skip prometheus exporter endpoints, even if they are available. Useful if the prometheus module is not enabled
 - `--ceph-conf`: (optional) Provide a Ceph conf file
 - `--cluster-name`: (optional) Ceph cluster name
 - `--output`: (optional) Output will be stored into the provided file
@@ -57,6 +59,8 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a RadosNamespaces
 - `--subvolume-group`: (optional) Provides the name of the subvolume group, used for creating CephFS PVC in a subvolumeGroup
 - `--rgw-realm-name`: (optional) Provides the name of the rgw-realm
+- `--rgw-zone-name`: (optional) Provides the name of the rgw-zone
+- `--rgw-zonegroup-name`: (optional) Provides the name of the rgw-zone-group
 - `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
 - `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 
@@ -162,7 +166,7 @@ spec:
     enable: true
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.5 # Should match external cluster version
+    image: quay.io/ceph/ceph:v17.2.6 # Should match external cluster version
 ```
 
 ##  Exporting Rook to another cluster

@@ -370,6 +370,12 @@ class RadosJSON:
             help="Provides the name of the RBD datapool",
         )
         output_group.add_argument(
+            "--alias-rbd-data-pool-name",
+            default="",
+            required=False,
+            help="Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore",
+        )
+        output_group.add_argument(
             "--rgw-endpoint",
             default="",
             required=False,
@@ -398,6 +404,12 @@ class RadosJSON:
             default="",
             required=False,
             help="Ceph Manager prometheus exporter port",
+        )
+        output_group.add_argument(
+            "--skip-monitoring-endpoint",
+            default=False,
+            action="store_true",
+            help="Do not check for a monitoring endpoint for the Ceph cluster",
         )
         output_group.add_argument(
             "--rbd-metadata-ec-pool-name",
@@ -429,6 +441,18 @@ class RadosJSON:
             required=False,
             help="provides the name of the rgw-realm",
         )
+        output_group.add_argument(
+            "--rgw-zone-name",
+            default="",
+            required=False,
+            help="provides the name of the rgw-zone",
+        )
+        output_group.add_argument(
+            "--rgw-zonegroup-name",
+            default="",
+            required=False,
+            help="provides the name of the rgw-zonegroup",
+        )
 
         upgrade_group = argP.add_argument_group("upgrade")
         upgrade_group.add_argument(
@@ -453,7 +477,7 @@ class RadosJSON:
             args_to_parse = sys.argv[1:]
         return argP.parse_args(args_to_parse)
 
-    def validate_rgw_metadata_ec_pool_name(self):
+    def validate_rbd_metadata_ec_pool_name(self):
         if self._arg_parser.rbd_metadata_ec_pool_name:
             rbd_metadata_ec_pool_name = self._arg_parser.rbd_metadata_ec_pool_name
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
@@ -704,9 +728,7 @@ class RadosJSON:
                 json_out.get("mgrmap", {}).get("services", {}).get("prometheus", "")
             )
             if not monitoring_endpoint:
-                raise ExecutionFailureException(
-                    "'prometheus' service not found, is the exporter enabled?.\n"
-                )
+                return "", ""
             # now check the stand-by mgr-s
             standby_arr = json_out.get("mgrmap", {}).get("standbys", [])
             for each_standby in standby_arr:
@@ -816,6 +838,30 @@ class RadosJSON:
 
         return caps, entity
 
+    def get_entity(self, entity, rbd_pool_name, alias_rbd_pool_name, cluster_name):
+        if (
+            rbd_pool_name.count(".") != 0
+            or rbd_pool_name.count("_") != 0
+            or alias_rbd_pool_name != ""
+            # checking alias_rbd_pool_name is not empty as there maybe a special character used other than . or _
+        ):
+            if alias_rbd_pool_name == "":
+                raise ExecutionFailureException(
+                    "please set the '--alias-rbd-data-pool-name' flag as the rbd data pool name contains '.' or '_'"
+                )
+            if (
+                alias_rbd_pool_name.count(".") != 0
+                or alias_rbd_pool_name.count("_") != 0
+            ):
+                raise ExecutionFailureException(
+                    "'--alias-rbd-data-pool-name' flag value should not contain '.' or '_'"
+                )
+            entity = f"{entity}-{cluster_name}-{alias_rbd_pool_name}"
+        else:
+            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+
+        return entity
+
     def get_rbd_provisioner_caps_and_entity(self):
         entity = "client.csi-rbd-provisioner"
         caps = {
@@ -825,12 +871,15 @@ class RadosJSON:
         }
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
+            alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
             if rbd_pool_name == "" or cluster_name == "":
                 raise ExecutionFailureException(
                     "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
                 )
-            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+            entity = self.get_entity(
+                entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
+            )
             caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
         return caps, entity
@@ -843,12 +892,11 @@ class RadosJSON:
         }
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
+            alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
-            if rbd_pool_name == "" or cluster_name == "":
-                raise ExecutionFailureException(
-                    "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
-                )
-            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+            entity = self.get_entity(
+                entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
+            )
             caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
         return caps, entity
@@ -1074,6 +1122,10 @@ class RadosJSON:
             "buckets=*;users=*;usage=read;metadata=read;zone=read",
             "--rgw-realm",
             self._arg_parser.rgw_realm_name,
+            "--rgw-zonegroup",
+            self._arg_parser.rgw_zonegroup_name,
+            "--rgw-zone",
+            self._arg_parser.rgw_zone_name,
         ]
         if self._arg_parser.dry_run:
             return self.dry_run("ceph " + " ".join(cmd))
@@ -1241,7 +1293,7 @@ class RadosJSON:
 
         return r1["info"]["storage_backends"][0]["cluster_id"], ""
 
-    def validate_rgw_endpoint(self):
+    def validate_rgw_endpoint(self, info_cap_supported):
         # if the 'cluster' instance is a dummy one,
         # don't try to reach out to the endpoint
         if isinstance(self.cluster, DummyRados):
@@ -1257,15 +1309,17 @@ class RadosJSON:
             return "-1"
 
         # check if the rgw endpoint is valid and belongs to the same cluster
-        fsid = self.get_fsid()
-        rgw_fsid, err = self.get_rgw_fsid(base_url, verify)
-        if err == "-1":
-            return "-1"
-        if fsid != rgw_fsid:
-            sys.stderr.write(
-                f"The provided rgw Endpoint, '{self._arg_parser.rgw_endpoint}', is invalid. We are validating by calling the adminops api through rgw-endpoint and validating the cluster_id '{rgw_fsid}' is equal to the ceph cluster fsid '{fsid}'"
-            )
-            return "-1"
+        # only check if info cap is supported
+        if info_cap_supported:
+            fsid = self.get_fsid()
+            rgw_fsid, err = self.get_rgw_fsid(base_url, verify)
+            if err == "-1":
+                return "-1"
+            if fsid != rgw_fsid:
+                sys.stderr.write(
+                    f"The provided rgw Endpoint, '{self._arg_parser.rgw_endpoint}', is invalid. We are validating by calling the adminops api through rgw-endpoint and validating the cluster_id '{rgw_fsid}' is equal to the ceph cluster fsid '{fsid}'"
+                )
+                return "-1"
 
         # check if the rgw endpoint exist
         # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
@@ -1276,22 +1330,22 @@ class RadosJSON:
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.control",
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.log",
             ]
-            if not self.cluster.pool_exists(self._arg_parser.rgw_pool_to_validate):
+            if not self.cluster.pool_exists(rgw_pool_to_validate):
                 sys.stderr.write(
-                    f"The provided pool, '{self._arg_parser.rgw_pool_to_validate}', does not exist"
+                    f"The provided pool, '{rgw_pool_to_validate}', does not exist"
                 )
                 return "-1"
 
         return ""
 
-    def validate_rgw_realm_name(self):
-        if self._arg_parser.rgw_realm_name != "":
+    def validate_rgw_multisite(self, rgw_multisite_config, rgw_multisite_config_flag):
+        if rgw_multisite_config != "":
             cmd = [
                 "radosgw-admin",
                 "realm",
                 "get",
-                "--rgw-realm",
-                self._arg_parser.rgw_realm_name,
+                rgw_multisite_config_flag,
+                rgw_multisite_config,
             ]
             try:
                 _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -1300,7 +1354,9 @@ class RadosJSON:
                     f"failed to execute command {cmd}. Output: {execErr.output}. "
                     f"Code: {execErr.returncode}. Error: {execErr.stderr}"
                 )
-                raise Exception(err_msg)
+                sys.stderr.write(err_msg)
+                return "-1"
+        return ""
 
     def _gen_output_map(self):
         if self.out_map:
@@ -1315,7 +1371,6 @@ class RadosJSON:
         self.validate_rbd_pool()
         self.validate_rados_namespace()
         self.validate_subvolume_group()
-        self.validate_rgw_realm_name()
         self._excluded_keys.add("CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
@@ -1356,29 +1411,39 @@ class RadosJSON:
                 self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"],
             ) = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
         self.out_map["RGW_TLS_CERT"] = ""
-        (
-            self.out_map["MONITORING_ENDPOINT"],
-            self.out_map["MONITORING_ENDPOINT_PORT"],
-        ) = self.get_active_and_standby_mgrs()
+        self.out_map["MONITORING_ENDPOINT"] = ""
+        self.out_map["MONITORING_ENDPOINT_PORT"] = ""
+        if not self._arg_parser.skip_monitoring_endpoint:
+            (
+                self.out_map["MONITORING_ENDPOINT"],
+                self.out_map["MONITORING_ENDPOINT_PORT"],
+            ) = self.get_active_and_standby_mgrs()
         self.out_map["RBD_POOL_NAME"] = self._arg_parser.rbd_data_pool_name
         self.out_map[
             "RBD_METADATA_EC_POOL_NAME"
-        ] = self.validate_rgw_metadata_ec_pool_name()
-        self.out_map["RGW_REALM_NAME"] = self._arg_parser.rgw_realm_name
+        ] = self.validate_rbd_metadata_ec_pool_name()
         self.out_map["RGW_POOL_PREFIX"] = self._arg_parser.rgw_pool_prefix
         self.out_map["RGW_ENDPOINT"] = ""
         if self._arg_parser.rgw_endpoint:
             if self._arg_parser.dry_run:
                 self.create_rgw_admin_ops_user()
             else:
+                err = self.validate_rgw_multisite(
+                    self._arg_parser.rgw_realm_name, "--rgw-realm"
+                )
+                err = self.validate_rgw_multisite(
+                    self._arg_parser.rgw_zonegroup_name, "--rgw-zonegroup"
+                )
+                err = self.validate_rgw_multisite(
+                    self._arg_parser.rgw_zone_name, "--rgw-zone"
+                )
                 (
                     self.out_map["RGW_ADMIN_OPS_USER_ACCESS_KEY"],
                     self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"],
                     info_cap_supported,
                     err,
                 ) = self.create_rgw_admin_ops_user()
-                if info_cap_supported:
-                    err = self.validate_rgw_endpoint()
+                err = self.validate_rgw_endpoint(info_cap_supported)
                 if self._arg_parser.rgw_tls_cert_path:
                     self.out_map["RGW_TLS_CERT"] = self.validate_rgw_endpoint_tls_cert()
                 # if there is no error, set the RGW_ENDPOINT
@@ -1426,15 +1491,23 @@ class RadosJSON:
                     "userKey": self.out_map["ROOK_EXTERNAL_USER_SECRET"],
                 },
             },
-            {
-                "name": "monitoring-endpoint",
-                "kind": "CephCluster",
-                "data": {
-                    "MonitoringEndpoint": self.out_map["MONITORING_ENDPOINT"],
-                    "MonitoringPort": self.out_map["MONITORING_ENDPOINT_PORT"],
-                },
-            },
         ]
+
+        # if 'MONITORING_ENDPOINT' exists, then only add 'monitoring-endpoint' to Cluster
+        if (
+            self.out_map["MONITORING_ENDPOINT"]
+            and self.out_map["MONITORING_ENDPOINT_PORT"]
+        ):
+            json_out.append(
+                {
+                    "name": "monitoring-endpoint",
+                    "kind": "CephCluster",
+                    "data": {
+                        "MonitoringEndpoint": self.out_map["MONITORING_ENDPOINT"],
+                        "MonitoringPort": self.out_map["MONITORING_ENDPOINT_PORT"],
+                    },
+                }
+            )
 
         # if 'CSI_RBD_NODE_SECRET' exists, then only add 'rook-csi-rbd-provisioner' Secret
         if (

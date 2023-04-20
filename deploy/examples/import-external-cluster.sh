@@ -20,8 +20,8 @@ ROOK_EXTERNAL_MAPPING={}
 RBD_STORAGE_CLASS_NAME=ceph-rbd
 CEPHFS_STORAGE_CLASS_NAME=cephfs
 ROOK_EXTERNAL_MONITOR_SECRET=mon-secret
-OPERATOR_NAMESPACE=rook-ceph # default set to rook-ceph
-RBD_PROVISIONER=$OPERATOR_NAMESPACE".rbd.csi.ceph.com" # driver:namespace:operator
+OPERATOR_NAMESPACE=rook-ceph                                 # default set to rook-ceph
+RBD_PROVISIONER=$OPERATOR_NAMESPACE".rbd.csi.ceph.com"       # driver:namespace:operator
 CEPHFS_PROVISIONER=$OPERATOR_NAMESPACE".cephfs.csi.ceph.com" # driver:namespace:operator
 CLUSTER_ID_RBD=$NAMESPACE
 CLUSTER_ID_CEPHFS=$NAMESPACE
@@ -42,26 +42,6 @@ function checkEnvVars() {
     echo "use 'layering,fast-diff,object-map,deep-flatten,exclusive-lock'"
     exit 1
   fi
-   if [ -z "$RBD_POOL_NAME" ]; then
-    echo "Please populate the environment variable RBD_POOL_NAME"
-    exit 1
-  fi
-  if [ -z "$CSI_RBD_NODE_SECRET_NAME" ]; then
-    echo "Please populate the environment variable CSI_RBD_NODE_SECRET_NAME"
-    exit 1
-  fi
-  if [ -z "$CSI_RBD_PROVISIONER_SECRET_NAME" ]; then
-    echo "Please populate the environment variable CSI_RBD_PROVISIONER_SECRET_NAME"
-    exit 1
-  fi
-  if [ -z "$CSI_CEPHFS_NODE_SECRET_NAME" ]; then
-    echo "Please populate the environment variable CSI_CEPHFS_NODE_SECRET_NAME"
-    exit 1
-  fi
-  if [ -z "$CSI_CEPHFS_PROVISIONER_SECRET_NAME" ]; then
-    echo "Please populate the environment variable CSI_CEPHFS_PROVISIONER_SECRET_NAME"
-    exit 1
-  fi
   if [ -z "$ROOK_EXTERNAL_FSID" ]; then
     echo "Please populate the environment variable ROOK_EXTERNAL_FSID"
     exit 1
@@ -79,24 +59,8 @@ function checkEnvVars() {
       echo "Please populate the environment variable ROOK_EXTERNAL_USERNAME"
       exit 1
     fi
-    if [ -z "$CSI_RBD_NODE_SECRET" ]; then
-      echo "Please populate the environment variable CSI_RBD_NODE_SECRET"
-      exit 1
-    fi
-    if [ -z "$CSI_RBD_PROVISIONER_SECRET" ]; then
-      echo "Please populate the environment variable CSI_RBD_PROVISIONER_SECRET"
-      exit 1
-    fi
-    if [ -z "$CSI_CEPHFS_NODE_SECRET" ]; then
-      echo "Please populate the environment variable CSI_CEPHFS_NODE_SECRET"
-      exit 1
-    fi
-    if [ -z "$CSI_CEPHFS_PROVISIONER_SECRET" ]; then
-      echo "Please populate the environment variable CSI_CEPHFS_PROVISIONER_SECRET"
-      exit 1
-    fi
   fi
-  if [[ "$ROOK_EXTERNAL_ADMIN_SECRET" != "admin-secret" ]] && [ -n "$ROOK_EXTERNAL_USER_SECRET" ] ; then
+  if [[ "$ROOK_EXTERNAL_ADMIN_SECRET" != "admin-secret" ]] && [ -n "$ROOK_EXTERNAL_USER_SECRET" ]; then
     echo "Providing both ROOK_EXTERNAL_ADMIN_SECRET and ROOK_EXTERNAL_USER_SECRET is not supported, choose one only."
     exit 1
   fi
@@ -113,86 +77,86 @@ function importClusterID() {
 
 function importSecret() {
   kubectl -n "$NAMESPACE" \
-  create \
-  secret \
-  generic \
-  --type="kubernetes.io/rook" \
-  "$MON_SECRET_NAME" \
-  --from-literal="$MON_SECRET_CLUSTER_NAME_KEYNAME"="$ROOK_EXTERNAL_CLUSTER_NAME" \
-  --from-literal="$MON_SECRET_FSID_KEYNAME"="$ROOK_EXTERNAL_FSID" \
-  --from-literal="$MON_SECRET_ADMIN_KEYRING_KEYNAME"="$ROOK_EXTERNAL_ADMIN_SECRET" \
-  --from-literal="$MON_SECRET_MON_KEYRING_KEYNAME"="$ROOK_EXTERNAL_MONITOR_SECRET" \
-  --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$ROOK_EXTERNAL_USERNAME" \
-  --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET"
+    create \
+    secret \
+    generic \
+    --type="kubernetes.io/rook" \
+    "$MON_SECRET_NAME" \
+    --from-literal="$MON_SECRET_CLUSTER_NAME_KEYNAME"="$ROOK_EXTERNAL_CLUSTER_NAME" \
+    --from-literal="$MON_SECRET_FSID_KEYNAME"="$ROOK_EXTERNAL_FSID" \
+    --from-literal="$MON_SECRET_ADMIN_KEYRING_KEYNAME"="$ROOK_EXTERNAL_ADMIN_SECRET" \
+    --from-literal="$MON_SECRET_MON_KEYRING_KEYNAME"="$ROOK_EXTERNAL_MONITOR_SECRET" \
+    --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$ROOK_EXTERNAL_USERNAME" \
+    --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET"
 }
 
 function importConfigMap() {
   kubectl -n "$NAMESPACE" \
-  create \
-  configmap \
-  "$MON_ENDPOINT_CONFIGMAP_NAME" \
-  --from-literal=data="$ROOK_EXTERNAL_CEPH_MON_DATA" \
-  --from-literal=mapping="$ROOK_EXTERNAL_MAPPING" \
-  --from-literal=maxMonId="$ROOK_EXTERNAL_MAX_MON_ID"
+    create \
+    configmap \
+    "$MON_ENDPOINT_CONFIGMAP_NAME" \
+    --from-literal=data="$ROOK_EXTERNAL_CEPH_MON_DATA" \
+    --from-literal=mapping="$ROOK_EXTERNAL_MAPPING" \
+    --from-literal=maxMonId="$ROOK_EXTERNAL_MAX_MON_ID"
 }
 
 function importCsiRBDNodeSecret() {
   kubectl -n "$NAMESPACE" \
-  create \
-  secret \
-  generic \
-  --type="kubernetes.io/rook" \
-  "rook-""$CSI_RBD_NODE_SECRET_NAME" \
-  --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
-  --from-literal=userKey="$CSI_RBD_NODE_SECRET"
+    create \
+    secret \
+    generic \
+    --type="kubernetes.io/rook" \
+    "rook-""$CSI_RBD_NODE_SECRET_NAME" \
+    --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
+    --from-literal=userKey="$CSI_RBD_NODE_SECRET"
 }
 
 function importCsiRBDProvisionerSecret() {
   kubectl -n "$NAMESPACE" \
-  create \
-  secret \
-  generic \
-  --type="kubernetes.io/rook" \
-  "rook-""$CSI_RBD_PROVISIONER_SECRET_NAME" \
-  --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
-  --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
+    create \
+    secret \
+    generic \
+    --type="kubernetes.io/rook" \
+    "rook-""$CSI_RBD_PROVISIONER_SECRET_NAME" \
+    --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
+    --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
 }
 
 function importCsiCephFSNodeSecret() {
   kubectl -n "$NAMESPACE" \
-  create \
-  secret \
-  generic \
-  --type="kubernetes.io/rook" \
-  "rook-""$CSI_CEPHFS_NODE_SECRET_NAME" \
-  --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
-  --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
+    create \
+    secret \
+    generic \
+    --type="kubernetes.io/rook" \
+    "rook-""$CSI_CEPHFS_NODE_SECRET_NAME" \
+    --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
+    --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
 }
 
 function importCsiCephFSProvisionerSecret() {
   kubectl -n "$NAMESPACE" \
-  create \
-  secret \
-  generic \
-  --type="kubernetes.io/rook" \
-  "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-  --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-  --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
+    create \
+    secret \
+    generic \
+    --type="kubernetes.io/rook" \
+    "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+    --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
+    --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
 }
 
 function importRGWAdminOpsUser() {
   kubectl -n "$NAMESPACE" \
-  create \
-  secret \
-  generic \
-  --type="kubernetes.io/rook" \
-  "$RGW_ADMIN_OPS_USER_SECRET_NAME" \
-  --from-literal=accessKey="$RGW_ADMIN_OPS_USER_ACCESS_KEY" \
-  --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY"
+    create \
+    secret \
+    generic \
+    --type="kubernetes.io/rook" \
+    "$RGW_ADMIN_OPS_USER_SECRET_NAME" \
+    --from-literal=accessKey="$RGW_ADMIN_OPS_USER_ACCESS_KEY" \
+    --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY"
 }
 
 function createECRBDStorageClass() {
-cat <<eof | kubectl create -f -
+  cat <<eof | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -217,7 +181,7 @@ eof
 }
 
 function createRBDStorageClass() {
-cat <<eof | kubectl create -f -
+  cat <<eof | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -241,7 +205,7 @@ eof
 }
 
 function createCephFSStorageClass() {
-cat <<eof | kubectl create -f -
+  cat <<eof | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -269,15 +233,27 @@ checkEnvVars
 importClusterID
 importSecret
 importConfigMap
-importCsiRBDNodeSecret
-importCsiRBDProvisionerSecret
-importCsiCephFSNodeSecret
-importCsiCephFSProvisionerSecret
-importRGWAdminOpsUser
-if [ -n "$RBD_METADATA_EC_POOL_NAME" ]; then
-  createECRBDStorageClass
-else
-  createRBDStorageClass
+if [ -n "$CSI_RBD_NODE_SECRET_NAME" ] && [ -n "$CSI_RBD_NODE_SECRET" ]; then
+  importCsiRBDNodeSecret
+fi
+if [ -n "$CSI_RBD_PROVISIONER_SECRET_NAME" ] && [ -n "$CSI_RBD_PROVISIONER_SECRET" ]; then
+  importCsiRBDProvisionerSecret
+fi
+if [ -n "$RGW_ADMIN_OPS_USER_ACCESS_KEY" ] && [ -n "$RGW_ADMIN_OPS_USER_SECRET_KEY" ]; then
+  importRGWAdminOpsUser
+fi
+if [ -n "$CSI_CEPHFS_NODE_SECRET_NAME" ] && [ -n "$CSI_CEPHFS_NODE_SECRET" ]; then
+  importCsiCephFSNodeSecret
+fi
+if [ -n "$CSI_CEPHFS_PROVISIONER_SECRET_NAME" ] && [ -n "$CSI_CEPHFS_PROVISIONER_SECRET" ]; then
+  importCsiCephFSProvisionerSecret
+fi
+if [ -n "$RBD_POOL_NAME" ]; then
+  if [ -n "$RBD_METADATA_EC_POOL_NAME" ]; then
+    createECRBDStorageClass
+  else
+    createRBDStorageClass
+  fi
 fi
 if [ -n "$CEPHFS_FS_NAME" ] && [ -n "$CEPHFS_POOL_NAME" ]; then
   createCephFSStorageClass

@@ -288,8 +288,8 @@ func generateSssdNsswitchConfResources(r *ReconcileCephNFS, nfs *cephv1.CephNFS)
 			"bash", "-c",
 			`set -ex
 cat << EOF > /tmp/etc/nsswitch.conf
-passwd: sss
-group: sss
+passwd: files sss
+group: files sss
 netgroup: sss
 EOF
 chmod 444 /tmp/etc/nsswitch.conf
