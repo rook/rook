@@ -227,20 +227,24 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 				return errors.Wrapf(err, "ceph exporter reconcile failed on op %q", op)
 			}
 		} else {
-			logger.Debugf("ceph exporter successfully reconciled for node %q. operation: %q", node.Name, op)
-			// create the metrics service
-			service, err := MakeCephExporterMetricsService(cephCluster, exporterServiceMetricName, r.scheme)
-			if err != nil {
-				return err
-			}
-			if _, err := k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, cephCluster.Namespace, service); err != nil {
-				return errors.Wrap(err, "failed to create ceph-exporter metrics service")
-			}
+			// CephVersion change is done temporarily, as some regression was detected in Ceph version 17.2.6 which is summarised here https://github.com/ceph/ceph/pull/50718#issuecomment-1505608312.
+			// Thus, disabling ceph-exporter for now until all the regression are fixed.
+			if cephVersion.IsAtLeast(MinVersionForCephExporter) {
+				logger.Debugf("ceph exporter successfully reconciled for node %q. operation: %q", node.Name, op)
+				// create the metrics service
+				service, err := MakeCephExporterMetricsService(cephCluster, exporterServiceMetricName, r.scheme)
+				if err != nil {
+					return err
+				}
+				if _, err := k8sutil.CreateOrUpdateService(r.opManagerContext, r.context.Clientset, cephCluster.Namespace, service); err != nil {
+					return errors.Wrap(err, "failed to create ceph-exporter metrics service")
+				}
 
-			if err := EnableCephExporterServiceMonitor(cephCluster, r.scheme, r.opManagerContext); err != nil {
-				return errors.Wrap(err, "failed to enable service monitor")
+				if err := EnableCephExporterServiceMonitor(cephCluster, r.scheme, r.opManagerContext); err != nil {
+					return errors.Wrap(err, "failed to enable service monitor")
+				}
+				logger.Debug("service monitor for ceph exporter was enabled successfully")
 			}
-			logger.Debug("service monitor for ceph exporter was enabled successfully")
 
 		}
 	}
