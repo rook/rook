@@ -202,7 +202,12 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(err)
 	}
 
-	var dataDevices []osddaemon.DesiredDevice
+	var (
+		dataDevices  []osddaemon.DesiredDevice
+		deviceFilter string
+		metaDevice   string
+	)
+
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" || osdDataDevicePathFilter != "" {
 			return errors.New("only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified")
@@ -211,6 +216,8 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 		dataDevices = []osddaemon.DesiredDevice{
 			{Name: osdDataDeviceFilter, IsFilter: true, OSDsPerDevice: cfg.storeConfig.OSDsPerDevice},
 		}
+
+		deviceFilter = osdDataDeviceFilter
 	} else if osdDataDevicePathFilter != "" {
 		if cfg.devices != "" {
 			return errors.New("only one of --data-devices, --data-device-filter and --data-device-path-filter can be specified")
@@ -245,7 +252,11 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
 		cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, cfg.pvcBacked)
 
-	err = osddaemon.Provision(context, agent, crushLocation, topologyAffinity)
+	if cfg.metadataDevice != "" {
+		metaDevice = cfg.metadataDevice
+	}
+
+	err = osddaemon.Provision(context, agent, crushLocation, topologyAffinity, deviceFilter, metaDevice)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{
