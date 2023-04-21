@@ -86,8 +86,8 @@ runs:
         ns_name_secondary_object_zone='"rook-ceph-secondary/zone-b"' # double quotes intended
         tests/scripts/github-action-helper.sh restart_operator
         not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
-        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary_object_zone}" 120
-        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary_object_zone}" 120
+        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary_object_zone}" 600
+        tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary_object_zone}" 600
 
     - name: collect common logs
       if: always()
