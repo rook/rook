@@ -161,7 +161,7 @@ func configRawDevice(name string, context *clusterd.Context) (*sys.LocalDisk, er
 }
 
 // Provision provisions an OSD
-func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity string) error {
+func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topologyAffinity, deviceFilter, metaDevice string) error {
 	if agent.pvcBacked && os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true" {
 		logger.Debug("encryption configuration detecting, populating kek to an env variable")
 		// Init KMS store, retrieve the KEK and store it as an env var for ceph-volume
@@ -202,7 +202,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 		// Ideally, we would use the "ceph-volume inventory" command instead
 		// However, it suffers from some limitation such as exposing available partitions and LVs
 		// See: https://tracker.ceph.com/issues/43579
-		rawDevices, err = clusterd.DiscoverDevices(context.Executor)
+		rawDevices, err = clusterd.DiscoverDevicesWithFilter(context.Executor, deviceFilter, metaDevice)
 		if err != nil {
 			return errors.Wrap(err, "failed initial hardware discovery")
 		}
