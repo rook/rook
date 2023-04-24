@@ -52,6 +52,8 @@ const (
 	balancerModuleName     = "balancer"
 	balancerModuleMode     = "upmap"
 	mgrRoleLabelName       = "mgr_role"
+	activeMgrStatus        = "active"
+	standbyMgrStatus       = "standby"
 	monitoringPath         = "/etc/ceph-monitoring/"
 	serviceMonitorFile     = "service-monitor.yaml"
 	// minimum amount of memory in MB to run the pod
@@ -238,9 +240,9 @@ func (c *Cluster) UpdateActiveMgrLabel(daemonNameToUpdate string, prevActiveMgr 
 
 		labels := pod.GetLabels()
 		cephDaemonId := labels[controller.DaemonIDLabel]
-		newMgrRole := "standby"
+		newMgrRole := standbyMgrStatus
 		if currActiveMgr == cephDaemonId {
-			newMgrRole = "active"
+			newMgrRole = activeMgrStatus
 		}
 
 		currMgrRole, mgrHasLabel := labels[mgrRoleLabelName]
@@ -323,7 +325,7 @@ func (c *Cluster) updateServiceSelectors() {
 		_, hasMgrRoleLabel := service.Spec.Selector[mgrRoleLabelName]
 		if !hasMgrRoleLabel {
 			logger.Infof("adding %s selector label on mgr service %q", mgrRoleLabelName, service.Name)
-			service.Spec.Selector[mgrRoleLabelName] = "active"
+			service.Spec.Selector[mgrRoleLabelName] = activeMgrStatus
 			updateService = true
 		}
 
