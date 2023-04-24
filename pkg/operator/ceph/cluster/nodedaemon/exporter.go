@@ -49,11 +49,15 @@ const (
 	exporterServiceMetricName        = "ceph-exporter-http-metrics"
 )
 
+var (
+	MinVersionForCephExporter = cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+)
+
 // createOrUpdateCephExporter is a wrapper around controllerutil.CreateOrUpdate
 func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) (controllerutil.OperationResult, error) {
 	// CephVersion change is done temporarily, as some regression was detected in Ceph version 17.2.6 which is summarised here https://github.com/ceph/ceph/pull/50718#issuecomment-1505608312.
 	// Thus, disabling ceph-exporter for now until all the regression are fixed.
-	if !cephVersion.IsAtLeast(cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}) {
+	if !cephVersion.IsAtLeast(MinVersionForCephExporter) {
 		logger.Infof("Skipping exporter reconcile on ceph version %q", cephVersion.String())
 		return controllerutil.OperationResultNone, nil
 	}
