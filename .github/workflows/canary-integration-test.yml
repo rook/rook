@@ -1271,7 +1271,7 @@ jobs:
           EOF
           clusterfsid=$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
           echo $clusterfsid
-          kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=300s
+          kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=400s
           kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mkdir /tmp/registry
           mon_endpoints=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep mon_host /etc/ceph/ceph.conf | awk '{print $3}')
           my_secret=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep key /etc/ceph/keyring | awk '{print $3}')
