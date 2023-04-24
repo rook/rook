@@ -331,6 +331,10 @@ func (c *Cluster) getPodLabels(mgrConfig *mgrConfig, includeNewLabels bool) map[
 	labels := controller.CephDaemonAppLabels(AppName, c.clusterInfo.Namespace, config.MgrType, mgrConfig.DaemonID, c.clusterInfo.NamespacedName().Name, "cephclusters.ceph.rook.io", includeNewLabels)
 	// leave "instance" key for legacy usage
 	labels["instance"] = mgrConfig.DaemonID
+	if includeNewLabels {
+		// default to the active mgr label, and allow the sidecar to update if it's in standby mode
+		labels[mgrRoleLabelName] = activeMgrStatus
+	}
 	return labels
 }
 
