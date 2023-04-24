@@ -40,7 +40,6 @@ storage:
   location: "region=us-west,datacenter=delmar"
   config:
     metadataDevice: "nvme01"
-    journalSizeMB: "1024"
     databaseSizeMB: "1024"
   nodes:
   - name: "node2"
@@ -77,7 +76,6 @@ storage:
 			},
 			Config: map[string]string{
 				"metadataDevice": "nvme01",
-				"journalSizeMB":  "1024",
 				"databaseSizeMB": "1024",
 			},
 			Nodes: []Node{

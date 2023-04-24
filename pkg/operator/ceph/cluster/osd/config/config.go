@@ -24,7 +24,6 @@ import (
 const (
 	WalSizeMBKey       = "walSizeMB"
 	DatabaseSizeMBKey  = "databaseSizeMB"
-	JournalSizeMBKey   = "journalSizeMB"
 	OSDsPerDeviceKey   = "osdsPerDevice"
 	EncryptedDeviceKey = "encryptedDevice"
 	MetadataDeviceKey  = "metadataDevice"

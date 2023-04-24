@@ -228,7 +228,6 @@ spec:
     deviceFilter:  ` + getDeviceFilter() + `
     config:
       databaseSizeMB: "1024"
-      journalSizeMB: "1024"
 `
 	}
 	return clusterSpec + `
