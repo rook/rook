@@ -193,3 +193,19 @@ Just like deleting the zone itself, removing the pools must be done by hand thro
       dataChunks: 6
       codingChunks: 2
 ```
+
+The [radosNamespaces](/design/ceph/object/store.md/#pools-shared-by-multiple-cephobjectstore) feature is supported for the ceph-object-zone CRD as well. The following example shows how to configure a `radosnamespace` in the zone spec.
+
+```yaml
+apiVersion: ceph.rook.io/v1alpha1
+kind: CephObjectZone
+metadata:
+  name: zone-b
+  namespace: rook-ceph
+spec:
+  zoneGroup: zone-group-b
+  radosNamespaces:
+    metadataPoolName: rgw-meta-pool
+    dataPoolName: rgw-data-pool
+    preserveRadosNamespaceDataOnDelete: true
+```

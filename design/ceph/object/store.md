@@ -49,18 +49,20 @@ At this point the Rook operator recognizes that a new object store resource need
 
 When the RGW pods start, the object store is ready to receive the http or https requests as configured.
 
-
 ## Object Store CRD
 
 The object store settings are exposed to Rook as a Custom Resource Definition (CRD). The CRD is the Kubernetes-native means by which the Rook operator can watch for new resources. The operator stays in a control loop to watch for a new object store, changes to an existing object store, or requests to delete an object store.
 
 ### Pools
 
+#### Pools created by CephObjectStore CRD
+
 The pools are the backing data store for the object store and are created with specific names to be private to an object store. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD. All metadata pools are created with the same settings, while the data pool can be created with independent settings. The metadata pools must use replication, while the data pool can use replication or erasure coding.
 
 If `preservePoolsOnDelete` is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
 
 ```yaml
+spec:
   metadataPool:
     failureDomain: host
     replicated:
@@ -73,7 +75,146 @@ If `preservePoolsOnDelete` is set to 'true' the pools used to support the object
   preservePoolsOnDelete: true
 ```
 
-If there is a `zone` section in object-store configuration, then the pool section in the ceph-object-zone resource will be used to define the pools.
+#### Pools shared by multiple CephObjectStore
+
+If user want to use existing pools for metadata and data, the pools must be created before the object store is created. This will be useful if multiple objectstore can share same pools. The detail of pools need to shared in `radosNamespaces` settings in object-store CRD. Now the object stores can consume same pool isolated with different namespaces. Usually RGW server itself create different [namespaces](https://docs.ceph.com/en/latest/radosgw/layout/#appendix-compendium) on the pools. User can create via [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md), this is need to present before the object store is created. Similar to `preservePoolsOnDelete` setting, `preserveRadosNamespaceDataOnDelete` is used to preserve the data in the rados namespace when the object store is deleted. It is set to 'false' by default.
+
+```yaml
+spec:
+  radosNamespaces:
+    metadataPoolName: rgw-meta-pool
+    dataPoolName: rgw-data-pool
+    preserveRadosNamespaceDataOnDelete: true
+```
+
+To create the pools that will be shared by multiple object stores, create the following CephBlockPool CRs:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+    name: rgw-meta-pool
+  spec:
+    failureDomain: host
+    replicated:
+      size: 3
+    parameters:
+      pg_num: 8
+    application: rgw
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+ metadata:
+    name: rgw-data-pool
+  spec:
+    failureDomain: osd
+      erasureCoded:
+        dataChunks: 6
+        codingChunks: 2
+    application: rgw
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+ metadata:
+    name: .rgw.root
+  spec:
+    name: .rgw.root
+    failureDomain: host
+    replicated:
+      size: 3
+    parameters:
+      pg_num: 8
+    application: rgw
+```
+
+The pools for this configuration will be created as below:
+
+```bash
+# ceph osd pool ls
+.rgw.root
+rgw-meta-pool
+rgw-data-pool
+```
+
+And the pool configuration in zone is as below:
+
+```json
+# radosgw-admin zone get --rgw-zone=my-store
+{
+    "id": "2220eb5f-2751-4a51-9c7d-da4ce1b0e4e1",
+    "name": "my-store",
+    "domain_root": "rgw-meta-pool:my-store.meta.root",
+    "control_pool": "rgw-meta-pool:my-store.control",
+    "gc_pool": "rgw-meta-pool:my-store.log.gc",
+    "lc_pool": "rgw-meta-pool:my-store.log.lc",
+    "log_pool": "rgw-meta-pool:my-store.log",
+    "intent_log_pool": "rgw-meta-pool:my-store.log.intent",
+    "usage_log_pool": "rgw-meta-pool:my-store.log.usage",
+    "roles_pool": "rgw-meta-pool:my-store.meta.roles",
+    "reshard_pool": "rgw-meta-pool:my-store.log.reshard",
+    "user_keys_pool": "rgw-meta-pool:my-store.meta.users.keys",
+    "user_email_pool": "rgw-meta-pool:my-store.meta.users.email",
+    "user_swift_pool": "rgw-meta-pool:my-store.meta.users.swift",
+    "user_uid_pool": "rgw-meta-pool:my-store.meta.users.uid",
+    "otp_pool": "rgw-meta-pool:my-store.otp",
+    "system_key": {
+        "access_key": "",
+        "secret_key": ""
+    },
+    "placement_pools": [
+        {
+            "key": "default-placement",
+            "val": {
+                "index_pool": "rgw-metadata-pool:my-store.buckets.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "rgw-data-pool:my-store.buckets.data"
+                    }
+                },
+                "data_extra_pool": "rgw-data-pool:my-store.buckets.non-ec", #only pool is not erasure coded, otherwise use different pool
+                "index_type": 0,
+                "inline_data": "true"
+            }
+        }
+    ],
+    "realm_id": "65a7bf34-42d3-4344-ac40-035e160d7f9e",
+    "notif_pool": "rgw-meta-pool:my-store.notif"
+}
+```
+
+The following steps need to implement internally in Rook Operator to add this feature assuming zone and pool are already created:
+
+```bash
+
+# radosgw-admin zone get --rgw-zone=my-store > zone.json
+
+# modify the zone.json to add the pools as above
+
+# radosgw-admin zone set --rgw-zone=my-store --infile=zone.json
+
+# radosgw-admin period update --commit
+```
+
+After deleting the object store the data in the rados namespace can deleted by Rook Operator using following commands:
+
+```bash
+
+# rados -p rgw-meta-pool ls --all | grep my-store
+
+# rados -p rgw-data-pool ls --all | grep my-store
+
+# rados -p <rgw-meta-pool | rgw-data-pool> rm <each object> -N <namespace> (from above list)
+```
+
+#### For mulisite use case
+
+If there is a `zone` section in object-store configuration, then the pool creation will configured by the [CephObjectZone CR](/Documentation/CRDs/Object-Storage/ceph-object-zone-crd.md). The `CephObjectStore` CR will include below section to specify the zone name.
+
+```yaml
+spec:
+  zone:
+    name: zone1
+```
 
 ### Gateway
 
