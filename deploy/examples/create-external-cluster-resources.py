@@ -873,9 +873,13 @@ class RadosJSON:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
-            if rbd_pool_name == "" or cluster_name == "":
+            if rbd_pool_name == "":
                 raise ExecutionFailureException(
-                    "mandatory flags not found, please set the '--rbd-data-pool-name', '--cluster-name' flags"
+                    "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
+                )
+            if cluster_name == "":
+                raise ExecutionFailureException(
+                    "mandatory flag not found, please set the '--cluster-name' flag"
                 )
             entity = self.get_entity(
                 entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
@@ -894,6 +898,14 @@ class RadosJSON:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             cluster_name = self._arg_parser.cluster_name
+            if rbd_pool_name == "":
+                raise ExecutionFailureException(
+                    "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
+                )
+            if cluster_name == "":
+                raise ExecutionFailureException(
+                    "mandatory flag not found, please set the '--cluster-name' flag"
+                )
             entity = self.get_entity(
                 entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
             )
