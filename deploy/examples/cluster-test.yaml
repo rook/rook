@@ -32,7 +32,7 @@ spec:
     image: quay.io/ceph/ceph:v17
     allowUnsupported: true
   mon:
-    count: 1
+    count: 3
     allowMultiplePerNode: true
   mgr:
     count: 1
