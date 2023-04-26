@@ -28,8 +28,6 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
   * Ceph
 * Blaine Gardner <blaine.gardner@redhat.com> ([BlaineEXE](https://github.com/BlaineEXE))
   * Ceph
-* Yannis Zarkadas <yanniszarkadas@gmail.com> ([yanniszark](https://github.com/yanniszark))
-  * Cassandra
 * Satoru Takeuchi <satoru.takeuchi@gmail.com> ([satoru-takeuchi](https://github.com/satoru-takeuchi))
   * Ceph
 
@@ -39,6 +37,7 @@ This list will be updated according to the [process for removing a maintainer](G
 
 * Bassam Tabbara <bassam@upbound.io> ([bassam](https://github.com/bassam))
 * Dmitry Yusupov <dmitry.yusupov@gmail.com> ([dyusupov](https://github.com/dyusupov))
+* Yannis Zarkadas <yanniszarkadas@gmail.com> ([yanniszark](https://github.com/yanniszark))
 
 ## Code Owners
 
