@@ -2072,23 +2072,25 @@ type KerberosSpec struct {
 
 // KerberosConfigFiles represents the source(s) from which Kerberos configuration should come.
 type KerberosConfigFiles struct {
-	// VolumeSource accepts a standard Kubernetes VolumeSource for Kerberos configuration files like
-	// what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
-	// HostPath. The volume may contain multiple files, all of which will be loaded.
-	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for
+	// Kerberos configuration files like what is normally used to configure Volumes for a Pod. For
+	// example, a ConfigMap, Secret, or HostPath. The volume may contain multiple files, all of
+	// which will be loaded.
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
 // KerberosKeytabFile represents the source(s) from which the Kerberos keytab file should come.
 type KerberosKeytabFile struct {
-	// VolumeSource accepts a standard Kubernetes VolumeSource for the Kerberos keytab file like
-	// what is normally used to configure Volumes for a Pod. For example, a Secret or HostPath.
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+	// Kerberos keytab file like what is normally used to configure Volumes for a Pod. For example,
+	// a Secret or HostPath.
 	// There are two requirements for the source's content:
 	//   1. The config file must be mountable via `subPath: krb5.keytab`. For example, in a
 	//      Secret, the data item must be named `krb5.keytab`, or `items` must be defined to
 	//      select the key and give it path `krb5.keytab`. A HostPath directory must have the
 	//      `krb5.keytab` file.
 	//   2. The volume or config file must have mode 0600.
-	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
 // SSSDSpec represents configuration for System Security Services Daemon (SSSD).
@@ -2133,14 +2135,15 @@ type SSSDSidecar struct {
 
 // SSSDSidecarConfigFile represents the source(s) from which the SSSD configuration should come.
 type SSSDSidecarConfigFile struct {
-	// VolumeSource accepts a standard Kubernetes VolumeSource for the SSSD configuration file like
-	// what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
-	// HostPath. There are two requirements for the source's content:
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+	// SSSD configuration file like what is normally used to configure Volumes for a Pod. For
+	// example, a ConfigMap, Secret, or HostPath. There are two requirements for the source's
+	// content:
 	//   1. The config file must be mountable via `subPath: sssd.conf`. For example, in a ConfigMap,
 	//      the data item must be named `sssd.conf`, or `items` must be defined to select the key
 	//      and give it path `sssd.conf`. A HostPath directory must have the `sssd.conf` file.
 	//   2. The volume or config file must have mode 0600.
-	VolumeSource *v1.VolumeSource `json:"volumeSource,omitempty"`
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
 // SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
@@ -2153,13 +2156,13 @@ type SSSDSidecarAdditionalFile struct {
 	// +kubebuilder:validation:Pattern=`^[^:]+$`
 	SubPath string `json:"subPath"`
 
-	// VolumeSource accepts standard Kubernetes VolumeSource for the additional file(s) like what is
-	// normally used to configure Volumes for a Pod. Fore example, a ConfigMap, Secret, or HostPath.
-	// Each VolumeSource adds one or more additional files to the SSSD sidecar container in the
-	// `/etc/sssd/rook-additional/<subPath>` directory.
+	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+	// additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
+	// ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
+	// SSSD sidecar container in the `/etc/sssd/rook-additional/<subPath>` directory.
 	// Be aware that some files may need to have a specific file mode like 0600 due to requirements
 	// by SSSD for some files. For example, CA or TLS certificates.
-	VolumeSource *v1.VolumeSource `json:"volumeSource"`
+	VolumeSource *ConfigFileVolumeSource `json:"volumeSource"`
 }
 
 // NetworkSpec for Ceph includes backward compatibility code
@@ -2734,4 +2737,37 @@ type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+}
+
+// Represents the source of a volume to mount.
+// Only one of its members may be specified.
+// This is a subset of the full Kubernetes API's VolumeSource that is reduced to what is most likely
+// to be useful for mounting config files/dirs into Rook pods.
+type ConfigFileVolumeSource struct {
+	// hostPath represents a pre-existing file or directory on the host
+	// machine that is directly exposed to the container. This is generally
+	// used for system agents or other privileged things that are allowed
+	// to see the host machine. Most containers will NOT need this.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#hostpath
+	// ---
+	// +optional
+	HostPath *v1.HostPathVolumeSource `json:"hostPath,omitempty" protobuf:"bytes,1,opt,name=hostPath"`
+	// emptyDir represents a temporary directory that shares a pod's lifetime.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#emptydir
+	// +optional
+	EmptyDir *v1.EmptyDirVolumeSource `json:"emptyDir,omitempty" protobuf:"bytes,2,opt,name=emptyDir"`
+	// secret represents a secret that should populate this volume.
+	// More info: https://kubernetes.io/docs/concepts/storage/volumes#secret
+	// +optional
+	Secret *v1.SecretVolumeSource `json:"secret,omitempty" protobuf:"bytes,6,opt,name=secret"`
+	// persistentVolumeClaimVolumeSource represents a reference to a
+	// PersistentVolumeClaim in the same namespace.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
+	// +optional
+	PersistentVolumeClaim *v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty" protobuf:"bytes,10,opt,name=persistentVolumeClaim"`
+	// configMap represents a configMap that should populate this volume
+	// +optional
+	ConfigMap *v1.ConfigMapVolumeSource `json:"configMap,omitempty" protobuf:"bytes,19,opt,name=configMap"`
+	// projected items for all in one resources secrets, configmaps, and downward API
+	Projected *v1.ProjectedVolumeSource `json:"projected,omitempty" protobuf:"bytes,26,opt,name=projected"`
 }
