@@ -253,23 +253,15 @@ func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (str
 
 func ExecuteCephCommandWithRetry(
 	cmd func() (string, []byte, error),
-	getExitCode func(err error) (int, bool),
 	retries int,
-	retryOnExitCode int,
 	waitTime time.Duration,
 ) ([]byte, error) {
 	for i := 0; i < retries; i++ {
 		action, data, err := cmd()
 		if err != nil {
-			exitCode, parsed := getExitCode(err)
-			if parsed {
-				if exitCode == retryOnExitCode {
-					logger.Infof("command failed for %s. trying again...", action)
-					time.Sleep(waitTime)
-					continue
-				}
-			}
-			return nil, errors.Wrapf(err, "failed to complete command for %s", action)
+			logger.Infof("command failed for %s. trying again...", action)
+			time.Sleep(waitTime)
+			continue
 		}
 		if i > 0 {
 			logger.Infof("action %s succeeded on attempt %d", action, i)
