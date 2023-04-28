@@ -50,7 +50,7 @@ func (c *Cluster) setRookOrchestratorBackend() error {
 		args := []string{"orch", "set", "backend", "rook"}
 		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 		return "set rook backend", output, err
-	}, c.exitCode, 5, invalidArgErrorCode, orchestratorInitWaitTime)
+	}, 5, orchestratorInitWaitTime)
 	if err != nil {
 		return errors.Wrap(err, "failed to set rook as the orchestrator backend")
 	}

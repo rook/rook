@@ -230,7 +230,7 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	_, err = client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
 		return "set dashboard creds", output, err
-	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
+	}, 5, dashboardInitWaitTime)
 	if err != nil {
 		return errors.Wrap(err, "failed to set login creds on mgr")
 	}
