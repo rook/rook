@@ -38,9 +38,6 @@ On every commit to PR and master the CI will build, run unit tests, and run inte
 If the build is for master or a release, the build will also be published to
 [dockerhub.com](https://cloud.docker.com/u/rook/repository/list).
 
-!!! Note
-    If the pull request title follows Rook's [contribution guidelines](https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure), the CI will automatically run the appropriate test scenario. For example if a pull request title is "ceph: add a feature", then the tests for the Ceph storage provider will run. Similarly, tests will only run for a single provider with the "cassandra:" and "nfs:" prefixes.
-
 ## Building for other platforms
 
 You can also run the build for all supported platforms:

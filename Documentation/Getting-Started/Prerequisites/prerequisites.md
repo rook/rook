@@ -7,7 +7,7 @@ and Rook is granted the required privileges (see below for more information).
 
 ## Minimum Version
 
-Kubernetes **v1.21** or higher is supported for the Ceph operator.
+Kubernetes **v1.21** or higher is supported.
 
 ## CPU Architecture
 
@@ -15,14 +15,14 @@ Architectures supported are `amd64 / x86_64` and `arm64`.
 
 ## Ceph Prerequisites
 
-In order to configure the Ceph storage cluster, at least one of these local storage types is required:
+To configure the Ceph storage cluster, at least one of these local storage types is required:
 
 * Raw devices (no partitions or formatted filesystems)
 * Raw partitions (no formatted filesystem)
 * LVM Logical Volumes (no formatted filesystem)
 * Persistent Volumes available from a storage class in `block` mode
 
-You can confirm whether your partitions or devices are formatted with filesystems with the following command:
+Confirm whether the partitions or devices are formatted with filesystems with the following command:
 
 ```console
 $ lsblk -f
@@ -34,7 +34,7 @@ vda
 vdb
 ```
 
-If the `FSTYPE` field is not empty, there is a filesystem on top of the corresponding device. In this example, you can use `vdb` for Ceph and can't use `vda` or its partitions.
+If the `FSTYPE` field is not empty, there is a filesystem on top of the corresponding device. In this example, `vdb` is available to Rook, while `vda` and its partitions have a filesystem and are not available.
 
 ## Admission Controller
 
@@ -43,23 +43,23 @@ Enabling the Rook admission controller is recommended to provide an additional l
 To deploy the Rook admission controllers, install the cert manager before Rook is installed:
 
 ```console
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.1/cert-manager.yaml
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.11.1/cert-manager.yaml
 ```
 
 ## LVM package
 
 Ceph OSDs have a dependency on LVM in the following scenarios:
 
-* OSDs are created on raw devices or partitions
 * If encryption is enabled (`encryptedDevice: "true"` in the cluster CR)
 * A `metadata` device is specified
 
 LVM is not required for OSDs in these scenarios:
 
-* Creating OSDs on PVCs using the `storageClassDeviceSets`
+* OSDs are created on raw devices or partitions
+* OSDs are created on PVCs using the `storageClassDeviceSets`
 
-If LVM is required for your scenario, LVM needs to be available on the hosts where OSDs will be running.
-Some Linux distributions do not ship with the `lvm2` package. This package is required on all storage nodes in your k8s cluster to run Ceph OSDs.
+If LVM is required, LVM needs to be available on the hosts where OSDs will be running.
+Some Linux distributions do not ship with the `lvm2` package. This package is required on all storage nodes in the k8s cluster to run Ceph OSDs.
 Without this package even though Rook will be able to successfully create the Ceph OSDs, when a node is rebooted the OSD pods
 running on the restarted node will **fail to start**. Please install LVM using your Linux distribution's package manager. For example:
 
@@ -93,14 +93,14 @@ Ceph requires a Linux kernel built with the RBD module. Many Linux distributions
 have this module, but not all.
 For example, the GKE Container-Optimised OS (COS) does not have RBD.
 
-You can test your Kubernetes nodes by running `modprobe rbd`.
-If it says 'not found', you may have to rebuild your kernel and include at least
-the `rbd` module, install a newer kernel, or choose a different Linux distribution.
+Test your Kubernetes nodes by running `modprobe rbd`.
+If the rbd module is 'not found', rebuild the kernel to include the `rbd` module,
+install a newer kernel, or choose a different Linux distribution.
 
 Rook's default RBD configuration specifies only the `layering` feature, for
 broad compatibility with older kernels. If your Kubernetes nodes run a 5.4
-or later kernel you may wish to enable additional feature flags. The `fast-diff`
-and `object-map` features are especially useful.
+or later kernel, additional feature flags can be enabled in the
+storage class. The `fast-diff` and `object-map` features are especially useful.
 
 ```yaml
 imageFeatures: layering,fast-diff,object-map,deep-flatten,exclusive-lock
@@ -108,8 +108,8 @@ imageFeatures: layering,fast-diff,object-map,deep-flatten,exclusive-lock
 
 ### CephFS
 
-If you will be creating volumes from a Ceph shared file system (CephFS), the recommended minimum kernel version is **4.17**.
-If you have a kernel version less than 4.17, the requested PVC sizes will not be enforced. Storage quotas will only be
+If creating RWX volumes from a Ceph shared file system (CephFS), the recommended minimum kernel version is **4.17**.
+If the kernel version is less than 4.17, the requested PVC sizes will not be enforced. Storage quotas will only be
 enforced on newer kernels.
 
 ## Distro Notes
@@ -118,21 +118,21 @@ Specific configurations for some distributions.
 
 ### NixOS
 
-When you use NixOS, the kernel modules will be found in the non-standard path `/run/current-system/kernel-modules/lib/modules/`,
+For NixOS, the kernel modules will be found in the non-standard path `/run/current-system/kernel-modules/lib/modules/`,
 and they'll be symlinked inside the also non-standard path `/nix`.
 
-For Rook Ceph containers to be able to load the required modules, they need read access to those locations.
+Rook containers require read access to those locations to be able to load the required modules.
 They have to be bind-mounted as volumes in the CephFS and RBD plugin pods.
 
-If you install Rook with Helm, uncomment these example settings in `values.yaml`:
+If installing Rook with Helm, uncomment these example settings in `values.yaml`:
 
 * `csi.csiCephFSPluginVolume`
 * `csi.csiCephFSPluginVolumeMount`
 * `csi.csiRBDPluginVolume`
 * `csi.csiRBDPluginVolumeMount`
 
-If you deploy without Helm, add those same values to the corresponding environment variables in the operator pod,
-or the corresponding keys in its `ConfigMap`:
+If deploying without Helm, add those same values to the settings in the `rook-ceph-operator-config`
+ConfigMap found in operator.yaml:
 
 * `CSI_CEPHFS_PLUGIN_VOLUME`
 * `CSI_CEPHFS_PLUGIN_VOLUME_MOUNT`

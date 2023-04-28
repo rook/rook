@@ -25,8 +25,8 @@ Rook automatically configures the Ceph-CSI driver to mount the storage to your p
 
 The `rook/ceph` image includes all necessary tools to manage the cluster. Rook is not in the Ceph data path.
 Many of the Ceph concepts like placement groups and crush maps
-are hidden so you don't have to worry about them. Instead Rook creates a simplified user experience for admins that is in terms
-of physical resources, pools, volumes, filesystems, and buckets. At the same time, advanced configuration can be applied when needed with the Ceph tools.
+are hidden so you don't have to worry about them. Instead, Rook creates a simplified user experience for admins that is in terms
+of physical resources, pools, volumes, filesystems, and buckets. Advanced configuration can be applied when needed with the Ceph tools.
 
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
 this combination offers the best of both worlds.

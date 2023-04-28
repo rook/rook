@@ -90,13 +90,13 @@ Beyond your contributions to the project, consider:
 If you are meeting these requirements, express interest to the [steering committee](OWNERS.md#steering-committee) directly that your
 organization is interested in adding a maintainer.
 
-* We may ask you to do some PRs from our backlog.
-* As you gain experience with the code base and our standards, we will ask you to do code reviews
+* We may ask you to resolve some issues from our backlog.
+* As you gain experience with the code base and our standards, we will ask you to perform code reviews
   for incoming PRs (i.e., all maintainers are expected to shoulder a proportional share of
   community reviews).
-* After a period of approximately 2-3 months of working together and making sure we see eye to eye,
+* After a period of approximately several months of working together and making sure we see eye to eye,
   the steering committee will confer and decide whether to grant maintainer status or not.
-  We make no guarantees on the length of time this will take, but 2-3 months is the approximate
+  We make no guarantees on the length of time this will take, but several months is the approximate
   goal.
 
 ### Removing a maintainer

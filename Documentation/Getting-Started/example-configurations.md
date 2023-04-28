@@ -2,7 +2,7 @@
 title: Example Configurations
 ---
 
-Configuration for Rook and Ceph can be configured in multiple ways to provide block devices, shared filesystem volumes or object storage in a kubernetes namespace. We have provided several examples to simplify storage setup, but remember there are many tunables and you will need to decide what settings work for your use case and environment.
+Configuration for Rook and Ceph can be configured in multiple ways to provide block devices, shared filesystem volumes or object storage in a kubernetes namespace. While several examples are provided to simplify storage setup, settings are available to optimize various production environments.
 
 See the **[example yaml files](https://github.com/rook/rook/blob/master/deploy/examples)** folder for all the rook/ceph setup example spec files.
 
@@ -16,7 +16,7 @@ The [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.ya
 kubectl create -f crds.yaml -f common.yaml
 ```
 
-The examples all assume the operator and all Ceph daemons will be started in the same namespace. If you want to deploy the operator in a separate namespace, see the comments throughout `common.yaml`.
+The examples all assume the operator and all Ceph daemons will be started in the same namespace. If deploying the operator in a separate namespace, see the comments throughout `common.yaml`.
 
 ## Operator
 
@@ -31,13 +31,13 @@ Settings for the operator are configured through environment variables on the op
 
 ## Cluster CRD
 
-Now that your operator is running, let's create your Ceph storage cluster. This CR contains the most critical settings
+Now that the operator is running, create the Ceph storage cluster with the CephCluster CR. This CR contains the most critical settings
 that will influence how the operator configures the storage. It is important to understand the various ways to configure
-the cluster. These examples represent a very small set of the different ways to configure the storage.
+the cluster. These examples represent several different ways to configure the storage.
 
-* [`cluster.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml): This file contains common settings for a production storage cluster. Requires at least three worker nodes.
+* [`cluster.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml): Common settings for a production storage cluster. Requires at least three worker nodes.
 * [`cluster-test.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-test.yaml): Settings for a test cluster where redundancy is not configured. Requires only a single node.
-* [`cluster-on-pvc.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-on-pvc.yaml): This file contains common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
+* [`cluster-on-pvc.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-on-pvc.yaml): Common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
 * [`cluster-external.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml): Connect to an [external Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
 * [`cluster-external-management.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external-management.yaml): Connect to an [external Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
   remote creation of pools and configure services such as an [Object Store](../Storage-Configuration/Object-Storage-RGW/object-storage.md) or a [Shared Filesystem](../Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md).
@@ -47,27 +47,27 @@ See the [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md) topic for more detail
 
 ## Setting up consumable storage
 
-Now we are ready to setup [block](https://ceph.com/ceph-storage/block-storage/), [shared filesystem](https://ceph.com/ceph-storage/file-system/) or [object storage](https://ceph.com/ceph-storage/object-storage/) in the Rook Ceph cluster. These kinds of storage are respectively referred to as CephBlockPool, CephFilesystem and CephObjectStore in the spec files.
+Now we are ready to setup Block, Shared Filesystem or Object storage in the Rook cluster. These storage types are respectively created with the CephBlockPool, CephFilesystem and CephObjectStore CRs.
 
 ### Block Devices
 
-Ceph can provide raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in kubernetes pods. The storage class is defined with [a pool](http://docs.ceph.com/docs/master/rados/operations/pools/) which defines the level of data redundancy in Ceph:
+Ceph provides raw block device volumes to pods. Each example below sets up a storage class which can then be used to provision a block device in application pods. The storage class is defined with a Ceph pool which defines the level of data redundancy in Ceph:
 
-* [`storageclass.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass.yaml): This example illustrates replication of 3 for production scenarios and requires at least three worker nodes. Your data is replicated on three different kubernetes worker nodes and intermittent or long-lasting single node failures will not result in data unavailability or loss.
-* [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass-ec.yaml): Configures erasure coding for data durability rather than replication. [Ceph's erasure coding](http://docs.ceph.com/docs/master/rados/operations/erasure-code/) is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three worker nodes. See the [Erasure coding](../CRDs/Block-Storage/ceph-block-pool-crd.md#erasure-coded) documentation for more details.
-* [`storageclass-test.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass-test.yaml): Replication of 1 for test scenarios and it requires only a single node. Do not use this for applications that store valuable data or have high-availability storage requirements, since a single node failure can result in data loss.
+* [`storageclass.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass.yaml): This example illustrates replication of 3 for production scenarios and requires at least three worker nodes. Data is replicated on three different kubernetes worker nodes. Intermittent or long-lasting single node failures will not result in data unavailability or loss.
+* [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass-ec.yaml): Configures erasure coding for data durability rather than replication. Ceph's erasure coding is more efficient than replication so you can get high reliability without the 3x replication cost of the preceding example (but at the cost of higher computational encoding and decoding costs on the worker nodes). Erasure coding requires at least three worker nodes. See the [Erasure coding](../CRDs/Block-Storage/ceph-block-pool-crd.md#erasure-coded) documentation.
+* [`storageclass-test.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass-test.yaml): Replication of 1 for test scenarios. Requires only a single node. Do not use this for production applications. A single node failure can result in full data loss.
 
-The storage classes are found in different sub-directories depending on the driver:
+The block storage classes are found in the examples directory:
 
-* `csi/rbd`: The CSI driver for block devices. This is the preferred driver going forward.
+* `csi/rbd`: the CSI driver examples for block devices
 
-See the [Ceph Pool CRD](../CRDs/Block-Storage/ceph-block-pool-crd.md) topic for more details on the settings.
+See the [CephBlockPool CRD](../CRDs/Block-Storage/ceph-block-pool-crd.md) topic for more block storage settings.
 
 ### Shared Filesystem
 
-Ceph filesystem (CephFS) allows the user to 'mount' a shared posix-compliant folder into one or more hosts (pods in the container world). This storage is similar to NFS shared storage or CIFS shared folders, as explained [here](https://ceph.com/ceph-storage/file-system/).
+Ceph filesystem (CephFS) allows the user to mount a shared posix-compliant folder into one or more application pods. This storage is similar to NFS shared storage or CIFS shared folders, as explained [here](https://ceph.com/ceph-storage/file-system/).
 
-File storage contains multiple pools that can be configured for different scenarios:
+Shared Filesystem storage contains configurable pools for different scenarios:
 
 * [`filesystem.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/filesystem.yaml): Replication of 3 for production scenarios. Requires at least three worker nodes.
 * [`filesystem-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/filesystem-ec.yaml): Erasure coding for production scenarios. Requires at least three worker nodes.

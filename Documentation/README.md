@@ -28,4 +28,4 @@ For detailed design documentation, see also the [design docs](https://github.com
 
 ## Need help? Be sure to join the Rook Slack
 
-If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://rook-io.slack.com). You can sign up for our Slack [here](https://slack.rook.io).
+If you have any questions along the way, don't hesitate to ask in our [Slack channel](https://rook-io.slack.com). Sign up for the Rook Slack [here](https://slack.rook.io).
