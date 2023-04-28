@@ -1336,17 +1336,18 @@ class RadosJSON:
         # check if the rgw endpoint exist
         # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
         if self._arg_parser.rgw_pool_prefix != "default":
-            rgw_pool_to_validate = [
+            rgw_pools_to_validate = [
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.meta",
                 ".rgw.root",
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.control",
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.log",
             ]
-            if not self.cluster.pool_exists(rgw_pool_to_validate):
-                sys.stderr.write(
-                    f"The provided pool, '{rgw_pool_to_validate}', does not exist"
-                )
-                return "-1"
+            for _rgw_pool_to_validate in rgw_pools_to_validate:
+              if not self.cluster.pool_exists(_rgw_pool_to_validate):
+                  sys.stderr.write(
+                      f"The provided pool, '{_rgw_pool_to_validate}', does not exist"
+                  )
+                  return "-1"
 
         return ""
 
