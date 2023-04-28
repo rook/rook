@@ -150,7 +150,7 @@ func TestReconcileCephNFS_addSecurityConfigsToPod(t *testing.T) {
 				Sidecar: &cephv1.SSSDSidecar{
 					Image: "my-image",
 					SSSDConfigFile: cephv1.SSSDSidecarConfigFile{
-						VolumeSource: &v1.VolumeSource{
+						VolumeSource: &cephv1.ConfigFileVolumeSource{
 							ConfigMap: &v1.ConfigMapVolumeSource{},
 						},
 					},
