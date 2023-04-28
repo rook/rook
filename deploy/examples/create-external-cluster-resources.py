@@ -1152,6 +1152,12 @@ class RadosJSON:
                     "info",
                     "--uid",
                     self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
+                    "--rgw-realm",
+                    self._arg_parser.rgw_realm_name,
+                    "--rgw-zonegroup",
+                    self._arg_parser.rgw_zonegroup_name,
+                    "--rgw-zone",
+                    self._arg_parser.rgw_zone_name,
                 ]
                 try:
                     output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -1190,6 +1196,12 @@ class RadosJSON:
             self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
             "--caps",
             "info=read",
+            "--rgw-realm",
+            self._arg_parser.rgw_realm_name,
+            "--rgw-zonegroup",
+            self._arg_parser.rgw_zonegroup_name,
+            "--rgw-zone",
+            self._arg_parser.rgw_zone_name,
         ]
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
