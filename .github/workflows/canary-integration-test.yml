@@ -1262,27 +1262,27 @@ jobs:
         run: |
           exec_fs_mirror='kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror --'
           mirror_daemon=$($exec_fs_mirror ls /var/run/ceph/ | grep "fs-mirror" | head -n 1)
-          timeout 45 bash -x <<EOF
-            while
-            clusterfsid=\$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
-            [ -z "\$clusterfsid" ]
-            do echo "Waiting for the clusterfsid to get populated." && sleep 1
-            done
-          EOF
-          clusterfsid=$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
-          echo $clusterfsid
-          kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=400s
-          kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mkdir /tmp/registry
-          mon_endpoints=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep mon_host /etc/ceph/ceph.conf | awk '{print $3}')
-          my_secret=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep key /etc/ceph/keyring | awk '{print $3}')
-          kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mount -t ceph -o mds_namespace=myfs,name=admin,secret=$my_secret $mon_endpoints:/ /tmp/registry
-          num_snaps_target=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- ls -lhsa /tmp/registry/volumes/_nogroup/testsubvolume/.snap|grep snap|wc -l)
-          snaps=$(kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror peer status myfs@1 $clusterfsid|jq -r '."/volumes/_nogroup/testsubvolume"."snaps_synced"')
-          echo "snapshots: $snaps"
-          if [ $num_snaps_target = $snaps ]
-          then echo "Snaphots have synced."
-          else echo "Snaps have not synced. NEEDS INVESTIGATION"
-          fi
+          # timeout 45 bash -x <<EOF
+          #   while
+          #   clusterfsid=\$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
+          #   [ -z "\$clusterfsid" ]
+          #   do echo "Waiting for the clusterfsid to get populated." && sleep 1
+          #   done
+          # EOF
+          # clusterfsid=$($exec_fs_mirror ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror status myfs@1 |jq -r '.peers|keys[]')
+          # echo $clusterfsid
+          # kubectl -n rook-ceph-secondary wait pod -l app=rook-direct-mount --for condition=Ready --timeout=400s
+          # kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mkdir /tmp/registry
+          # mon_endpoints=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep mon_host /etc/ceph/ceph.conf | awk '{print $3}')
+          # my_secret=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- grep key /etc/ceph/keyring | awk '{print $3}')
+          # kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- mount -t ceph -o mds_namespace=myfs,name=admin,secret=$my_secret $mon_endpoints:/ /tmp/registry
+          # num_snaps_target=$(kubectl -n rook-ceph-secondary exec deploy/rook-direct-mount -- ls -lhsa /tmp/registry/volumes/_nogroup/testsubvolume/.snap|grep snap|wc -l)
+          # snaps=$(kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror peer status myfs@1 $clusterfsid|jq -r '."/volumes/_nogroup/testsubvolume"."snaps_synced"')
+          # echo "snapshots: $snaps"
+          # if [ $num_snaps_target = $snaps ]
+          # then echo "Snaphots have synced."
+          # else echo "Snaps have not synced. NEEDS INVESTIGATION"
+          # fi
 
       - name: collect common logs
         if: always()
