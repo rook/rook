@@ -170,7 +170,7 @@ jobs:
 
       - name: validate-rgw-endpoint
         run: |
-          rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
+          rgw_endpoint=$(kbectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # pass the valid rgw-endpoint of same ceph cluster
           timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
@@ -226,7 +226,7 @@ jobs:
 
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
-        timeout-minutes: 60
+        timeout-minutes: 600
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
