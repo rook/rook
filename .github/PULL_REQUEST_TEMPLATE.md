@@ -1,5 +1,6 @@
-<!-- Please take a look at our [Contributing](https://rook.io/docs/rook/latest/Contributing/development-flow/)
-documentation before submitting a Pull Request!
+<!-- Please take a look at our Contributing documentation before submitting a Pull Request!
+https://rook.io/docs/rook/latest/Contributing/development-flow/
+
 Thank you for contributing to Rook! -->
 
 **Description of your changes:**
@@ -9,7 +10,7 @@ Resolves #
 
 **Checklist:**
 
-- [ ] **Commit Message Formatting**: Commit titles and messages follow guidelines in the [developer guide](https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure)).
+- [ ] **Commit Message Formatting**: Commit titles and messages follow guidelines in the [developer guide](https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure).
 - [ ] **Skip Tests for Docs**: If this is only a documentation change, add the label `skip-ci` on the PR.
 - [ ] Reviewed the developer guide on [Submitting a Pull Request](https://rook.io/docs/rook/latest/Contributing/development-flow/#submitting-a-pull-request)
 - [ ] [Pending release notes](https://github.com/rook/rook/blob/master/PendingReleaseNotes.md) updated with breaking and/or notable changes for the next minor release.
