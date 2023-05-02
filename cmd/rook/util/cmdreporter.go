@@ -46,8 +46,9 @@ error storing the command results into the ConfigMap. An application label
 is applied to the ConfigMap. Run will also terminate if the label already
 exists and has a different application's name name; this may indicate that
 it is not safe for cmd-reporter to edit the ConfigMap.`,
-	Args: cobra.NoArgs,
-	Run:  runCmdReporter,
+	Args:   cobra.NoArgs,
+	Run:    runCmdReporter,
+	Hidden: true, // do not advertise to end users
 }
 
 var (

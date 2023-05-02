@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: multus-validation-test-web-server-conf
+  labels:
+    app: multus-validation-test-web-server
+data:
+  server.conf: |
+    server {
+        listen       8080;
+        server_name  localhost;
+
+        # return the client ip upon connect
+        location / {
+            default_type text/plain;
+            return 200 "$remote_addr\n";
+        }
+    }

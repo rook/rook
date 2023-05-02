@@ -222,7 +222,7 @@ Based on the configuration, the operator will do the following:
           public: rook-ceph/rook-public-nw
     ```
 
-2. If only the `cluster` selector is specified, the internal cluster traffic* will happen on that network. All other traffic to mons, OSDs, and other daemons will be on the default network.
+2. If only the `cluster` selector is specified, the internal cluster traffic\* will happen on that network. All other traffic to mons, OSDs, and other daemons will be on the default network.
 
     ```yaml
       network:
@@ -231,7 +231,7 @@ Based on the configuration, the operator will do the following:
           cluster: rook-ceph/rook-cluster-nw
     ```
 
-3. If both `public` and `cluster` selectors are specified the first one will run all the communication network and the second the internal cluster network*
+3. If both `public` and `cluster` selectors are specified the first one will run all the communication network and the second the internal cluster network\*
 
     ```yaml
       network:
@@ -275,7 +275,7 @@ spec:
 ```
 
 * Ensure that `master` matches the network interface of the host that you want to use.
-* Ipam type `whereabouts` is required because it makes sure that all the pods get a unique IP address from the multus network.
+* IPAM type `whereabouts` is required because it makes sure that all the pods get a unique IP address from the multus network.
 * The NetworkAttachmentDefinition should be referenced along with the namespace in which it is present like `public: <namespace>/<name of NAD>`.
   e.g., the network attachment definition are in `default` namespace:
 
@@ -287,7 +287,22 @@ spec:
     * This format is required in order to use the NetworkAttachmentDefinition across namespaces.
     * In Openshift, to use a NetworkAttachmentDefinition (NAD) across namespaces, the NAD must be deployed in the `default` namespace. The NAD is then referenced with the namespace: `default/rook-public-nw`
 
-#### Known limitations with Multus
+##### Validating Multus configuration
+
+We **highly** recommend validating your Multus configuration before you install Rook. A tool exists
+to facilitate validating the Multus configuration. After installing the Rook operator and before
+installing any Custom Resources, run the tool from the operator pod.
+
+The tool's CLI is designed to be as helpful as possible. Get help text for the multus validation
+tool like so:
+```console
+kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- rook ctl multus validation run --help
+```
+
+If the tool fails, it will suggest what things may be preventing Multus networks from working
+properly, and it will request the logs and outputs that will help debug issues.
+
+##### Known limitations with Multus
 
 Daemons leveraging Kubernetes service IPs (Monitors, Managers, Rados Gateways) are not listening on the NAD specified in the `selectors`.
 Instead the daemon listens on the default network, however the NAD is attached to the container,
