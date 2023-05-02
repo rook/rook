@@ -136,7 +136,7 @@ func generateSssdSidecarResources(sidecarCfg *cephv1.SSSDSidecar) (
 
 	volSource := sidecarCfg.SSSDConfigFile.VolumeSource
 	if volSource != nil {
-		vol, mount := sssdConfigVolAndMount(*volSource)
+		vol, mount := sssdConfigVolAndMount(*volSource.ToKubernetesVolumeSource())
 
 		volumes = append(volumes, vol)
 		sssdMounts = append(sssdMounts, mount)
@@ -252,7 +252,7 @@ func generateGenericFileVolsAndMounts(additionalFiles []cephv1.SSSDSidecarAdditi
 		volName := k8sutil.ToValidDNSLabel(mountPath)
 		vols = append(vols, v1.Volume{
 			Name:         volName,
-			VolumeSource: *additionalFile.VolumeSource,
+			VolumeSource: *additionalFile.VolumeSource.ToKubernetesVolumeSource(),
 		})
 		mounts = append(mounts, v1.VolumeMount{
 			Name:      volName,
@@ -308,11 +308,11 @@ cat /tmp/etc/nsswitch.conf`,
 	return init, podVol, nfsGaneshaContainerMount
 }
 
-func kerberosConfigFilesVolAndMount(volSource v1.VolumeSource) (v1.Volume, v1.VolumeMount) {
+func kerberosConfigFilesVolAndMount(volSource cephv1.ConfigFileVolumeSource) (v1.Volume, v1.VolumeMount) {
 	volName := "krb5-conf-d"
 	vol := v1.Volume{
 		Name:         volName,
-		VolumeSource: volSource,
+		VolumeSource: *volSource.ToKubernetesVolumeSource(),
 	}
 	mount := v1.VolumeMount{
 		Name:      volName,
@@ -322,11 +322,11 @@ func kerberosConfigFilesVolAndMount(volSource v1.VolumeSource) (v1.Volume, v1.Vo
 	return vol, mount
 }
 
-func keytabVolAndMount(volSource v1.VolumeSource) (v1.Volume, v1.VolumeMount) {
+func keytabVolAndMount(volSource cephv1.ConfigFileVolumeSource) (v1.Volume, v1.VolumeMount) {
 	volName := "krb5-keytab"
 	vol := v1.Volume{
 		Name:         volName,
-		VolumeSource: volSource,
+		VolumeSource: *volSource.ToKubernetesVolumeSource(),
 	}
 	mount := v1.VolumeMount{
 		Name:      volName,

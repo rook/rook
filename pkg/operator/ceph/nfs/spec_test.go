@@ -173,7 +173,7 @@ func TestDeploymentSpec(t *testing.T) {
 							Image:      "quay.io/sssd/sssd:latest",
 							DebugLevel: 6,
 							SSSDConfigFile: cephv1.SSSDSidecarConfigFile{
-								VolumeSource: &v1.VolumeSource{
+								VolumeSource: &cephv1.ConfigFileVolumeSource{
 									ConfigMap: &v1.ConfigMapVolumeSource{},
 								},
 							},
@@ -253,12 +253,12 @@ func TestDeploymentSpec(t *testing.T) {
 				Security: &cephv1.NFSSecuritySpec{
 					Kerberos: &cephv1.KerberosSpec{
 						ConfigFiles: cephv1.KerberosConfigFiles{
-							VolumeSource: &v1.VolumeSource{
+							VolumeSource: &cephv1.ConfigFileVolumeSource{
 								ConfigMap: &v1.ConfigMapVolumeSource{},
 							},
 						},
 						KeytabFile: cephv1.KerberosKeytabFile{
-							VolumeSource: &v1.VolumeSource{
+							VolumeSource: &cephv1.ConfigFileVolumeSource{
 								Secret: &v1.SecretVolumeSource{},
 							},
 						},
@@ -330,12 +330,12 @@ func TestDeploymentSpec(t *testing.T) {
 				Security: &cephv1.NFSSecuritySpec{
 					Kerberos: &cephv1.KerberosSpec{
 						ConfigFiles: cephv1.KerberosConfigFiles{
-							VolumeSource: &v1.VolumeSource{
+							VolumeSource: &cephv1.ConfigFileVolumeSource{
 								ConfigMap: &v1.ConfigMapVolumeSource{},
 							},
 						},
 						KeytabFile: cephv1.KerberosKeytabFile{
-							VolumeSource: &v1.VolumeSource{
+							VolumeSource: &cephv1.ConfigFileVolumeSource{
 								Secret: &v1.SecretVolumeSource{},
 							},
 						},
@@ -345,7 +345,7 @@ func TestDeploymentSpec(t *testing.T) {
 							Image:      "quay.io/sssd/sssd:latest",
 							DebugLevel: 6,
 							SSSDConfigFile: cephv1.SSSDSidecarConfigFile{
-								VolumeSource: &v1.VolumeSource{
+								VolumeSource: &cephv1.ConfigFileVolumeSource{
 									ConfigMap: &v1.ConfigMapVolumeSource{},
 								},
 							},
