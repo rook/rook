@@ -45,5 +45,15 @@ jobs:
       - name: Install mkdocs and dependencies
         run: cd build/release/ && make deps.docs
 
+      - name: Check documentation for CRDs
+        run: |
+          make validate-and-gen-docs-crds
+          DIFF_ON_DOCS=$(git diff --ignore-matching-lines='on git commit')
+          if [ ! -z "$DIFF_ON_DOCS" ]; then
+          echo "Please run 'make generate-docs-crds' locally, commit the updated crds docs, and push the change"
+          fi
+          git diff --ignore-matching-lines='on git commit' --exit-code
+
       - name: Build documentation using mkdocs
         run: make docs-build
+
