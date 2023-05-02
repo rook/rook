@@ -27,4 +27,4 @@ The minimum version supported by a Rook release is specified in the
 
 Rook expects to support the most recent six versions of Kubernetes. While these K8s
 versions may not all be supported by the K8s release cycle, we understand that
-you may have clusters that take time to update.
+clusters may take time to update.
