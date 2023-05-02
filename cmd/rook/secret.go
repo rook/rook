@@ -41,6 +41,7 @@ var KeyManagementCmd = &cobra.Command{
 	Long: `The secret sub-command helps interacting with Key Management System.
 	It can perform various actions such as retrieving the content of a Key Encryption Key and
 	rotating Key Encryption Key.`,
+	Hidden: true, // do not advertise to end users
 }
 
 func init() {

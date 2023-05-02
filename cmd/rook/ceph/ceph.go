@@ -31,8 +31,9 @@ import (
 
 // Cmd is the main command for operator and daemons.
 var Cmd = &cobra.Command{
-	Use:   "ceph",
-	Short: "Main command for Ceph operator and daemons.",
+	Use:    "ceph",
+	Short:  "Main command for Ceph operator and daemons.",
+	Hidden: true, // do not advertise to end users
 }
 
 var (
