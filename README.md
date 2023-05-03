@@ -6,7 +6,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1599/badge)](https://bestpractices.coreinfrastructure.org/projects/1599)
 [![Security scanning](https://github.com/rook/rook/actions/workflows/synk.yaml/badge.svg)](https://github.com/rook/rook/actions/workflows/synk.yaml)
-[![Slack](https://slack.rook.io/badge.svg)](https://slack.rook.io)
+[![Slack](https://img.shields.io/badge/rook-slack-blue)](https://slack.rook.io)
 [![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
 
 # What is Rook?
@@ -64,7 +64,6 @@ Anyone who wants to discuss the direction of the project, design and implementat
 - Meeting link: <https://zoom.us/j/392602367?pwd=NU1laFZhTWF4MFd6cnRoYzVwbUlSUT09>
 - [Current agenda and past meeting notes](https://docs.google.com/document/d/1exd8_IG6DkdvyA0eiTtL2z5K2Ra-y68VByUUgwP7I9A/edit?usp=sharing)
 - [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)
-
 
 ## Official Releases
 
