@@ -192,9 +192,37 @@ func (m *MonStore) SetKeyValue(key, value string) error {
 }
 
 func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
+	keys, err := m.setAll(clientName, settings)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set all keys")
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	logger.Infof("failed to set keys %v, trying to remove them first", keys)
+	newSettings := map[string]string{}
+	for _, key := range keys {
+		if err := m.Delete(clientName, key); err != nil {
+			return errors.Wrapf(err, "failed to remove key %q", key)
+		}
+		newSettings[key] = settings[key]
+	}
+	// retry setting the removed keys
+	keys, err = m.setAll(clientName, newSettings)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set keys")
+	}
+	if len(keys) != 0 {
+		return errors.Errorf("failed to set keys %v", keys)
+	}
+
+	return nil
+}
+
+func (m *MonStore) setAll(clientName string, settings map[string]string) ([]string, error) {
 	assimilateConfPath, err := os.CreateTemp("", "")
 	if err != nil {
-		return errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
+		return []string{}, errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
 	}
 
 	err = os.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
@@ -212,17 +240,17 @@ func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
 	configFile := ini.Empty()
 	s, err := configFile.NewSection(clientName)
 	if err != nil {
-		return err
+		return []string{}, err
 	}
 
 	for key, val := range settings {
 		if _, err := s.NewKey(key, val); err != nil {
-			return errors.Wrapf(err, "failed to add key %s", key)
+			return []string{}, errors.Wrapf(err, "failed to add key %s", key)
 		}
 	}
 
 	if err := configFile.SaveTo(assimilateConfPath.Name()); err != nil {
-		return errors.Wrapf(err, "failed to save config file %s", assimilateConfPath.Name())
+		return []string{}, errors.Wrapf(err, "failed to save config file %s", assimilateConfPath.Name())
 	}
 
 	fileContent, err := os.ReadFile(assimilateConfPath.Name())
@@ -235,19 +263,31 @@ func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
+	fileContent, readErr := os.ReadFile(assimilateConfPath.Name() + ".out")
+	if readErr != nil {
+		logger.Errorf("failed to open assimilate output file %s.out. %v", assimilateConfPath.Name(), readErr)
+	}
 	if err != nil {
-		logger.Errorf("failed to run command ceph %s: %v", args, err)
-
-		fileContent, err := os.ReadFile(assimilateConfPath.Name() + ".out")
-		if err != nil {
-			logger.Errorf("failed to open assimilate output file %s.out. %v", assimilateConfPath.Name(), err)
-		}
+		logger.Errorf("failed to run command ceph %s", args)
 		logger.Errorf("failed to apply ceph settings:\n%s", string(fileContent))
 
-		return errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
+		return []string{}, errors.Wrapf(err, "failed to set ceph config in the centralized mon configuration database; "+
 			"output: %s", string(out))
 	}
-
+	if len(fileContent) > 0 {
+		logger.Infof("output: %s\n", string(fileContent))
+		// read fileContent to ini format
+		iniContent, err := ini.Load(fileContent)
+		if err != nil {
+			return []string{}, errors.Wrapf(err, "failed to parse assimilate output file %s.out", assimilateConfPath.Name())
+		}
+		// get the section for the client
+		section, err := iniContent.GetSection(clientName)
+		if err != nil {
+			return []string{}, errors.Wrapf(err, "failed to get section %s", clientName)
+		}
+		return section.KeyStrings(), nil
+	}
 	logger.Info("successfully applied settings to the mon configuration database")
-	return nil
+	return []string{}, nil
 }
