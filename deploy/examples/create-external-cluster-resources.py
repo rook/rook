@@ -1152,6 +1152,12 @@ class RadosJSON:
                     "info",
                     "--uid",
                     self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
+                    "--rgw-realm",
+                    self._arg_parser.rgw_realm_name,
+                    "--rgw-zonegroup",
+                    self._arg_parser.rgw_zonegroup_name,
+                    "--rgw-zone",
+                    self._arg_parser.rgw_zone_name,
                 ]
                 try:
                     output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -1190,6 +1196,12 @@ class RadosJSON:
             self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
             "--caps",
             "info=read",
+            "--rgw-realm",
+            self._arg_parser.rgw_realm_name,
+            "--rgw-zonegroup",
+            self._arg_parser.rgw_zonegroup_name,
+            "--rgw-zone",
+            self._arg_parser.rgw_zone_name,
         ]
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -1313,6 +1325,7 @@ class RadosJSON:
 
         # check if the rgw endpoint is reachable
         rgw_endpoint = self._arg_parser.rgw_endpoint
+        self._invalid_endpoint(rgw_endpoint)
         cert = None
         if not self._arg_parser.rgw_skip_tls and self.validate_rgw_endpoint_tls_cert():
             cert = self._arg_parser.rgw_tls_cert_path
@@ -1336,28 +1349,29 @@ class RadosJSON:
         # check if the rgw endpoint exist
         # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
         if self._arg_parser.rgw_pool_prefix != "default":
-            rgw_pool_to_validate = [
+            rgw_pools_to_validate = [
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.meta",
                 ".rgw.root",
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.control",
                 f"{self._arg_parser.rgw_pool_prefix}.rgw.log",
             ]
-            if not self.cluster.pool_exists(rgw_pool_to_validate):
-                sys.stderr.write(
-                    f"The provided pool, '{rgw_pool_to_validate}', does not exist"
-                )
-                return "-1"
+            for _rgw_pool_to_validate in rgw_pools_to_validate:
+                if not self.cluster.pool_exists(_rgw_pool_to_validate):
+                    sys.stderr.write(
+                        f"The provided pool, '{_rgw_pool_to_validate}', does not exist"
+                    )
+                    return "-1"
 
         return ""
 
-    def validate_rgw_multisite(self, rgw_multisite_config, rgw_multisite_config_flag):
+    def validate_rgw_multisite(self, rgw_multisite_config_name, rgw_multisite_config):
         if rgw_multisite_config != "":
             cmd = [
                 "radosgw-admin",
-                "realm",
-                "get",
-                rgw_multisite_config_flag,
                 rgw_multisite_config,
+                "get",
+                "--rgw-" + rgw_multisite_config,
+                rgw_multisite_config_name,
             ]
             try:
                 _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
@@ -1440,27 +1454,41 @@ class RadosJSON:
             if self._arg_parser.dry_run:
                 self.create_rgw_admin_ops_user()
             else:
-                err = self.validate_rgw_multisite(
-                    self._arg_parser.rgw_realm_name, "--rgw-realm"
-                )
-                err = self.validate_rgw_multisite(
-                    self._arg_parser.rgw_zonegroup_name, "--rgw-zonegroup"
-                )
-                err = self.validate_rgw_multisite(
-                    self._arg_parser.rgw_zone_name, "--rgw-zone"
-                )
-                (
-                    self.out_map["RGW_ADMIN_OPS_USER_ACCESS_KEY"],
-                    self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"],
-                    info_cap_supported,
-                    err,
-                ) = self.create_rgw_admin_ops_user()
-                err = self.validate_rgw_endpoint(info_cap_supported)
-                if self._arg_parser.rgw_tls_cert_path:
-                    self.out_map["RGW_TLS_CERT"] = self.validate_rgw_endpoint_tls_cert()
-                # if there is no error, set the RGW_ENDPOINT
-                if err != "-1":
-                    self.out_map["RGW_ENDPOINT"] = self._arg_parser.rgw_endpoint
+                if (
+                    self._arg_parser.rgw_realm_name == ""
+                    and self._arg_parser.rgw_zonegroup_name == ""
+                    and self._arg_parser.rgw_zone_name == ""
+                ) or (
+                    self._arg_parser.rgw_realm_name != ""
+                    and self._arg_parser.rgw_zonegroup_name != ""
+                    and self._arg_parser.rgw_zone_name != ""
+                ):
+                    err = self.validate_rgw_multisite(
+                        self._arg_parser.rgw_realm_name, "realm"
+                    )
+                    err = self.validate_rgw_multisite(
+                        self._arg_parser.rgw_zonegroup_name, "zonegroup"
+                    )
+                    err = self.validate_rgw_multisite(
+                        self._arg_parser.rgw_zone_name, "zone"
+                    )
+                    (
+                        self.out_map["RGW_ADMIN_OPS_USER_ACCESS_KEY"],
+                        self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"],
+                        info_cap_supported,
+                        err,
+                    ) = self.create_rgw_admin_ops_user()
+                    err = self.validate_rgw_endpoint(info_cap_supported)
+                    if self._arg_parser.rgw_tls_cert_path:
+                        self.out_map[
+                            "RGW_TLS_CERT"
+                        ] = self.validate_rgw_endpoint_tls_cert()
+                    # if there is no error, set the RGW_ENDPOINT
+                    if err != "-1":
+                        self.out_map["RGW_ENDPOINT"] = self._arg_parser.rgw_endpoint
+                else:
+                    err = "Please provide all the RGW multisite parameters or none of them"
+                    sys.stderr.write(err)
 
     def gen_shell_out(self):
         self._gen_output_map()
