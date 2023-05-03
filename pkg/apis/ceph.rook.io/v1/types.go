@@ -1519,10 +1519,11 @@ type ObjectEndpoints struct {
 	Secure []string `json:"secure"`
 }
 
-// CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +kubebuilder:resource:shortName=rcou;objectuser
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
@@ -1613,10 +1614,11 @@ type ObjectUserQuotaSpec struct {
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
-// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +kubebuilder:subresource:status
 type CephObjectRealm struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1648,10 +1650,11 @@ type PullSpec struct {
 	Endpoint string `json:"endpoint,omitempty"`
 }
 
-// CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectZoneGroup struct {
@@ -1677,10 +1680,11 @@ type ObjectZoneGroupSpec struct {
 	Realm string `json:"realm"`
 }
 
-// CephObjectZone represents a Ceph Object Store Gateway Zone
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephObjectZone represents a Ceph Object Store Gateway Zone
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephObjectZone struct {
@@ -1729,10 +1733,11 @@ type ObjectZoneSpec struct {
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete"`
 }
 
-// CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
 // +kubebuilder:subresource:status
 type CephBucketTopic struct {
@@ -1846,10 +1851,11 @@ type KafkaEndpointSpec struct {
 	AckLevel string `json:"ackLevel,omitempty"`
 }
 
-// CephBucketNotification represents a Bucket Notifications
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// CephBucketNotification represents a Bucket Notifications
 // +kubebuilder:subresource:status
 type CephBucketNotification struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1924,10 +1930,11 @@ type RGWServiceSpec struct {
 	Annotations Annotations `json:"annotations,omitempty"`
 }
 
-// CephNFS represents a Ceph NFS
 // +genclient
 // +genclient:noStatus
 // +kubebuilder:resource:shortName=nfs,path=cephnfses
+
+// CephNFS represents a Ceph NFS
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // +kubebuilder:subresource:status
 type CephNFS struct {

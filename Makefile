@@ -134,6 +134,7 @@ do.build.parallel: $(foreach p,$(PLATFORMS_TO_BUILD_FOR), do.build.platform.$(p)
 build: csv-clean build.common ## Only build for linux platform
 	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
 	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
+	@$(MAKE) generate-docs-crds
 
 build.all: build.common ## Build source code for all platforms.
 ifneq ($(GOHOSTARCH),amd64)
@@ -214,6 +215,12 @@ docs-preview: ## Preview the documentation through mkdocs
 
 docs-build:  ## Build the documentation to the `site/` directory
 	mkdocs build --strict
+
+generate-docs-crds: ## Build the documentation for CRD
+	@build/crds/generate-crd-docs.sh
+
+validate-and-gen-docs-crds: ## Force generation of CRD documentation
+	build/crds/generate-crd-docs.sh --force
 
 .PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
