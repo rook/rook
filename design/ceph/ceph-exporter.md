@@ -16,7 +16,7 @@ There will be two main sources of metrics:
 - Prometheus manager module: It is responsible for exposing all metrics other than ceph daemons performance counters.
 - Ceph exporter: It is responsible for exposing only ceph daemons performance counters as prometheus metrics.
 
-Ceph exporter will be deployed in Rook when the `monitoring.enabled: true` setting is applied in the CephCluster CR and the Ceph version later than 17.2.5.
+Ceph exporter will be deployed in Rook when the `monitoring.metricsDisabled: false` setting is applied in the CephCluster CR and the Ceph version later than 17.2.7.
 
 ## Prerequisites
 
