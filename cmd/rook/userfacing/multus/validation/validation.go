@@ -137,6 +137,11 @@ func init() {
 }
 
 func runValidation(ctx context.Context) {
+	if validationConfig.PublicNetwork == "" && validationConfig.ClusterNetwork == "" {
+		fmt.Print(`at least one of "--public-network" or "--cluster-network" must be specified`)
+		os.Exit(22 /* EINVAL */)
+	}
+
 	results, err := validationConfig.Run(ctx)
 	report := results.SuggestedDebuggingReport()
 
