@@ -4288,6 +4288,119 @@ blocking deletion.</p>
 </td>
 </tr></tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ConfigFileVolumeSource">ConfigFileVolumeSource
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles</a>, <a href="#ceph.rook.io/v1.KerberosKeytabFile">KerberosKeytabFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarAdditionalFile">SSSDSidecarAdditionalFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">SSSDSidecarConfigFile</a>)
+</p>
+<div>
+<p>Represents the source of a volume to mount.
+Only one of its members may be specified.
+This is a subset of the full Kubernetes API&rsquo;s VolumeSource that is reduced to what is most likely
+to be useful for mounting config files/dirs into Rook pods.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>hostPath</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#hostpathvolumesource-v1-core">
+Kubernetes core/v1.HostPathVolumeSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>hostPath represents a pre-existing file or directory on the host
+machine that is directly exposed to the container. This is generally
+used for system agents or other privileged things that are allowed
+to see the host machine. Most containers will NOT need this.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/volumes#hostpath">https://kubernetes.io/docs/concepts/storage/volumes#hostpath</a></p>
+<hr />
+</td>
+</tr>
+<tr>
+<td>
+<code>emptyDir</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#emptydirvolumesource-v1-core">
+Kubernetes core/v1.EmptyDirVolumeSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>emptyDir represents a temporary directory that shares a pod&rsquo;s lifetime.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/volumes#emptydir">https://kubernetes.io/docs/concepts/storage/volumes#emptydir</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secret</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretvolumesource-v1-core">
+Kubernetes core/v1.SecretVolumeSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>secret represents a secret that should populate this volume.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/volumes#secret">https://kubernetes.io/docs/concepts/storage/volumes#secret</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>persistentVolumeClaim</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaimvolumesource-v1-core">
+Kubernetes core/v1.PersistentVolumeClaimVolumeSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>persistentVolumeClaimVolumeSource represents a reference to a
+PersistentVolumeClaim in the same namespace.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims">https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>configMap</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#configmapvolumesource-v1-core">
+Kubernetes core/v1.ConfigMapVolumeSource
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>configMap represents a configMap that should populate this volume</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>projected</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#projectedvolumesource-v1-core">
+Kubernetes core/v1.ProjectedVolumeSource
+</a>
+</em>
+</td>
+<td>
+<p>projected items for all in one resources secrets, configmaps, and downward API</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ConnectionsSpec">ConnectionsSpec
 </h3>
 <p>
@@ -6239,15 +6352,16 @@ string
 <td>
 <code>volumeSource</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumesource-v1-core">
-Kubernetes core/v1.VolumeSource
+<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
+ConfigFileVolumeSource
 </a>
 </em>
 </td>
 <td>
-<p>VolumeSource accepts a standard Kubernetes VolumeSource for Kerberos configuration files like
-what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
-HostPath. The volume may contain multiple files, all of which will be loaded.</p>
+<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for
+Kerberos configuration files like what is normally used to configure Volumes for a Pod. For
+example, a ConfigMap, Secret, or HostPath. The volume may contain multiple files, all of
+which will be loaded.</p>
 </td>
 </tr>
 </tbody>
@@ -6272,14 +6386,15 @@ HostPath. The volume may contain multiple files, all of which will be loaded.</p
 <td>
 <code>volumeSource</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumesource-v1-core">
-Kubernetes core/v1.VolumeSource
+<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
+ConfigFileVolumeSource
 </a>
 </em>
 </td>
 <td>
-<p>VolumeSource accepts a standard Kubernetes VolumeSource for the Kerberos keytab file like
-what is normally used to configure Volumes for a Pod. For example, a Secret or HostPath.
+<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+Kerberos keytab file like what is normally used to configure Volumes for a Pod. For example,
+a Secret or HostPath.
 There are two requirements for the source&rsquo;s content:
 1. The config file must be mountable via <code>subPath: krb5.keytab</code>. For example, in a
 Secret, the data item must be named <code>krb5.keytab</code>, or <code>items</code> must be defined to
@@ -9596,16 +9711,16 @@ will be placed. Each subPath definition must be unique and must not contain &lsq
 <td>
 <code>volumeSource</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumesource-v1-core">
-Kubernetes core/v1.VolumeSource
+<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
+ConfigFileVolumeSource
 </a>
 </em>
 </td>
 <td>
-<p>VolumeSource accepts standard Kubernetes VolumeSource for the additional file(s) like what is
-normally used to configure Volumes for a Pod. Fore example, a ConfigMap, Secret, or HostPath.
-Each VolumeSource adds one or more additional files to the SSSD sidecar container in the
-<code>/etc/sssd/rook-additional/&lt;subPath&gt;</code> directory.
+<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
+ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
+SSSD sidecar container in the <code>/etc/sssd/rook-additional/&lt;subPath&gt;</code> directory.
 Be aware that some files may need to have a specific file mode like 0600 due to requirements
 by SSSD for some files. For example, CA or TLS certificates.</p>
 </td>
@@ -9632,15 +9747,16 @@ by SSSD for some files. For example, CA or TLS certificates.</p>
 <td>
 <code>volumeSource</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumesource-v1-core">
-Kubernetes core/v1.VolumeSource
+<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
+ConfigFileVolumeSource
 </a>
 </em>
 </td>
 <td>
-<p>VolumeSource accepts a standard Kubernetes VolumeSource for the SSSD configuration file like
-what is normally used to configure Volumes for a Pod. For example, a ConfigMap, Secret, or
-HostPath. There are two requirements for the source&rsquo;s content:
+<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+SSSD configuration file like what is normally used to configure Volumes for a Pod. For
+example, a ConfigMap, Secret, or HostPath. There are two requirements for the source&rsquo;s
+content:
 1. The config file must be mountable via <code>subPath: sssd.conf</code>. For example, in a ConfigMap,
 the data item must be named <code>sssd.conf</code>, or <code>items</code> must be defined to select the key
 and give it path <code>sssd.conf</code>. A HostPath directory must have the <code>sssd.conf</code> file.
@@ -10805,5 +10921,5 @@ string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>e3d8da9a9</code>.
+on git commit <code>7fc93177e</code>.
 </em></p>
