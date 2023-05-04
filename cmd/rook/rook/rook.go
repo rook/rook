@@ -53,7 +53,7 @@ var RootCmd = &cobra.Command{
 
 var (
 	logLevelRaw string
-	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "multus-validation")
+	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "rookcmd")
 )
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
