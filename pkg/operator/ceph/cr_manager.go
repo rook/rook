@@ -154,10 +154,11 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 
 	// Set up a manager
 	mgrOpts := manager.Options{
-		LeaderElection: false,
-		Namespace:      o.config.NamespaceToWatch,
-		Scheme:         scheme,
-		CertDir:        certDir,
+		LeaderElection:     false,
+		Namespace:          o.config.NamespaceToWatch,
+		MetricsBindAddress: "0",
+		Scheme:             scheme,
+		CertDir:            certDir,
 	}
 
 	logger.Info("setting up the controller-runtime manager")
