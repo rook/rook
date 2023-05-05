@@ -38,6 +38,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 const (
@@ -180,4 +181,35 @@ func GetOperatorBaseImageCephVersion(context *clusterd.Context) (string, error) 
 	}
 
 	return output, nil
+}
+
+// GetInternalOrExternalClient will get a Kubernetes client interface from the KUBECONFIG variable
+// if it is set, or from the operator pod environment otherwise.
+func GetInternalOrExternalClient() kubernetes.Interface {
+	kubeconfig := os.Getenv("KUBECONFIG")
+
+	var (
+		config *rest.Config
+		err    error = fmt.Errorf("did not attempt to load a client") // just in case
+	)
+
+	if kubeconfig != "" {
+		for _, kConf := range strings.Split(kubeconfig, ":") {
+			config, err = clientcmd.BuildConfigFromFlags("", kConf)
+			if err == nil {
+				break
+			}
+		}
+	} else {
+		config, err = rest.InClusterConfig()
+	}
+	if err != nil {
+		TerminateOnError(err, "error creating client")
+	}
+
+	client, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		TerminateOnError(err, "could not get Kubernetes client interface")
+	}
+	return client
 }

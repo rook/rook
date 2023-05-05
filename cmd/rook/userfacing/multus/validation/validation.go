@@ -90,7 +90,7 @@ particularly noticeable with high I/O load or during OSD rebalancing
 )
 
 func init() {
-	validationConfig.Clientset = rook.NewContext().Clientset
+	validationConfig.Clientset = rook.GetInternalOrExternalClient()
 
 	Cmd.AddCommand(runCmd)
 	Cmd.AddCommand(cleanupCmd)
