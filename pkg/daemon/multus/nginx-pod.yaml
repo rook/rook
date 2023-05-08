@@ -22,7 +22,7 @@ spec:
       type: RuntimeDefault
   containers:
     - name: multus-validation-test-web-server
-      image: nginx:stable-alpine
+      image: nginxinc/nginx-unprivileged:stable-alpine
       resources: {}
       ports:
         - containerPort: 8080

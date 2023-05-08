@@ -30,8 +30,8 @@ spec:
       containers:
         {{ range $name, $address := .NetworkNamesAndAddresses }}
         - name: readiness-check-web-server-{{ $name }}-addr
-          # use nginx image because it's already pulled for the nginx pod and has a non-root user
-          image: nginx:stable-alpine
+          # use nginx image because it's already used for the web server pod and has a non-root user
+          image: nginxinc/nginx-unprivileged:stable-alpine
           command:
             - sleep
             - infinity

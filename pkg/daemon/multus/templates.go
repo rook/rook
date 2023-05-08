@@ -35,6 +35,9 @@ var (
 	//go:embed nginx-config.yaml
 	nginxConfigTemplate string
 
+	//go:embed image-pull-daemonset.yaml
+	imagePullDaemonSet string
+
 	//go:embed client-daemonset.yaml
 	clientDaemonSet string
 )
@@ -42,6 +45,8 @@ var (
 type webServerTemplateConfig struct {
 	NetworksAnnotationValue string
 }
+
+type imagePullTemplateConfig struct{}
 
 type clientTemplateConfig struct {
 	ClientID                 int
@@ -53,9 +58,18 @@ func webServerPodName() string {
 	return "multus-validation-test-web-server"
 }
 
+func imagePullAppLabel() string {
+	return "app=multus-validation-test-image-pull"
+}
+
 func clientAppLabel() string {
 	return "app=multus-validation-test-client"
 }
+
+type daemonsetAppType string
+
+const imagePullDaemonSetAppType = "image pull"
+const clientDaemonSetAppType = "client"
 
 func (vt *ValidationTest) generateWebServerTemplateConfig() webServerTemplateConfig {
 	return webServerTemplateConfig{
@@ -106,6 +120,21 @@ func (vt *ValidationTest) generateWebServerConfigMap() (*core.ConfigMap, error) 
 	}
 
 	return &cm, nil
+}
+
+func (vt *ValidationTest) generateImagePullDaemonSet() (*apps.DaemonSet, error) {
+	t, err := loadTemplate("imagePullDaemonSet", imagePullDaemonSet, imagePullTemplateConfig{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load image pull daemonset template: %w", err)
+	}
+
+	var d apps.DaemonSet
+	err = yaml.Unmarshal(t, &d)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal image pull daemonset template: %w", err)
+	}
+
+	return &d, nil
 }
 
 func (vt *ValidationTest) generateClientDaemonSet(
