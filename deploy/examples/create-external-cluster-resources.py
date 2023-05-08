@@ -1178,6 +1178,51 @@ class RadosJSON:
         return json_out["dashboard"]
 
     def create_rgw_admin_ops_user(self):
+        # If the user already exists, we query it
+        output, error = self._query_rgw_user_info()
+
+        # If user info query fails, create the user
+        if error:
+            if error.returncode == errno.EINVAL:
+                output, error = self._create_rgw_user()
+                if error:
+                    return None, None, False, "-1"
+            else:
+                return None, None, False, "-1"
+
+        # if it is python2, don't check for ceph version for adding `info=read` cap(rgw_validation)
+        if sys.version_info.major < 3:
+            jsonoutput = json.loads(output)
+            return (
+                jsonoutput["keys"][0]["access_key"],
+                jsonoutput["keys"][0]["secret_key"],
+                False,
+                "",
+            )
+
+        info_cap_supported = True
+        # Add info caps
+        output, error = self._add_info_cap()
+        # if the ceph version not supported for adding `info=read` cap(rgw_validation)
+        if error:
+            if (
+                "could not add caps: unable to add caps: info=read\n"
+                in error.stderr.decode("utf-8")
+                and error.returncode == 244
+            ):
+                info_cap_supported = False
+            else:
+                return None, None, False, "-1"
+
+        jsonoutput = json.loads(output)
+        return (
+            jsonoutput["keys"][0]["access_key"],
+            jsonoutput["keys"][0]["secret_key"],
+            info_cap_supported,
+            "",
+        )
+
+    def _create_rgw_user(self):
         cmd = [
             "radosgw-admin",
             "user",
@@ -1199,51 +1244,42 @@ class RadosJSON:
             return self.dry_run("ceph " + " ".join(cmd))
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+            return output, None
         except subprocess.CalledProcessError as execErr:
-            # if the user already exists, we just query it
-            if execErr.returncode == errno.EEXIST:
-                cmd = [
-                    "radosgw-admin",
-                    "user",
-                    "info",
-                    "--uid",
-                    self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
-                    "--rgw-realm",
-                    self._arg_parser.rgw_realm_name,
-                    "--rgw-zonegroup",
-                    self._arg_parser.rgw_zonegroup_name,
-                    "--rgw-zone",
-                    self._arg_parser.rgw_zone_name,
-                ]
-                try:
-                    output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
-                except subprocess.CalledProcessError as execErr:
-                    err_msg = (
-                        f"failed to execute command {cmd}. Output: {execErr.output}. "
-                        f"Code: {execErr.returncode}. Error: {execErr.stderr}"
-                    )
-                    sys.stderr.write(err_msg)
-                    return None, None, False, "-1"
-            else:
-                err_msg = (
-                    f"failed to execute command {cmd}. Output: {execErr.output}. "
-                    f"Code: {execErr.returncode}. Error: {execErr.stderr}"
-                )
-                sys.stderr.write(err_msg)
-                return None, None, False, "-1"
-
-        # if it is python2, don't check for ceph version for adding `info=read` cap(rgw_validation)
-        if sys.version_info.major < 3:
-            jsonoutput = json.loads(output)
-            return (
-                jsonoutput["keys"][0]["access_key"],
-                jsonoutput["keys"][0]["secret_key"],
-                False,
-                "",
+            error_msg = (
+                f"failed to execute command {cmd}. Output: {execErr.output}. "
+                f"Code: {execErr.returncode}. Error: {execErr.stderr}"
             )
+            sys.stderr.write(error_msg)
+            return None, execErr
 
-        # separately add info=read caps for rgw-endpoint ip validation
-        info_cap_supported = True
+    def _query_rgw_user_info(self):
+        cmd = [
+            "radosgw-admin",
+            "user",
+            "info",
+            "--uid",
+            self.EXTERNAL_RGW_ADMIN_OPS_USER_NAME,
+            "--rgw-realm",
+            self._arg_parser.rgw_realm_name,
+            "--rgw-zonegroup",
+            self._arg_parser.rgw_zonegroup_name,
+            "--rgw-zone",
+            self._arg_parser.rgw_zone_name,
+        ]
+        try:
+            output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+            return output, None
+        except subprocess.CalledProcessError as execErr:
+            error_msg = (
+                f"failed to execute command {cmd}. Output: {execErr.output}. "
+                f"Code: {execErr.returncode}. Error: {execErr.stderr}"
+            )
+            sys.stderr.write(error_msg)
+            return None, execErr
+
+    def _add_info_cap(self):
+        # Adds info caps for the user with the specified parameters
         cmd = [
             "radosgw-admin",
             "caps",
@@ -1261,29 +1297,14 @@ class RadosJSON:
         ]
         try:
             output = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+            return output, None
         except subprocess.CalledProcessError as execErr:
-            # if the ceph version not supported for adding `info=read` cap(rgw_validation)
-            if (
-                "could not add caps: unable to add caps: info=read\n"
-                in execErr.stderr.decode("utf-8")
-                and execErr.returncode == 244
-            ):
-                info_cap_supported = False
-            else:
-                err_msg = (
-                    f"failed to execute command {cmd}. Output: {execErr.output}. "
-                    f"Code: {execErr.returncode}. Error: {execErr.stderr}"
-                )
-                sys.stderr.write(err_msg)
-                return None, None, False, "-1"
-
-        jsonoutput = json.loads(output)
-        return (
-            jsonoutput["keys"][0]["access_key"],
-            jsonoutput["keys"][0]["secret_key"],
-            info_cap_supported,
-            "",
-        )
+            error_msg = (
+                f"failed to execute command {cmd}. Output: {execErr.output}. "
+                f"Code: {execErr.returncode}. Error: {execErr.stderr}"
+            )
+            sys.stderr.write(error_msg)
+            return None, execErr
 
     def validate_rbd_pool(self):
         if not self.cluster.pool_exists(self._arg_parser.rbd_data_pool_name):
