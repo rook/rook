@@ -7272,7 +7272,20 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
-types must exist or the creation will fail.</p>
+types must exist or the creation will fail. Default is false.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>metricsDisabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
+If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.</p>
 </td>
 </tr>
 <tr>
@@ -10921,5 +10934,5 @@ string
 <hr/>
 <p><em>
 Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>7fc93177e</code>.
+on git commit <code>f8f8a3375</code>.
 </em></p>
