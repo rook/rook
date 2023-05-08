@@ -458,6 +458,12 @@ csi:
   # @default -- `8080`
   rbdLivenessMetricsPort:
 
+  serviceMonitor:
+    # -- Enable ServiceMonitor for Ceph CSI drivers
+    enabled: false
+    # -- Service monitor scrape interval
+    interval: 5s
+
   # -- Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag)
   # @default -- `/var/lib/kubelet`
   kubeletDirPath:

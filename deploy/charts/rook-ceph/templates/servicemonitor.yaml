@@ -1,0 +1,26 @@
+{{- if and .Values.monitoring.enabled .Values.csi.serviceMonitor.enabled (or .Values.csi.enableLiveness .Values.csi.enableGrpcMetrics) }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: csi-metrics
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "library.rook-ceph.labels" . | nindent 4 }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      app: csi-metrics
+  endpoints:
+    {{- if .Values.csi.enableLiveness }}
+    - port: csi-http-metrics
+      path: /metrics
+      interval: {{ .Values.csi.serviceMonitor.interval }}
+    {{- end }}
+    {{- if .Values.csi.enableGrpcMetrics }}
+    - port: csi-grpc-metrics
+      path: /metrics
+      interval: {{ .Values.csi.serviceMonitor.interval }}
+    {{- end }}
+{{- end }}
