@@ -66,7 +66,20 @@ kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 
 ### Connect to an External Object Store
 
-Rook can connect to existing RGW gateways to work in conjunction with the external mode of the `CephCluster` CRD.
+Rook can connect to existing RGW gateways to work in conjunction with the external mode of the `CephCluster` CRD. First, create a `rgw-admin-ops-user` user in the Ceph cluster with the necessary caps:
+
+```console
+radosgw-admin user create --uid=rgw-admin-ops-user --display-name="RGW Admin Ops User" --caps="buckets=*;users=*;usage=read;metadata=read;zone=read" --rgw-realm=<realm-name> --rgw-zonegroup=<zonegroup-name> --rgw-zone=<zone-name>
+```
+
+The `rgw-admin-ops-user` user is required by the Rook operator to manage buckets and users via the admin ops and s3 api. The multisite configuration needs to be specified only if the admin sets up multisite for RGW.
+
+Then create a secret with the user credentials:
+
+```console
+kubectl -n rook-ceph create secret generic --type="kubernetes.io/rook" rgw-admin-ops-user --from-literal=accessKey=<access key of the user> --from-literal=secretKey=<secret key of the user>
+```
+
 If you have an external `CephCluster` CR, you can instruct Rook to consume external gateways with the following:
 
 ```yaml
@@ -82,19 +95,16 @@ spec:
       - ip: 192.168.39.182
 ```
 
-You can use the existing `object-external.yaml` file.
-When ready the ceph-object-controller will output a message in the Operator log similar to this one:
+Use the existing `object-external.yaml` file. Even though multiple endpoints can be specified, it is recommend to use only one endpoint. This endpoint is randomly added to `configmap` of OBC and secret of the `cephobjectstoreuser`. Rook never guarantees the randomly picked endpoint is a working one or not.
+If there are multiple endpoints, please add load balancer in front of them and use the load balancer endpoint in the `externalRgwEndpoints` list.
+
+When ready, the message in the `cephobjectstore` status similar to this one:
 
 ```console
-ceph-object-controller: ceph object store gateway service >running at 10.100.28.138:8080
-```
+kubectl -n rook-ceph get cephobjectstore external-store
+NAME                                 PHASE
+external-store                       Ready
 
-You can now get and access the store via:
-
-```console
-$ kubectl -n rook-ceph get svc -l app=rook-ceph-rgw
-NAME                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-rook-ceph-rgw-my-store   ClusterIP   10.100.28.138   <none>        8080/TCP   6h59m
 ```
 
 Any pod from your cluster can now access this endpoint:
@@ -103,15 +113,6 @@ Any pod from your cluster can now access this endpoint:
 $ curl 10.100.28.138:8080
 <?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
 ```
-
-It is also possible to use the internally registered DNS name:
-
-```console
-$ curl rook-ceph-rgw-my-store.rook-ceph:8080
-<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
-```
-
-The DNS name is created  with the following schema `rook-ceph-rgw-$STORE_NAME.$NAMESPACE`.
 
 ## Create a Bucket
 
