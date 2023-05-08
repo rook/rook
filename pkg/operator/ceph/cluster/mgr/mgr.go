@@ -363,7 +363,7 @@ func startModuleConfiguration(description string, configureModules func() error)
 
 // Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
 func (c *Cluster) configurePrometheusModule() error {
-	if c.spec.Monitoring.Enabled {
+	if !c.spec.Monitoring.MetricsDisabled {
 		if err := cephclient.MgrEnableModule(c.context, c.clusterInfo, PrometheusModuleName, true); err != nil {
 			return errors.Wrap(err, "failed to enable mgr prometheus module")
 		}

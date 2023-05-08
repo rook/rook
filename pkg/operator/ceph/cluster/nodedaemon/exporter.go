@@ -61,6 +61,10 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		logger.Infof("Skipping exporter reconcile on ceph version %q", cephVersion.String())
 		return controllerutil.OperationResultNone, nil
 	}
+	if cephCluster.Spec.Monitoring.MetricsDisabled {
+		logger.Info("Skipping exporter reconcile since monitoring.metricsDisabled is true")
+		return controllerutil.OperationResultNone, nil
+	}
 
 	nodeHostnameLabel, ok := node.Labels[corev1.LabelHostname]
 	if !ok {

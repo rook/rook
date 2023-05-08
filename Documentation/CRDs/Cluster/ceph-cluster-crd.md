@@ -45,7 +45,9 @@ If this value is empty, each pod will get an ephemeral directory to store their 
     * `port`: Allows to change the default port where the dashboard is served
     * `ssl`: Whether to serve the dashboard via SSL, ignored on Ceph versions older than `13.2.2`
 * `monitoring`: Settings for monitoring Ceph using Prometheus. To enable monitoring on your cluster see the [monitoring guide](../../Storage-Configuration/Monitoring/ceph-monitoring.md#prometheus-alerts).
-    * `enabled`: Whether to enable prometheus based monitoring for external or internal cluster
+    * `enabled`: Whether to enable the prometheus service monitor for an internal cluster. For an external cluster, whether to create an endpoint port for the metrics. Default is false.
+    * `metricsDisabled`: Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
+    If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
     * `externalMgrEndpoints`: external cluster manager endpoints
     * `externalMgrPrometheusPort`: external prometheus manager module port. See [external cluster configuration](#external-cluster) for more details.
     * `rulesNamespace`: Namespace to deploy prometheusRule. If empty, namespace of the cluster will be used.

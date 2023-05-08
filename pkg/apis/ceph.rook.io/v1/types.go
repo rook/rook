@@ -323,9 +323,14 @@ type DashboardSpec struct {
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring
 type MonitoringSpec struct {
 	// Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
-	// types must exist or the creation will fail.
+	// types must exist or the creation will fail. Default is false.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+
+	// Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
+	// If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
+	// +optional
+	MetricsDisabled bool `json:"metricsDisabled,omitempty"`
 
 	// ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
 	// +optional

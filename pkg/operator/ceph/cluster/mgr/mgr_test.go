@@ -485,7 +485,8 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 		clusterInfo: cephclient.AdminTestClusterInfo("mycluster"),
 		spec: cephv1.ClusterSpec{
 			Monitoring: cephv1.MonitoringSpec{
-				Enabled: false,
+				Enabled:         false,
+				MetricsDisabled: true,
 			},
 		},
 	}
@@ -498,7 +499,7 @@ func TestCluster_configurePrometheusModule(t *testing.T) {
 
 	// Enable prometheus module, no changed
 	modulesDisabled = 0
-	c.spec.Monitoring.Enabled = true
+	c.spec.Monitoring.MetricsDisabled = false
 	err = c.configurePrometheusModule()
 	assert.NoError(t, err)
 	assert.Equal(t, 1, modulesEnabled)

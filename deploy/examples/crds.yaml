@@ -1812,7 +1812,7 @@ spec:
                   nullable: true
                   properties:
                     enabled:
-                      description: Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus types must exist or the creation will fail.
+                      description: Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus types must exist or the creation will fail. Default is false.
                       type: boolean
                     externalMgrEndpoints:
                       description: ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
@@ -1868,6 +1868,9 @@ spec:
                     interval:
                       description: Interval determines prometheus scrape interval
                       type: string
+                    metricsDisabled:
+                      description: Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled. If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
+                      type: boolean
                     port:
                       description: Port is the prometheus server port
                       maximum: 65535
