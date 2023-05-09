@@ -49,7 +49,7 @@ monitoring:
   createPrometheusRules: false
   # -- The namespace in which to create the prometheus rules, if different from the rook cluster namespace.
   # If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus
-  # deployed) to set rulesNamespace for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
+  # deployed) to set rulesNamespaceOverride for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions.
   rulesNamespaceOverride:
   # Monitoring settings for external clusters:
   # externalMgrEndpoints: <list of endpoints>
