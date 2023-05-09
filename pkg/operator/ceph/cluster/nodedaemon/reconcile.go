@@ -240,10 +240,12 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 					return errors.Wrap(err, "failed to create ceph-exporter metrics service")
 				}
 
-				if err := EnableCephExporterServiceMonitor(cephCluster, r.scheme, r.opManagerContext); err != nil {
-					return errors.Wrap(err, "failed to enable service monitor")
+				if cephCluster.Spec.Monitoring.Enabled {
+					if err := EnableCephExporterServiceMonitor(cephCluster, r.scheme, r.opManagerContext); err != nil {
+						return errors.Wrap(err, "failed to enable service monitor")
+					}
+					logger.Debug("service monitor for ceph exporter was enabled successfully")
 				}
-				logger.Debug("service monitor for ceph exporter was enabled successfully")
 			}
 
 		}
