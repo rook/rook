@@ -6,23 +6,17 @@ An external cluster is a Ceph configuration that is managed outside of the local
 
 In external mode, Rook will provide the configuration for the CSI driver and other basic resources that allows your applications to connect to Ceph in the external cluster.
 
-## Supported Features
-
-The features available from the external cluster will vary depending on the version of Ceph. The following table shows the minimum version of Ceph for some of the features:
-
-| FEATURE                                      | CEPH VERSION |
-| -------------------------------------------- | ------------ |
-| Dynamic provisioning RBD                     | 12.2.X       |
-| Configure extra CRDs (object, file, nfs)[^1] | 13.2.3       |
-| Dynamic provisioning CephFS                  | 14.2.3       |
-
-[^1]: Configure an object store, shared filesystem, or NFS resources in the local cluster to connect to the external Ceph cluster
-
 ## External configuration
 
 * Source cluster: The cluster providing the data, usually configured by [cephadm](https://docs.ceph.com/en/pacific/cephadm/#cephadm)
 
 * Consumer cluster: The K8s cluster that will be consuming the external source cluster
+
+## Prerequisites
+
+Create the desired types of storage in the provider Ceph cluster:
+- [RBD pools](https://docs.ceph.com/en/latest/rados/operations/pools/#create-a-pool)
+- [CephFS filesystem](https://docs.ceph.com/en/quincy/cephfs/createfs/)
 
 ## Commands on the source Ceph cluster
 
@@ -64,7 +58,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
 - `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 
-#### Multi-tenancy
+### Multi-tenancy
 
 To enable multi-tenancy, run the script with the `--restricted-auth-permission` flag and pass the mandatory flags with it,
 It will generate the secrets which you can use for creating new `Consumer cluster` deployment using the same `Source cluster`(ceph cluster).
@@ -74,13 +68,20 @@ So you would be running different isolated consumer clusters on top of single `S
     Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users.
     So apply these secrets only to new `Consumer cluster` deployment while using the same `Source cluster`.
 
-#### Sample run
-
 ```console
 python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --cluster-name <cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoin> --namespace <rook-ceph-external>
 ```
 
-#### Upgrade Sample Run
+### RGW Multisite
+
+Pass the `--rgw-realm-name`, `--rgw-zonegroup-name` and `--rgw-zone-name` flags to create the admin ops user in a master zone, zonegroup and realm.
+See the [Multisite doc](https://docs.ceph.com/en/quincy/radosgw/multisite/#configuring-a-master-zone) for creating a zone, zonegroup and realm.
+
+```console
+python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --format bash --rgw-endpoint <rgw_endpoint> --rgw-realm-name <rgw_realm_name>> --rgw-zonegroup-name <rgw_zonegroup_name> --rgw-zone-name <rgw_zone_name>>
+```
+
+### Upgrade Example
 
 1) If consumer cluster doesn't have restricted caps, this will upgrade all the default csi-users (non-restricted):
 ```console
@@ -118,21 +119,47 @@ export RGW_POOL_PREFIX=default
 
 ## Commands on the K8s consumer cluster
 
-1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
+### Import the Source Data
 
-2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml)
+1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
 
-3. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+2. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
 
-4. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
-   Note that if your Rook cluster nodes are running a kernel earlier than 5.4 or equivalent you may need to
-   remove `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
+   !!! note
+       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
+       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
 
     ```console
     . import-external-cluster.sh
     ```
 
-5. Verify the consumer cluster is connected to the source ceph cluster:
+### Helm Installation
+
+To install with Helm, the rook cluster helm chart will configure the necessary resources for the external cluster with the example `values-external.yaml`.
+
+```console
+    clusterNamespace=rook-ceph
+    operatorNamesapce=rook-ceph
+    cd deploy/examples/charts/rook-ceph-cluster
+    helm repo add rook-release https://charts.rook.io/release
+    helm install --create-namespace --namespace $clusterNamespace rook-ceph rook-release/rook-ceph -f values.yaml
+    helm install --create-namespace --namespace $clusterNamespace rook-ceph-cluster \
+    --set operatorNamespace=$operatorNamesapce rook-release/rook-ceph-cluster -f values-external.yaml
+```
+
+Skip the manifest installation section and continue with [Cluster Verification](#cluster-verification).
+
+### Manifest Installation
+
+If not installing with Helm, here are the steps to install with manifests.
+
+1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
+
+2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml)
+
+### Cluster Verification
+
+1. Verify the consumer cluster is connected to the source ceph cluster:
 
     ```console
     $ kubectl -n rook-ceph-external  get CephCluster
@@ -140,34 +167,37 @@ export RGW_POOL_PREFIX=default
     rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
     ```
 
-6. StorageClass will also be created, verify its creation. `ceph-rbd` and `cephfs` StorageClass would be respective name for RBD and CephFS StorageClass.
+2.  Verify the creation of the storage class depending on the rbd pools and filesystem provided.
+    `ceph-rbd` and `cephfs` would be the respective names for the RBD and CephFS storage classes.
     ```console
     kubectl -n rook-ceph-external get sc
     ```
 
-7. Then you can now create a [persistent volume](https://github.com/rook/rook/tree/master/deploy/examples/csi) based on these StorageClass.
+3. Then you can now create a [persistent volume](https://github.com/rook/rook/tree/master/deploy/examples/csi) based on these StorageClass.
 
-### CephCluster example (management)
+### Connect to an External Object Store
 
-The following CephCluster CR represents a cluster that will perform management tasks on the external cluster.
-It will not only act as a consumer but will also allow the deployment of other CRDs such as CephFilesystem or CephObjectStore.
-You would need to inject the admin keyring for that.
+Create the object store resources:
+1. Create the [external object store CR](https://github.com/rook/rook/blob/master/deploy/examples/object-external.yaml) to configure connection to external gateways.
+2. Create an [Object store user](https://github.com/rook/rook/blob/master/deploy/examples/object-user.yaml) for credentials to access the S3 endpoint.
+3. Create a [bucket storage class](https://github.com/rook/rook/blob/master/deploy/examples/storageclass-bucket-delete.yaml) where a client can request creating buckets.
+4. Create the [Object Bucket Claim](https://github.com/rook/rook/blob/master/deploy/examples/object-bucket-claim-delete.yaml), which will create an individual bucket for reading and writing objects.
 
-The corresponding YAML example:
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephCluster
-metadata:
-  name: rook-ceph-external
-  namespace: rook-ceph-external
-spec:
-  external:
-    enable: true
-  dataDirHostPath: /var/lib/rook
-  cephVersion:
-    image: quay.io/ceph/ceph:v17.2.6 # Should match external cluster version
+```console
+    cd deploy/examples
+    kubectl create -f object-external.yaml
+    kubectl create -f object-user.yaml
+    kubectl create -f storageclass-bucket-delete.yaml
+    kubectl create -f object-bucket-claim-delete.yaml
 ```
+
+!!! hint
+    For more details see the [Object Store topic](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#connect-to-an-external-object-store)
+
+### Connect to v2 mon port
+
+If encryption or compression on the wire is needed, specify the v2 port.
+Check if the v2 port is available in `ceph quorum_status`, then you can update the `export ROOK_EXTERNAL_CEPH_MON_DATA` to use the v2 port `3300`.
 
 ##  Exporting Rook to another cluster
 
