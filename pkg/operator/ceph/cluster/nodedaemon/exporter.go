@@ -118,6 +118,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		if cephVersion != nil {
 			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
 		}
+		var terminationGracePeriodSeconds int64 = 2
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: deploymentLabels,
@@ -130,11 +131,12 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 				Containers: []corev1.Container{
 					getCephExporterDaemonContainer(cephCluster, *cephVersion),
 				},
-				Tolerations:       tolerations,
-				RestartPolicy:     corev1.RestartPolicyAlways,
-				HostNetwork:       cephCluster.Spec.Network.IsHost(),
-				Volumes:           volumes,
-				PriorityClassName: cephv1.GetCephExporterPriorityClassName(cephCluster.Spec.PriorityClassNames),
+				Tolerations:                   tolerations,
+				RestartPolicy:                 corev1.RestartPolicyAlways,
+				HostNetwork:                   cephCluster.Spec.Network.IsHost(),
+				Volumes:                       volumes,
+				PriorityClassName:             cephv1.GetCephExporterPriorityClassName(cephCluster.Spec.PriorityClassNames),
+				TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
 			},
 		}
 		cephv1.GetCephExporterAnnotations(cephCluster.Spec.Annotations).ApplyToObjectMeta(&deploy.Spec.Template.ObjectMeta)
