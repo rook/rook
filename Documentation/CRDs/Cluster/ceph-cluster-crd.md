@@ -50,10 +50,6 @@ If this value is empty, each pod will get an ephemeral directory to store their 
     If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
     * `externalMgrEndpoints`: external cluster manager endpoints
     * `externalMgrPrometheusPort`: external prometheus manager module port. See [external cluster configuration](#external-cluster) for more details.
-    * `rulesNamespace`: Namespace to deploy prometheusRule. If empty, namespace of the cluster will be used.
-      Recommended:
-        * If you have a single Rook cluster, set the `rulesNamespace` to the same namespace as the cluster or keep it empty.
-        * If you have multiple Rook clusters in the same Kubernetes cluster, choose the same namespace to set `rulesNamespace` for all the clusters (ideally, namespace with prometheus deployed). Otherwise, you will get duplicate alerts with duplicate alert definitions.
     * `port`: The internal prometheus manager module port where the prometheus mgr module listens. The port may need to be configured when host networking is enabled.
     * `interval`: The interval for the prometheus module to to scrape targets.
 * `network`: For the network settings for the cluster, refer to the [network configuration settings](#network-configuration-settings)
