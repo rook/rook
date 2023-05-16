@@ -1455,10 +1455,6 @@ class RadosJSON:
                 self.create_rgw_admin_ops_user()
             else:
                 if (
-                    self._arg_parser.rgw_realm_name == ""
-                    and self._arg_parser.rgw_zonegroup_name == ""
-                    and self._arg_parser.rgw_zone_name == ""
-                ) or (
                     self._arg_parser.rgw_realm_name != ""
                     and self._arg_parser.rgw_zonegroup_name != ""
                     and self._arg_parser.rgw_zone_name != ""
@@ -1472,6 +1468,16 @@ class RadosJSON:
                     err = self.validate_rgw_multisite(
                         self._arg_parser.rgw_zone_name, "zone"
                     )
+
+                if (
+                    self._arg_parser.rgw_realm_name == ""
+                    and self._arg_parser.rgw_zonegroup_name == ""
+                    and self._arg_parser.rgw_zone_name == ""
+                ) or (
+                    self._arg_parser.rgw_realm_name != ""
+                    and self._arg_parser.rgw_zonegroup_name != ""
+                    and self._arg_parser.rgw_zone_name != ""
+                ):
                     (
                         self.out_map["RGW_ADMIN_OPS_USER_ACCESS_KEY"],
                         self.out_map["RGW_ADMIN_OPS_USER_SECRET_KEY"],
