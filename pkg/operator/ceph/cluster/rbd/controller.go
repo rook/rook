@@ -206,7 +206,7 @@ func (r *ReconcileCephRBDMirror) reconcile(request reconcile.Request) (reconcile
 	if err != nil {
 		if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 			logger.Info(opcontroller.OperatorNotInitializedMessage)
-			return reconcile.Result{}, *cephRBDMirror, nil
+			return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephRBDMirror, nil
 		}
 		return reconcile.Result{}, *cephRBDMirror, errors.Wrap(err, "failed to detect running and desired ceph version")
 	}
