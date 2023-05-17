@@ -121,7 +121,6 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	logger.Info("successfully updated csi config map")
 
 	// Create Crash Collector Secret
-	// In 14.2.5 the crash daemon will read the client.crash key instead of the admin key
 	if !cluster.Spec.CrashCollector.Disable {
 		err = nodedaemon.CreateCrashCollectorSecret(c.context, cluster.ClusterInfo)
 		if err != nil {

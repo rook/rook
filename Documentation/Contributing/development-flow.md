@@ -15,17 +15,17 @@ don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev 
 
 ### Create a Fork
 
-From your browser navigate to [http://github.com/rook/rook](http://github.com/rook/rook) and click the "Fork" button.
+Navigate to [http://github.com/rook/rook](http://github.com/rook/rook) and click the "Fork" button.
 
 ### Clone Your Fork
 
-Open a console window and do the following;
+In a console window:
 
 ```console
 # Create the rook repo path
 mkdir -p $GOPATH/src/github.com/rook
 
-# Navigate to the local repo path and clone your fork
+# Navigate to the local repo path
 cd $GOPATH/src/github.com/rook
 
 # Clone your fork, where <user> is your GitHub account name
@@ -34,7 +34,7 @@ git clone https://github.com/<user>/rook.git
 
 ### Add Upstream Remote
 
-First you will need to add the upstream remote to your local git:
+Add the upstream remote to your local git:
 
 ```console
 # Add 'upstream' to the list of remotes
@@ -45,25 +45,27 @@ git remote add upstream https://github.com/rook/rook.git
 git remote -v
 ```
 
-Now you should have at least `origin` and `upstream` remotes. You can also add other remotes to collaborate with other contributors.
+Two remotes should be available: `origin` and `upstream`.
 
 ### Build
 
-Before building the project you have to fetch the upstream to synchronize tags.
+Before building the project, fetch the remotes to synchronize tags.
 
 ```console
-# Fetch all from 'upstream'
+# Fetch all remotes
 git fetch -a
 make build
 ```
 
-If you want to use `podman` instead of `docker` then uninstall `docker` packages from your machine, make will automatically pick up `podman`.
-
 !!! tip
-    If you are in linux environment and `make build` command throws an error like `unknown revision` for some imports, try adding `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc` and then run `source ~/.bashrc` or to a similar file to update your environment and confirm with `go env` that `GOPROXY` is updated.
+    If in a Linux environment and `make build` command throws an error like `unknown revision` for some imports, add `export GOPROXY=https://proxy.golang.org,direct` to `~/.bashrc`. Reload your environment and confirm with `go env` that `GOPROXY` is set.
+
+!!! hint
+    Make will automatically pick up `podman` if `docker` packages are not available on your machine.
+
 ### Development Settings
 
-To provide consistent whitespace and other formatting in your `go` and other source files (e.g., Markdown), it is recommended you apply
+For consistent whitespace and other formatting in `.go` and other source files, apply
 the following settings in your IDE:
 
 * Format with the `goreturns` tool
@@ -73,22 +75,18 @@ the following settings in your IDE:
 #### VS Code
 
 !!! tip
-    VS Code should prompt you automatically with some recommended extensions to install.
-    E.g., Markdown All in One, Go and YAML validator.
+    VS Code will prompt you automatically with some recommended extensions to install, such as
+    Markdown, Go, YAML validator, and ShellCheck.
 
-A set of recommended settings when working on Rook, can be found [here](https://github.com/rook/rook/blob/master/.vscode/settings.json).
-
-!!! tip
-    VS Code should automatically use these settings through the `.vscode/settings.json` file.
+VS Code will automatically use the recommended settings in the `.vscode/settings.json` file.
 
 ### Self assign Issue
 
-You can self-assign any issue that is open and not assigned to anyone in Rook upstream repo, by adding
-an issue comment with `/assign` in the body.
+To self-assign an issue that is not yet assigned to anyone else, add a comment in the issue with `/assign` in the body.
 
 ## Layout
 
-A source code layout is shown below, annotated with comments about the use of each important directory:
+The overall source code layout is summarized:
 
 ```text
 rook
@@ -97,79 +95,73 @@ rook
 │   ├── charts                    # Helm charts
 │   │   └── rook-ceph
 │   │   └── rook-ceph-cluster
-│   └── examples                  # Sample yaml files for Rook cluster
+│   └── examples                  # Sample manifestes to configure the cluster
 │
-├── cmd                           # Binaries with main entrypoint
+├── cmd
 │   ├── rook                      # Main command entry points for operators and daemons
 │
-├── design                        # Design documents for the various components of the Rook project
-├── Documentation                 # Rook project Documentation
-├── images                        # Dockerfiles to build images for all supported storage providers
+├── design                        # Design documents
+├── Documentation                 # Documentation that is published to rook.io
+├── images                        # Rook docker image sources
 │
 ├── pkg
 │   ├── apis
-│   │   ├── ceph.rook.io          # ceph specific specs for cluster, file, object
+│   │   ├── ceph.rook.io          # ceph specs used in the CRDs
 │   │   │   ├── v1
 │   ├── client                    # auto-generated strongly typed client code to access Rook APIs
 │   ├── clusterd
-│   ├── daemon                    # daemons for each storage provider
+│   ├── daemon                    # daemons for configuring ceph
 │   │   ├── ceph
 │   │   └── discover
-│   ├── operator                  # all orchestration logic and custom controllers for each storage provider
+│   ├── operator                  # all reconcile logic and custom controllers
 │   │   ├── ceph
 │   │   ├── discover
 │   │   ├── k8sutil
-│   │   └── test
-│   ├── test
 │   ├── util
 │   └── version
-└── tests                         # integration tests
-    ├── framework                 # the Rook testing framework
-    │   ├── clients               # test clients used to consume Rook resources during integration tests
-    │   ├── installer             # installs Rook and its supported storage providers into integration tests environments
+└── tests
+    ├── framework                 # integration test framework
+    │   ├── clients
+    │   ├── installer
     │   └── utils
-    ├── integration               # all test cases that will be invoked during integration testing
+    ├── integration               # integration test cases that will be invoked during golang testing
     └── scripts                   # scripts for setting up integration and manual testing environments
 
 ```
 
 ## Development
 
-To add a feature or to make a bug fix, you will need to create a branch in your fork and then submit a pull request (PR) from the branch.
+To submit a change, create a branch in your fork and then submit a pull request (PR) from the branch.
 
 ### Design Document
 
 For new features of significant scope and complexity, a design document is recommended before work begins on the implementation.
-So create a design document if:
+Create a design document if:
 
 * Adding a new CRD
-* Adding a significant feature to an existing storage provider. If the design is simple enough to describe in a github issue, you likely don't need a full design doc.
+* Adding a significant feature.
 
 For smaller, straightforward features and bug fixes, there is no need for a design document.
-Authoring a design document for big features has many advantages:
+Authoring a design document has many advantages:
 
-* Helps flesh out the approach by forcing the author to think critically about the feature and can identify potential issues early on
-* Gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
-* Serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
+* Forces the author to think critically about the feature and identify potential issues early in the design
+* Obtain agreement amongst the community before code is written to avoid wasted effort in the wrong direction
+* Newcomers may more quickly understand the feature
 
-!!! Note
+!!! note
     Writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
 A design document should be written as a markdown file in the [design folder](https://github.com/rook/rook/tree/master/design).
-You can follow the process outlined in the [design template](https://github.com/rook/rook/tree/master/design/design_template.md).
-You will see many examples of previous design documents in that folder.
-Submit a pull request for the design to be discussed and approved by the community before being merged into master, just like any other change to the repository.
-
-An issue should be opened to track the work of authoring and completing the design document.
-This issue is in addition to the issue that is tracking the implementation of the feature.
-The [design label](https://github.com/rook/rook/labels/design) should be assigned to the issue to denote it as such.
+Follow the process outlined in the [design template](https://github.com/rook/rook/tree/master/design/design_template.md).
+There are many examples of previous design documents in that folder.
+Submit a pull request for the design to be discussed and approved by the community, just like any other change to the repository.
 
 ### Create a Branch
 
-From a console, create a new branch based on your fork and start working on it:
+From a console, create a new branch based on your fork where changes will be developed:
 
 ```console
-# Ensure all your remotes are up to date with the latest
+# Update the remotes
 git fetch --all
 
 # Create a new branch that is based off upstream master.  Give it a simple, but descriptive name.
@@ -177,46 +169,44 @@ git fetch --all
 git checkout -b feature-name upstream/master
 ```
 
-Now you are ready to make the changes and commit to your branch.
-
 ### Updating Your Fork
 
-During the development lifecycle, you will need to keep up-to-date with the latest upstream master. As others on the team push changes, you will need to `rebase` your commits on top of the latest. This avoids unnecessary merge commits and keeps the commit history clean.
+During the development lifecycle, keep your branch(es) updated with the latest upstream master. As others on the team push changes, rebase your commits on top of the latest. This avoids unnecessary merge commits and keeps the commit history clean.
 
-Whenever you need to update your local repository, you never want to merge. You **always** will rebase. Otherwise you will end up with merge commits in the git history. If you have any modified files, you will first have to stash them (`git stash save -u "<some description>"`).
+Whenever an update is needed to the local repository, never perform a merge, **always** rebase. This will avoid merge commits in the git history. If there are any modified files, first stash them with `git stash`.
 
 ```console
 git fetch --all
 git rebase upstream/master
 ```
 
-Rebasing is a very powerful feature of Git. You need to understand how it works or else you will risk losing your work. Read about it in the [Git documentation](https://git-scm.com/docs/git-rebase), it will be well worth it. In a nutshell, rebasing does the following:
+Rebasing is a very powerful feature of Git. You need to understand how it works to avoid risking losing your work. Read about it in the [Git documentation](https://git-scm.com/docs/git-rebase). Briefly, rebasing does the following:
 
-* "Unwinds" your local commits. Your local commits are removed temporarily from the history.
+* "Unwinds" the local commits. The local commits are removed temporarily from the history.
 * The latest changes from upstream are added to the history
-* Your local commits are re-applied one by one
-* If there are merge conflicts, you will be prompted to fix them before continuing. Read the output closely. It will tell you how to complete the rebase.
-* When done rebasing, you will see all of your commits in the history.
+* The local commits are re-applied one by one
+* If there are merge conflicts, there will be a prompt to fix them before continuing. Read the output closely. It will instruct how to complete the rebase.
+* When rebasing is completed, all of the commits are restored in the history.
 
 ## Submitting a Pull Request
 
-Once you have implemented the feature or bug fix in your branch, you will open a Pull Request (PR)
-to the [upstream Rook repository](https://github.com/rook/rook). Before opening the PR ensure you
-have added unit tests and all unit tests are passing. Please clean your commit history and rebase on
-the latest upstream changes.
+After a feature or bug fix is completed in your branch, open a Pull Request (PR)
+to the [upstream Rook repository](https://github.com/rook/rook).
 
-See [Unit Tests](#unit-tests) below for instructions on how to run unit tests.
+Before opening the PR:
+- Add unit tests
+- All unit tests are passing
+- Rebase on the latest upstream changes
 
-In order to open a pull request (PR) it is required to be up to date with the latest changes upstream. If other commits are pushed upstream before your PR is merged, you will also need to rebase again before it will be merged.
+See [Unit Tests](#unit-tests) below on how to run unit tests.
 
 ### Regression Testing
 
-All pull requests must pass the unit and integration tests before they can be merged. These tests
-automatically run against every pull request as a part of Rook's continuous integration (CI)
-process. The results of these tests along with code reviews and other criteria determine whether
-your request will be accepted into the `rook/rook` repo.
+All pull requests must pass all continuous integration (CI) tests before they can be merged. These tests
+automatically run against every pull request. The results of these tests along with code review feedback determine whether
+your request will be merged.
 
-#### Unit Tests
+## Unit Tests
 
 From the root of your local Rook repo execute the following to run all of the unit tests:
 
@@ -224,20 +214,16 @@ From the root of your local Rook repo execute the following to run all of the un
 make test
 ```
 
-Unit tests for individual packages can be run with the standard `go test` command. Before you open a PR, confirm that you have sufficient code coverage on the packages that you changed. View the `coverage.html` in a browser to inspect your new code.
+Unit tests for individual packages can be run with the standard `go test` command.
+
+To see code coverage on the packages that you changed, view the `coverage.html` in a browser to inspect your new code.
 
 ```console
 go test -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
 
-#### Writing unit tests
-
-There is no one-size-fits-all approach to unit testing, but we attempt to provide good tips for
-writing unit tests for Rook below.
-
-Unit tests should help people reading and reviewing the code understand the intended behavior of the
-code.
+### Writing unit tests
 
 Good unit tests start with easily testable code. Small chunks ("units") of code can be easily tested
 for every possible input. Higher-level code units that are built from smaller, already-tested units
@@ -256,112 +242,95 @@ Common cases that may need tests:
 * an input is specified incorrectly, for each input
 * a resource the code relies on doesn't exist, for each dependency
 
-#### Running the Integration Tests
+## Integration Tests
 
 Rook's upstream continuous integration (CI) tests will run integration tests against your changes
 automatically.
 
-You do not need to run these tests locally, but you may if you like. For instructions on how to do
-so, follow the [test instructions](https://github.com/rook/rook/blob/master/tests/README.md).
+Integration tests will be run in Github actions. If an integration test fails, a tmate session will be available for troubleshooting for a short time. See the action details for an ssh connection to the Github runner.
 
-### Commit structure
+## Commit structure
 
-Rook maintainers value clear, lengthy and explanatory commit messages. So by default each of your commits must:
+Rook maintainers value clear, lengthy and explanatory commit messages.
 
-* be prefixed by the component it's affecting, if Ceph, then the title of the commit message should be `ceph: my commit title`. If not the commit-lint bot will complain.
-* contain a commit message which explains the original issue and how it was fixed if a bug.
-If a feature it is a full description of the new functionality.
-* refer to the issue it's closing, this is mandatory when fixing a bug
-* have a sign-off, this is achieved by adding `-s` when committing so in practice run `git commit -s`. If not the DCO bot will complain.
-If you forgot to add the sign-off you can also amend a previous commit with the sign-off by running `git commit --amend -s`.
-If you've pushed your changes to GitHub already you'll need to force push your branch with `git push -f`.
+Requirements for commits:
 
-Here is an example of an acceptable commit message:
+* A commit prefix from the [list of known prefixes](https://github.com/rook/rook/blob/master/.commitlintrc.json)
+* At least one paragraph that explains the original issue and the changes in the commit
+* The `Signed-off-by` tag is at the end of the commit message, achieved by committing with `git commit -s`
+
+An example acceptable commit message:
 
 ```text
 component: commit title
 
-This is the commit message, here I'm explaining, what the bug was along with its root cause.
+This is the commit message. Here I'm explaining what the bug was along with its root cause.
 Then I'm explaining how I fixed it.
 
-Closes: https://github.com/rook/rook/issues/<NUMBER>
-Signed-off-by: First Name Last Name <email address>
+Signed-off-by: FirstName LastName <email address>
 ```
-
-The `component` **MUST** be in the [list checked by the CI](https://github.com/rook/rook/blob/master/.commitlintrc.json).
-
-!!! Note
-    Sometimes you will feel like there is not so much to say, for instance if you are fixing a typo in a text.
-In that case, it is acceptable to shorten the commit message.
-Also, you don't always need to close an issue, again for a very small fix.
-
-You can read more about [conventional commits](https://www.conventionalcommits.org/en/v1.0.0-beta.2/).
 
 ### Commit History
 
-To prepare your branch to open a PR, you will need to have the minimal number of logical commits so we can maintain
+To prepare your branch to open a PR, the minimal number of logical commits is preferred to maintain
 a clean commit history. Most commonly a PR will include a single commit where all changes are squashed, although
 sometimes there will be multiple logical commits.
 
 ```console
 # Inspect your commit history to determine if you need to squash commits
 git log
+```
 
-# Rebase the commits and edit, squash, or even reorder them as you determine will keep the history clean.
+To squash multiple commits or make other changes to the commit history, use `git rebase`:
+
+```console
+#
 # In this example, the last 5 commits will be opened in the git rebase tool.
 git rebase -i HEAD~5
 ```
 
-Once your commit history is clean, ensure you have based on the [latest upstream](#Updating-your-fork) before you open the PR.
+Once your commit history is clean, ensure the branch is rebased on the [latest upstream](#Updating-your-fork) before opening the PR.
 
-### Submitting
+## Submitting
 
-Go to the [Rook github](https://www.github.com/rook/rook) to open the PR. If you have pushed recently, you should see an obvious link to open the PR. If you have not pushed recently, go to the Pull Request tab and select your fork and branch for the PR.
+Go to the [Rook github](https://www.github.com/rook/rook) to open the PR. If you have pushed recently to a branch, you will see an obvious link to open the PR. If you have not pushed recently, go to the Pull Request tab and select your fork and branch for the PR.
 
-After the PR is open, you can make changes simply by pushing new commits. Your PR will track the changes in your fork and update automatically.
+After the PR is open, make changes simply by pushing new commits. The PR will track the changes in your fork and rerun the CI automatically.
 
-**Never** open a pull request against a released branch (e.g. release-1.2) unless the content you are editing is gone from master and only exists in the released branch.
-By default, you should always open a pull request against master.
+Always open a pull request against master. **Never** open a pull request against a released branch (e.g. release-1.2) unless working directly with a maintainer.
 
-### Backport a Fix to a Release Branch
+## Backporting to a Release Branch
 
 The flow for getting a fix into a release branch is:
 
-1. Open a PR to merge the changes to master following the process outlined above.
-2. Add the backport label to that PR such as backport-release-1.7
-3. After your PR is merged to master, the mergify bot will automatically open a PR with your commits backported to the release branch
-4. If there are any conflicts you will need to resolve them by pulling the branch, resolving the conflicts and force push back the branch
-5. After the CI is green, the bot will automatically merge the backport PR.
+1. Open a PR to merge changes to master following the process outlined above
+2. Add the backport label to that PR such as backport-release-1.11
+3. After the PR is merged to master, the `mergify` bot will automatically open a PR with the commits backported to the release branch
+4. After the CI is green and a maintainer has approved the PR, the bot will automatically merge the backport PR
 
-## Testing changes and debugging issues in Ceph manager modules
+## Debugging issues in Ceph manager modules
 
 The Ceph manager modules are written in Python and can be individually and dynamically loaded from the manager. We can take advantage of this feature in order to test changes and to debug issues in the modules.
-This is just a hack to test/debug quickly and easily any modification in the manager modules.
+This is just a hack to debug any modification in the manager modules.
 
-The ceph dashboard and the rook orchestrator modules are probably the two modules more prone to have modifications affecting the rook cluster, and therefore it is interesting to know how to debug and test changes easily in these modules.
+The `dashboard` and the `rook` orchestrator modules are the two modules most commonly have modifications that need to be tested.
 
-The way to proceed is to make the modification directly in the manager module and reload it:
+Make modifications directly in the manager module and reload:
 
 1. Update the cluster so only a single mgr pod is running. Set the `mgr.count: 1` in the CephCluster CR if it is not already.
 
-Now shell into the manager container:
+2. Shell into the manager container:
+
 ```console
 kubectl exec -n rook-ceph --stdin --tty $(kubectl get pod -n rook-ceph -l ceph_daemon_type=mgr,instance=a  -o jsonpath='{.items[0].metadata.name}') -c mgr  -- /bin/bash
 ```
 
-2. Make the modifications needed in the required manager module.
-
-The source code of all the manager modules is in:
-```console
-/usr/share/ceph/mgr/
-```
-
-Enter the folder of the manager module to make your changes.
+3. Make the modifications needed in the required manager module. The manager module source code is found in `/usr/share/ceph/mgr/`.
 
 !!! Note
-    If the manager pod is restarted for whatever reason, all the modifications made in the mgr container will be lost.
+    If the manager pod is restarted, all modifications made in the mgr container will be lost
 
-3. Restart the manager module modified to test/debug the modifications:
+1. Restart the modified manager module to test the modifications:
 
 Example for restarting the rook manager module with the [krew plugin](https://github.com/rook/kubectl-rook-ceph):
 ```console
@@ -369,6 +338,5 @@ kubectl rook-ceph ceph mgr module disable rook
 kubectl rook-ceph ceph mgr module enable rook
 ```
 
-Once the module is restarted the modifications will be running in the active manager, and you will be able to test/debug them.  
-Is a good practice to have the manager container log always visible to realize immediately any kind of problem during the restart of the module (maybe a syntax error?), and to debug your changes.
-
+Once the module is restarted the modifications will be running in the active manager.
+View the manager pod log or other changed behavior to validate the changes.
