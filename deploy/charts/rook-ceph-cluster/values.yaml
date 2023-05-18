@@ -331,6 +331,13 @@ cephClusterSpec:
       requests:
         cpu: "500m"
         memory: "100Mi"
+    exporter:
+      limits:
+        cpu: "250m"
+        memory: "128Mi"
+      requests:
+        cpu: "50m"
+        memory: "50Mi"
 
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false

@@ -530,6 +530,7 @@ It scrapes for Ceph daemon core dumps and sends them to the Ceph manager crash m
 You can read more about the [Ceph Crash module](https://docs.ceph.com/docs/master/mgr/crash/).
 * `logcollector`: Set resource requests/limits for the log collector. When enabled, this container runs as side-car to each Ceph daemons.
 * `cleanup`: Set resource requests/limits for cleanup job, responsible for wiping cluster's data after uninstall
+* `exporter`: Set resource requests/limits for Ceph exporter.
 
 In order to provide the best possible experience running Ceph in containers, Rook internally recommends minimum memory limits if resource limits are passed.
 If a user configures a limit or request value that is too low, Rook will still run the pod(s) and print a warning to the operator log.
@@ -540,6 +541,7 @@ If a user configures a limit or request value that is too low, Rook will still r
 * `crashcollector`: 60MB
 * `mgr-sidecar`: 100MB limit, 40MB requests
 * `prepareosd`: no limits (see the note)
+* `exporter`: 128MB limit, 50MB requests
 
 !!! note
     We recommend not setting memory limits on the OSD prepare job to prevent OSD provisioning failure due to memory constraints.
