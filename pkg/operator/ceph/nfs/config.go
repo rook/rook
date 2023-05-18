@@ -118,7 +118,7 @@ NFSv4 {
 }
 
 RADOS_KV {
-	ceph_conf = '` + cephclient.DefaultConfigFilePath() + `';
+	ceph_conf = "` + cephclient.DefaultConfigFilePath() + `";
 	userid = ` + userID + `;
 	nodeid = ` + nodeID + `;
 	pool = "` + n.Spec.RADOS.Pool + `";
@@ -126,9 +126,13 @@ RADOS_KV {
 }
 
 RADOS_URLS {
-	ceph_conf = '` + cephclient.DefaultConfigFilePath() + `';
+	ceph_conf = "` + cephclient.DefaultConfigFilePath() + `";
 	userid = ` + userID + `;
 	watch_url = '` + url + `';
+}
+
+RGW {
+        name = "client.` + userID + `";
 }
 
 %url	` + url + `
