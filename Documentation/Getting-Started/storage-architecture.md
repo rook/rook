@@ -20,9 +20,6 @@ other adjustments are made as the cluster grows or shrinks.  The operator will a
 specified in the Ceph custom resources (CRs) and apply the changes.
 
 Rook automatically configures the Ceph-CSI driver to mount the storage to your pods.
-
-![Rook Components on Kubernetes](ceph-storage/kubernetes.png)
-
 The `rook/ceph` image includes all necessary tools to manage the cluster. Rook is not in the Ceph data path.
 Many of the Ceph concepts like placement groups and crush maps
 are hidden so you don't have to worry about them. Instead, Rook creates a simplified user experience for admins that is in terms
@@ -30,3 +27,57 @@ of physical resources, pools, volumes, filesystems, and buckets. Advanced config
 
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
 this combination offers the best of both worlds.
+
+### Architecture
+
+![Rook Components on Kubernetes](ceph-storage/Rook%20High-Level%20Architecture.png)
+
+Example applications are shown above for the three supported storage types:
+
+- Block Storage is represented with a blue app, which has a `ReadWriteOnce (RWO)` volume mounted. The application can read and write to the RWO volume, while Ceph manages the IO.
+- Shared Filesystem is represented by two purple apps that are sharing a ReadWriteMany (RWX) volume. Both applications can actively read or write simultaneously to the volume. Ceph will ensure the data is safely protected for multiple writers with the MDS daemon.
+- Object storage is represented by an orange app that can read and write to a bucket with a standard S3 client.
+
+Below the dotted line in the above diagram, the components fall into three categories:
+
+- Rook operator (blue layer): The operator automates configuration of Ceph
+- CSI plugins and provisioners (orange layer): The Ceph-CSI driver provides the provisioning and mounting of volumes
+- Ceph daemons (red layer): The Ceph daemons run the core storage architecture. See the [Glossary](glossary.md#ceph) to learn more about each daemon.
+
+Production clusters must have three or more nodes for a resilient storage platform.
+
+### Block Storage
+
+In the diagram above, the flow to create an application with an RWO volume is:
+
+- The (blue) app creates a PVC to request storage
+- The PVC defines the Ceph RBD storage class (sc) for provisioning the storage
+- K8s calls the Ceph-CSI RBD provisioner to create the Ceph RBD image.
+- The kubelet calls the CSI RBD volume plugin to mount the volume in the app
+- The volume is now available for reads and writes.
+
+A ReadWriteOnce volume can be mounted on one node at a time.
+
+### Shared Filesystem
+
+In the diagram above, the flow to create a applications with a RWX volume is:
+
+- The (purple) app creates a PVC to request storage
+- The PVC defines the CephFS storage class (sc) for provisioning the storage
+- K8s calls the Ceph-CSI CephFS provisioner to create the CephFS subvolume
+- The kubelet calls the CSI CephFS volume plugin to mount the volume in the app
+- The volume is now available for reads and writes.
+
+A ReadWriteMany volume can be mounted on multiple nodes for your application to use.
+
+### Object Storage S3
+
+In the diagram above, the flow to create an application with access to an S3 bucket is:
+
+- The (orange) app creates an ObjectBucketClaim (OBC) to request a bucket
+- The Rook operator creates a Ceph RGW bucket (via the lib-bucket-provisioner)
+- The Rook operator creates a secret with the credentials for accessing the bucket and a configmap with bucket information
+- The app retrieves the credentials from the secret
+- The app can now read and write to the bucket with an S3 client
+
+A S3 compatible client can use the S3 bucket right away using the credentials (`Secret`) and bucket info (`ConfigMap`).
