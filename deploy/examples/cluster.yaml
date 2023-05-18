@@ -227,6 +227,7 @@ spec:
   #   crashcollector:
   #   logcollector:
   #   cleanup:
+  #   exporter:
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
   priorityClassNames:
