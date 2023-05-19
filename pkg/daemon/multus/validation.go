@@ -102,96 +102,194 @@ func (vtr *ValidationTestResults) addSuggestions(s ...string) {
 
 /*
  * Validation state machine state definitions
- * state machine is linear and very simple, with steps numbered 1-N
  */
 
-// 1. Get web server info
-type getWebServerInfoState struct {
-	desiredPublicNet, desiredClusterNet *types.NamespacedName
+type getExpectedNumberOfImagePullPodsState struct {
+	expectedNumPods             int
+	expectedNumPodsValueChanged time.Time
 }
 
-func (s *getWebServerInfoState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	info, suggestions, err := vsm.vt.getWebServerInfo(ctx, s.desiredPublicNet, s.desiredClusterNet)
+// the length of time to wait for daemonset scheduler to stabilize to a specific number of pods
+// started. must be lower than the state timeout duration
+var podSchedulerDebounceTime = 30 * time.Second
+
+/*
+ *  > Determine how many pods the image pull daemonset schedules
+ *      -- next state --> Verify all image pull pods are running (verifies all images are pulled)
+ */
+func (s *getExpectedNumberOfImagePullPodsState) Run(
+	ctx context.Context, vsm *validationStateMachine,
+) (suggestions []string, err error) {
+	expectedNumPods, err := vsm.vt.getExpectedNumberOfDaemonSetPods(ctx, imagePullAppLabel(), 1)
 	if err != nil {
-		return suggestions, err
+		return []string{"inability to schedule DaemonSets is likely an issue with the Kubernetes cluster itself"},
+			fmt.Errorf("expected number of image pull pods not yet ready: %w", err)
 	}
-	vsm.SetNextState(&startClientsState{
-		webServerInfo: info,
+
+	if s.expectedNumPods != expectedNumPods {
+		s.expectedNumPods = expectedNumPods
+		s.expectedNumPodsValueChanged = time.Now()
+	}
+	if time.Since(s.expectedNumPodsValueChanged) < podSchedulerDebounceTime {
+		vsm.vt.Logger.Infof("waiting to ensure num expected image pull pods to stabilize at %d", s.expectedNumPods)
+		return []string{}, nil
+	}
+	vsm.vt.Logger.Infof("expecting %d image pull pods to be 'Ready'", s.expectedNumPods)
+	vsm.SetNextState(&verifyAllPodsRunningState{
+		AppType:         imagePullDaemonSetAppType,
+		ExpectedNumPods: s.expectedNumPods,
 	})
 	return []string{}, nil
 }
 
-// 2. Start clients
+/*
+ *  Re-usable state to verify that expected number of pods are "Running" but not necessarily "Ready"
+ *    > Verify all image pull pods are running
+ *        -- next state --> Delete image pull daemonset
+ *    > Verify all client pods are running
+ *        -- next state --> Verify all client pods are "Ready"
+ */
+type verifyAllPodsRunningState struct {
+	AppType         daemonsetAppType
+	ExpectedNumPods int
+}
+
+func (s *verifyAllPodsRunningState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	var podSelectorLabel string
+	suggestions = []string{}
+
+	switch s.AppType {
+	case imagePullDaemonSetAppType:
+		podSelectorLabel = imagePullAppLabel()
+		// image pull pods don't have multus labels, so this can't be a multus issue
+		suggestions = append(suggestions, "inability to run image pull pods is likely an issue with Kubernetes itself")
+	case clientDaemonSetAppType:
+		podSelectorLabel = clientAppLabel()
+		suggestions = append(suggestions, "clients not being able to run can mean multus is unable to provide them with addresses")
+		suggestions = append(suggestions, unableToProvideAddressSuggestions...)
+	default:
+		return []string{}, fmt.Errorf("internal error; unknown daemonset type %q", s.AppType)
+	}
+
+	numRunning, err := vsm.vt.getNumRunningPods(ctx, podSelectorLabel, s.ExpectedNumPods)
+	errMsg := fmt.Sprintf("all %d %s pods are not yet running", s.ExpectedNumPods, s.AppType)
+	if err != nil {
+		return suggestions, fmt.Errorf("%s: %w", errMsg, err)
+	}
+	if numRunning != s.ExpectedNumPods {
+		return suggestions, fmt.Errorf(errMsg)
+	}
+
+	switch s.AppType {
+	case imagePullDaemonSetAppType:
+		vsm.vt.Logger.Infof("cleaning up all %d 'Running' image pull pods", s.ExpectedNumPods)
+		vsm.SetNextState(&deleteImagePullersState{
+			NumImagePullPods: s.ExpectedNumPods,
+		})
+	case clientDaemonSetAppType:
+		vsm.vt.Logger.Infof("verifying all %d 'Running' client pods reach 'Ready' state", s.ExpectedNumPods)
+		vsm.SetNextState(&verifyAllClientsReadyState{
+			ExpectedNumClients: s.ExpectedNumPods,
+		})
+	}
+	return []string{}, nil
+}
+
+/*
+ *  > Delete image pull daemonset
+ *      -- next state --> Get web server info
+ */
+type deleteImagePullersState struct {
+	// keeps track of the number of image pull pods that ran. this will directly affect the number
+	// of client pods that can be expected to run later on
+	NumImagePullPods int
+}
+
+func (s *deleteImagePullersState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	err = vsm.vt.deleteImagePullers(ctx)
+	if err != nil {
+		// erroring here is not strictly necessary but does indicate a k8s issue that probably affects future test steps
+		return []string{"inability to delete resources is likely an issue with Kubernetes itself"}, err
+	}
+	vsm.vt.Logger.Infof("getting web server info for clients")
+	vsm.SetNextState(&getWebServerInfoState{
+		NumImagePullPods: s.NumImagePullPods,
+	})
+	return []string{}, nil
+}
+
+/*
+ *  > Get web server info
+ *      -- next state --> Start clients
+ */
+type getWebServerInfoState struct {
+	NumImagePullPods int
+}
+
+func (s *getWebServerInfoState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	var desiredPublicNet *types.NamespacedName = nil
+	var desiredClusterNet *types.NamespacedName = nil
+	if vsm.vt.PublicNetwork != "" {
+		n, err := networkNamespacedName(vsm.vt.PublicNetwork, vsm.vt.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("public network is an invalid NAD name: %w", err)
+		}
+		desiredPublicNet = &n
+	}
+	if vsm.vt.ClusterNetwork != "" {
+		n, err := networkNamespacedName(vsm.vt.ClusterNetwork, vsm.vt.Namespace)
+		if err != nil {
+			return nil, fmt.Errorf("cluster network is an invalid NAD name: %w", err)
+		}
+		desiredClusterNet = &n
+	}
+
+	info, suggestions, err := vsm.vt.getWebServerInfo(ctx, desiredPublicNet, desiredClusterNet)
+	if err != nil {
+		return suggestions, err
+	}
+	vsm.vt.Logger.Infof("starting %d clients on each node", vsm.vt.DaemonsPerNode)
+	vsm.SetNextState(&startClientsState{
+		WebServerInfo:    info,
+		NumImagePullPods: s.NumImagePullPods,
+	})
+	return []string{}, nil
+}
+
+/*
+ *  Start clients
+ *    -- next state --> Verify all client pods are running
+ */
 type startClientsState struct {
-	webServerInfo podNetworkInfo
+	WebServerInfo    podNetworkInfo
+	NumImagePullPods int
 }
 
 func (s *startClientsState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	vsm.vt.Logger.Infof("starting %d client DaemonSets", vsm.vt.DaemonsPerNode)
-	err = vsm.vt.startClients(ctx, vsm.resourceOwnerRefs, s.webServerInfo.publicAddr, s.webServerInfo.clusterAddr)
+	err = vsm.vt.startClients(ctx, vsm.resourceOwnerRefs, s.WebServerInfo.publicAddr, s.WebServerInfo.clusterAddr)
 	if err != nil {
 		eErr := fmt.Errorf("failed to start clients: %w", err)
 		vsm.Exit() // this is a whole validation test failure if we can't start clients
 		return []string{}, eErr
 	}
-	vsm.SetNextState(&getNumExpectedClientsState{})
-	return []string{}, nil
-}
-
-// 3. Get expected number of clients
-type getNumExpectedClientsState struct {
-	expectedNumClients             int
-	expectedNumClientsValueChanged time.Time
-}
-
-var podSchedulerDebounceTime = 30 * time.Second
-
-func (s *getNumExpectedClientsState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	expectedNumClientPods, err := vsm.vt.getExpectedNumberOfClientPods(ctx)
-	if err != nil {
-		return []string{"inability to schedule DaemonSets is likely an issue with the Kubernetes cluster itself"},
-			fmt.Errorf("expected number of client not yet ready: %w", err)
-	}
-	if s.expectedNumClients < expectedNumClientPods {
-		s.expectedNumClients = expectedNumClientPods
-		s.expectedNumClientsValueChanged = time.Now()
-	}
-	if time.Since(s.expectedNumClientsValueChanged) < podSchedulerDebounceTime {
-		vsm.vt.Logger.Infof("waiting to ensure num expected clients to stabilizes at %d", s.expectedNumClients)
-		return []string{}, nil
-	}
-	vsm.vt.Logger.Infof("expecting %d clients", expectedNumClientPods)
-	vsm.SetNextState(&verifyAllClientsRunningState{
-		expectedNumClients: expectedNumClientPods,
+	// Use the number of image pull pods that ran in a previous step as the expectation for how
+	// many pods will run for every daemonset. Multiplied by the number of daemons per node, we
+	// know how many total client pods should end up running.
+	totalNumClients := s.NumImagePullPods * vsm.vt.DaemonsPerNode
+	vsm.vt.Logger.Infof("verifying %d client pods begin 'Running'", totalNumClients)
+	vsm.SetNextState(&verifyAllPodsRunningState{
+		AppType:         clientDaemonSetAppType,
+		ExpectedNumPods: totalNumClients,
 	})
 	return []string{}, nil
 }
 
-// 4. All client pods should be in running state, even if they aren't "Ready"
-type verifyAllClientsRunningState struct {
-	expectedNumClients int
-}
-
-func (s *verifyAllClientsRunningState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	running, err := vsm.vt.allClientsAreRunning(ctx, s.expectedNumClients)
-	suggestions = append([]string{
-		"clients not being able to run can mean multus is unable to provide them with addresses"},
-		unableToProvideAddressSuggestions...)
-	if err != nil {
-		return suggestions, err
-	} else if !running {
-		return suggestions, nil // not running, but no specific error
-	}
-	vsm.vt.Logger.Infof("all %d clients are running - but may not be ready", s.expectedNumClients)
-	vsm.SetNextState(&verifyAllClientsReadyState{
-		expectedNumClients: s.expectedNumClients,
-	})
-	return []string{}, nil
-}
-
-// 5. All client pods should be in "Ready" state
+/*
+ *  > Verify all client pods are "Ready"
+ *      -- next state --> Exit / Done
+ */
 type verifyAllClientsReadyState struct {
-	expectedNumClients int
+	ExpectedNumClients int
 
 	// keep some info to heuristically determine if the network might be flaky/overloaded
 	prevNumReady                    int
@@ -200,7 +298,7 @@ type verifyAllClientsReadyState struct {
 }
 
 func (s *verifyAllClientsReadyState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	numReady, err := vsm.vt.numClientsReady(ctx, s.expectedNumClients)
+	numReady, err := vsm.vt.numClientsReady(ctx, s.ExpectedNumClients)
 	collocationSuggestion := "if clients on the same node as the web server become ready but not others, " +
 		"there may be a network firewall or security policy blocking inter-node traffic on multus networks"
 	defaultSuggestions := append([]string{collocationSuggestion, flakyNetworkSuggestion}, unableToProvideAddressSuggestions...)
@@ -210,11 +308,11 @@ func (s *verifyAllClientsReadyState) Run(ctx context.Context, vsm *validationSta
 
 	s.checkIfFlaky(vsm, numReady)
 
-	if numReady != s.expectedNumClients {
-		return defaultSuggestions, fmt.Errorf("number of ready clients [%d] is not the number expected [%d]", numReady, s.expectedNumClients)
+	if numReady != s.ExpectedNumClients {
+		return defaultSuggestions, fmt.Errorf("number of ready clients [%d] is not the number expected [%d]", numReady, s.ExpectedNumClients)
 	}
 
-	vsm.vt.Logger.Infof("all %d clients are ready", s.expectedNumClients)
+	vsm.vt.Logger.Infof("all %d clients are 'Ready'", s.ExpectedNumClients)
 	suggestionsOnSuccess := []string{}
 	if s.suggestFlaky {
 		suggestionsOnSuccess = append(suggestionsOnSuccess,
@@ -227,7 +325,6 @@ func (s *verifyAllClientsReadyState) Run(ctx context.Context, vsm *validationSta
 // clients should all become ready within a pretty short amount of time since they all should start
 // pretty simultaneously
 // TODO: allow tuning this
-// TODO: pull the image first on all nodes to ensure flakiness isn't affected by image pull time
 var flakyThreshold = 20 * time.Second
 
 func (s *verifyAllClientsReadyState) checkIfFlaky(vsm *validationStateMachine, numReady int) {
@@ -269,23 +366,6 @@ func (vt *ValidationTest) Run(ctx context.Context) (*ValidationTestResults, erro
 		return nil, fmt.Errorf("at least one of 'public network' and 'cluster network' must be specified")
 	}
 
-	var desiredPublicNet *types.NamespacedName = nil
-	var desiredClusterNet *types.NamespacedName = nil
-	if vt.PublicNetwork != "" {
-		n, err := networkNamespacedName(vt.PublicNetwork, vt.Namespace)
-		if err != nil {
-			return nil, fmt.Errorf("public network is an invalid NAD name: %w", err)
-		}
-		desiredPublicNet = &n
-	}
-	if vt.ClusterNetwork != "" {
-		n, err := networkNamespacedName(vt.ClusterNetwork, vt.Namespace)
-		if err != nil {
-			return nil, fmt.Errorf("cluster network is an invalid NAD name: %w", err)
-		}
-		desiredClusterNet = &n
-	}
-
 	testResults := &ValidationTestResults{
 		suggestedDebugging: []string{},
 	}
@@ -304,6 +384,12 @@ func (vt *ValidationTest) Run(ctx context.Context) (*ValidationTestResults, erro
 		return testResults, fmt.Errorf("failed to start web server: %w", err)
 	}
 
+	err = vt.startImagePullers(ctx, owningConfigMap)
+	if err != nil {
+		testResults.addSuggestions(previousTestSuggestion)
+		return testResults, fmt.Errorf("failed to start image pulls: %w", err)
+	}
+
 	// start the state machine
 	vsm := &validationStateMachine{
 		vt:                vt,
@@ -311,10 +397,7 @@ func (vt *ValidationTest) Run(ctx context.Context) (*ValidationTestResults, erro
 		testResults:       testResults,
 		lastSuggestions:   []string{},
 	}
-	startingState := &getWebServerInfoState{
-		desiredPublicNet:  desiredPublicNet,
-		desiredClusterNet: desiredClusterNet,
-	}
+	startingState := &getExpectedNumberOfImagePullPodsState{}
 	vsm.SetNextState(startingState)
 	return vsm.Run(ctx)
 }

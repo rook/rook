@@ -134,6 +134,40 @@ func (vt *ValidationTest) getWebServerInfo(
 	return podInfo, []string{}, nil // no suggestions if successful
 }
 
+func (vt *ValidationTest) startImagePullers(ctx context.Context, owners []meta.OwnerReference) error {
+	ds, err := vt.generateImagePullDaemonSet()
+	if err != nil {
+		return fmt.Errorf("failed to generate image pull daemonset: %w", err)
+	}
+	ds.SetOwnerReferences(owners) // set owner so cleanup is easier
+
+	_, err = vt.Clientset.AppsV1().DaemonSets(vt.Namespace).Create(ctx, ds, meta.CreateOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to create image pull daemonset: %w", err)
+	}
+
+	return nil
+}
+
+func (vt *ValidationTest) deleteImagePullers(ctx context.Context) error {
+	noGracePeriod := int64(0)
+	delOpts := meta.DeleteOptions{
+		GracePeriodSeconds: &noGracePeriod,
+	}
+	listOpts := meta.ListOptions{
+		LabelSelector: imagePullAppLabel(),
+	}
+	err := vt.Clientset.AppsV1().DaemonSets(vt.Namespace).DeleteCollection(ctx, delOpts, listOpts)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil // already deleted
+		}
+		return fmt.Errorf("failed to delete image pullers: %w", err)
+	}
+
+	return nil
+}
+
 func (vt *ValidationTest) startClients(
 	ctx context.Context,
 	owners []meta.OwnerReference,
@@ -155,50 +189,62 @@ func (vt *ValidationTest) startClients(
 	return nil
 }
 
-// if this returns success, the return value is guaranteed to be greater than 0
-func (vt *ValidationTest) getExpectedNumberOfClientPods(ctx context.Context) (int, error) {
+func (vt *ValidationTest) getExpectedNumberOfDaemonSetPods(
+	ctx context.Context,
+	daemonsetSelectorLabel string,
+	expectedNumDaemonsets int,
+) (int, error) {
 	var agreedNumberScheduled int32
 	listOpts := meta.ListOptions{
-		LabelSelector: clientAppLabel(),
+		LabelSelector: daemonsetSelectorLabel,
 	}
 	dsets, err := vt.Clientset.AppsV1().DaemonSets(vt.Namespace).List(ctx, listOpts)
 	if err != nil {
-		return 0, fmt.Errorf("unexpected error listing client daemonsets: %w", err)
+		return 0, fmt.Errorf("unexpected error listing daemonsets: %w", err)
 	}
-	if len(dsets.Items) < vt.DaemonsPerNode {
-		return 0, fmt.Errorf("got fewer client daemonsets [%d] than should exist [%d]", len(dsets.Items), vt.DaemonsPerNode)
+	if len(dsets.Items) != expectedNumDaemonsets {
+		return 0, fmt.Errorf("got %d daemonsets when %d should exist", len(dsets.Items), expectedNumDaemonsets)
 	}
 
 	for _, d := range dsets.Items {
 		numScheduled := d.Status.CurrentNumberScheduled
 		if numScheduled == 0 {
-			return 0, fmt.Errorf("a daemonset expects zero scheduled client pods; cannot validate with no running clients")
+			return 0, fmt.Errorf("a daemonset expects zero scheduled pods")
 		}
 		if agreedNumberScheduled == 0 {
 			agreedNumberScheduled = numScheduled
 		} else if numScheduled != agreedNumberScheduled {
-			return 0, fmt.Errorf("daemonsets do not all agree on the number of expected client pods")
+			return 0, fmt.Errorf("daemonsets do not all agree on the number of expected pods")
 		}
 	}
 
-	return int(agreedNumberScheduled) * vt.DaemonsPerNode, nil
+	return int(agreedNumberScheduled) * expectedNumDaemonsets, nil
 }
 
-func (vt *ValidationTest) allClientsAreRunning(ctx context.Context, expectedNumPods int) (bool, error) {
-	pods, err := vt.getClientPods(ctx, expectedNumPods)
-	if err != nil {
-		return false, fmt.Errorf("unexpected error getting client pods: %w", err)
+func (vt *ValidationTest) getNumRunningPods(
+	ctx context.Context,
+	podSelectorLabel string,
+	expectedNumTotalPods int,
+) (int, error) {
+	listOpts := meta.ListOptions{
+		LabelSelector: podSelectorLabel,
 	}
+	pods, err := vt.Clientset.CoreV1().Pods(vt.Namespace).List(ctx, listOpts)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list pods: %w", err)
+	}
+	if len(pods.Items) != expectedNumTotalPods {
+		return 0, fmt.Errorf("got %d pods when %d should exist", len(pods.Items), expectedNumTotalPods)
+	}
+
 	numRunning := 0
 	for _, p := range pods.Items {
 		if podIsRunning(p) {
 			numRunning++
 		}
 	}
-	if numRunning != expectedNumPods {
-		return false, fmt.Errorf("number of running clients [%d] is not the number expected [%d]", numRunning, expectedNumPods)
-	}
-	return true, nil
+
+	return numRunning, nil
 }
 
 func (vt *ValidationTest) numClientsReady(ctx context.Context, expectedNumPods int) (int, error) {
