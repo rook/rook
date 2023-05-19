@@ -48,3 +48,12 @@ spec:
     * `usage`
     * `metadata`
     * `zone`
+    * `roles`
+    * `info`
+    * `amz-cache`
+    * `bilog`
+    * `mdlog`
+    * `datalog`
+    * `user-policy`
+    * `odic-provider`
+    * `ratelimit`
