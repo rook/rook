@@ -10374,6 +10374,22 @@ spec:
                   description: Additional admin-level capabilities for the Ceph object store user
                   nullable: true
                   properties:
+                    amz-cache:
+                      description: Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    bilog:
+                      description: Add capabilities for user to change bucket index logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
                     bucket:
                       description: Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
@@ -10382,8 +10398,56 @@ spec:
                         - write
                         - read, write
                       type: string
+                    datalog:
+                      description: Add capabilities for user to change data logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    info:
+                      description: Admin capabilities to read/write information about the user. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    mdlog:
+                      description: Add capabilities for user to change metadata logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
                     metadata:
                       description: Admin capabilities to read/write Ceph object store metadata. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    oidc-provider:
+                      description: Add capabilities for user to change oidc provider. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    ratelimit:
+                      description: Add capabilities for user to set rate limiter for user and bucket. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    roles:
+                      description: Admin capabilities to read/write roles for user. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
                         - '*'
                         - read
@@ -10400,6 +10464,14 @@ spec:
                       type: string
                     user:
                       description: Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    user-policy:
+                      description: Add capabilities for user to change user policies. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
                         - '*'
                         - read
