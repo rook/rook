@@ -183,7 +183,7 @@ For assistance debugging, collect the following into an archive file:
 `)
 
 	// tell them how to cleanup
-	fmt.Printf("\nTo clean up resources when you are done debugging: %s", cleanupCmd.CommandPath())
+	fmt.Printf("\nTo clean up resources when you are done debugging: %s --namespace %s\n", cleanupCmd.CommandPath(), validationConfig.Namespace)
 
 	os.Exit(1)
 }
