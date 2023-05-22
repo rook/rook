@@ -93,6 +93,7 @@ spec:
     port: 8080
     externalRgwEndpoints:
       - ip: 192.168.39.182
+        # hostname: example.com
 ```
 
 Use the existing `object-external.yaml` file. Even though multiple endpoints can be specified, it is recommend to use only one endpoint. This endpoint is randomly added to `configmap` of OBC and secret of the `cephobjectstoreuser`. Rook never guarantees the randomly picked endpoint is a working one or not.
