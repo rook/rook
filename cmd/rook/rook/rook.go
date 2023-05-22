@@ -38,7 +38,9 @@ import (
 	zaplogfmt "github.com/sykesm/zap-logfmt"
 	uzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+
 	v1 "k8s.io/api/core/v1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -137,6 +139,9 @@ func NewContext() *clusterd.Context {
 
 	context.NetworkClient, err = netclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create network clientset")
+
+	context.ApiExtensionsClient, err = apiextensionsclient.NewForConfig(context.KubeConfig)
+	TerminateOnError(err, "failed to create crd extensions client")
 
 	return context
 }

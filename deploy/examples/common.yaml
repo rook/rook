@@ -546,6 +546,12 @@ rules:
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["validatingwebhookconfigurations"]
     verbs: ["create", "get", "delete", "update"]
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["networkfences"]
+    verbs: ["create", "get", "update", "delete", "watch", "list"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get"]
 ---
 # This is required by operator-sdk to map the cluster/clusterrolebindings with SA
 # otherwise operator-sdk will create a individual file for these.
