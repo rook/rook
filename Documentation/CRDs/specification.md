@@ -4850,7 +4850,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The IP of this endpoint.</p>
+<p>The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.</p>
 </td>
 </tr>
 <tr>
@@ -4862,7 +4862,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The Hostname of this endpoint</p>
+<p>The DNS-addressable Hostname of this endpoint. This field will be preferred over IP if both are given.</p>
 </td>
 </tr>
 </tbody>

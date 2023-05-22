@@ -80,6 +80,7 @@ spec:
     port: 8080
     externalRgwEndpoints:
       - ip: 192.168.39.182
+        # hostname: example.com
 ```
 
 You can use the existing `object-external.yaml` file.

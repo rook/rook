@@ -1229,19 +1229,6 @@ class RadosJSON:
             "",
         )
 
-    def convert_fqdn_rgw_endpoint_to_ip(self, fqdn_rgw_endpoint):
-        try:
-            fqdn, port = fqdn_rgw_endpoint.split(":")
-        except ValueError:
-            raise ExecutionFailureException(
-                f"Not a proper endpoint: {fqdn_rgw_endpoint}, "
-                "<FQDN>:<PORT>, format is expected"
-            )
-        rgw_endpoint_ip = self._convert_hostname_to_ip(fqdn)
-        rgw_endpoint_port = port
-        rgw_endpoint = self._join_host_port(rgw_endpoint_ip, rgw_endpoint_port)
-        return rgw_endpoint
-
     def validate_rbd_pool(self):
         if not self.cluster.pool_exists(self._arg_parser.rbd_data_pool_name):
             raise ExecutionFailureException(
@@ -1325,7 +1312,6 @@ class RadosJSON:
 
         # check if the rgw endpoint is reachable
         rgw_endpoint = self._arg_parser.rgw_endpoint
-        self._invalid_endpoint(rgw_endpoint)
         cert = None
         if not self._arg_parser.rgw_skip_tls and self.validate_rgw_endpoint_tls_cert():
             cert = self._arg_parser.rgw_tls_cert_path
@@ -1390,10 +1376,6 @@ class RadosJSON:
         self._arg_parser.cluster_name = (
             self._arg_parser.cluster_name.lower()
         )  # always convert cluster name to lowercase characters
-        if self._arg_parser.rgw_endpoint:
-            self._arg_parser.rgw_endpoint = self.convert_fqdn_rgw_endpoint_to_ip(
-                self._arg_parser.rgw_endpoint
-            )
         self.validate_rbd_pool()
         self.validate_rados_namespace()
         self.validate_subvolume_group()

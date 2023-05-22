@@ -16,3 +16,4 @@ spec:
     port: 80
     externalRgwEndpoints:
       - ip: 192.168.39.182
+        # hostname: example.com

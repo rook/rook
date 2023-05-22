@@ -135,6 +135,7 @@ gateway:
   port: 80
   externalRgwEndpoints:
     - ip: 192.168.39.182
+      # hostname: example.com
 ```
 
 This will create a service with the endpoint `192.168.39.182` on port `80`, pointing to the Ceph object external gateway.

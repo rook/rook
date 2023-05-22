@@ -187,15 +187,6 @@ class TestRadosJSON(unittest.TestCase):
         except ext.ExecutionFailureException as err:
             print(f"Successfully thrown error: {err}")
 
-    def test_convert_fqdn_rgw_endpoint_to_ip(self):
-        try:
-            rgw_endpoint_ip = self.rjObj.convert_fqdn_rgw_endpoint_to_ip(
-                "www.redhat.com:80"
-            )
-            print(f"Successfully Converted www.redhat.com to it's IP {rgw_endpoint_ip}")
-        except ext.ExecutionFailureException as err:
-            print(f"Successfully thrown error: {err}")
-
     def test_upgrade_user_permissions(self):
         self.rjObj = ext.RadosJSON(
             [

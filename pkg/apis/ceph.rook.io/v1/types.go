@@ -1484,10 +1484,11 @@ type GatewaySpec struct {
 // Kubernetes's v1.EndpointAddress.
 // +structType=atomic
 type EndpointAddress struct {
-	// The IP of this endpoint.
+	// The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.
 	// +optional
 	IP string `json:"ip" protobuf:"bytes,1,opt,name=ip"`
-	// The Hostname of this endpoint
+
+	// The DNS-addressable Hostname of this endpoint. This field will be preferred over IP if both are given.
 	// +optional
 	Hostname string `json:"hostname,omitempty" protobuf:"bytes,3,opt,name=hostname"`
 }
