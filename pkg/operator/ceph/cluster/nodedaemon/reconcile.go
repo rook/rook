@@ -85,6 +85,18 @@ func (r *ReconcileNode) Reconcile(context context.Context, request reconcile.Req
 	return result, err
 }
 
+func (r *ReconcileNode) cleanupExporterResources(clusterNamespace string, ns string, nodeName string) (reconcile.Result, error) {
+	err := k8sutil.DeleteServiceMonitor(r.opManagerContext, ns, cephExporterAppName)
+	if err != nil {
+		logger.Debugf("failed to delete service monitor for ceph exporter in namespace %q on node %q", ns, nodeName)
+	}
+	err = k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, cephExporterAppName)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph exporter metrics service in namespace %q on node %q", ns, nodeName)
+	}
+	return reconcile.Result{}, nil
+}
+
 func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	logger.Debugf("reconciling node: %q", request.Name)
 
@@ -195,6 +207,24 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to list and delete deployments in namespace %q on node %q", namespace, request.Name)
 			}
+			result, err := r.cleanupExporterResources(cephCluster.Namespace, namespace, request.Name)
+			if err != nil {
+				return result, errors.Wrapf(err, "failed to cleanup exporter resources in namespace %q on node %q", namespace, request.Name)
+			}
+		}
+		// Cleanup exporter if the ceph version isn't supported
+		if !cephVersion.IsAtLeast(MinVersionForCephExporter) {
+			for _, cephPod := range cephPods {
+				if cephPod.Spec.NodeName == request.Name {
+					if err := r.listDeploymentAndDelete(cephExporterAppName, request.Name, namespace); err != nil {
+						return reconcile.Result{}, errors.Wrap(err, "failed to delete ceph-exporter")
+					}
+					result, err := r.cleanupExporterResources(cephCluster.Namespace, namespace, request.Name)
+					if err != nil {
+						return result, errors.Wrapf(err, "failed to cleanup exporter resources in namespace %q on node %q", namespace, request.Name)
+					}
+				}
+			}
 		}
 
 		if err := r.reconcileCrashPruner(namespace, cephCluster, cephVersion); err != nil {
@@ -218,7 +248,7 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 			logger.Debugf("crash collector successfully reconciled for node %q. operation: %q", node.Name, op)
 		}
 	}
-	if !cephCluster.Spec.Monitoring.MetricsDisabled {
+	if cephVersion.IsAtLeast(MinVersionForCephExporter) && !cephCluster.Spec.Monitoring.MetricsDisabled {
 		op, err := r.createOrUpdateCephExporter(node, tolerations, cephCluster, cephVersion)
 		if err != nil {
 			if op == "unchanged" {
