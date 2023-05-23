@@ -69,8 +69,6 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", objectStoreName)
 	}
 
-	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
-	objContext.CephClusterSpec = *p.clusterSpec
 	accessKey, secretKey, err := object.GetAdminOPSUserCredentials(objContext, &objStore.Spec)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get Ceph RGW admin ops user credentials")

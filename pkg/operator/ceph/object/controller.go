@@ -368,7 +368,6 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 	if err != nil {
 		return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to setup object store context", err)
 	}
-	objContext.CephClusterSpec = cluster
 
 	if cephObjectStore.Spec.IsExternal() {
 		logger.Info("reconciling external object store")
