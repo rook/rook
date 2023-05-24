@@ -44,14 +44,18 @@ var (
 
 type webServerTemplateConfig struct {
 	NetworksAnnotationValue string
+	NginxImage              string
 }
 
-type imagePullTemplateConfig struct{}
+type imagePullTemplateConfig struct {
+	NginxImage string
+}
 
 type clientTemplateConfig struct {
 	ClientID                 int
 	NetworksAnnotationValue  string
 	NetworkNamesAndAddresses map[string]string
+	NginxImage               string
 }
 
 func webServerPodName() string {
@@ -74,6 +78,7 @@ const clientDaemonSetAppType = "client"
 func (vt *ValidationTest) generateWebServerTemplateConfig() webServerTemplateConfig {
 	return webServerTemplateConfig{
 		NetworksAnnotationValue: vt.generateNetworksAnnotationValue(),
+		NginxImage:              vt.NginxImage,
 	}
 }
 
@@ -89,6 +94,13 @@ func (vt *ValidationTest) generateClientTemplateConfig(clientID int, serverPubli
 		ClientID:                 clientID,
 		NetworksAnnotationValue:  vt.generateNetworksAnnotationValue(),
 		NetworkNamesAndAddresses: netNamesAndAddresses,
+		NginxImage:               vt.NginxImage,
+	}
+}
+
+func (vt *ValidationTest) generateImagePullTemplateConfig() imagePullTemplateConfig {
+	return imagePullTemplateConfig{
+		NginxImage: vt.NginxImage,
 	}
 }
 
@@ -123,7 +135,7 @@ func (vt *ValidationTest) generateWebServerConfigMap() (*core.ConfigMap, error) 
 }
 
 func (vt *ValidationTest) generateImagePullDaemonSet() (*apps.DaemonSet, error) {
-	t, err := loadTemplate("imagePullDaemonSet", imagePullDaemonSet, imagePullTemplateConfig{})
+	t, err := loadTemplate("imagePullDaemonSet", imagePullDaemonSet, vt.generateImagePullTemplateConfig())
 	if err != nil {
 		return nil, fmt.Errorf("failed to load image pull daemonset template: %w", err)
 	}
