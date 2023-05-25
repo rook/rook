@@ -1,6 +1,9 @@
 name: Integration test CephMgrSuite
 on:
   pull_request:
+    paths-ignore:
+      - "Documentation/**"
+      - "design/**"
   schedule:
     - cron: "0 0 * * *" # every day at midnight
 

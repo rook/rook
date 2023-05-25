@@ -4,6 +4,9 @@ on:
     branches:
       - master
       - release-*
+    paths-ignore:
+      - "Documentation/**"
+      - "design/**"
 
 defaults:
   run:
