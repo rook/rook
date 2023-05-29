@@ -566,6 +566,9 @@ spec:
             runAsNonRoot: true
             runAsUser: 2016
             runAsGroup: 2016
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             - mountPath: /var/lib/rook
               name: rook-config
