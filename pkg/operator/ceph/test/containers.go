@@ -58,10 +58,10 @@ func (ct *ContainersTester) AssertArgsContainCephRequirements() {
 			continue // don't consider containers that aren't Ceph commands
 		}
 		requiredFlags := []string{
-			"--log-to-stderr=true",
-			"--err-to-stderr=true",
-			"--mon-cluster-log-to-stderr=true",
-			"--log-stderr-prefix=debug ",
+			"--default-log-to-stderr=true",
+			"--default-err-to-stderr=true",
+			"--default-mon-cluster-log-to-stderr=true",
+			"--default-log-stderr-prefix=debug ",
 			"--mon-host=$(ROOK_CEPH_MON_HOST)",
 			"--mon-initial-members=$(ROOK_CEPH_MON_INITIAL_MEMBERS)",
 		}
