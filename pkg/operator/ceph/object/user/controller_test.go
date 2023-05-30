@@ -412,7 +412,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
 					}, nil
-				} else if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dread%3B" {
+				} else if req.URL.RawQuery == "caps=&format=json&uid=my-user&user-caps=users%3Dread%3Bbuckets%3Dwrite%3Broles%3D%2A%3Binfo%3Dread%2C%20write%3B" {
 					return &http.Response{
 						StatusCode: 200,
 						Body:       io.NopCloser(bytes.NewReader([]byte(userCapsJSON))),
@@ -461,7 +461,9 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objectUser.Spec.Quotas = nil
 		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
 			User:   "read",
-			Bucket: "read",
+			Bucket: "write",
+			Roles:  "*",
+			Info:   "read, write",
 		}
 		userConfig = generateUserConfig(objectUser)
 		r.userConfig = &userConfig
@@ -510,7 +512,9 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 	t.Run("setting both Quotas and Capabilities for the user", func(t *testing.T) {
 		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
 			User:   "read",
-			Bucket: "read",
+			Bucket: "write",
+			Roles:  "*",
+			Info:   "read, write",
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
 		userConfig = generateUserConfig(objectUser)
