@@ -167,15 +167,14 @@ func ConfGeneratedInPodVolumeAndMount() (v1.Volume, v1.VolumeMount) {
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 // This function is only used for OSDs.
-func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, confGeneratedInPod bool) []v1.Volume {
+func PodVolumes(dataPaths *config.DataPathMap, dataDirHostPath string, exporterHostPath string, confGeneratedInPod bool) []v1.Volume {
 
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	sockDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
-		hostPathType := v1.HostPathDirectoryOrCreate
-		sockDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(dataDirHostPath, daemonSocketsSubPath), Type: &hostPathType}}
 	}
+	hostPathType := v1.HostPathDirectoryOrCreate
+	sockDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: path.Join(exporterHostPath, daemonSocketsSubPath), Type: &hostPathType}}
 	configVolume, _ := configOverrideConfigMapVolumeAndMount()
 	if confGeneratedInPod {
 		configVolume, _ = ConfGeneratedInPodVolumeAndMount()

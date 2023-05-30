@@ -40,23 +40,29 @@ import (
 )
 
 func TestPodVolumes(t *testing.T) {
+	clusterSpec := cephv1.ClusterSpec{
+		DataDirHostPath: "/var/lib/rook/",
+	}
 	dataPathMap := config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
 
-	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(dataPathMap, "", false)); err != nil {
+	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(dataPathMap, "", clusterSpec.DataDirHostPath, false)); err != nil {
 		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
 	}
-	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes(dataPathMap, "/dev/sdb", false)); err != nil {
+	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes(dataPathMap, "/dev/sdb", clusterSpec.DataDirHostPath, false)); err != nil {
 		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
 	}
 }
 
 func TestMountsMatchVolumes(t *testing.T) {
+	clusterSpec := cephv1.ClusterSpec{
+		DataDirHostPath: "/var/lib/rook/",
+	}
 
 	dataPathMap := config.NewDatalessDaemonDataPathMap("rook-ceph", "/var/lib/rook")
 
 	volsMountsTestDef := test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", false)},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", clusterSpec.DataDirHostPath, false)},
 		MountsSpecItems: []*test.MountsSpec{
 			{Moniker: "CephVolumeMounts(true)", Mounts: CephVolumeMounts(dataPathMap, false)},
 			{Moniker: "RookVolumeMounts(true)", Mounts: RookVolumeMounts(dataPathMap, false)}},
@@ -65,7 +71,7 @@ func TestMountsMatchVolumes(t *testing.T) {
 
 	volsMountsTestDef = test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", true)},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes(dataPathMap, "/dev/sdc", clusterSpec.DataDirHostPath, true)},
 		MountsSpecItems: []*test.MountsSpec{
 			{Moniker: "CephVolumeMounts(false)", Mounts: CephVolumeMounts(dataPathMap, true)},
 			{Moniker: "RookVolumeMounts(false)", Mounts: RookVolumeMounts(dataPathMap, true)}},
