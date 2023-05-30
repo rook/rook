@@ -1,10 +1,14 @@
 # Apply this manifest to CI clusters to allow debugging complex failures during CI runs
 #
-# Usage:
-#   kubectl apply -f tests/scripts/tmate-pod.yaml
-#   kubectl -n tmate wait --for=condition=ready -l app=tmate pod --timeout=300
-#   sleep 1 # just in case tmate hasn't output its web/ssh links yet
-#   kubectl -n tmate logs deploy/tmate
+# Usage - put this in the GH action:
+#      - name: Start tmate
+#        if: runner.debug || contains(github.event.pull_request.labels.*.name, 'debug-ci')
+#        run: |
+#          kubectl apply -f tests/scripts/tmate-pod.yaml
+#          sleep 3 # sometimes the next command errors b/c k8s hasn't had time to schedule the pod yet
+#          kubectl -n tmate wait --for=condition=ready -l app=tmate pod --timeout=300s
+#          sleep 1 # just in case tmate hasn't output its web/ssh links yet
+#          kubectl -n tmate logs deploy/tmate
 
 apiVersion: v1
 kind: Namespace
