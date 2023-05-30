@@ -19,7 +19,6 @@ package nodedaemon
 import (
 	"context"
 	"fmt"
-	"path"
 	"strconv"
 
 	"github.com/pkg/errors"
@@ -221,19 +220,13 @@ func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortM
 
 // EnableCephExporterServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the exporter
 func EnableCephExporterServiceMonitor(cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context) error {
-	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
-	if err != nil {
-		return errors.Wrap(err, "service monitor could not be enabled")
-	}
-	serviceMonitor.SetName(cephExporterAppName)
-	serviceMonitor.SetNamespace(cephCluster.Namespace)
+	serviceMonitor := k8sutil.GetServiceMonitor(cephExporterAppName, cephCluster.Namespace)
 	cephv1.GetCephExporterLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
-	err = controllerutil.SetControllerReference(&cephCluster, serviceMonitor, scheme)
+	err := controllerutil.SetControllerReference(&cephCluster, serviceMonitor, scheme)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)
 	}
-	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{cephCluster.Namespace}
 	serviceMonitor.Spec.Selector.MatchLabels = controller.AppLabels(cephExporterAppName, cephCluster.Namespace)
 	applyCephExporterLabels(cephCluster, serviceMonitor)
 

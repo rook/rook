@@ -19,7 +19,6 @@ package mgr
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 
 	"github.com/banzaicloud/k8s-objectmatcher/patch"
@@ -503,22 +502,16 @@ func wellKnownModule(name string) bool {
 
 // EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
 func (c *Cluster) EnableServiceMonitor() error {
-	serviceMonitor, err := k8sutil.GetServiceMonitor(path.Join(monitoringPath, serviceMonitorFile))
-	if err != nil {
-		return errors.Wrap(err, "service monitor could not be enabled")
-	}
-	serviceMonitor.SetName(AppName)
-	serviceMonitor.SetNamespace(c.clusterInfo.Namespace)
+	serviceMonitor := k8sutil.GetServiceMonitor(AppName, c.clusterInfo.Namespace)
 	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = controller.ServiceExternalMetricName
 	}
-	err = c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)
 	}
-	serviceMonitor.Spec.NamespaceSelector.MatchNames = []string{c.clusterInfo.Namespace}
 
 	applyMonitoringLabels(c, serviceMonitor)
 

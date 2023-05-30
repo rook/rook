@@ -18,17 +18,13 @@ limitations under the License.
 package k8sutil
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"os"
-	"path/filepath"
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sYAML "k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
@@ -44,18 +40,37 @@ func getMonitoringClient() (*monitoringclient.Clientset, error) {
 	return client, nil
 }
 
-// GetServiceMonitor returns servicemonitor or an error
-func GetServiceMonitor(filePath string) (*monitoringv1.ServiceMonitor, error) {
-	file, err := os.ReadFile(filepath.Clean(filePath))
-	if err != nil {
-		return nil, fmt.Errorf("servicemonitor file could not be fetched. %v", err)
+// GetServiceMonitor creates serviceMonitor object template
+func GetServiceMonitor(name string, namespace string) *monitoringv1.ServiceMonitor {
+	return &monitoringv1.ServiceMonitor{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"team": "rook",
+			},
+		},
+		Spec: monitoringv1.ServiceMonitorSpec{
+			NamespaceSelector: monitoringv1.NamespaceSelector{
+				MatchNames: []string{
+					namespace,
+				},
+			},
+			Selector: metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app":          name,
+					"rook_cluster": namespace,
+				},
+			},
+			Endpoints: []monitoringv1.Endpoint{
+				{
+					Port:     "http-metrics",
+					Path:     "/metrics",
+					Interval: "5s",
+				},
+			},
+		},
 	}
-	var servicemonitor monitoringv1.ServiceMonitor
-	err = k8sYAML.NewYAMLOrJSONDecoder(bytes.NewBufferString(string(file)), 1000).Decode(&servicemonitor)
-	if err != nil {
-		return nil, fmt.Errorf("servicemonitor could not be decoded. %v", err)
-	}
-	return &servicemonitor, nil
 }
 
 // CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
