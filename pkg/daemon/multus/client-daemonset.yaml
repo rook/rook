@@ -28,10 +28,11 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
+        {{ $NginxImage := .NginxImage }} # base context not available in range below
         {{ range $name, $address := .NetworkNamesAndAddresses }}
         - name: readiness-check-web-server-{{ $name }}-addr
           # use nginx image because it's already used for the web server pod and has a non-root user
-          image: "{{ .NginxImage }}"
+          image: "{{ $NginxImage }}"
           command:
             - sleep
             - infinity
