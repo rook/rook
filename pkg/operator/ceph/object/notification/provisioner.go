@@ -72,8 +72,6 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", p.objectStoreName)
 	}
-	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
-	objContext.CephClusterSpec = *p.clusterSpec
 
 	adminOpsCtx, err := object.NewMultisiteAdminOpsContext(objContext, &objStore.Spec)
 	if err != nil {

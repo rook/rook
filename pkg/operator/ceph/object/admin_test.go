@@ -151,7 +151,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 	})
 
 	t.Run("with multus - we use the remote executor", func(t *testing.T) {
-		objContext.CephClusterSpec = v1.ClusterSpec{Network: v1.NetworkSpec{Provider: "multus"}}
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
 		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
 		assert.Error(t, err)
 

@@ -38,15 +38,14 @@ import (
 
 // Context holds the context for the object store.
 type Context struct {
-	Context         *clusterd.Context
-	clusterInfo     *cephclient.ClusterInfo
-	CephClusterSpec cephv1.ClusterSpec
-	Name            string
-	UID             string
-	Endpoint        string
-	Realm           string
-	ZoneGroup       string
-	Zone            string
+	Context     *clusterd.Context
+	clusterInfo *cephclient.ClusterInfo
+	Name        string
+	UID         string
+	Endpoint    string
+	Realm       string
+	ZoneGroup   string
+	Zone        string
 }
 
 // AdminOpsContext holds the object store context as well as information for connecting to the admin
@@ -214,7 +213,7 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	var err error
 
 	// If Multus is enabled we proxy all the command to the mgr sidecar
-	if c.CephClusterSpec.Network.IsMultus() {
+	if c.clusterInfo.NetworkSpec.IsMultus() {
 		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 	} else {
 		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
