@@ -9160,10 +9160,10 @@ spec:
                         description: EndpointAddress is a tuple that describes a single IP address or host name. This is a subset of Kubernetes's v1.EndpointAddress.
                         properties:
                           hostname:
-                            description: The Hostname of this endpoint
+                            description: The DNS-addressable Hostname of this endpoint. This field will be preferred over IP if both are given.
                             type: string
                           ip:
-                            description: The IP of this endpoint.
+                            description: The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
