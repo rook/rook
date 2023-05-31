@@ -39,7 +39,11 @@ type beta1CsiDriver struct {
 }
 
 // createCSIDriverInfo Registers CSI driver by creating a CSIDriver object
-func (d beta1CsiDriver) createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string, attachRequired bool) error {
+func (d beta1CsiDriver) createCSIDriverInfo(
+	ctx context.Context,
+	clientset kubernetes.Interface,
+	name, fsGroupPolicy string,
+	attachRequired, seLinuxMountRequired bool) error {
 	mountInfo := false
 	// Create CSIDriver object
 	csiDriver := &betav1k8scsi.CSIDriver{
