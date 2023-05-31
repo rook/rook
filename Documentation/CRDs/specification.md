@@ -8467,6 +8467,114 @@ string
 <p>Admin capabilities to read/write Ceph object store zones. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
 </td>
 </tr>
+<tr>
+<td>
+<code>roles</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Admin capabilities to read/write roles for user. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>info</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Admin capabilities to read/write information about the user. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>amz-cache</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>bilog</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to change bucket index logging. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mdlog</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to change metadata logging. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>datalog</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to change data logging. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>user-policy</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to change user policies. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>oidc-provider</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to change oidc provider. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>ratelimit</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Add capabilities for user to set rate limiter for user and bucket. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectUserQuotaSpec">ObjectUserQuotaSpec
