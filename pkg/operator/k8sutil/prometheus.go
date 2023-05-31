@@ -23,6 +23,7 @@ import (
 
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	kerror "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/clientcmd"
@@ -100,4 +101,19 @@ func CreateOrUpdateServiceMonitor(ctx context.Context, serviceMonitorDefinition 
 		return nil, fmt.Errorf("failed to update servicemonitor. %v", err)
 	}
 	return sm, nil
+}
+
+// DeleteServiceMonitor deletes a ServiceMonitor and returns the error if any
+func DeleteServiceMonitor(ctx context.Context, ns string, name string) error {
+	client, err := getMonitoringClient()
+	if err != nil {
+		return fmt.Errorf("failed to get monitoring client. %v", err)
+	}
+	err = client.MonitoringV1().ServiceMonitors(ns).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		if kerror.IsNotFound(err) {
+			return nil
+		}
+	}
+	return err
 }
