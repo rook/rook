@@ -1,0 +1,76 @@
+name: Multus integration tests
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    paths:
+      - cmd/userfacing/**
+      - pkg/daemon/multus/**
+      - .github/workflows/multus.yaml
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  test-validation-tool:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    env:
+      NUMBER_OF_COMPUTE_NODES: 5
+    steps:
+      - name: Set up Go version
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.19.x
+
+      - name: checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Create KinD Cluster
+        uses: helm/kind-action@v1.7.0
+        with:
+          config: tests/scripts/multus/kind-config.yaml
+          cluster_name: rook-multus-e2e
+
+      - name: Start tmate
+        if: runner.debug || contains(github.event.pull_request.labels.*.name, 'debug-ci')
+        run: |
+          kubectl apply -f tests/scripts/tmate-pod.yaml
+          sleep 3 # sometimes the next command errors b/c k8s hasn't had time to schedule the pod yet
+          kubectl -n tmate wait --for=condition=ready -l app=tmate pod --timeout=300s
+          sleep 1 # just in case tmate hasn't output its web/ssh links yet
+          kubectl -n tmate logs deploy/tmate
+
+      - name: Setup multus
+        run: ./tests/scripts/multus/setup-multus.sh
+
+      - name: Install public and cluster NADs in default namespace
+        run: kubectl create -f tests/scripts/multus/default-public-cluster-nads.yaml
+
+      - name: Quickly build Rook binary
+        run: go build -o rook cmd/rook/*.go
+
+      - name: Run multus validation test
+        run: |
+          export KUBECONFIG="/home/runner/.kube/config"
+          kubectl create namespace rook-ceph
+          ./rook --log-level debug multus validation run \
+            --namespace rook-ceph \
+            --public-network default/public-net \
+            --cluster-network default/cluster-net \
+            --daemons-per-node 2
