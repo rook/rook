@@ -60,6 +60,7 @@ to share the details of their usage publicly at this time.
 * [FHE3 GmbH](https://www.fhe3.com/)
 * [infraBuilder](https://infrabuilder.com/)
 * [GreenCom Networks](http://www.greencom-networks.com/en)
+* [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
 
 There are many additional adopters of Rook in the evaluating phase that will be added to this list
 as they transition to production deployments.
