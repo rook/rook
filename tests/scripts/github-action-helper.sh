@@ -135,6 +135,16 @@ function collect_udev_logs_in_background() {
   udevadm monitor --udev &>"${log_dir}"/udev-monitor-udev.txt &
 }
 
+function check_empty_file() {
+  output_file=$1
+  if [ -s "$output_file" ]; then
+    echo "script failed with stderr error"
+    cat "$output_file"
+    rm -f "$output_file"
+    exit 1
+  fi
+}
+
 function build_rook() {
   build_type=build
   if [ -n "$1" ]; then
@@ -335,21 +345,20 @@ function wait_for_ceph_to_be_ready() {
   kubectl -n rook-ceph get pods
 }
 
-function verify_key_rotation(){
+function verify_key_rotation() {
   pvc_name=$(kubectl get pvc -n rook-ceph -l ceph.rook.io/setIndex=0 -o jsonpath='{.items[0].metadata.name}')
   old_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
   runtime="3 minutes"
   endtime=$(date -ud "$runtime" +%s)
-  while [[ $(date -u +%s) -le $endtime ]]
-  do
-      echo "Time Now: `date +%H:%M:%S`"
-      new_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
-      if [ "$old_key" != "$new_key" ]; then
-        echo "encryption passphrase is successfully rotated"
-        exit 0
-      fi
-      echo "encryption passphrase is not rotated, sleeping for 10 seconds"
-      sleep 10s
+  while [[ $(date -u +%s) -le $endtime ]]; do
+    echo "Time Now: $(date +%H:%M:%S)"
+    new_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
+    if [ "$old_key" != "$new_key" ]; then
+      echo "encryption passphrase is successfully rotated"
+      exit 0
+    fi
+    echo "encryption passphrase is not rotated, sleeping for 10 seconds"
+    sleep 10s
   done
   new_key=$(kubectl -n rook-ceph get secrets -l "pvc_name=$pvc_name" -o jsonpath='{.items[0].data.'dmcrypt-key'}' | base64 --decode)
   if [ "$old_key" == "$new_key" ]; then
