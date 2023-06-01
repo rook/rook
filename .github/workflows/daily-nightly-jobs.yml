@@ -26,6 +26,17 @@ jobs:
         with:
           go-version: 1.19
 
+      - name: Install Docker
+        run: |
+          sudo apt-get update
+          sudo apt-get install docker.io -y
+
+      - name: Start Docker service
+        run: sudo service docker start
+
+      - name: Check Docker version
+        run: docker version
+
       - name: setup minikube
         run: |
           sudo apt-get install build-essential -y
@@ -75,7 +86,8 @@ jobs:
         run: |
           uptime
           minikube delete
-          docker system prune --all --force
+          docker system prune --all --force          
+          sudo service docker stop
           sudo rm -rf  /usr/local/bin/minikube
           sudo rm -rf /usr/local/bin/kubectl
 
