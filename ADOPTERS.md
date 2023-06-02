@@ -38,9 +38,6 @@ to share the details of their usage publicly at this time.
 * [Geodata](https://geodata.no/) Provides geospatial services and Geographical Information Systems
   (GIS).  The latest versions of Rook have amazed them, especially compared to many of the other
   storage options they have attempted in the cloud native ecosystem.
-* [Informatik Computer Cloud (ICC)](https://icc.informatik.haw-hamburg.de/) at the Hamburg
-  University of Applied Sciences to provide a seamless, fast, flexible and reliable storage service
-  to its staff and students.
 * [Gini](https://gini.net/en/) uses Ceph with Rook to provide a redundant and stable S3-compatible
   storage infrastructure for their services in order to provide the world's most advanced digital
   everyday assistant to their users.
