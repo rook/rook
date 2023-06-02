@@ -194,11 +194,9 @@ After a feature or bug fix is completed in your branch, open a Pull Request (PR)
 to the [upstream Rook repository](https://github.com/rook/rook).
 
 Before opening the PR:
-- Add unit tests
-- All unit tests are passing
-- Rebase on the latest upstream changes
 
-See [Unit Tests](#unit-tests) below on how to run unit tests.
+- If there are code changes, add unit tests and verify that all unit tests are passing. See [Unit Tests](#unit-tests) below on running unit tests.
+- Rebase on the latest upstream changes
 
 ### Regression Testing
 
