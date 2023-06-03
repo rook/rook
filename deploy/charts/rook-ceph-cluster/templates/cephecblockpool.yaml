@@ -1,0 +1,46 @@
+{{- $root := . -}}
+{{- range $ecblockpool := .Values.cephECBlockPools -}}
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: {{ $ecblockpool.name }}
+spec:
+{{ toYaml $ecblockpool.spec | indent 2 }}
+{{ end }}
+{{- if .Values.cephECStorageClass }}
+{{ $cephEcStorage :=  .Values.cephECStorageClass}}
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ $cephEcStorage.name }}
+provisioner: {{ $cephEcStorage.provisioner }}
+parameters:
+  clusterID: {{ $cephEcStorage.parameters.clusterID }}
+  dataPool: {{ $cephEcStorage.parameters.dataPool }}
+  pool: {{ $cephEcStorage.parameters.pool }}
+  imageFormat: "{{ $cephEcStorage.parameters.imageFormat }}"
+  imageFeatures: {{ $cephEcStorage.parameters.imageFeatures }}
+
+  # The secrets contain Ceph admin credentials. These are generated automatically by the operator
+  # in the same namespace as the cluster.
+  csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/provisioner-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/controller-expand-secret-name: rook-csi-rbd-provisioner
+  csi.storage.k8s.io/controller-expand-secret-namespace: rook-ceph # namespace:cluster
+  csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
+  csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph # namespace:cluster
+  # Specify the filesystem type of the volume. If not specified, csi-provisioner
+  # will set default as `ext4`.
+  csi.storage.k8s.io/fstype: ext4
+
+# uncomment the following to use rbd-nbd as mounter on supported nodes
+# **IMPORTANT**: CephCSI v3.4.0 onwards a volume healer functionality is added to reattach
+# the PVC to application pod if nodeplugin pod restart.
+# Its still in Alpha support. Therefore, this option is not recommended for production use.
+#mounter: rbd-nbd
+allowVolumeExpansion: {{ $cephEcStorage.allowVolumeExpansion }}
+reclaimPolicy: {{ $cephEcStorage.reclaimPolicy }}
+{{ end }}
+
