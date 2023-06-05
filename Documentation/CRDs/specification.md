@@ -1992,6 +1992,9 @@ include the port in the definition. For example: &ldquo;<a href="https://my-obje
 In many cases, you should set this to the endpoint of the ingress resource that makes the
 CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
 The list can have one or more endpoints pointing to different RGW servers in the zone.</p>
+<p>If a CephObjectStore endpoint is omitted from this list, that object store&rsquo;s gateways will
+not receive multisite replication data
+(see CephObjectStore.spec.gateway.disableMultisiteSyncTraffic).</p>
 </td>
 </tr>
 <tr>
@@ -5988,6 +5991,22 @@ Placement
 </tr>
 <tr>
 <td>
+<code>disableMultisiteSyncTraffic</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DisableMultisiteSyncTraffic, when true, prevents this object store&rsquo;s gateways from
+transmitting multisite replication data. Note that this value does not affect whether
+gateways receive multisite replication traffic: see ObjectZone.spec.customEndpoints for that.
+If false or unset, this object store&rsquo;s gateways will be able to transmit multisite
+replication data.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>annotations</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.Annotations">
@@ -8741,6 +8760,9 @@ include the port in the definition. For example: &ldquo;<a href="https://my-obje
 In many cases, you should set this to the endpoint of the ingress resource that makes the
 CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
 The list can have one or more endpoints pointing to different RGW servers in the zone.</p>
+<p>If a CephObjectStore endpoint is omitted from this list, that object store&rsquo;s gateways will
+not receive multisite replication data
+(see CephObjectStore.spec.gateway.disableMultisiteSyncTraffic).</p>
 </td>
 </tr>
 <tr>
