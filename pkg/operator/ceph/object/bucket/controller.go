@@ -97,6 +97,31 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 		return err
 	}
 
+	// Watch for CephObjectStore spec change
+	objectStoreKind := source.Kind(mgr.GetCache(),
+		&cephv1.CephObjectStore{TypeMeta: metav1.TypeMeta{Kind: "CephObjectStore", APIVersion: v1.SchemeGroupVersion.String()}})
+	err = c.Watch(objectStoreKind, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
+		objectStore, ok := obj.(*cephv1.CephObjectStore)
+		if !ok {
+			return []reconcile.Request{}
+		}
+		// check if the cluster is external
+		objectStoreIsExternal := objectStore.Spec.Gateway.ExternalRgwEndpoints
+		if objectStoreIsExternal == nil {
+			return []reconcile.Request{}
+		}
+		// recocnile if the objectstore is updated with FQDN name
+		if objectStoreIsExternal[0].Hostname != "" {
+			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: objectStore.Namespace}}
+			return []reconcile.Request{req}
+		}
+		return []reconcile.Request{}
+	}),
+	), predicateController(ctx, mgr.GetClient()))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
