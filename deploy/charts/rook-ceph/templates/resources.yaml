@@ -9157,6 +9157,9 @@ spec:
                       nullable: true
                       type: boolean
                       x-kubernetes-preserve-unknown-fields: true
+                    disableMultisiteSyncTraffic:
+                      description: 'DisableMultisiteSyncTraffic, when true, prevents this object store''s gateways from transmitting multisite replication data. Note that this value does not affect whether gateways receive multisite replication traffic: see ObjectZone.spec.customEndpoints for that. If false or unset, this object store''s gateways will be able to transmit multisite replication data.'
+                      type: boolean
                     externalRgwEndpoints:
                       description: ExternalRgwEndpoints points to external RGW endpoint(s). Multiple endpoints can be given, but for stability of ObjectBucketClaims, we highly recommend that users give only a single external RGW endpoint that is a load balancer that sends requests to the multiple RGWs.
                       items:
@@ -10667,7 +10670,7 @@ spec:
               description: ObjectZoneSpec represent the spec of an ObjectZone
               properties:
                 customEndpoints:
-                  description: 'If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may include the port in the definition. For example: "https://my-object-store.my-domain.net:443". In many cases, you should set this to the endpoint of the ingress resource that makes the CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters. The list can have one or more endpoints pointing to different RGW servers in the zone.'
+                  description: "If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may include the port in the definition. For example: \"https://my-object-store.my-domain.net:443\". In many cases, you should set this to the endpoint of the ingress resource that makes the CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters. The list can have one or more endpoints pointing to different RGW servers in the zone. \n If a CephObjectStore endpoint is omitted from this list, that object store's gateways will not receive multisite replication data (see CephObjectStore.spec.gateway.disableMultisiteSyncTraffic)."
                   items:
                     type: string
                   nullable: true

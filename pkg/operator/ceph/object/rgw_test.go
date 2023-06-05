@@ -19,6 +19,7 @@ package object
 import (
 	"context"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -40,6 +41,10 @@ import (
 func TestStartRGW(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 3)
+
+	// Store the configuration options applied to gateways through the MockExecutor
+	appliedRgwConfigurations := make(map[string]string)
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
@@ -47,13 +52,22 @@ func TestStartRGW(t *testing.T) {
 			}
 			return `{"id":"test-id"}`, nil
 		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			// Answer to `ceph config set ...`
+			if args[0] == "config" && args[1] == "set" {
+				config_option := args[3]
+				value := args[4]
+				appliedRgwConfigurations[config_option] = value
+			}
+			return "", nil
+		},
 	}
 
 	configDir := t.TempDir()
 	info := clienttest.CreateTestClusterInfo(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
-	store.Spec.Gateway.Instances = 1
+
 	version := "v1.1.0"
 	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
@@ -65,10 +79,42 @@ func TestStartRGW(t *testing.T) {
 	// start a basic cluster
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
-	err := c.startRGWPods(store.Name, store.Name, store.Name)
-	assert.Nil(t, err)
 
-	validateStart(ctx, t, c, clientset)
+	t.Run("Deployment is created", func(t *testing.T) {
+		store.Spec.Gateway.Instances = 1
+		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		assert.Nil(t, err)
+
+		validateStart(ctx, t, c, clientset)
+	})
+
+	t.Run("Multisite sync traffic disabled", func(t *testing.T) {
+		store.ObjectMeta.Name = "client-rgw-sync-disabled"
+		store.Spec.Gateway.DisableMultisiteSyncTraffic = true
+
+		// Purge store of configurations applied to gateways
+		appliedRgwConfigurations = make(map[string]string)
+
+		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		assert.Nil(t, err)
+
+		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
+		assert.Equal(t, appliedRgwConfigurations["rgw_run_sync_thread"], "false")
+	})
+
+	t.Run("Multisite sync traffic enabled", func(t *testing.T) {
+		store.ObjectMeta.Name = "client-rgw-sync-enabled"
+		store.Spec.Gateway.DisableMultisiteSyncTraffic = false
+
+		// Purge store of configurations applied to gateways
+		appliedRgwConfigurations = make(map[string]string)
+
+		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		assert.Nil(t, err)
+
+		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
+		assert.Equal(t, appliedRgwConfigurations["rgw_run_sync_thread"], "true")
+	})
 }
 
 func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientset *fclient.Clientset) {
