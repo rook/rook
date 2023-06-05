@@ -50,10 +50,12 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 		},
 
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if old, ok := e.ObjectOld.(*v1.ConfigMap); ok {
+
+			switch objOld := e.ObjectOld.(type) {
+			case *v1.ConfigMap:
 				if new, ok := e.ObjectNew.(*v1.ConfigMap); ok {
-					if old.Name == controller.OperatorSettingConfigMapName && new.Name == controller.OperatorSettingConfigMapName {
-						if old.Data[rookOBCWatchOperatorNamespace] != new.Data[rookOBCWatchOperatorNamespace] {
+					if objOld.Name == controller.OperatorSettingConfigMapName && new.Name == controller.OperatorSettingConfigMapName {
+						if objOld.Data[rookOBCWatchOperatorNamespace] != new.Data[rookOBCWatchOperatorNamespace] {
 							logger.Infof("%s changed. reconciling bucket controller", rookOBCWatchOperatorNamespace)
 
 							// We reload the manager so that the controller restarts and goes
@@ -62,8 +64,16 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 						}
 					}
 				}
-			}
 
+			case *cephv1.CephObjectStore:
+				if objOld, ok := e.ObjectOld.(*cephv1.CephObjectStore); ok {
+					if objNew, ok := e.ObjectNew.(*cephv1.CephObjectStore); ok {
+						logger.Infof("there is an update event on CephObjectStore CR, so reconcile the bucket provisioner %s %s ", objOld.Spec.Gateway.ExternalRgwEndpoints[0].IP, objNew.Spec.Gateway.ExternalRgwEndpoints[0].IP)
+						return true
+
+					}
+				}
+			}
 			return false
 		},
 

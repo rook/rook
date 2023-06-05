@@ -97,6 +97,19 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 		return err
 	}
 
+	// Watch for CephObjectStore spec change
+	objectStoreKind := source.Kind(mgr.GetCache(),
+		&cephv1.CephObjectStore{TypeMeta: metav1.TypeMeta{Kind: "CephObjectStore", APIVersion: v1.SchemeGroupVersion.String()}})
+	err = c.Watch(objectStoreKind, handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
+		objectStore, _ := obj.(*cephv1.CephObjectStore)
+		req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: objectStore.Namespace}}
+		return []reconcile.Request{req}
+	}),
+	), predicateController(ctx, mgr.GetClient()))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -115,8 +128,8 @@ func (r *ReconcileBucket) Reconcile(context context.Context, request reconcile.R
 
 func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// See if there is a CephCluster
-	cephCluster := &cephv1.CephCluster{}
-	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephCluster)
+	cephClusters := &cephv1.CephClusterList{}
+	err := r.client.List(r.opManagerContext, cephClusters, &client.ListOptions{Namespace: request.Namespace})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("no ceph cluster found in %+v. not deploying the bucket provisioner", request.NamespacedName)
@@ -125,6 +138,14 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 		// Error reading the object - requeue the request.
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get the ceph cluster")
 	}
+
+	//Do not nothing if no ceph cluster is present
+	if len(cephClusters.Items) == 0 {
+		logger.Debug("no ceph cluster found not provisioning buckets")
+		return reconcile.Result{}, nil
+	}
+	// there will be only one cephcluster per namespace
+	cephCluster := cephClusters.Items[0]
 
 	if !cephCluster.DeletionTimestamp.IsZero() {
 		logger.Debug("ceph cluster is being deleted, no need to reconcile the bucket provisioner")
