@@ -1,9 +1,26 @@
-# Rook Adopters
+# Adopters
 
-Below is a list of adopters of Rook in **production environments** that have publicly shared the
-details of their usage as well as the benefits provided by Rook that their business relies on. There
-are additional adopters of Rook, especially those with on-premises deployments, that are not ready
-to share the details of their usage publicly at this time.
+Below is a list of adopters of Rook in **production environments** that have publicly shared
+their usage as well as the benefits provided by Rook that their business relies on.
+If you are an adopter of Rook and not yet on this list, we encourage you to add your organization here as well!
+
+The goal for this list is give inspiration to others who are starting their Rook journey.
+Thank you to all adopters and contributors of the Rook project!
+
+## Updating this list
+
+To add your organization to this list, choose one of the following options:
+
+- [Open a PR](https://rook.io/docs/rook/latest/Contributing/development-flow/#submitting-a-pull-request) to directly update this list
+- [Open a new issue](https://github.com/rook/rook/issues/new/choose) with the information
+- Send an email to [Steering committee members](https://github.com/rook/rook/blob/master/OWNERS.md#steering-committee) with the information
+
+For the latter two options, a maintainer will submit a PR to update the table.
+Please reach out to us on [Slack](https://slack.rook.io) with any questions.
+
+If submitting a description, the addition will be at the end of first part of the list. If a description is not provided, the addition will be at the end of the full list.
+
+## Rook Adopters
 
 * [Calit2 (California Institute for Telecommunications and Information
   Technology)](http://www.calit2.net/) is one of 4 institutes formed by a joint partnership of
@@ -38,9 +55,6 @@ to share the details of their usage publicly at this time.
 * [Geodata](https://geodata.no/) Provides geospatial services and Geographical Information Systems
   (GIS).  The latest versions of Rook have amazed them, especially compared to many of the other
   storage options they have attempted in the cloud native ecosystem.
-* [Informatik Computer Cloud (ICC)](https://icc.informatik.haw-hamburg.de/) at the Hamburg
-  University of Applied Sciences to provide a seamless, fast, flexible and reliable storage service
-  to its staff and students.
 * [Gini](https://gini.net/en/) uses Ceph with Rook to provide a redundant and stable S3-compatible
   storage infrastructure for their services in order to provide the world's most advanced digital
   everyday assistant to their users.
@@ -61,6 +75,3 @@ to share the details of their usage publicly at this time.
 * [infraBuilder](https://infrabuilder.com/)
 * [GreenCom Networks](http://www.greencom-networks.com/en)
 * [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/)
-
-There are many additional adopters of Rook in the evaluating phase that will be added to this list
-as they transition to production deployments.
