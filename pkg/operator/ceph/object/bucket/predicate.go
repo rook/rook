@@ -19,9 +19,12 @@ package bucket
 import (
 	"context"
 
+	"github.com/google/go-cmp/cmp"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -50,20 +53,53 @@ func predicateController(ctx context.Context, c client.Client) predicate.Funcs {
 		},
 
 		UpdateFunc: func(e event.UpdateEvent) bool {
-			if old, ok := e.ObjectOld.(*v1.ConfigMap); ok {
-				if new, ok := e.ObjectNew.(*v1.ConfigMap); ok {
-					if old.Name == controller.OperatorSettingConfigMapName && new.Name == controller.OperatorSettingConfigMapName {
-						if old.Data[rookOBCWatchOperatorNamespace] != new.Data[rookOBCWatchOperatorNamespace] {
-							logger.Infof("%s changed. reconciling bucket controller", rookOBCWatchOperatorNamespace)
 
-							// We reload the manager so that the controller restarts and goes
-							// through the CreateFunc again. Then the CephCluster watcher will be triggered
-							controller.ReloadManager()
-						}
+			switch e.ObjectOld.(type) {
+			case *v1.ConfigMap:
+				objOld, ok := e.ObjectOld.(*v1.ConfigMap)
+				if !ok {
+					logger.Warningf("old configMap resource not accessible in the update event for OBC")
+					return false
+				}
+				objNew, ok := e.ObjectNew.(*v1.ConfigMap)
+				if !ok {
+					logger.Warningf("new configMap resource not accessible in the update event for OBC")
+					return false
+				}
+				if objOld.Name == controller.OperatorSettingConfigMapName && objNew.Name == controller.OperatorSettingConfigMapName {
+					if objOld.Data[rookOBCWatchOperatorNamespace] != objNew.Data[rookOBCWatchOperatorNamespace] {
+						logger.Infof("%s changed. reconciling bucket controller", rookOBCWatchOperatorNamespace)
+
+						// We reload the manager so that the controller restarts and goes
+						// through the CreateFunc again. Then the CephCluster watcher will be triggered
+						controller.ReloadManager()
 					}
 				}
-			}
 
+			case *cephv1.CephObjectStore:
+				objOld, ok := e.ObjectOld.(*cephv1.CephObjectStore)
+				if !ok {
+					logger.Warningf("old cephObjectStore resource not accessible in the update event")
+					return false
+				}
+				objNew, ok := e.ObjectNew.(*cephv1.CephObjectStore)
+				if !ok {
+					logger.Warningf("new cephObjectStore resource not accessible in the update event")
+					return false
+				}
+				// resource.Quantity has non-exportable fields, so we use its comparator method
+				resourceQtyComparer := cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })
+				// return false if the status is not yet updated
+				if objOld.Status == nil || objNew.Status == nil {
+					return false
+				}
+				diff := cmp.Diff(objOld.Status.Endpoints, objNew.Status.Endpoints, resourceQtyComparer)
+				if diff != "" {
+					namespacedName := types.NamespacedName{Name: objNew.Name, Namespace: objNew.Namespace}
+					logger.Infof("CephObjectStore CR spec %q endpoints changed. diff=%s, so reconcile the bucket provisioner", namespacedName, diff)
+					return true
+				}
+			}
 			return false
 		},
 
