@@ -300,7 +300,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if osdProps.onPVC() {
 		dataDirHostPath = ""
 	}
-	volumes := controller.PodVolumes(provisionConfig.DataPathMap, dataDirHostPath, false)
+	volumes := controller.PodVolumes(provisionConfig.DataPathMap, dataDirHostPath, c.spec.DataDirHostPath, false)
 	failureDomainValue := osdProps.crushHostname
 	doConfigInit := true     // initialize ceph.conf in init container?
 	doBinaryCopyInit := true // copy rook binary in an init container?
