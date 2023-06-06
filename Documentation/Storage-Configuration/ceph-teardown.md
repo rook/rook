@@ -6,8 +6,8 @@ title: Cleanup
 
 If you want to tear down the cluster and bring up a new one, be aware of the following resources that will need to be cleaned up:
 
-* `rook-ceph` namespace: The Rook operator and cluster created by `operator.yaml` and `cluster.yaml` (the cluster CRD)
-* `/var/lib/rook`: Path on each host in the cluster where configuration is cached by the ceph mons and osds
+* The resources created under Rook's namespace (assume `rook-ceph` here): The Rook operator and cluster created by `operator.yaml` and `cluster.yaml` (the cluster CRD)
+* `/var/lib/rook/rook-ceph`: Path on each host in the cluster where configuration is cached by the ceph mons and osds
 
 Note that if you changed the default namespaces or paths such as `dataDirHostPath` in the sample yaml files, you will need to adjust these namespaces and paths throughout these instructions.
 
@@ -61,7 +61,7 @@ kubectl -n rook-ceph get cephcluster
 If the `cleanupPolicy` was applied, then wait for the `rook-ceph-cleanup` jobs to be completed on all the nodes.
 These jobs will perform the following operations:
 
-* Delete the directory `/var/lib/rook` (or the path specified by the `dataDirHostPath`) on all the nodes
+* Delete the namespace directory under `dataDirHostPath`, for example `/var/lib/rook/rook-ceph`, on all the nodes
 * Wipe the data on the drives on all the nodes where OSDs were running in this cluster
 
 Note: The cleanup jobs might not start if the resources created on top of Rook Cluster are not deleted completely. [See](#delete-the-block-and-file-artifacts)
@@ -84,7 +84,7 @@ If the `cleanupPolicy` was applied and the cleanup jobs have completed on all th
 !!! attention
     The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started.
 
-Connect to each machine and delete `/var/lib/rook`, or the path specified by the `dataDirHostPath`.
+Connect to each machine and delete the namespace directory under `dataDirHostPath`, for example `/var/lib/rook/rook-ceph`.
 
 In the future this step will not be necessary when we build on the K8s local storage feature.
 
@@ -117,8 +117,8 @@ partprobe $DISK
 
 Ceph can leave LVM and device mapper data that can lock the disks, preventing the disks from being
 used again. These steps can help to free up old Ceph disks for re-use. Note that this only needs to
-be run once on each node and assumes that **all** Ceph disks are being wiped. If only some disks are
-being wiped, you will have to manually determine which disks map to which device mapper devices.
+be run once on each node. If you have **only one** Rook cluster and **all** Ceph disks are
+being wiped, run the following command.
 
 ```console
 # This command hangs on some systems: with caution, 'dmsetup remove_all --force' can be used
@@ -130,6 +130,9 @@ rm -rf /dev/mapper/ceph--*
 ```
 
 If disks are still reported locked, rebooting the node often helps clear LVM-related holds on disks.
+
+If there are multiple Ceph clusters and some disks are not wiped yet, it is necessary to manually
+determine which disks map to which device mapper devices.
 
 ### Troubleshooting
 
