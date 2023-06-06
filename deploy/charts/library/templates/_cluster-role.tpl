@@ -99,12 +99,9 @@ rules:
     resources:
       - deployments/scale
       - deployments
-      - pods
     verbs:
       - patch
       - delete
-      - get
-      - update
   - apiGroups:
       - ''
     resources:
