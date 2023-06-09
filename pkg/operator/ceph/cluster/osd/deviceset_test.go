@@ -83,6 +83,14 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 	}
 	assert.Equal(t, fmt.Sprintf("mydata-%s-0", expectedName), pvcs.Items[0].GenerateName)
 	assert.Equal(t, cluster.clusterInfo.Namespace, pvcs.Items[0].Namespace)
+
+	//Verify that the PVC has correct Image Version Label
+	cephImageVersion := createValidImageVersionLabel(cluster.spec.CephVersion.Image)
+	for _, item := range pvcs.Items {
+		val, exist := item.Labels[CephImageLabelKey]
+		assert.Equal(t, true, exist)
+		assert.Equal(t, cephImageVersion, val)
+	}
 }
 
 func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
@@ -283,4 +291,13 @@ func TestPVCName(t *testing.T) {
 
 	id = deviceSetPVCID("device.set.with.dots", "b", 10)
 	assert.Equal(t, "device-set-with-dots-b-10", id)
+}
+
+func TestCreateValidImageVersionLabel(t *testing.T) {
+	image := "ceph/ceph:v17.2.6"
+	assert.Equal(t, "ceph_ceph_v17.2.6", createValidImageVersionLabel(image))
+	image = "rook/ceph:master"
+	assert.Equal(t, "rook_ceph_master", createValidImageVersionLabel(image))
+	image = ".invalid_label"
+	assert.Equal(t, "", createValidImageVersionLabel(image))
 }

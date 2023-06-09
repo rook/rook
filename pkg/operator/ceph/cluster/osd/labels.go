@@ -36,13 +36,19 @@ const (
 	OSDOverPVCLabelKey = "ceph.rook.io/pvc"
 	// TopologyLocationLabel is the crush location label added to OSD deployments
 	TopologyLocationLabel = "topology-location-%s"
+	// CephImageLabelKey is the ceph image version label added to PVC
+	CephImageLabelKey = "ceph.rook.io/cephImageAtCreation"
+	// RookImageLabelKey is the rook image version label added to PVC
+	RookImageLabelKey = "ceph.rook.io/rookImageAtCreation"
 )
 
-func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, setIndex int) map[string]string {
+func makeStorageClassDeviceSetPVCLabel(storageClassDeviceSetName, pvcStorageClassDeviceSetPVCId string, setIndex int, cephImage string, rookImage string) map[string]string {
 	return map[string]string{
 		CephDeviceSetLabelKey:      storageClassDeviceSetName,
 		CephSetIndexLabelKey:       fmt.Sprintf("%d", setIndex),
 		CephDeviceSetPVCIDLabelKey: pvcStorageClassDeviceSetPVCId,
+		CephImageLabelKey:          cephImage,
+		RookImageLabelKey:          rookImage,
 	}
 }
 
