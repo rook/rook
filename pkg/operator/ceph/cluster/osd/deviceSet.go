@@ -19,6 +19,7 @@ package osd
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -30,6 +31,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 // deviceSet is the processed version of the StorageClassDeviceSet
@@ -210,7 +212,8 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 		pvcID = deviceSetPVCID(deviceSetName, pvcTemplate.GetName(), setIndex)
 		existingPVC = existingPVCs[pvcID]
 	}
-	pvc := makeDeviceSetPVC(deviceSetName, pvcID, setIndex, pvcTemplate, c.clusterInfo.Namespace)
+
+	pvc := makeDeviceSetPVC(deviceSetName, pvcID, setIndex, pvcTemplate, c.clusterInfo.Namespace, createValidImageVersionLabel(c.spec.CephVersion.Image), createValidImageVersionLabel(c.rookVersion))
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(pvc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd pvc %q", pvc.Name)
@@ -234,8 +237,8 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 	return deployedPVC, nil
 }
 
-func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.PersistentVolumeClaim, namespace string) *v1.PersistentVolumeClaim {
-	pvcLabels := makeStorageClassDeviceSetPVCLabel(deviceSetName, pvcID, setIndex)
+func makeDeviceSetPVC(deviceSetName, pvcID string, setIndex int, pvcTemplate v1.PersistentVolumeClaim, namespace string, cephImage string, rookImage string) *v1.PersistentVolumeClaim {
+	pvcLabels := makeStorageClassDeviceSetPVCLabel(deviceSetName, pvcID, setIndex, cephImage, rookImage)
 
 	// Add user provided labels to pvcTemplates
 	for k, v := range pvcTemplate.GetLabels() {
@@ -292,4 +295,16 @@ func deviceSetPVCID(deviceSetName, pvcTemplateName string, setIndex int) string 
 	cleanName := strings.Replace(pvcTemplateName, " ", "-", -1)
 	deviceSetName = strings.Replace(deviceSetName, ".", "-", -1)
 	return fmt.Sprintf("%s-%s-%d", deviceSetName, cleanName, setIndex)
+}
+
+func createValidImageVersionLabel(image string) string {
+	// regex to replace characters used by image name format that are not allowed in label values
+	re := regexp.MustCompile("[/:]")
+	cephImageVersion := re.ReplaceAllString(image, "_")
+
+	if validation.IsValidLabelValue(cephImageVersion) != nil {
+		logger.Infof("image %q contains invalid character, skipping adding label", image)
+		cephImageVersion = ""
+	}
+	return cephImageVersion
 }
