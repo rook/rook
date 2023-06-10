@@ -7306,6 +7306,9 @@ spec:
                                   type: object
                               type: object
                           type: object
+                        domainName:
+                          description: DomainName should be set to the Kerberos Realm.
+                          type: string
                         keytabFile:
                           description: KeytabFile defines where the Kerberos keytab should be sourced from. The keytab file will be placed into `/etc/krb5.keytab`. If this is left empty, Rook will not add the file. This allows you to manage the `krb5.keytab` file yourself however you wish. For example, you may build it into your custom Ceph container image or use the Vault agent injector to securely add the file via annotations on the CephNFS spec (passed to the NFS server pods).
                           properties:

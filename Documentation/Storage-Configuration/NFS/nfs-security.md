@@ -102,6 +102,8 @@ authenticate to the Kerberos server (KDC). The requirements are two-parted:
 2. a keytab file that provides credentials for the
    [service principal](#nfs-service-principals) that NFS-Ganesha will use to authenticate with the
    Kerberos server.
+3. a kerberos domain name which will be used to map kerberos credentials to uid/gid
+   [domain name](#kerberos-domain-name) that NFS-Ganesha will use to authenticate with the
 
 Methods of providing the configuration files are documented in the
 [NFS CRD security section](../../CRDs/ceph-nfs-crd.md#security).
@@ -163,3 +165,10 @@ Users must add this service principal to their Kerberos server configuration.
     `spec.security.kerberos.principalName` corresponds directly to NFS-Ganesha's
     NFS_KRB5:PrincipalName config. See the
     [NFS-Ganesha wiki](https://github.com/nfs-ganesha/nfs-ganesha/wiki/RPCSEC_GSS) for more details.
+
+#### Kerberos domain name
+
+The kerberos domain name is used to setup the domain name in /etc/idmapd.conf. This domain name is used
+by idmap to map the kerberos credential to the user uid/gid. Without this configured, NFS-Ganesha will
+be unable to map the Kerberos principal to an uid/gid and will instead use the configured
+anonuid/anongid (default: -2) when accessing the local filesystem.
