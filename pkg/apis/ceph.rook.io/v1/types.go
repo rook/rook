@@ -2097,6 +2097,10 @@ type KerberosSpec struct {
 	// +kubebuilder:default="nfs"
 	PrincipalName string `json:"principalName"`
 
+	// DomainName should be set to the Kerberos Realm.
+	// +optional
+	DomainName string `json:"domainName"`
+
 	// ConfigFiles defines where the Kerberos configuration should be sourced from. Config files
 	// will be placed into the `/etc/krb5.conf.rook/` directory.
 	//
