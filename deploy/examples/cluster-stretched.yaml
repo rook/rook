@@ -79,3 +79,17 @@ spec:
     mgr: system-cluster-critical
   disruptionManagement:
     managePodBudgets: true
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: builtin-mgr
+  namespace: rook-ceph # namespace:cluster
+spec:
+  name: .mgr
+  failureDomain: zone
+  replicated:
+    size: 4
+    requireSafeReplicaSize: true
+    replicasPerFailureDomain: 2
+    subFailureDomain: host
