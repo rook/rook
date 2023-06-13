@@ -2317,7 +2317,8 @@ type SSSDSidecarAdditionalFile struct {
 // NetworkSpec for Ceph includes backward compatibility code
 // +kubebuilder:validation:XValidation:message="at least one network selector must be specified when using multus",rule="!has(self.provider) || (self.provider != 'multus' || (self.provider == 'multus' && size(self.selectors) > 0))"
 type NetworkSpec struct {
-	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus".
+	// If the Provider is updated from being empty to "host" on a running cluster, then the operator will automatically fail over all the mons to apply the "host" network settings.
 	// +kubebuilder:validation:XValidation:message="network provider must be disabled (reverted to empty string) before a new provider is enabled",rule="self == '' || self == oldSelf"
 	// +nullable
 	// +optional
@@ -2363,7 +2364,9 @@ type NetworkSpec struct {
 	// +optional
 	Connections *ConnectionsSpec `json:"connections,omitempty"`
 
-	// HostNetwork to enable host network
+	// HostNetwork to enable host network.
+	// If host networking is enabled or disabled on a running cluster, then the operator will automatically fail over all the mons to
+	// apply the new network settings.
 	// +optional
 	HostNetwork bool `json:"hostNetwork,omitempty"`
 

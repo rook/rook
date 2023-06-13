@@ -44,6 +44,7 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // generate a standard mon config from a mon id w/ default port and IP 2.4.6.{1,2,3,...}
@@ -120,7 +121,8 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 		mapping: &opcontroller.Mapping{
 			Schedule: map[string]*opcontroller.MonScheduleInfo{},
 		},
-		ownerInfo: ownerInfo,
+		ownerInfo:      ownerInfo,
+		monsToFailover: sets.New[string](),
 	}
 }
 
@@ -915,5 +917,42 @@ func TestHasMonPathChanged(t *testing.T) {
 	t.Run("mon path not changed from hostPath to pvc", func(t *testing.T) {
 		delete(monDeployment.Labels, "pvc_name")
 		assert.False(t, hasMonPathChanged(monDeployment, nil))
+	})
+}
+
+func TestIsMonIPUpdateRequiredForHostNetwork(t *testing.T) {
+	t.Run("both cluster and mon are set to use host network", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{HostNetwork: true}
+		monUsingHostNetwork := true
+		assert.False(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("both cluster and mon are not set for host network", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{}
+		monUsingHostNetwork := false
+		assert.False(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+	t.Run("cluster is set for host networking but mon pod is not", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{HostNetwork: true}
+		monUsingHostNetwork := false
+		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("mon is using host networking but cluster is updated to not use host network ", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{}
+		monUsingHostNetwork := true
+		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("mon is using host networking and cluster is set host network via NetworkProviderHost ", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{Provider: cephv1.NetworkProviderHost}
+		monUsingHostNetwork := true
+		assert.False(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("mon is not using host networking but cluster is updated to use host network via NetworkProviderHost ", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{Provider: cephv1.NetworkProviderHost}
+		monUsingHostNetwork := false
+		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
 	})
 }

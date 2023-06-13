@@ -2230,7 +2230,7 @@ spec:
                       description: DualStack determines whether Ceph daemons should listen on both IPv4 and IPv6
                       type: boolean
                     hostNetwork:
-                      description: HostNetwork to enable host network
+                      description: HostNetwork to enable host network. If host networking is enabled or disabled on a running cluster, then the operator will automatically fail over all the mons to apply the new network settings.
                       type: boolean
                     ipFamily:
                       description: IPFamily is the single stack IPv6 or IPv4 protocol
@@ -2250,7 +2250,7 @@ spec:
                           type: boolean
                       type: object
                     provider:
-                      description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+                      description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus". If the Provider is updated from being empty to "host" on a running cluster, then the operator will automatically fail over all the mons to apply the "host" network settings.
                       enum:
                         - ""
                         - host
