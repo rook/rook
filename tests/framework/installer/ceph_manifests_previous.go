@@ -24,7 +24,7 @@ import (
 
 const (
 	// The version from which the upgrade test will start
-	Version1_10 = "v1.10.10"
+	Version1_11 = "v1.11.7"
 )
 
 // CephManifestsPreviousVersion wraps rook yaml definitions
@@ -86,13 +86,7 @@ func (m *CephManifestsPreviousVersion) GetCommonExternal() string {
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsPreviousVersion) GetCephCluster() string {
-	c := m.latest.GetCephCluster()
-
-	// Remove the requireMsgr2 setting if in v1.10
-	if m.settings.RookVersion == Version1_10 {
-		return strings.Replace(c, "requireMsgr2: false", "", 1)
-	}
-	return c
+	return m.latest.GetCephCluster()
 }
 
 func (m *CephManifestsPreviousVersion) GetBlockSnapshotClass(snapshotClassName, reclaimPolicy string) string {
