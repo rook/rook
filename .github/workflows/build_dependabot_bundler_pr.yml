@@ -35,7 +35,7 @@ jobs:
 
       - name: Commit and copy changes
         run: |
-          if [[ $(git status | grep -E '(go.mod|go.sum)' ]]; then
+          if [[ $(git status | grep -E '(go.mod|go.sum)') ]]; then
             git add go.mod go.sum pkg/apis/go.mod pkg/apis/go.sum
             git commit -m "[dependabot skip] Update Golang Modules"
             git format-patch -n HEAD^ --binary --stdout > ./dependabot-pr/changes.patch
