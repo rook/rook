@@ -4,7 +4,7 @@ name: Build Dependabot Bundler PR
 on:
   push:
     branches:
-      - "dependabot/bundler**"
+      - "dependabot/go_modules/**"
 
 jobs:
   build:
