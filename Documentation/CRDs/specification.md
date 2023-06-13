@@ -11053,6 +11053,5 @@ string
 </table>
 <hr/>
 <p><em>
-Generated with <code>gen-crd-api-reference-docs</code>
-on git commit <code>ff431de56</code>.
+Generated with <code>gen-crd-api-reference-docs</code>.
 </em></p>
