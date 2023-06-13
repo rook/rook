@@ -29,7 +29,7 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.2
-	golang.org/x/sync v0.1.0
+	golang.org/x/sync v0.2.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
 	k8s.io/api v0.26.4
