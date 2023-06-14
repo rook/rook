@@ -618,3 +618,65 @@ cephObjectStores:
       #     - objectstore.example.com
       #   secretName: ceph-objectstore-tls
       # ingressClassName: nginx
+
+# cephECBlockPools are disabled by default, please remove the comments and set desired values to enable it
+#cephECBlockPools:
+#  # For erasure coded a replicated metadata pool is required.
+#  # https://rook.io/docs/rook/latest/CRDs/Shared-Filesystem/ceph-filesystem-crd/#erasure-coded
+#  - name: ec-metadata-pool
+#    # see https://github.com/rook/rook/blob/master/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md#spec for available configuration
+#    spec:
+#      replicated:
+#        size: 2
+#  - name: ec-data-pool
+#    spec:
+#      failureDomain: osd
+#      erasureCoded:
+#        dataChunks: 2
+#        codingChunks: 1
+#      deviceClass: hdd
+
+# cephECStorageClass also is disabled by default, please remove the comments and set desired values to enable it
+# if cephECBlockPools are uncommented you must remove the comments of cephEcStorageClass as well
+#cephECStorageClass:
+#  name: rook-ceph-block
+#  # Change "rook-ceph" provisioner prefix to match the operator namespace if needed
+#  provisioner: rook-ceph.rbd.csi.ceph.com # driver:namespace:operator
+#  parameters:
+#    # clusterID is the namespace where the rook cluster is running
+#    # If you change this namespace, also change the namespace below where the secret namespaces are defined
+#    clusterID: rook-ceph # namespace:cluster
+#
+#    # If you want to use erasure coded pool with RBD, you need to create
+#    # two pools. one erasure coded and one replicated.
+#    # You need to specify the replicated pool here in the `pool` parameter, it is
+#    # used for the metadata of the images.
+#    # The erasure coded pool must be set as the `dataPool` parameter below.
+#    dataPool: ec-data-pool
+#    pool: ec-metadata-pool
+#
+#    # (optional) mapOptions is a comma-separated list of map options.
+#    # For krbd options refer
+#    # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+#    # For nbd options refer
+#    # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+#    # mapOptions: lock_on_read,queue_depth=1024
+#
+#    # (optional) unmapOptions is a comma-separated list of unmap options.
+#    # For krbd options refer
+#    # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+#    # For nbd options refer
+#    # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+#    # unmapOptions: force
+#
+#    # RBD image format. Defaults to "2".
+#    imageFormat: "2"
+#
+#    # RBD image features, equivalent to OR'd bitfield value: 63
+#    # Available for imageFormat: "2". Older releases of CSI RBD
+#    # support only the `layering` feature. The Linux kernel (KRBD) supports the
+#    # full feature complement as of 5.4
+#    # imageFeatures: layering,fast-diff,object-map,deep-flatten,exclusive-lock
+#    imageFeatures: layering
+#  allowVolumeExpansion: true
+#  reclaimPolicy: Delete
