@@ -12,7 +12,7 @@ This guide will walk through the basic setup of a Ceph cluster and enable K8s ap
 
 ## Minimum Version
 
-Kubernetes **v1.21** or higher is supported by Rook.
+Kubernetes **v1.22** or higher is supported by Rook.
 
 ## CPU Architecture
 
