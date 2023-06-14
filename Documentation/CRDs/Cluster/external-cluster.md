@@ -15,6 +15,7 @@ In external mode, Rook will provide the configuration for the CSI driver and oth
 ## Prerequisites
 
 Create the desired types of storage in the provider Ceph cluster:
+
 - [RBD pools](https://docs.ceph.com/en/latest/rados/operations/pools/#create-a-pool)
 - [CephFS filesystem](https://docs.ceph.com/en/quincy/cephfs/createfs/)
 
