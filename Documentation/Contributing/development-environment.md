@@ -29,8 +29,11 @@ Starting the cluster on Minikube is as simple as running:
 # On Linux
 minikube start --disk-size=40g --extra-disks=1 --driver kvm2
 
-# On MacOS
+# On MacOS with Intel processor
 minikube start --disk-size=40g --extra-disks=1 --driver hyperkit
+
+# On MacOS with Apple silicon
+minikube start --disk-size=40g --extra-disks 1 --driver qemu
 ```
 
 It is recommended to install a Docker client on your host system too. Depending on your operating
