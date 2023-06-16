@@ -39,40 +39,10 @@ const (
 type ValidationTest struct {
 	Clientset kubernetes.Interface
 
-	// Namespace is the intended namespace where the validation test will be run. This is
-	// recommended to be where the Rook-Ceph cluster will be installed.
-	Namespace string
-
-	// PublicNetwork is the name of the Network Attachment Definition (NAD) which will
-	// be used for the Ceph cluster's public network. This should be a namespaced name in the form
-	// <namespace>/<name> if the NAD is defined in a different namespace from the cluster namespace.
-	PublicNetwork string
-
-	// ClusterNetwork is the name of the Network Attachment Definition (NAD) which will
-	// be used for the Ceph cluster's cluster network. This should be a namespaced name in the form
-	// <namespace>/<name> if the NAD is defined in a different namespace from the cluster namespace.
-	ClusterNetwork string
-
-	// DaemonsPerNode is the number of Multus-connected validation daemons that will run as part of
-	// the test. This should be set to the largest number of Ceph daemons that may run on a node in
-	// the worst case. Remember to consider failure cases where nodes or availability zones are
-	// offline and their workloads must be rescheduled.
-	DaemonsPerNode int
-
-	// ResourceTimeout is the time to wait for resources to change to the expected state. For
-	// example, for the test web server to start, for test clients to become ready, or for test
-	// resources to be deleted. At longest, this may need to reflect the time it takes for client
-	// pods to to pull images, get address assignments, and then for each client to determine that
-	// its network connection is stable.
-	//
-	// This should be at least 1 minute. 2 minutes or more is recommended.
-	ResourceTimeout time.Duration
-
-	// Logger an instance of the basic log implementation used by this library.
+	// The Logger will be used to render ongoing status by this library.
 	Logger Logger
 
-	//NginxImage is the Nginx image which will be used for the web server and clients.
-	NginxImage string
+	ValidationTestConfig
 }
 
 // ValidationTestResults contains results from a validation test.
@@ -355,20 +325,10 @@ func (vt *ValidationTest) Run(ctx context.Context) (*ValidationTestResults, erro
 		vt.Logger = &SimpleStderrLogger{}
 		vt.Logger.Infof("no logger was specified; using a simple stderr logger")
 	}
-	vt.Logger.Infof("starting multus validation test with the following config:")
-	vt.Logger.Infof("  namespace: %q", vt.Namespace)
-	vt.Logger.Infof("  public network: %q", vt.PublicNetwork)
-	vt.Logger.Infof("  cluster network: %q", vt.ClusterNetwork)
-	vt.Logger.Infof("  daemons per node: %d", vt.DaemonsPerNode)
-	vt.Logger.Infof("  resource timeout: %v", vt.ResourceTimeout)
-	vt.Logger.Infof("  nginx image: %q", vt.NginxImage)
+	vt.Logger.Infof("starting multus validation test with the following config:\n%s", &vt.ValidationTestConfig)
 
-	if vt.PublicNetwork == "" && vt.ClusterNetwork == "" {
-		return nil, fmt.Errorf("at least one of 'public network' and 'cluster network' must be specified")
-	}
-
-	if vt.NginxImage == "" {
-		return nil, fmt.Errorf("'nginx-image' must be specified")
+	if err := vt.ValidationTestConfig.Validate(); err != nil {
+		return nil, err
 	}
 
 	testResults := &ValidationTestResults{
