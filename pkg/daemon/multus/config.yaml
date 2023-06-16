@@ -1,0 +1,29 @@
+# The intended namespace where the validation test will be run. This is should be where the
+# Rook-Ceph cluster will be installed.
+namespace: "{{ .Namespace }}"
+
+# These fields should be set to the name of the Network Attachment Definition (NAD) which will be
+# used for the Ceph cluster's public or cluster network, respectively. This should be a namespaced
+# name in the form <namespace>/<name> if the NAD is defined in a different namespace from the
+# CephCluster namespace. One or both of the fields may be set.
+publicNetwork: "{{ .PublicNetwork }}"
+clusterNetwork: "{{ .ClusterNetwork }}"
+
+# The number of Multus-connected validation daemons that will run as part of the test. This should
+# be set to the largest number of Ceph daemons that might run on a node in the worst case. Remember
+# to consider failure cases where nodes or availability zones are offline and their workloads must
+# be rescheduled.
+# A Rook cluster with all resource types might run these daemons on one node under failure:
+# 1 mon, 3 OSDs, 1 mgr, 1 MDS, 1 NFS server, 1 RGW, 1 rbdmirror, 1 cephfsmirror,
+# plus 1 csi provisioner and 1 csi plugin for all 3 CSI types: RBD, CSI, and CephFS -- 16 daemons
+daemonsPerNode: {{ .DaemonsPerNode }}
+
+# This is the time to wait for resources to change to the expected state. For example, for the test
+# web server to start, for test clients to become ready, or for test resources to be deleted. At
+# longest, this may need to reflect the time it takes for client pods to get address assignments and
+# then for each client to determine that its network connection is stable.
+# This should be at least 1 minute. 2 minutes or more is recommended.
+resourceTimeout: "{{ .ResourceTimeout }}"
+
+# The Nginx image which will be used for the web server and clients.
+nginxImage: "{{ .NginxImage }}"
