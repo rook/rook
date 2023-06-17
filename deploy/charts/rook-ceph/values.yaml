@@ -55,6 +55,9 @@ logLevel: INFO
 # -- If true, create & use RBAC resources
 rbacEnable: true
 
+# -- If true, create cluster-wide RBAC resources
+rbacClusterEnable: true
+
 # -- If true, create & use PSP resources
 pspEnable: false
 

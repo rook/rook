@@ -13,7 +13,9 @@ serviceaccounts
 clusterrolebindings
 */}}
 ---
+{{- if .Values.rbacClusterEnable }}
 {{ include "library.cluster.clusterrolebindings" . }}
+{{- end }}
 
 {{- if .Values.pspEnable }}
 {{ include "library.cluster.psp.rolebindings" . }}
