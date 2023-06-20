@@ -209,7 +209,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
 			request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, nil
+		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, err
 	}
 
 	// Generate user config
