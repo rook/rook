@@ -44,6 +44,10 @@ func (c *FakeCephV1) CephBucketTopics(namespace string) v1.CephBucketTopicInterf
 	return &FakeCephBucketTopics{c, namespace}
 }
 
+func (c *FakeCephV1) CephCOSIDrivers(namespace string) v1.CephCOSIDriverInterface {
+	return &FakeCephCOSIDrivers{c, namespace}
+}
+
 func (c *FakeCephV1) CephClients(namespace string) v1.CephClientInterface {
 	return &FakeCephClients{c, namespace}
 }

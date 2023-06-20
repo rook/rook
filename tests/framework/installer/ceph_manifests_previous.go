@@ -180,3 +180,15 @@ func (m *CephManifestsPreviousVersion) GetRBDMirror(name string, count int) stri
 func (m *CephManifestsPreviousVersion) GetFilesystemSubvolumeGroup(fsName, groupName string) string {
 	return m.latest.GetFilesystemSubvolumeGroup(fsName, groupName)
 }
+
+func (m *CephManifestsPreviousVersion) GetCOSIDriver() string {
+	return m.latest.GetCOSIDriver()
+}
+
+func (m *CephManifestsPreviousVersion) GetBucketClass(name, objectStoreUserSecretName, deletionPolicy string) string {
+	return m.latest.GetBucketClass(name, objectStoreUserSecretName, deletionPolicy)
+}
+
+func (m *CephManifestsPreviousVersion) GetBucketClaim(name, bucketClassName string) string {
+	return m.latest.GetBucketClaim(name, bucketClassName)
+}

@@ -60,7 +60,7 @@ var (
 	bucketStorageClassName = "rook-smoke-delete-bucket"
 	maxBucket              = 1
 	maxSize                = "100000"
-	userCap                = "read"
+	userCap                = "*"
 )
 
 // Test Object StoreCreation on Rook that was installed via helm

@@ -145,6 +145,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable)
 	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
+	if !tlsEnable {
+		// TODO : need to fix COSI driver to support TLS
+		logger.Info("Testing COSI driver")
+		testCOSIDriver(s, helper, k8sh, installer, namespace)
+	} else {
+		logger.Info("Skipping COSI driver test as TLS is enabled")
+	}
 }
 
 func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {

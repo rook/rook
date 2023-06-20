@@ -70,6 +70,25 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
+  name: objectstorage-provisioner-role
+  labels:
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-ceph
+    app.kubernetes.io/name: cosi-driver-ceph
+rules:
+  - apiGroups: ["objectstorage.k8s.io"]
+    resources: ["buckets", "bucketaccesses", "bucketclaims", "bucketaccessclasses", "buckets/status", "bucketaccesses/status", "bucketclaims/status", "bucketaccessclasses/status"]
+    verbs: ["get", "list", "watch", "update", "create", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["secrets", "events"]
+    verbs: ["get", "delete", "update", "create"]
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
   name: rbd-csi-nodeplugin
   labels:
     operator: rook
@@ -280,6 +299,7 @@ rules:
       - cephfilesystemmirrors
       - cephfilesystemsubvolumegroups
       - cephblockpoolradosnamespaces
+      - cephcosidrivers
     verbs:
       - get
       - list
@@ -581,6 +601,24 @@ roleRef:
   name: cephfs-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
+# RBAC for ceph cosi driver service account
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: objectstorage-provisioner-role-binding
+  labels:
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-ceph
+    app.kubernetes.io/name: cosi-driver-ceph
+subjects:
+  - kind: ServiceAccount
+    name: objectstorage-provisioner
+    namespace: rook-ceph # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: objectstorage-provisioner-role
+  apiGroup: rbac.authorization.k8s.io
+---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
@@ -786,6 +824,7 @@ rules:
       - cephfilesystemmirrors
       - cephfilesystemsubvolumegroups
       - cephblockpoolradosnamespaces
+      - cephcosidrivers
     verbs:
       - get
       - list
@@ -1090,6 +1129,19 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
     namespace: rook-ceph # namespace:operator
+---
+# Service account for Ceph COSI driver
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: objectstorage-provisioner
+  namespace: rook-ceph # namespace:operator
+  labels:
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-ceph
+    app.kubernetes.io/name: cosi-driver-ceph
+# imagePullSecrets:
+#   - name: my-registry-secret
 ---
 # Service account for the job that reports the Ceph version in an image
 apiVersion: v1
