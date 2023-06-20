@@ -1,0 +1,9 @@
+kind: BucketClass
+apiVersion: objectstorage.k8s.io/v1alpha1
+metadata:
+  name: sample-bcc
+driverName: ceph.objectstorage.k8s.io
+deletionPolicy: Delete
+parameters:
+  objectStoreUserSecretName: rook-ceph-object-user-my-store-cosi
+  objectStoreUserSecretNamespace: rook-ceph

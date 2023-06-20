@@ -460,7 +460,7 @@ func (s *UpgradeSuite) upgradeToMaster() {
 		return
 	}
 
-	require.NoError(s.T(), s.k8sh.ResourceOperation("replace", s.installer.Manifests.GetCRDs(s.k8sh)))
+	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCRDs(s.k8sh)))
 
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCommon()))
 

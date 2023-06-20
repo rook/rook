@@ -1,0 +1,16 @@
+#################################################################################################################
+# Create an object store user for access to the ceph cosi driver.
+#  kubectl create -f cosi-user.yaml
+#################################################################################################################
+
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: cosi
+  namespace: rook-ceph # namespace:cluster
+spec:
+  store: my-store
+  displayName: "user for cosi"
+  capabilities:
+    user: "*"
+    bucket: "*"

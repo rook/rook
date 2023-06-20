@@ -147,6 +147,7 @@ rules:
   - cephfilesystemmirrors
   - cephfilesystemsubvolumegroups
   - cephblockpoolradosnamespaces
+  - cephcosidrivers
   verbs:
   - get
   - list
@@ -608,4 +609,33 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["csinodes"]
     verbs: ["get", "list", "watch"]
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: objectstorage-provisioner-role
+  labels:
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-ceph
+    app.kubernetes.io/name: cosi-driver-ceph
+rules:
+  - apiGroups: ["objectstorage.k8s.io"]
+    resources:
+      [
+        "buckets",
+        "bucketaccesses",
+        "bucketclaims",
+        "bucketaccessclasses",
+        "buckets/status",
+        "bucketaccesses/status",
+        "bucketclaims/status",
+        "bucketaccessclasses/status",
+      ]
+    verbs: ["get", "list", "watch", "update", "create", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "watch", "list", "delete", "update", "create"]
+  - apiGroups: [""]
+    resources: ["secrets", "events"]
+    verbs: ["get", "delete", "update", "create"]
 {{- end }}

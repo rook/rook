@@ -26,6 +26,8 @@ type CephBucketNotificationExpansion interface{}
 
 type CephBucketTopicExpansion interface{}
 
+type CephCOSIDriverExpansion interface{}
+
 type CephClientExpansion interface{}
 
 type CephClusterExpansion interface{}
