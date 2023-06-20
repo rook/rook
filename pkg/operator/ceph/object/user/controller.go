@@ -252,7 +252,13 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE KUBERNETES SECRET
-	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser)
+	store, err := r.getObjectStore(cephObjectStoreUser.Spec.Store)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to get object store %q", cephObjectStoreUser.Spec.Store)
+	}
+
+	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
+	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser, tlsSecretName)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -472,12 +478,15 @@ func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
 	return m
 }
 
-func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser) *corev1.Secret {
+func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser, tlsSecretName string) *corev1.Secret {
 	// Store the keys in a secret
 	secrets := map[string]string{
 		"AccessKey": r.userConfig.Keys[0].AccessKey,
 		"SecretKey": r.userConfig.Keys[0].SecretKey,
 		"Endpoint":  r.objContext.Endpoint,
+	}
+	if tlsSecretName != "" {
+		secrets["SSLCertSecretName"] = tlsSecretName
 	}
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -496,9 +505,9 @@ func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectSt
 	return secret
 }
 
-func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {
+func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser, tlsSecretName string) (reconcile.Result, error) {
 	// Generate Kubernetes Secret
-	secret := r.generateCephUserSecret(cephObjectStoreUser)
+	secret := r.generateCephUserSecret(cephObjectStoreUser, tlsSecretName)
 
 	// Set owner ref to the object store user object
 	err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme)
