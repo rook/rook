@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // compile-time assertions ensures CephBucketTopic implements webhook.Validator so a webhook builder
@@ -89,23 +90,23 @@ func ValidateTopicSpec(t *CephBucketTopic) error {
 	return nil
 }
 
-func (t *CephBucketTopic) ValidateCreate() error {
+func (t *CephBucketTopic) ValidateCreate() (admission.Warnings, error) {
 	logger.Infof("validate create cephbuckettopic %v", t)
 	if err := ValidateTopicSpec(t); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func (t *CephBucketTopic) ValidateUpdate(old runtime.Object) error {
+func (t *CephBucketTopic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	logger.Info("validate update cephbuckettopic")
 	if err := ValidateTopicSpec(t); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func (t *CephBucketTopic) ValidateDelete() error {
+func (t *CephBucketTopic) ValidateDelete() (admission.Warnings, error) {
 	logger.Info("validate delete cephbuckettopic")
-	return nil
+	return nil, nil
 }

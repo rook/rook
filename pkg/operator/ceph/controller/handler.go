@@ -44,7 +44,7 @@ func ObjectToCRMapper(ctx context.Context, c client.Client, ro runtime.Object, s
 	}
 
 	// return handler.EnqueueRequestsFromMapFunc(func(o client.Object) []ctrl.Request {
-	return handler.MapFunc(func(o client.Object) []ctrl.Request {
+	return handler.MapFunc(func(ctx context.Context, o client.Object) []ctrl.Request {
 		list := &unstructured.UnstructuredList{}
 		list.SetGroupVersionKind(gvk)
 		err := c.List(ctx, list)

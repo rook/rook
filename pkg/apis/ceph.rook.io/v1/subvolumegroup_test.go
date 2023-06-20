@@ -34,10 +34,10 @@ func TestCephFilesystemSubVolumeGroupValidateUpdate(t *testing.T) {
 	}
 	ur := rn.DeepCopy()
 	// validate with same filesystem name
-	err := ur.ValidateUpdate(rn)
+	_, err := ur.ValidateUpdate(rn)
 	assert.NoError(t, err)
 	// validate with different filesystem name
 	ur.Spec.FilesystemName = "new-filesystem-name"
-	err = ur.ValidateUpdate(rn)
+	_, err = ur.ValidateUpdate(rn)
 	assert.Error(t, err)
 }

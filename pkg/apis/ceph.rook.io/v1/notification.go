@@ -19,6 +19,7 @@ package v1
 import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // compile-time assertions ensures CephBucketNotification implements webhook.Validator so a webhook builder
@@ -31,23 +32,23 @@ func ValidateNotificationSpec(n *CephBucketNotification) error {
 	return nil
 }
 
-func (n *CephBucketNotification) ValidateCreate() error {
+func (n *CephBucketNotification) ValidateCreate() (admission.Warnings, error) {
 	logger.Infof("validate create cephbucketnotification %v", n)
 	if err := ValidateNotificationSpec(n); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func (n *CephBucketNotification) ValidateUpdate(old runtime.Object) error {
+func (n *CephBucketNotification) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	logger.Infof("validate update cephbucketnotification %v", n)
 	if err := ValidateNotificationSpec(n); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func (n *CephBucketNotification) ValidateDelete() error {
+func (n *CephBucketNotification) ValidateDelete() (admission.Warnings, error) {
 	logger.Infof("validate delete cephbucketnotification %v", n)
-	return nil
+	return nil, nil
 }

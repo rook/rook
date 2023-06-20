@@ -113,17 +113,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephNFS CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephNFS{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephNFS{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
 
 	// Watch all other resources
 	for _, t := range objectsToWatch {
-		err = c.Watch(&source.Kind{Type: t}, &handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &cephv1.CephNFS{},
-		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephNFS{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		ownerRequest := handler.EnqueueRequestForOwner(
+			mgr.GetScheme(),
+			mgr.GetRESTMapper(),
+			&cephv1.CephNFS{},
+		)
+		err = c.Watch(source.Kind(mgr.GetCache(), t), ownerRequest,
+			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephNFS{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 		if err != nil {
 			return err
 		}
@@ -171,7 +174,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
-	if err := cephNFS.Spec.Security.Validate(); err != nil {
+	if _, err := cephNFS.Spec.Security.Validate(); err != nil {
 		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, *cephNFS,
 			errors.Wrapf(err, "failed to validate security spec for CephNFS %q",
 				types.NamespacedName{Namespace: cephNFS.Namespace, Name: cephNFS.Name})

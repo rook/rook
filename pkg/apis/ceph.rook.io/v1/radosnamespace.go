@@ -20,23 +20,24 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var _ webhook.Validator = &CephBlockPoolRadosNamespace{}
 
-func (c *CephBlockPoolRadosNamespace) ValidateCreate() error {
-	return nil
+func (c *CephBlockPoolRadosNamespace) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
-func (c *CephBlockPoolRadosNamespace) ValidateUpdate(old runtime.Object) error {
+func (c *CephBlockPoolRadosNamespace) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	logger.Infof("validate update %s/%s CephBlockPoolRadosNamespace", c.Namespace, c.Name)
 	oprs := old.(*CephBlockPoolRadosNamespace)
 	if oprs.Spec.BlockPoolName != c.Spec.BlockPoolName {
-		return errors.New("invalid update: blockpool name cannot be changed")
+		return nil, errors.New("invalid update: blockpool name cannot be changed")
 	}
-	return nil
+	return nil, nil
 }
 
-func (c *CephBlockPoolRadosNamespace) ValidateDelete() error {
-	return nil
+func (c *CephBlockPoolRadosNamespace) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }

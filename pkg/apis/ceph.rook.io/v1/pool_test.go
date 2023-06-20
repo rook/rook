@@ -59,13 +59,13 @@ func TestCephBlockPoolValidateUpdate(t *testing.T) {
 	up := p.DeepCopy()
 	up.Spec.ErasureCoded.DataChunks = 2
 	up.Spec.ErasureCoded.CodingChunks = 1
-	err := up.ValidateUpdate(p)
+	_, err := up.ValidateUpdate(p)
 	assert.Error(t, err)
 
 	// validate with different name in Spec.Name
 	ip := p.DeepCopy()
 	ip.Spec.Name = "new-ec-pool"
-	err = ip.ValidateUpdate(p)
+	_, err = ip.ValidateUpdate(p)
 	assert.Error(t, err)
 }
 

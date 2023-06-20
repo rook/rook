@@ -188,17 +188,17 @@ func TestPublicTopicValidation(t *testing.T) {
 	}
 
 	t.Run("create", func(t *testing.T) {
-		err := topic.ValidateCreate()
+		_, err := topic.ValidateCreate()
 		assert.NoError(t, err)
 	})
 
 	t.Run("update", func(t *testing.T) {
-		err := topic.ValidateUpdate(topic)
+		_, err := topic.ValidateUpdate(topic)
 		assert.NoError(t, err)
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		err := topic.ValidateDelete()
+		_, err := topic.ValidateDelete()
 		assert.NoError(t, err)
 	})
 }

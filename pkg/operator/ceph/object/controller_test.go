@@ -36,10 +36,12 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/rook/rook/pkg/util/dependents"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -561,6 +563,9 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	ctx := context.TODO()
 	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
 	os.Setenv("ROOK_LOG_LEVEL", "DEBUG")
+	var deploymentsUpdated *[]*apps.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	zoneName := "zone-a"
 	zoneGroupName := "zonegroup-a"
@@ -778,7 +783,15 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		objectStore.DeletionTimestamp = &metav1.Time{
 			Time: time.Now(),
 		}
-		err = r.client.Update(ctx, objectStore)
+		objectStore.Finalizers = []string{"cephobjectstore.ceph.rook.io"}
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		r := &ReconcileCephObjectStore{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			recorder:         record.NewFakeRecorder(5),
+			opManagerContext: ctx,
+		}
 
 		// have to also track the same objects in the rook clientset
 		r.context.RookClientset = rookfake.NewSimpleClientset(
@@ -951,8 +964,8 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			externalObjectStore.DeletionTimestamp = &metav1.Time{
 				Time: time.Now(),
 			}
-			err = r.client.Update(ctx, externalObjectStore)
-			assert.NoError(t, err)
+			externalObjectStore.Finalizers = []string{"cephobjectstore.ceph.rook.io"}
+			r := getReconciler(objects)
 
 			// have to also track the same objects in the rook clientset
 			r.context.RookClientset = rookfake.NewSimpleClientset(externalObjectStore)

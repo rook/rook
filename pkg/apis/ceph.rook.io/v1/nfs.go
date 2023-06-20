@@ -22,6 +22,7 @@ import (
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // KerberosEnabled returns true if Kerberos is enabled from the spec.
@@ -50,11 +51,11 @@ func (n *CephNFS) IsHostNetwork(c *ClusterSpec) bool {
 	return c.Network.IsHost()
 }
 
-func (n *CephNFS) ValidateCreate() error {
+func (n *CephNFS) ValidateCreate() (admission.Warnings, error) {
 	return n.Spec.Security.Validate()
 }
 
-func (n *CephNFS) ValidateUpdate(old runtime.Object) error {
+func (n *CephNFS) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	return n.ValidateCreate()
 }
 
@@ -62,38 +63,38 @@ func (n *CephNFS) ValidateDelete() error {
 	return nil
 }
 
-func (sec *NFSSecuritySpec) Validate() error {
+func (sec *NFSSecuritySpec) Validate() (admission.Warnings, error) {
 	if sec == nil {
-		return nil
+		return nil, nil
 	}
 
 	if sec.SSSD != nil {
 		sidecar := sec.SSSD.Sidecar
 		if sidecar == nil {
-			return errors.New("System Security Services Daemon (SSSD) is enabled, but no runtime option is specified; supported: [runInSidecar]")
+			return nil, errors.New("System Security Services Daemon (SSSD) is enabled, but no runtime option is specified; supported: [runInSidecar]")
 		}
 
 		if sidecar.Image == "" {
-			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled, but no image is specified")
+			return nil, errors.New("System Security Services Daemon (SSSD) sidecar is enabled, but no image is specified")
 		}
 
 		if volSourceExistsAndIsEmpty(sidecar.SSSDConfigFile.VolumeSource.ToKubernetesVolumeSource()) {
-			return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with config from a VolumeSource, but no source is specified")
+			return nil, errors.New("System Security Services Daemon (SSSD) sidecar is enabled with config from a VolumeSource, but no source is specified")
 		}
 
 		subDirs := map[string]bool{}
 		for _, additionalFile := range sidecar.AdditionalFiles {
 			subDir := additionalFile.SubPath
 			if subDir == "" {
-				return errors.New("System Security Services Daemon (SSSD) sidecar is enabled with additional file having no subPath specified")
+				return nil, errors.New("System Security Services Daemon (SSSD) sidecar is enabled with additional file having no subPath specified")
 			}
 
 			if volSourceExistsAndIsEmpty(additionalFile.VolumeSource.ToKubernetesVolumeSource()) {
-				return errors.Errorf("System Security Services Daemon (SSSD) sidecar is enabled with additional file (subPath %q), but no source is specified", subDir)
+				return nil, errors.Errorf("System Security Services Daemon (SSSD) sidecar is enabled with additional file (subPath %q), but no source is specified", subDir)
 			}
 
 			if _, ok := subDirs[subDir]; ok {
-				return errors.Errorf("System Security Services Daemon (SSSD) sidecar is enabled with additional file containing duplicate subPath %q", subDir)
+				return nil, errors.Errorf("System Security Services Daemon (SSSD) sidecar is enabled with additional file containing duplicate subPath %q", subDir)
 			}
 			subDirs[subDir] = true
 		}
@@ -102,15 +103,15 @@ func (sec *NFSSecuritySpec) Validate() error {
 	krb := sec.Kerberos
 	if krb != nil {
 		if volSourceExistsAndIsEmpty(krb.ConfigFiles.VolumeSource.ToKubernetesVolumeSource()) {
-			return errors.New("Kerberos is enabled with config from a VolumeSource, but no source is specified")
+			return nil, errors.New("Kerberos is enabled with config from a VolumeSource, but no source is specified")
 		}
 
 		if volSourceExistsAndIsEmpty(krb.KeytabFile.VolumeSource.ToKubernetesVolumeSource()) {
-			return errors.New("Kerberos is enabled with keytab from a VolumeSource, but no source is specified")
+			return nil, errors.New("Kerberos is enabled with keytab from a VolumeSource, but no source is specified")
 		}
 	}
 
-	return nil
+	return nil, nil
 }
 
 func volSourceExistsAndIsEmpty(v *v1.VolumeSource) bool {

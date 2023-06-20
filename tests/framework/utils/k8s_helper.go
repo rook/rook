@@ -347,7 +347,7 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 
 func (k8sh *K8sHelper) WaitForStatusPhase(namespace, kind, name, desiredPhase string, timeout time.Duration) error {
 	baseErr := fmt.Sprintf("waiting for resource %q %q in namespace %q to have status.phase %q", kind, name, namespace, desiredPhase)
-	err := wait.Poll(3*time.Second, timeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, timeout, true, func(context context.Context) (done bool, err error) {
 		phase, err := k8sh.GetResource("--namespace", namespace, kind, name, "--output", "jsonpath={.status.phase}")
 		if err != nil {
 			logger.Warningf("error %s. %v", baseErr, err)

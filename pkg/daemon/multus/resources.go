@@ -307,7 +307,7 @@ func (vt *ValidationTest) cleanUpTestResources() (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, vt.ResourceTimeout)
 	defer cancel()
 	lastSuggestion := ""
-	err = wait.PollUntilWithContext(ctx, 2*time.Second, func(ctx context.Context) (done bool, err error) {
+	err = wait.PollUntilContextCancel(ctx, 2*time.Second, true, func(ctx context.Context) (done bool, err error) {
 		_, getErr := vt.Clientset.CoreV1().ConfigMaps(vt.Namespace).Get(ctx, ownerConfigMapName, meta.GetOptions{})
 		if getErr != nil {
 			if kerrors.IsNotFound(getErr) {

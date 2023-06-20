@@ -145,7 +145,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 	})
 
 	t.Run("verify RGW liveness probes show healthy", func(t *testing.T) {
-		err := wait.PollImmediate(2*time.Second, 90*time.Second, func() (done bool, err error) {
+		err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 90*time.Second, true, func(ctx context.Context) (done bool, err error) {
 			deployName := "rook-ceph-rgw-" + storeName + "-a"
 			d, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
 			if err != nil {

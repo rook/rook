@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // compile-time assertions ensures CephObjectStore implements webhook.Validator so a webhook builder
@@ -69,12 +70,12 @@ func (s *ObjectRealmSpec) IsPullRealm() bool {
 	return s.Pull.Endpoint != ""
 }
 
-func (o *CephObjectStore) ValidateCreate() error {
+func (o *CephObjectStore) ValidateCreate() (admission.Warnings, error) {
 	logger.Infof("validate create cephobjectstore %v", o)
 	if err := ValidateObjectSpec(o); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
 // ValidateObjectSpec validate the object store arguments
@@ -105,17 +106,17 @@ func ValidateObjectSpec(gs *CephObjectStore) error {
 	return nil
 }
 
-func (o *CephObjectStore) ValidateUpdate(old runtime.Object) error {
+func (o *CephObjectStore) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	logger.Info("validate update cephobjectstore")
 	err := ValidateObjectSpec(o)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return nil, nil
 }
 
-func (o *CephObjectStore) ValidateDelete() error {
-	return nil
+func (o *CephObjectStore) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }
 
 func (s *ObjectStoreSpec) GetServiceServingCert() string {

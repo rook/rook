@@ -34,10 +34,10 @@ func TestCephBlockPoolRadosNamespaceValidateUpdate(t *testing.T) {
 	}
 	ur := rn.DeepCopy()
 	// validate with same pool name
-	err := ur.ValidateUpdate(rn)
+	_, err := ur.ValidateUpdate(rn)
 	assert.NoError(t, err)
 	// validate with different pool name
 	ur.Spec.BlockPoolName = "new-pool-name"
-	err = ur.ValidateUpdate(rn)
+	_, err = ur.ValidateUpdate(rn)
 	assert.Error(t, err)
 }
