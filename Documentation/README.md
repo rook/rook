@@ -18,7 +18,7 @@ Rook is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF
 ## Quick Start Guide
 
 Starting Ceph in your cluster is as simple as a few `kubectl` commands.
-See our [Quickstart](quickstart.md) guide to get started with the Ceph operator!
+See our [Quickstart](Getting-Started/quickstart.md) guide to get started with the Ceph operator!
 
 ## Designs
 
