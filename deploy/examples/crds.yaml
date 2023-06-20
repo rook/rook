@@ -12872,7 +12872,7 @@ spec:
                   description: Additional admin-level capabilities for the Ceph object store user
                   nullable: true
                   properties:
-                    bucket:
+                    buckets:
                       description: Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
                         - '*'
@@ -12897,6 +12897,14 @@ spec:
                         - read, write
                       type: string
                     user:
+                      description: Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    users:
                       description: Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
                         - '*'
