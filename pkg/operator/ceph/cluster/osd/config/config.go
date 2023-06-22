@@ -18,7 +18,10 @@ limitations under the License.
 package config
 
 import (
+	"fmt"
 	"strconv"
+
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 )
 
 const (
@@ -42,6 +45,19 @@ type StoreConfig struct {
 	DeviceClass     string `json:"deviceClass,omitempty"`
 	InitialWeight   string `json:"initialWeight,omitempty"`
 	PrimaryAffinity string `json:"primaryAffinity,omitempty"`
+	StoreType       string `json:"storeType,omitempty"`
+}
+
+func (s StoreConfig) IsValidStoreType() bool {
+	if s.StoreType == string(cephv1.StoreTypeBlueStore) || s.StoreType == string(cephv1.StoreTypeBlueStoreRDR) {
+		return true
+	}
+
+	return false
+}
+
+func (s StoreConfig) GetStoreFlag() string {
+	return fmt.Sprintf("--%s", s.StoreType)
 }
 
 // NewStoreConfig returns a StoreConfig with proper defaults set.

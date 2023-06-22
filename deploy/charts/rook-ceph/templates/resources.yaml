@@ -4360,6 +4360,16 @@ spec:
                         type: object
                       nullable: true
                       type: array
+                    store:
+                      description: OSDStore is the backend storage type used for creating the OSDs
+                      properties:
+                        type:
+                          description: Type of backend storage to be used while creating OSDs. If empty, then bluestore will be used
+                          enum:
+                            - bluestore
+                            - bluestore-rdr
+                          type: string
+                      type: object
                     useAllDevices:
                       description: Whether to consume all the storage devices found on a machine
                       type: boolean
