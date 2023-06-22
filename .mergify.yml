@@ -171,7 +171,7 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
-  # release-1.10 branch
+  # release-1.11 branch
   - name: automerge backport release-1.11
     conditions:
       - author=mergify[bot]

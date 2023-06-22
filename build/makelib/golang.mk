@@ -48,7 +48,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.19|1.20
+GO_SUPPORTED_VERSIONS ?= 1.20
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -175,9 +175,9 @@ go.mod.check:
 	@cat go.mod | sed -e 's|^module github.com/rook/rook|module github.com/rook/rook/pkg/apis|' \
 	                  -e '\:^replace github.com/rook/rook/pkg/apis => ./pkg/apis:d' > pkg/apis/go.mod
 	@echo === ensuring APIs modules are tidied
-	@(cd pkg/apis/; $(GOHOST) mod tidy -compat=1.19)
+	@(cd pkg/apis/; $(GOHOST) mod tidy -compat=1.20)
 	@echo === ensuring root modules are tidied
-	@$(GOHOST) mod tidy -compat=1.19
+	@$(GOHOST) mod tidy -compat=1.20
 
 .PHONY: go.mod.clean
 go.mod.clean:
