@@ -420,11 +420,18 @@ type Capacity struct {
 // CephStorage represents flavors of Ceph Cluster Storage
 type CephStorage struct {
 	DeviceClasses []DeviceClasses `json:"deviceClasses,omitempty"`
+	OSD           OSDStatus       `json:"osd,omitempty"`
 }
 
 // DeviceClasses represents device classes of a Ceph Cluster
 type DeviceClasses struct {
 	Name string `json:"name,omitempty"`
+}
+
+// OSDStatus represents OSD status of the ceph Cluster
+type OSDStatus struct {
+	// StoreType is a mapping between the OSD backend stores and number of OSDs using these stores
+	StoreType map[string]int `json:"storeType,omitempty"`
 }
 
 // ClusterVersion represents the version of a Ceph Cluster
@@ -2597,6 +2604,11 @@ type OSDStore struct {
 	// +optional
 	// +kubebuilder:validation:Enum=bluestore;bluestore-rdr;
 	Type string `json:"type,omitempty"`
+	// UpdateStore updates the backend store for existing OSDs. It destroys each OSD one at a time, cleans up the backing disk
+	// and prepares same OSD on that disk
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^yes-really-update-store$`
+	UpdateStore string `json:"updateStore,omitempty"`
 }
 
 // Node is a storage nodes

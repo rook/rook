@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -180,7 +181,20 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 
 		// Skip OSD prepare if deployment already exists for the PVC
 		// Also skip the encryption work part to avoid overriding the existing encryption key
+		skipPreparePod := false
 		if existingDeployments.Has(dataSource.ClaimName) {
+			skipPreparePod = true
+		}
+
+		// Allow updating OSD prepare pod if the OSD needs migration
+		if c.replaceOSD != nil {
+			if strings.Contains(c.replaceOSD.Path, dataSource.ClaimName) {
+				logger.Infof("updating OSD prepare pod to replace OSD.%d", c.replaceOSD.ID)
+				skipPreparePod = false
+			}
+		}
+
+		if skipPreparePod {
 			logger.Infof("skipping OSD prepare job creation for PVC %q because OSD daemon using the PVC already exists", osdProps.crushHostname)
 			continue
 		}

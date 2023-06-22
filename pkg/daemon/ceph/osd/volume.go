@@ -282,6 +282,16 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 				deviceArg,
 			}...)
 
+			if a.replaceOSD != nil {
+				replaceOSDID := a.GetReplaceOSDId(device.DeviceInfo.RealPath)
+				if replaceOSDID != -1 {
+					immediateExecuteArgs = append(immediateExecuteArgs, []string{
+						"--osd-id",
+						fmt.Sprintf("%d", replaceOSDID),
+					}...)
+				}
+			}
+
 			crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
 			if crushDeviceClass != "" {
 				immediateExecuteArgs = append(immediateExecuteArgs, []string{crushDeviceClassFlag, crushDeviceClass}...)
@@ -525,6 +535,16 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 				"--data",
 				deviceArg,
 			}...)
+
+			if a.replaceOSD != nil {
+				restoreOSDID := a.GetReplaceOSDId(deviceArg)
+				if restoreOSDID != -1 {
+					immediateExecuteArgs = append(immediateExecuteArgs, []string{
+						"--osd-id",
+						fmt.Sprintf("%d", restoreOSDID),
+					}...)
+				}
+			}
 
 			// assign the device class specific to the device
 			immediateExecuteArgs = a.appendDeviceClassArg(device, immediateExecuteArgs)
@@ -860,6 +880,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			lvPath = lv
 		}
 
+		// TODO: Don't read osd store type from env variable
 		osdStore := os.Getenv(oposd.OSDStoreTypeVarName)
 		if osdStore == "" {
 			osdStore = string(cephv1.StoreTypeBlueStore)
@@ -1053,10 +1074,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			blockPath = block
 		}
 
-		osdStore := os.Getenv(oposd.OSDStoreTypeVarName)
-		if osdStore == "" {
-			osdStore = string(cephv1.StoreTypeBlueStore)
-		}
+		osdStore := osdInfo.Type
 
 		osd := oposd.OSDInfo{
 			ID:      osdID,

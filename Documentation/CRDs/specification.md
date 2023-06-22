@@ -3612,6 +3612,18 @@ string
 <td>
 </td>
 </tr>
+<tr>
+<td>
+<code>osd</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.OSDStatus">
+OSDStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephVersionSpec">CephVersionSpec
@@ -8181,6 +8193,35 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.OSDStatus">OSDStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephStorage">CephStorage</a>)
+</p>
+<div>
+<p>OSDStatus represents OSD status of the ceph Cluster</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>storeType</code><br/>
+<em>
+map[string]int
+</em>
+</td>
+<td>
+<p>StoreType is a mapping between the OSD backend stores and number of OSDs using these stores</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.OSDStore">OSDStore
 </h3>
 <p>
@@ -8207,6 +8248,19 @@ string
 <td>
 <em>(Optional)</em>
 <p>Type of backend storage to be used while creating OSDs. If empty, then bluestore will be used</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>updateStore</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>UpdateStore updates the backend store for existing OSDs. It destroys each OSD one at a time, cleans up the backing disk
+and prepares same OSD on that disk</p>
 </td>
 </tr>
 </tbody>

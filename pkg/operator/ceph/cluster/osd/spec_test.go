@@ -718,6 +718,7 @@ func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName stri
 		UUID:      "some-uuid",
 		BlockPath: "/some/path",
 		CVMode:    "raw",
+		Store:     "bluestore",
 	}
 	c.deviceSets = append(c.deviceSets, deviceSet{
 		Name: pvcName,
@@ -741,6 +742,7 @@ func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName st
 		UUID:      "some-uuid",
 		BlockPath: "/dev/vda",
 		CVMode:    "raw",
+		Store:     "bluestore",
 	}
 	c.ValidStorage.Nodes = append(c.ValidStorage.Nodes, cephv1.Node{Name: nodeName})
 	config := c.newProvisionConfig()

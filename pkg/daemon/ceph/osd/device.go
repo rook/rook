@@ -63,6 +63,7 @@ type DeviceOsdIDEntry struct {
 	Config                DesiredDevice // Device specific config options
 	PersistentDevicePaths []string
 	DeviceInfo            *sys.LocalDisk // low-level info about the device
+	RestoreOSD            bool           // Restore OSD by reparing it with with OSD ID
 }
 
 func (m *DeviceOsdMapping) String() string {

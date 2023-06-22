@@ -141,46 +141,103 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 	}
 }
 
-func TestDeviceClasses(t *testing.T) {
+func TestUpdateCephStorageStatus(t *testing.T) {
+	ctx := context.TODO()
 	clusterInfo := client.AdminTestClusterInfo("fake")
-	clusterInfo.SetName("rook-ceph")
-
-	var execCount = 0
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+			if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
+				// Mock executor for OSD crush class list command, returning ssd as available device class
+				return `["ssd"]`, nil
+			}
+			return "", nil
 		},
 	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
-		execCount++
-		if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
-			// Mock executor for OSD crush class list command, returning ssd as available device class
-			return `["ssd"]`, nil
-		}
-		return "", nil
-	}
 
-	cephCluster := &cephv1.CephCluster{}
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testing",
+			Namespace: "fake",
+		},
+	}
 	// Objects to track in the fake client.
 	object := []runtime.Object{
 		cephCluster,
 	}
 	s := scheme.Scheme
 	// Create a fake client to mock API calls.
-	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	c := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	context := &clusterd.Context{
-		Executor: executor,
-		Client:   cl,
+		Executor:  executor,
+		Client:    c,
+		Clientset: testexec.New(t, 2),
 	}
 
 	// Initializing an OSD monitoring
-	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
+	osdHealthMonitor := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
 
-	// Run OSD monitoring routine
-	err := osdMon.checkDeviceClasses()
-	assert.Nil(t, err)
-	// checkDeviceClasses has 1 mocked cmd for fetching the device classes
-	assert.Equal(t, 1, execCount)
+	t.Run("verify ssd device class added to storage status", func(t *testing.T) {
+		osdHealthMonitor.updateCephStorageStatus()
+		err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cephCluster.Status.CephStorage.DeviceClasses))
+		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
+	})
+
+	t.Run("verify bluestore OSD count in storage status", func(t *testing.T) {
+		labels := map[string]string{
+			k8sutil.AppAttr:     AppName,
+			k8sutil.ClusterAttr: clusterInfo.Namespace,
+			OsdIdLabelKey:       "0",
+			osdStore:            "bluestore",
+		}
+
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd0",
+				Namespace: clusterInfo.Namespace,
+				Labels:    labels,
+			},
+		}
+		if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+			logger.Errorf("Error creating fake deployment: %v", err)
+		}
+		osdHealthMonitor.updateCephStorageStatus()
+		err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cephCluster.Status.CephStorage.DeviceClasses))
+		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
+		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
+		assert.Equal(t, 0, cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"])
+
+	})
+
+	t.Run("verify bluestoreRDR OSD count in storage status", func(t *testing.T) {
+		labels := map[string]string{
+			k8sutil.AppAttr:     AppName,
+			k8sutil.ClusterAttr: clusterInfo.Namespace,
+			OsdIdLabelKey:       "1",
+			osdStore:            "bluestore-rdr",
+		}
+
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd1",
+				Namespace: clusterInfo.Namespace,
+				Labels:    labels,
+			},
+		}
+		if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+			logger.Errorf("Error creating fake deployment: %v", err)
+		}
+		osdHealthMonitor.updateCephStorageStatus()
+		err := context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cephCluster.Status.CephStorage.DeviceClasses))
+		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
+		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"])
+		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
+	})
 }
