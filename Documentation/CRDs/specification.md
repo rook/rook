@@ -8181,6 +8181,36 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.OSDStore">OSDStore
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.StorageScopeSpec">StorageScopeSpec</a>)
+</p>
+<div>
+<p>OSDStore is the backend storage type used for creating the OSDs</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>type</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Type of backend storage to be used while creating OSDs. If empty, then bluestore will be used</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectEndpoints">ObjectEndpoints
 </h3>
 <p>
@@ -11135,7 +11165,39 @@ Selection
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>store</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.OSDStore">
+OSDStore
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
+</table>
+<h3 id="ceph.rook.io/v1.StoreType">StoreType
+(<code>string</code> alias)</h3>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;bluestore&#34;</p></td>
+<td><p>StoreTypeBlueStore is the bluestore backend storage for OSDs</p>
+</td>
+</tr><tr><td><p>&#34;bluestore-rdr&#34;</p></td>
+<td><p>StoreTypeBlueStoreRDR is the bluestore-rdr backed storage for OSDs</p>
+</td>
+</tr></tbody>
 </table>
 <h3 id="ceph.rook.io/v1.StretchClusterSpec">StretchClusterSpec
 </h3>

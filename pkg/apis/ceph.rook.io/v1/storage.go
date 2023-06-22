@@ -15,6 +15,18 @@ limitations under the License.
 */
 package v1
 
+import "fmt"
+
+type StoreType string
+
+const (
+	// StoreTypeBlueStore is the bluestore backend storage for OSDs
+	StoreTypeBlueStore StoreType = "bluestore"
+
+	// StoreTypeBlueStoreRDR is the bluestore-rdr backed storage for OSDs
+	StoreTypeBlueStoreRDR StoreType = "bluestore-rdr"
+)
+
 // AnyUseAllDevices gets whether to use all devices
 func (s *StorageScopeSpec) AnyUseAllDevices() bool {
 	if s.Selection.GetUseAllDevices() {
@@ -167,4 +179,20 @@ func (s *StorageScopeSpec) IsOnPVCEncrypted() bool {
 	}
 
 	return false
+}
+
+// GetOSDStore returns osd backend store type provided in the cluster spec
+func (s *StorageScopeSpec) GetOSDStore() string {
+	if s.Store.Type == "" {
+		return string(StoreTypeBlueStore)
+	}
+	return s.Store.Type
+}
+
+// GetOSDStoreFlag returns osd backend store type prefixed with "--"
+func (s *StorageScopeSpec) GetOSDStoreFlag() string {
+	if s.Store.Type == "" {
+		return fmt.Sprintf("--%s", StoreTypeBlueStore)
+	}
+	return fmt.Sprintf("--%s", s.Store.Type)
 }
