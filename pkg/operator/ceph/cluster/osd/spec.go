@@ -835,7 +835,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		walDeviceEnvVar(osdInfo.WalPath),
 		v1.EnvVar{Name: "ROOK_OSD_ID", Value: osdID},
 	)
-	osdStore := "--bluestore"
+	osdStore := fmt.Sprintf("--%s", c.getOSDStoreFromSpec())
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
 	activateOSDMountPathID := activateOSDMountPath + osdID
@@ -1388,4 +1388,11 @@ func (c *Cluster) getOSDServicePorts() []v1.ServicePort {
 	}
 
 	return ports
+}
+
+func (c *Cluster) getOSDStoreFromSpec() string {
+	if c.spec.Storage.Store.Type == "" {
+		return "bluestore"
+	}
+	return string(c.spec.Storage.Store.Type)
 }

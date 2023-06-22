@@ -220,6 +220,7 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	// we need to return the block if raw mode is used and the lv if lvm mode
 	baseCommand := "stdbuf"
 	var baseArgs []string
+	storeFlag := fmt.Sprintf("--%s", a.storeConfig.StoreType)
 
 	// Create a specific log directory so that each prepare command will have its own log
 	// Only do this if nothing is present so that we don't override existing logs
@@ -227,10 +228,10 @@ func (a *OsdAgent) initializeBlockPVC(context *clusterd.Context, devices *Device
 	err := os.MkdirAll(cvLogDir, 0750)
 	if err != nil {
 		logger.Errorf("failed to create ceph-volume log directory %q, continue with default %q. %v", cvLogDir, cephLogDir, err)
-		baseArgs = []string{"-oL", cephVolumeCmd, "raw", "prepare", "--bluestore"}
+		baseArgs = []string{"-oL", cephVolumeCmd, "raw", "prepare", storeFlag}
 	} else {
 		// Always force Bluestore!
-		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, "raw", "prepare", "--bluestore"}
+		baseArgs = []string{"-oL", cephVolumeCmd, "--log-path", cvLogDir, "raw", "prepare", storeFlag}
 	}
 
 	var metadataArg, walArg []string
@@ -511,7 +512,9 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	baseCommand := "stdbuf"
 	cephVolumeMode := "raw"
-	baseArgs := []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", "--bluestore"}
+	storeFlag := fmt.Sprintf("--%s", a.storeConfig.StoreType)
+
+	baseArgs := []string{"-oL", cephVolumeCmd, cephVolumeMode, "prepare", storeFlag}
 
 	for name, device := range devices.Entries {
 		deviceArg := path.Join("/dev", name)
@@ -550,8 +553,7 @@ func (a *OsdAgent) initializeDevicesRawMode(context *clusterd.Context, devices *
 }
 
 func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *DeviceOsdMapping) error {
-	storeFlag := "--bluestore"
-
+	storeFlag := fmt.Sprintf("--%s", a.storeConfig.StoreType)
 	logPath := "/tmp/ceph-log"
 	if err := os.MkdirAll(logPath, 0700); err != nil {
 		return errors.Wrapf(err, "failed to create dir %q", logPath)
@@ -628,7 +630,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 					metadataDevices[md]["devices"] = deviceArg
 				}
 				deviceDBSizeMB := getDatabaseSize(a.storeConfig.DatabaseSizeMB, device.Config.DatabaseSizeMB)
-				if storeFlag == "--bluestore" && deviceDBSizeMB > 0 {
+				if (storeFlag == "--bluestore" || storeFlag == "--bluestore_rdr") && deviceDBSizeMB > 0 {
 					if deviceDBSizeMB < cephVolumeMinDBSize {
 						// ceph-volume will convert this value to ?G. It needs to be > 1G to invoke lvcreate.
 						logger.Infof("skipping databaseSizeMB setting (%d). For it should be larger than %dMB.", deviceDBSizeMB, cephVolumeMinDBSize)
@@ -866,7 +868,7 @@ func GetCephVolumeLVMOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			SkipLVRelease: skipLVRelease,
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
-			Store:         "bluestore",
+			Store:         os.Getenv(oposd.OSDStoreTypeVarName),
 			DeviceClass:   osdDeviceClass,
 		}
 		osds = append(osds, osd)
@@ -1061,7 +1063,7 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			SkipLVRelease: true,
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
-			Store:         "bluestore",
+			Store:         os.Getenv(oposd.OSDStoreTypeVarName),
 			Encrypted:     strings.Contains(blockPath, "-dmcrypt"),
 		}
 

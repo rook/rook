@@ -168,3 +168,12 @@ func (s *StorageScopeSpec) IsOnPVCEncrypted() bool {
 
 	return false
 }
+
+// IsOnPVCEncrypted returns whether a Ceph Cluster on PVC will be encrypted
+func (s *StorageScopeSpec) IsOSDStoreValid() bool {
+	if s.Store.Type == "" || s.Store.Type == BlueStore || s.Store.Type == BlueStoreRDR {
+		return true
+	}
+
+	return false
+}

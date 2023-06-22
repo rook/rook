@@ -131,6 +131,7 @@ func addOSDConfigFlags(command *cobra.Command) {
 	command.Flags().BoolVar(&cfg.storeConfig.EncryptedDevice, "encrypted-device", false, "whether to encrypt the OSD with dmcrypt")
 	command.Flags().StringVar(&cfg.storeConfig.DeviceClass, "osd-crush-device-class", "", "The device class for all OSDs configured on this node")
 	command.Flags().StringVar(&cfg.storeConfig.InitialWeight, "osd-crush-initial-weight", "", "The initial weight of OSD in TiB units")
+	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store-type", "", "the osd store type such as bluestore")
 }
 
 func init() {

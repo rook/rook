@@ -42,6 +42,7 @@ type StoreConfig struct {
 	DeviceClass     string `json:"deviceClass,omitempty"`
 	InitialWeight   string `json:"initialWeight,omitempty"`
 	PrimaryAffinity string `json:"primaryAffinity,omitempty"`
+	StoreType       string `json:"storeType,omitempty"`
 }
 
 // NewStoreConfig returns a StoreConfig with proper defaults set.

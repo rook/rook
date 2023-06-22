@@ -4358,6 +4358,20 @@ spec:
                         type: object
                       nullable: true
                       type: array
+                    store:
+                      description: OSDStore is the backend storage type used for creating the OSDs
+                      nullable: true
+                      properties:
+                        type:
+                          description: Type of backend storage to be used while creating OSDs
+                          nullable: true
+                          type: string
+                        updateStore:
+                          description: Migrate existing OSDs to use the new backend store.
+                          nullable: true
+                          pattern: ^$|^yes-really-update-store$
+                          type: string
+                      type: object
                     useAllDevices:
                       description: Whether to consume all the storage devices found on a machine
                       type: boolean

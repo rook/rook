@@ -2567,6 +2567,32 @@ type StorageScopeSpec struct {
 	// +nullable
 	// +optional
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
+	// +nullable
+	// +optional
+	Store OSDStore `json:"store,omitempty"`
+}
+
+// StoreType is the backend storage type for OSDs
+type StoreType string
+
+const (
+	// Bluestore osd storage
+	BlueStore StoreType = "bluestore"
+	// Bluestore RDR storage
+	BlueStoreRDR StoreType = "bluestore-rdr"
+)
+
+// OSDStore is the backend storage type used for creating the OSDs
+type OSDStore struct {
+	// +nullable
+	// +optional
+	// Type of backend storage to be used while creating OSDs
+	Type StoreType `json:"type,omitempty"`
+	// +nullable
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^yes-really-update-store$`
+	// Migrate existing OSDs to use the new backend store.
+	UpdateStore string `json:"updateStore,omitempty"`
 }
 
 // Node is a storage nodes
