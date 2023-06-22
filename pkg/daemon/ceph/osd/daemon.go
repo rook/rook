@@ -601,3 +601,32 @@ func getVolumeGroupName(lvPath string) string {
 
 	return vgSlice[2]
 }
+
+// GetOSDInfoByID returns the OSDInfo using the ceph volume list
+func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (oposd.OSDInfo, error) {
+	// LVM mode OSDs
+	osdLVMList, err := GetCephVolumeLVMOSDs(context, clusterInfo, clusterInfo.FSID, "", false, false)
+	if err != nil {
+		return oposd.OSDInfo{}, errors.Wrap(err, "failed to list lvm osd(s)")
+	}
+
+	for _, osdInfo := range osdLVMList {
+		if osdInfo.ID == osdID {
+			return osdInfo, nil
+		}
+	}
+
+	// Raw mode OSDs
+	osdRawList, err := GetCephVolumeRawOSDs(context, clusterInfo, clusterInfo.FSID, "", "", "", false, true)
+	if err != nil {
+		return oposd.OSDInfo{}, errors.Wrap(err, "failed to list raw osd(s)")
+	}
+
+	for _, osdInfo := range osdRawList {
+		if osdInfo.ID == osdID {
+			return osdInfo, nil
+		}
+	}
+
+	return oposd.OSDInfo{}, fmt.Errorf("failed to get details for OSD %d using ceph-volume list", osdID)
+}

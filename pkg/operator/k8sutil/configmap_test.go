@@ -137,3 +137,35 @@ func TestLogChangedSettings(t *testing.T) {
 	ok = logChangedSettings(key, value)
 	assert.True(t, true, ok)
 }
+
+func TestCreateOrUpdateConfigMap(t *testing.T) {
+	k8s := fake.NewSimpleClientset()
+	ctx := context.TODO()
+
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-configmap",
+			Namespace: "test-namespace",
+		},
+		Data: map[string]string{
+			"test": "data",
+		},
+	}
+
+	_, err := CreateOrUpdateConfigMap(ctx, k8s, cm)
+	assert.NoError(t, err)
+
+	actualCM, err := k8s.CoreV1().ConfigMaps("test-namespace").Get(ctx, "test-configmap", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, actualCM)
+	assert.Equal(t, "data", actualCM.Data["test"])
+
+	// update config map
+	cm.Data["test"] = "updatedData"
+	_, err = CreateOrUpdateConfigMap(ctx, k8s, cm)
+	assert.NoError(t, err)
+	actualCM, err = k8s.CoreV1().ConfigMaps("test-namespace").Get(ctx, "test-configmap", metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.NotNil(t, actualCM)
+	assert.Equal(t, "updatedData", actualCM.Data["test"])
+}

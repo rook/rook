@@ -59,7 +59,7 @@ func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable 
 	labels[FailureDomainKey] = failureDomainValue
 	labels[portableKey] = strconv.FormatBool(portable)
 	labels[deviceClass] = osd.DeviceClass
-	labels[osdStore] = c.spec.Storage.GetOSDStore()
+	labels[osdStore] = osd.Store
 
 	for k, v := range getOSDTopologyLocationLabels(osd.Location) {
 		labels[k] = v

@@ -82,6 +82,7 @@ func (m *OSDHealthMonitor) Start(monitoringRoutines map[string]*opcontroller.Clu
 		case <-time.After(*m.interval):
 			logger.Debug("checking osd processes status.")
 			m.checkOSDHealth()
+			m.updateCephStorageStatus()
 
 		case <-monitoringRoutines[daemon].InternalCtx.Done():
 			logger.Infof("stopping monitoring of OSDs in namespace %q", m.clusterInfo.Namespace)
@@ -102,23 +103,6 @@ func (m *OSDHealthMonitor) checkOSDHealth() {
 	if err != nil {
 		logger.Debugf("failed to check OSD Dump. %v", err)
 	}
-	err = m.checkDeviceClasses()
-	if err != nil {
-		logger.Debugf("failed to check device classes. %v", err)
-	}
-}
-
-func (m *OSDHealthMonitor) checkDeviceClasses() error {
-	devices, err := client.GetDeviceClasses(m.context, m.clusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get osd device classes")
-	}
-
-	if len(devices) > 0 {
-		m.updateCephStatus(devices)
-	}
-
-	return nil
 }
 
 func (m *OSDHealthMonitor) checkOSDDump() error {
@@ -191,15 +175,30 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 	return nil
 }
 
-// updateCephStorage updates the CR with deviceclass details
-func (m *OSDHealthMonitor) updateCephStatus(devices []string) {
+// updateCephStorageStatus updates the Storage details in the ceph cluster CR
+func (m *OSDHealthMonitor) updateCephStorageStatus() {
 	cephCluster := cephv1.CephCluster{}
 	cephClusterStorage := cephv1.CephStorage{}
 
-	for _, device := range devices {
-		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: device})
+	deviceClasses, err := client.GetDeviceClasses(m.context, m.clusterInfo)
+	if err != nil {
+		logger.Errorf("failed to get osd device classes. %v", err)
+		return
 	}
-	err := m.context.Client.Get(m.clusterInfo.Context, m.clusterInfo.NamespacedName(), &cephCluster)
+
+	for _, deviceClass := range deviceClasses {
+		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: deviceClass})
+	}
+
+	osdStore, err := m.getOSDStoreStatus()
+	if err != nil {
+		logger.Errorf("failed to get osd store status. %v", err)
+		return
+	}
+
+	cephClusterStorage.OSD = *osdStore
+
+	err = m.context.Client.Get(m.clusterInfo.Context, m.clusterInfo.NamespacedName(), &cephCluster)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
@@ -215,4 +214,26 @@ func (m *OSDHealthMonitor) updateCephStatus(devices []string) {
 			return
 		}
 	}
+}
+
+func (m *OSDHealthMonitor) getOSDStoreStatus() (*cephv1.OSDStatus, error) {
+	label := fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)
+	osdDeployments, err := k8sutil.GetDeployments(m.clusterInfo.Context, m.context.Clientset, m.clusterInfo.Namespace, label)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to get osd deployments")
+	}
+
+	storeType := map[string]int{}
+	for i := range osdDeployments.Items {
+		if osdStore, ok := osdDeployments.Items[i].Labels[osdStore]; ok {
+			storeType[osdStore]++
+		}
+	}
+
+	return &cephv1.OSDStatus{
+		StoreType: storeType,
+	}, nil
 }

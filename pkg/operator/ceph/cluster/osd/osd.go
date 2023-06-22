@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -46,7 +47,9 @@ import (
 )
 
 var (
-	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	logger                   = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	waitForHealthyPGInterval = 10 * time.Second
+	waitForHealthyPGTimeout  = 15 * time.Minute
 )
 
 const (
@@ -79,6 +82,7 @@ type Cluster struct {
 	ValidStorage cephv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	kv           *k8sutil.ConfigMapKVStore
 	deviceSets   []deviceSet
+	replaceOSD   *OSDReplaceInfo
 }
 
 // New creates an instance of the OSD manager
@@ -112,6 +116,7 @@ type OSDInfo struct {
 	TopologyAffinity string `json:"topologyAffinity"`
 	Encrypted        bool   `json:"encrypted"`
 	ExportService    bool   `json:"exportService"`
+	NodeName         string `json:"nodeName"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -193,16 +198,24 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
+	// identify OSDs that need migration to a new backend store
+	err := c.replaceOSDForNewStore()
+	if err != nil {
+		return errors.Wrapf(err, "failed to replace an OSD that needs migration to new backend store in namespace %q", namespace)
+	}
+
+	osdsToSkipReconcile, err := c.getOSDsToSkipReconcile()
+	if err != nil {
+		logger.Warningf("failed to get osds to skip reconcile. %v", err)
+	}
+
 	// prepare for updating existing OSDs
 	updateQueue, deployments, err := c.getOSDUpdateInfo(errs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get information about currently-running OSD Deployments in namespace %q", namespace)
 	}
-	osdsToSkipReconcile, err := c.getOSDsToSkipReconcile()
-	if err != nil {
-		logger.Warningf("failed to get osds to skip reconcile. %v", err)
-	}
-	logger.Debugf("%d of %d OSD Deployments need updated", updateQueue.Len(), deployments.Len())
+
+	logger.Debugf("%d of %d OSD Deployments need update", updateQueue.Len(), deployments.Len())
 	updateConfig := c.newUpdateConfig(config, updateQueue, deployments, osdsToSkipReconcile)
 
 	// prepare for creating new OSDs
@@ -245,6 +258,22 @@ func (c *Cluster) Start() error {
 	err = c.reconcileKeyRotationCronJob()
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile key rotation cron jobs")
+	}
+
+	if c.replaceOSD != nil {
+		delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
+		err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete the %q configmap", OSDReplaceConfigName)
+		}
+
+		// Wait for PGs to be healthy before continuing the reconcile
+		_, err = c.waitForHealthyPGs()
+		if err != nil {
+			return errors.Wrapf(err, "failed to wait for pgs to be healhty")
+		}
+
+		return errors.New("reconcile operator to replace OSDs that are pending migration")
 	}
 
 	logger.Infof("finished running OSDs in namespace %q", namespace)
@@ -496,6 +525,9 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	isPVC := false
 
 	for _, envVar := range d.Spec.Template.Spec.Containers[0].Env {
+		if envVar.Name == "ROOK_NODE_NAME" {
+			osd.NodeName = envVar.Value
+		}
 		if envVar.Name == "ROOK_OSD_UUID" {
 			osd.UUID = envVar.Value
 		}
@@ -576,6 +608,8 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	if osd.UUID == "" || osd.BlockPath == "" {
 		return OSDInfo{}, errors.Errorf("failed to get required osdInfo. %+v", osd)
 	}
+
+	osd.Store = d.Labels[osdStore]
 
 	return osd, nil
 }
@@ -778,4 +812,62 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			}
 		}
 	}
+}
+
+// replaceOSDForNewStore deletes an existing OSD deployment that does not not match the expected OSD backend store provided in the storage spec
+func (c *Cluster) replaceOSDForNewStore() error {
+	if c.spec.Storage.Store.UpdateStore != OSDStoreUpdateConfirmation {
+		logger.Debugf("no OSD migration to a new backend store is requested")
+		return nil
+	}
+
+	osdToReplace, err := c.getOSDReplaceInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get OSD replace info")
+	}
+
+	if osdToReplace == nil {
+		logger.Info("no osd to replace")
+		return nil
+	}
+
+	logger.Infof("starting migration of the OSD.%d", osdToReplace.ID)
+
+	// Delete the OSD deployment
+	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdToReplace.ID)
+	logger.Infof("removing the OSD deployment %q", deploymentName)
+	if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, deploymentName); err != nil {
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("osd deployment %q not found. Ignoring since object must be deleted.", deploymentName)
+			} else {
+				return errors.Wrapf(err, "failed to delete OSD deployment %q.", deploymentName)
+			}
+		}
+	}
+
+	c.replaceOSD = osdToReplace
+
+	return osdToReplace.saveAsConfig(c.context, c.clusterInfo)
+}
+
+func (c *Cluster) waitForHealthyPGs() (bool, error) {
+	waitFunc := func() (done bool, err error) {
+		pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to check pg are healthy")
+		}
+		if pgClean {
+			return true, nil
+		}
+		logger.Infof("waiting for PGs to be healthy after replacing an OSD, status: %q", pgHealthMsg)
+		return false, nil
+	}
+
+	err := util.RetryWithTimeout(waitFunc, waitForHealthyPGInterval, waitForHealthyPGTimeout, "pgs to be healthy")
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
