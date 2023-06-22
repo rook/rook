@@ -20,23 +20,24 @@ import (
 	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var _ webhook.Validator = &CephFilesystemSubVolumeGroup{}
 
-func (c *CephFilesystemSubVolumeGroup) ValidateCreate() error {
-	return nil
+func (c *CephFilesystemSubVolumeGroup) ValidateCreate() (admission.Warnings, error) {
+	return nil, nil
 }
 
-func (c *CephFilesystemSubVolumeGroup) ValidateUpdate(old runtime.Object) error {
+func (c *CephFilesystemSubVolumeGroup) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
 	logger.Infof("validate update %s/%s CephFilesystemSubVolumeGroup", c.Namespace, c.Name)
 	sg := old.(*CephFilesystemSubVolumeGroup)
 	if sg.Spec.FilesystemName != c.Spec.FilesystemName {
-		return errors.New("invalid update: filesystem name cannot be changed")
+		return nil, errors.New("invalid update: filesystem name cannot be changed")
 	}
-	return nil
+	return nil, nil
 }
 
-func (c *CephFilesystemSubVolumeGroup) ValidateDelete() error {
-	return nil
+func (c *CephFilesystemSubVolumeGroup) ValidateDelete() (admission.Warnings, error) {
+	return nil, nil
 }

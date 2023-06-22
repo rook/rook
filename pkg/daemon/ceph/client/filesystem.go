@@ -17,6 +17,7 @@ limitations under the License.
 package client
 
 import (
+	ctx "context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -231,7 +232,7 @@ func WaitForActiveRanks(
 	}
 	logger.Infof("waiting %.2f second(s) for number of active mds daemons for fs %s to become %s",
 		float64(timeout/time.Second), fsName, countText)
-	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(clusterInfo.Context, 3*time.Second, timeout, true, func(ctx ctx.Context) (bool, error) {
 		fs, err := getFilesystem(context, clusterInfo, fsName)
 		if err != nil {
 			logger.Errorf(
@@ -353,7 +354,7 @@ func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames
 
 // WaitForNoStandbys waits for all standbys go away
 func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, timeout time.Duration) error {
-	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(clusterInfo.Context, 3*time.Second, timeout, true, func(ctx ctx.Context) (bool, error) {
 		mdsDump, err := GetMDSDump(context, clusterInfo)
 		if err != nil {
 			logger.Errorf("failed to get fs dump. %v", err)

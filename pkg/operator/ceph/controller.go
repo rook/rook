@@ -74,8 +74,10 @@ func add(ctx context.Context, context *clusterd.Context, mgr manager.Manager, r 
 	logger.Infof("%s successfully started", controllerName)
 
 	// Watch for ConfigMap (operator config)
-	err = c.Watch(&source.Kind{
-		Type: &v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
+	s := source.Kind(
+		mgr.GetCache(),
+		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}})
+	err = c.Watch(s, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
 	if err != nil {
 		return err
 	}
@@ -87,8 +89,10 @@ func add(ctx context.Context, context *clusterd.Context, mgr manager.Manager, r 
 
 	if value == "false" {
 		// Watch for Secret (admission controller secret)
-		err = c.Watch(&source.Kind{
-			Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
+		s := source.Kind(
+			mgr.GetCache(),
+			&v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}})
+		err = c.Watch(s, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
 		if err != nil {
 			return err
 		}

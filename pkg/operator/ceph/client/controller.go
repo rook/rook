@@ -98,16 +98,21 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephClient CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephClient{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephClient{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
 
 	// Watch secrets
-	err = c.Watch(&source.Kind{Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &cephv1.CephClient{},
-	}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephClient{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+	secretSource := source.Kind(
+		mgr.GetCache(),
+		&v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}})
+	ownerRequest := handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&cephv1.CephClient{},
+	)
+	err = c.Watch(secretSource, ownerRequest, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephClient{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 	if err != nil {
 		return err
 	}

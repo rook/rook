@@ -43,7 +43,7 @@ func Test_validateUpdatedCephCluster(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := validateUpdatedCephCluster(tt.args.updatedCephCluster, tt.args.found); (err != nil) != tt.wantErr {
+			if _, err := validateUpdatedCephCluster(tt.args.updatedCephCluster, tt.args.found); (err != nil) != tt.wantErr {
 				t.Errorf("validateUpdatedCephCluster() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -59,13 +59,13 @@ func TestCephClusterValidateCreate(t *testing.T) {
 			DataDirHostPath: "/var/lib/rook",
 		},
 	}
-	err := c.ValidateCreate()
+	_, err := c.ValidateCreate()
 	assert.NoError(t, err)
 	c.Spec.External.Enable = true
 	c.Spec.Monitoring = MonitoringSpec{
 		Enabled: true,
 	}
-	err = c.ValidateCreate()
+	_, err = c.ValidateCreate()
 	assert.Error(t, err)
 }
 
@@ -86,14 +86,14 @@ func TestCephClusterValidateUpdate(t *testing.T) {
 			},
 		},
 	}
-	err := c.ValidateCreate()
+	_, err := c.ValidateCreate()
 	assert.NoError(t, err)
 
 	// Updating the CRD specs with invalid values
 	uc := c.DeepCopy()
 	uc.Spec.DataDirHostPath = "var/rook"
 	uc.Spec.Storage.StorageClassDeviceSets[0].Encrypted = false
-	err = uc.ValidateUpdate(c)
+	_, err = uc.ValidateUpdate(c)
 	assert.Error(t, err)
 
 	// reverting the to older hostPath
@@ -108,6 +108,6 @@ func TestCephClusterValidateUpdate(t *testing.T) {
 		},
 	}
 
-	err = uc.ValidateUpdate(c)
+	_, err = uc.ValidateUpdate(c)
 	assert.NoError(t, err)
 }

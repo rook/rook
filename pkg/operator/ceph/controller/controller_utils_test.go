@@ -139,6 +139,7 @@ func TestIsReadyToReconcile(t *testing.T) {
 				Name:              clusterName.Name,
 				Namespace:         clusterName.Namespace,
 				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				Finalizers:        []string{"test"},
 			},
 		}
 
@@ -176,6 +177,7 @@ func TestIsReadyToReconcile(t *testing.T) {
 				Name:              clusterName.Name,
 				Namespace:         clusterName.Namespace,
 				DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				Finalizers:        []string{"test"},
 			},
 			Spec: cephv1.ClusterSpec{
 				CleanupPolicy: cephv1.CleanupPolicySpec{

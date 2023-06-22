@@ -296,7 +296,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.
 		assert.NoError(t, err)
 
 		var cond *cephv1.Condition
-		err = wait.Poll(2*time.Second, 45*time.Second, func() (done bool, err error) {
+		err = wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 45*time.Second, true, func(context context.Context) (done bool, err error) {
 			logger.Infof("waiting for CephFilesystem %q in namespace %q to have condition %q",
 				filesystemName, settings.Namespace, cephv1.ConditionDeletionIsBlocked)
 			fs, err := k8sh.RookClientset.CephV1().CephFilesystems(settings.Namespace).Get(
@@ -338,7 +338,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.
 		assert.NoError(t, err)
 
 		var cond *cephv1.Condition
-		err = wait.Poll(2*time.Second, 18*time.Second, func() (done bool, err error) {
+		err = wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 18*time.Second, true, func(context context.Context) (done bool, err error) {
 			logger.Infof("waiting for CephFilesystem %q in namespace %q no longer be blocked by CephFilesystemSubVolumeGroups",
 				filesystemName, settings.Namespace)
 			fs, err := k8sh.RookClientset.CephV1().CephFilesystems(settings.Namespace).Get(
@@ -379,7 +379,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s *suite.
 		// Cleanup the filesystem and its clients
 		cleanupFilesystemConsumer(helper, k8sh, s, settings.Namespace, filePodName)
 
-		err = wait.Poll(3*time.Second, 30*time.Second, func() (done bool, err error) {
+		err = wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, 30*time.Second, true, func(context context.Context) (done bool, err error) {
 			logger.Infof("waiting for CephFilesystem %q in namespace %q to be deleted", filesystemName, settings.Namespace)
 
 			_, err = k8sh.RookClientset.CephV1().CephFilesystems(settings.Namespace).Get(

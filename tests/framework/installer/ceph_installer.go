@@ -1057,8 +1057,7 @@ func (h *CephInstaller) addCleanupPolicy(namespace, clusterName string) error {
 }
 
 func (h *CephInstaller) waitForCleanupJobs(namespace string) error {
-	ctx := context.TODO()
-	allRookCephCleanupJobs := func() (done bool, err error) {
+	allRookCephCleanupJobs := func(ctx context.Context) (done bool, err error) {
 		appLabelSelector := fmt.Sprintf("app=%s", cluster.CleanupAppName)
 		cleanupJobs, err := h.k8shelper.Clientset.BatchV1().Jobs(namespace).List(ctx, metav1.ListOptions{LabelSelector: appLabelSelector})
 		if err != nil {
@@ -1091,7 +1090,7 @@ func (h *CephInstaller) waitForCleanupJobs(namespace string) error {
 	}
 
 	logger.Info("waiting for job(s) to cleanup the host...")
-	err := wait.Poll(5*time.Second, 90*time.Second, allRookCephCleanupJobs)
+	err := wait.PollUntilContextTimeout(context.TODO(), 5*time.Second, 90*time.Second, true, allRookCephCleanupJobs)
 	if err != nil {
 		return errors.Errorf("failed to wait for clean up jobs to complete. %+v", err)
 	}

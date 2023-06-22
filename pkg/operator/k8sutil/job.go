@@ -62,7 +62,7 @@ func RunReplaceableJob(ctx context.Context, clientset kubernetes.Interface, job 
 // Assumes that only one pod needs to complete.
 func WaitForJobCompletion(ctx context.Context, clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
 	logger.Infof("waiting for job %s to complete...", job.Name)
-	return wait.Poll(5*time.Second, timeout, func() (bool, error) {
+	return wait.PollUntilContextTimeout(ctx, 5*time.Second, timeout, true, func(context context.Context) (bool, error) {
 		job, err := clientset.BatchV1().Jobs(job.Namespace).Get(ctx, job.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to detect job %s. %+v", job.Name, err)

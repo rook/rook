@@ -371,7 +371,7 @@ func (c *Cluster) ConfigureArbiter() error {
 	logger.Infof("enabling stretch mode... waiting for two failure domains of type %q to be found in the CRUSH map after OSD initialization", failureDomain)
 	pollInterval := 5 * time.Second
 	totalWaitTime := 2 * time.Minute
-	err = wait.Poll(pollInterval, totalWaitTime, func() (bool, error) {
+	err = wait.PollUntilContextTimeout(c.ClusterInfo.Context, pollInterval, totalWaitTime, true, func(ctx context.Context) (bool, error) {
 		return c.readyToConfigureArbiter(true)
 	})
 	if err != nil {

@@ -64,5 +64,5 @@ func TestObjectToCRMapper(t *testing.T) {
 
 	handlerFunc, err := ObjectToCRMapper(context.TODO(), cl, objects[0], s)
 	assert.NoError(t, err)
-	assert.ElementsMatch(t, fakeRequest, handlerFunc(fs))
+	assert.ElementsMatch(t, fakeRequest, handlerFunc(context.TODO(), fs))
 }

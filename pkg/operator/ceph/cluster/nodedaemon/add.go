@@ -88,7 +88,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		},
 	}
 	logger.Debugf("watch for changes to the nodes")
-	err = c.Watch(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestForObject{}, specChangePredicate)
+	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.Node{}), &handler.EnqueueRequestForObject{}, specChangePredicate)
 	if err != nil {
 		return errors.Wrap(err, "failed to watch for node changes")
 	}
@@ -96,8 +96,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to the ceph-crash deployments
 	logger.Debugf("watch for changes to the ceph-crash deployments")
 	err = c.Watch(
-		&source.Kind{Type: &appsv1.Deployment{}},
-		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(obj client.Object) []reconcile.Request {
+		source.Kind(mgr.GetCache(), &appsv1.Deployment{}),
+		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
 			deployment, ok := obj.(*appsv1.Deployment)
 			if !ok {
 				return []reconcile.Request{}
@@ -123,8 +123,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to the ceph pods and enqueue their nodes
 	logger.Debugf("watch for changes to the ceph pods and enqueue their nodes")
 	err = c.Watch(
-		&source.Kind{Type: &corev1.Pod{}},
-		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(obj client.Object) []reconcile.Request {
+		source.Kind(mgr.GetCache(), &corev1.Pod{}),
+		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
 			pod, ok := obj.(*corev1.Pod)
 			if !ok {
 				return []reconcile.Request{}

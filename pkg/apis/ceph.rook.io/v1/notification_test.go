@@ -69,17 +69,17 @@ func TestPublicNotificationValidation(t *testing.T) {
 	}
 
 	t.Run("create", func(t *testing.T) {
-		err := notification.ValidateCreate()
+		_, err := notification.ValidateCreate()
 		assert.NoError(t, err)
 	})
 
 	t.Run("update", func(t *testing.T) {
-		err := notification.ValidateUpdate(notification)
+		_, err := notification.ValidateUpdate(notification)
 		assert.NoError(t, err)
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		err := notification.ValidateDelete()
+		_, err := notification.ValidateDelete()
 		assert.NoError(t, err)
 	})
 }

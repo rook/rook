@@ -53,6 +53,7 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 			Name:              clusterName,
 			Namespace:         cephNs,
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			Finalizers:        []string{"cephcluster.ceph.rook.io"},
 		},
 	}
 

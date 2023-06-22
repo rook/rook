@@ -131,12 +131,12 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephCluster CR object
+	s := source.Kind(mgr.GetCache(),
+		&cephv1.CephCluster{
+			TypeMeta: ControllerTypeMeta,
+		})
 	err = c.Watch(
-		&source.Kind{
-			Type: &cephv1.CephCluster{
-				TypeMeta: ControllerTypeMeta,
-			},
-		},
+		s,
 		&handler.EnqueueRequestForObject{},
 		watchControllerPredicate(opManagerContext, mgr.GetClient()))
 	if err != nil {
@@ -146,13 +146,12 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	// Watch all other resources of the Ceph Cluster
 	for _, t := range objectsToWatch {
 		err = c.Watch(
-			&source.Kind{
-				Type: t,
-			},
-			&handler.EnqueueRequestForOwner{
-				IsController: true,
-				OwnerType:    &cephv1.CephCluster{},
-			},
+			source.Kind(mgr.GetCache(), t),
+			handler.EnqueueRequestForOwner(
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&cephv1.CephCluster{},
+			),
 			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephCluster{TypeMeta: ControllerTypeMeta}, mgr.GetScheme()))
 		if err != nil {
 			return err
@@ -167,15 +166,15 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 
 	// Watch for nodes additions and updates
-	err = c.Watch(
-		&source.Kind{
-			Type: &corev1.Node{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Node",
-					APIVersion: corev1.SchemeGroupVersion.String(),
-				},
+	nodeKind := source.Kind(mgr.GetCache(),
+		&corev1.Node{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Node",
+				APIVersion: corev1.SchemeGroupVersion.String(),
 			},
-		},
+		})
+	err = c.Watch(
+		nodeKind,
 		handler.EnqueueRequestsFromMapFunc(handlerFunc),
 		predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context))
 	if err != nil {
@@ -187,15 +186,15 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	disableVal := os.Getenv(disableHotplugEnv)
 	if disableVal != "true" {
 		logger.Info("enabling hotplug orchestration")
-		err = c.Watch(
-			&source.Kind{
-				Type: &corev1.ConfigMap{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ConfigMap",
-						APIVersion: corev1.SchemeGroupVersion.String(),
-					},
+		s := source.Kind(mgr.GetCache(),
+			&corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
 				},
-			},
+			})
+		err = c.Watch(
+			s,
 			handler.EnqueueRequestsFromMapFunc(handlerFunc),
 			predicateForHotPlugCMWatcher(mgr.GetClient()))
 		if err != nil {
