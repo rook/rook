@@ -26,24 +26,13 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/multus"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/spf13/cobra"
-)
-
-// defaults
-var (
-	DefaultValidationNamespace = "rook-ceph"
-
-	// 1 mon, 3 osds, 1 mgr, 1 mds, 1 nfs, 1 rgw, 1 rbdmirror, 1 cephfsmirror,
-	// (1 csi provisioner, 1 csi plugin) x3 for rbd, cephfs, and nfs CSI drivers
-	DefaultDaemonsPerNode = 16
-
-	DefaultTimeoutMinutes = 3
 )
 
 // config
 var (
-	validationConfig = multus.ValidationTest{
+	validationConfigFile = ""
+	validationConfig     = multus.ValidationTest{
 		Logger: capnslog.NewPackageLogger("github.com/rook/rook", "multus-validation"),
 	}
 )
@@ -64,6 +53,8 @@ var (
 Run a validation test that determines whether the current Multus and system
 configurations will support Rook with Multus.
 
+This should be run BEFORE Rook is installed.
+
 This is a fairly long-running test. It starts up a web server and many
 clients to verify that Multus network communication works properly.
 
@@ -71,6 +62,7 @@ It does *not* perform any load testing. Networks that cannot support high
 volumes of Ceph traffic may still encounter runtime issues. This may be
 particularly noticeable with high I/O load or during OSD rebalancing
 (see: https://docs.ceph.com/en/latest/architecture/#rebalancing).
+For example, during Rook or Ceph cluster upgrade.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
 			runValidation(cmd.Context())
@@ -94,21 +86,19 @@ func init() {
 
 	Cmd.AddCommand(runCmd)
 	Cmd.AddCommand(cleanupCmd)
+	Cmd.AddCommand(configCmd)
 
-	// flags on ALL subcommands - makes output more straightforward than using PersistentFlags() global flags on parent
-	for _, subCommand := range Cmd.Commands() {
-		// the default namespace is the current namespace the operator pod is running in if possible
-		defaultNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-		if defaultNamespace == "" {
-			defaultNamespace = DefaultValidationNamespace
-		}
-		subCommand.Flags().StringVarP(&validationConfig.Namespace, "namespace", "n", defaultNamespace,
+	defaultConfig := multus.NewDefaultValidationTestConfig()
+
+	// flags on run/cleanup subcommands - makes output more straightforward than using PersistentFlags() global flags on parent
+	for _, subCommand := range []*cobra.Command{runCmd, cleanupCmd} {
+		subCommand.Flags().StringVarP(&validationConfig.Namespace, "namespace", "n", defaultConfig.Namespace,
 			"The namespace for validation test resources. "+
 				"It is recommended to set this to the namespace in which Rook's Ceph cluster will be installed.")
 
 		// VarPF() keeps the the specific var passed to it for setting at runtime, and the current
 		// val of that var when VarPF() is called is used as the default
-		validationConfig.ResourceTimeout = time.Duration(DefaultTimeoutMinutes) * time.Minute
+		validationConfig.ResourceTimeout = defaultConfig.ResourceTimeout
 		t := (*timeoutMinutes)(&validationConfig.ResourceTimeout)
 		subCommand.Flags().VarPF(t, "timeout-minutes", "", /* no shorthand */
 			"The time to wait for resources to change to the expected state. For example, for the "+
@@ -119,33 +109,51 @@ func init() {
 	}
 
 	// flags for 'validation run'
-	runCmd.Flags().StringVar(&validationConfig.PublicNetwork, "public-network", "",
+	runCmd.Flags().StringVar(&validationConfig.PublicNetwork, "public-network", defaultConfig.PublicNetwork,
 		"The name of the Network Attachment Definition (NAD) that will be used for Ceph's public network. "+
 			"This should be a namespaced name in the form <namespace>/<name> if the NAD is defined in a different namespace from the cluster namespace.")
-	runCmd.Flags().StringVar(&validationConfig.ClusterNetwork, "cluster-network", "",
+	runCmd.Flags().StringVar(&validationConfig.ClusterNetwork, "cluster-network", defaultConfig.ClusterNetwork,
 		"The name of the Network Attachment Definition (NAD) that will be used for Ceph's cluster network. "+
 			"This should be a namespaced name in the form <namespace>/<name> if the NAD is defined in a different namespace from the cluster namespace.")
-	runCmd.Flags().IntVar(&validationConfig.DaemonsPerNode, "daemons-per-node", DefaultDaemonsPerNode,
+	runCmd.Flags().IntVar(&validationConfig.DaemonsPerNode, "daemons-per-node", defaultConfig.DaemonsPerNode,
 		"The number of validation test daemons to run per node. "+
 			"It is recommended to set this to the maximum number of Ceph daemons that can run on any node in the worst case of node failure(s). "+
 			"The default value is set to the worst-case value for a Rook Ceph cluster with 3 portable OSDs, 3 portable monitors, "+
 			"and where all optional child resources have been created with 1 daemon such that they all might run on a single node in a failure scenario. "+
 			"If you aren't sure what to choose for this value, add 1 for each additional OSD beyond 3.")
-	runCmd.Flags().StringVar(&validationConfig.NginxImage, "nginx-image", "nginxinc/nginx-unprivileged:stable-alpine",
+	runCmd.Flags().StringVar(&validationConfig.NginxImage, "nginx-image", defaultConfig.NginxImage,
 		"The Nginx image used for the validation server and clients.")
+
+	runCmd.Flags().StringVarP(&validationConfigFile, "config", "c", "",
+		"The validation test config file to use. This cannot be used with other flags.")
+	runCmd.MarkFlagsMutuallyExclusive("config", "timeout-minutes")
+	runCmd.MarkFlagsMutuallyExclusive("config", "namespace")
+	runCmd.MarkFlagsMutuallyExclusive("config", "public-network")
+	runCmd.MarkFlagsMutuallyExclusive("config", "cluster-network")
+	runCmd.MarkFlagsMutuallyExclusive("config", "daemons-per-node")
+	runCmd.MarkFlagsMutuallyExclusive("config", "nginx-image")
 
 	// flags for 'validation cleanup'
 	// none
 }
 
 func runValidation(ctx context.Context) {
-	if validationConfig.PublicNetwork == "" && validationConfig.ClusterNetwork == "" {
-		fmt.Print(`at least one of "--public-network" or "--cluster-network" must be specified`)
-		os.Exit(22 /* EINVAL */)
+	if validationConfigFile != "" {
+		f, err := os.ReadFile(validationConfigFile)
+		if err != nil {
+			fmt.Printf("failed to read config file %q: %s\n", validationConfigFile, err)
+			os.Exit(1)
+		}
+		c, err := multus.ValidationTestConfigFromYAML(string(f))
+		if err != nil {
+			fmt.Printf("failed to parse config file %q: %s\n", validationConfigFile, err)
+			os.Exit(22 /* EINVAL */)
+		}
+		validationConfig.ValidationTestConfig = *c
 	}
 
-	if validationConfig.NginxImage == "" {
-		fmt.Print(`--nginx-image must be specified`)
+	if err := validationConfig.ValidationTestConfig.Validate(); err != nil {
+		fmt.Print(err.Error() + "\n")
 		os.Exit(22 /* EINVAL */)
 	}
 
