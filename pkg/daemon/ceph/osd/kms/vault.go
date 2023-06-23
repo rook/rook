@@ -202,7 +202,7 @@ func put(v secrets.Secrets, secretName, secretValue string, keyContext map[strin
 	data[secretName] = secretValue
 
 	//nolint:gosec // Write the encryption key in Vault
-	err = v.PutSecret(secretName, data, keyContext)
+	_, err = v.PutSecret(secretName, data, keyContext)
 	if err != nil {
 		return errors.Wrapf(err, "failed to put secret %q in vault", secretName)
 	}
@@ -212,7 +212,7 @@ func put(v secrets.Secrets, secretName, secretValue string, keyContext map[strin
 
 func get(v secrets.Secrets, secretName string, keyContext map[string]string) (string, error) {
 	//nolint:gosec // Write the encryption key in Vault
-	s, err := v.GetSecret(secretName, keyContext)
+	s, _, err := v.GetSecret(secretName, keyContext)
 	if err != nil {
 		return "", err
 	}
