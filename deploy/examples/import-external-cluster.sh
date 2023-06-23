@@ -87,7 +87,9 @@ function importSecret() {
     --from-literal="$MON_SECRET_ADMIN_KEYRING_KEYNAME"="$ROOK_EXTERNAL_ADMIN_SECRET" \
     --from-literal="$MON_SECRET_MON_KEYRING_KEYNAME"="$ROOK_EXTERNAL_MONITOR_SECRET" \
     --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$ROOK_EXTERNAL_USERNAME" \
-    --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET"
+    --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function importConfigMap() {
@@ -97,7 +99,9 @@ function importConfigMap() {
     "$MON_ENDPOINT_CONFIGMAP_NAME" \
     --from-literal=data="$ROOK_EXTERNAL_CEPH_MON_DATA" \
     --from-literal=mapping="$ROOK_EXTERNAL_MAPPING" \
-    --from-literal=maxMonId="$ROOK_EXTERNAL_MAX_MON_ID"
+    --from-literal=maxMonId="$ROOK_EXTERNAL_MAX_MON_ID" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function importCsiRBDNodeSecret() {
@@ -108,7 +112,9 @@ function importCsiRBDNodeSecret() {
     --type="kubernetes.io/rook" \
     "rook-""$CSI_RBD_NODE_SECRET_NAME" \
     --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
-    --from-literal=userKey="$CSI_RBD_NODE_SECRET"
+    --from-literal=userKey="$CSI_RBD_NODE_SECRET" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function importCsiRBDProvisionerSecret() {
@@ -119,7 +125,9 @@ function importCsiRBDProvisionerSecret() {
     --type="kubernetes.io/rook" \
     "rook-""$CSI_RBD_PROVISIONER_SECRET_NAME" \
     --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
-    --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
+    --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function importCsiCephFSNodeSecret() {
@@ -130,7 +138,9 @@ function importCsiCephFSNodeSecret() {
     --type="kubernetes.io/rook" \
     "rook-""$CSI_CEPHFS_NODE_SECRET_NAME" \
     --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
-    --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
+    --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function importCsiCephFSProvisionerSecret() {
@@ -141,7 +151,9 @@ function importCsiCephFSProvisionerSecret() {
     --type="kubernetes.io/rook" \
     "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
     --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
-    --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
+    --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function importRGWAdminOpsUser() {
@@ -152,11 +164,13 @@ function importRGWAdminOpsUser() {
     --type="kubernetes.io/rook" \
     "$RGW_ADMIN_OPS_USER_SECRET_NAME" \
     --from-literal=accessKey="$RGW_ADMIN_OPS_USER_ACCESS_KEY" \
-    --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY"
+    --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY" \
+    --save-config \
+    --dry-run=client -o yaml | kubectl apply -n "$NAMESPACE" -f -
 }
 
 function createECRBDStorageClass() {
-  cat <<eof | kubectl create -f -
+  cat <<eof | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -181,7 +195,7 @@ eof
 }
 
 function createRBDStorageClass() {
-  cat <<eof | kubectl create -f -
+  cat <<eof | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -205,7 +219,7 @@ eof
 }
 
 function createCephFSStorageClass() {
-  cat <<eof | kubectl create -f -
+  cat <<eof | kubectl apply -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
