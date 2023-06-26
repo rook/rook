@@ -108,7 +108,7 @@ func DeleteServiceMonitor(context *clusterd.Context, ctx context.Context, ns str
 	}
 	_, err = client.MonitoringV1().ServiceMonitors(ns).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
-		// Either the service monitor does not exist or there are not privileges to detect it
+		// Either the service monitor does not exist or there are no privileges to detect it
 		// so we ignore any errors
 		return nil
 	}
