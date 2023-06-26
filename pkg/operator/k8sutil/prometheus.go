@@ -109,11 +109,16 @@ func DeleteServiceMonitor(ctx context.Context, ns string, name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get monitoring client. %v", err)
 	}
-	err = client.MonitoringV1().ServiceMonitors(ns).Delete(ctx, name, metav1.DeleteOptions{})
-	if err != nil {
-		if kerror.IsNotFound(err) {
-			return nil
+	existingSvcMonitor, err := client.MonitoringV1().ServiceMonitors(ns).Get(ctx, name, metav1.GetOptions{})
+	if existingSvcMonitor != nil {
+		err = client.MonitoringV1().ServiceMonitors(ns).Delete(ctx, name, metav1.DeleteOptions{})
+		if err != nil {
+			if kerror.IsNotFound(err) {
+				return nil
+			}
 		}
+	} else {
+		return fmt.Errorf("failed to get non-existing service monitor %q. %v", name, err)
 	}
 	return err
 }
