@@ -16,7 +16,7 @@ This chart is a simple packaging of templates that will optionally create Rook r
 
 ## Prerequisites
 
-* Kubernetes 1.19+
+* Kubernetes 1.22+
 * Helm 3.x
 * Install the [Rook Operator chart](operator-chart.md)
 

@@ -48,7 +48,7 @@ those releases.
 
 ## Breaking changes in v1.12
 
-* The minimum supported version of Kubernetes is v1.21.0.
+* The minimum supported version of Kubernetes is v1.22.
 
 ## Considerations
 
