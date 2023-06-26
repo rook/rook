@@ -86,9 +86,9 @@ func (r *ReconcileNode) Reconcile(context context.Context, request reconcile.Req
 }
 
 func (r *ReconcileNode) cleanupExporterResources(clusterNamespace string, ns string, nodeName string) (reconcile.Result, error) {
-	err := k8sutil.DeleteServiceMonitor(r.opManagerContext, ns, cephExporterAppName)
+	err := k8sutil.DeleteServiceMonitor(r.context, r.opManagerContext, ns, cephExporterAppName)
 	if err != nil {
-		logger.Debugf("failed to delete service monitor for ceph exporter in namespace %q on node %q", ns, nodeName)
+		logger.Debugf("failed to delete service monitor for ceph exporter in namespace %q on node %q. %v", ns, nodeName, err)
 	}
 	err = k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, cephExporterAppName)
 	if err != nil {
@@ -271,7 +271,7 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 				}
 
 				if cephCluster.Spec.Monitoring.Enabled {
-					if err := EnableCephExporterServiceMonitor(cephCluster, r.scheme, r.opManagerContext); err != nil {
+					if err := EnableCephExporterServiceMonitor(r.context, cephCluster, r.scheme, r.opManagerContext); err != nil {
 						return errors.Wrap(err, "failed to enable service monitor")
 					}
 					logger.Debug("service monitor for ceph exporter was enabled successfully")

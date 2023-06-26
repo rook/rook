@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -219,7 +220,7 @@ func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortM
 }
 
 // EnableCephExporterServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the exporter
-func EnableCephExporterServiceMonitor(cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context) error {
+func EnableCephExporterServiceMonitor(context *clusterd.Context, cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context) error {
 	serviceMonitor := k8sutil.GetServiceMonitor(cephExporterAppName, cephCluster.Namespace)
 	cephv1.GetCephExporterLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
@@ -230,7 +231,7 @@ func EnableCephExporterServiceMonitor(cephCluster cephv1.CephCluster, scheme *ru
 	serviceMonitor.Spec.Selector.MatchLabels = controller.AppLabels(cephExporterAppName, cephCluster.Namespace)
 	applyCephExporterLabels(cephCluster, serviceMonitor)
 
-	if _, err = k8sutil.CreateOrUpdateServiceMonitor(opManagerContext, serviceMonitor); err != nil {
+	if _, err = k8sutil.CreateOrUpdateServiceMonitor(context, opManagerContext, serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}
 	return nil

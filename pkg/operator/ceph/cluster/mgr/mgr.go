@@ -515,7 +515,7 @@ func (c *Cluster) EnableServiceMonitor() error {
 
 	applyMonitoringLabels(c, serviceMonitor)
 
-	if _, err = k8sutil.CreateOrUpdateServiceMonitor(c.clusterInfo.Context, serviceMonitor); err != nil {
+	if _, err = k8sutil.CreateOrUpdateServiceMonitor(c.context, c.clusterInfo.Context, serviceMonitor); err != nil {
 		return errors.Wrap(err, "service monitor could not be enabled")
 	}
 	return nil
