@@ -124,16 +124,6 @@ export RGW_POOL_PREFIX=default
 
 1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
 
-2. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
-
-   !!! note
-       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
-       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
-
-    ```console
-    . import-external-cluster.sh
-    ```
-
 ### Helm Installation
 
 To install with Helm, the rook cluster helm chart will configure the necessary resources for the external cluster with the example `values-external.yaml`.

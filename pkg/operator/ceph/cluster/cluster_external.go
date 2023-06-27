@@ -19,6 +19,8 @@ package cluster
 
 import (
 	"context"
+	"fmt"
+	"os/exec"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -38,8 +40,16 @@ import (
 )
 
 func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error {
+	// run import file
+	cmd, err := exec.Command("/bin/sh", "../../../../deploy/examples/import-external-cluster.sh").Output()
+	if err != nil {
+		fmt.Printf("error %s", err)
+	}
+	output := string(cmd)
+	logger.Info(output)
+
 	// Make sure the spec contains all the information we need
-	err := validateExternalClusterSpec(cluster)
+	err = validateExternalClusterSpec(cluster)
 	if err != nil {
 		return errors.Wrap(err, "failed to validate external cluster specs")
 	}
