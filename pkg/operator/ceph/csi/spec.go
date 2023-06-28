@@ -144,7 +144,7 @@ var (
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.1.0"
 	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v6.2.1"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.7.0"
-	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.5.0"
+	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.7.0"
 
 	// image pull policy
 	DefaultCSIImagePullPolicy = string(v1.PullIfNotPresent)
