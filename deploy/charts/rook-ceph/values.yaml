@@ -470,7 +470,7 @@ csi:
 
   cephcsi:
     # -- Ceph CSI image
-    # @default -- `quay.io/cephcsi/cephcsi:v3.8.0`
+    # @default -- `quay.io/cephcsi/cephcsi:v3.9.0`
     image:
 
   registrar:
@@ -514,7 +514,7 @@ csi:
     # -- Enable CSIAddons
     enabled: false
     # -- CSIAddons Sidecar image
-    image: "quay.io/csiaddons/k8s-sidecar:v0.5.0"
+    image: "quay.io/csiaddons/k8s-sidecar:v0.7.0"
 
   nfs:
     # -- Enable the nfs csi driver

@@ -5,9 +5,6 @@ title: CSI provisioner and driver
 !!! attention
     This feature is experimental and will not support upgrades to future versions.
 
-In version 1.9.1, Rook is able to deploy the experimental NFS Ceph CSI driver. This requires Ceph
-CSI version 3.7.0 or above. We recommend Ceph v16.2.7 or above.
-
 For this section, we will refer to Rook's deployment examples in the
 [deploy/examples](https://github.com/rook/rook/tree/master/deploy/examples) directory.
 

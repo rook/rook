@@ -74,6 +74,7 @@ type Param struct {
 	EnableCSIAddonsSideCar                bool
 	MountCustomCephConf                   bool
 	EnableOIDCTokenProjection             bool
+	EnableCSIDriverSeLinuxMount           bool
 	EnableCSIEncryption                   bool
 	EnableCSITopology                     bool
 	EnableLiveness                        bool
@@ -137,13 +138,13 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.8.0"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.9.0"
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.7.0"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v3.4.0"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.1.0"
 	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v6.2.1"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.7.0"
-	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.5.0"
+	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.7.0"
 
 	// image pull policy
 	DefaultCSIImagePullPolicy = string(v1.PullIfNotPresent)
@@ -178,9 +179,10 @@ var (
 )
 
 const (
-	KubeMinMajor                     = "1"
-	KubeMinVerForOIDCTokenProjection = "20"
-	kubeMaxVerForBeta1csiDriver      = "21"
+	kubeMinMajor                       = "1"
+	kubeMinVerForOIDCTokenProjection   = "20"
+	kubeMaxVerForBeta1csiDriver        = "21"
+	kubeMinVerForCSIDriverSeLinuxMount = "25"
 
 	// common tolerations and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
@@ -309,9 +311,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	RBDDriverName = tp.DriverNamePrefix + rbdDriverSuffix
 	NFSDriverName = tp.DriverNamePrefix + "nfs.csi.ceph.com"
 
-	if CustomCSICephConfigExists {
-		tp.Param.MountCustomCephConf = v.SupportsCustomCephConf()
-	}
+	tp.Param.MountCustomCephConf = CustomCSICephConfigExists
 
 	csiDriverobj = v1CsiDriver{}
 	// In case of an k8s version upgrade, delete the beta CSIDriver object;
@@ -423,10 +423,6 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	// get common plugin tolerations and node affinity
 	pluginTolerations := getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{})
 	pluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
-
-	if holderEnabled && !v.SupportsNsenter() {
-		return errors.Errorf("multus/csi pod networking is applied but the csi version %q does not support it, need at least %q", v.String(), nsenterSupportedVersion.String())
-	}
 
 	// Deploy the CSI Holder DaemonSet if Multus is enabled or
 	// EnableCSIHostNetwork is disabled.
@@ -647,19 +643,27 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	}
 
 	if EnableRBD {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, RBDDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), tp.Param.RBDAttachRequired)
+		err = csiDriverobj.createCSIDriverInfo(
+			r.opManagerContext, r.context.Clientset,
+			RBDDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
+			tp.Param.RBDAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
 		}
 	}
 	if EnableCephFS {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), tp.Param.CephFSAttachRequired)
+		err = csiDriverobj.createCSIDriverInfo(
+			r.opManagerContext, r.context.Clientset,
+			CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
+			tp.Param.CephFSAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
 		}
 	}
 	if EnableNFS {
-		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset, NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)), tp.Param.NFSAttachRequired)
+		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset,
+			NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
+			tp.Param.NFSAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", NFSDriverName)
 		}
