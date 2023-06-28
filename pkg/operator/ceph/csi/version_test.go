@@ -23,14 +23,13 @@ import (
 )
 
 var (
-	testMinVersion  = CephCSIVersion{3, 7, 0}
-	testReleaseV350 = CephCSIVersion{3, 5, 0}
-	testReleaseV360 = CephCSIVersion{3, 6, 0}
-	testReleaseV361 = CephCSIVersion{3, 6, 1}
+	testMinVersion  = CephCSIVersion{3, 8, 0}
 	testReleaseV370 = CephCSIVersion{3, 7, 0}
 	testReleaseV371 = CephCSIVersion{3, 7, 1}
 	testReleaseV380 = CephCSIVersion{3, 8, 0}
 	testReleaseV381 = CephCSIVersion{3, 8, 1}
+	testReleaseV390 = CephCSIVersion{3, 9, 0}
+	testReleaseV391 = CephCSIVersion{3, 9, 1}
 
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
@@ -45,25 +44,22 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testMinVersion.isAtLeast(&testMinVersion)
 	assert.Equal(t, true, ret)
 
-	// Test for 3.6.0
-	ret = testReleaseV360.isAtLeast(&testReleaseV360)
-	assert.Equal(t, true, ret)
-
 	// Test for 3.7.0
-	ret = testReleaseV370.isAtLeast(&testReleaseV360)
-	assert.Equal(t, true, ret)
+	ret = testReleaseV370.isAtLeast(&testMinVersion)
+	assert.Equal(t, false, ret)
 
 	// Test for 3.7.1
-	ret = testReleaseV371.isAtLeast(&testReleaseV360)
+	ret = testReleaseV371.isAtLeast(&testMinVersion)
+	assert.Equal(t, false, ret)
+
+	// Test for 3.9.0
+	ret = testReleaseV390.isAtLeast(&testReleaseV380)
 	assert.Equal(t, true, ret)
 
-	// Test for 3.8.0
-	ret = testReleaseV380.isAtLeast(&testReleaseV370)
+	// Test for 3.9.1
+	ret = testReleaseV391.isAtLeast(&testReleaseV381)
 	assert.Equal(t, true, ret)
 
-	// Test for 3.8.1
-	ret = testReleaseV381.isAtLeast(&testReleaseV371)
-	assert.Equal(t, true, ret)
 }
 
 func TestSupported(t *testing.T) {
@@ -74,20 +70,23 @@ func TestSupported(t *testing.T) {
 	ret = testVersionUnsupported.Supported()
 	assert.Equal(t, false, ret)
 
-	// 3.6 is not supported after 3.8.0 release
-	ret = testReleaseV360.Supported()
+	// 3.7.x is not supported after 3.9.0 release
+	ret = testReleaseV370.Supported()
 	assert.Equal(t, false, ret)
 
-	ret = testReleaseV370.Supported()
-	assert.Equal(t, true, ret)
-
 	ret = testReleaseV371.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testReleaseV380.Supported()
 	assert.Equal(t, true, ret)
 
 	ret = testReleaseV381.Supported()
+	assert.Equal(t, true, ret)
+
+	ret = testReleaseV390.Supported()
+	assert.Equal(t, true, ret)
+
+	ret = testReleaseV391.Supported()
 	assert.Equal(t, true, ret)
 }
 
@@ -114,43 +113,4 @@ func Test_extractCephCSIVersion(t *testing.T) {
 
 	assert.Nil(t, version)
 	assert.Contains(t, err.Error(), "failed to parse version from")
-}
-
-func TestSupportsCustomCephConf(t *testing.T) {
-	AllowUnsupported = true
-	ret := testMinVersion.SupportsCustomCephConf()
-	assert.True(t, ret)
-
-	AllowUnsupported = false
-	ret = testMinVersion.SupportsCustomCephConf()
-	assert.True(t, ret)
-
-	ret = testReleaseV360.SupportsCustomCephConf()
-	assert.True(t, ret)
-
-	ret = testReleaseV370.SupportsCustomCephConf()
-	assert.True(t, ret)
-
-	ret = testReleaseV371.SupportsCustomCephConf()
-	assert.True(t, ret)
-}
-
-func TestSupportsNsenter(t *testing.T) {
-	t.Run("AllowUnsupported=true regardless of the version", func(t *testing.T) {
-		AllowUnsupported = true
-		ret := testMinVersion.SupportsNsenter()
-		assert.True(t, ret)
-	})
-
-	t.Run("AllowUnsupported=false and version 3.5 is too old", func(t *testing.T) {
-		AllowUnsupported = false
-		ret := testReleaseV350.SupportsNsenter()
-		assert.False(t, ret)
-	})
-
-	t.Run("AllowUnsupported=false and version 3.6.1 is fine", func(t *testing.T) {
-		AllowUnsupported = false
-		ret := testReleaseV361.SupportsNsenter()
-		assert.True(t, ret)
-	})
 }

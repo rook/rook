@@ -138,7 +138,7 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.8.0"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.9.0"
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.7.0"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v3.4.0"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.1.0"
@@ -311,9 +311,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	RBDDriverName = tp.DriverNamePrefix + rbdDriverSuffix
 	NFSDriverName = tp.DriverNamePrefix + "nfs.csi.ceph.com"
 
-	if CustomCSICephConfigExists {
-		tp.Param.MountCustomCephConf = v.SupportsCustomCephConf()
-	}
+	tp.Param.MountCustomCephConf = CustomCSICephConfigExists
 
 	csiDriverobj = v1CsiDriver{}
 	// In case of an k8s version upgrade, delete the beta CSIDriver object;
@@ -425,10 +423,6 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	// get common plugin tolerations and node affinity
 	pluginTolerations := getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{})
 	pluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
-
-	if holderEnabled && !v.SupportsNsenter() {
-		return errors.Errorf("multus/csi pod networking is applied but the csi version %q does not support it, need at least %q", v.String(), nsenterSupportedVersion.String())
-	}
 
 	// Deploy the CSI Holder DaemonSet if Multus is enabled or
 	// EnableCSIHostNetwork is disabled.
