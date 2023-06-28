@@ -21,20 +21,17 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringclient "github.com/prometheus-operator/prometheus-operator/pkg/client/versioned"
+	"github.com/rook/rook/pkg/clusterd"
 	kerror "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
 )
 
-func getMonitoringClient() (*monitoringclient.Clientset, error) {
-	cfg, err := clientcmd.BuildConfigFromFlags("", "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to build config. %v", err)
-	}
-	client, err := monitoringclient.NewForConfig(cfg)
+func getMonitoringClient(context *clusterd.Context) (*monitoringclient.Clientset, error) {
+	client, err := monitoringclient.NewForConfig(context.KubeConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)
 	}
@@ -75,11 +72,11 @@ func GetServiceMonitor(name string, namespace string) *monitoringv1.ServiceMonit
 }
 
 // CreateOrUpdateServiceMonitor creates serviceMonitor object or an error
-func CreateOrUpdateServiceMonitor(ctx context.Context, serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
+func CreateOrUpdateServiceMonitor(context *clusterd.Context, ctx context.Context, serviceMonitorDefinition *monitoringv1.ServiceMonitor) (*monitoringv1.ServiceMonitor, error) {
 	name := serviceMonitorDefinition.GetName()
 	namespace := serviceMonitorDefinition.GetNamespace()
 	logger.Debugf("creating servicemonitor %s", name)
-	client, err := getMonitoringClient()
+	client, err := getMonitoringClient(context)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get monitoring client. %v", err)
 	}
@@ -104,16 +101,23 @@ func CreateOrUpdateServiceMonitor(ctx context.Context, serviceMonitorDefinition 
 }
 
 // DeleteServiceMonitor deletes a ServiceMonitor and returns the error if any
-func DeleteServiceMonitor(ctx context.Context, ns string, name string) error {
-	client, err := getMonitoringClient()
+func DeleteServiceMonitor(context *clusterd.Context, ctx context.Context, ns string, name string) error {
+	client, err := getMonitoringClient(context)
 	if err != nil {
 		return fmt.Errorf("failed to get monitoring client. %v", err)
+	}
+	_, err = client.MonitoringV1().ServiceMonitors(ns).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		// Either the service monitor does not exist or there are no privileges to detect it
+		// so we ignore any errors
+		return nil
 	}
 	err = client.MonitoringV1().ServiceMonitors(ns).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		if kerror.IsNotFound(err) {
 			return nil
 		}
+		return errors.Wrapf(err, "failed to delete service monitor %q", name)
 	}
-	return err
+	return nil
 }
