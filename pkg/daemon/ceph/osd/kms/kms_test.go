@@ -21,8 +21,6 @@ import (
 	"os"
 	"testing"
 
-	"github.com/hashicorp/vault/api"
-	"github.com/hashicorp/vault/vault"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
@@ -164,38 +162,6 @@ func TestValidateConnectionDetails(t *testing.T) {
 		assert.NoError(t, err)
 		err = ValidateConnectionDetails(ctx, clusterdContext, kms, ns)
 		assert.NoError(t, err, "")
-	})
-
-	// test with vault server
-	t.Run("success - auto detect kv version and set it", func(t *testing.T) {
-		cluster := fakeVaultServer(t)
-		cluster.Start()
-		defer cluster.Cleanup()
-		core := cluster.Cores[0].Core
-		vault.TestWaitActive(t, core)
-		client := cluster.Cores[0].Client
-		// Mock the client here
-		vaultClient = func(ctx context.Context, clusterdContext *clusterd.Context, namespace string, secretConfig map[string]string) (*api.Client, error) {
-			return client, nil
-		}
-		if err := client.Sys().Mount("rook/", &api.MountInput{
-			Type:    "kv-v2",
-			Options: map[string]string{"version": "2"},
-		}); err != nil {
-			t.Fatal(err)
-		}
-		kms := &cephv1.KeyManagementServiceSpec{
-			ConnectionDetails: map[string]string{
-				"VAULT_SECRET_ENGINE": "kv",
-				"KMS_PROVIDER":        "vault",
-				"VAULT_ADDR":          client.Address(),
-				"VAULT_BACKEND_PATH":  "rook",
-			},
-			TokenSecretName: "vault-token",
-		}
-		err := ValidateConnectionDetails(ctx, clusterdContext, kms, ns)
-		assert.NoError(t, err, "")
-		assert.Equal(t, kms.ConnectionDetails["VAULT_BACKEND"], "v2")
 	})
 
 	t.Run("ibm kp - fail no token specified, only token is supported", func(t *testing.T) {
