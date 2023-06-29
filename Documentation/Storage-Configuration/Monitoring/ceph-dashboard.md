@@ -205,12 +205,12 @@ metadata:
   name: rook-ceph-mgr-dashboard
   namespace: rook-ceph
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     nginx.ingress.kubernetes.io/server-snippet: |
       proxy_ssl_verify off;
 spec:
+  ingressClassName: "nginx"
   tls:
    - hosts:
      - rook-ceph.example.com
