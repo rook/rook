@@ -38,6 +38,7 @@ rules:
   - create
   - update
   - delete
+  - deletecollection
 - apiGroups:
   - batch
   resources:
