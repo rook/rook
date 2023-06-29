@@ -19,7 +19,6 @@ package object
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"reflect"
 	"testing"
@@ -528,10 +527,6 @@ func TestCephObjectStoreController(t *testing.T) {
 	t.Run("success - object store is running", func(t *testing.T) {
 		r := setupEnvironmentWithReadyCephCluster()
 
-		removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
-			return nil
-		}
-
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
@@ -544,18 +539,6 @@ func TestCephObjectStoreController(t *testing.T) {
 		assert.Equal(t, "http://rook-ceph-rgw-my-store.rook-ceph.svc:80", objectStore.Status.Info["endpoint"], objectStore)
 		assert.True(t, calledCommitConfigChanges)
 		assert.Equal(t, 16, r.clusterInfo.CephVersion.Major)
-	})
-
-	t.Run("failed to remove deprecated health check bucket", func(t *testing.T) {
-		r := setupEnvironmentWithReadyCephCluster()
-
-		removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
-			return fmt.Errorf("induced error")
-		}
-
-		_, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "deprecated health check bucket")
 	})
 }
 
@@ -754,10 +737,6 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 		return &cephver.Pacific, &cephver.Pacific, nil
 	}
 
-	removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
-		return nil
-	}
-
 	t.Run("create an object store", func(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -938,10 +917,6 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 		}
 
 		r := getReconciler(objects)
-
-		removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
-			return nil
-		}
 
 		t.Run("create an external object store", func(t *testing.T) {
 			res, err := r.Reconcile(ctx, req)

@@ -24,7 +24,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
@@ -245,11 +244,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get admin ops API context")
 		}
 
-		// ignore any errors coming from this for the deletion case since we could get into a
-		// partially-deleted case where RGWs aren't responding. Deletion will be blocked later if
-		// the bucket fails to be deleted and the RGWs are running.
-		_ = removeDeprecatedHealthCheckBucket(r.clusterInfo.Context, opsCtx, cephObjectStore)
-
 		deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, err
@@ -331,19 +325,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	} else if err != nil {
 		result, err := r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, "failed to create object store deployments", err)
 		return result, *cephObjectStore, err
-	}
-
-	objCtx, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
-	if err != nil {
-		return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get object context")
-	}
-	opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
-	if err != nil {
-		return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get admin ops API context")
-	}
-	err = removeDeprecatedHealthCheckBucket(r.clusterInfo.Context, opsCtx, cephObjectStore)
-	if err != nil {
-		return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "updated object store but failed to remove deprecated health check bucket")
 	}
 
 	// update ObservedGeneration in status at the end of reconcile
@@ -537,42 +518,4 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 	}
 
 	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, nil, reconcile.Result{}, nil
-}
-
-// handle upgrade from v1.10; we need to remove the health checker bucket from the store, or
-// deleting the store will be stuck on dependents because an unknown bucket exists
-// TODO: remove this for Rook v1.12 release
-var removeDeprecatedHealthCheckBucket = func(ctx context.Context, opsCtx *AdminOpsContext, cos *cephv1.CephObjectStore) error {
-	healthCheckBucket := genHealthCheckerBucketName(string(cos.UID))
-	doPurge := true // purge all content of the bucket
-	bucket := admin.Bucket{Bucket: healthCheckBucket, PurgeObject: &doPurge}
-	remErr := opsCtx.AdminOpsClient.RemoveBucket(ctx, bucket)
-
-	if remErr == nil {
-		logger.Info("successfully deleted deprecated health checker bucket")
-		return nil
-	}
-
-	if errors.Is(remErr, admin.ErrNoSuchBucket) {
-		logger.Debug("deprecated health checker bucket already does not exist: NoSuchBucket")
-		return nil
-	}
-
-	if errors.Is(remErr, admin.ErrNoSuchKey) {
-		// ceph might return NoSuchKey than NoSuchBucket when the target bucket does not exist.
-		// then we can use GetBucketInfo() to judge the existence of the bucket.
-		// see: https://github.com/ceph/ceph/pull/44413
-		_, getErr := opsCtx.AdminOpsClient.GetBucketInfo(ctx, bucket)
-		if getErr != nil {
-			if errors.Is(getErr, admin.ErrNoSuchBucket) {
-				logger.Debug("deprecated health checker bucket already does not exist: NoSuchKey")
-				return nil
-			}
-			// both commands errored; something is up; be sure to return both errors
-			return errors.Wrapf(remErr, "failed to delete deprecated health checker bucket %q. failed to get bucket info. %v", healthCheckBucket, getErr)
-		}
-		// remove bucket failed, and bucket exists; something else went wrong with remove bucket
-	}
-
-	return errors.Wrapf(remErr, "failed to delete deprecated health checker bucket %q", healthCheckBucket)
 }
