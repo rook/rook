@@ -76,8 +76,7 @@ function importClusterID() {
 }
 
 function importSecret() {
-  secret=$(kubectl -n "$NAMESPACE" get secret "$MON_SECRET_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get secret "$MON_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       secret \
@@ -91,13 +90,12 @@ function importSecret() {
       --from-literal="$MON_SECRET_CEPH_USERNAME_KEYNAME"="$ROOK_EXTERNAL_USERNAME" \
       --from-literal="$MON_SECRET_CEPH_SECRET_KEYNAME"="$ROOK_EXTERNAL_USER_SECRET"
   else
-    echo "secret $secret already exists"
+    echo "secret $MON_SECRET_NAME already exists"
   fi
 }
 
 function importConfigMap() {
-  configmap=$(kubectl -n "$NAMESPACE" get configmap "$MON_ENDPOINT_CONFIGMAP_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get configmap "$MON_ENDPOINT_CONFIGMAP_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       configmap \
@@ -106,13 +104,12 @@ function importConfigMap() {
       --from-literal=mapping="$ROOK_EXTERNAL_MAPPING" \
       --from-literal=maxMonId="$ROOK_EXTERNAL_MAX_MON_ID"
   else
-    echo "configmap $configmap already exists"
+    echo "configmap $MON_ENDPOINT_CONFIGMAP_NAME already exists"
   fi
 }
 
 function importCsiRBDNodeSecret() {
-  secret=$(kubectl -n "$NAMESPACE" get secret "rook-""$CSI_RBD_NODE_SECRET_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_RBD_NODE_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       secret \
@@ -122,13 +119,12 @@ function importCsiRBDNodeSecret() {
       --from-literal=userID="$CSI_RBD_NODE_SECRET_NAME" \
       --from-literal=userKey="$CSI_RBD_NODE_SECRET"
   else
-    echo "secret $secret already exists"
+    echo "secret rook-$CSI_RBD_NODE_SECRET_NAME already exists"
   fi
 }
 
 function importCsiRBDProvisionerSecret() {
-  secret=$(kubectl -n "$NAMESPACE" get secret "rook-""$CSI_RBD_PROVISIONER_SECRET_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       secret \
@@ -138,13 +134,12 @@ function importCsiRBDProvisionerSecret() {
       --from-literal=userID="$CSI_RBD_PROVISIONER_SECRET_NAME" \
       --from-literal=userKey="$CSI_RBD_PROVISIONER_SECRET"
   else
-    echo "secret $secret already exists"
+    echo "secret $CSI_RBD_PROVISIONER_SECRET_NAME already exists"
   fi
 }
 
 function importCsiCephFSNodeSecret() {
-  secret=$(kubectl -n "$NAMESPACE" get secret "rook-""$CSI_CEPHFS_NODE_SECRET_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_NODE_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       secret \
@@ -154,13 +149,12 @@ function importCsiCephFSNodeSecret() {
       --from-literal=adminID="$CSI_CEPHFS_NODE_SECRET_NAME" \
       --from-literal=adminKey="$CSI_CEPHFS_NODE_SECRET"
   else
-    echo "secret $secret already exists"
+    echo "secret $CSI_CEPHFS_NODE_SECRET_NAME already exists"
   fi
 }
 
 function importCsiCephFSProvisionerSecret() {
-  secret=$(kubectl -n "$NAMESPACE" get secret "rook-""$CSI_CEPHFS_PROVISIONER_SECRET_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       secret \
@@ -170,13 +164,12 @@ function importCsiCephFSProvisionerSecret() {
       --from-literal=adminID="$CSI_CEPHFS_PROVISIONER_SECRET_NAME" \
       --from-literal=adminKey="$CSI_CEPHFS_PROVISIONER_SECRET"
   else
-    echo "secret $secret already exists"
+    echo "secret $CSI_CEPHFS_PROVISIONER_SECRET_NAME already exists"
   fi
 }
 
 function importRGWAdminOpsUser() {
-  secret=$(kubectl -n "$NAMESPACE" get secret "$RGW_ADMIN_OPS_USER_SECRET_NAME")
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get secret "$RGW_ADMIN_OPS_USER_SECRET_NAME" &>/dev/null; then
     kubectl -n "$NAMESPACE" \
       create \
       secret \
@@ -186,13 +179,12 @@ function importRGWAdminOpsUser() {
       --from-literal=accessKey="$RGW_ADMIN_OPS_USER_ACCESS_KEY" \
       --from-literal=secretKey="$RGW_ADMIN_OPS_USER_SECRET_KEY"
   else
-    echo "secret $secret already exists"
+    echo "secret $RGW_ADMIN_OPS_USER_SECRET_NAME already exists"
   fi
 }
 
 function createECRBDStorageClass() {
-  storageclass=$(kubectl -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME)
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME &>/dev/null; then
     cat <<eof | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -216,13 +208,12 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 eof
   else
-    echo "storageclass $storageclass already exists"
+    echo "storageclass $RBD_STORAGE_CLASS_NAME already exists"
   fi
 }
 
 function createRBDStorageClass() {
-  storageclass=$(kubectl -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME)
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME &>/dev/null; then
     cat <<eof | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -245,13 +236,12 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 eof
   else
-    echo "storageclass $storageclass already exists"
+    echo "storageclass $RBD_STORAGE_CLASS_NAME already exists"
   fi
 }
 
 function createCephFSStorageClass() {
-  storageclass=$(kubectl -n "$NAMESPACE" get storageclass $CEPHFS_STORAGE_CLASS_NAME)
-  if [ $? != 0 ]; then
+  if ! kubectl -n "$NAMESPACE" get storageclass $CEPHFS_STORAGE_CLASS_NAME &>/dev/null; then
     cat <<eof | kubectl create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
@@ -272,7 +262,7 @@ allowVolumeExpansion: true
 reclaimPolicy: Delete
 eof
   else
-    echo "storageclass $storageclass already exists"
+    echo "storageclass $CEPHFS_STORAGE_CLASS_NAME already exists"
   fi
 }
 
