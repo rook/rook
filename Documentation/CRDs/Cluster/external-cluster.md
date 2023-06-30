@@ -140,12 +140,12 @@ To install with Helm, the rook cluster helm chart will configure the necessary r
 
 ```console
     clusterNamespace=rook-ceph
-    operatorNamesapce=rook-ceph
+    operatorNamespace=rook-ceph
     cd deploy/examples/charts/rook-ceph-cluster
     helm repo add rook-release https://charts.rook.io/release
     helm install --create-namespace --namespace $clusterNamespace rook-ceph rook-release/rook-ceph -f values.yaml
     helm install --create-namespace --namespace $clusterNamespace rook-ceph-cluster \
-    --set operatorNamespace=$operatorNamesapce rook-release/rook-ceph-cluster -f values-external.yaml
+    --set operatorNamespace=$operatorNamespace rook-release/rook-ceph-cluster -f values-external.yaml
 ```
 
 Skip the manifest installation section and continue with [Cluster Verification](#cluster-verification).
