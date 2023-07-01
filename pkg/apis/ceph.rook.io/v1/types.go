@@ -1587,8 +1587,16 @@ type ObjectUserCapSpec struct {
 	User string `json:"user,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Users string `json:"users,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
 	Bucket string `json:"bucket,omitempty"`
+	// +optional
+	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+	// Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+	Buckets string `json:"buckets,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
 	// Admin capabilities to read/write Ceph object store metadata. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
