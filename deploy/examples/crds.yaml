@@ -11050,6 +11050,14 @@ spec:
                         - write
                         - read, write
                       type: string
+                    buckets:
+                      description: Admin capabilities to read/write Ceph object store buckets. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
                     datalog:
                       description: Add capabilities for user to change data logging. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
@@ -11124,6 +11132,14 @@ spec:
                       type: string
                     user-policy:
                       description: Add capabilities for user to change user policies. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
+                      enum:
+                        - '*'
+                        - read
+                        - write
+                        - read, write
+                      type: string
+                    users:
+                      description: Admin capabilities to read/write Ceph object store users. Documented in https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities
                       enum:
                         - '*'
                         - read
