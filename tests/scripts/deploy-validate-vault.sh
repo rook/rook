@@ -167,7 +167,9 @@ function deploy_vault {
 }
 
 function validate_rgw_token {
-  RGW_POD=$(kubectl -n rook-ceph get pods -l app=rook-ceph-rgw | awk 'FNR == 2 {print $1}')
+  echo "wait for rgw pod to be ready"
+  kubectl wait --for=condition=ready pod -l app=rook-ceph-rgw -n rook-ceph --timeout=100s
+  RGW_POD=$(kubectl get pods -l app=rook-ceph-rgw -n rook-ceph --no-headers -o custom-columns=":metadata.name")
   RGW_TOKEN_FILE=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-token-file" | cut -f2- -d=)
   VAULT_PATH_PREFIX=$(kubectl -n rook-ceph describe pods "$RGW_POD" | grep "rgw-crypt-vault-prefix" | cut -f2- -d=)
   VAULT_TOKEN=$(kubectl -n rook-ceph exec $RGW_POD -- cat $RGW_TOKEN_FILE)
