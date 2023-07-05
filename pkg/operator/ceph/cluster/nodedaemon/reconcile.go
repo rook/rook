@@ -88,7 +88,7 @@ func (r *ReconcileNode) Reconcile(context context.Context, request reconcile.Req
 func (r *ReconcileNode) cleanupExporterResources(clusterNamespace string, ns string, nodeName string) (reconcile.Result, error) {
 	err := k8sutil.DeleteServiceMonitor(r.context, r.opManagerContext, ns, cephExporterAppName)
 	if err != nil {
-		logger.Debugf("failed to delete service monitor for ceph exporter in namespace %q on node %q. %v", ns, nodeName, err)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to delete service monitor for ceph exporter in namespace %q on node %q", ns, nodeName)
 	}
 	err = k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, cephExporterAppName)
 	if err != nil {
