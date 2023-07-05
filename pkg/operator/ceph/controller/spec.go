@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -38,6 +39,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/utils/pointer"
 )
 
@@ -758,7 +760,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 }
 
 // CreateExternalMetricsEndpoints creates external metric endpoint
-func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
+func createExternalMetricsEndpoints(ctx context.Context, clientset kubernetes.Interface, namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
 	labels := AppLabels("rook-ceph-mgr", namespace)
 
 	endpoints := &v1.Endpoints{
@@ -784,6 +786,11 @@ func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.Moni
 	err := ownerInfo.SetControllerReference(endpoints)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to metric endpoints %q", endpoints.Name)
+	}
+
+	_, err = clientset.CoreV1().Endpoints(namespace).Create(ctx, endpoints, metav1.CreateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to update endpoint %q. %v", endpoints.Name, err)
 	}
 
 	return endpoints, nil
@@ -813,7 +820,7 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 
 	// Create external monitoring Endpoints
-	endpoint, err := createExternalMetricsEndpoints(clusterInfo.Namespace, monitoringSpec, ownerInfo)
+	endpoint, err := createExternalMetricsEndpoints(clusterInfo.Context, ctx.Clientset, clusterInfo.Namespace, monitoringSpec, ownerInfo)
 	if err != nil {
 		return err
 	}
