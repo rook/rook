@@ -63,8 +63,8 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 	return labels
 }
 
-func (c *Cluster) stretchFailureDomainName() string {
-	label := StretchFailureDomainLabel(c.spec)
+func (c *Cluster) getFailureDomainName() string {
+	label := GetFailureDomainLabel(c.spec)
 	index := strings.Index(label, "/")
 	if index == -1 {
 		return label
@@ -72,9 +72,13 @@ func (c *Cluster) stretchFailureDomainName() string {
 	return label[index+1:]
 }
 
-func StretchFailureDomainLabel(spec cephv1.ClusterSpec) string {
+func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
 	if spec.Mon.StretchCluster.FailureDomainLabel != "" {
 		return spec.Mon.StretchCluster.FailureDomainLabel
+	}
+	if spec.Mon.FailureDomainLabel != "" {
+		logger.Infof("the failure domain for mon zone is set to %s", spec.Mon.FailureDomainLabel)
+		return spec.Mon.FailureDomainLabel
 	}
 	// The default topology label is for a zone
 	return corev1.LabelZoneFailureDomainStable
@@ -217,8 +221,8 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		}
 	}
 
-	if c.spec.IsStretchCluster() {
-		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", StretchFailureDomainLabel(c.spec), monConfig.Zone))
+	if c.spec.ZonesRequired() {
+		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", GetFailureDomainLabel(c.spec), monConfig.Zone))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to generate mon %q node affinity", monConfig.DaemonName)
 		}
@@ -322,7 +326,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	}
 
 	if monConfig.Zone != "" {
-		desiredLocation := fmt.Sprintf("%s=%s", c.stretchFailureDomainName(), monConfig.Zone)
+		desiredLocation := fmt.Sprintf("%s=%s", c.getFailureDomainName(), monConfig.Zone)
 		container.Args = append(container.Args, []string{"--set-crush-location", desiredLocation}...)
 		if monConfig.Zone == c.getArbiterZone() {
 			// remember the arbiter mon to be set later in the reconcile after the OSDs are configured

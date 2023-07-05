@@ -314,7 +314,7 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 	}
 
 	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
-	if err := cephclient.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.stretchFailureDomainName()); err != nil {
+	if err := cephclient.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.getFailureDomainName()); err != nil {
 		return errors.Wrap(err, "failed to create default stretch rule")
 	}
 
@@ -367,7 +367,7 @@ func (c *Cluster) ConfigureArbiter() error {
 	// Wait for the CRUSH map to have at least two zones
 	// The timeout is relatively short since the operator will requeue the reconcile
 	// and try again at a higher level if not yet found
-	failureDomain := c.stretchFailureDomainName()
+	failureDomain := c.getFailureDomainName()
 	logger.Infof("enabling stretch mode... waiting for two failure domains of type %q to be found in the CRUSH map after OSD initialization", failureDomain)
 	pollInterval := 5 * time.Second
 	totalWaitTime := 2 * time.Minute
@@ -387,7 +387,7 @@ func (c *Cluster) ConfigureArbiter() error {
 }
 
 func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
-	failureDomain := c.stretchFailureDomainName()
+	failureDomain := c.getFailureDomainName()
 
 	if checkOSDPods {
 		// Wait for the OSD pods to be running
@@ -596,7 +596,7 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 }
 
 func (c *Cluster) findAvailableZone(mons []*monConfig) (string, error) {
-	if !c.spec.IsStretchCluster() && !(len(c.spec.Mon.Zones) > 0) {
+	if !c.spec.ZonesRequired() {
 		return "", nil
 	}
 
@@ -926,7 +926,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			} else {
 				logger.Infof("mon %q placement using native scheduler", mon.DaemonName)
 			}
-			if (len(c.spec.Mon.Zones) > 0) || c.spec.IsStretchCluster() {
+			if c.spec.ZonesRequired() {
 				if schedule == nil {
 					schedule = &controller.MonScheduleInfo{}
 				}
@@ -952,7 +952,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeClaim {
 
-	if c.spec.IsStretchCluster() || len(c.spec.Mon.Zones) > 0 {
+	if c.spec.ZonesRequired() {
 		// If a stretch cluster, a zone can override the template from the default.
 
 		var zones []cephv1.MonZoneSpec

@@ -530,6 +530,8 @@ type MonSpec struct {
 	// AllowMultiplePerNode determines if we can run multiple monitors on the same node (not recommended)
 	// +optional
 	AllowMultiplePerNode bool `json:"allowMultiplePerNode,omitempty"`
+	// +optional
+	FailureDomainLabel string `json:"failureDomainLabel,omitempty"`
 	// Zones are specified when we want to provide zonal awareness to mons
 	// +optional
 	Zones []MonZoneSpec `json:"zones,omitempty"`
