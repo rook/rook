@@ -7490,6 +7490,17 @@ bool
 </tr>
 <tr>
 <td>
+<code>failureDomainLabel</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
 <code>zones</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.MonZoneSpec">
