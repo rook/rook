@@ -73,7 +73,6 @@ type Param struct {
 	EnableNFSSnapshotter                  bool
 	EnableCSIAddonsSideCar                bool
 	MountCustomCephConf                   bool
-	EnableOIDCTokenProjection             bool
 	EnableCSIDriverSeLinuxMount           bool
 	EnableCSIEncryption                   bool
 	EnableCSITopology                     bool
@@ -180,7 +179,6 @@ var (
 
 const (
 	kubeMinMajor                       = "1"
-	kubeMinVerForOIDCTokenProjection   = "20"
 	kubeMaxVerForBeta1csiDriver        = "21"
 	kubeMinVerForCSIDriverSeLinuxMount = "25"
 
