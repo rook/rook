@@ -73,7 +73,6 @@ type Param struct {
 	EnableNFSSnapshotter                  bool
 	EnableCSIAddonsSideCar                bool
 	MountCustomCephConf                   bool
-	EnableOIDCTokenProjection             bool
 	EnableCSIDriverSeLinuxMount           bool
 	EnableCSIEncryption                   bool
 	EnableCSITopology                     bool
@@ -128,8 +127,6 @@ var (
 	// configuration map for csi
 	ConfigName = "rook-ceph-csi-config"
 	ConfigKey  = "csi-cluster-config-json"
-
-	csiDriverobj csiDriver
 )
 
 // Specify default images as var instead of const so that they can be overridden with the Go
@@ -180,8 +177,6 @@ var (
 
 const (
 	kubeMinMajor                       = "1"
-	kubeMinVerForOIDCTokenProjection   = "20"
-	kubeMaxVerForBeta1csiDriver        = "21"
 	kubeMinVerForCSIDriverSeLinuxMount = "25"
 
 	// common tolerations and node affinity
@@ -296,6 +291,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		rbdPlugin, cephfsPlugin, nfsPlugin                                              *apps.DaemonSet
 		rbdProvisionerDeployment, cephfsProvisionerDeployment, nfsProvisionerDeployment *apps.Deployment
 		rbdService, cephfsService                                                       *corev1.Service
+		csiDriverobj                                                                    v1CsiDriver
 	)
 
 	enabledDrivers := make([]driverDetails, 0)
@@ -312,25 +308,6 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	NFSDriverName = tp.DriverNamePrefix + "nfs.csi.ceph.com"
 
 	tp.Param.MountCustomCephConf = CustomCSICephConfigExists
-
-	csiDriverobj = v1CsiDriver{}
-	// In case of an k8s version upgrade, delete the beta CSIDriver object;
-	// before the creation of updated v1 object to avoid conflicts.
-	// Also, attempt betav1 driver object deletion only if version is less
-	// than maximum supported version for betav1 object.(unavailable in v1.22+)
-	// Ignore if not found.
-	if EnableRBD && ver.Minor <= kubeMaxVerForBeta1csiDriver {
-		err = beta1CsiDriver{}.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, RBDDriverName)
-		if err != nil {
-			logger.Errorf("failed to delete %q Driver Info. %v", RBDDriverName, err)
-		}
-	}
-	if EnableCephFS && ver.Minor <= kubeMaxVerForBeta1csiDriver {
-		err = beta1CsiDriver{}.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, CephFSDriverName)
-		if err != nil {
-			logger.Errorf("failed to delete %q Driver Info. %v", CephFSDriverName, err)
-		}
-	}
 
 	if EnableRBD {
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
@@ -708,7 +685,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 }
 
 func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) error {
-	csiDriverobj = v1CsiDriver{}
+	csiDriverobj := v1CsiDriver{}
 	err := k8sutil.DeleteDaemonset(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete the %q", daemonset)
