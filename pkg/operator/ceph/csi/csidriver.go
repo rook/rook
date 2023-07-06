@@ -27,12 +27,6 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/storage/v1"
 )
 
-type csiDriver interface {
-	createCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name, fsGroupPolicy string, attachRequired, seLinuxMountRequired bool) error
-	reCreateCSIDriverInfo(ctx context.Context) error
-	deleteCSIDriverInfo(ctx context.Context, clientset kubernetes.Interface, name string) error
-}
-
 type v1CsiDriver struct {
 	csiDriver *v1k8scsi.CSIDriver
 	csiClient v1.CSIDriverInterface
