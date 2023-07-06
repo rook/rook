@@ -106,13 +106,8 @@ jobs:
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # pass the correct subvolumegroup and cephfs_filesystem flag name
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
-          # pass the wrong subvolumegroup name
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group); then
-            echo "unexpectedly succeeded after passing the wrong subvolumegroup name: $output"
-            exit 1
-          else
-            echo "script failed because wrong subvolumegroup name was passed"
-          fi
+          # pass the subvolumegroup name which doesn't exist
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group
 
       - name: dry run test skip monitoring endpoint
         run: |
