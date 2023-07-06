@@ -35,10 +35,15 @@ import (
 	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+	zaplogfmt "github.com/sykesm/zap-logfmt"
+	uzap "go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 const (
@@ -70,6 +75,27 @@ func init() {
 	// load the environment variables
 	flags.SetFlagsFromEnv(RootCmd.Flags(), RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(RootCmd.PersistentFlags(), RookEnvVarPrefix)
+
+	// Initialize a logger for the controller runtime
+	leveler := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		// Set the level fairly high since it's so verbose
+		return level >= zapcore.DPanicLevel
+	})
+	stackTraceLeveler := uzap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		// Attempt to suppress the stack traces in the logs since they are so verbose.
+		// The controller runtime seems to ignore this since the stack is still always printed.
+		return false
+	})
+	logfmtEncoder := zaplogfmt.NewEncoder(uzap.NewProductionEncoderConfig())
+	logger := zap.New(
+		zap.Level(leveler),
+		zap.StacktraceLevel(stackTraceLeveler),
+		zap.UseDevMode(false),
+		zap.WriteTo(os.Stdout),
+		zap.Encoder(logfmtEncoder))
+	log.SetLogger(logger)
+	// To disable controller runtime logging, instead set the null logger:
+	//log.SetLogger(logr.New(log.NullLogSink{}))
 }
 
 // SetLogLevel set log level based on provided log option.
