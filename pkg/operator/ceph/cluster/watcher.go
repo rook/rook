@@ -19,17 +19,28 @@ package cluster
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"strings"
+	"time"
 
+	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+	pkgerror "github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -65,12 +76,19 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	if !ok {
 		return false
 	}
+
+	// Get CephCluster
+	cluster := c.getCephCluster()
+
+	// Continue reconcile in case of failure too since we don't want to block other node reconcile
+	if err := c.handleNodeFailure(ctx, cluster, node); err != nil {
+		logger.Errorf("failed to handle node failure. %v", err)
+	}
+
 	// skip reconcile if node is already checked in a previous reconcile
 	if nodesCheckedForReconcile.Has(node.Name) {
 		return false
 	}
-	// Get CephCluster
-	cluster := c.getCephCluster()
 
 	if !k8sutil.GetNodeSchedulable(*node) {
 		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[v1.LabelHostname])
@@ -128,6 +146,277 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 		logger.Debugf("node watcher: node %q is already an OSD node with %q", nodeName, osds)
 	}
 	return false
+}
+
+func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.CephCluster, node *v1.Node) error {
+	watchForNodeLoss, err := k8sutil.GetOperatorSetting(ctx, c.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_WATCH_FOR_NODE_FAILURE", "true")
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to get configmap value `ROOK_WATCH_FOR_NODE_FAILURE`.")
+	}
+
+	if strings.ToLower(watchForNodeLoss) != "true" {
+		logger.Debugf("not watching for node failures since `ROOK_WATCH_FOR_NODE_FAILURE` is set to %q", watchForNodeLoss)
+		return nil
+	}
+
+	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Debug("networkfences.csiaddons.openshift.io CRD not found, skip creating networkFence")
+			return nil
+		}
+		return pkgerror.Wrapf(err, "failed to get networkfences.csiaddons.openshift.io CRD, skip creating networkFence")
+	}
+
+	nodeHasOutOfServiceTaint := false
+	for _, taint := range node.Spec.Taints {
+		if taint.Key == v1.TaintNodeOutOfService {
+			nodeHasOutOfServiceTaint = true
+			logger.Infof("Found taint: Key=%v, Value=%v on node %s\n", taint.Key, taint.Value, node.Name)
+			break
+		}
+
+	}
+
+	if nodeHasOutOfServiceTaint {
+		err := c.fenceNode(ctx, node, cluster)
+		if err != nil {
+			return pkgerror.Wrapf(err, "failed to create network fence for node %q.", node.Name)
+		}
+		return nil
+	}
+
+	err = c.unfenceAndDeleteNetworkFence(ctx, *node, cluster)
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to delete network fence for node %q.", node.Name)
+	}
+
+	return nil
+}
+
+func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster) error {
+	volumesInuse := node.Status.VolumesInUse
+	if len(volumesInuse) == 0 {
+		logger.Debugf("no volumes in use for node %q", node.Name)
+		return nil
+	}
+	logger.Debugf("volumesInuse %s", volumesInuse)
+
+	rbdVolumesInUse := getCephVolumesInUse(cluster, volumesInuse)
+	if len(rbdVolumesInUse) == 0 {
+		logger.Debugf("no rbd volumes in use for out of service node %q", node.Name)
+		return nil
+	}
+
+	logger.Info("node %q require fencing, found rbd volumes in use", node.Name)
+	listPVs, err := c.context.Clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to list PV")
+	}
+
+	rbdPVList := listRBDPV(listPVs, cluster, rbdVolumesInUse)
+	if len(rbdPVList) == 0 {
+		logger.Debug("No rbd PVs found on the node")
+		return nil
+	}
+
+	clusterInfo := cephclient.AdminClusterInfo(ctx, cluster.Namespace, cluster.Name)
+
+	for i := range rbdPVList {
+		err = c.fenceRbdImage(ctx, node, cluster, clusterInfo, rbdPVList[i])
+		// We only need to create the network fence for any one of rbd pv.
+		if err == nil {
+			break
+		}
+
+		if i == len(rbdPVList)-1 {
+			return pkgerror.Wrapf(err, "failed to fence rbd volumes")
+		}
+		logger.Errorf("failed to fence rbd volumes %q, trying next rbd volume", rbdPVList[i].Name)
+	}
+
+	return nil
+}
+
+func getCephVolumesInUse(cluster *cephv1.CephCluster, volumesInUse []v1.UniqueVolumeName) []string {
+	var rbdVolumesInUse []string
+
+	for _, volume := range volumesInUse {
+		splitVolumeInUseBased := trimeVolumeInUse(volume)
+		logger.Infof("volumeInUse after split based on '^' %v", splitVolumeInUseBased)
+
+		if len(splitVolumeInUseBased) == 2 && splitVolumeInUseBased[0] == fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace) {
+			rbdVolumesInUse = append(rbdVolumesInUse, splitVolumeInUseBased[1])
+		}
+	}
+	return rbdVolumesInUse
+}
+
+func trimeVolumeInUse(volume v1.UniqueVolumeName) []string {
+	volumesInuseRemoveK8sPrefix := strings.TrimPrefix(string(volume), "kubernetes.io/csi/")
+	splitVolumeInUseBased := strings.Split(volumesInuseRemoveK8sPrefix, "^")
+	return splitVolumeInUseBased
+}
+
+func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster, rbdVolumesInUse []string) []corev1.PersistentVolume {
+	var listRbdPV []corev1.PersistentVolume
+
+	for _, pv := range listPVs.Items {
+		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace) {
+			for _, rbdVolume := range rbdVolumesInUse {
+				if pv.Spec.CSI.VolumeHandle == rbdVolume {
+					listRbdPV = append(listRbdPV, pv)
+				}
+			}
+		}
+	}
+	return listRbdPV
+}
+
+func (c *clientCluster) fenceRbdImage(
+	ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster,
+	clusterInfo *cephclient.ClusterInfo, rbdPV corev1.PersistentVolume) error {
+
+	logger.Debugf("rbd PV NAME %v", rbdPV.Spec.CSI.VolumeAttributes)
+	args := []string{"status", fmt.Sprintf("%s/%s", rbdPV.Spec.CSI.VolumeAttributes["pool"], rbdPV.Spec.CSI.VolumeAttributes["imageName"])}
+	cmd := cephclient.NewRBDCommand(c.context, clusterInfo, args)
+	cmd.JsonOutput = true
+
+	buf, err := cmd.Run()
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to list watchers for pool/imageName %s/%s.", rbdPV.Spec.CSI.VolumeAttributes["pool"], rbdPV.Spec.CSI.VolumeAttributes["imageName"])
+	}
+
+	ips, err := rbdStatusUnMarshal(buf)
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to unmarshal rbd status output")
+	}
+	if len(ips) != 0 {
+		err = c.createNetworkFence(ctx, rbdPV, node, cluster, ips)
+		if err != nil {
+			return pkgerror.Wrapf(err, "failed to create network fence for node %q", node.Name)
+		}
+	}
+
+	return nil
+}
+
+func rbdStatusUnMarshal(output []byte) ([]string, error) {
+	type rbdStatus struct {
+		Watchers []struct {
+			Address string `json:"address"`
+		} `json:"watchers"`
+	}
+
+	var rbdStatusObj rbdStatus
+	err := json.Unmarshal([]byte(output), &rbdStatusObj)
+	if err != nil {
+		return []string{}, pkgerror.Wrapf(err, "failed to unmarshal rbd status output")
+	}
+
+	watcherIPlist := []string{}
+	for _, watcher := range rbdStatusObj.Watchers {
+		watcherIP := concatenateWatcherIp(watcher.Address)
+		watcherIPlist = append(watcherIPlist, watcherIP)
+	}
+	return watcherIPlist, nil
+}
+
+func concatenateWatcherIp(address string) string {
+	// split with separation '/' to remove nounce and concatenating `/32` to define a network with only one IP address
+	watcherIP := strings.Split(address, "/")[0] + "/32"
+	return watcherIP
+}
+
+func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.PersistentVolume, node *corev1.Node, cluster *cephv1.CephCluster, cidr []string) error {
+	logger.Warningf("Blocking node IP %s", cidr)
+
+	secretName := pv.Annotations["volume.kubernetes.io/provisioner-deletion-secret-name"]
+	secretNameSpace := pv.Annotations["volume.kubernetes.io/provisioner-deletion-secret-namespace"]
+	if secretName == "" || secretNameSpace == "" {
+		storageClass, err := c.context.Clientset.StorageV1().StorageClasses().Get(ctx, pv.Spec.StorageClassName, metav1.GetOptions{})
+		if err != nil {
+			return pkgerror.Wrap(err, "failed to get storage class to fence volume")
+		}
+		secretName = storageClass.Parameters["csi.storage.k8s.io/provisioner-secret-name"]
+		secretNameSpace = storageClass.Parameters["csi.storage.k8s.io/provisioner-secret-namespace"]
+	}
+
+	networkFence := &addonsv1alpha1.NetworkFence{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      node.Name,
+			Namespace: cluster.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				*metav1.NewControllerRef(cluster, cephv1.SchemeGroupVersion.WithKind("CephCluster")),
+			},
+		},
+		Spec: addonsv1alpha1.NetworkFenceSpec{
+			Driver:     pv.Spec.CSI.Driver,
+			FenceState: addonsv1alpha1.Fenced,
+			Secret: addonsv1alpha1.SecretSpec{
+				Name:      secretName,
+				Namespace: secretNameSpace,
+			},
+			Cidrs: cidr,
+			Parameters: map[string]string{
+				"clusterID": pv.Spec.CSI.VolumeAttributes["clusterID"],
+			},
+		},
+	}
+
+	err := c.client.Create(ctx, networkFence)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return err
+	}
+
+	logger.Infof("successfully created network fence CR for node %q", node.Name)
+
+	return nil
+}
+
+func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node corev1.Node, cluster *cephv1.CephCluster) error {
+	networkFence := &addonsv1alpha1.NetworkFence{}
+	err := c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cluster.Namespace}, networkFence)
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	} else if errors.IsNotFound(err) {
+		return nil
+	}
+	logger.Infof("node %s does not have taint %s, unfencing networkFence CR", node.Name, v1.TaintNodeOutOfService)
+
+	// Unfencing is required to unblock the node and then delete the network fence CR
+	networkFence.Spec.FenceState = addonsv1alpha1.Unfenced
+	err = c.client.Update(ctx, networkFence)
+	if err != nil {
+		logger.Errorf("failed to unFence network fence CR. %v", err)
+		return err
+	}
+
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
+		err = c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cluster.Namespace}, networkFence)
+		if err != nil && !errors.IsNotFound(err) {
+			return false, err
+		}
+
+		if networkFence.Spec.FenceState != addonsv1alpha1.Unfenced {
+			logger.Infof("waiting for network fence CR %s to get in %s state before deletion", networkFence.Name, addonsv1alpha1.Unfenced)
+			return false, err
+		}
+
+		logger.Infof("successfully unfenced network fence cr %q, proceeding with deletion", networkFence.Name)
+
+		err = c.client.Delete(ctx, networkFence)
+		if err == nil || errors.IsNotFound(err) {
+			logger.Infof("successfully deleted network fence CR %s", networkFence.Name)
+			return true, nil
+		}
+		return false, nil
+	})
+	if err != nil {
+		return pkgerror.Wrapf(err, "timeout out deleting the network fence CR %s", networkFence.Name)
+	}
+
+	return nil
 }
 
 // onDeviceCMUpdate is trigger when the hot plug config map is updated

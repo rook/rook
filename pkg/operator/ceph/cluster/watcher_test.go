@@ -18,10 +18,12 @@ package cluster
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -30,8 +32,13 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apifake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	k8sFake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -39,7 +46,7 @@ import (
 func getFakeClient(obj ...runtime.Object) client.Client {
 	// Register operator types with the runtime scheme.
 	scheme := scheme.Scheme
-	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+	scheme.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &addonsv1alpha1.NetworkFence{})
 	client := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects(obj...).Build()
 	return client
 }
@@ -93,6 +100,7 @@ func TestOnK8sNode(t *testing.T) {
 	objects := []runtime.Object{
 		cephCluster,
 	}
+
 	// Create a fake client to mock API calls.
 	client := getFakeClient(objects...)
 
@@ -101,7 +109,9 @@ func TestOnK8sNode(t *testing.T) {
 		return "", errors.New("failed to get osd list on host")
 	}
 	clientCluster := newClientCluster(client, ns, &clusterd.Context{
-		Executor: executor,
+		Executor:            executor,
+		Clientset:           k8sFake.NewSimpleClientset(),
+		ApiExtensionsClient: apifake.NewSimpleClientset(),
 	})
 
 	node := &corev1.Node{
@@ -144,6 +154,131 @@ func TestOnK8sNode(t *testing.T) {
 	// node will not reconcile
 	b = clientCluster.onK8sNode(ctx, node)
 	assert.False(t, b)
+}
+
+func TestHandleNodeFailure(t *testing.T) {
+	ns := "rook-ceph"
+	ctx := context.TODO()
+	cephCluster := fakeCluster(ns)
+	objects := []runtime.Object{
+		cephCluster,
+	}
+	executor := &exectest.MockExecutor{}
+	client := getFakeClient(objects...)
+	c := newClientCluster(client, ns, &clusterd.Context{
+		Executor:            executor,
+		Clientset:           k8sFake.NewSimpleClientset(),
+		ApiExtensionsClient: apifake.NewSimpleClientset(),
+	})
+
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		switch {
+		case command == "rbd" && args[0] == "status":
+			return `{"watchers":[{"address":"192.168.39.137:0/3762982934","client":4307,"cookie":18446462598732840961}]}`, nil
+
+		}
+		return "", errors.Errorf("unexpected rbd command %q", args)
+	}
+
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "fakenode",
+		},
+		Spec: corev1.NodeSpec{
+			Taints: []corev1.Taint{
+				{
+					Key:   corev1.TaintNodeOutOfService,
+					Value: string(corev1.TaintEffectNoSchedule),
+				},
+			},
+		},
+		Status: corev1.NodeStatus{
+			Conditions: []corev1.NodeCondition{
+				{
+					Status: corev1.ConditionStatus(corev1.ConditionTrue),
+					Type:   corev1.NodeConditionType(corev1.NodeReady),
+				},
+			},
+			VolumesInUse: []corev1.UniqueVolumeName{
+				"kubernetes.io/csi/rook-ceph.rbd.csi.ceph.com^0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002",
+			},
+		},
+	}
+
+	pv := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pvc-58469d41-f6c0-4720-b23a-0a0826b841ca",
+			Annotations: map[string]string{
+				"pv.kubernetes.io/provisioned-by":                            fmt.Sprintf("%s.rbd.csi.ceph.com", ns),
+				"volume.kubernetes.io/provisioner-deletion-secret-name":      "rook-csi-rbd-provisioner",
+				"volume.kubernetes.io/provisioner-deletion-secret-namespace": ns,
+			},
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					Driver:       fmt.Sprintf("%s.rbd.csi.ceph.com", ns),
+					VolumeHandle: "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002",
+				},
+			},
+		},
+	}
+
+	_, err := c.context.Clientset.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &v1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "networkfences.csiaddons.openshift.io"}}, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	// When out-of-service taint is added
+	err = c.handleNodeFailure(ctx, cephCluster, node)
+	assert.NoError(t, err)
+
+	networkFence := &addonsv1alpha1.NetworkFence{}
+	err = c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cephCluster.Namespace}, networkFence)
+	assert.NoError(t, err)
+
+	// When out-of-service taint is removed
+	node.Spec.Taints = []corev1.Taint{}
+
+	err = c.handleNodeFailure(ctx, cephCluster, node)
+	assert.NoError(t, err)
+
+	err = c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cephCluster.Namespace}, networkFence)
+	assert.Error(t, err, kerrors.IsNotFound(err))
+}
+
+func TestGetCephVolumesInUse(t *testing.T) {
+	cephCluster := fakeCluster("rook-ceph")
+	volInUse := []corev1.UniqueVolumeName{
+		"kubernetes.io/csi/rook-ceph.rbd.csi.ceph.com^0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002",
+		"kubernetes.io/csi/rook-ceph.rbd.csi.ceph.com^0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4003",
+	}
+
+	splitVolInUse := trimeVolumeInUse(volInUse[0])
+	assert.Equal(t, splitVolInUse[0], "rook-ceph.rbd.csi.ceph.com")
+	assert.Equal(t, splitVolInUse[1], "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002")
+
+	splitVolInUse = trimeVolumeInUse(volInUse[1])
+	assert.Equal(t, splitVolInUse[0], "rook-ceph.rbd.csi.ceph.com")
+	assert.Equal(t, splitVolInUse[1], "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4003")
+
+	trimVolInUse := getCephVolumesInUse(cephCluster, volInUse)
+	expected := []string{"0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002", "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4003"}
+	assert.Equal(t, expected, trimVolInUse)
+}
+
+func TestRBDStatusUnMarshal(t *testing.T) {
+	output := `{"watchers":[{"address":"192.168.39.137:0/3762982934","client":4307,"cookie":18446462598732840961}]}`
+
+	listIP, err := rbdStatusUnMarshal([]byte(output))
+	assert.NoError(t, err)
+	assert.Equal(t, listIP[0], "192.168.39.137:0/32")
+}
+
+func TestConcatenateWatcherIp(t *testing.T) {
+	WatcherIP := concatenateWatcherIp("192.168.39.137:0/3762982934")
+	assert.Equal(t, WatcherIP, "192.168.39.137:0/32")
 }
 
 func TestOnDeviceCMUpdate(t *testing.T) {

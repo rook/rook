@@ -192,8 +192,53 @@ The OSDs must be located on different nodes, because the [`failureDomain`](../..
 The erasure coded pool must be set as the `dataPool` parameter in
 [`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storage-class-ec.yaml) It is used for the data of the RBD images.
 
-### Erasure Coded Flex Driver
+## Node Loss
 
-The erasure coded pool must be set as the `dataBlockPool` parameter in
-[`storageclass-ec.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/flex/storage-class-ec.yaml). It is used for
-the data of the RBD images.
+If a node goes down where a pod is running where a RBD RWO volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
+
+!!! Note
+    These instructions are for clusters with Kubernetes version 1.26 or greater. For K8s 1.25 or older, see the [manual steps in the CSI troubleshooting guide](../../Troubleshooting/ceph-csi-common-issues.md#node-loss) to recover from the node loss.
+
+### Configure CSI-Addons
+
+Deploy the csi-addons manifests:
+
+```console
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.7.0/deploy/controller/crds.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.7.0/deploy/controller/rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.7.0/deploy/controller/setup-controller.yaml
+```
+
+Enable the `csi-addons` sidecar in the Rook operator configuration.
+
+```console
+kubectl patch cm rook-ceph-operator-config -n<namespace> -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
+```
+
+### Handling Node Loss
+
+When a node is confirmed to be down, add the following taints to the node:
+
+```console
+kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoExecute
+kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule
+```
+
+After the taint is added to the node, Rook will automatically blocklist the node to prevent connections to Ceph from the RBD volume on that node. To verify a node is blocklisted:
+
+```console
+kubectl get networkfences.csiaddons.openshift.io
+NAME           DRIVER                       CIDRS                     FENCESTATE   AGE   RESULT
+minikube-m02   rook-ceph.rbd.csi.ceph.com   ["192.168.39.187:0/32"]   Fenced       20s   Succeeded
+```
+
+The node is blocklisted if the state is `Fenced` and the result is `Succeeded` as seen above.
+
+### Node Recovery
+
+If the node comes back online, the network fence can be removed from the node by removing the node taints:
+
+```console
+kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoExecute-
+kubectl taint nodes <node-name> node.kubernetes.io/out-of-service=nodeshutdown:NoSchedule-
+```

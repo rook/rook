@@ -88,7 +88,7 @@ func cephCSIKeyringRBDNodeCaps() []string {
 
 func cephCSIKeyringRBDProvisionerCaps() []string {
 	return []string{
-		"mon", "profile rbd",
+		"mon", "profile rbd, allow command 'osd blocklist'",
 		"mgr", "allow rw",
 		"osd", "profile rbd",
 	}
