@@ -32,6 +32,7 @@ py3k = False
 if sys.version_info.major >= 3:
     py3k = True
     import urllib.parse
+    from ipaddress import ip_address, IPv4Address
 
 ModuleNotFoundError = ImportError
 
@@ -379,7 +380,7 @@ class RadosJSON:
             "--rgw-endpoint",
             default="",
             required=False,
-            help="RADOS Gateway endpoint (in <IP>:<PORT> format). Note: FQDN is also supported(in <FQDN>:<PORT> format)",
+            help="RADOS Gateway endpoint (in `<IPv4>:<PORT>` or `<[IPv6]>:<PORT>` or `<FQDN>:<PORT>` format)",
         )
         output_group.add_argument(
             "--rgw-tls-cert-path",
@@ -397,7 +398,7 @@ class RadosJSON:
             "--monitoring-endpoint",
             default="",
             required=False,
-            help="Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)",
+            help="Ceph Manager prometheus exporter endpoints (comma separated list of (format `<IPv4>` or `<[IPv6]>` or `<FQDN>`) entries of active and standby mgrs)",
         )
         output_group.add_argument(
             "--monitoring-endpoint-port",
@@ -540,35 +541,44 @@ class RadosJSON:
             )
 
     def _invalid_endpoint(self, endpoint_str):
+        # seprating port, by getting last split of `:` delimiter
         try:
-            ipv4, port = endpoint_str.split(":")
+            endpoint_str_ip, port = endpoint_str.rsplit(":", 1)
         except ValueError:
-            raise ExecutionFailureException(
-                f"Not a proper endpoint: {endpoint_str}, <IPv4>:<PORT>, format is expected"
+            raise ExecutionFailureException(f"Not a proper endpoint: {endpoint_str}")
+
+        try:
+            if endpoint_str_ip[0] == "[":
+                endpoint_str_ip = endpoint_str_ip[1 : len(endpoint_str_ip) - 1]
+            ip_type = (
+                "IPv4" if type(ip_address(endpoint_str_ip)) is IPv4Address else "IPv6"
             )
-        ipParts = ipv4.split(".")
-        if len(ipParts) != 4:
-            raise ExecutionFailureException(f"Not a valid IP address: {ipv4}")
-        for eachPart in ipParts:
-            if not eachPart.isdigit():
-                raise ExecutionFailureException(
-                    f"IP address parts should be numbers: {ipv4}"
-                )
-            intPart = int(eachPart)
-            if intPart < 0 or intPart > 254:
-                raise ExecutionFailureException(f"Out of range IP addresses: {ipv4}")
+        except ValueError:
+            ip_type = "FQDN"
         if not port.isdigit():
             raise ExecutionFailureException(f"Port not valid: {port}")
         intPort = int(port)
         if intPort < 1 or intPort > 2**16 - 1:
             raise ExecutionFailureException(f"Out of range port number: {port}")
-        return False
 
-    def endpoint_dial(self, endpoint_str, timeout=3, cert=None):
+        return ip_type
+
+    def endpoint_dial(self, endpoint_str, ip_type, timeout=3, cert=None):
         # if the 'cluster' instance is a dummy one,
         # don't try to reach out to the endpoint
         if isinstance(self.cluster, DummyRados):
             return "", "", ""
+        if ip_type == "IPv6":
+            try:
+                endpoint_str_ip, endpoint_str_port = endpoint_str.rsplit(":", 1)
+            except ValueError:
+                raise ExecutionFailureException(
+                    f"Not a proper endpoint: {endpoint_str}"
+                )
+            if endpoint_str_ip[0] != "[":
+                endpoint_str_ip = "[" + endpoint_str_ip + "]"
+            endpoint_str = ":".join([endpoint_str_ip, endpoint_str_port])
+
         protocols = ["http", "https"]
         response_error = None
         for prefix in protocols:
@@ -685,29 +695,43 @@ class RadosJSON:
         ip_port = str(q_leader_details["public_addr"].split("/")[0])
         return f"{str(q_leader_name)}={ip_port}"
 
-    def _join_host_port(self, endpoint, port):
-        port = str(port)
-        # regex to check the given endpoint is enclosed in square brackets
-        ipv6_regex = re.compile(r"^\[[^]]*\]$")
-        # endpoint has ':' in it and if not (already) enclosed in square brackets
-        if endpoint.count(":") and not ipv6_regex.match(endpoint):
-            endpoint = f"[{endpoint}]"
-        if not port:
-            return endpoint
-        return ":".join([endpoint, port])
-
-    def _convert_hostname_to_ip(self, host_name):
+    def _convert_hostname_to_ip(self, host_name, port, ip_type):
         # if 'cluster' instance is a dummy type,
         # call the dummy instance's "convert" method
         if not host_name:
             raise ExecutionFailureException("Empty hostname provided")
         if isinstance(self.cluster, DummyRados):
             return self.cluster._convert_hostname_to_ip(host_name)
-        import socket
 
-        ip = socket.gethostbyname(host_name)
-        del socket
-        return ip
+        if ip_type == "FQDN":
+            # check which ip FQDN should be converted to, IPv4 or IPv6
+            # check the host ip, the endpoint ip type would be similar to host ip
+            cmd_json = {"prefix": "orch host ls", "format": "json"}
+            ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
+            # if there is an unsuccessful attempt,
+            if ret_val != 0 or len(json_out) == 0:
+                raise ExecutionFailureException(
+                    "'orch host ls' command failed.\n"
+                    f"Error: {err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST}"
+                )
+            host_addr = json_out[0]["addr"]
+            # add :80 sample port in ip_type, as _invalid_endpoint also verify port
+            host_ip_type = self._invalid_endpoint(host_addr + ":80")
+            import socket
+
+            # example output [(<AddressFamily.AF_INET: 2>, <SocketKind.SOCK_STREAM: 1>, 6, '', ('93.184.216.34', 80)), ...]
+            # we need to get 93.184.216.34 so it would be ip[0][4][0]
+            if host_ip_type == "IPv6":
+                ip = socket.getaddrinfo(
+                    host_name, port, family=socket.AF_INET6, proto=socket.IPPROTO_TCP
+                )
+            elif host_ip_type == "IPv4":
+                ip = socket.getaddrinfo(
+                    host_name, port, family=socket.AF_INET, proto=socket.IPPROTO_TCP
+                )
+            del socket
+            return ip[0][4][0]
+        return host_name
 
     def get_active_and_standby_mgrs(self):
         if self._arg_parser.dry_run:
@@ -760,25 +784,30 @@ class RadosJSON:
         standby_mgrs.extend(monitoring_endpoint_ip_list_split[1:])
         failed_ip = monitoring_endpoint_ip
 
+        monitoring_endpoint = ":".join(
+            [monitoring_endpoint_ip, monitoring_endpoint_port]
+        )
+        ip_type = self._invalid_endpoint(monitoring_endpoint)
         try:
             monitoring_endpoint_ip = self._convert_hostname_to_ip(
-                monitoring_endpoint_ip
+                monitoring_endpoint_ip, monitoring_endpoint_port, ip_type
             )
             # collect all the 'stand-by' mgr ips
             mgr_ips = []
             for each_standby_mgr in standby_mgrs:
                 failed_ip = each_standby_mgr
-                mgr_ips.append(self._convert_hostname_to_ip(each_standby_mgr))
+                mgr_ips.append(
+                    self._convert_hostname_to_ip(
+                        each_standby_mgr, monitoring_endpoint_port, ip_type
+                    )
+                )
         except:
             raise ExecutionFailureException(
                 f"Conversion of host: {failed_ip} to IP failed. "
                 "Please enter the IP addresses of all the ceph-mgrs with the '--monitoring-endpoint' flag"
             )
-        monitoring_endpoint = self._join_host_port(
-            monitoring_endpoint_ip, monitoring_endpoint_port
-        )
-        self._invalid_endpoint(monitoring_endpoint)
-        _, _, err = self.endpoint_dial(monitoring_endpoint)
+
+        _, _, err = self.endpoint_dial(monitoring_endpoint, ip_type)
         if err == "-1":
             raise ExecutionFailureException(err)
         # add the validated active mgr IP into the first index
@@ -1310,17 +1339,21 @@ class RadosJSON:
         if isinstance(self.cluster, DummyRados):
             return
 
-        # check if the rgw endpoint is reachable
         rgw_endpoint = self._arg_parser.rgw_endpoint
+
+        # validate rgw endpoint only if ip address is passed
+        ip_type = self._invalid_endpoint(rgw_endpoint)
+
+        # check if the rgw endpoint is reachable
         cert = None
         if not self._arg_parser.rgw_skip_tls and self.validate_rgw_endpoint_tls_cert():
             cert = self._arg_parser.rgw_tls_cert_path
-        base_url, verify, err = self.endpoint_dial(rgw_endpoint, cert=cert)
+        base_url, verify, err = self.endpoint_dial(rgw_endpoint, ip_type, cert=cert)
         if err != "":
             return "-1"
 
-        # check if the rgw endpoint is valid and belongs to the same cluster
-        # only check if info cap is supported
+        # check if the rgw endpoint belongs to the same cluster
+        # only check if `info` cap is supported
         if info_cap_supported:
             fsid = self.get_fsid()
             rgw_fsid, err = self.get_rgw_fsid(base_url, verify)
@@ -1332,7 +1365,7 @@ class RadosJSON:
                 )
                 return "-1"
 
-        # check if the rgw endpoint exist
+        # check if the rgw endpoint pool exist
         # only validate if rgw_pool_prefix is passed else it will take default value and we don't create these default pools
         if self._arg_parser.rgw_pool_prefix != "default":
             rgw_pools_to_validate = [

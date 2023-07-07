@@ -164,28 +164,6 @@ class TestRadosJSON(unittest.TestCase):
             self.fail("An Exception was expected to be thrown")
         except ext.ExecutionFailureException as err:
             print(f"Successfully thrown error: {err}")
-        # out of range IP
-        try:
-            self.rjObj._invalid_endpoint("10.1033.212.133:8000")
-            self.fail("An Exception was expected to be thrown")
-        except ext.ExecutionFailureException as err:
-            print(f"Successfully thrown error: {err}")
-        # malformatted IP
-        try:
-            self.rjObj._invalid_endpoint("10.103..212.133:8000")
-            self.fail("An Exception was expected to be thrown")
-        except ext.ExecutionFailureException as err:
-            print(f"Successfully thrown error: {err}")
-        try:
-            self.rjObj._invalid_endpoint("10.103.212.133::8000")
-            self.fail("An Exception was expected to be thrown")
-        except ext.ExecutionFailureException as err:
-            print(f"Successfully thrown error: {err}")
-        try:
-            self.rjObj._invalid_endpoint("10.10.103.212.133:8000")
-            self.fail("An Exception was expected to be thrown")
-        except ext.ExecutionFailureException as err:
-            print(f"Successfully thrown error: {err}")
 
     def test_upgrade_user_permissions(self):
         self.rjObj = ext.RadosJSON(
@@ -233,7 +211,6 @@ class TestRadosJSON(unittest.TestCase):
             print(f"MonIP: {mon_ip}, MonPort: {mon_port}")
 
         invalid_ip_ports = [
-            ("10.22.31.131.43", "5334"),
             ("", "91943"),
             ("10.177.3.81", "90320"),
             ("", "73422"),
