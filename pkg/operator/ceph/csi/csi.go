@@ -176,7 +176,14 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	}
 
 	CSIParam.EnableCSIAddonsSideCar = false
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", "false"), "true") {
+	_, err = r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(r.opManagerContext, "csiaddonsnode.csiaddons.openshift.io", metav1.GetOptions{})
+	if err == nil {
+		CSIParam.EnableCSIAddonsSideCar = true
+	}
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", ""), "false") {
+		CSIParam.EnableCSIAddonsSideCar = false
+	}
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", ""), "true") {
 		CSIParam.EnableCSIAddonsSideCar = true
 	}
 
