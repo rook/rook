@@ -64,4 +64,3 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
