@@ -21,7 +21,8 @@ priority:
 allowedCapabilities: ["MKNOD"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
-requiredDropCapabilities: []
+# drop all default privileges
+requiredDropCapabilities: ["All"]
 defaultAddCapabilities: []
 runAsUser:
   type: RunAsAny

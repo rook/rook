@@ -38,6 +38,8 @@ spec:
           # created by privileged CSI driver container.
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           image: {{ .RegistrarImage }}
           imagePullPolicy: {{ .ImagePullPolicy }}
           args:
@@ -59,6 +61,7 @@ spec:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
+              drop: ["ALL"]
             allowPrivilegeEscalation: true
           image: {{ .CSIPluginImage }}
           args :
@@ -146,6 +149,8 @@ spec:
         - name: csi-addons
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           image: {{ .CSIAddonsImage }}
           args :
             - "--node-id=$(NODE_ID)"
@@ -186,6 +191,8 @@ spec:
         - name: liveness-prometheus
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           image: {{ .CSIPluginImage }}
           args:
             - "--type=liveness"

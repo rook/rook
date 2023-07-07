@@ -31,6 +31,8 @@ spec:
           # non-privileged sidecar containers cannot access unix domain socket
           # created by privileged CSI driver container.
           securityContext:
+            capabilities:
+              drop: ["ALL"]
             privileged: true
           image: {{ .RegistrarImage }}
           imagePullPolicy: {{ .ImagePullPolicy }}
@@ -54,6 +56,7 @@ spec:
             capabilities:
               add:
               - SYS_ADMIN
+              drop: ["ALL"]
             privileged: true
           args:
             - "--nodeid=$(NODE_ID)"
