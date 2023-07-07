@@ -243,7 +243,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   raw-disk:
     runs-on: ubuntu-20.04
@@ -298,7 +297,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   two-osds-in-device:
     runs-on: ubuntu-20.04
@@ -347,7 +345,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
@@ -402,7 +399,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   encryption:
     runs-on: ubuntu-20.04
@@ -502,7 +498,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   pvc:
     runs-on: ubuntu-20.04
@@ -577,7 +572,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   pvc-db:
     runs-on: ubuntu-20.04
@@ -628,7 +622,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -682,7 +675,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   encryption-pvc:
     runs-on: ubuntu-20.04
@@ -748,7 +740,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   encryption-pvc-db:
     runs-on: ubuntu-20.04
@@ -801,7 +792,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -864,7 +854,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-20.04
@@ -946,7 +935,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-20.04
@@ -1010,7 +998,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   lvm-pvc:
     runs-on: ubuntu-20.04
@@ -1066,7 +1053,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
@@ -1323,7 +1309,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
+
 
   rgw-multisite-testing:
     runs-on: ubuntu-20.04
@@ -1353,7 +1339,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
+
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-20.04
@@ -1386,7 +1372,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
+
 
   multus-cluster-network:
     runs-on: ubuntu-20.04
@@ -1466,7 +1452,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
+
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
@@ -1520,4 +1506,3 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
