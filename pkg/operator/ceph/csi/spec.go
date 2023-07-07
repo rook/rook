@@ -851,7 +851,11 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 	_, err = r.context.Clientset.AppsV1().DaemonSets(r.opConfig.OperatorNamespace).Create(r.opManagerContext, cephPluginHolder, metav1.CreateOptions{})
 	if err != nil {
 		if kerrors.IsAlreadyExists(err) {
-			logger.Debugf("holder %q already exists for cluster %q, it should never be updated", cephPluginHolder.Name, c.cluster.Namespace)
+			_, err = r.context.Clientset.AppsV1().DaemonSets(r.opConfig.OperatorNamespace).Update(r.opManagerContext, cephPluginHolder, metav1.UpdateOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "failed to update ceph plugin holder daemonset %q", cephPluginHolder.Name)
+			}
+			logger.Debugf("holder %q already exists for cluster %q, updating it, restart holder pods to take effect of update", cephPluginHolder.Name, c.cluster.Namespace)
 		} else {
 			return errors.Wrapf(err, "failed to start ceph plugin holder daemonset %q", cephPluginHolder.Name)
 		}
