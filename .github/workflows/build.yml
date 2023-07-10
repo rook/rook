@@ -77,7 +77,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
 
   linux-build-all:
     runs-on: ubuntu-20.04
@@ -112,4 +111,3 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-          limit-access-to-actor: true
