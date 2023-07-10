@@ -262,6 +262,10 @@ func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster
 	var listRbdPV []corev1.PersistentVolume
 
 	for _, pv := range listPVs.Items {
+		// Ignore PVs that support multinode access (RWX, ROX), since they can be mounted on multiple nodes.
+		if pvSupportsMultiNodeAccess(pv.Spec.AccessModes) {
+			continue
+		}
 		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace) {
 			for _, rbdVolume := range rbdVolumesInUse {
 				if pv.Spec.CSI.VolumeHandle == rbdVolume {
@@ -271,6 +275,18 @@ func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster
 		}
 	}
 	return listRbdPV
+}
+
+// pvSupportsMultiNodeAccess returns true if the PV access modes contain ReadWriteMany or ReadOnlyMany.
+func pvSupportsMultiNodeAccess(accessModes []corev1.PersistentVolumeAccessMode) bool {
+	for _, accessMode := range accessModes {
+		switch accessMode {
+		case corev1.ReadOnlyMany, corev1.ReadWriteMany:
+			return true
+		}
+	}
+
+	return false
 }
 
 func (c *clientCluster) fenceRbdImage(

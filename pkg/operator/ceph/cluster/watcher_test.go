@@ -358,3 +358,77 @@ func TestOnDeviceCMUpdate(t *testing.T) {
 	b = clientCluster.onDeviceCMUpdate(oldCM, newCM)
 	assert.True(t, b)
 }
+
+func Test_pvSupportMultiNodeAccess(t *testing.T) {
+	type args struct {
+		accessModes []corev1.PersistentVolumeAccessMode
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "single access mode, contains RWX",
+			args: args{
+				accessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteMany,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "single access mode, contains ROX",
+			args: args{
+				accessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadOnlyMany,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "single access mode, contains only RWO",
+			args: args{
+				accessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOnce,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "single access mode, contains only RWOP",
+			args: args{
+				accessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOncePod,
+				},
+			},
+			want: false,
+		},
+		{
+			name: "multiple access mode, contains RWX",
+			args: args{
+				accessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteOnce,
+					corev1.ReadWriteMany,
+				},
+			},
+			want: true,
+		},
+		{
+			name: "multiple access mode, contains RWX and ROX",
+			args: args{
+				accessModes: []corev1.PersistentVolumeAccessMode{
+					corev1.ReadWriteMany,
+					corev1.ReadOnlyMany,
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := pvSupportsMultiNodeAccess(tt.args.accessModes)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
