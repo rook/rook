@@ -333,11 +333,14 @@ func (cr *cmdReporterCfg) initContainers() []v1.Container {
 	}
 
 	c := v1.Container{
-		Name: CopyBinariesInitContainerName,
-		// Command: the rook command is the default entrypoint of rook images already
+		Name:    CopyBinariesInitContainerName,
+		Command: []string{"cp"},
 		Args: []string{
-			"copy-binaries",
-			"--copy-to-dir", CopyBinariesMountDir,
+			"--archive",
+			"--force",
+			"--verbose",
+			"/usr/local/bin/rook",
+			CopyBinariesMountDir,
 		},
 		Image:           cr.rookImage,
 		ImagePullPolicy: cr.imagePullPolicy,
