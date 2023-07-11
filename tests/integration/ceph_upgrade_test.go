@@ -168,6 +168,17 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from pacific to quincy")
 
+	//
+	// Upgrade from quincy to reef
+	//
+	logger.Infof("*** UPGRADING CEPH FROM QUINCY TO REEF ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_reef_upgrade")
+	s.upgradeCephVersion(installer.ReefVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile = "post-reef-upgrade-file"
+	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("Verified upgrade from quincy to reef")
+
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
 
