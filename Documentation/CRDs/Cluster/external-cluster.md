@@ -44,6 +44,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
 - `--skip-monitoring-endpoint`: (optional) Skip prometheus exporter endpoints, even if they are available. Useful if the prometheus module is not enabled
 - `--ceph-conf`: (optional) Provide a Ceph conf file
+- `--keyring`: (optional) Path to Ceph keyring file, to be used with `--ceph-conf`
 - `--cluster-name`: (optional) Ceph cluster name
 - `--output`: (optional) Output will be stored into the provided file
 - `--dry-run`: (optional) Prints the executed commands without running them
