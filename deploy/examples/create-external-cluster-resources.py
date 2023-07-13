@@ -1277,16 +1277,7 @@ class RadosJSON:
                 f"is not found in the pool '{rbd_pool_name}'"
             )
 
-    def validate_subvolume_group(self):
-        cephfs_filesystem_name = self._arg_parser.cephfs_filesystem_name
-        subvolume_group = self._arg_parser.subvolume_group
-        if subvolume_group == "":
-            return
-        if cephfs_filesystem_name == "":
-            raise ExecutionFailureException(
-                "if subvolume group is passed cephfs filesystem name is mandatory to pass"
-            )
-
+    def get_or_create_subvolume_group(self, subvolume_group, cephfs_filesystem_name):
         cmd = [
             "ceph",
             "fs",
@@ -1297,9 +1288,40 @@ class RadosJSON:
         ]
         try:
             _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as execErr:
+        except subprocess.CalledProcessError:
+            cmd = [
+                "ceph",
+                "fs",
+                "subvolumegroup",
+                "create",
+                cephfs_filesystem_name,
+                subvolume_group,
+            ]
+            try:
+                _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+            except subprocess.CalledProcessError:
+                raise ExecutionFailureException(
+                    f"subvolume group {subvolume_group} is not able to get created"
+                )
+
+    def pin_subvolume(
+        self, subvolume_group, cephfs_filesystem_name, pin_type, pin_setting
+    ):
+        cmd = [
+            "ceph",
+            "fs",
+            "subvolumegroup",
+            "pin",
+            cephfs_filesystem_name,
+            subvolume_group,
+            pin_type,
+            pin_setting,
+        ]
+        try:
+            _ = subprocess.check_output(cmd, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError:
             raise ExecutionFailureException(
-                f"subvolume group {subvolume_group} passed doesn't exist"
+                f"subvolume group {subvolume_group} is not able to get pinned"
             )
 
     def get_rgw_fsid(self, base_url, verify):
@@ -1411,7 +1433,6 @@ class RadosJSON:
         )  # always convert cluster name to lowercase characters
         self.validate_rbd_pool()
         self.validate_rados_namespace()
-        self.validate_subvolume_group()
         self._excluded_keys.add("CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
@@ -1451,6 +1472,25 @@ class RadosJSON:
                 self.out_map["CSI_CEPHFS_PROVISIONER_SECRET"],
                 self.out_map["CSI_CEPHFS_PROVISIONER_SECRET_NAME"],
             ) = self.create_cephCSIKeyring_user("client.csi-cephfs-provisioner")
+            # create the default "csi" subvolumegroup
+            self.get_or_create_subvolume_group(
+                "csi", self._arg_parser.cephfs_filesystem_name
+            )
+            # pin the default "csi" subvolumegroup
+            self.pin_subvolume(
+                "csi", self._arg_parser.cephfs_filesystem_name, "distributed", "1"
+            )
+            if self.out_map["SUBVOLUME_GROUP"]:
+                self.get_or_create_subvolume_group(
+                    self._arg_parser.subvolume_group,
+                    self._arg_parser.cephfs_filesystem_name,
+                )
+                self.pin_subvolume(
+                    self._arg_parser.subvolume_group,
+                    self._arg_parser.cephfs_filesystem_name,
+                    "distributed",
+                    "1",
+                )
         self.out_map["RGW_TLS_CERT"] = ""
         self.out_map["MONITORING_ENDPOINT"] = ""
         self.out_map["MONITORING_ENDPOINT_PORT"] = ""
