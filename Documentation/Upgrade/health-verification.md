@@ -6,9 +6,9 @@ Rook and Ceph upgrades are designed to ensure data remains available even while
 the upgrade is proceeding. Rook will perform the upgrades in a rolling fashion
 such that application pods are not disrupted. To ensure the upgrades are
 seamless, it is important to begin the upgrades with Ceph in a fully healthy state.
-Let's first review some ways that you can verify the health of your cluster.
+This guide reviews ways of verifying the health of a CephCluster.
 
-If you run into any issues during the upgrade, see the troubleshooting documentation:
+See the troubleshooting documentation for any issues during upgrades:
 
 * [General K8s troubleshooting](../Troubleshooting/common-issues.md)
 * [Ceph common issues](../Troubleshooting/ceph-common-issues.md)
@@ -26,8 +26,8 @@ kubectl -n $ROOK_CLUSTER_NAMESPACE get pods
 
 ### **Status Output**
 
-The [Rook toolbox](../Troubleshooting/ceph-toolbox.md) contains the Ceph tools that can give you status details of the cluster with the
-`ceph status` command. Let's look at an output sample and review some of the details:
+The [Rook toolbox](../Troubleshooting/ceph-toolbox.md) contains the Ceph tools that gives status details of the cluster with the
+`ceph status` command. Below is an output sample:
 
 ```console
 TOOLS_POD=$(kubectl -n $ROOK_CLUSTER_NAMESPACE get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[*].metadata.name}')
@@ -69,22 +69,22 @@ In the output above, note the following indications that the cluster is in a hea
 * (If applicable) Ceph filesystem metadata server (mds): all MDSes are `active` for all filesystems
 * (If applicable) Ceph object store RADOS gateways (rgw): all daemons are `active`
 
-If your `ceph status` output has deviations from the general good health described above, there may
-be an issue that needs to be investigated further. There are other commands you may run for more
+If the `ceph status` output has deviations from the general good health described above, there may
+be an issue that needs to be investigated further. Other commands may show more relevant
 details on the health of the system, such as `ceph osd status`. See the
 [Ceph troubleshooting docs](https://docs.ceph.com/docs/master/rados/troubleshooting/) for help.
 
 ### Upgrading an unhealthy cluster
 
-Rook will prevent the upgrade of the Ceph daemons if the health is in a `HEALTH_ERR` state.
-If you desired to proceed with the upgrade anyway, you will need to set either
+Rook will not upgrade Ceph daemons if the health is in a `HEALTH_ERR` state.
+Rook can be configured to proceed with the (potentially unsafe) upgrade by setting either
 `skipUpgradeChecks: true` or `continueUpgradeAfterChecksEvenIfNotHealthy: true` as described in the
 [cluster CR settings](../CRDs/Cluster/ceph-cluster-crd.md#cluster-settings).
 
 ### **Container Versions**
 
 The container version running in a specific pod in the Rook cluster can be verified in its pod spec
-output. For example, for the monitor pod `mon-b` we can verify the container version it is running
+output. For example, for the monitor pod `mon-b`, verify the container version it is running
 with the below commands:
 
 ```console
