@@ -26,18 +26,16 @@ until all the daemons have been updated.
 
 Rook v1.12 supports the following Ceph versions:
 
+* Ceph Reef v18.2.0 or newer
 * Ceph Quincy v17.2.0 or newer
-* Ceph Pacific v16.2.0 or newer
+* Ceph Pacific v16.2.7 or newer
 
-Support for Ceph Octopus (15.2.x) was removed. If you are running Octopus you must upgrade the Ceph version
-before upgrading to Rook v1.12.
+Support for Ceph Pacific (16.2.x) will be removed in the next Rook release. It will be mandatory to
+upgrade to Quincy or Reef before upgrading to the Rook release after v1.12.x.
 
 !!! important
     When an update is requested, the operator will check Ceph's status,
     **if it is in `HEALTH_ERR` the operator will refuse to proceed with the upgrade.**
-
-We recommend updating to v16.2.7 or newer. If you require updating **to v16.2.0-v16.2.6**,
-please see the [v1.8 upgrade guide for a special upgrade consideration](https://rook.github.io/docs/rook/v1.8/ceph-upgrade.html#disable-bluestore_fsck_quick_fix_on_mount).
 
 !!! warning
     Ceph v17.2.2 has a blocking issue when running with Rook. If you are running Ceph v17, we
@@ -90,8 +88,8 @@ kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --t
 
 #### **2. Wait for the pod updates**
 
-As with upgrading Rook, you must now wait for the upgrade to complete. Status can be determined in a
-similar way to the Rook upgrade as well.
+As with upgrading Rook, now wait for the upgrade to complete. Status can be determined in a similar
+way to the Rook upgrade as well.
 
 ```console
 watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \tceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}'
