@@ -101,7 +101,7 @@ func TestSupported(t *testing.T) {
 	for _, v := range supportedVersions {
 		assert.True(t, v.Supported())
 	}
-	assert.False(t, Reef.Supported())
+	assert.False(t, Squid.Supported())
 }
 
 func TestIsRelease(t *testing.T) {

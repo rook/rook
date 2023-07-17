@@ -48,12 +48,14 @@ var (
 	Quincy = CephVersion{17, 0, 0, 0, ""}
 	// Reef Ceph version
 	Reef = CephVersion{18, 0, 0, 0, ""}
+	// Squid ceph version
+	Squid = CephVersion{19, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Pacific, Quincy}
+	supportedVersions = []CephVersion{Pacific, Quincy, Reef}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
-	unsupportedVersions = []CephVersion{}
+	unsupportedVersions []CephVersion
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
@@ -90,6 +92,8 @@ func (v *CephVersion) ReleaseName() string {
 		return "quincy"
 	case Reef.Major:
 		return "reef"
+	case Squid.Major:
+		return "squid"
 	default:
 		return unknownVersionString
 	}
@@ -178,6 +182,11 @@ func (v *CephVersion) IsQuincy() bool {
 // IsReef checks if the Ceph version is Reef
 func (v *CephVersion) IsReef() bool {
 	return v.isRelease(Reef)
+}
+
+// IsSquid checks if the Ceph version is Squid
+func (v *CephVersion) IsSquid() bool {
+	return v.isRelease(Squid)
 }
 
 // IsAtLeast checks a given Ceph version is at least a given one
