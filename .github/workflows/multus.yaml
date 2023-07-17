@@ -42,7 +42,7 @@ jobs:
           fetch-depth: 0
 
       - name: Create KinD Cluster
-        uses: helm/kind-action@v1.7.0
+        uses: helm/kind-action@v1.8.0
         with:
           config: tests/scripts/multus/kind-config.yaml
           cluster_name: rook-multus-e2e
