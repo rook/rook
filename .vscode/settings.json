@@ -8,8 +8,12 @@
   "go.lintFlags": [
     "--fast"
   ],
-  "python.formatting.provider": "black",
+  "python.formatting.provider": "none",
   "python.linting.pylintEnabled": true,
   "python.linting.enabled": true,
   "markdown.extension.tableFormatter.enabled": false,
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.black-formatter",
+    "editor.formatOnSave": true
+  },
 }
