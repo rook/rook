@@ -186,6 +186,46 @@ object-multisite-pull-realm.yaml (with changes) in the [examples](https://github
 kubectl create -f object-multisite-pull-realm.yaml
 ```
 
+## Scaling a Multisite
+
+Scaling the number of gateways that run the synchronization thread to 2 or more can increase the latency of the
+replication of each S3 object. The recommended way to scale a mutisite configuration is to dissociate the gateway dedicated
+to the synchronization from gateways that serve clients.
+
+The two types of gateways can be deployed by creating two CephObjectStores associated with the same CephObjectZone. The
+objectstore that deploys the gateway dedicated to the synchronization must have `spec.gateway.instances` set to `1`,
+while the objectstore that deploys the client gateways have multiple replicas and should disable the synchronization
+thread on the gateways by setting `spec.gateway.disableMultisiteSyncTraffic` to `true`.
+
+```yaml
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: replication
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 1
+    disableMultisiteSyncTraffic: false
+  zone:
+    name: zone-a
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: clients
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 5
+    disableMultisiteSyncTraffic: true
+  zone:
+    name: zone-a
+```
+
 ## Multisite Cleanup
 
 Multisite configuration must be cleaned up by hand. Deleting a realm/zone group/zone CR will not delete the underlying Ceph realm, zone group, zone, or the pools associated with a zone.

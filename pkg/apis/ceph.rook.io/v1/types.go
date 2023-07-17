@@ -1433,6 +1433,14 @@ type GatewaySpec struct {
 	// +optional
 	Placement Placement `json:"placement,omitempty"`
 
+	// DisableMultisiteSyncTraffic, when true, prevents this object store's gateways from
+	// transmitting multisite replication data. Note that this value does not affect whether
+	// gateways receive multisite replication traffic: see ObjectZone.spec.customEndpoints for that.
+	// If false or unset, this object store's gateways will be able to transmit multisite
+	// replication data.
+	// +optional
+	DisableMultisiteSyncTraffic bool `json:"disableMultisiteSyncTraffic,omitempty"`
+
 	// The annotations-related configuration to add/set on each Pod related object.
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
@@ -1765,6 +1773,10 @@ type ObjectZoneSpec struct {
 	// In many cases, you should set this to the endpoint of the ingress resource that makes the
 	// CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
 	// The list can have one or more endpoints pointing to different RGW servers in the zone.
+	//
+	// If a CephObjectStore endpoint is omitted from this list, that object store's gateways will
+	// not receive multisite replication data
+	// (see CephObjectStore.spec.gateway.disableMultisiteSyncTraffic).
 	// +nullable
 	// +optional
 	CustomEndpoints []string `json:"customEndpoints,omitempty"`
