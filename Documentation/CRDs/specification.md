@@ -8433,7 +8433,31 @@ string
 </tr>
 <tr>
 <td>
+<code>users</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Admin capabilities to read/write Ceph object store users. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
 <code>bucket</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Admin capabilities to read/write Ceph object store buckets. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>buckets</code><br/>
 <em>
 string
 </em>
