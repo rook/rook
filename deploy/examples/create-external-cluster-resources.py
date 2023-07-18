@@ -322,7 +322,9 @@ class RadosJSON:
             "--cluster-name", default="", help="Ceph cluster name"
         )
         common_group.add_argument(
-            "--namespace", default="", help="Namespace where CephCluster is running"
+            "--namespace",
+            default="",
+            help="Namespace where CephCluster is running",
         )
         common_group.add_argument(
             "--rgw-pool-prefix", default="", help="RGW Pool prefix"
