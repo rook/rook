@@ -13,6 +13,7 @@
         "cephfsmirror",
         "ci",
         "core",
+        "cosi",
         "csi",
         "docs",
         "exporter",

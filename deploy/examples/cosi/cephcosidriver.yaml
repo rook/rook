@@ -4,4 +4,4 @@ metadata:
   name: ceph-cosi-driver
   namespace: rook-ceph
 spec:
-  deploymentStrategy: "auto"
+  deploymentStrategy: "Auto"
