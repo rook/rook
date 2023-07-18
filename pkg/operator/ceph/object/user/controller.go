@@ -428,8 +428,14 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 		if user.Spec.Capabilities.User != "" {
 			userConfig.UserCaps += fmt.Sprintf("users=%s;", user.Spec.Capabilities.User)
 		}
+		if user.Spec.Capabilities.Users != "" {
+			userConfig.UserCaps += fmt.Sprintf("users=%s;", user.Spec.Capabilities.Users)
+		}
 		if user.Spec.Capabilities.Bucket != "" {
 			userConfig.UserCaps += fmt.Sprintf("buckets=%s;", user.Spec.Capabilities.Bucket)
+		}
+		if user.Spec.Capabilities.Buckets != "" {
+			userConfig.UserCaps += fmt.Sprintf("buckets=%s;", user.Spec.Capabilities.Buckets)
 		}
 		if user.Spec.Capabilities.MetaData != "" {
 			userConfig.UserCaps += fmt.Sprintf("metadata=%s;", user.Spec.Capabilities.MetaData)
