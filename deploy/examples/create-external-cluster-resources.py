@@ -309,6 +309,9 @@ class RadosJSON:
             "--ceph-conf", "-c", help="Provide a ceph conf file.", type=str
         )
         common_group.add_argument(
+            "--keyring", "-k", help="Path to ceph keyring file.", type=str
+        )
+        common_group.add_argument(
             "--run-as-user",
             "-u",
             default="",
@@ -617,6 +620,7 @@ class RadosJSON:
         self.run_as_user = self._arg_parser.run_as_user
         self.output_file = self._arg_parser.output
         self.ceph_conf = self._arg_parser.ceph_conf
+        self.ceph_keyring = self._arg_parser.keyring
         self.MIN_USER_CAP_PERMISSIONS = {
             "mgr": "allow command config",
             "mon": "allow r, allow command quorum_status, allow command version",
@@ -632,7 +636,10 @@ class RadosJSON:
         if not self._arg_parser.rgw_pool_prefix and not self._arg_parser.upgrade:
             self._arg_parser.rgw_pool_prefix = self.DEFAULT_RGW_POOL_PREFIX
         if self.ceph_conf:
-            self.cluster = rados.Rados(conffile=self.ceph_conf)
+            kwargs = {}
+            if self.ceph_keyring:
+                kwargs["conf"] = {"keyring": self.ceph_keyring}
+            self.cluster = rados.Rados(conffile=self.ceph_conf, **kwargs)
         else:
             self.cluster = rados.Rados()
             self.cluster.conf_read_file()
