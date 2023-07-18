@@ -260,3 +260,16 @@ class TestRadosJSON(unittest.TestCase):
 
         if self.rjObj.out_map["MONITORING_ENDPOINT_PORT"] != "":
             self.fail("MONITORING_ENDPOINT_PORT should be empty")
+
+    def test_v2_port_enable(self):
+        self.rjObj = ext.RadosJSON(
+            ["--rbd-data-pool-name=abc", "--v2-port-enable", "--format=json"]
+        )
+        self.rjObj.cluster = ext.DummyRados.Rados()
+        # for testing, we are using 'DummyRados' object
+        mon_data = self.rjObj.get_ceph_external_mon_data()
+        mon_ip = mon_data.split("=")[1]
+        mon_port = mon_ip.split(":")[-1]
+        if mon_port != "3300":
+            self.fail(f"Expected Port: 3300, Returned Port: {mon_port}")
+        print(f"MonPort: {mon_port}")
