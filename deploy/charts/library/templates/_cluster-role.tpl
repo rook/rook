@@ -86,6 +86,7 @@ rules:
       - cephfilesystemmirrors
       - cephfilesystemsubvolumegroups
       - cephblockpoolradosnamespaces
+      - cephcosidrivers
     verbs:
       - get
       - list

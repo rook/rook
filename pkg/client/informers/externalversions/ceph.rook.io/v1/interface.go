@@ -32,6 +32,8 @@ type Interface interface {
 	CephBucketNotifications() CephBucketNotificationInformer
 	// CephBucketTopics returns a CephBucketTopicInformer.
 	CephBucketTopics() CephBucketTopicInformer
+	// CephCOSIDrivers returns a CephCOSIDriverInformer.
+	CephCOSIDrivers() CephCOSIDriverInformer
 	// CephClients returns a CephClientInformer.
 	CephClients() CephClientInformer
 	// CephClusters returns a CephClusterInformer.
@@ -87,6 +89,11 @@ func (v *version) CephBucketNotifications() CephBucketNotificationInformer {
 // CephBucketTopics returns a CephBucketTopicInformer.
 func (v *version) CephBucketTopics() CephBucketTopicInformer {
 	return &cephBucketTopicInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// CephCOSIDrivers returns a CephCOSIDriverInformer.
+func (v *version) CephCOSIDrivers() CephCOSIDriverInformer {
+	return &cephCOSIDriverInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // CephClients returns a CephClientInformer.
