@@ -14,6 +14,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	appsv1 "k8s.io/api/apps/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -78,11 +79,11 @@ func TestCephCOSIDriverController(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	t.Run("requeue no object store exists", func(t *testing.T) {
+	t.Run("no requeue no object store or cosi driver exists", func(t *testing.T) {
 		r := setupNewEnvironment()
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
-		assert.Equal(t, true, res.Requeue)
+		assert.Equal(t, false, res.Requeue)
 	})
 
 	t.Run("object store exists", func(t *testing.T) {
@@ -98,7 +99,7 @@ func TestCephCOSIDriverController(t *testing.T) {
 		assert.Equal(t, false, res.Requeue)
 		cephCOSIDriverDeployment := &appsv1.Deployment{}
 		err = r.client.Get(ctx, types.NamespacedName{Name: CephCOSIDriverName, Namespace: namespace}, cephCOSIDriverDeployment)
-		assert.NoError(t, err)
+		assert.True(t, kerrors.IsNotFound(err))
 	})
 
 	t.Run("ceph cosi driver CRD with disabled mode without any object stores", func(t *testing.T) {
@@ -215,7 +216,8 @@ func TestCephCOSIDriverController(t *testing.T) {
 				Namespace: namespace,
 			},
 			Spec: cephv1.CephCOSIDriverSpec{
-				Image: "quay.io/ceph/cosi:custom",
+				Image:              "quay.io/ceph/cosi:custom",
+				DeploymentStrategy: cephv1.COSIDeploymentStrategyAuto,
 			},
 		}
 		r := setupNewEnvironment(cephCOSIDriver)
@@ -234,7 +236,8 @@ func TestCephCOSIDriverController(t *testing.T) {
 				Namespace: namespace,
 			},
 			Spec: cephv1.CephCOSIDriverSpec{
-				Image: "quay.io/ceph/cosi:custom",
+				Image:              "quay.io/ceph/cosi:custom",
+				DeploymentStrategy: cephv1.COSIDeploymentStrategyAuto,
 			},
 		}
 		objectStore := &cephv1.CephObjectStore{

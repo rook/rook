@@ -2,24 +2,52 @@
 title: Container Object Storage Interface (COSI)
 ---
 
+The Ceph COSI driver provisions buckets for object storage. This document instructs on enabling the driver and consuming a bucket from a sample application.
 
-## Ceph COSI Driver
+!!! note
+    The Ceph COSI driver is currently in experimental mode.
 
-The Ceph COSI driver will be started automatically with default settings when first CephObjectStore gets created. The driver will be deleted when Rook operator is uninstalled. The driver will be deployed in the same namespace as Rook operator. The [COSI controller](https://github.com/kubernetes-sigs/container-object-storage-interface-controller#readme) must be running as a prerequisite. The COSI controller can be deployed by following the commands below:
+## Prerequisites
+
+COSI requires:
+1. A running Rook [object store](object-storage.md)
+2. [COSI controller](https://github.com/kubernetes-sigs/container-object-storage-interface-controller#readme)
+
+Deploy the COSI controller with these commands:
 
 ```bash
 kubectl apply -k github.com/kubernetes-sigs/container-object-storage-interface-api
 kubectl apply -k github.com/kubernetes-sigs/container-object-storage-interface-controller
 ```
 
+## Ceph COSI Driver
+
+The Ceph COSI driver will be started when the CephCOSIDriver CR is created and when the first CephObjectStore is created.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephCOSIDriver
+metadata:
+  name: ceph-cosi-driver
+  namespace: rook-ceph
+spec:
+  deploymentStrategy: "Auto"
+```
+
+```console
+cd deploy/examples/cosi
+kubectl create -f cephcosidriver.yaml
+```
+
+The driver is created in the same namespace as Rook operator.
+
 ## Admin Operations
 
 ### Create a Ceph Object Store User
 
-First admin need to create CephObjectStoreUser use the following command, this is required for BucketClass and BucketAccessClass:
+Create a CephObjectStoreUser to be used by the COSI driver for provisioning buckets.
 
-```bash
-kubectl -n rook-ceph create -f - <<EOF
+```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStoreUser
 metadata:
@@ -31,7 +59,10 @@ spec:
   capabilities:
     bucket: "*"
     user: "*"
-EOF
+```
+
+```console
+kubectl create -f cosi-user.yaml
 ```
 
 Above step will be automated in future by the Rook operator.
@@ -62,8 +93,7 @@ parameters:
   objectStoreUserSecretNamespace: rook-ceph
 ```
 
-```command
-cd deploy/examples/cosi
+```console
 kubectl create -f bucketclass.yaml -f bucketaccessclass.yaml
 ```
 
