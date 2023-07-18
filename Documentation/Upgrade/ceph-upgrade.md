@@ -2,7 +2,7 @@
 title: Ceph Upgrades
 ---
 
-This guide will walk you through the steps to upgrade the version of Ceph in a Rook cluster.
+This guide will walk through the steps to upgrade the version of Ceph in a Rook cluster.
 Rook and Ceph upgrades are designed to ensure data remains available even while
 the upgrade is proceeding. Rook will perform the upgrades in a rolling fashion
 such that application pods are not disrupted.
@@ -18,41 +18,38 @@ until all the daemons have been updated.
 ## Considerations
 
 * **WARNING**: Upgrading a Rook cluster is not without risk. There may be unexpected issues or
-  obstacles that damage the integrity and health of your storage cluster, including data loss.
+  obstacles that damage the integrity and health of the storage cluster, including data loss.
 * The Rook cluster's storage may be unavailable for short periods during the upgrade process.
-* We recommend that you read this document in full before you undertake a Ceph upgrade.
+* Read this document in full before undertaking a Rook cluster upgrade.
 
 ## Supported Versions
 
 Rook v1.12 supports the following Ceph versions:
 
+* Ceph Reef v18.2.0 or newer
 * Ceph Quincy v17.2.0 or newer
-* Ceph Pacific v16.2.0 or newer
+* Ceph Pacific v16.2.7 or newer
 
-Support for Ceph Octopus (15.2.x) was removed. If you are running Octopus you must upgrade the Ceph version
-before upgrading to Rook v1.12.
+Support for Ceph Pacific (16.2.x) will be removed in the next Rook release. It will be mandatory to
+upgrade to Quincy or Reef before upgrading to the Rook release after v1.12.x.
 
 !!! important
     When an update is requested, the operator will check Ceph's status,
     **if it is in `HEALTH_ERR` the operator will refuse to proceed with the upgrade.**
 
-We recommend updating to v16.2.7 or newer. If you require updating **to v16.2.0-v16.2.6**,
-please see the [v1.8 upgrade guide for a special upgrade consideration](https://rook.github.io/docs/rook/v1.8/ceph-upgrade.html#disable-bluestore_fsck_quick_fix_on_mount).
-
 !!! warning
-    Ceph v17.2.2 has a blocking issue when running with Rook. If you are running Ceph v17, we
-    recommend using v17.2.3 or newer.
+    Ceph v17.2.2 has a blocking issue when running with Rook. Use v17.2.3 or newer when possible.
 
 ### Quincy Consideration
 
 In Ceph Quincy (v17), the `device_health_metrics` pool was renamed to `.mgr`. Ceph will perform this
-migration automatically. If you do not use CephBlockPool to customize the configuration of the
-`device_health_metrics` pool, the pool rename will be automatic.
+migration automatically. The pool rename will be automatically handled by Rook if the configuration
+of the `device_health_metrics` pool is not customized via CephBlockPool.
 
-If you use CephBlockPool to customize the configuration of the `device_health_metrics` pool, you
-will need two extra steps after the Ceph upgrade is complete. Once upgrade is complete:
+If the configuration of the `device_health_metrics` pool is customized via CephBlockPool, two extra
+steps are required after the Ceph upgrade is complete. Once upgrade is complete:
 
-1. Create a new CephBlockPool to configure the `.mgr` built-in pool. You can reference the example
+1. Create a new CephBlockPool to configure the `.mgr` built-in pool. For an example, see
    [builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
 2. Delete the old CephBlockPool that represents the `device_health_metrics` pool.
 
@@ -79,8 +76,8 @@ These images are tagged in a few ways:
 
 #### **1. Update the Ceph daemons**
 
-The upgrade will be automated by the Rook operator after you update the desired Ceph image
-in the cluster CRD (`spec.cephVersion.image`).
+The upgrade will be automated by the Rook operator after the desired Ceph image is changed in the
+CephCluster CRD (`spec.cephVersion.image`).
 
 ```console
 ROOK_CLUSTER_NAMESPACE=rook-ceph
@@ -90,8 +87,8 @@ kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --t
 
 #### **2. Wait for the pod updates**
 
-As with upgrading Rook, you must now wait for the upgrade to complete. Status can be determined in a
-similar way to the Rook upgrade as well.
+As with upgrading Rook, now wait for the upgrade to complete. Status can be determined in a similar
+way to the Rook upgrade as well.
 
 ```console
 watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{.metadata.name}{"  \treq/upd/avl: "}{.spec.replicas}{"/"}{.status.updatedReplicas}{"/"}{.status.readyReplicas}{"  \tceph-version="}{.metadata.labels.ceph-version}{"\n"}{end}'
