@@ -339,6 +339,12 @@ class RadosJSON:
             + "Note: Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users."
             + "So apply these secrets only to new `Consumer cluster` deployment while using the same `Source cluster`.",
         )
+        common_group.add_argument(
+            "--v2-port-enable",
+            action="store_true",
+            default=False,
+            help="Enable v2 mon port(3300) for mons",
+        )
 
         output_group = argP.add_argument_group("output")
         output_group.add_argument(
@@ -701,8 +707,20 @@ class RadosJSON:
             raise ExecutionFailureException(
                 "Only 'v2' address type is enabled, user should also enable 'v1' type as well"
             )
-        ip_port = str(q_leader_details["public_addr"].split("/")[0])
-        return f"{str(q_leader_name)}={ip_port}"
+        ip_addr = str(q_leader_details["public_addr"].split("/")[0])
+
+        if self._arg_parser.v2_port_enable:
+            if len(q_leader_addrvec) > 1:
+                if q_leader_addrvec[0]["type"] == "v2":
+                    ip_addr = q_leader_addrvec[0]["addr"]
+                elif q_leader_addrvec[1]["type"] == "v2":
+                    ip_addr = q_leader_addrvec[1]["addr"]
+            else:
+                sys.stderr.write(
+                    "'v2' address type not present, and 'v2-port-enable' flag is provided"
+                )
+
+        return f"{str(q_leader_name)}={ip_addr}"
 
     def _convert_hostname_to_ip(self, host_name, port, ip_type):
         # if 'cluster' instance is a dummy type,

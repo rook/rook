@@ -212,6 +212,11 @@ jobs:
             echo "script failed because wrong realm was passed"
           fi
 
+      - name: test enable v2 mon port
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 
@@ -1291,7 +1296,6 @@ jobs:
           name: multi-cluster-mirroring
 
 
-
   rgw-multisite-testing:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -1319,7 +1323,6 @@ jobs:
         with:
           name: rgw-multisite-testing
           path: test
-
 
 
   encryption-pvc-kms-ibm-kp:
@@ -1352,7 +1355,6 @@ jobs:
         with:
           name: encryption-pvc-kms-ibm-kp
           path: test
-
 
 
   multus-cluster-network:
@@ -1432,7 +1434,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary-multus
-
 
 
   csi-hostnetwork-disabled:
