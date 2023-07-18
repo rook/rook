@@ -125,14 +125,22 @@ func (r *ReconcileCephCOSIDriver) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephCOSIDriver, errors.Wrapf(err, "failed to get Ceph COSI Driver %s", request.NamespacedName)
 	}
 
-	cosiDeploymentStrategy := cephv1.COSIDeploymentStrategyAuto
+	// While in experimental mode, the COSI driver is not enabled by default
+	cosiDeploymentStrategy := cephv1.COSIDeploymentStrategyNever
+
+	// Get the setting from the CephCOSIDriver CR if exists
 	if !reflect.DeepEqual(cephCOSIDriver.Spec, cephv1.CephCOSIDriverSpec{}) && cephCOSIDriver.Spec.DeploymentStrategy != "" {
 		cosiDeploymentStrategy = cephCOSIDriver.Spec.DeploymentStrategy
 	}
+
 	if cosiDeploymentStrategy == cephv1.COSIDeploymentStrategyNever {
-		logger.Info("Ceph COSI Driver is disabled, delete if exists")
+		logger.Debug("Ceph COSI Driver is disabled, delete if exists")
 		cephCOSIDriverDeployment := &appsv1.Deployment{}
 		err = r.client.Get(r.opManagerContext, request.NamespacedName, cephCOSIDriverDeployment)
+		if kerrors.IsNotFound(err) {
+			// nothing to delete
+			return reconcile.Result{}, *cephCOSIDriver, nil
+		}
 		if err != nil && client.IgnoreNotFound(err) != nil {
 			return reconcile.Result{}, *cephCOSIDriver, errors.Wrap(err, "failed to get Ceph COSI Driver Deployment")
 		}
