@@ -4,6 +4,7 @@ set -e
 ##############
 # VARIABLES #
 #############
+NAMESPACE=${NAMESPACE:="rook-ceph-external"}
 MON_SECRET_NAME=rook-ceph-mon
 RGW_ADMIN_OPS_USER_SECRET_NAME=rgw-admin-ops-user
 MON_SECRET_CLUSTER_NAME_KEYNAME=cluster-name
@@ -63,6 +64,17 @@ function checkEnvVars() {
   if [[ "$ROOK_EXTERNAL_ADMIN_SECRET" != "admin-secret" ]] && [ -n "$ROOK_EXTERNAL_USER_SECRET" ]; then
     echo "Providing both ROOK_EXTERNAL_ADMIN_SECRET and ROOK_EXTERNAL_USER_SECRET is not supported, choose one only."
     exit 1
+  fi
+}
+
+function createClusterNamespace() {
+  if ! kubectl get namespace "$NAMESPACE" &>/dev/null; then
+    kubectl \
+      create \
+      namespace \
+      "$NAMESPACE"
+  else
+    echo "cluster namespace $NAMESPACE already exists"
   fi
 }
 
@@ -270,6 +282,7 @@ eof
 # MAIN #
 ########
 checkEnvVars
+createClusterNamespace
 importClusterID
 importSecret
 importConfigMap
