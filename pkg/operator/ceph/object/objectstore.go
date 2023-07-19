@@ -542,14 +542,19 @@ func setMultisite(objContext *Context, store *cephv1.CephObjectStore, zone *ceph
 
 	if store.Spec.IsMultisite() {
 		if zone != nil && len(zone.Spec.CustomEndpoints) == 0 {
+			// get list of endpoints not including the endpoint of the object-store for the zone
 			zoneEndpointsList, isEndpointAlreadyExists, err := getZoneEndpoints(objContext, objContext.Endpoint)
 			if err != nil {
 				return err
 			}
 
-			// If endpoint already exists in zone, no need to update
-			if !isEndpointAlreadyExists {
-				zoneEndpointsList = append(zoneEndpointsList, objContext.Endpoint)
+			// There is no need to update the Zone endpoints when:
+			//  - the zone does not have the endpoint and the synchronization is disabled on the objectstore
+			//  - the zone already have the endpoint and the synchronization is enabled
+			if isEndpointAlreadyExists == store.Spec.Gateway.DisableMultisiteSyncTraffic {
+				if !isEndpointAlreadyExists {
+					zoneEndpointsList = append(zoneEndpointsList, objContext.Endpoint)
+				}
 
 				zoneEndpoints := strings.Join(zoneEndpointsList, ",")
 				logger.Debugf("Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
@@ -562,7 +567,10 @@ func setMultisite(objContext *Context, store *cephv1.CephObjectStore, zone *ceph
 			}
 		}
 	} else {
-		endpointArg := fmt.Sprintf("--endpoints=%s", objContext.Endpoint)
+		var endpointArg string
+		if !store.Spec.Gateway.DisableMultisiteSyncTraffic {
+			endpointArg = fmt.Sprintf("--endpoints=%s", objContext.Endpoint)
+		}
 		err := createMultisite(objContext, endpointArg)
 		if err != nil {
 			return errorOrIsNotFound(err, "failed create ceph multisite for object-store %q", objContext.Name)
