@@ -293,7 +293,7 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", FlattenMonEndpoints(c.ClusterInfo.Monitors))
+	logger.Debugf("mon endpoints used are: %s", flattenMonEndpoints(c.ClusterInfo.Monitors))
 
 	// reconcile mon PDB
 	if err := c.reconcileMonPDB(); err != nil {
@@ -1125,7 +1125,7 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey: FlattenMonEndpoints(c.ClusterInfo.Monitors),
+		EndpointDataKey: flattenMonEndpoints(c.ClusterInfo.Monitors),
 		// persist the maxMonID that was previously stored in the configmap. We are likely saving info
 		// about scheduling of the mons, but we only want to update the maxMonID once a new mon has
 		// actually been started. If the operator is restarted or the reconcile is otherwise restarted,
