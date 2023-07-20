@@ -27,7 +27,7 @@ import (
 
 const (
 	defaultCOSISideCarImage    = "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20230130-v0.1.0-24-gc0cf995"
-	defaultCephCOSIDriverImage = "quay.io/ceph/cosi:v0.1.0"
+	defaultCephCOSIDriverImage = "quay.io/ceph/cosi:v0.1.1"
 )
 
 func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*appsv1.Deployment, error) {
