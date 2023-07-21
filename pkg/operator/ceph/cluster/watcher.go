@@ -208,7 +208,7 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 		return nil
 	}
 
-	logger.Info("node %q require fencing, found rbd volumes in use", node.Name)
+	logger.Infof("node %q require fencing, found rbd volumes in use", node.Name)
 	listPVs, err := c.context.Clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return pkgerror.Wrapf(err, "failed to list PV")
@@ -262,11 +262,22 @@ func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster
 	var listRbdPV []corev1.PersistentVolume
 
 	for _, pv := range listPVs.Items {
-		// Ignore PVs that support multinode access (RWX, ROX), since they can be mounted on multiple nodes.
-		if pvSupportsMultiNodeAccess(pv.Spec.AccessModes) {
+		// Skip if pv is not provisioned by CSI
+		if pv.Spec.CSI == nil {
+			logger.Debugf("pv %q is not provisioned by CSI", pv.Name)
 			continue
 		}
+
 		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace) {
+			// Ignore PVs that support multinode access (RWX, ROX), since they can be mounted on multiple nodes.
+			if pvSupportsMultiNodeAccess(pv.Spec.AccessModes) {
+				continue
+			}
+			if pv.Spec.CSI.VolumeAttributes["staticVolume"] == "true" || pv.Spec.CSI.VolumeAttributes["pool"] == "" || pv.Spec.CSI.VolumeAttributes["imageName"] == "" {
+				logger.Debugf("skipping, static pv %q", pv.Name)
+				continue
+			}
+
 			for _, rbdVolume := range rbdVolumesInUse {
 				if pv.Spec.CSI.VolumeHandle == rbdVolume {
 					listRbdPV = append(listRbdPV, pv)
