@@ -5,6 +5,7 @@ set -x
 # User parameters
 : "${CLUSTER_NAMESPACE:="rook-ceph"}"
 : "${OPERATOR_NAMESPACE:="$CLUSTER_NAMESPACE"}"
+: "${KUBE_SYSTEM_NAMESPACE:="kube-system"}"
 : "${LOG_DIR:="test"}"
 
 LOG_DIR="${LOG_DIR%/}" # remove trailing slash if necessary
@@ -17,6 +18,7 @@ $CEPH_CMD osd dump >"${LOG_DIR}"/ceph-osd-dump.txt
 $CEPH_CMD report >"${LOG_DIR}"/ceph-report.txt
 
 NAMESPACES=("$CLUSTER_NAMESPACE")
+NAMESPACES+=("$KUBE_SYSTEM_NAMESPACE")
 if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
   NAMESPACES+=("$OPERATOR_NAMESPACE")
 fi
