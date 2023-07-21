@@ -170,7 +170,7 @@ func (f *FilesystemOperation) CreateSubvolumeGroup(fsName, groupName string) err
 		return err
 	}
 
-	err = f.k8sh.WaitForStatusPhase(namespace, "CephFilesystemSubVolumeGroup", groupName, "Ready", 15*time.Second)
+	err = f.k8sh.WaitForStatusPhase(namespace, "CephFilesystemSubVolumeGroup", groupName, "Ready", 30*time.Second)
 	if err != nil {
 		return err
 	}
