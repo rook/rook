@@ -180,6 +180,7 @@ If not installing with Helm, here are the steps to install with manifests.
 ### Connect to an External Object Store
 
 Create the object store resources:
+
 1. Create the [external object store CR](https://github.com/rook/rook/blob/master/deploy/examples/object-external.yaml) to configure connection to external gateways.
 2. Create an [Object store user](https://github.com/rook/rook/blob/master/deploy/examples/object-user.yaml) for credentials to access the S3 endpoint.
 3. Create a [bucket storage class](https://github.com/rook/rook/blob/master/deploy/examples/storageclass-bucket-delete.yaml) where a client can request creating buckets.
