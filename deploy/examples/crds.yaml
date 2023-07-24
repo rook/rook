@@ -1352,6 +1352,8 @@ spec:
                       maximum: 9
                       minimum: 0
                       type: integer
+                    failureDomainLabel:
+                      type: string
                     stretchCluster:
                       description: StretchCluster is the stretch cluster specification
                       properties:
@@ -1932,7 +1934,7 @@ spec:
                                             - type: string
                                           pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
                                           x-kubernetes-int-or-string: true
-                                        description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
+                                        description: 'Requests describes the minimum amount of compute resources required. If Requests is omitted for a container, it defaults to Limits if that is explicitly specified, otherwise to an implementation-defined value. Requests cannot exceed Limits. More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/'
                                         type: object
                                     type: object
                                   selector:
@@ -2005,7 +2007,7 @@ spec:
                                   conditions:
                                     description: conditions is the current Condition of persistent volume claim. If underlying persistent volume is being resized then the Condition will be set to 'ResizeStarted'.
                                     items:
-                                      description: PersistentVolumeClaimCondition contails details about state of pvc
+                                      description: PersistentVolumeClaimCondition contains details about state of pvc
                                       properties:
                                         lastProbeTime:
                                           description: lastProbeTime is the time we probed the condition.
