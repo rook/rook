@@ -25,7 +25,11 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+<<<<<<< HEAD
       - uses: wagoid/commitlint-github-action@v5.3.0
+=======
+      - uses: wagoid/commitlint-github-action@v5.4.3
+>>>>>>> d5f5f0b64 (build(deps): bump wagoid/commitlint-github-action from 5.4.1 to 5.4.3)
         with:
           configFile: "./.commitlintrc.json"
           helpURL: https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure
