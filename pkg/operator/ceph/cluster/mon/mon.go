@@ -322,6 +322,10 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 }
 
 func (c *Cluster) getArbiterZone() string {
+	if !c.spec.IsStretchCluster() {
+		return ""
+	}
+
 	for _, zone := range c.spec.Mon.StretchCluster.Zones {
 		if zone.Arbiter {
 			return zone.Name
@@ -530,7 +534,7 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig, error) {
 		c.maxMonID++
 		zone, err := c.findAvailableZone(mons)
 		if err != nil {
-			return existingCount, mons, errors.Wrap(err, "stretch zone not available")
+			return existingCount, mons, errors.Wrap(err, "zone not available")
 		}
 		mons = append(mons, c.newMonConfig(c.maxMonID, zone))
 	}

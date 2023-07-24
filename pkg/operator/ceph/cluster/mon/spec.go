@@ -56,7 +56,7 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 			labels["pvc_size"] = size.String()
 		}
 		if monConfig.Zone != "" {
-			labels["stretch-zone"] = monConfig.Zone
+			labels["zone"] = monConfig.Zone
 		}
 	}
 
@@ -73,13 +73,11 @@ func (c *Cluster) getFailureDomainName() string {
 }
 
 func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
-	if spec.Mon.StretchCluster.FailureDomainLabel != "" {
+
+	if spec.IsStretchCluster() && spec.Mon.StretchCluster.FailureDomainLabel != "" {
 		return spec.Mon.StretchCluster.FailureDomainLabel
 	}
-	if spec.Mon.FailureDomainLabel != "" {
-		logger.Infof("the failure domain for mon zone is set to %s", spec.Mon.FailureDomainLabel)
-		return spec.Mon.FailureDomainLabel
-	}
+
 	// The default topology label is for a zone
 	return corev1.LabelZoneFailureDomainStable
 }
