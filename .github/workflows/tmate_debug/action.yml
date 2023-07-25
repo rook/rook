@@ -1,0 +1,23 @@
+name: "Tmate debugging tests"
+description: "Setup tmate session if the test fails"
+inputs:
+  use-tmate:
+    description: "boolean for enabling TMATE"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: consider debugging
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+        if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ inputs.use-tmate }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+          echo USE_TMATE=1 >> $GITHUB_ENV
+        fi
+
+    - name: set up tmate session for debugging
+      if: env.USE_TMATE
+      uses: mxschmitt/action-tmate@v3
+      with:
+        limit-access-to-actor: false
+        detached: true
