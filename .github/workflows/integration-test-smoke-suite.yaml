@@ -29,6 +29,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -55,6 +60,7 @@ jobs:
         with:
           name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-versions }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+<<<<<<< HEAD
 
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
@@ -68,3 +74,5 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)

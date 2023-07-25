@@ -31,6 +31,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -219,6 +224,7 @@ jobs:
         with:
           name: canary
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -231,6 +237,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   raw-disk:
     runs-on: ubuntu-20.04
@@ -240,6 +248,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -279,6 +292,7 @@ jobs:
         with:
           name: canary
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -291,6 +305,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   two-osds-in-device:
     runs-on: ubuntu-20.04
@@ -300,6 +316,10 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -333,6 +353,7 @@ jobs:
         with:
           name: canary
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -345,6 +366,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
@@ -354,6 +377,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -393,6 +421,7 @@ jobs:
         with:
           name: canary
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -405,6 +434,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   encryption:
     runs-on: ubuntu-20.04
@@ -414,6 +445,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -447,11 +483,6 @@ jobs:
         with:
           name: canary
 
-      - name: setup tmate session for debugging when event is PR
-        if: failure() && github.event_name == 'pull_request'
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
-
   lvm:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -460,6 +491,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -498,6 +534,7 @@ jobs:
         with:
           name: canary
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -510,6 +547,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   pvc:
     runs-on: ubuntu-20.04
@@ -519,6 +558,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -578,6 +622,7 @@ jobs:
         with:
           name: pvc
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -590,6 +635,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   pvc-db:
     runs-on: ubuntu-20.04
@@ -599,6 +646,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -634,6 +686,7 @@ jobs:
         with:
           name: pvc-db
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -646,6 +699,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -655,6 +710,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -693,6 +753,7 @@ jobs:
         with:
           name: pvc-db-wal
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -705,6 +766,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   encryption-pvc:
     runs-on: ubuntu-20.04
@@ -714,6 +777,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -764,6 +832,7 @@ jobs:
         with:
           name: encryption-pvc
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -776,6 +845,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   encryption-pvc-db:
     runs-on: ubuntu-20.04
@@ -785,6 +856,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -822,6 +898,7 @@ jobs:
         with:
           name: encryption-pvc-db
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -834,6 +911,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -843,6 +922,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -890,6 +974,7 @@ jobs:
         with:
           name: encryption-pvc-db-wal
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -902,6 +987,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-20.04
@@ -911,6 +998,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -979,6 +1071,7 @@ jobs:
         with:
           name: encryption-pvc-kms-vault-token-auth
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -991,6 +1084,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-20.04
@@ -1000,6 +1095,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1048,6 +1148,7 @@ jobs:
         with:
           name: encryption-pvc-kms-vault-k8s-auth
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -1060,6 +1161,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   lvm-pvc:
     runs-on: ubuntu-20.04
@@ -1069,6 +1172,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1109,6 +1217,7 @@ jobs:
         with:
           name: lvm-pvc
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -1121,6 +1230,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
@@ -1130,6 +1241,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1371,6 +1487,7 @@ jobs:
         with:
           name: multi-cluster-mirroring
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -1378,6 +1495,8 @@ jobs:
           if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
             echo USE_TMATE=1 >> $GITHUB_ENV
           fi
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
@@ -1393,6 +1512,12 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: run RGW multisite test
         uses: ./.github/workflows/rgw-multisite-test
         with:
@@ -1406,6 +1531,7 @@ jobs:
           name: rgw-multisite-testing
           path: test
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -1413,6 +1539,8 @@ jobs:
           if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
             echo USE_TMATE=1 >> $GITHUB_ENV
           fi
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
@@ -1425,6 +1553,12 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: run encryption KMS IBM Key Protect
         uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
@@ -1444,6 +1578,7 @@ jobs:
           name: encryption-pvc-kms-ibm-kp
           path: test
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -1451,6 +1586,8 @@ jobs:
           if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
             echo USE_TMATE=1 >> $GITHUB_ENV
           fi
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
@@ -1465,6 +1602,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup golang
         uses: actions/setup-go@v3
@@ -1529,6 +1672,7 @@ jobs:
         with:
           name: canary-multus
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
         run: |
@@ -1536,6 +1680,8 @@ jobs:
           if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ secrets.USE_TMATE }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
             echo USE_TMATE=1 >> $GITHUB_ENV
           fi
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
       - name: set up tmate session for debugging
         if: failure() && env.USE_TMATE
@@ -1550,6 +1696,12 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1587,6 +1739,7 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: csi-hostnetwork-disabled
+<<<<<<< HEAD
 
       - name: consider debugging
         if: failure() && github.event_name == 'pull_request'
@@ -1600,3 +1753,5 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)

@@ -25,7 +25,16 @@ jobs:
         with:
           fetch-depth: 0
 
+<<<<<<< HEAD
       - uses: actions/setup-go@v3
+=======
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - uses: actions/setup-go@v4
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
         with:
           go-version: 1.19
 
@@ -71,6 +80,7 @@ jobs:
       - name: validate gen-rbac
         run: tests/scripts/validate_modified_files.sh gen-rbac
 
+<<<<<<< HEAD
       - name: consider debugging
         if: failure()
         run: |
@@ -83,6 +93,8 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
 
   linux-build-all:
     runs-on: ubuntu-20.04
@@ -97,6 +109,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup golang ${{ matrix.go-version }}
         uses: actions/setup-go@v3
         with:
@@ -110,6 +127,7 @@ jobs:
       - name: build.all rook with go ${{ matrix.go-version }}
         run: |
           tests/scripts/github-action-helper.sh build_rook_all
+<<<<<<< HEAD
 
       - name: consider debugging
         if: failure()
@@ -123,3 +141,5 @@ jobs:
         if: failure() && env.USE_TMATE
         uses: mxschmitt/action-tmate@v3
         timeout-minutes: 60
+=======
+>>>>>>> f171e1c03 (ci: add detached mode in tmate)
