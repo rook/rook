@@ -25,6 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - uses: actions/setup-go@v4
         with:
           go-version: "1.20"
@@ -75,10 +80,3 @@ jobs:
           GITHUB_REF: $ {{ env.GITHUB_REF }}
         run: |
           tests/scripts/build-release.sh
-
-      - name: consider debugging
-        if: failure()
-        timeout-minutes: 60
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
