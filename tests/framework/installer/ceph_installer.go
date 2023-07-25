@@ -61,6 +61,11 @@ const (
 [global]
 osd_pool_default_size = 1
 bdev_flock_retry = 20
+mon_warn_on_pool_no_redundancy = false
+bluefs_buffered_io = false
+mon_data_avail_warn = 10
+[mon]
+mon compact on start = true
 `
 	volumeReplicationVersion = "v0.5.0"
 )
