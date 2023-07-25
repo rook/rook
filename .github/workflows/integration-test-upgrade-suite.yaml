@@ -32,6 +32,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -59,11 +64,6 @@ jobs:
           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-      - name: setup tmate session for debugging when event is PR
-        if: failure() && github.event_name == 'pull_request'
-        uses: mxschmitt/action-tmate@v3
-        timeout-minutes: 60
-
   TestHelmUpgradeSuite:
     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     runs-on: ubuntu-20.04
@@ -76,6 +76,11 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
@@ -106,10 +111,3 @@ jobs:
         with:
           name: ceph-upgrade-helm-suite-artifact-${{ matrix.kubernetes-versions }}
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-      - name: consider debugging
-        if: failure() && github.event_name == 'pull_request'
-        timeout-minutes: 60
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
