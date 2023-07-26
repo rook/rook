@@ -28,6 +28,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -131,6 +132,7 @@ func addOSDConfigFlags(command *cobra.Command) {
 	command.Flags().BoolVar(&cfg.storeConfig.EncryptedDevice, "encrypted-device", false, "whether to encrypt the OSD with dmcrypt")
 	command.Flags().StringVar(&cfg.storeConfig.DeviceClass, "osd-crush-device-class", "", "The device class for all OSDs configured on this node")
 	command.Flags().StringVar(&cfg.storeConfig.InitialWeight, "osd-crush-initial-weight", "", "The initial weight of OSD in TiB units")
+	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store-type", string(cephv1.StoreTypeBlueStore), "the osd store type such as bluestore")
 }
 
 func init() {

@@ -328,6 +328,8 @@ func TestConfigureCVDevices(t *testing.T) {
 		cephConfigDir = originalCephConfigDir
 	}()
 
+	os.Setenv(oposd.OSDStoreTypeVarName, "bluestore")
+
 	nodeName := "set1-data-0-rpf2k"
 	mountedDev := "/mnt/" + nodeName
 	mapperDev := "/dev/mapper/rook--vg-rook--lv1"
@@ -385,7 +387,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			Context:     context.TODO(),
 		}
 		context := &clusterd.Context{Executor: executor, ConfigDir: cephConfigDir}
-		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true, storeConfig: config.StoreConfig{DeviceClass: "myds"}}
+		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true, storeConfig: config.StoreConfig{DeviceClass: "myds", StoreType: "bluestore"}}
 		devices := createPVCAvailableDevices()
 		deviceOSDs, err := agent.configureCVDevices(context, devices)
 		assert.Nil(t, err)
@@ -438,7 +440,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}, // It supports raw mode OSD
 			FSID:        clusterFSID,
 		}
-		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true}
+		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		devices := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 
 		deviceOSDs, err := agent.configureCVDevices(context, devices)
@@ -509,7 +511,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0}, // It supports raw mode OSD
 			FSID:        clusterFSID,
 		}
-		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true}
+		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, pvcBacked: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		devices := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 
 		deviceOSDs, err := agent.configureCVDevices(context, devices)
@@ -562,7 +564,7 @@ func TestConfigureCVDevices(t *testing.T) {
 			CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 1}, // It supports raw mode OSD
 			FSID:        clusterFSID,
 		}
-		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass"}}
+		agent := &OsdAgent{clusterInfo: clusterInfo, nodeName: nodeName, storeConfig: config.StoreConfig{DeviceClass: "myclass", StoreType: "bluestore"}}
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
 				"vdb1": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/vdb1"}, DeviceInfo: &sys.LocalDisk{Type: sys.PartType}},
@@ -632,6 +634,7 @@ func testBaseArgs(args []string) error {
 }
 
 func TestInitializeBlock(t *testing.T) {
+	os.Setenv(oposd.OSDStoreTypeVarName, "bluestore")
 	// Common vars for all the tests
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -663,7 +666,7 @@ func TestInitializeBlock(t *testing.T) {
 
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1"}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 
 		err := a.initializeDevicesLVMMode(context, devices)
@@ -695,7 +698,7 @@ func TestInitializeBlock(t *testing.T) {
 
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{EncryptedDevice: true}}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{EncryptedDevice: true, StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 
 		err := a.initializeDevicesLVMMode(context, devices)
@@ -727,7 +730,7 @@ func TestInitializeBlock(t *testing.T) {
 
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{OSDsPerDevice: 3}}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{OSDsPerDevice: 3, StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 
 		err := a.initializeDevicesLVMMode(context, devices)
@@ -759,7 +762,7 @@ func TestInitializeBlock(t *testing.T) {
 
 			return errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{DeviceClass: "hybrid"}}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{DeviceClass: "hybrid", StoreType: "bluestore"}}
 		context := &clusterd.Context{Executor: executor}
 		err := a.initializeDevicesLVMMode(context, devices)
 		assert.NoError(t, err, "failed crush device class test")
@@ -813,7 +816,7 @@ func TestInitializeBlock(t *testing.T) {
 
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1"}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{
 			Executor: executor,
 			Devices: []*sys.LocalDisk{
@@ -878,7 +881,7 @@ func TestInitializeBlock(t *testing.T) {
 
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1"}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{
 			Executor: executor,
 			Devices: []*sys.LocalDisk{
@@ -962,7 +965,8 @@ func TestInitializeBlock(t *testing.T) {
 			clusterInfo: &cephclient.ClusterInfo{
 				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
 			},
-			nodeName: "node1",
+			nodeName:    "node1",
+			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
 		context := &clusterd.Context{Executor: executor,
 			Devices: []*sys.LocalDisk{
@@ -1043,7 +1047,8 @@ func TestInitializeBlock(t *testing.T) {
 			clusterInfo: &cephclient.ClusterInfo{
 				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
 			},
-			nodeName: "node1",
+			nodeName:    "node1",
+			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
 		context := &clusterd.Context{Executor: executor,
 			Devices: []*sys.LocalDisk{
@@ -1086,7 +1091,8 @@ func TestInitializeBlock(t *testing.T) {
 			clusterInfo: &cephclient.ClusterInfo{
 				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
 			},
-			nodeName: "node1",
+			nodeName:    "node1",
+			storeConfig: config.StoreConfig{StoreType: "bluestore"},
 		}
 		context := &clusterd.Context{Executor: executor,
 			Devices: []*sys.LocalDisk{
@@ -1126,7 +1132,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a := &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
+	a := &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -1158,7 +1164,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}},
@@ -1201,7 +1207,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a := &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
+	a := &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 
 	devices := &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -1233,7 +1239,7 @@ func TestInitializeBlockPVCWithMetadata(t *testing.T) {
 	clusterInfo = &cephclient.ClusterInfo{
 		CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 0},
 	}
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1"}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
@@ -1459,7 +1465,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}}, nodeName: "node1"}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 15, Minor: 2, Extra: 10}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{
 			Executor: executor,
 			Devices: []*sys.LocalDisk{
@@ -1512,7 +1518,7 @@ func TestInitializeBlockWithMD(t *testing.T) {
 
 			return "", errors.Errorf("unknown command %s %s", command, args)
 		}
-		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 4}}, nodeName: "node1"}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 4}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 		context := &clusterd.Context{
 			Executor: executor,
 			Devices: []*sys.LocalDisk{

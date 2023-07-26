@@ -835,7 +835,6 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		walDeviceEnvVar(osdInfo.WalPath),
 		v1.EnvVar{Name: "ROOK_OSD_ID", Value: osdID},
 	)
-	osdStore := "--bluestore"
 
 	// Build empty dir osd path to something like "/var/lib/ceph/osd/ceph-0"
 	activateOSDMountPathID := activateOSDMountPath + osdID
@@ -853,11 +852,13 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		volMounts = append(volMounts, getPvcOSDBridgeMount(osdProps.pvc.ClaimName))
 	}
 
+	osdStoreFlag := c.spec.Storage.GetOSDStoreFlag()
+
 	container := &v1.Container{
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDOnNodeCode, c.clusterInfo.FSID, osdInfo.UUID, osdStore, osdInfo.CVMode, blockPathVarName),
+			fmt.Sprintf(activateOSDOnNodeCode, c.clusterInfo.FSID, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,

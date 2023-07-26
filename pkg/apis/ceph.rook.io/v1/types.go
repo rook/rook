@@ -2587,6 +2587,16 @@ type StorageScopeSpec struct {
 	// +nullable
 	// +optional
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
+	// +optional
+	Store OSDStore `json:"store,omitempty"`
+}
+
+// OSDStore is the backend storage type used for creating the OSDs
+type OSDStore struct {
+	// Type of backend storage to be used while creating OSDs. If empty, then bluestore will be used
+	// +optional
+	// +kubebuilder:validation:Enum=bluestore;bluestore-rdr;
+	Type string `json:"type,omitempty"`
 }
 
 // Node is a storage nodes
