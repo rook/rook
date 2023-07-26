@@ -173,6 +173,11 @@ spec:
         version: v1
         displayName: Ceph BlockPool Rados Namespace
         description: Represents a Ceph BlockPool Rados Namespace.
+      - kind: CephCOSIDriver
+        name: cephcosidrivers.ceph.rook.io
+        version: v1
+        displayName: Ceph COSI Driver
+        description: Represents a Ceph COSI Driver.
   displayName: Rook-Ceph
   description: |
 
