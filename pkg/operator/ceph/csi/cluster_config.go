@@ -28,6 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -100,6 +101,21 @@ func formatCsiClusterConfig(cc csiClusterConfig) (string, error) {
 		return "", errors.Wrap(err, "failed to marshal csi cluster config")
 	}
 	return string(ccJson), nil
+}
+
+func UpdateMonEndpointConfig(clientset kubernetes.Interface, namespace string, monEndpoints []string) error {
+	ctx := context.TODO()
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, controller.EndpointConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to get mon endpoints configmap")
+	}
+
+	cm.Data["data"] = strings.Join(monEndpoints, ",")
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrap(err, "failed to update mon endpoints configmap with v2 port")
+	}
+	return nil
 }
 
 func MonEndpoints(mons map[string]*cephclient.MonInfo, requireMsgr2 bool) []string {

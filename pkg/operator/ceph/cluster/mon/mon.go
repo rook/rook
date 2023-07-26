@@ -1082,7 +1082,9 @@ func (c *Cluster) saveMonConfig() error {
 	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, &csi.CsiClusterConfigEntry{Namespace: c.ClusterInfo.Namespace, Monitors: monEndpoints}); err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
-
+	if err := csi.UpdateMonEndpointConfig(c.context.Clientset, c.Namespace, monEndpoints); err != nil {
+		return errors.Wrap(err, "failed to update mon endpoint config")
+	}
 	return nil
 }
 

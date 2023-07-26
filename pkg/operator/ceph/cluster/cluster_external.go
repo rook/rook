@@ -118,6 +118,10 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
+	err = csi.UpdateMonEndpointConfig(c.context.Clientset, c.namespacedName.Namespace, monEndpoints)
+	if err != nil {
+		return errors.Wrap(err, "failed to update mon endpoint config")
+	}
 	logger.Info("successfully updated csi config map")
 
 	// Create Crash Collector Secret
