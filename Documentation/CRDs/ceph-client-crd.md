@@ -108,7 +108,7 @@ With this config, the ceph tools (`ceph` CLI, in-program access, etc) can connec
 
 ## Use Case: SQLite
 
-The Ceph project contains a [SQLite VFS][sqlite-vfs] that interacts with RBD directly, called [`libcephsqlite`][libcephsqlite].
+The Ceph project contains a [SQLite VFS][sqlite-vfs] that interacts with RADOS directly, called [`libcephsqlite`][libcephsqlite].
 
 First, on your workload ensure that you have the appropriate packages installed that make `libcephsqlite.so` available:
 
@@ -137,7 +137,7 @@ sqlite>
 
 If those lines complete without error, you have successfully set up SQLite to access Ceph.
 
-See [the libcephsqlite documentation][libcephsqlite] for more information on the file URL format.
+See [the libcephsqlite documentation][libcephsqlite] for more information on the VFS and database URL format.
 
 [libcephsqlite]: https://docs.ceph.com/en/latest/rados/api/libcephsqlite/
 [sqlite-vfs]: https://www.sqlite.org/vfs.html
