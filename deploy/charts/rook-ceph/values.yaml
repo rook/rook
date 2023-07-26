@@ -463,6 +463,8 @@ csi:
     enabled: false
     # -- Service monitor scrape interval
     interval: 5s
+    # -- ServiceMonitor additional labels
+    labels: {}
 
   # -- Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag)
   # @default -- `/var/lib/kubelet`
