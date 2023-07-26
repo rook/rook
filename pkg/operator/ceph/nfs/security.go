@@ -61,7 +61,7 @@ func addSSSDConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.PodSp
 	sidecarCfg := nfs.Spec.Security.SSSD.Sidecar
 	if sidecarCfg != nil {
 		logger.Debugf("configuring SSSD sidecar for CephNFS %q", nsName)
-		init, sidecar, vols, mounts := generateSssdSidecarResources(sidecarCfg)
+		init, sidecar, vols, mounts := generateSssdSidecarResources(nfs, sidecarCfg)
 
 		pod.InitContainers = append(pod.InitContainers, *init)
 		pod.Containers = append(pod.Containers, *sidecar)
@@ -98,7 +98,7 @@ func addKerberosConfigsToPod(r *ReconcileCephNFS, nfs *cephv1.CephNFS, pod *v1.P
 	}
 }
 
-func generateSssdSidecarResources(sidecarCfg *cephv1.SSSDSidecar) (
+func generateSssdSidecarResources(nfs *cephv1.CephNFS, sidecarCfg *cephv1.SSSDSidecar) (
 	init *v1.Container,
 	sidecar *v1.Container,
 	volumes []v1.Volume, // add these volumes to the pod
@@ -147,6 +147,33 @@ func generateSssdSidecarResources(sidecarCfg *cephv1.SSSDSidecar) (
 	genericVols, genericMounts := generateGenericFileVolsAndMounts(sidecarCfg.AdditionalFiles)
 	volumes = append(volumes, genericVols...)
 	sssdMounts = append(sssdMounts, genericMounts...)
+
+	// The volumes for krb5.conf and krb5.keytab are created separately
+	// for the nfs-ganesha container. We reuse it here.
+	if nfs.Spec.Security.Kerberos != nil {
+		krb5ConfVolName := "krb5-conf-d"
+		generatedKrbConfVolName := "generated-krb5-conf"
+
+		krb5ConfD := v1.VolumeMount{
+			Name:      krb5ConfVolName,
+			MountPath: "/etc/krb5.conf.rook/",
+		}
+		krbConfMount := v1.VolumeMount{
+			Name:      generatedKrbConfVolName,
+			MountPath: "/etc/krb5.conf",
+			SubPath:   "krb5.conf",
+		}
+		sssdMounts = append(sssdMounts, krb5ConfD, krbConfMount)
+	}
+	if nfs.Spec.Security.Kerberos.KeytabFile.VolumeSource != nil {
+		volName := "krb5-keytab"
+		keytabMount := v1.VolumeMount{
+			Name:      volName,
+			MountPath: "/etc/krb5.keytab",
+			SubPath:   "krb5.keytab",
+		}
+		sssdMounts = append(sssdMounts, keytabMount)
+	}
 
 	// the init container is needed to copy the starting content from the /var/lib/sss/pipes
 	// directory into the shared sockets dir so that SSSD has the content it needs to start up
