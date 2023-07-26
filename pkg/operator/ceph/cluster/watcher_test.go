@@ -219,6 +219,53 @@ func TestHandleNodeFailure(t *testing.T) {
 				CSI: &corev1.CSIPersistentVolumeSource{
 					Driver:       fmt.Sprintf("%s.rbd.csi.ceph.com", ns),
 					VolumeHandle: "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002",
+					VolumeAttributes: map[string]string{
+						"pool":      "replicapool",
+						"imageName": "csi-vol-58469d41-f6c0-4720-b23a-0a0826b841ca",
+					},
+				},
+			},
+		},
+	}
+
+	staticPV := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pvc-58469d41-f6c0-4720-b23a-0a0826b841cb",
+			Annotations: map[string]string{
+				"pv.kubernetes.io/provisioned-by":                            fmt.Sprintf("%s.rbd.csi.ceph.com", ns),
+				"volume.kubernetes.io/provisioner-deletion-secret-name":      "rook-csi-rbd-provisioner",
+				"volume.kubernetes.io/provisioner-deletion-secret-namespace": ns,
+			},
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					Driver:           fmt.Sprintf("%s.rbd.csi.ceph.com", ns),
+					VolumeHandle:     "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002",
+					VolumeAttributes: map[string]string{},
+				},
+			},
+		},
+	}
+
+	pvNotProvisionByCSI := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pvc-58469d41-f6c0-4720-b23a-0a0826b841cc",
+			Annotations: map[string]string{
+				"pv.kubernetes.io/provisioned-by":                            fmt.Sprintf("%s.csi.rbd.com", ns),
+				"volume.kubernetes.io/provisioner-deletion-secret-name":      "csi-rbd-provisioner",
+				"volume.kubernetes.io/provisioner-deletion-secret-namespace": ns,
+			},
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				CSI: &corev1.CSIPersistentVolumeSource{
+					Driver:       fmt.Sprintf("%s.rbd.csi.com", ns),
+					VolumeHandle: "0001-0009-csi-0000000000000002-24862838-240d-4215-9183-abfc0e9e4002",
+					VolumeAttributes: map[string]string{
+						"pool":      "replicapool",
+						"imageName": "csi-vol-58469d41-f6c0-4720-b23a-0a0826b841ca",
+					},
 				},
 			},
 		},
@@ -236,6 +283,34 @@ func TestHandleNodeFailure(t *testing.T) {
 
 	networkFence := &addonsv1alpha1.NetworkFence{}
 	err = c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cephCluster.Namespace}, networkFence)
+	assert.NoError(t, err)
+
+	// For static pv
+	_, err = c.context.Clientset.CoreV1().PersistentVolumes().Create(ctx, staticPV, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	pvList, err := c.context.Clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+
+	volumeInUse := getCephVolumesInUse(cephCluster, node.Status.VolumesInUse)
+	rbdPVList := listRBDPV(pvList, cephCluster, volumeInUse)
+	assert.Equal(t, len(rbdPVList), 1) // it will be equal to once since we have one pv provisioned by csi named `PV`
+
+	err = c.handleNodeFailure(ctx, cephCluster, node)
+	assert.NoError(t, err)
+
+	// For static pv
+	_, err = c.context.Clientset.CoreV1().PersistentVolumes().Create(ctx, pvNotProvisionByCSI, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	pvList, err = c.context.Clientset.CoreV1().PersistentVolumes().List(ctx, metav1.ListOptions{})
+	assert.NoError(t, err)
+
+	volumeInUse = getCephVolumesInUse(cephCluster, node.Status.VolumesInUse)
+	rbdPVList = listRBDPV(pvList, cephCluster, volumeInUse)
+	assert.Equal(t, len(rbdPVList), 1) // it will be equal to once since we have one pv provisioned by csi named `PV`
+
+	err = c.handleNodeFailure(ctx, cephCluster, node)
 	assert.NoError(t, err)
 
 	// When out-of-service taint is removed
