@@ -23,6 +23,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/userfacing/multus"
 	"github.com/spf13/cobra"
 )
@@ -45,11 +46,15 @@ func init() {
 			ctx, stopSignalCapture = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 			cmd.SetContext(ctx)
 
+			rook.SetLogLevel()
+
 			return cmd.ValidateArgs(args)
 		}
 		// and should stop capturing when exiting
 		cmd.PersistentPostRun = func(cmd *cobra.Command, args []string) {
-			stopSignalCapture()
+			if stopSignalCapture != nil {
+				stopSignalCapture()
+			}
 		}
 
 		// they should always provide help
