@@ -8,7 +8,7 @@ on:
       - release-*
   pull_request:
     paths:
-      - cmd/userfacing/**
+      - cmd/rook/userfacing/**
       - pkg/daemon/multus/**
       - .github/workflows/multus.yaml
 

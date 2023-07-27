@@ -63,8 +63,11 @@ volumes of Ceph traffic may still encounter runtime issues. This may be
 particularly noticeable with high I/O load or during OSD rebalancing
 (see: https://docs.ceph.com/en/latest/architecture/#rebalancing).
 For example, during Rook or Ceph cluster upgrade.
+
+Override the kube config file location by setting the KUBECONFIG environment variable.
 `,
 		Run: func(cmd *cobra.Command, args []string) {
+			validationConfig.Clientset = rook.GetInternalOrExternalClient()
 			runValidation(cmd.Context())
 		},
 		Args: cobra.NoArgs,
@@ -74,7 +77,13 @@ For example, during Rook or Ceph cluster upgrade.
 	cleanupCmd = &cobra.Command{
 		Use:   "cleanup",
 		Short: "Clean up Multus validation test resources",
+		Long: `
+Clean up Multus validation test resources
+
+Override the kube config file location by setting the KUBECONFIG environment variable.
+`,
 		Run: func(cmd *cobra.Command, args []string) {
+			validationConfig.Clientset = rook.GetInternalOrExternalClient()
 			runCleanup(cmd.Context())
 		},
 		Args: cobra.NoArgs,
@@ -82,8 +91,6 @@ For example, during Rook or Ceph cluster upgrade.
 )
 
 func init() {
-	validationConfig.Clientset = rook.GetInternalOrExternalClient()
-
 	Cmd.AddCommand(runCmd)
 	Cmd.AddCommand(cleanupCmd)
 	Cmd.AddCommand(configCmd)

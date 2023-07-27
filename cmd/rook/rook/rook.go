@@ -38,9 +38,9 @@ import (
 	zaplogfmt "github.com/sykesm/zap-logfmt"
 	uzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-
 	v1 "k8s.io/api/core/v1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -217,30 +217,54 @@ func GetOperatorBaseImageCephVersion(context *clusterd.Context) (string, error) 
 // GetInternalOrExternalClient will get a Kubernetes client interface from the KUBECONFIG variable
 // if it is set, or from the operator pod environment otherwise.
 func GetInternalOrExternalClient() kubernetes.Interface {
+	var restConfig *rest.Config
+	var clientset *kubernetes.Clientset
+	var err error
+
+	// if KUBECONFIG env var is present, it is the source of truth
 	kubeconfig := os.Getenv("KUBECONFIG")
-
-	var (
-		config *rest.Config
-		err    error = fmt.Errorf("did not attempt to load a client") // just in case
-	)
-
 	if kubeconfig != "" {
+		logger.Debugf("attempting to create kube client interface from KUBCONFIG environment variable: %s", kubeconfig)
 		for _, kConf := range strings.Split(kubeconfig, ":") {
-			config, err = clientcmd.BuildConfigFromFlags("", kConf)
+			restConfig, err = clientcmd.BuildConfigFromFlags("", kConf)
 			if err == nil {
-				break
+				logger.Debugf("attmepting to create kube clientset from kube config file %q", kConf)
+				clientset, err = kubernetes.NewForConfig(restConfig)
+				if err == nil {
+					logger.Infof("created kube client interface from kube config file %q present in KUBECONFIG environment variable", kConf)
+					return clientset
+				}
 			}
 		}
-	} else {
-		config, err = rest.InClusterConfig()
 	}
 	if err != nil {
-		TerminateOnError(err, "error creating client")
+		TerminateOnError(err, "could not create kube client interface from KUBECONFIG environment variable: "+kubeconfig+"; "+
+			"if the KUBECONFIG environment variable is incorrect, unset it, or set it to the correct kube config file location")
 	}
 
-	client, err := kubernetes.NewForConfig(config)
+	logger.Debug("attempting to create kube client interface using default CLI parameters")
+	defaultConfigFlags := genericclioptions.NewConfigFlags(false)
+	restConfig, err = defaultConfigFlags.ToRESTConfig()
+	if err == nil {
+		clientset, err = kubernetes.NewForConfig(restConfig)
+		if err == nil {
+			logger.Infof("created kube client interface from default CLI parameters")
+			return clientset
+		}
+		logger.Debugf("failed to create kube client interface from default CLI parameters; " +
+			"check the default kube config file location to ensure the proper config is present there")
+	}
+
+	logger.Infof("attempting to create kube client interface assuming the application is running in a Kubernetes Pod; " +
+		"if this tool is not running in a Kubernetes Pod, this is an error: " +
+		"to resolve, ensure there is a kube config file present in the default location, or set the KUBECONFIG environment variable")
+	restConfig, err = rest.InClusterConfig()
 	if err != nil {
-		TerminateOnError(err, "could not get Kubernetes client interface")
+		TerminateOnError(err, "failed to create kube client interface's REST config from Kubernetes Pod environment")
+	}
+	client, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		TerminateOnError(err, "failed to create kube client interface from Kubernetes Pod environment")
 	}
 	return client
 }
