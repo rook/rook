@@ -53,6 +53,8 @@ const (
 	CommandProxyInitContainerName = "cmd-proxy"
 	// ProxyAppLabel is the label used to identify the proxy container
 	ProxyAppLabel = "rook-ceph-mgr"
+	// DefaultAutoscaleMode means the default autoscale mode of pg
+	DefaultAutoscaleMode = ""
 )
 
 // CephConfFilePath returns the location to the cluster's config file in the operator container.

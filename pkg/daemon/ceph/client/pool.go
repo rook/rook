@@ -30,6 +30,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
+// PoolAutoscaleMode is a mode for autoscale
+type PoolAutoscaleMode string
+
+const (
+	//PoolAutoscaleModeOn means enable automated adjustments of the PG count for the given pool
+	PoolAutoscaleModeOn PoolAutoscaleMode = "on"
+
+	// PoolAutoscaleModeoff means disable autoscaling for this pool
+	PoolAutoscaleModeOff PoolAutoscaleMode = "off"
+
+	//PoolAutoscaleModeWarn means raise health alerts when the PG count should be adjusted.
+	PoolAutoscaleModeWarn PoolAutoscaleMode = "warn"
+)
+
 const (
 	confirmFlag             = "--yes-i-really-mean-it"
 	reallyConfirmFlag       = "--yes-i-really-really-mean-it"
@@ -183,11 +197,24 @@ func CreatePool(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec
 }
 
 func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName, pgCount string) error {
+	autoscaleMode := pool.Parameters["pg_autoscale_mode"]
 	if pool.Name == "" {
 		return errors.New("pool name must be specified")
 	}
+	if pool.Parameters != nil {
+		placementGroupCount, ok := pool.Parameters["pg_num"]
+		if ok {
+			pgCount = placementGroupCount
+			if autoscaleMode == string(PoolAutoscaleModeOn) {
+				logger.Warning("The PGs will be managed by the Ceph PG autoscaler, because of the autoscale mode is on, the settings of the PGs is invalid")
+			} else if autoscaleMode == "" {
+				// If 'pg_num' has set, the default value of the autoscale mode will be off.
+				autoscaleMode = string(PoolAutoscaleModeOff)
+			}
+		}
+	}
 	if pool.IsReplicated() {
-		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, pgCount, appName)
+		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, pgCount, appName, string(autoscaleMode))
 	}
 
 	if !pool.IsErasureCoded() {
@@ -209,7 +236,8 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 		pool,
 		pgCount,
 		appName,
-		true /* enableECOverwrite */)
+		true, /* enableECOverwrite */
+		string(autoscaleMode))
 }
 
 func checkForImagesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, name string) error {
@@ -388,8 +416,12 @@ func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
 
-func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount, appName string, enableECOverwrite bool, autoscaleMode string) error {
+
 	args := []string{"osd", "pool", "create", pool.Name, pgCount, "erasure", ecProfileName}
+	if autoscaleMode != "" {
+		args = append(args, "--autoscale-mode", autoscaleMode)
+	}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to create EC pool %s. %s", pool.Name, string(output))
@@ -409,7 +441,7 @@ func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecP
 	return nil
 }
 
-func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount, appName string) error {
+func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount, appName, autoscaleMode string) error {
 	// If it's a replicated pool, ensure the failure domain is desired
 	checkFailureDomain := false
 
@@ -447,6 +479,9 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 		// Create the pool since it doesn't exist yet
 		// If there was some error other than ENOENT (not exists), go ahead and ensure the pool is created anyway
 		args := []string{"osd", "pool", "create", pool.Name, pgCount, "replicated", crushRuleName, "--size", strconv.FormatUint(uint64(pool.Replicated.Size), 10)}
+		if autoscaleMode != "" {
+			args = append(args, "--autoscale-mode", autoscaleMode)
+		}
 		if strings.HasPrefix(pool.Name, ".") && clusterInfo.CephVersion.IsAtLeastReef() {
 			args = append(args, "--yes-i-really-mean-it")
 		}

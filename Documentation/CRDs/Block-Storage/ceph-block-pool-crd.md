@@ -210,6 +210,11 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
     * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
     * `compression_mode`: Sets up the pool for inline compression when using a Bluestore OSD. If left unspecified does not setup any compression mode for the pool. Values supported are the same as Bluestore inline compression [modes](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression), such as `none`, `passive`, `aggressive`, and `force`.
+    * `pg_num`: Set a custom PG count for the pool. By default, the PGs will be managed by the Ceph PG autoscaler. See the [Ceph documentation](https://docs.ceph.com/en/latest/rados/operations/pools/#create-a-pool) for more info.
+    * `pg_autoscale_mode`: Set pg autoscale mode to pool. See the [ceph documentation](https://docs.ceph.com/en/latest/rados/operations/placement-groups/) for more info.
+      * `off`: Disable autoscaling for this pool. It is up to the administrator to choose an appropriate pgp_num for each pool. Please refer to [Choosing the number of Placement Groups](https://docs.ceph.com/en/latest/rados/operations/placement-groups/#choosing-number-of-placement-groups) for more information.
+      * `on`: Enable automated adjustments of the PG count for the given pool.
+      * `warn`: Raise health alerts when the PG count should be adjusted.
 
 * `mirroring`: Sets up mirroring of the pool
     * `enabled`: whether mirroring is enabled on that pool (default: false)
@@ -231,6 +236,8 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 
     !!! note
         A value of 0 disables the quota.
+
+
 
 ### Add specific pool properties
 
