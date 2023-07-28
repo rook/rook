@@ -164,15 +164,16 @@ func generateSssdSidecarResources(nfs *cephv1.CephNFS, sidecarCfg *cephv1.SSSDSi
 			SubPath:   "krb5.conf",
 		}
 		sssdMounts = append(sssdMounts, krb5ConfD, krbConfMount)
-	}
-	if nfs.Spec.Security.Kerberos.KeytabFile.VolumeSource != nil {
-		volName := "krb5-keytab"
-		keytabMount := v1.VolumeMount{
-			Name:      volName,
-			MountPath: "/etc/krb5.keytab",
-			SubPath:   "krb5.keytab",
+
+		if nfs.Spec.Security.Kerberos.KeytabFile.VolumeSource != nil {
+			volName := "krb5-keytab"
+			keytabMount := v1.VolumeMount{
+				Name:      volName,
+				MountPath: "/etc/krb5.keytab",
+				SubPath:   "krb5.keytab",
+			}
+			sssdMounts = append(sssdMounts, keytabMount)
 		}
-		sssdMounts = append(sssdMounts, keytabMount)
 	}
 
 	// the init container is needed to copy the starting content from the /var/lib/sss/pipes
