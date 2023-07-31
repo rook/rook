@@ -57,7 +57,7 @@ func TestPodContainer(t *testing.T) {
 	assert.Equal(t, "custom-scheduler", c.Spec.SchedulerName)
 	container := c.Spec.InitContainers[0]
 	logger.Infof("container: %+v", container)
-	assert.Equal(t, "copy-binaries", container.Args[0])
+	assert.Equal(t, "cp", container.Command[0])
 	container = c.Spec.Containers[0]
 	assert.Equal(t, "/rook/rook", container.Command[0])
 	assert.Equal(t, "ceph", container.Args[0])

@@ -796,9 +796,14 @@ func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
 	mount := v1.VolumeMount{Name: rookBinariesVolumeName, MountPath: rookBinariesMountPath}
 
 	return volume, &v1.Container{
+		Command: []string{"cp"},
 		Args: []string{
-			"copy-binaries",
-			"--copy-to-dir", rookBinariesMountPath},
+			"--archive",
+			"--force",
+			"--verbose",
+			"/usr/local/bin/rook",
+			rookBinariesMountPath,
+		},
 		Name:            "copy-bins",
 		Image:           c.rookVersion,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
