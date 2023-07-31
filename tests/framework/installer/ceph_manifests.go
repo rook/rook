@@ -114,10 +114,12 @@ func (m *CephManifestsMaster) GetToolbox() string {
 		return strings.ReplaceAll(manifest, "app: rook-direct-mount", "app: rook-ceph-tools")
 	}
 	manifest := m.settings.readManifest("toolbox.yaml")
-	// The toolbox uses the ceph image, so replace the version that is being tested
-	// The regex allows for any character in the tag ("\S" --> non-whitespace character)
-	versionRegex := regexp.MustCompile(`image: quay.io/ceph/ceph:\S+`)
-	manifest = versionRegex.ReplaceAllString(manifest, "image: "+m.settings.CephVersion.Image)
+	if m.settings.CephVersion.Image != "" {
+		// The toolbox uses the ceph image, so replace the version that is being tested
+		// The regex allows for any character in the tag ("\S" --> non-whitespace character)
+		versionRegex := regexp.MustCompile(`image: quay.io/ceph/ceph:\S+`)
+		manifest = versionRegex.ReplaceAllString(manifest, "image: "+m.settings.CephVersion.Image)
+	}
 	return manifest
 }
 
