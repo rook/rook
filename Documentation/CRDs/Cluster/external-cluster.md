@@ -59,6 +59,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--rgw-zonegroup-name`: (optional) Provides the name of the rgw-zone-group
 - `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
 - `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
+- `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
 
 ### Multi-tenancy
 
@@ -199,8 +200,8 @@ Create the object store resources:
 
 ### Connect to v2 mon port
 
-If encryption or compression on the wire is needed, specify the v2 port.
-Check if the v2 port is available in `ceph quorum_status`, then you can update the `export ROOK_EXTERNAL_CEPH_MON_DATA` to use the v2 port `3300`.
+If encryption or compression on the wire is needed, specify the `--v2-port-enable` flag.
+If the v2 address type is present in the `ceph quorum_status`, then the output of 'ceph mon data' i.e, `ROOK_EXTERNAL_CEPH_MON_DATA` will use the v2 port(`3300`).
 
 ##  Exporting Rook to another cluster
 
