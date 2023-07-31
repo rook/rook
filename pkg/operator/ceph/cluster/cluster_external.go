@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
@@ -110,6 +111,20 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	err = csi.CreateCsiConfigMap(c.OpManagerCtx, c.namespacedName.Namespace, c.context.Clientset, cluster.ownerInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create csi config map")
+	}
+
+	// update the msgr2 flag
+	for _, m := range cluster.ClusterInfo.Monitors {
+		// m.Endpoint=10.1.115.104:3300
+		monPort := util.GetPortFromEndpoint(m.Endpoint)
+		if monPort == client.Msgr2port {
+			if cluster.Spec.Network.Connections == nil {
+				cluster.Spec.Network.Connections = &cephv1.ConnectionsSpec{}
+			}
+			cluster.Spec.Network.Connections.RequireMsgr2 = true
+			logger.Debugf("a v2 port was found for a mon endpoint, so msgr2 is required")
+			break
+		}
 	}
 
 	// Save CSI configmap
