@@ -42,7 +42,6 @@ func addCommands() {
 
 		// util commands
 		util.CmdReporterCmd,
-		util.CopyBinsCmd,
 	)
 	// do double diligence to ensure non-user-facing commands are hidden from end users
 	for _, cmd := range rook.RootCmd.Commands() {

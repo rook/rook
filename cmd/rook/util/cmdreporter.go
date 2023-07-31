@@ -56,9 +56,6 @@ var (
 	commandString string
 	configMapName string
 	namespace     string
-
-	// copy-binaries sub-command
-	copyToDir string
 )
 
 func init() {
