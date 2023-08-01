@@ -49,6 +49,10 @@ those releases.
 ## Breaking changes in v1.12
 
 * The minimum supported version of Kubernetes is v1.22.
+* CephCSI CephFS driver introduced a breaking change in v3.9.0. If any existing CephFS storageclass in
+  the cluster has `MountOptions` parameter set, follow the steps mentioned in the
+  [CephCSI upgrade guide](https://github.com/ceph/ceph-csi/blob/v3.9.0/docs/ceph-csi-upgrade.md/#upgrading-cephfs)
+  to ensure a smooth upgrade.
 
 ## Considerations
 
