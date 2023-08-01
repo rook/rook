@@ -28,6 +28,21 @@ jobs:
         with:
           fetch-depth: 0
 
+<<<<<<< HEAD
+=======
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
+>>>>>>> 334a632ec (ci: add github action to free space in runner)
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
