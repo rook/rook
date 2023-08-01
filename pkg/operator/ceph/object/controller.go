@@ -24,6 +24,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
@@ -80,6 +81,9 @@ var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
 
 // allow this to be overridden for unit tests
 var cephObjectStoreDependents = CephObjectStoreDependents
+
+// newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
+var newMultisiteAdminOpsCtxFunc = NewMultisiteAdminOpsContext
 
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
@@ -239,11 +243,14 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get object context")
 		}
-		opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
+		opsCtx, err := newMultisiteAdminOpsCtxFunc(objCtx, &cephObjectStore.Spec)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get admin ops API context")
 		}
-
+		err = r.deleteCOSIUser(opsCtx)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to delete COSI user")
+		}
 		deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, err
@@ -456,9 +463,11 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
 		}
+
 	}
 
-	return reconcile.Result{}, nil
+	// Create COSI user and secret
+	return r.reconcileCOSIUser(cephObjectStore)
 }
 
 func (r *ReconcileCephObjectStore) reconcileCephZone(store *cephv1.CephObjectStore, zoneGroupName string, realmName string) (reconcile.Result, error) {
@@ -518,4 +527,62 @@ func (r *ReconcileCephObjectStore) reconcileMultisiteCRs(cephObjectStore *cephv1
 	}
 
 	return cephObjectStore.Name, cephObjectStore.Name, cephObjectStore.Name, nil, reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephObjectStore) reconcileCOSIUser(cephObjectStore *cephv1.CephObjectStore) (reconcile.Result, error) {
+	// Create COSI user and secret
+	userConfig := generateCOSIUserConfig()
+	var user admin.User
+
+	// Create COSI user
+	objCtx, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get object context")
+	}
+
+	adminOpsCtx, err := newMultisiteAdminOpsCtxFunc(objCtx, &cephObjectStore.Spec)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get admin ops API context")
+	}
+
+	user, err = adminOpsCtx.AdminOpsClient.GetUser(r.opManagerContext, *userConfig)
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			logger.Infof("creating COSI user %q", userConfig.ID)
+			user, err = adminOpsCtx.AdminOpsClient.CreateUser(r.opManagerContext, *userConfig)
+			if err != nil {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to create COSI user %q", userConfig.ID)
+			}
+		} else {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to get COSI user %q", userConfig.ID)
+		}
+	}
+
+	// Create COSI user secret
+	return ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStore, &user, objCtx.Endpoint, cephObjectStore.Namespace, cephObjectStore.Name, cephObjectStore.Spec.Gateway.SSLCertificateRef)
+}
+
+func generateCOSIUserConfig() *admin.User {
+	userConfig := admin.User{
+		ID:          cosiUserName,
+		DisplayName: cosiUserName,
+	}
+
+	userConfig.UserCaps = cosiUserCaps
+
+	return &userConfig
+}
+
+func (r *ReconcileCephObjectStore) deleteCOSIUser(adminOpsCtx *AdminOpsContext) error {
+	userConfig := generateCOSIUserConfig()
+	err := adminOpsCtx.AdminOpsClient.RemoveUser(r.opManagerContext, *userConfig)
+	if err != nil {
+		if errors.Is(err, admin.ErrNoSuchUser) {
+			logger.Debugf("COSI user %q not found", userConfig.ID)
+			return nil
+		} else {
+			return errors.Wrapf(err, "failed to delete COSI user %q", userConfig.ID)
+		}
+	}
+	return nil
 }
