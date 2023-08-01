@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	rgw "github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -55,8 +56,7 @@ func testCOSIDriver(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sH
 		assert.NoError(t, k8sh.WaitForLabeledDeploymentsToBeReady("app=ceph-cosi-driver", operatorNamespace))
 	})
 
-	createCephObjectUser(s, helper, k8sh, namespace, objectStoreCOSI, cosiUser, true, true)
-	objectStoreUserSecretName := "rook-ceph-object-user" + "-" + objectStoreCOSI + "-" + cosiUser
+	objectStoreUserSecretName := object.GenerateCephUserSecretName(objectStoreCOSI, cosiUser)
 	t.Run("Creating BucketClass", func(t *testing.T) {
 		err := helper.COSIClient.CreateBucketClass(bucketClassName, objectStoreUserSecretName, deletionPolicy)
 		assert.NoError(t, err, "failed to create BucketClass")
