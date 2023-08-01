@@ -39,6 +39,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -242,7 +249,6 @@ jobs:
         with:
           name: canary
 
-
   raw-disk:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -256,6 +262,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -309,6 +322,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -355,6 +375,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -409,6 +436,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -454,6 +488,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -506,6 +547,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -580,6 +628,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -628,6 +683,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -680,6 +742,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -745,6 +814,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -795,6 +871,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -856,6 +939,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -939,6 +1029,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -1001,6 +1098,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
         with:
@@ -1054,6 +1158,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1311,6 +1422,13 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
+
       - name: run RGW multisite test
         uses: ./.github/workflows/rgw-multisite-test
         with:
@@ -1337,6 +1455,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: run encryption KMS IBM Key Protect
         uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
@@ -1371,6 +1496,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup golang
         uses: actions/setup-go@v4
@@ -1450,6 +1582,13 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          # this might remove tools that are actually needed,
+          # if set to "true" but frees about 6 GB
+          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
