@@ -219,9 +219,13 @@ below in the section [creating a user](#create-a-user) if you are not creating t
 
 ### Configure s5cmd
 
-To test the `CephObjectStore`, set the object store credentials in the toolbox pod for the `s5cmd` tool.
+To test the `CephObjectStore`, set the object store credentials in the toolbox pod that contains the `s5cmd` tool.
+
+!!! important
+    The default toolbox.yaml does not contain the s5cmd. The toolbox must be started with the rook operator image (toolbox-operator-image), which does contain s5cmd.
 
 ```console
+kubectl create -f deploy/examples/toolbox-operator-image.yaml
 mkdir ~/.aws
 cat > ~/.aws/credentials << EOF
 [default]
