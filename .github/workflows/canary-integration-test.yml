@@ -242,7 +242,6 @@ jobs:
         with:
           name: canary
 
-
   raw-disk:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -286,6 +285,12 @@ jobs:
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
+      - name: test toolbox-operator-image pod
+        run: |
+          tests/scripts/github-action-helper.sh create_operator_toolbox
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools-operator-image -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          timeout 120 sh -c "while kubectl get pod $toolbox -nrook-ceph -o jsonpath='{.items[*].status.phase}'|grep -qE 'Running'; do echo 'waiting for operator toolbox pod to start'; sleep 5; done"
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 
@@ -294,7 +299,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary
-
 
   two-osds-in-device:
     runs-on: ubuntu-20.04
@@ -340,7 +344,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary
-
 
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
@@ -393,7 +396,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary
-
 
   encryption:
     runs-on: ubuntu-20.04
@@ -492,7 +494,6 @@ jobs:
         with:
           name: canary
 
-
   pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -565,7 +566,6 @@ jobs:
         with:
           name: pvc
 
-
   pvc-db:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -613,7 +613,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: pvc-db
-
 
   pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -665,7 +664,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: pvc-db-wal
-
 
   encryption-pvc:
     runs-on: ubuntu-20.04
@@ -730,7 +728,6 @@ jobs:
         with:
           name: encryption-pvc
 
-
   encryption-pvc-db:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -780,7 +777,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: encryption-pvc-db
-
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -841,7 +837,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: encryption-pvc-db-wal
-
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-20.04
@@ -924,7 +919,6 @@ jobs:
         with:
           name: encryption-pvc-kms-vault-token-auth
 
-
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -986,7 +980,6 @@ jobs:
         with:
           name: encryption-pvc-kms-vault-k8s-auth
 
-
   lvm-pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -1039,7 +1032,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: lvm-pvc
-
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
@@ -1295,7 +1287,6 @@ jobs:
         with:
           name: multi-cluster-mirroring
 
-
   rgw-multisite-testing:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -1323,7 +1314,6 @@ jobs:
         with:
           name: rgw-multisite-testing
           path: test
-
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-20.04
@@ -1355,7 +1345,6 @@ jobs:
         with:
           name: encryption-pvc-kms-ibm-kp
           path: test
-
 
   multus-cluster-network:
     runs-on: ubuntu-20.04
@@ -1434,7 +1423,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary-multus
-
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
