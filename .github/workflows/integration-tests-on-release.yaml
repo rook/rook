@@ -215,7 +215,6 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephObjectSuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: false
