@@ -24,7 +24,7 @@ import (
 
 const (
 	// The version from which the upgrade test will start
-	Version1_11 = "v1.11.7"
+	Version1_11 = "v1.11.10"
 )
 
 // CephManifestsPreviousVersion wraps rook yaml definitions
