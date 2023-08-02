@@ -20,25 +20,38 @@ import (
 	"context"
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
-// CreateOrUpdateEndpoint creates a service or updates the service declaratively if it already exists.
-func CreateOrUpdateEndpoint(ctx context.Context, clientset kubernetes.Interface, namespace string, endpointDefinition *v1.Endpoints) (*v1.Endpoints, error) {
+// CreateOrUpdateEndpoint creates a EndpointSlice or updates the EndpointSlice declaratively if it already exists.
+func CreateOrUpdateEndpoint(ctx context.Context, clientset kubernetes.Interface, namespace string, endpointDefinition *discoveryv1.EndpointSlice) (*discoveryv1.EndpointSlice, error) {
 	name := endpointDefinition.Name
-	logger.Debugf("creating endpoint %q. %v", name, endpointDefinition.Subsets)
-	ep, err := clientset.CoreV1().Endpoints(namespace).Create(ctx, endpointDefinition, metav1.CreateOptions{})
+	logger.Debugf("creating endpoint %q. %v", name, endpointDefinition.Endpoints)
+	ep, err := clientset.DiscoveryV1().EndpointSlices(namespace).Create(ctx, endpointDefinition, metav1.CreateOptions{})
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to create endpoint %q. %v", name, err)
 		}
-		ep, err = clientset.CoreV1().Endpoints(namespace).Update(ctx, endpointDefinition, metav1.UpdateOptions{})
+		ep, err = clientset.DiscoveryV1().EndpointSlices(namespace).Update(ctx, endpointDefinition, metav1.UpdateOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("failed to update endpoint %q. %v", name, err)
 		}
+	}
+
+	// Delete the old Endpoint resource if exists, as it has been replaced by a new EndpointSlice resource
+	oldEndpoint, err := clientset.CoreV1().Endpoints(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return ep, nil
+		}
+		return nil, fmt.Errorf("failed to fetch old endpoint %q. %v", name, err)
+	}
+	err = clientset.CoreV1().Endpoints(namespace).Delete(ctx, oldEndpoint.Name, metav1.DeleteOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to delete old endpoint %q. %v", oldEndpoint.Name, err)
 	}
 
 	return ep, err

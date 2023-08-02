@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -758,25 +759,28 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 }
 
 // CreateExternalMetricsEndpoints creates external metric endpoint
-func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
+func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*discoveryv1.EndpointSlice, error) {
 	labels := AppLabels("rook-ceph-mgr", namespace)
+	endpointPortName := ServiceExternalMetricName
+	endpointPortPort := int32(monitoringSpec.ExternalMgrPrometheusPort)
+	endpointPortProtocol := v1.ProtocolTCP
 
-	endpoints := &v1.Endpoints{
+	endpoints := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ExternalMgrAppName,
 			Namespace: namespace,
 			Labels:    labels,
 		},
-		Subsets: []v1.EndpointSubset{
+		Endpoints: []discoveryv1.Endpoint{
 			{
-				Addresses: monitoringSpec.ExternalMgrEndpoints,
-				Ports: []v1.EndpointPort{
-					{
-						Name:     ServiceExternalMetricName,
-						Port:     int32(monitoringSpec.ExternalMgrPrometheusPort),
-						Protocol: v1.ProtocolTCP,
-					},
-				},
+				Addresses: []string{monitoringSpec.ExternalMgrEndpoints[0].IP},
+			},
+		},
+		Ports: []discoveryv1.EndpointPort{
+			{
+				Name:     &endpointPortName,
+				Port:     &endpointPortPort,
+				Protocol: &endpointPortProtocol,
 			},
 		},
 	}
@@ -819,19 +823,19 @@ func ConfigureExternalMetricsEndpoint(ctx *clusterd.Context, monitoringSpec ceph
 	}
 
 	// Get the endpoint to see if anything needs to be updated
-	currentEndpoints, err := ctx.Clientset.CoreV1().Endpoints(clusterInfo.Namespace).Get(clusterInfo.Context, endpoint.Name, metav1.GetOptions{})
+	currentEndpointSlice, err := ctx.Clientset.DiscoveryV1().EndpointSlices(clusterInfo.Namespace).Get(clusterInfo.Context, endpoint.Name, metav1.GetOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrap(err, "failed to fetch endpoints")
 	}
 
 	// If endpoints are identical there is nothing to do
 	// First check for nil pointers otherwise dereferencing a nil pointer will cause a panic
-	if endpoint != nil && currentEndpoints != nil {
-		if reflect.DeepEqual(*currentEndpoints, *endpoint) {
+	if endpoint != nil && currentEndpointSlice != nil {
+		if reflect.DeepEqual(*currentEndpointSlice, *endpoint) {
 			return nil
 		}
 	}
-	logger.Debugf("diff between current endpoint and newly generated one: %v \n", cmp.Diff(currentEndpoints, endpoint, cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })))
+	logger.Debugf("diff between current endpoint and newly generated one: %v \n", cmp.Diff(currentEndpointSlice, endpoint, cmp.Comparer(func(x, y resource.Quantity) bool { return x.Cmp(y) == 0 })))
 
 	_, err = k8sutil.CreateOrUpdateEndpoint(clusterInfo.Context, ctx.Clientset, clusterInfo.Namespace, endpoint)
 	if err != nil {

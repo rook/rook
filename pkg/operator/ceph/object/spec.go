@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -564,29 +565,25 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	return svc
 }
 
-func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *v1.Endpoints {
+func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *discoveryv1.EndpointSlice {
 	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 
-	k8sEndpointAddrs := []v1.EndpointAddress{}
+	k8sEndpoints := []discoveryv1.Endpoint{}
 	for _, rookEndpoint := range cephObjectStore.Spec.Gateway.ExternalRgwEndpoints {
-		k8sEndpointAddr := v1.EndpointAddress{
-			IP:       rookEndpoint.IP,
-			Hostname: rookEndpoint.Hostname,
+		k8sEndpoint := discoveryv1.Endpoint{
+			Addresses: []string{rookEndpoint.IP},
+			Hostname:  &rookEndpoint.Hostname,
 		}
-		k8sEndpointAddrs = append(k8sEndpointAddrs, k8sEndpointAddr)
+		k8sEndpoints = append(k8sEndpoints, k8sEndpoint)
 	}
 
-	endpoints := &v1.Endpoints{
+	endpoints := &discoveryv1.EndpointSlice{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
 			Namespace: cephObjectStore.Namespace,
 			Labels:    labels,
 		},
-		Subsets: []v1.EndpointSubset{
-			{
-				Addresses: k8sEndpointAddrs,
-			},
-		},
+		Endpoints: k8sEndpoints,
 	}
 
 	addPortToEndpoint(endpoints, "http", cephObjectStore.Spec.Gateway.Port)
@@ -710,16 +707,16 @@ func addPort(service *v1.Service, name string, port, destPort int32) {
 	})
 }
 
-func addPortToEndpoint(endpoints *v1.Endpoints, name string, port int32) {
+func addPortToEndpoint(endpoints *discoveryv1.EndpointSlice, name string, port int32) {
 	if port == 0 {
 		return
 	}
-	endpoints.Subsets[0].Ports = append(endpoints.Subsets[0].Ports, v1.EndpointPort{
-		Name:     name,
-		Port:     port,
-		Protocol: v1.ProtocolTCP,
-	},
-	)
+	protocol := v1.ProtocolTCP
+	endpoints.Ports = append(endpoints.Ports, discoveryv1.EndpointPort{
+		Name:     &name,
+		Port:     &port,
+		Protocol: &protocol,
+	})
 }
 
 func getLabels(name, namespace string, includeNewLabels bool) map[string]string {
