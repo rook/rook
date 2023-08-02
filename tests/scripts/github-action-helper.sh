@@ -236,6 +236,12 @@ function deploy_manifest_with_local_build() {
   kubectl create -f $1
 }
 
+# Deploy toolbox with same ceph version as the cluster-test for ci
+function deploy_toolbox() {
+  sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
+  kubectl create -f toolbox.yaml
+}
+
 function replace_ceph_image() {
   local file="$1"           # parameter 1: the file in which to replace the ceph image
   local ceph_image="${2:-}" # parameter 2: the new ceph image to use
@@ -282,7 +288,7 @@ function deploy_cluster() {
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
   kubectl create -f subvolumegroup.yaml
-  deploy_manifest_with_local_build toolbox.yaml
+  deploy_toolbox
 }
 
 function deploy_csi_hostnetwork_disabled_cluster() {
@@ -300,7 +306,7 @@ function deploy_csi_hostnetwork_disabled_cluster() {
   kubectl create -f nfs-test.yaml
   kubectl create -f cluster-test.yaml
   kubectl create -f filesystem-test.yaml
-  deploy_manifest_with_local_build toolbox.yaml
+  deploy_toolbox
 }
 
 function wait_for_prepare_pod() {
@@ -399,7 +405,7 @@ function deploy_first_rook_cluster() {
   yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
   yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
   kubectl create -f cluster-test.yaml
-  deploy_manifest_with_local_build toolbox.yaml
+  deploy_toolbox
 }
 
 function deploy_second_rook_cluster() {
@@ -411,7 +417,7 @@ function deploy_second_rook_cluster() {
   yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
   kubectl create -f cluster-test.yaml
   yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
-  deploy_manifest_with_local_build toolbox.yaml
+  deploy_toolbox
 }
 
 function wait_for_rgw() {
@@ -590,7 +596,7 @@ function deploy_multus_cluster() {
   cd deploy/examples
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
-  deploy_manifest_with_local_build toolbox.yaml
+  deploy_toolbox
   sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-multus-test.yaml
   kubectl create -f cluster-multus-test.yaml
   kubectl create -f filesystem-test.yaml
