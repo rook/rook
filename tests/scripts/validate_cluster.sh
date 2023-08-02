@@ -111,9 +111,9 @@ function test_csi {
     fi
     if [ -n "$IS_MULTUS" ]; then
       echo "verifying csi holder interfaces (multus ones must be present)"
-      kubectl -n rook-ceph exec -t ds/csi-rbdplugin-holder-my-cluster -- grep net /proc/net/dev
-      kubectl -n rook-ceph exec -t ds/csi-cephfsplugin-holder-my-cluster -- grep net /proc/net/dev
-      kubectl -n rook-ceph exec -t ds/csi-nfsplugin-holder-my-cluster -- grep net /proc/net/dev
+      kubectl -n rook-ceph exec -t ds/csi-rbdplugin-holder-my-cluster -- grep eth0 /proc/net/dev
+      kubectl -n rook-ceph exec -t ds/csi-cephfsplugin-holder-my-cluster -- grep eth0 /proc/net/dev
+      kubectl -n rook-ceph exec -t ds/csi-nfsplugin-holder-my-cluster -- grep eth0 /proc/net/dev
     fi
 EOF
 }
