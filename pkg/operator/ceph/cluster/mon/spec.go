@@ -78,6 +78,9 @@ func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
 		return spec.Mon.StretchCluster.FailureDomainLabel
 	}
 
+	if spec.ZonesRequired() && spec.Mon.FailureDomainLabel != "" {
+		return spec.Mon.StretchCluster.FailureDomainLabel
+	}
 	// The default topology label is for a zone
 	return corev1.LabelZoneFailureDomainStable
 }

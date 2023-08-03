@@ -627,7 +627,7 @@ func (c *Cluster) findAvailableZone(mons []*monConfig) (string, error) {
 			// The zone isn't currently assigned to any mon, so return it
 			return zone.Name, nil
 		}
-		if c.spec.Mon.Count == 5 && count == 1 && !zone.Arbiter {
+		if c.spec.IsStretchCluster() && c.spec.Mon.Count == 5 && count == 1 && !zone.Arbiter {
 			// The zone only has 1 mon assigned, but needs 2 mons since it is not the arbiter
 			return zone.Name, nil
 		}
