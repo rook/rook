@@ -126,8 +126,10 @@ A specific will contain a specific release of Ceph as well as security fixes fro
   This setting only applies to new monitors that are created when the requested
   number of monitors increases, or when a monitor fails and is recreated. An
   [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
-* `failureDomainLabel`: When using zones label must be specified,
-   the labels must be found in the list of well-known [topology labels](#osd-topology).
+* `failureDomainLabel`: When using zones label must be specified, the labels must be found in the list of well-known [topology labels](#osd-topology).
+* `zones`: The failure domain name, which when specified will deploy mons on specified matching failure domain node label, this can be specified with failureDomainLabel.
+   This element is always named `zone` even if a non-default `failureDomainLabel` is specified. This element takes one value:
+   * `name`: The name of the zone, which is the value of the domain label.
 * `stretchCluster`: The stretch cluster settings that define the zones (or other failure domain labels) across which to configure the cluster.
     * `failureDomainLabel`: The label that is expected on each node where the cluster is expected to be deployed. The labels must be found
     in the list of well-known [topology labels](#osd-topology).
