@@ -71,7 +71,7 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 	t.Run("create CephBucketTopic", func(t *testing.T) {
 		err := helper.TopicClient.CreateTopic(topicName, storeName, httpEndpointService)
 		assert.Nil(t, err)
-		created := utils.Retry(12, 2*time.Second, "topic is created", func() bool {
+		created := utils.Retry(30, 5*time.Second, "topic is created", func() bool {
 			return helper.TopicClient.CheckTopic(topicName)
 		})
 		assert.True(t, created)
