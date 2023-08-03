@@ -141,15 +141,13 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.3.0 // indirect
 )
 
-replace (
-	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
-	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
-	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
-)
-
 exclude (
-	// This tag doesn't exist, but is imported by github.com/portworx/sched-ops.
-	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
+	// exclude goproxy versions with security bugs
+	github.com/elazarl/goproxy v0.0.0-20170405201442-c4fc26588b6e
+	github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153
+	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a
+	// portworx dependencies are a mess, and we don't use portworx code, so skip it
+	github.com/portworx/sched-ops v1.20.4-rc1
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
 	k8s.io/client-go v1.4.0
