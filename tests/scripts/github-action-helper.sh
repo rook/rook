@@ -603,6 +603,11 @@ function deploy_multus_cluster() {
   kubectl create -f nfs-test.yaml
 }
 
+function create_operator_toolbox() {
+  cd deploy/examples
+  kubectl create -f toolbox-operator-image.yaml
+}
+
 function wait_for_ceph_csi_configmap_to_be_updated {
   timeout 60 bash <<EOF
 until [[ $(kubectl -n rook-ceph get configmap rook-ceph-csi-config -o jsonpath="{.data.csi-cluster-config-json}" | jq .[0].rbd.netNamespaceFilePath) != "null" ]]; do
