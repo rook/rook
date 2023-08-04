@@ -269,7 +269,7 @@ func atomicPrependToConfigObject(
 		if err != nil {
 			logger.Infof("failed to unlock rados object %q, but since the lock has a timeout, we will continue. %v", objInfoString, err)
 		}
-		logger.Info("successfully unlocked rados object %q", objInfoString)
+		logger.Infof("successfully unlocked rados object %q", objInfoString)
 	}()
 
 	cmd := cephclient.NewRadosCommand(context, clusterInfo,

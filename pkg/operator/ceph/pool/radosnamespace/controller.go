@@ -249,7 +249,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 
 	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
 	// Return and do not requeue
-	logger.Debug("done reconciling cephBlockPoolRadosNamespace %q", namespacedName)
+	logger.Debugf("done reconciling cephBlockPoolRadosNamespace %q", namespacedName)
 	return reconcile.Result{}, nil
 }
 
