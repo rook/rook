@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,17 +30,17 @@ func TestMonFlattening(t *testing.T) {
 	mons := map[string]*cephclient.MonInfo{
 		"foo": {Name: "foo", Endpoint: "1.2.3.4:5000"},
 	}
-	flattened := FlattenMonEndpoints(mons)
+	flattened := flattenMonEndpoints(mons)
 	assert.Equal(t, "foo=1.2.3.4:5000", flattened)
-	parsed := ParseMonEndpoints(flattened)
+	parsed := controller.ParseMonEndpoints(flattened)
 	assert.Equal(t, 1, len(parsed))
 	assert.Equal(t, "foo", parsed["foo"].Name)
 	assert.Equal(t, "1.2.3.4:5000", parsed["foo"].Endpoint)
 
 	// multiple endpoints
 	mons["bar"] = &cephclient.MonInfo{Name: "bar", Endpoint: "2.3.4.5:6000"}
-	flattened = FlattenMonEndpoints(mons)
-	parsed = ParseMonEndpoints(flattened)
+	flattened = flattenMonEndpoints(mons)
+	parsed = controller.ParseMonEndpoints(flattened)
 	assert.Equal(t, 2, len(parsed))
 	assert.Equal(t, "foo", parsed["foo"].Name)
 	assert.Equal(t, "1.2.3.4:5000", parsed["foo"].Endpoint)
