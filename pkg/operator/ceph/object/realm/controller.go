@@ -131,7 +131,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectRealm)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", request.NamespacedName.String())
+			logger.Debugf("CephObjectRealm %q resource not found. Ignoring since object must be deleted", request.NamespacedName.String())
 			return reconcile.Result{}, *cephObjectRealm, nil
 		}
 		// Error reading the object - requeue the request.
@@ -185,7 +185,7 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 
 	// Create/Pull Ceph Realm
 	if cephObjectRealm.Spec.IsPullRealm() {
-		logger.Debug("pull section in realm %q spec found", request.NamespacedName)
+		logger.Debugf("pull section in realm %q spec found", request.NamespacedName)
 		_, err = r.pullCephRealm(cephObjectRealm)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectRealm, err
@@ -207,14 +207,14 @@ func (r *ReconcileObjectRealm) reconcile(request reconcile.Request) (reconcile.R
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
 
 	// Return and do not requeue
-	logger.Debug("realm %q done reconciling", request.NamespacedName)
+	logger.Debugf("realm %q done reconciling", request.NamespacedName)
 	return reconcile.Result{}, *cephObjectRealm, nil
 }
 
 func (r *ReconcileObjectRealm) pullCephRealm(realm *cephv1.CephObjectRealm) (reconcile.Result, error) {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realm.Name)
 	urlArg := fmt.Sprintf("--url=%s", realm.Spec.Pull.Endpoint)
-	logger.Debug("getting keys to pull realm for CephObjectRealm %q", realm.Name)
+	logger.Debugf("getting keys to pull realm for CephObjectRealm %q", realm.Name)
 	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, realm.Name, realm.Namespace)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
@@ -336,7 +336,7 @@ func (r *ReconcileObjectRealm) updateStatus(observedGeneration int64, name types
 	objectRealm := &cephv1.CephObjectRealm{}
 	if err := r.client.Get(r.opManagerContext, name, objectRealm); err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Debug("CephObjectRealm %q resource not found. Ignoring since object must be deleted", name)
+			logger.Debugf("CephObjectRealm %q resource not found. Ignoring since object must be deleted", name)
 			return
 		}
 		logger.Warningf("failed to retrieve object realm %q to update status to %q. %v", name, status, err)
