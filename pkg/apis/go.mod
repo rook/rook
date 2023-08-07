@@ -10,15 +10,15 @@ require (
 	github.com/openshift/api v0.0.0-20230804173756-26b8597c4de2
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.4
-	k8s.io/api v0.28.0-rc.0
-	k8s.io/apimachinery v0.28.0-rc.0
+	k8s.io/api v0.28.0
+	k8s.io/apimachinery v0.28.0
 	sigs.k8s.io/controller-runtime v0.15.1
 )
 
 require (
 	github.com/armon/go-metrics v0.4.1 // indirect
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
-	github.com/aws/aws-sdk-go v1.44.317 // indirect
+	github.com/aws/aws-sdk-go v1.44.322 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
@@ -94,8 +94,8 @@ require (
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/apiextensions-apiserver v0.28.0-rc.0 // indirect
-	k8s.io/client-go v0.28.0-rc.0 // indirect
+	k8s.io/apiextensions-apiserver v0.28.0 // indirect
+	k8s.io/client-go v0.28.0 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20230718181711-3c0fae5ee9fd // indirect
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b // indirect
