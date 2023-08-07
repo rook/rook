@@ -58,6 +58,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.cephFSFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
 | `csi.cephFSKernelMountOptions` | Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options. Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR | `nil` |
 | `csi.cephFSPluginUpdateStrategy` | CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
+| `csi.cephFSPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI cephFS plugin daemonset update strategy. | `1` |
 | `csi.cephcsi.image` | Ceph CSI image | `quay.io/cephcsi/cephcsi:v3.9.0` |
 | `csi.cephfsGrpcMetricsPort` | CSI CephFS driver GRPC metrics port | `9091` |
 | `csi.cephfsLivenessMetricsPort` | CSI CephFS driver metrics port | `9081` |
