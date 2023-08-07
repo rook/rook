@@ -314,8 +314,11 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 	appLabels := []string{
 		"csi-rbdplugin-provisioner",
 		"csi-rbdplugin",
+		"csi-rbdplugin-holder",
+		"csi-cephfsplugin-holder",
 		"csi-cephfsplugin-provisioner",
 		"csi-cephfsplugin",
+		"csi-nfsplugin-holder",
 		"rook-ceph-operator",
 		"rook-ceph-mon",
 		"rook-ceph-osd",
