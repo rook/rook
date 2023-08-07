@@ -1,0 +1,87 @@
+# scc for the Rook and Ceph daemons
+# for creating cluster in openshift
+{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph
+allowPrivilegedContainer: true
+allowHostDirVolumePlugin: true
+allowHostPID: false
+# set to true if running rook with host networking enabled
+allowHostNetwork: false
+# set to true if running rook with the provider as host
+allowHostPorts: false
+priority:
+allowedCapabilities: ["MKNOD"]
+allowHostIPC: true
+readOnlyRootFilesystem: false
+# drop all default privileges
+requiredDropCapabilities: ["All"]
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - hostPath
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # A user needs to be added for each rook service account.
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-system
+---
+# scc for the CSI driver
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-ceph-csi
+# To allow running privilegedContainers
+allowPrivilegedContainer: true
+# CSI daemonset pod needs hostnetworking
+allowHostNetwork: true
+# This need to be set to true as we use HostPath
+allowHostDirVolumePlugin: true
+priority:
+# SYS_ADMIN is needed for rbd to execute rbd map command
+allowedCapabilities: ["SYS_ADMIN"]
+# Needed as we run liveness container on daemonset pods
+allowHostPorts: true
+# Needed as we are setting this in RBD plugin pod
+allowHostPID: true
+# Required for encryption
+allowHostIPC: true
+# Set to false as we write to RootFilesystem inside csi containers
+readOnlyRootFilesystem: false
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: RunAsAny
+fsGroup:
+  type: RunAsAny
+supplementalGroups:
+  type: RunAsAny
+# The type of volumes which are mounted to csi pods
+volumes:
+  - configMap
+  - projected
+  - emptyDir
+  - hostPath
+users:
+  # A user needs to be added for each rook service account.
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-rbd-plugin-sa
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-rbd-provisioner-sa
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-cephfs-plugin-sa
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-cephfs-provisioner-sa
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-nfs-plugin-sa
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-nfs-provisioner-sa
+---
+{{- end }}
