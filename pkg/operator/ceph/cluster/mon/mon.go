@@ -965,7 +965,6 @@ func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeCla
 		} else {
 			zones = c.spec.Mon.Zones
 		}
-		//TODO: check if it works for all zones or not
 		for _, zone := range zones {
 			if zone.Name == mon.Zone {
 				if zone.VolumeClaimTemplate != nil {
