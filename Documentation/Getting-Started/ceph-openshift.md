@@ -21,6 +21,10 @@ oc create -f operator-openshift.yaml
 oc create -f cluster.yaml
 ```
 
+## Helm Installation
+
+Configuration required for Openshift is automatically created by the Helm charts, such as the SecurityContextConstraints. See the [Rook Helm Charts](../Helm-Charts/helm-charts.md).
+
 ## Rook Privileges
 
 To orchestrate the storage platform, Rook requires the following access in the cluster:

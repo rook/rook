@@ -79,8 +79,13 @@ spec:
           value: {{ .Values.discover.resources }}
 {{- end }}
 {{- end }}
+{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "true"
+{{- else }}
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"
+{{- end }}
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
         - name: DISCOVER_DAEMON_UDEV_BLACKLIST
