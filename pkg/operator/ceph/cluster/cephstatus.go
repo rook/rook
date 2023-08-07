@@ -319,6 +319,8 @@ func (c *cephStatusChecker) getRookPodsOnNode(node string) ([]v1.Pod, error) {
 		"csi-cephfsplugin-provisioner",
 		"csi-cephfsplugin",
 		"csi-nfsplugin-holder",
+		"csi-nfsplugin-provisioner",
+		"csi-nfsplugin",
 		"rook-ceph-operator",
 		"rook-ceph-mon",
 		"rook-ceph-osd",
