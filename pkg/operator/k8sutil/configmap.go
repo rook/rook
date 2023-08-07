@@ -20,12 +20,15 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+var loggedOperatorSettings = sync.Map{}
 
 // DeleteConfigMap deletes a ConfigMap.
 func DeleteConfigMap(ctx context.Context, clientset kubernetes.Interface, cmName, namespace string, opts *DeleteOptions) error {
@@ -62,13 +65,28 @@ func GetOperatorSetting(context context.Context, clientset kubernetes.Interface,
 }
 
 func GetValue(data map[string]string, settingName, defaultValue string) string {
-	if settingValue, ok := data[settingName]; ok {
-		logger.Infof("%s=%q (configmap)", settingName, settingValue)
-		return settingValue
-	} else if settingValue, ok := os.LookupEnv(settingName); ok {
-		logger.Infof("%s=%q (env var)", settingName, settingValue)
-		return settingValue
+	settingValue := defaultValue
+	settingSource := "default"
+
+	if val, ok := data[settingName]; ok {
+		settingValue = val
+		settingSource = "configmap"
+	} else if val, ok := os.LookupEnv(settingName); ok {
+		settingValue = val
+		settingSource = "env var"
 	}
-	logger.Infof("%s=%q (default)", settingName, defaultValue)
-	return defaultValue
+
+	if logChangedSettings(settingName, settingValue) {
+		logger.Infof("%s=%q (%s)", settingName, settingValue, settingSource)
+	}
+
+	return settingValue
+}
+
+func logChangedSettings(settingName, settingValue string) bool {
+	if val, ok := loggedOperatorSettings.Load(settingName); !ok || val != settingValue {
+		loggedOperatorSettings.Store(settingName, settingValue)
+		return true
+	}
+	return false
 }
