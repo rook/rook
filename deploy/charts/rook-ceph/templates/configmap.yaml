@@ -30,6 +30,9 @@ data:
 {{- if .Values.csi.cephFSPluginUpdateStrategy }}
   CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.cephFSPluginUpdateStrategy | quote }}
 {{- end }}
+{{- if .Values.csi.cephFSPluginUpdateStrategyMaxUnavailable }}
+  CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: {{ .Values.csi.cephFSPluginUpdateStrategyMaxUnavailable | quote }}
+{{- end }}
 {{- if .Values.csi.nfsPluginUpdateStrategy }}
   CSI_NFS_PLUGIN_UPDATE_STRATEGY: {{ .Values.csi.nfsPluginUpdateStrategy | quote }}
 {{- end }}
