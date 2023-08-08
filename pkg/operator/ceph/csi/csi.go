@@ -199,6 +199,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.CephFSPluginUpdateStrategy = onDelete
 	} else {
 		CSIParam.CephFSPluginUpdateStrategy = rollingUpdate
+		CSIParam.CephFSPluginUpdateStrategyMaxUnavailable = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE", "1")
 	}
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
