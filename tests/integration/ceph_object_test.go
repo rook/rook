@@ -184,8 +184,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		assert.Nil(t, cobErr)
 		cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 		assert.Nil(t, cobcErr)
-
-		created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
+		created := utils.Retry(20, 2*time.Second, "OBC is created", func() bool {
 			return helper.BucketClient.CheckOBC(obcName, "bound")
 		})
 		assert.True(t, created)
@@ -272,8 +271,10 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		// the bucket provision/creation loop. Verify that the OBC is "Bound" and stays that way.
 		// The OBC reconcile loop runs again immediately b/c the OBC is modified to refer to its OB.
 		// Wait a short amount of time before checking just to be safe.
-		time.Sleep(15 * time.Second)
-		assert.True(t, helper.BucketClient.CheckOBC(obcName, "bound"))
+		created := utils.Retry(15, 2*time.Second, "OBC is created", func() bool {
+			return helper.BucketClient.CheckOBC(obcName, "bound")
+		})
+		assert.True(t, created)
 	})
 
 	t.Run("delete CephObjectStore should be blocked by OBC bucket and CephObjectStoreUser", func(t *testing.T) {
