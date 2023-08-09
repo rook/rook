@@ -139,7 +139,7 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 	reconcileOperatorLogLevel(opConfig.Data)
 
 	// Reconcile discovery daemon
-	err = r.reconcileDiscoveryDaemon()
+	err = r.reconcileDiscoveryDaemon(opConfig.Data)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, err
 	}
@@ -158,10 +158,10 @@ func reconcileOperatorLogLevel(data map[string]string) {
 	util.SetGlobalLogLevel(rookLogLevel, logger)
 }
 
-func (r *ReconcileConfig) reconcileDiscoveryDaemon() error {
+func (r *ReconcileConfig) reconcileDiscoveryDaemon(data map[string]string) error {
 	rookDiscover := discover.New(r.context.Clientset)
 	if opcontroller.DiscoveryDaemonEnabled(r.config.Parameters) {
-		if err := rookDiscover.Start(r.opManagerContext, r.config.OperatorNamespace, r.config.Image, r.config.ServiceAccount, true); err != nil {
+		if err := rookDiscover.Start(r.opManagerContext, r.config.OperatorNamespace, r.config.Image, r.config.ServiceAccount, data, true); err != nil {
 			return errors.Wrap(err, "failed to start device discovery daemonset")
 		}
 	} else {
