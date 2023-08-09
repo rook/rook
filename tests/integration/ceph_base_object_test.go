@@ -182,7 +182,7 @@ func deleteObjectStore(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName
 	assert.NoError(t, err)
 	// wait initially for the controller to detect deletion. Almost always enough, but not
 	// waiting immediately after this will almost always fail the first check in the loop
-	time.Sleep(4 * time.Second)
+	time.Sleep(10 * time.Second)
 }
 
 func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string) {
@@ -213,7 +213,6 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 		time.Sleep(sleepTime)
 	}
 	assert.NotEqual(t, retry, i)
-
 	assert.Equal(t, cephv1.ConditionDeleting, store.Status.Phase) // phase == "Deleting"
 	// verify deletion is NOT blocked b/c object has dependents
 	cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
