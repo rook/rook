@@ -302,8 +302,8 @@ jobs:
       - name: test toolbox-operator-image pod
         run: |
           tests/scripts/github-action-helper.sh create_operator_toolbox
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools-operator-image -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 120 sh -c "while kubectl get pod $toolbox -nrook-ceph -o jsonpath='{.items[*].status.phase}'|grep -qE 'Running'; do echo 'waiting for operator toolbox pod to start'; sleep 5; done"
+          # waiting for toolbox operator image pod to get ready
+          kubectl -n rook-ceph wait --for=condition=ready pod -l app=rook-ceph-tools-operator-image  --timeout=180s
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
