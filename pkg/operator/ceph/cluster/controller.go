@@ -20,7 +20,6 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/coreos/pkg/capnslog"
 	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
@@ -189,7 +188,10 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 
 	// Watch for changes on the hotplug config map
 	// TODO: to improve, can we run this against the operator namespace only?
-	disableVal := os.Getenv(disableHotplugEnv)
+	disableVal, err := k8sutil.GetOperatorSetting(opManagerContext, context.Clientset, opcontroller.OperatorSettingConfigMapName, disableHotplugEnv, "false")
+	if err != nil {
+		logger.Errorf("failed to get %s setting %s. %v", disableHotplugEnv, opcontroller.OperatorSettingConfigMapName, err)
+	}
 	if disableVal != "true" {
 		logger.Info("enabling hotplug orchestration")
 		s := source.Kind(mgr.GetCache(),
