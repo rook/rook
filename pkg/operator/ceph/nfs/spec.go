@@ -252,6 +252,9 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 	_, dbusMount := dbusVolumeAndMount()
 
+	// uid of the "dbus" user in most (all?) Linux distributions
+	dbusUID := int64(81)
+
 	return v1.Container{
 		Name: "dbus-daemon",
 		Command: []string{
@@ -270,6 +273,9 @@ func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
 		},
 		Env:       k8sutil.ClusterDaemonEnvVars(r.cephClusterSpec.CephVersion.Image), // do not need access to Ceph env vars b/c not a Ceph daemon
 		Resources: nfs.Spec.Server.Resources,
+		SecurityContext: &v1.SecurityContext{
+			RunAsUser: &dbusUID,
+		},
 	}
 }
 
