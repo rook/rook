@@ -1,0 +1,140 @@
+#################################################################################################################
+# We highly recommend validating your Multus configuration before you install Rook.
+# This job aims to automate that operation by using the validation tool. Run this job after
+# installing the rook operator and before installing any Custom Resources.
+# Insert the NAD name for public network and cluster network in the Job definition below.
+# If you want to use any other flags along with the basic command in the Job,
+# add the `--help` flag in the end to see the list of flags available, and use accordingly.
+#################################################################################################################
+---
+# Service account for job that validates multus configuration
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-multus-validation
+  namespace: rook-ceph # namespace:cluster
+# imagePullSecrets:
+#   - name: my-registry-secret
+---
+# Aspects of multus validation job that require access to the operator/cluster namespace
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-multus-validation
+  namespace: rook-ceph # namespace:cluster
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "configmaps/finalizers", "pods"]
+    verbs: ["get", "list", "create", "update", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["list", "create", "delete", "deletecollection"]
+  - apiGroups: ["k8s.cni.cncf.io"]
+    resources: ["network-attachment-definitions"]
+    verbs: ["get"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "delete"]
+---
+# Allow the multus validation job to run in this namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-multus-validation
+  namespace: rook-ceph # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-multus-validation
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-multus-validation
+    namespace: rook-ceph # namespace:cluster
+---
+# A job that runs the multus validation tool
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-ceph-multus-validation
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    app: rook-ceph-multus-validation
+spec:
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-multus-validation
+    spec:
+      serviceAccountName: rook-ceph-multus-validation
+      containers:
+        - name: multus-validation
+          image: rook/ceph:master
+          command: ["rook"]
+          args:
+            - "multus"
+            - "validation"
+            - "run"
+            # - "--public-network=<NAD-NAME>" # uncomment and replace NAD name if using public network
+            # - "--cluster-network=<NAD-NAME>" # uncomment and replace NAD name if using cluster network
+            # - "--nginx-image=<IMAGE>" # uncomment and replace IMAGE with the nginx image you want use for the validation server and clients
+            # - "--daemons-per-node=<COUNT>" # uncomment and replace COUNT with the maximum number of daemons that should be running on each node during validation
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: ROOK_LOG_LEVEL
+              value: DEBUG
+      restartPolicy: Never
+---
+# This Pod Security Policy (PSP) allows the job to run in Kubernetes environments using PSPs
+# apiVersion: rbac.authorization.k8s.io/v1
+# kind: RoleBinding
+# metadata:
+#   name: rook-ceph-multus-validation-psp
+#   namespace: rook-ceph # namespace:cluster
+# roleRef:
+#   apiGroup: rbac.authorization.k8s.io
+#   kind: ClusterRole
+#   name: psp:rook
+# subjects:
+#   - kind: ServiceAccount
+#     name: rook-ceph-multus-validation
+#     namespace: rook-ceph # namespace:cluster
+# ---
+# SecurityContextConstraints(SCC) for the Rook and Ceph daemons
+# kind: SecurityContextConstraints
+# apiVersion: security.openshift.io/v1
+# metadata:
+#   name: rook-ceph-multus-validation
+# allowPrivilegedContainer: true
+# allowHostDirVolumePlugin: true
+# allowHostPID: false
+# # set to true if running rook with host networking enabled
+# allowHostNetwork: true
+# # set to true if running rook with the provider as host
+# allowHostPorts: true
+# priority:
+# allowedCapabilities: ["MKNOD"]
+# allowHostIPC: true
+# readOnlyRootFilesystem: false
+# # drop all default privileges
+# requiredDropCapabilities: ["All"]
+# defaultAddCapabilities: []
+# runAsUser:
+#   type: RunAsAny
+# seLinuxContext:
+#   type: RunAsAny
+# fsGroup:
+#   type: RunAsAny
+# supplementalGroups:
+#   type: RunAsAny
+# seccompProfiles:
+#   - "*"
+# volumes:
+#   - configMap
+#   - emptyDir
+#   - projected
+# users:
+#   - system:serviceaccount:rook-ceph:rook-ceph-multus-validation # serviceaccount:namespace:cluster
+---

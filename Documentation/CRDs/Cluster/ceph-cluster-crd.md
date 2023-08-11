@@ -294,11 +294,15 @@ installing any Custom Resources, run the tool from the operator pod.
 The tool's CLI is designed to be as helpful as possible. Get help text for the multus validation
 tool like so:
 ```console
-kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- rook ctl multus validation run --help
+kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- rook multus validation run --help
 ```
+
+Then, update the args in the [multus-validation](https://github.com/rook/rook/blob/master/deploy/examples/multus-validation.yaml) job template. Minimally, add the NAD names(s) for public and/or cluster as needed and and then, create the job to validate the Multus configuration.
 
 If the tool fails, it will suggest what things may be preventing Multus networks from working
 properly, and it will request the logs and outputs that will help debug issues.
+
+Check the logs of the pod created by the job to know the status of the validation test.
 
 ##### Known limitations with Multus
 
