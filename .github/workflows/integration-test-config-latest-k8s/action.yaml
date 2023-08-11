@@ -11,6 +11,13 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Free Disk Space (Ubuntu)
+      uses: jlumbroso/free-disk-space@main
+      with:
+        # this might remove tools that are actually needed,
+        # if set to "true" but frees about 6 GB
+        tool-cache: true
+
     - name: setup golang
       uses: actions/setup-go@v2
       with:
@@ -19,7 +26,8 @@ runs:
     - name: Setup Minikube
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        tests/scripts/github-action-helper.sh install_minikube_with_none_driver ${{ inputs.kubernetes-version }}
+        set -xeEo pipefail
+        tests/scripts/github-action-helper.sh install_minikube_with_none_driver
 
     - name: print k8s cluster status
       shell: bash --noprofile --norc -eo pipefail -x {0}
