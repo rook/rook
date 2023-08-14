@@ -261,6 +261,8 @@ spec:
     #     deviceFilter: "^sd."
     # when onlyApplyOSDPlacement is false, will merge both placement.All() and placement.osd
     onlyApplyOSDPlacement: false
+    # Time for which an OSD pod will sleep before restarting, if it stopped due to flapping
+    # flappingRestartIntervalHours: 24
   # The section for configuring management of daemon disruptions during upgrade or fencing.
   disruptionManagement:
     # If true, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically

@@ -3416,6 +3416,11 @@ func (in *ObjectStoreSpec) DeepCopyInto(out *ObjectStoreSpec) {
 		*out = new(ObjectStoreSecuritySpec)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.AllowUsersInNamespaces != nil {
+		in, out := &in.AllowUsersInNamespaces, &out.AllowUsersInNamespaces
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

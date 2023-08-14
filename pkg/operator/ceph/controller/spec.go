@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
@@ -75,6 +76,26 @@ type daemonConfig struct {
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-spec")
 
 var (
+	osdLivenessProbeScript = `
+outp="$(ceph --admin-daemon %s %s 2>&1)"
+rc=$?
+if [ $rc -ne 0 ] && [ ! -f /tmp/osd-sleep ]; then
+	echo "ceph daemon health check failed with the following output:"
+	echo "$outp" | sed -e 's/^/> /g'
+	exit $rc
+fi
+`
+
+	livenessProbeScript = `
+outp="$(ceph --admin-daemon %s %s 2>&1)"
+rc=$?
+if [ $rc -ne 0 ]; then
+	echo "ceph daemon health check failed with the following output:"
+	echo "$outp" | sed -e 's/^/> /g'
+	exit $rc
+fi
+`
+
 	cronLogRotate = `
 CEPH_CLIENT_ID=%s
 PERIODICITY=%s
@@ -619,6 +640,10 @@ func StoredLogAndCrashVolumeMount(varLogCephDir, varLibCephCrashDir string) []v1
 // that it can be called, and that it returns 0
 func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 	confDaemon := getDaemonConfig(daemonType, daemonID)
+	probeScript := livenessProbeScript
+	if daemonType == opconfig.OsdType {
+		probeScript = osdLivenessProbeScript
+	}
 
 	return &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
@@ -637,14 +662,7 @@ func GenerateLivenessProbeExecDaemon(daemonType, daemonID string) *v1.Probe {
 					"-i",
 					"sh",
 					"-c",
-					fmt.Sprintf(`outp="$(ceph --admin-daemon %s %s 2>&1)"
-rc=$?
-if [ $rc -ne 0 ]; then
-  echo "ceph daemon health check failed with the following output:"
-  echo "$outp" | sed -e 's/^/> /g'
-  exit $rc
-fi`,
-						confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
+					fmt.Sprintf(probeScript, confDaemon.buildSocketPath(), confDaemon.buildAdminSocketCommand()),
 				},
 			},
 		},
