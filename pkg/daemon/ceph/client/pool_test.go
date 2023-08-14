@@ -31,26 +31,36 @@ import (
 
 const emptyApplicationName = `{"":{}}`
 
+var emptyParameters = map[string]string{}
+
 func TestCreateECPoolWithOverwrites(t *testing.T) {
-	testCreateECPool(t, true, "")
+	testCreateECPool(t, true, "", emptyParameters)
 }
 
 func TestCreateECPoolWithoutOverwrites(t *testing.T) {
-	testCreateECPool(t, false, "")
+	testCreateECPool(t, false, "", emptyParameters)
 }
 
 func TestCreateECPoolWithCompression(t *testing.T) {
-	testCreateECPool(t, false, "aggressive")
-	testCreateECPool(t, true, "none")
+	testCreateECPool(t, false, "aggressive", emptyParameters)
+	testCreateECPool(t, true, "none", emptyParameters)
 }
 
-func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
+func TestCreateECPoolWithPgNumMin(t *testing.T) {
+	parameters := map[string]string{"pg_num_min": "128"}
+	testCreateECPool(t, false, "", parameters)
+}
+
+func testCreateECPool(t *testing.T, overwrite bool, compressionMode string, parameters map[string]string) {
 	compressionModeCreated := false
+	pgNumMinSet, pgNumSet, pgpNumSet := false, false, false
+	expectedPgNumMin, expectedPgNumMinSet := parameters["pg_num_min"]
 	p := cephv1.NamedPoolSpec{
 		Name: "mypool",
 		PoolSpec: cephv1.PoolSpec{
 			FailureDomain: "host",
 			ErasureCoded:  cephv1.ErasureCodedSpec{},
+			Parameters:    parameters,
 		},
 	}
 	if compressionMode != "" {
@@ -63,9 +73,15 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 		if args[1] == "pool" {
 			if args[2] == "create" {
 				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, DefaultPGCount, args[4])
 				assert.Equal(t, "erasure", args[5])
 				assert.Equal(t, "mypoolprofile", args[6])
 				return "", nil
+			}
+			if args[2] == "get" {
+				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, "all", args[4])
+				return "{\"pool\":\"mypool\",\"pool_id\":5,\"size\":3,\"min_size\":2,\"pg_num\":8,\"pgp_num\":8,\"crush_rule\":\"mypool\",\"hashpspool\":true,\"nodelete\":false,\"nopgchange\":false,\"nosizechange\":false,\"write_fadvise_dontneed\":false,\"noscrub\":false,\"nodeep-scrub\":false,\"use_gmt_hitset\":true,\"fast_read\":0,\"recovery_priority\":5,\"pg_autoscale_mode\":\"on\",\"pg_autoscale_bias\":4,\"bulk\":false}", nil
 			}
 			if args[2] == "set" {
 				assert.Equal(t, "mypool", args[3])
@@ -78,6 +94,27 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 					assert.Equal(t, compressionMode, args[5])
 					compressionModeCreated = true
 					return "", nil
+				}
+				if args[4] == "pg_autoscale_mode" {
+					assert.True(t, args[5] == "on" || args[5] == "off")
+					return "", nil
+				}
+				if expectedPgNumMinSet {
+					if args[4] == "pg_num_min" {
+						assert.Equal(t, expectedPgNumMin, args[5])
+						pgNumMinSet = true
+						return "", nil
+					}
+					if args[4] == "pg_num" {
+						assert.Equal(t, expectedPgNumMin, args[5])
+						pgNumSet = true
+						return "", nil
+					}
+					if args[4] == "pgp_num" {
+						assert.Equal(t, expectedPgNumMin, args[5])
+						pgpNumSet = true
+						return "", nil
+					}
 				}
 			}
 			if args[2] == "application" {
@@ -99,6 +136,12 @@ func testCreateECPool(t *testing.T, overwrite bool, compressionMode string) {
 		assert.True(t, compressionModeCreated)
 	} else {
 		assert.False(t, compressionModeCreated)
+	}
+
+	if expectedPgNumMinSet {
+		assert.True(t, pgNumMinSet)
+		assert.True(t, pgNumSet)
+		assert.True(t, pgpNumSet)
 	}
 }
 
@@ -150,21 +193,28 @@ func TestSetPoolApplication(t *testing.T) {
 }
 
 func TestCreateReplicaPoolWithFailureDomain(t *testing.T) {
-	testCreateReplicaPool(t, "osd", "mycrushroot", "", "")
+	testCreateReplicaPool(t, "osd", "mycrushroot", "", "", emptyParameters)
 }
 
 func TestCreateReplicaPoolWithDeviceClass(t *testing.T) {
-	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd", "")
+	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd", "", emptyParameters)
 }
 
 func TestCreateReplicaPoolWithCompression(t *testing.T) {
-	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd", "passive")
-	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd", "force")
+	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd", "passive", emptyParameters)
+	testCreateReplicaPool(t, "osd", "mycrushroot", "hdd", "force", emptyParameters)
 }
 
-func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, compressionMode string) {
+func TestCreateReplicaPoolWithPgNumMin(t *testing.T) {
+	parameters := map[string]string{"pg_num_min": "128"}
+	testCreateReplicaPool(t, "osd", "mycrushroot", "", "", parameters)
+}
+
+func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, compressionMode string, parameters map[string]string) {
 	crushRuleCreated := false
 	compressionModeCreated := false
+	pgNumMinSet, pgNumSet, pgpNumSet := false, false, false
+	expectedPgNumMin, expectedPgNumMinSet := parameters["pg_num_min"]
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -172,6 +222,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 		if args[1] == "pool" {
 			if args[2] == "create" {
 				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, DefaultPGCount, args[4])
 				assert.Equal(t, "replicated", args[5])
 				assert.Equal(t, "--size", args[7])
 				assert.Equal(t, "12345", args[8])
@@ -185,6 +236,20 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 				if args[4] == "compression_mode" {
 					assert.Equal(t, compressionMode, args[5])
 					compressionModeCreated = true
+				}
+				if expectedPgNumMinSet {
+					if args[4] == "pg_num_min" {
+						assert.Equal(t, expectedPgNumMin, args[5])
+						pgNumMinSet = true
+					}
+					if args[4] == "pg_num" {
+						assert.Equal(t, expectedPgNumMin, args[5])
+						pgNumSet = true
+					}
+					if args[4] == "pgp_num" {
+						assert.Equal(t, expectedPgNumMin, args[5])
+						pgpNumSet = true
+					}
 				}
 				return "", nil
 			}
@@ -228,6 +293,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 		PoolSpec: cephv1.PoolSpec{
 			FailureDomain: failureDomain, CrushRoot: crushRoot, DeviceClass: deviceClass,
 			Replicated: cephv1.ReplicatedSpec{Size: 12345},
+			Parameters: parameters,
 		},
 	}
 	if compressionMode != "" {
@@ -241,6 +307,11 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 		assert.True(t, compressionModeCreated)
 	} else {
 		assert.False(t, compressionModeCreated)
+	}
+	if expectedPgNumMinSet {
+		assert.True(t, pgNumMinSet)
+		assert.True(t, pgNumSet)
+		assert.True(t, pgpNumSet)
 	}
 }
 
