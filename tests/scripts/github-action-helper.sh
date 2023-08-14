@@ -686,6 +686,16 @@ function install_minikube_with_none_driver() {
   sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
   rm -f crictl-$CRICTL_VERSION-linux-amd64.tar.gz
   sudo sysctl fs.protected_regular=0
+
+  CNI_PLUGIN_VERSION="v1.3.0"
+  CNI_PLUGIN_TAR="cni-plugins-linux-amd64-$CNI_PLUGIN_VERSION.tgz" # change arch if not on amd64
+  CNI_PLUGIN_INSTALL_DIR="/opt/cni/bin"
+
+  curl -LO "https://github.com/containernetworking/plugins/releases/download/$CNI_PLUGIN_VERSION/$CNI_PLUGIN_TAR"
+  sudo mkdir -p "$CNI_PLUGIN_INSTALL_DIR"
+  sudo tar -xf "$CNI_PLUGIN_TAR" -C "$CNI_PLUGIN_INSTALL_DIR"
+  rm "$CNI_PLUGIN_TAR"
+
   export MINIKUBE_HOME=$HOME CHANGE_MINIKUBE_NONE_USER=true KUBECONFIG=$HOME/.kube/config
   sudo -E minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
 }
