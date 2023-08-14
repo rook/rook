@@ -974,3 +974,14 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
 	})
 }
+
+func TestGetLocationWithRegex(t *testing.T) {
+	location := getLocationWithRegex("")
+	assert.Equal(t, "", location)
+
+	location = getLocationWithRegex(`ceph-osd --crush-location="root=default host=node" --default-log-to-stderr=true`)
+	assert.Equal(t, "root=default host=node", location)
+
+	location = getLocationWithRegex(`ceph-osd --crush-location="" --default-log-to-stderr=true`)
+	assert.Equal(t, "", location)
+}

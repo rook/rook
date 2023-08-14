@@ -2679,6 +2679,14 @@ type StorageScopeSpec struct {
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
 	// +optional
 	Store OSDStore `json:"store,omitempty"`
+	// +optional
+	// FlappingRestartIntervalHours defines the time for which the OSD pods, that failed with zero exit code, will sleep before restarting.
+	// This is needed for OSD flapping where OSD daemons are marked down more than 5 times in 600 seconds by Ceph.
+	// Preventing the OSD pods to restart immediately in such scenarios will prevent Rook from marking OSD as `up` and thus
+	// peering of the PGs mapped to the OSD.
+	// The interval defaults to 24 hours if no value is provided. User needs to manually restart the OSD pod if they manage to fix
+	// the underlying OSD flapping issue before the restart interval.
+	FlappingRestartIntervalHours int `json:"flappingRestartIntervalHours"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs
