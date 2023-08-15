@@ -162,13 +162,16 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to add finalizer")
 	}
 
+	clusterNamespace := request.NamespacedName
+	clusterNamespace.Namespace = clusterStoreNamespace(cephObjectStoreUser)
+
 	// The CR was just created, initializing status fields
 	if cephObjectStoreUser.Status == nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, clusterNamespace, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deleteUser() function since everything is gone already
@@ -191,7 +194,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	r.cephClusterSpec = &cephCluster.Spec
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.cephClusterSpec)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, clusterNamespace.Namespace, r.cephClusterSpec)
 	if err != nil {
 		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -211,7 +214,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			return reconcile.Result{}, *cephObjectStoreUser, nil
 		}
 		logger.Debugf("ObjectStore resource not ready in namespace %q, retrying in %q. %v",
-			request.NamespacedName.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
+			clusterNamespace.Namespace, opcontroller.WaitForRequeueIfCephClusterNotReady.RequeueAfter.String(), err)
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return opcontroller.WaitForRequeueIfCephClusterNotReady, *cephObjectStoreUser, err
 	}
@@ -222,7 +225,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
-		logger.Debugf("deleting pool %q", cephObjectStoreUser.Name)
+		logger.Debugf("deleting object store user %q", request.NamespacedName)
 		r.recorder.Eventf(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
 
 		err := r.deleteUser(cephObjectStoreUser)
@@ -383,6 +386,16 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 		return errors.Wrapf(err, "failed to get object store %q", u.Spec.Store)
 	}
 
+	// Check if the object store allows users to be created in any namespace
+	if u.Spec.ClusterNamespace != "" && u.Spec.ClusterNamespace != u.Namespace {
+		if !userInNamespaceAllowed(u.Namespace, store.Spec.AllowUsersInNamespaces) {
+			return fmt.Errorf(
+				"object store %q does not allow creating users namespace %q, the namespace must first be added to allowUsersInNamespaces",
+				u.Spec.Store,
+				u.Namespace)
+		}
+	}
+
 	objContext, err := object.NewMultisiteContext(r.context, r.clusterInfo, store)
 	if err != nil {
 		return errors.Wrapf(err, "Multisite failed to set on object context for object store user")
@@ -395,6 +408,17 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 	r.objContext = opsContext
 
 	return nil
+}
+
+func userInNamespaceAllowed(requestedNamespace string, allowedNamespaces []string) bool {
+	// Check if there is access to create the user in another namespace
+	for _, allowedNamespace := range allowedNamespaces {
+		if allowedNamespace == "*" || allowedNamespace == requestedNamespace {
+			logger.Debugf("allow creating object user in namespace %q", requestedNamespace)
+			return true
+		}
+	}
+	return false
 }
 
 func generateUserCaps(user admin.User) string {
@@ -556,7 +580,7 @@ func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *c
 
 	// check if at least one pod is running
 	if len(pods.Items) > 0 {
-		logger.Debugf("CephObjectStore %q is running with %d pods", cephObjectStoreUser.Name, len(pods.Items))
+		logger.Debugf("%d RGW pods found where object store user %q is created", len(pods.Items), cephObjectStoreUser.Name)
 		return nil
 	}
 
@@ -590,7 +614,7 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 	// check if ObjectStore is initialized
 	// rook does this by starting the RGW pod(s)
 	listOpts := []client.ListOption{
-		client.InNamespace(cephObjectStoreUser.Namespace),
+		client.InNamespace(clusterStoreNamespace(cephObjectStoreUser)),
 		client.MatchingLabels(labelsForRgw(cephObjectStoreUser.Spec.Store)),
 	}
 
@@ -603,6 +627,14 @@ func (r *ReconcileObjectStoreUser) getRgwPodList(cephObjectStoreUser *cephv1.Cep
 	}
 
 	return pods, nil
+}
+
+// Namespace where the object store and cluster are expected to be found
+func clusterStoreNamespace(user *cephv1.CephObjectStoreUser) string {
+	if user.Spec.ClusterNamespace != "" {
+		return user.Spec.ClusterNamespace
+	}
+	return user.Namespace
 }
 
 // Delete the user

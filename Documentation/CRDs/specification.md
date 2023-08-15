@@ -1872,6 +1872,23 @@ ObjectStoreSecuritySpec
 <p>Security represents security settings</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>allowUsersInNamespaces</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The list of allowed namespaces in addition to the object store namespace
+where ceph object store users may be created. Specify &ldquo;*&rdquo; to allow all
+namespaces, otherwise list individual namespaces that are to be allowed.
+This is useful for applications that need object store credentials
+to be created in their own namespace, where neither OBCs nor COSI
+is being used to create buckets. The default is empty.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -1994,6 +2011,18 @@ ObjectUserQuotaSpec
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
 </table>
@@ -8616,6 +8645,23 @@ ObjectStoreSecuritySpec
 <p>Security represents security settings</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>allowUsersInNamespaces</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The list of allowed namespaces in addition to the object store namespace
+where ceph object store users may be created. Specify &ldquo;*&rdquo; to allow all
+namespaces, otherwise list individual namespaces that are to be allowed.
+This is useful for applications that need object store credentials
+to be created in their own namespace, where neither OBCs nor COSI
+is being used to create buckets. The default is empty.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreStatus">ObjectStoreStatus
@@ -8772,6 +8818,18 @@ ObjectUserQuotaSpec
 </td>
 <td>
 <em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>clusterNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
 </tbody>
