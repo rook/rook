@@ -802,8 +802,16 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 		return errors.Wrapf(err, "failed to load ceph %q plugin holder template", driver.fullName)
 	}
 
-	// DO NOT set owner reference on ceph plugin holder daemonset, this DS must never restart unless
-	// the entire node is rebooted
+	// As the plugin holder daemonset is created in the operator namespace, we
+	// need to set the owner reference to the cluster namespace only if the
+	// operator and cluster are created in same namespace so that the
+	// plugin holder daemonset is deleted when the cluster is deleted.
+	if r.opConfig.OperatorNamespace == c.cluster.Namespace {
+		err = c.clusterInfo.OwnerInfo.SetControllerReference(cephPluginHolder)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to plugin holder %q", driver.fullName)
+		}
+	}
 	holderPluginTolerations := getToleration(r.opConfig.Parameters, driver.toleration, pluginTolerations)
 	holderPluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, driver.nodeAffinity, pluginNodeAffinity)
 	// apply driver's plugin tolerations and node affinity

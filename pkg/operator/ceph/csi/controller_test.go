@@ -215,6 +215,7 @@ func TestCephCSIController(t *testing.T) {
 		c.Client = cl
 		// // Create a ReconcileCSI object with the scheme and fake client.
 		r := &ReconcileCSI{
+			scheme:  s,
 			client:  cl,
 			context: c,
 			opConfig: controller.OperatorConfig{
