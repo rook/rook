@@ -25,11 +25,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
       - uses: actions/setup-go@v4
         with:
           go-version: "1.20"
