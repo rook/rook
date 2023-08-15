@@ -41,7 +41,7 @@ request and branch commits.
 ## Getting Started
 
 1. Fork the repository on GitHub
-1. Read the [install](INSTALL.md) for build and test instructions
+1. Read the [install](INSTALL.md) document for build and test instructions
 1. Play with the project, submit bugs, submit patches!
 
 ## Contribution Flow
