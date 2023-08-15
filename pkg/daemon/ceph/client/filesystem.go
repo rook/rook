@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -168,6 +169,14 @@ func AddDataPoolToFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo
 	args := []string{"fs", "add_data_pool", name, poolName}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
+		// Reef disallows calling add_data_pool for a pool that has already
+		// been added, so ignore the error code.
+		// Previous releases do not return an error when an existing data pool is added.
+		if clusterInfo.CephVersion.IsAtLeastReef() {
+			if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
+				return nil
+			}
+		}
 		return errors.Wrapf(err, "failed to add pool %q to file system %q. (%v)", poolName, name, err)
 	}
 	return nil
