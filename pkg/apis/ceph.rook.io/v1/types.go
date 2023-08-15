@@ -1387,6 +1387,15 @@ type ObjectStoreSpec struct {
 	// +optional
 	// +nullable
 	Security *ObjectStoreSecuritySpec `json:"security,omitempty"`
+
+	// The list of allowed namespaces in addition to the object store namespace
+	// where ceph object store users may be created. Specify "*" to allow all
+	// namespaces, otherwise list individual namespaces that are to be allowed.
+	// This is useful for applications that need object store credentials
+	// to be created in their own namespace, where neither OBCs nor COSI
+	// is being used to create buckets. The default is empty.
+	// +optional
+	AllowUsersInNamespaces []string `json:"allowUsersInNamespaces,omitempty"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
@@ -1597,6 +1606,9 @@ type ObjectStoreUserSpec struct {
 	// +optional
 	// +nullable
 	Quotas *ObjectUserQuotaSpec `json:"quotas,omitempty"`
+	// The namespace where the parent CephCluster and CephObjectStore are found
+	// +optional
+	ClusterNamespace string `json:"clusterNamespace,omitempty"`
 }
 
 // Additional admin-level capabilities for the Ceph object store user

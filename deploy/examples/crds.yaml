@@ -9898,6 +9898,11 @@ spec:
             spec:
               description: ObjectStoreSpec represent the spec of a pool
               properties:
+                allowUsersInNamespaces:
+                  description: The list of allowed namespaces in addition to the object store namespace where ceph object store users may be created. Specify "*" to allow all namespaces, otherwise list individual namespaces that are to be allowed. This is useful for applications that need object store credentials to be created in their own namespace, where neither OBCs nor COSI is being used to create buckets. The default is empty.
+                  items:
+                    type: string
+                  type: array
                 dataPool:
                   description: The data pool settings
                   nullable: true
@@ -11432,6 +11437,9 @@ spec:
                         - read, write
                       type: string
                   type: object
+                clusterNamespace:
+                  description: The namespace where the parent CephCluster and CephObjectStore are found
+                  type: string
                 displayName:
                   description: The display name for the ceph users
                   type: string
