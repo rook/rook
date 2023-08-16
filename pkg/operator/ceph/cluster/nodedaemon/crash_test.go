@@ -85,8 +85,8 @@ func TestCreateOrUpdateCephCrash(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, false, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
-	assert.Equal(t, int64(controller.CephUserID), *podSpec.Spec.Containers[0].SecurityContext.RunAsUser)
-	assert.Equal(t, int64(controller.CephUserID), *podSpec.Spec.Containers[0].SecurityContext.RunAsGroup)
+	assert.Equal(t, controller.CephUserID, *podSpec.Spec.Containers[0].SecurityContext.RunAsUser)
+	assert.Equal(t, controller.CephUserID, *podSpec.Spec.Containers[0].SecurityContext.RunAsGroup)
 
 	cephCluster.Spec.Labels[cephv1.KeyCrashCollector] = map[string]string{"foo": "bar"}
 	cephCluster.Spec.Network.HostNetwork = true
