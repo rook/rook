@@ -292,6 +292,7 @@ jobs:
         run: |
           export ALLOW_LOOP_DEVICES=true
           tests/scripts/github-action-helper.sh deploy_cluster loop
+          tests/scripts/github-action-helper.sh create_operator_toolbox
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
@@ -301,7 +302,6 @@ jobs:
 
       - name: test toolbox-operator-image pod
         run: |
-          tests/scripts/github-action-helper.sh create_operator_toolbox
           # waiting for toolbox operator image pod to get ready
           kubectl -n rook-ceph wait --for=condition=ready pod -l app=rook-ceph-tools-operator-image  --timeout=180s
 
