@@ -119,3 +119,21 @@ func TestGetOperatorSetting(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, envSettingValue, setting)
 }
+
+func TestLogChangedSettings(t *testing.T) {
+	key := "Node_Affinity"
+	value := "storage=rook, worker"
+
+	// When the key is not in the map, it should be added and return true for logging
+	ok := logChangedSettings(key, value)
+	assert.True(t, true, ok)
+
+	// When the key is already present in the map and value is same, it should return false for logging
+	ok = logChangedSettings(key, value)
+	assert.False(t, false, ok)
+
+	// When the key is already present in the map and value is updated, it should return true for logging
+	value = "storage=rook, test"
+	ok = logChangedSettings(key, value)
+	assert.True(t, true, ok)
+}
