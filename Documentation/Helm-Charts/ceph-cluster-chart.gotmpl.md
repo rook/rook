@@ -41,13 +41,16 @@ Rook currently publishes builds of this chart to the `release` and `master` chan
 The release channel is the most recent release of Rook that is considered stable for the community.
 
 The example install assumes you have first installed the [Rook Operator Helm Chart](operator-chart.md)
-and created your customized values-override.yaml.
+and created your customized values.yaml.
 
 ```console
 helm repo add rook-release https://charts.rook.io/release
 helm install --create-namespace --namespace rook-ceph rook-ceph-cluster \
-   --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster -f values-override.yaml
+   --set operatorNamespace=rook-ceph rook-release/rook-ceph-cluster -f values.yaml
 ```
+
+!!! Note
+    --namespace specifies the cephcluster namespace, which may be different from the rook operator namespace.
 
 ## Configuration
 
@@ -123,7 +126,7 @@ If you have an existing CephCluster CR that was created without the helm chart a
 chart to start managing the cluster:
 
 1. Extract the `spec` section of your existing CephCluster CR and copy to the `cephClusterSpec`
-   section in `values-override.yaml`.
+   section in `values.yaml`.
 
 2. Add the following annotations and label to your existing CephCluster CR:
 
@@ -137,7 +140,7 @@ chart to start managing the cluster:
 
 1. Run the `helm install` command in the [Installing section](#release) to create the chart.
 
-2. In the future when updates to the cluster are needed, ensure the values-override.yaml always
+2. In the future when updates to the cluster are needed, ensure the values.yaml always
    contains the desired CephCluster spec.
 
 ### **Development Build**
@@ -146,7 +149,7 @@ To deploy from a local build from your development environment:
 
 ```console
 cd deploy/charts/rook-ceph-cluster
-helm install --create-namespace --namespace rook-ceph rook-ceph-cluster -f values-override.yaml .
+helm install --create-namespace --namespace rook-ceph rook-ceph-cluster -f values.yaml .
 ```
 
 ## Uninstalling the Chart
