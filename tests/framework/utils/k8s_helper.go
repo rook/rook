@@ -378,6 +378,9 @@ func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) boo
 
 // WaitForLabeledPodsToRun calls WaitForLabeledPodsToRunWithRetries with the default number of retries
 func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label, namespace string) error {
+	if label == "app=rook-ceph-tools" && namespace == "multi-external" {
+		return k8sh.WaitForLabeledPodsToRunWithRetries(label, namespace, 180)
+	}
 	return k8sh.WaitForLabeledPodsToRunWithRetries(label, namespace, RetryLoop)
 }
 
