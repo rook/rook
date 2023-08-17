@@ -126,6 +126,23 @@ A specific will contain a specific release of Ceph as well as security fixes fro
   This setting only applies to new monitors that are created when the requested
   number of monitors increases, or when a monitor fails and is recreated. An
   [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
+* `failureDomainLabel`: The label that is expected on each node where the mons
+  are expected to be deployed. The labels must be found in the list of
+  well-known [topology labels](#osd-topology).
+* `zones`: The failure domain names where the Mons are expected to be deployed.
+  There must be **at least three zones** specified in the list. Each zone can be
+  backed by a different storage class by specifying the `volumeClaimTemplate`.
+   * `name`: The name of the zone, which is the value of the domain label.
+   * `volumeClaimTemplate`: A `PersistentVolumeSpec` used by Rook to create PVCs
+     for monitor storage. This field is optional, and when not provided, HostPath
+     volume mounts are used.  The current set of fields from template that are used
+     are `storageClassName` and the `storage` resource request and limit. The
+     default storage size request for new PVCs is `10Gi`. Ensure that associated
+     storage class is configured to use `volumeBindingMode: WaitForFirstConsumer`.
+     This setting only applies to new monitors that are created when the requested
+     number of monitors increases, or when a monitor fails and is recreated. An
+     [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
+
 * `stretchCluster`: The stretch cluster settings that define the zones (or other failure domain labels) across which to configure the cluster.
     * `failureDomainLabel`: The label that is expected on each node where the cluster is expected to be deployed. The labels must be found
     in the list of well-known [topology labels](#osd-topology).
@@ -134,7 +151,16 @@ A specific will contain a specific release of Ceph as well as security fixes fro
     This element is always named `zone` even if a non-default `failureDomainLabel` is specified. The elements have two values:
         * `name`: The name of the zone, which is the value of the domain label.
         * `arbiter`: Whether the zone is expected to be the arbiter zone which only runs a single mon. Exactly one zone must be labeled `true`.
-      The two zones that are not the arbiter zone are expected to have OSDs deployed.
+        * `volumeClaimTemplate`: A `PersistentVolumeSpec` used by Rook to create PVCs
+          for monitor storage. This field is optional, and when not provided, HostPath
+          volume mounts are used.  The current set of fields from template that are used
+          are `storageClassName` and the `storage` resource request and limit. The
+          default storage size request for new PVCs is `10Gi`. Ensure that associated
+          storage class is configured to use `volumeBindingMode: WaitForFirstConsumer`.
+          This setting only applies to new monitors that are created when the requested
+          number of monitors increases, or when a monitor fails and is recreated. An
+          [example CRD configuration is provided below](#using-pvc-storage-for-monitors).
+    The two zones that are not the arbiter zone are expected to have OSDs deployed.
 
 If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
 
