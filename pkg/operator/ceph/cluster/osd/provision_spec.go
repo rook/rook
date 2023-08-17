@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -301,6 +302,22 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	} else {
 		// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "rootfs", MountPath: "/rootfs", ReadOnly: true})
+	}
+
+	// Add OSD ID as environment variables.
+	// When this env is set, prepare pod job will destroy this OSD.
+	if c.replaceOSD != nil {
+		// Compare pvc claim name in case of OSDs on PVC
+		if osdProps.onPVC() {
+			if strings.Contains(c.replaceOSD.Path, osdProps.pvc.ClaimName) {
+				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.replaceOSD.ID)))
+			}
+		} else {
+			// Compare the node name in case of OSDs on disk
+			if c.replaceOSD.Node == osdProps.crushHostname {
+				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.replaceOSD.ID)))
+			}
+		}
 	}
 
 	// run privileged always since we always mount /dev
