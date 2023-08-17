@@ -314,7 +314,7 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 	}
 
 	// Create the default crush rule for stretch clusters, that by default will also apply to all pools
-	if err := cephclient.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.stretchFailureDomainName()); err != nil {
+	if err := cephclient.CreateDefaultStretchCrushRule(c.context, c.ClusterInfo, &c.spec, c.getFailureDomainName()); err != nil {
 		return errors.Wrap(err, "failed to create default stretch rule")
 	}
 
@@ -322,6 +322,10 @@ func (c *Cluster) configureStretchCluster(mons []*monConfig) error {
 }
 
 func (c *Cluster) getArbiterZone() string {
+	if !c.spec.IsStretchCluster() {
+		return ""
+	}
+
 	for _, zone := range c.spec.Mon.StretchCluster.Zones {
 		if zone.Arbiter {
 			return zone.Name
@@ -367,7 +371,7 @@ func (c *Cluster) ConfigureArbiter() error {
 	// Wait for the CRUSH map to have at least two zones
 	// The timeout is relatively short since the operator will requeue the reconcile
 	// and try again at a higher level if not yet found
-	failureDomain := c.stretchFailureDomainName()
+	failureDomain := c.getFailureDomainName()
 	logger.Infof("enabling stretch mode... waiting for two failure domains of type %q to be found in the CRUSH map after OSD initialization", failureDomain)
 	pollInterval := 5 * time.Second
 	totalWaitTime := 2 * time.Minute
@@ -387,7 +391,7 @@ func (c *Cluster) ConfigureArbiter() error {
 }
 
 func (c *Cluster) readyToConfigureArbiter(checkOSDPods bool) (bool, error) {
-	failureDomain := c.stretchFailureDomainName()
+	failureDomain := c.getFailureDomainName()
 
 	if checkOSDPods {
 		// Wait for the OSD pods to be running
@@ -528,9 +532,9 @@ func (c *Cluster) initMonConfig(size int) (int, []*monConfig, error) {
 	existingCount := len(c.ClusterInfo.Monitors)
 	for i := len(c.ClusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
-		zone, err := c.findAvailableZoneIfStretched(mons)
+		zone, err := c.findAvailableZone(mons)
 		if err != nil {
-			return existingCount, mons, errors.Wrap(err, "stretch zone not available")
+			return existingCount, mons, errors.Wrap(err, "zone not available")
 		}
 		mons = append(mons, c.newMonConfig(c.maxMonID, zone))
 	}
@@ -595,8 +599,8 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 	}
 }
 
-func (c *Cluster) findAvailableZoneIfStretched(mons []*monConfig) (string, error) {
-	if !c.spec.IsStretchCluster() {
+func (c *Cluster) findAvailableZone(mons []*monConfig) (string, error) {
+	if !c.spec.ZonesRequired() {
 		return "", nil
 	}
 
@@ -609,14 +613,21 @@ func (c *Cluster) findAvailableZoneIfStretched(mons []*monConfig) (string, error
 		zoneCount[m.Zone]++
 	}
 
+	var zones []cephv1.MonZoneSpec
+	if c.spec.IsStretchCluster() {
+		zones = c.spec.Mon.StretchCluster.Zones
+	} else {
+		zones = c.spec.Mon.Zones
+	}
+
 	// Find a zone in the stretch cluster that still needs an assignment
-	for _, zone := range c.spec.Mon.StretchCluster.Zones {
+	for _, zone := range zones {
 		count, ok := zoneCount[zone.Name]
 		if !ok {
 			// The zone isn't currently assigned to any mon, so return it
 			return zone.Name, nil
 		}
-		if c.spec.Mon.Count == 5 && count == 1 && !zone.Arbiter {
+		if c.spec.IsStretchCluster() && c.spec.Mon.Count == 5 && count == 1 && !zone.Arbiter {
 			// The zone only has 1 mon assigned, but needs 2 mons since it is not the arbiter
 			return zone.Name, nil
 		}
@@ -919,8 +930,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			} else {
 				logger.Infof("mon %q placement using native scheduler", mon.DaemonName)
 			}
-
-			if c.spec.IsStretchCluster() {
+			if c.spec.ZonesRequired() {
 				if schedule == nil {
 					schedule = &controller.MonScheduleInfo{}
 				}
@@ -945,21 +955,28 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 }
 
 func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeClaim {
-	if !c.spec.IsStretchCluster() {
-		return c.spec.Mon.VolumeClaimTemplate
-	}
 
-	// If a stretch cluster, a zone can override the template from the default.
-	for _, zone := range c.spec.Mon.StretchCluster.Zones {
-		if zone.Name == mon.Zone {
-			if zone.VolumeClaimTemplate != nil {
-				// Found an override for the volume claim template in the zone
-				return zone.VolumeClaimTemplate
+	if c.spec.ZonesRequired() {
+		// If a stretch cluster, a zone can override the template from the default.
+
+		var zones []cephv1.MonZoneSpec
+		if c.spec.IsStretchCluster() {
+			zones = c.spec.Mon.StretchCluster.Zones
+		} else {
+			zones = c.spec.Mon.Zones
+		}
+		for _, zone := range zones {
+			if zone.Name == mon.Zone {
+				if zone.VolumeClaimTemplate != nil {
+					// Found an override for the volume claim template in the zone
+					return zone.VolumeClaimTemplate
+				}
+				break
 			}
-			break
 		}
 	}
-	// Return the default template since one wasn't found in the zone
+
+	// Return the default template since one wasn't found in the zone or zone was not specified
 	return c.spec.Mon.VolumeClaimTemplate
 }
 

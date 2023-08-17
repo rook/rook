@@ -76,10 +76,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		matchLabels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
 		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, mon.CephSecretVolume())
 
-		// Stretch the mgrs across hosts by default, or across a bigger failure domain for stretch clusters
+		// Stretch the mgrs across hosts by default, or across a bigger failure domain for when zones are required like in case of stretched cluster
 		topologyKey := v1.LabelHostname
-		if c.spec.IsStretchCluster() {
-			topologyKey = mon.StretchFailureDomainLabel(c.spec)
+		if c.spec.ZonesRequired() {
+			topologyKey = mon.GetFailureDomainLabel(c.spec)
 		}
 		k8sutil.SetNodeAntiAffinityForPod(&podSpec.Spec, !c.spec.Mgr.AllowMultiplePerNode, topologyKey, matchLabels, nil)
 	}

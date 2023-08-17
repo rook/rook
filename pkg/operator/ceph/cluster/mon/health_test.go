@@ -179,7 +179,7 @@ func TestRemoveExtraMon(t *testing.T) {
 	assert.NotEqual(t, "", removedMon)
 
 	// Don't remove any extra mon from a proper stretch cluster
-	c.spec.Mon.StretchCluster = &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{
+	c.spec.Mon.StretchCluster = &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{
 		{Name: "x", Arbiter: true},
 		{Name: "y"},
 		{Name: "z"},
@@ -265,7 +265,7 @@ func TestSkipMonFailover(t *testing.T) {
 	t.Run("don't skip failover for non-arbiter", func(t *testing.T) {
 		c.spec.Mon.Count = 5
 		c.spec.Mon.StretchCluster = &cephv1.StretchClusterSpec{
-			Zones: []cephv1.StretchClusterZoneSpec{
+			Zones: []cephv1.MonZoneSpec{
 				{Name: "a"},
 				{Name: "b"},
 				{Name: "c", Arbiter: true},
