@@ -1,3 +1,7 @@
+---
+title: Rook Test Framework
+---
+
 # Integration Tests
 
 The integration tests run end-to-end tests on Rook in a running instance of Kubernetes.
