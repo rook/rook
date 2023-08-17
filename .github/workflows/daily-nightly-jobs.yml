@@ -121,7 +121,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -156,7 +156,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -191,7 +191,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -227,7 +227,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephSmokeSuite
         run: |
@@ -262,7 +262,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephObjectSuite
         run: |
@@ -297,7 +297,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephObjectSuite
         run: |
@@ -332,7 +332,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephUpgradeSuite
         run: |
@@ -367,7 +367,7 @@ jobs:
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.25.0"
+          kubernetes-version: "1.28.0"
 
       - name: TestCephUpgradeSuite
         run: |
