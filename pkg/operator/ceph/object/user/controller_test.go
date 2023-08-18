@@ -461,7 +461,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 	t.Run("setting Capabilities for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
 		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
-			User:    "read",
+			Users:   "read",
 			Buckets: "read",
 		}
 		userConfig = generateUserConfig(objectUser)
@@ -510,7 +510,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 
 	t.Run("setting both Quotas and Capabilities for the user", func(t *testing.T) {
 		objectUser.Spec.Capabilities = &cephv1.ObjectUserCapSpec{
-			User:    "read",
+			Users:   "read",
 			Buckets: "read",
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
