@@ -816,11 +816,18 @@ func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv
 		Name:     poolName(ctx.Name, requestedName),
 		PoolSpec: poolSpec,
 	}
+
 	if err := cephclient.CreatePoolWithPGs(ctx.Context, ctx.clusterInfo, clusterSpec, pool, AppName, pgCount); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", pool.Name)
 	}
+
+	poolDetails, err := cephclient.GetPoolDetails(ctx.Context, ctx.clusterInfo, pool.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get pool %q details", pool.Name)
+	}
+
 	// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count
-	if pgCount != cephclient.DefaultPGCount {
+	if poolDetails.PgNumMin == nil && pgCount != cephclient.DefaultPGCount {
 		if err := cephclient.SetPoolProperty(ctx.Context, ctx.clusterInfo, pool.Name, "pg_num_min", pgCount); err != nil {
 			return errors.Wrapf(err, "failed to set pg_num_min on pool %q to %q", pool.Name, pgCount)
 		}
