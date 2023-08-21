@@ -2,8 +2,6 @@ module github.com/rook/rook
 
 go 1.20
 
-replace github.com/rook/rook/pkg/apis => ./pkg/apis
-
 require (
 	github.com/IBM/keyprotect-go-client v0.10.0
 	github.com/aws/aws-sdk-go v1.44.322
