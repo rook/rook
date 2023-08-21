@@ -655,8 +655,8 @@ github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA
 github.com/census-instrumentation/opencensus-proto v0.3.0/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/census-instrumentation/opencensus-proto v0.4.1/go.mod h1:4T9NM4+4Vw91VeyqjLS6ao50K5bOcLKN6Q42XnYaRYw=
 github.com/centrify/cloud-golang-sdk v0.0.0-20210923165758-a8c48d049166/go.mod h1:c/gmvyN8lq6lYtHvrqqoXrg2xyN65N0mBmbikxFWXNE=
-github.com/ceph/go-ceph v0.22.0 h1:neClxdgly+Bb2IfmC3vP4Rihh//BM0YpJW/685T+yT4=
-github.com/ceph/go-ceph v0.22.0/go.mod h1:vyoYT04bHOlrjFfu1NmmtqKdH5uRBVKPKq7viyUL4sc=
+github.com/ceph/go-ceph v0.23.0 h1:b/glx9y7vXQJd5m6VqfNv9krYHny7W/+Zc3fNyTbIIo=
+github.com/ceph/go-ceph v0.23.0/go.mod h1:QDYBF+MBdj9B5nSAvevZOrh5WSOflN15t/tZ67b17Qw=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.1.2/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
