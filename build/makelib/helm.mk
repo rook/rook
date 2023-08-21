@@ -40,7 +40,7 @@ $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz: $(HELM) $(HELM_OUTPUT_DIR) $(shell find 
 	@echo === helm package $(1)
 	@rm -rf $(OUTPUT_DIR)/$(1)
 	@cp -aL $(HELM_CHARTS_DIR)/$(1) $(OUTPUT_DIR)
-	@$(SED_IN_PLACE) 's|VERSION|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
+	@$(SED_IN_PLACE) 's|master|$(VERSION)|g' $(OUTPUT_DIR)/$(1)/values.yaml
 	@$(HELM) lint $(abspath $(OUTPUT_DIR)/$(1)) --set image.tag=$(VERSION)
 	@$(HELM) package --version $(VERSION) --app-version $(VERSION) -d $(HELM_OUTPUT_DIR) $(abspath $(OUTPUT_DIR)/$(1))
 $(HELM_INDEX): $(HELM_OUTPUT_DIR)/$(1)-$(VERSION).tgz
