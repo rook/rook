@@ -23,7 +23,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -41,6 +44,31 @@ func DeleteConfigMap(ctx context.Context, clientset kubernetes.Interface, cmName
 	resource := fmt.Sprintf("ConfigMap %s", cmName)
 	defaultWaitOptions := &WaitOptions{RetryCount: 20, RetryInterval: 2 * time.Second}
 	return DeleteResource(delete, verify, resource, opts, defaultWaitOptions)
+}
+
+func CreateOrUpdateConfigMap(ctx context.Context, clientset kubernetes.Interface, cm *v1.ConfigMap) (*v1.ConfigMap, error) {
+	name := cm.GetName()
+	namespace := cm.GetNamespace()
+	existingCm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			cm, err := clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create %q configmap", name)
+			}
+			return cm, nil
+		}
+
+		return nil, errors.Wrapf(err, "failed to retrieve %q configmap.", name)
+	}
+
+	existingCm.Data = cm.Data
+	existingCm.OwnerReferences = cm.OwnerReferences
+	if existingCm, err := clientset.CoreV1().ConfigMaps(namespace).Update(ctx, existingCm, metav1.UpdateOptions{}); err != nil {
+		return nil, errors.Wrapf(err, "failed to update existing %q configmap", existingCm.Name)
+	}
+
+	return existingCm, nil
 }
 
 // GetOperatorSetting gets the operator setting from ConfigMap or Env Var

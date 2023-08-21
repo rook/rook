@@ -19,6 +19,7 @@ package osd
 import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -37,11 +38,13 @@ type OsdAgent struct {
 	storeConfig    config.StoreConfig
 	kv             *k8sutil.ConfigMapKVStore
 	pvcBacked      bool
+	replaceOSD     *oposd.OSDReplaceInfo
 }
 
 // NewAgent is the instantiation of the OSD agent
 func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice string, forceFormat bool,
-	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, pvcBacked bool) *OsdAgent {
+	storeConfig config.StoreConfig, clusterInfo *cephclient.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore,
+	replaceOSD *oposd.OSDReplaceInfo, pvcBacked bool) *OsdAgent {
 
 	return &OsdAgent{
 		devices:        devices,
@@ -52,6 +55,7 @@ func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice
 		nodeName:       nodeName,
 		kv:             kv,
 		pvcBacked:      pvcBacked,
+		replaceOSD:     replaceOSD,
 	}
 }
 
@@ -63,4 +67,13 @@ func getDeviceLVPath(context *clusterd.Context, deviceName string) string {
 	}
 	logger.Debugf("logical volume path for device %q is %q", deviceName, output)
 	return output
+}
+
+// GetReplaceOSDId returns the OSD ID based on the device name
+func (a *OsdAgent) GetReplaceOSDId(device string) int {
+	if device == a.replaceOSD.Path {
+		return a.replaceOSD.ID
+	}
+
+	return -1
 }
