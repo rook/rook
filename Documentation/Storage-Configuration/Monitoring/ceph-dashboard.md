@@ -193,8 +193,8 @@ If you have a cluster with an [nginx Ingress Controller](https://kubernetes.gith
 and a Certificate Manager (e.g. [cert-manager](https://cert-manager.readthedocs.io/)) then you can create an
 Ingress like the one below. This example achieves four things:
 
-1. Exposes the dashboard on the Internet (using an reverse proxy)
-2. Issues an valid TLS Certificate for the specified domain name (using [ACME](https://en.wikipedia.org/wiki/Automated_Certificate_Management_Environment))
+1. Exposes the dashboard on the Internet (using a reverse proxy)
+2. Issues a valid TLS Certificate for the specified domain name (using [ACME](https://en.wikipedia.org/wiki/Automated_Certificate_Management_Environment))
 3. Tells the reverse proxy that the dashboard itself uses HTTPS
 4. Tells the reverse proxy that the dashboard itself does not have a valid certificate (it is self-signed)
 
