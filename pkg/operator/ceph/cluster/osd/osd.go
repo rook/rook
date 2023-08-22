@@ -21,6 +21,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -28,10 +29,12 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -117,6 +120,7 @@ type OSDInfo struct {
 	Encrypted        bool   `json:"encrypted"`
 	ExportService    bool   `json:"exportService"`
 	NodeName         string `json:"nodeName"`
+	PVCName          string `json:"pvcName"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -258,6 +262,11 @@ func (c *Cluster) Start() error {
 	err = c.reconcileKeyRotationCronJob()
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile key rotation cron jobs")
+	}
+
+	err = c.updateCephStorageStatus()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update ceph storage status")
 	}
 
 	if c.replaceOSD != nil {
@@ -611,6 +620,10 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 
 	osd.Store = d.Labels[osdStore]
 
+	if isPVC {
+		osd.PVCName = d.Labels[OSDOverPVCLabelKey]
+	}
+
 	return osd, nil
 }
 
@@ -870,4 +883,64 @@ func (c *Cluster) waitForHealthyPGs() (bool, error) {
 	}
 
 	return true, nil
+}
+
+func (c *Cluster) updateCephStorageStatus() error {
+	cephCluster := cephv1.CephCluster{}
+	cephClusterStorage := cephv1.CephStorage{}
+
+	deviceClasses, err := client.GetDeviceClasses(c.context, c.clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get osd device classes")
+	}
+
+	for _, deviceClass := range deviceClasses {
+		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: deviceClass})
+	}
+
+	osdStore, err := c.getOSDStoreStatus()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get osd store status")
+	}
+
+	cephClusterStorage.OSD = *osdStore
+
+	err = c.context.Client.Get(c.clusterInfo.Context, c.clusterInfo.NamespacedName(), &cephCluster)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+			return nil
+		}
+		return errors.Wrapf(err, "failed to retrieve ceph cluster %q to update ceph Storage", c.clusterInfo.NamespacedName().Name)
+	}
+	if !reflect.DeepEqual(cephCluster.Status.CephStorage, cephClusterStorage) {
+		cephCluster.Status.CephStorage = &cephClusterStorage
+		if err := reporting.UpdateStatus(c.context.Client, &cephCluster); err != nil {
+			return errors.Wrapf(err, "failed to update cluster %q Storage.", c.clusterInfo.NamespacedName().Name)
+		}
+	}
+
+	return nil
+}
+
+func (c *Cluster) getOSDStoreStatus() (*cephv1.OSDStatus, error) {
+	label := fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)
+	osdDeployments, err := k8sutil.GetDeployments(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, label)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to get osd deployments")
+	}
+
+	storeType := map[string]int{}
+	for i := range osdDeployments.Items {
+		if osdStore, ok := osdDeployments.Items[i].Labels[osdStore]; ok {
+			storeType[osdStore]++
+		}
+	}
+
+	return &cephv1.OSDStatus{
+		StoreType: storeType,
+	}, nil
 }

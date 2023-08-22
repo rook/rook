@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -244,4 +246,52 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 	if err != nil {
 		logger.Errorf("failed to archive the crash %q. %v", crashID, err)
 	}
+}
+
+// DestroyOSD fetches the OSD to be replaced based on the ID and then destroys that OSD and zaps the backing device
+func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC, isEncrypted bool) (*osd.OSDReplaceInfo, error) {
+	var block string
+	osdInfo, err := GetOSDInfoById(context, clusterInfo, id)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", id)
+	}
+
+	block = osdInfo.BlockPath
+
+	logger.Infof("destroying osd.%d", osdInfo.ID)
+	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
+	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
+	}
+	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
+
+	if isPVC && isEncrypted {
+		// remove the dm device
+		pvcName := os.Getenv(oposd.PVCNameEnvVarName)
+		target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+		err = removeEncryptedDevice(context, target)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
+		}
+		// ceph-volume uses `/dev/mapper/*` for encrypted disks. This is not a block device. So we need to fetch the corresponding
+		// block device for cleanup using `ceph-volume lvm zap`
+		blockPath := fmt.Sprintf("/mnt/%s", pvcName)
+		diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
+		}
+		block = diskInfo.RealPath
+	}
+
+	logger.Infof("zap OSD.%d path %q", osdInfo.ID, block)
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", block, "--destroy")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, block, output)
+	}
+
+	logger.Infof("%s\n", output)
+	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, block)
+
+	return &osd.OSDReplaceInfo{ID: osdInfo.ID, Path: block}, nil
 }

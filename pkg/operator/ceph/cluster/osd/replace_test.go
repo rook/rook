@@ -160,7 +160,7 @@ func TestGetOSDWithNonMatchingStoreOnPVCs(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, len(osdList))
 		assert.Equal(t, 0, osdList[0].ID)
-		assert.Equal(t, "/some/path", osdList[0].Path)
+		assert.Equal(t, "pvc0", osdList[0].Path)
 	})
 }
 

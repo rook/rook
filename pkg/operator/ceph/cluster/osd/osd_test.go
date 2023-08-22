@@ -25,7 +25,9 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	fakeclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclientfake "github.com/rook/rook/pkg/daemon/ceph/client/fake"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
@@ -34,6 +36,7 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
@@ -45,6 +48,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -70,13 +74,40 @@ func TestOSDProperties(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
+	namespace := "ns"
 	clientset := fake.NewSimpleClientset()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+			if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
+				// Mock executor for OSD crush class list command, returning ssd as available device class
+				return `["ssd"]`, nil
+			}
+			return "", nil
+		},
+	}
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testing",
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{},
+	}
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		cephCluster,
+	}
+	s := scheme.Scheme
+	// Create a fake client to mock API calls.
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	clusterInfo := &cephclient.ClusterInfo{
-		Namespace:   "ns",
+		Namespace:   namespace,
 		CephVersion: cephver.Quincy,
 		Context:     context.TODO(),
 	}
-	context := &clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}
+	clusterInfo.SetName("rook-ceph-test")
+	context := &clusterd.Context{Clientset: clientset, Client: client, ConfigDir: "/var/lib/rook", Executor: executor}
 	spec := cephv1.ClusterSpec{}
 	c := New(context, clusterInfo, spec, "myversion")
 
@@ -163,6 +194,11 @@ func TestAddRemoveNode(t *testing.T) {
 	generateKey := "expected key"
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
+				// Mock executor for OSD crush class list command, returning ssd as available device class
+				return `["ssd"]`, nil
+			}
 			return "{\"key\": \"" + generateKey + "\"}", nil
 		},
 	}
@@ -173,20 +209,37 @@ func TestAddRemoveNode(t *testing.T) {
 		Executor:      executor,
 		RookClientset: fakeclient.NewSimpleClientset(),
 	}
-	spec := cephv1.ClusterSpec{
-		DataDirHostPath: context.ConfigDir,
-		Storage: cephv1.StorageScopeSpec{
-			Nodes: []cephv1.Node{
-				{
-					Name: nodeName,
-					Selection: cephv1.Selection{
-						Devices: []cephv1.Device{{Name: "sdx"}},
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testing",
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			DataDirHostPath: context.ConfigDir,
+			Storage: cephv1.StorageScopeSpec{
+				Nodes: []cephv1.Node{
+					{
+						Name: nodeName,
+						Selection: cephv1.Selection{
+							Devices: []cephv1.Device{{Name: "sdx"}},
+						},
 					},
 				},
 			},
 		},
 	}
-	c := New(context, clusterInfo, spec, "myversion")
+
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		cephCluster,
+	}
+	s := scheme.Scheme
+	// Create a fake client to mock API calls.
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	context.Client = client
+
+	c := New(context, clusterInfo, cephCluster.Spec, "myversion")
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -246,6 +299,9 @@ func TestAddRemoveNode(t *testing.T) {
 					if args[2] == "get-device-class" {
 						return cephclientfake.OSDDeviceClassOutput(args[3]), nil
 					}
+					if args[2] == "class" {
+						return `["ssd"]`, nil
+					}
 				}
 				if args[1] == "out" {
 					return "", nil
@@ -276,8 +332,8 @@ func TestAddRemoveNode(t *testing.T) {
 	}
 
 	// modify the storage spec to remove the node from the cluster
-	spec.Storage.Nodes = []cephv1.Node{}
-	c = New(context, clusterInfo, spec, "myversion")
+	cephCluster.Spec.Storage.Nodes = []cephv1.Node{}
+	c = New(context, clusterInfo, cephCluster.Spec, "myversion")
 
 	// reset the orchestration status watcher
 	statusMapWatcher = watch.NewFake()
@@ -767,7 +823,7 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		fmt.Printf("%+v", c.replaceOSD)
 		assert.NotNil(t, c.replaceOSD)
 		assert.Equal(t, 2, c.replaceOSD.ID)
-		assert.Equal(t, "/some/path", c.replaceOSD.Path)
+		assert.Equal(t, "pvc1", c.replaceOSD.Path)
 
 		// assert that OSD.2 deployment got deleted
 		_, err = clientset.AppsV1().Deployments(clusterInfo.Namespace).Get(clusterInfo.Context, deploymentName(2), metav1.GetOptions{})
@@ -781,7 +837,7 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		err = json.Unmarshal([]byte(actualCM.Data[OSDReplaceConfigKey]), &expectedOSDInfo)
 		assert.NoError(t, err)
 		assert.Equal(t, 2, expectedOSDInfo.ID)
-		assert.Equal(t, "/some/path", c.replaceOSD.Path)
+		assert.Equal(t, "pvc1", c.replaceOSD.Path)
 
 		// delete configmap
 		err = k8sutil.DeleteConfigMap(clusterInfo.Context, clientset, OSDReplaceConfigName, clusterInfo.Namespace, &k8sutil.DeleteOptions{})
@@ -811,5 +867,110 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
 		assert.Nil(t, c.replaceOSD)
+	})
+}
+
+func TestUpdateCephStorageStatus(t *testing.T) {
+	ctx := context.TODO()
+	clusterInfo := client.AdminTestClusterInfo("fake")
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
+			if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
+				// Mock executor for OSD crush class list command, returning ssd as available device class
+				return `["ssd"]`, nil
+			}
+			return "", nil
+		},
+	}
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testing",
+			Namespace: "fake",
+		},
+		Spec: cephv1.ClusterSpec{},
+	}
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		cephCluster,
+	}
+	s := scheme.Scheme
+	// Create a fake client to mock API calls.
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+	context := &clusterd.Context{
+		Executor:  executor,
+		Client:    client,
+		Clientset: testexec.New(t, 2),
+	}
+
+	// Initializing an OSD monitoring
+	c := New(context, clusterInfo, cephCluster.Spec, "myversion")
+
+	t.Run("verify ssd device class added to storage status", func(t *testing.T) {
+		err := c.updateCephStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cephCluster.Status.CephStorage.DeviceClasses))
+		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
+	})
+
+	t.Run("verify bluestore OSD count in storage status", func(t *testing.T) {
+		labels := map[string]string{
+			k8sutil.AppAttr:     AppName,
+			k8sutil.ClusterAttr: clusterInfo.Namespace,
+			OsdIdLabelKey:       "0",
+			osdStore:            "bluestore",
+		}
+
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd0",
+				Namespace: clusterInfo.Namespace,
+				Labels:    labels,
+			},
+		}
+		if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+			logger.Errorf("Error creating fake deployment: %v", err)
+		}
+		err := c.updateCephStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cephCluster.Status.CephStorage.DeviceClasses))
+		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
+		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
+		assert.Equal(t, 0, cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"])
+
+	})
+
+	t.Run("verify bluestoreRDR OSD count in storage status", func(t *testing.T) {
+		labels := map[string]string{
+			k8sutil.AppAttr:     AppName,
+			k8sutil.ClusterAttr: clusterInfo.Namespace,
+			OsdIdLabelKey:       "1",
+			osdStore:            "bluestore-rdr",
+		}
+
+		deployment := &apps.Deployment{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "osd1",
+				Namespace: clusterInfo.Namespace,
+				Labels:    labels,
+			},
+		}
+		if _, err := context.Clientset.AppsV1().Deployments(clusterInfo.Namespace).Create(ctx, deployment, metav1.CreateOptions{}); err != nil {
+			logger.Errorf("Error creating fake deployment: %v", err)
+		}
+		err := c.updateCephStorageStatus()
+		assert.NoError(t, err)
+		err = context.Client.Get(clusterInfo.Context, clusterInfo.NamespacedName(), cephCluster)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cephCluster.Status.CephStorage.DeviceClasses))
+		assert.Equal(t, "ssd", cephCluster.Status.CephStorage.DeviceClasses[0].Name)
+		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore-rdr"])
+		assert.Equal(t, 1, cephCluster.Status.CephStorage.OSD.StoreType["bluestore"])
 	})
 }

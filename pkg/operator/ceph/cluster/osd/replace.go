@@ -134,7 +134,13 @@ func (c *Cluster) getOSDWithNonMatchingStore() ([]OSDReplaceInfo, error) {
 				if err != nil {
 					return nil, errors.Wrapf(err, "failed to details about the OSD %q", deployments.Items[i].Name)
 				}
-				osdReplaceList = append(osdReplaceList, OSDReplaceInfo{ID: osdInfo.ID, Path: osdInfo.BlockPath, Node: osdInfo.NodeName})
+				var path string
+				if osdInfo.PVCName != "" {
+					path = osdInfo.PVCName
+				} else {
+					path = osdInfo.BlockPath
+				}
+				osdReplaceList = append(osdReplaceList, OSDReplaceInfo{ID: osdInfo.ID, Path: path, Node: osdInfo.NodeName})
 			}
 		}
 	}
