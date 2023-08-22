@@ -363,12 +363,17 @@ ceph osd primary-affinity osd.0 0
 
 ## OSD Dedicated Network
 
+!!! tip
+    This documentation is left for historical purposes. It is still valid, but Rook offers native
+    support for this feature via the
+    [CephCluster network configuration](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-public-and-cluster-networks).
+
 It is possible to configure ceph to leverage a dedicated network for the OSDs to
-communicate across. A useful overview is the [CEPH Networks](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref/#ceph-networks)
+communicate across. A useful overview is the [Ceph Networks](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref/#ceph-networks)
 section of the Ceph documentation. If you declare a cluster network, OSDs will
-route heartbeat, object replication and recovery traffic over the cluster
+route heartbeat, object replication, and recovery traffic over the cluster
 network. This may improve performance compared to using a single network,
-especially when slower network technologies are used, with the tradeoff of
+especially when slower network technologies are used. The tradeoff is
 additional expense and subtle failure modes.
 
 Two changes are necessary to the configuration to enable this capability:
@@ -404,7 +409,7 @@ apiVersion: v1
 data:
   config: |
     [global]
-    public network =  10.0.7.0/24
+    public network = 10.0.7.0/24
     cluster network = 10.0.10.0/24
     public addr = ""
     cluster addr = ""

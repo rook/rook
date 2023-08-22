@@ -67,6 +67,11 @@ func (c *CephCluster) ValidateCreate() (admission.Warnings, error) {
 			return nil, errors.New("invalid create : external mode enabled cannot have mon,dashboard,monitoring,network,disruptionManagement,storage fields in CR")
 		}
 	}
+
+	if err := ValidateNetworkSpec(c.GetNamespace(), c.Spec.Network); err != nil {
+		return nil, errors.Errorf("invalid create: %s", err)
+	}
+
 	return nil, nil
 }
 
@@ -85,11 +90,8 @@ func validateUpdatedCephCluster(updatedCephCluster *CephCluster, found *CephClus
 		return nil, errors.Errorf("invalid update: DataDirHostPath change from %q to %q is not allowed", found.Spec.DataDirHostPath, updatedCephCluster.Spec.DataDirHostPath)
 	}
 
-	// Allow an attempt to enable or disable host networking, but not other provider changes
-	oldProvider := updatedCephCluster.Spec.Network.Provider
-	newProvider := found.Spec.Network.Provider
-	if oldProvider != newProvider && oldProvider != "host" && newProvider != "host" {
-		return nil, errors.Errorf("invalid update: Provider change from %q to %q is not allowed", found.Spec.Network.Provider, updatedCephCluster.Spec.Network.Provider)
+	if err := ValidateNetworkSpecUpdate(found.GetNamespace(), found.Spec.Network, updatedCephCluster.Spec.Network); err != nil {
+		return nil, errors.Errorf("invalid update: %s", err)
 	}
 
 	if len(updatedCephCluster.Spec.Storage.StorageClassDeviceSets) == len(found.Spec.Storage.StorageClassDeviceSets) {

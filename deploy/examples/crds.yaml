@@ -2123,6 +2123,25 @@ spec:
                   description: Network related configuration
                   nullable: true
                   properties:
+                    addressRanges:
+                      description: AddressRanges specify a list of CIDRs that Rook will apply to Ceph's 'public_network' and/or 'cluster_network' configurations. This config section may be used for the "host" or "multus" network providers.
+                      nullable: true
+                      properties:
+                        cluster:
+                          description: Cluster defines a list of CIDRs to use for Ceph cluster network communication.
+                          items:
+                            description: "An IPv4 or IPv6 network CIDR. \n This naive kubebuilder regex provides immediate feedback for some typos and for a common problem case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code."
+                            pattern: ^[0-9a-fA-F:.]{2,}\/[0-9]{1,3}$
+                            type: string
+                          type: array
+                        public:
+                          description: Public defines a list of CIDRs to use for Ceph public network communication.
+                          items:
+                            description: "An IPv4 or IPv6 network CIDR. \n This naive kubebuilder regex provides immediate feedback for some typos and for a common problem case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code."
+                            pattern: ^[0-9a-fA-F:.]{2,}\/[0-9]{1,3}$
+                            type: string
+                          type: array
+                      type: object
                     connections:
                       description: Settings for network connections such as compression and encryption across the wire.
                       nullable: true
@@ -2172,12 +2191,16 @@ spec:
                       type: object
                     provider:
                       description: Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
+                      enum:
+                        - ""
+                        - host
+                        - multus
                       nullable: true
                       type: string
                     selectors:
                       additionalProperties:
                         type: string
-                      description: Selectors string values describe what networks will be used to connect the cluster. Meanwhile the keys describe each network respective responsibilities or any metadata storage provider decide.
+                      description: "Selectors define NetworkAttachmentDefinitions to be used for Ceph public and/or cluster networks when the \"multus\" network provider is used. This config section is not used for other network providers. \n Valid keys are \"public\" and \"cluster\". Refer to Ceph networking documentation for more: https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/ \n Refer to Multus network annotation documentation for help selecting values: https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation \n Rook will make a best-effort attempt to automatically detect CIDR address ranges for given network attachment definitions. Rook's methods are robust but may be imprecise for sufficiently complicated networks. Rook's auto-detection process obtains a new IP address lease for each CephCluster reconcile. If Rook fails to detect, incorrectly detects, only partially detects, or if underlying networks do not support reusing old IP addresses, it is best to use the 'addressRanges' config section to specify CIDR ranges for the Ceph cluster. \n As a contrived example, one can use a theoretical Kubernetes-wide network for Ceph client traffic and a theoretical Rook-only network for Ceph replication traffic as shown: selectors: public: \"default/cluster-fast-net\" cluster: \"rook-ceph/ceph-backend-net\""
                       nullable: true
                       type: object
                   type: object

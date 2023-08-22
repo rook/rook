@@ -44,7 +44,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -290,34 +289,9 @@ func preClusterStartValidation(cluster *cluster) error {
 	if err := validateStretchCluster(cluster); err != nil {
 		return err
 	}
-	if cluster.Spec.Network.IsMultus() {
-		_, isPublic := cluster.Spec.Network.Selectors[config.PublicNetworkSelectorKeyName]
-		_, isCluster := cluster.Spec.Network.Selectors[config.ClusterNetworkSelectorKeyName]
-		if !isPublic && !isCluster {
-			return errors.New("both network selector values for public and cluster selector cannot be empty for multus provider")
-		}
 
-		for _, selector := range config.NetworkSelectors {
-			// If one selector is empty, we continue
-			// This means a single interface is used both public and cluster network
-			if _, ok := cluster.Spec.Network.Selectors[selector]; !ok {
-				continue
-			}
-
-			multusNamespace, nad := config.GetMultusNamespace(cluster.Spec.Network.Selectors[selector])
-			if multusNamespace == "" {
-				multusNamespace = cluster.Namespace
-			}
-
-			// Get network attachment definition
-			_, err := cluster.context.NetworkClient.NetworkAttachmentDefinitions(multusNamespace).Get(cluster.ClusterInfo.Context, nad, metav1.GetOptions{})
-			if err != nil {
-				if kerrors.IsNotFound(err) {
-					return errors.Wrapf(err, "specified network attachment definition for selector %q does not exist", selector)
-				}
-				return errors.Wrapf(err, "failed to fetch network attachment definition for selector %q", selector)
-			}
-		}
+	if err := cephv1.ValidateNetworkSpec(cluster.Namespace, cluster.Spec.Network); err != nil {
+		return errors.Wrapf(err, "failed to validate network spec for cluster in namespace %q", cluster.Namespace)
 	}
 
 	// Validate on-PVC cluster encryption KMS settings
@@ -597,7 +571,7 @@ func (c *cluster) reportTelemetry() {
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.DeviceSetNonPortableKey, strconv.Itoa(nonportableDeviceSets))
 
 	// Set the telemetry for network settings
-	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NetworkProviderKey, c.Spec.Network.Provider)
+	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NetworkProviderKey, string(c.Spec.Network.Provider))
 
 	// Set the telemetry for external cluster settings
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.ExternalModeEnabledKey, strconv.FormatBool(c.Spec.External.Enable))

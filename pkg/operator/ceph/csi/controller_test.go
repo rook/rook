@@ -177,8 +177,8 @@ func TestCephCSIController(t *testing.T) {
 			},
 			Spec: cephv1.ClusterSpec{
 				Network: cephv1.NetworkSpec{
-					Provider:  "multus",
-					Selectors: map[string]string{"public": "public-net", "cluster": "cluster-net"},
+					Provider:  cephv1.NetworkProviderMultus,
+					Selectors: map[cephv1.CephNetworkType]string{"public": "public-net", "cluster": "cluster-net"},
 				},
 			},
 			Status: cephv1.ClusterStatus{
@@ -239,6 +239,6 @@ func TestCephCSIController(t *testing.T) {
 		assert.Equal(t, "csi-cephfsplugin-holder-rook-ceph", ds.Items[1].Name)
 		assert.Equal(t, "csi-rbdplugin", ds.Items[2].Name)
 		assert.Equal(t, "csi-rbdplugin-holder-rook-ceph", ds.Items[3].Name)
-		assert.Equal(t, "public-net", ds.Items[1].Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"], ds.Items[1].Spec.Template.Annotations)
+		assert.Equal(t, `[{"name":"public-net","namespace":"rook-ceph"}]`, ds.Items[1].Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"], ds.Items[1].Spec.Template.Annotations)
 	})
 }

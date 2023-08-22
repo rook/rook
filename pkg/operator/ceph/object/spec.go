@@ -248,7 +248,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	if hostNetwork {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.clusterSpec.Network.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.clusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
+		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.clusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
 			return podTemplateSpec, err
 		}
 	}
