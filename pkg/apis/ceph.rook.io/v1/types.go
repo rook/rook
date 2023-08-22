@@ -1016,6 +1016,10 @@ type ErasureCodedSpec struct {
 	// The algorithm for erasure coding
 	// +optional
 	Algorithm string `json:"algorithm,omitempty"`
+
+	// SubFailureDomain is the failure domain within a zone
+	// +optional
+	SubFailureDomain string `json:"subFailureDomain,omitempty"`
 }
 
 // +genclient

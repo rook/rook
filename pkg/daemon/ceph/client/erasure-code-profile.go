@@ -88,7 +88,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterInfo *ClusterInf
 	if pool.DeviceClass != "" {
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-device-class=%s", pool.DeviceClass))
 	}
-
+	if pool.ErasureCoded.SubFailureDomain != "" {
+		profilePairs = append(profilePairs, fmt.Sprintf("crush-sub-failure-domain=%s", pool.FailureDomain))
+	}
 	args := []string{"osd", "erasure-code-profile", "set", profileName, "--force"}
 	args = append(args, profilePairs...)
 	_, err = NewCephCommand(context, clusterInfo, args).Run()

@@ -5164,6 +5164,18 @@ string
 <p>The algorithm for erasure coding</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>subFailureDomain</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SubFailureDomain is the failure domain within a zone</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ExternalSpec">ExternalSpec

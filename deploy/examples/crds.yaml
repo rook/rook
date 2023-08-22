@@ -135,6 +135,9 @@ spec:
                       description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                       minimum: 0
                       type: integer
+                    subFailureDomain:
+                      description: SubFailureDomain is the failure domain within a zone
+                      type: string
                   required:
                     - codingChunks
                     - dataChunks
@@ -6204,6 +6207,9 @@ spec:
                             description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                             minimum: 0
                             type: integer
+                          subFailureDomain:
+                            description: SubFailureDomain is the failure domain within a zone
+                            type: string
                         required:
                           - codingChunks
                           - dataChunks
@@ -6372,6 +6378,9 @@ spec:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        subFailureDomain:
+                          description: SubFailureDomain is the failure domain within a zone
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -9690,6 +9699,9 @@ spec:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        subFailureDomain:
+                          description: SubFailureDomain is the failure domain within a zone
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -10765,6 +10777,9 @@ spec:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        subFailureDomain:
+                          description: SubFailureDomain is the failure domain within a zone
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -11404,6 +11419,9 @@ spec:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        subFailureDomain:
+                          description: SubFailureDomain is the failure domain within a zone
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
@@ -11567,6 +11585,9 @@ spec:
                           description: Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type). The number of chunks required to recover an object when any single OSD is lost is the same as dataChunks so be aware that the larger the number of data chunks, the higher the cost of recovery.
                           minimum: 0
                           type: integer
+                        subFailureDomain:
+                          description: SubFailureDomain is the failure domain within a zone
+                          type: string
                       required:
                         - codingChunks
                         - dataChunks
