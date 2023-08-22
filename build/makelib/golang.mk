@@ -170,12 +170,6 @@ go.mod.update:
 
 .PHONY: go.mod.check
 go.mod.check:
-	@echo === syncing root modules with APIs modules
-	@cp -a go.sum pkg/apis/go.sum
-	@cat go.mod | sed -e 's|^module github.com/rook/rook|module github.com/rook/rook/pkg/apis|' \
-	                  -e '\:^replace github.com/rook/rook/pkg/apis => ./pkg/apis:d' > pkg/apis/go.mod
-	@echo === ensuring APIs modules are tidied
-	@(cd pkg/apis/; $(GOHOST) mod tidy -compat=1.20)
 	@echo === ensuring root modules are tidied
 	@$(GOHOST) mod tidy -compat=1.20
 
