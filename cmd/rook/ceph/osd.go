@@ -19,7 +19,6 @@ package ceph
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -30,9 +29,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/clusterd"
-	cleanup "github.com/rook/rook/pkg/daemon/ceph/cleanup"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -263,11 +259,11 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	// destroy the OSD using the OSD ID
 	var replaceOSD *osd.OSDReplaceInfo
 	if replaceOSDID != -1 {
-		osdInfo, err := destroyOSD(context, &clusterInfo, replaceOSDID)
+		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
+		replaceOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, replaceOSDID, cfg.pvcBacked, cfg.storeConfig.EncryptedDevice)
 		if err != nil {
-			rook.TerminateFatal(errors.Wrapf(err, "failed to destroy OSD %d.", osdInfo.ID))
+			rook.TerminateFatal(errors.Wrapf(err, "failed to destroy OSD %d.", replaceOSDID))
 		}
-		replaceOSD = &oposd.OSDReplaceInfo{ID: osdInfo.ID, Path: osdInfo.BlockPath}
 	}
 
 	agent := osddaemon.NewAgent(context, dataDevices, cfg.metadataDevice, forceFormat,
@@ -416,37 +412,4 @@ func readCephSecret(path string) error {
 		return errors.New("ceph admin secret not found")
 	}
 	return nil
-}
-
-func destroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (*oposd.OSDInfo, error) {
-	osdInfo, err := osddaemon.GetOSDInfoById(context, clusterInfo, osdID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", osdID)
-	}
-
-	// destroy the osd
-	logger.Infof("destroying OSD %d on path %q in %q mode", osdInfo.ID, osdInfo.BlockPath, osdInfo.CVMode)
-	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
-	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
-	}
-
-	// Sanitize OSD disk
-	s := cleanup.NewDiskSanitizer(context, clusterInfo,
-		&cephv1.SanitizeDisksSpec{
-			Method:     cephv1.SanitizeMethodProperty(cephv1.SanitizeMethodComplete),
-			DataSource: cephv1.SanitizeDataSourceProperty(cephv1.SanitizeDataSourceZero),
-			Iteration:  1,
-		},
-	)
-
-	// TODO: handle disk sanitization errors
-	if osdInfo.CVMode == "raw" {
-		s.SanitizeRawDisk([]oposd.OSDInfo{osdInfo})
-	} else if osdInfo.CVMode == "lvm" {
-		s.SanitizeLVMDisk([]oposd.OSDInfo{osdInfo})
-	}
-
-	return &osdInfo, nil
 }
