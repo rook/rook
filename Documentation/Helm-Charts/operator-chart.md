@@ -51,6 +51,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `allowLoopDevices` | If true, loop devices are allowed to be used for osds in test clusters | `false` |
 | `annotations` | Pod annotations | `{}` |
 | `cephCommandsTimeoutSeconds` | The timeout for ceph commands in seconds | `"15"` |
+| `containerSecurityContext` | Set the container security context for the operator | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `crds.enabled` | Whether the helm chart should create and update the CRDs. If false, the CRDs must be managed independently with deploy/examples/crds.yaml. **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED. If the CRDs are deleted in this case, see [the disaster recovery guide](https://rook.io/docs/rook/latest/Troubleshooting/disaster-recovery/#restoring-crds-after-deletion) to restore them. | `true` |
 | `csi.allowUnsupportedVersion` | Allow starting an unsupported ceph-csi image | `false` |
 | `csi.attacher.image` | Kubernetes CSI Attacher image | `registry.k8s.io/sig-storage/csi-attacher:v4.3.0` |

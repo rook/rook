@@ -30,6 +30,13 @@ toolbox:
   tolerations: []
   # -- Toolbox affinity
   affinity: {}
+  # -- Toolbox container security context
+  containerSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 2016
+    runAsGroup: 2016
+    capabilities:
+      drop: ["ALL"]
   # -- Toolbox resources
   resources:
     limits:
@@ -617,7 +624,6 @@ cephObjectStores:
       #     - objectstore.example.com
       #   secretName: ceph-objectstore-tls
       # ingressClassName: nginx
-
 # cephECBlockPools are disabled by default, please remove the comments and set desired values to enable it
 #cephECBlockPools:
 #  # For erasure coded a replicated metadata pool is required.
@@ -679,4 +685,3 @@ cephObjectStores:
 #    imageFeatures: layering
 #  allowVolumeExpansion: true
 #  reclaimPolicy: Delete
-
