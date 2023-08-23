@@ -195,8 +195,8 @@ to the [upstream Rook repository](https://github.com/rook/rook).
 
 Before opening the PR:
 
-- If there are code changes, add unit tests and verify that all unit tests are passing. See [Unit Tests](#unit-tests) below on running unit tests.
-- Rebase on the latest upstream changes
+* If there are code changes, add unit tests and verify that all unit tests are passing. See [Unit Tests](#unit-tests) below on running unit tests.
+* Rebase on the latest upstream changes
 
 ### Regression Testing
 
@@ -245,7 +245,14 @@ Common cases that may need tests:
 Rook's upstream continuous integration (CI) tests will run integration tests against your changes
 automatically.
 
-Integration tests will be run in Github actions. If an integration test fails, a tmate session will be available for troubleshooting for a short time. See the action details for an ssh connection to the Github runner.
+## Tmate Session
+
+Integration tests will be run in Github actions. If an integration test fails, enable a tmate session to troubleshoot the issue by one of the following steps:
+
+* Restart the CI action and click the "Enable debug logging" checkbox from the github UI, or
+* Add the label `debug-ci` to the PR and push your changes again.
+
+See the action details for an ssh connection to the Github runner.
 
 ## Commit structure
 
@@ -287,7 +294,7 @@ To squash multiple commits or make other changes to the commit history, use `git
 git rebase -i HEAD~5
 ```
 
-Once your commit history is clean, ensure the branch is rebased on the [latest upstream](#Updating-your-fork) before opening the PR.
+Once your commit history is clean, ensure the branch is rebased on the [latest upstream](#updating-your-fork) before opening the PR.
 
 ## Submitting
 
@@ -331,6 +338,7 @@ kubectl exec -n rook-ceph --stdin --tty $(kubectl get pod -n rook-ceph -l ceph_d
 1. Restart the modified manager module to test the modifications:
 
 Example for restarting the rook manager module with the [krew plugin](https://github.com/rook/kubectl-rook-ceph):
+
 ```console
 kubectl rook-ceph ceph mgr module disable rook
 kubectl rook-ceph ceph mgr module enable rook
