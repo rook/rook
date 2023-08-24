@@ -11,7 +11,7 @@ runs:
     - name: setup golang
       uses: actions/setup-go@v2
       with:
-        go-version: "1.20"
+        go-version: "1.21"
 
     - name: Setup Minikube
       shell: bash --noprofile --norc -eo pipefail -x {0}
