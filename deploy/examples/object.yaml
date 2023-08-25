@@ -109,6 +109,10 @@ spec:
       disabled: false
     readinessProbe:
       disabled: false
+  # If a CephObjectStoreUser is created in a namespace other than the Rook cluster namespace,
+  # the namespace must be added to the list of allowed namespaces, or specify "*" to allow all namespaces.
+  # allowUsersInNamespaces:
+  #   - other-namespace
   # security oriented settings
   # security:
   # To enable the Server Side Encryption configuration properly don't forget to uncomment the Secret at the end of the file

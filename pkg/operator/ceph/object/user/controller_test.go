@@ -329,6 +329,73 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "Ready", objectUser.Status.Phase, objectUser)
 	})
+
+	t.Run("cluster and object store in different namespace", func(t *testing.T) {
+		cephCluster = &cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      namespace,
+				Namespace: namespace,
+			},
+			Status: cephv1.ClusterStatus{
+				Phase: k8sutil.ReadyStatus,
+				CephStatus: &cephv1.CephStatus{
+					Health: "HEALTH_OK",
+				},
+			},
+		}
+		cephObjectStore.Spec.AllowUsersInNamespaces = []string{"*"}
+
+		// Create a fake client to mock API calls.
+		objectUser.Spec.ClusterNamespace = namespace
+		objectUser.Namespace = "foo"
+		req.Namespace = "foo"
+		object = []runtime.Object{cephObjectStore, objectUser, cephCluster}
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+		rgwPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-rgw-my-store-a-5fd6fb4489-xv65v",
+			Namespace: namespace,
+			Labels:    map[string]string{k8sutil.AppAttr: appName, "rgw": "my-store"}}}
+
+		// Create a user in a different namespace, and where the cephcluster does exist
+		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		err := r.client.Create(context.TODO(), rgwPod)
+		assert.NoError(t, err)
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		// Disallow creating a user in a different namespace
+		cephObjectStore.Spec.AllowUsersInNamespaces = []string{}
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		res, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+
+		objectUser.Spec.ClusterNamespace = ""
+		object = []runtime.Object{objectUser, cephCluster}
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+
+		// Create a user in a different namespace, but where the cephcluster doesn't exist
+		r = &ReconcileObjectStoreUser{client: cl, scheme: s, context: c, opManagerContext: ctx, recorder: record.NewFakeRecorder(5)}
+		res, err = r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.True(t, res.Requeue)
+
+		req.Namespace = namespace
+		objectUser.Namespace = namespace
+	})
+
+	t.Run("users allowed in other namespace", func(t *testing.T) {
+		assert.False(t, userInNamespaceAllowed("foo", []string{}))
+		assert.False(t, userInNamespaceAllowed("foo", []string{"bar"}))
+		assert.False(t, userInNamespaceAllowed("foo", []string{"bar", "baz"}))
+		assert.True(t, userInNamespaceAllowed("foo", []string{"*"}))
+		assert.True(t, userInNamespaceAllowed("foo", []string{"bar", "*"}))
+		assert.True(t, userInNamespaceAllowed("foo", []string{"foo"}))
+		assert.True(t, userInNamespaceAllowed("foo", []string{"bar", "foo"}))
+	})
 }
 
 func TestBuildUpdateStatusInfo(t *testing.T) {

@@ -36,6 +36,9 @@ spec:
 
 * `store`: The object store in which the user will be created. This matches the name of the objectstore CRD.
 * `displayName`: The display name which will be passed to the `radosgw-admin user create` command.
+* `clusterNamespace`: The namespace where the parent CephCluster and CephObjectStore are found. If not specified,
+  the user must be in the same namespace as the cluster and object store.
+  To enable this feature, the CephObjectStore allowUsersInNamespaces must include the namespace of this user.
 * `quotas`: This represents quota limitation can be set on the user. Please refer [here](https://docs.ceph.com/en/latest/radosgw/admin/#quota-management) for details.
     * `maxBuckets`: The maximum bucket limit for the user.
     * `maxSize`: Maximum size limit of all objects across all the user's buckets.

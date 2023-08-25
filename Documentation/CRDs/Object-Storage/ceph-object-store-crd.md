@@ -82,7 +82,13 @@ When the `zone` section is set pools with the object stores name will not be cre
 
 * `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 * `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
-* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
+* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store
+  will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified
+  is also deemed as 'false'.
+* `allowUsersInNamespaces`: If a CephObjectStoreUser is created in a namespace other than the Rook cluster namespace,
+  the namespace must be added to this list of allowed namespaces, or specify "*" to allow all namespaces.
+  This is useful for applications that need object store credentials to be created in their own namespace,
+  where neither OBCs nor COSI is being used to create buckets. The default is empty.
 
 ## Gateway Settings
 
