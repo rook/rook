@@ -24,7 +24,7 @@ jobs:
       - name: setup golang
         uses: actions/setup-go@v4
         with:
-          go-version: "1.20"
+          go-version: "1.21"
 
       - name: Install Docker
         run: |
@@ -204,7 +204,7 @@ jobs:
           export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
           export CLUSTER_NAMESPACE="smoke-ns"
           export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh          
+          tests/scripts/collect-logs.sh
 
       - name: Artifact
         uses: actions/upload-artifact@v3
