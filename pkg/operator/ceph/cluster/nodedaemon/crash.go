@@ -167,10 +167,9 @@ func getCrashChownInitContainer(cephCluster cephv1.CephCluster) corev1.Container
 }
 
 func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
-	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	crashEnvVar := generateCrashEnvVar()
-	envVars := append(controller.DaemonEnvVars(cephImage), crashEnvVar)
+	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), crashEnvVar)
 	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
 	volumeMounts = append(volumeMounts, keyring.VolumeMount().CrashCollector())
 
@@ -179,7 +178,7 @@ func getCrashDaemonContainer(cephCluster cephv1.CephCluster, cephVersion cephver
 		Command: []string{
 			"ceph-crash",
 		},
-		Image:           cephImage,
+		Image:           cephCluster.Spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		Env:             envVars,
 		VolumeMounts:    volumeMounts,

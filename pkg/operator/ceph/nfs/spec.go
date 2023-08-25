@@ -243,7 +243,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 			nfsConfigMount,
 			dbusMount,
 		},
-		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       nfs.Spec.Server.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 	}

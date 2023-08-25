@@ -184,7 +184,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 		},
 		Env: append(
-			controller.DaemonEnvVars(c.spec.CephVersion.Image),
+			controller.DaemonEnvVars(&c.spec),
 			c.cephMgrOrchestratorModuleEnvs()...,
 		),
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),
@@ -246,7 +246,7 @@ func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Containe
 		Image:           c.spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    append(controller.DaemonVolumeMounts(mgrConfig.DataPathMap, mgrConfig.ResourceName, c.spec.DataDirHostPath), adminKeyringVolMount),
-		Env:             append(controller.DaemonEnvVars(c.spec.CephVersion.Image), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
+		Env:             append(controller.DaemonEnvVars(&c.spec), v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())}),
 		Resources:       cephv1.GetMgrResources(c.spec.Resources),
 		SecurityContext: controller.PodSecurityContext(),
 	}

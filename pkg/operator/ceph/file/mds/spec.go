@@ -147,7 +147,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Image:           c.clusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(mdsConfig.DataPathMap, mdsConfig.ResourceName, c.clusterSpec.DataDirHostPath),
-		Env:             append(controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image), k8sutil.PodIPEnvVar(podIPEnvVar)),
+		Env:             append(controller.DaemonEnvVars(c.clusterSpec), k8sutil.PodIPEnvVar(podIPEnvVar)),
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 		StartupProbe:    controller.GenerateStartupProbeExecDaemon(cephconfig.MdsType, mdsConfig.DaemonID),

@@ -171,7 +171,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	volumeMounts = append(volumeMounts, keyring.VolumeMount().Admin())
 
 	envVars := append(
-		controller.DaemonEnvVars(cephCluster.Spec.CephVersion.Image),
+		controller.DaemonEnvVars(&cephCluster.Spec),
 		v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())})
 
 	container := corev1.Container{
