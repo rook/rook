@@ -96,6 +96,7 @@ spec:
               watch_endpoints
           imagePullPolicy: IfNotPresent
           tty: true
+          securityContext: {{- .Values.toolbox.containerSecurityContext | toYaml | nindent 12 }}
           env:
             - name: ROOK_CEPH_USERNAME
               valueFrom:

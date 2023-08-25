@@ -79,6 +79,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `operatorNamespace` | Namespace of the main rook operator | `"rook-ceph"` |
 | `pspEnable` | Create & use PSP resources. Set this to the same value as the rook-ceph chart. | `false` |
 | `toolbox.affinity` | Toolbox affinity | `{}` |
+| `toolbox.containerSecurityContext` | Toolbox container security context | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `toolbox.enabled` | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false` |
 | `toolbox.image` | Toolbox image, defaults to the image used by the Ceph cluster | `nil` |
 | `toolbox.priorityClassName` | Set the priority class for the toolbox if desired | `nil` |

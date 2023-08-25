@@ -61,6 +61,13 @@ pspEnable: false
 # -- Set the priority class for the rook operator deployment if desired
 priorityClassName:
 
+# -- Set the container security context for the operator
+containerSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 2016
+  runAsGroup: 2016
+  capabilities:
+    drop: ["ALL"]
 # -- If true, loop devices are allowed to be used for osds in test clusters
 allowLoopDevices: false
 
