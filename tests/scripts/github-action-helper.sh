@@ -605,6 +605,7 @@ function deploy_multus_cluster() {
 
 function create_operator_toolbox() {
   cd deploy/examples
+  sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" toolbox-operator-image.yaml
   kubectl create -f toolbox-operator-image.yaml
 }
 
