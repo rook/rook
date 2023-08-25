@@ -463,3 +463,97 @@ func TestGetContainerImagePullPolicy(t *testing.T) {
 		assert.Equal(t, exepctedImagePullPolicy, imagePullPolicy)
 	})
 }
+
+func TestDaemonEnvVars(t *testing.T) {
+	// No network settings specified
+	want := []v1.EnvVar{}
+
+	clusterSpec := &cephv1.ClusterSpec{}
+	got := ApplyNetworkEnv(clusterSpec)
+	assert.Equal(t, want, got)
+
+	// When Encryption is enabled
+	connections := &cephv1.ConnectionsSpec{
+		Encryption: &cephv1.EncryptionSpec{Enabled: true},
+	}
+
+	clusterSpec.Network = cephv1.NetworkSpec{Connections: connections}
+
+	want = []v1.EnvVar{{
+		Name:  "ROOK_MSGR2",
+		Value: "msgr2_false_encryption_true_compression_false",
+	}}
+
+	got = ApplyNetworkEnv(clusterSpec)
+	assert.Equal(t, want, got)
+
+	// When Compression is enabled
+	connections = &cephv1.ConnectionsSpec{
+		Compression: &cephv1.CompressionSpec{
+			Enabled: true,
+		},
+	}
+	clusterSpec.Network = cephv1.NetworkSpec{Connections: connections}
+
+	want = []v1.EnvVar{{
+		Name:  "ROOK_MSGR2",
+		Value: "msgr2_false_encryption_false_compression_true",
+	}}
+
+	got = ApplyNetworkEnv(clusterSpec)
+	assert.Equal(t, want, got)
+
+	// When Msgr2 is enabled
+	connections = &cephv1.ConnectionsSpec{
+		RequireMsgr2: true,
+	}
+	clusterSpec.Network = cephv1.NetworkSpec{Connections: connections}
+
+	want = []v1.EnvVar{{
+		Name:  "ROOK_MSGR2",
+		Value: "msgr2_true_encryption_false_compression_false",
+	}}
+
+	got = ApplyNetworkEnv(clusterSpec)
+	assert.Equal(t, want, got)
+
+	// When Msgr2, Compression, Encryption are enabled
+	connections = &cephv1.ConnectionsSpec{
+		RequireMsgr2: true,
+		Encryption: &cephv1.EncryptionSpec{
+			Enabled: true,
+		},
+		Compression: &cephv1.CompressionSpec{
+			Enabled: true,
+		},
+	}
+	clusterSpec.Network = cephv1.NetworkSpec{Connections: connections}
+
+	want = []v1.EnvVar{{
+		Name:  "ROOK_MSGR2",
+		Value: "msgr2_true_encryption_true_compression_true",
+	}}
+
+	got = ApplyNetworkEnv(clusterSpec)
+	assert.Equal(t, want, got)
+
+	// When Msgr2 is enabled but Compression, Encryption are disabled
+	connections = &cephv1.ConnectionsSpec{
+		RequireMsgr2: true,
+		Encryption: &cephv1.EncryptionSpec{
+			Enabled: false,
+		},
+		Compression: &cephv1.CompressionSpec{
+			Enabled: false,
+		},
+	}
+	clusterSpec.Network = cephv1.NetworkSpec{Connections: connections}
+
+	want = []v1.EnvVar{{
+		Name:  "ROOK_MSGR2",
+		Value: "msgr2_true_encryption_false_compression_false",
+	}}
+
+	got = ApplyNetworkEnv(clusterSpec)
+	assert.Equal(t, want, got)
+}

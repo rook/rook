@@ -122,7 +122,7 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 		Image:           r.cephClusterSpec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
-		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       rbdMirror.Spec.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 		WorkingDir:      config.VarLogCephDir,

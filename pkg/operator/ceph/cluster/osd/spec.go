@@ -583,6 +583,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"",
 		))
 
+	envVars = append(envVars, controller.ApplyNetworkEnv(&c.spec)...)
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   AppName,
