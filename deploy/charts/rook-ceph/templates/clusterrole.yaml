@@ -2,7 +2,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-system
+  name: rook-ceph-system{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -26,7 +26,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-cluster-mgmt
+  name: rook-ceph-cluster-mgmt{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -59,7 +59,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 # operator config `ROOK_CURRENT_NAMESPACE_ONLY=true`.
 kind: ClusterRole
 metadata:
-  name: rook-ceph-global
+  name: rook-ceph-global{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -249,7 +249,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-mgr-cluster
+  name: rook-ceph-mgr-cluster{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -289,7 +289,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-mgr-system
+  name: rook-ceph-mgr-system{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 rules:
 - apiGroups:
   - ""
@@ -306,7 +306,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-object-bucket
+  name: rook-ceph-object-bucket{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -366,7 +366,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-osd
+  name: rook-ceph-osd{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 rules:
 - apiGroups:
   - ""
@@ -381,7 +381,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: cephfs-csi-nodeplugin
+  name: cephfs-csi-nodeplugin{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 rules:
   - apiGroups: [""]
     resources: ["nodes"]
@@ -391,7 +391,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ceph-nfs-external-provisioner-runner
+  name: ceph-nfs-external-provisioner-runner{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 rules:
   - apiGroups: [""]
     resources: ["persistentvolumes"]
@@ -438,7 +438,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ceph-nfs-csi-nodeplugin
+  name: ceph-nfs-csi-nodeplugin{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -452,7 +452,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: cephfs-external-provisioner-runner
+  name: cephfs-external-provisioner-runner{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -497,7 +497,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-csi-nodeplugin
+  name: rbd-csi-nodeplugin{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -528,7 +528,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-external-provisioner-runner
+  name: rbd-external-provisioner-runner{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 rules:
   - apiGroups: [""]
     resources: ["secrets"]

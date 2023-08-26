@@ -11,8 +11,9 @@ If the cluster namespace is different from the operator namespace, we want to na
 {{- define "library.suffix-cluster-namespace" -}}
 {{/* the operator chart won't set .Values.operatorNamespace, so default to .Release.Namespace */}}
 {{- $operatorNamespace := .Values.operatorNamespace | default .Release.Namespace -}}
+{{- $operatorWatchesCurrentNamespaceOnly := .Values.currentNamespaceOnly | default false -}}
 {{- $clusterNamespace := .Release.Namespace -}}
-{{- if ne $clusterNamespace $operatorNamespace -}}
+{{- if or (ne $clusterNamespace $operatorNamespace) $operatorWatchesCurrentNamespaceOnly -}}
 {{ printf "-%s" $clusterNamespace }}
 {{- end }}
 {{- end }}

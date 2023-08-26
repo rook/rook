@@ -2,7 +2,7 @@
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-system
+  name: rook-ceph-system{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -10,7 +10,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-system
+  name: rook-ceph-system{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
@@ -20,7 +20,7 @@ subjects:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-global
+  name: rook-ceph-global{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   labels:
     operator: rook
     storage-backend: ceph
@@ -28,7 +28,7 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-global
+  name: rook-ceph-global{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
@@ -38,11 +38,11 @@ kind: ClusterRoleBinding
 # Give Rook-Ceph Operator permissions to provision ObjectBuckets in response to ObjectBucketClaims.
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rook-ceph-object-bucket
+  name: rook-ceph-object-bucket{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-object-bucket
+  name: rook-ceph-object-bucket{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
@@ -51,41 +51,41 @@ subjects:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-csi-nodeplugin
+  name: rbd-csi-nodeplugin{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-plugin-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 roleRef:
   kind: ClusterRole
-  name: rbd-csi-nodeplugin
+  name: rbd-csi-nodeplugin{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: cephfs-csi-provisioner-role
+  name: cephfs-csi-provisioner-role{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-cephfs-provisioner-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 roleRef:
   kind: ClusterRole
-  name: cephfs-external-provisioner-runner
+  name: cephfs-external-provisioner-runner{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   apiGroup: rbac.authorization.k8s.io
 ---
 {{- if .Values.csi.nfs.enabled }}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ceph-nfs-csi-provisioner-role
+  name: ceph-nfs-csi-provisioner-role{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-nfs-provisioner-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 roleRef:
   kind: ClusterRole
-  name: ceph-nfs-external-provisioner-runner
+  name: ceph-nfs-external-provisioner-runner{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   apiGroup: rbac.authorization.k8s.io
 ---
 # TODO: remove this, once https://github.com/rook/rook/issues/10141
@@ -93,27 +93,27 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: ceph-nfs-csi-nodeplugin-role
+  name: ceph-nfs-csi-nodeplugin-role{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-nfs-plugin-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 roleRef:
   kind: ClusterRole
-  name: ceph-nfs-csi-nodeplugin
+  name: ceph-nfs-csi-nodeplugin{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   apiGroup: rbac.authorization.k8s.io
 ---
 {{ end }}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: rbd-csi-provisioner-role
+  name: rbd-csi-provisioner-role{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
 subjects:
   - kind: ServiceAccount
     name: rook-csi-rbd-provisioner-sa
     namespace: {{ .Release.Namespace }} # namespace:operator
 roleRef:
   kind: ClusterRole
-  name: rbd-external-provisioner-runner
+  name: rbd-external-provisioner-runner{{ if .Values.currentNamespaceOnly }}-{{ .Release.Namespace }}{{ end }}
   apiGroup: rbac.authorization.k8s.io
 {{- end }}
