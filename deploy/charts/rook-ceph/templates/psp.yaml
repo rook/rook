@@ -80,7 +80,7 @@ spec:
     # port for CSIAddons
     - min: 9070
       max: 9070
-{{- if and .Values.rbacEnable .Values.rbacClusterEnable }}
+{{- if .Values.rbacEnable }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
