@@ -350,8 +350,9 @@ func rbdStatusUnMarshal(output []byte) ([]string, error) {
 }
 
 func concatenateWatcherIp(address string) string {
-	// split with separation '/' to remove nounce and concatenating `/32` to define a network with only one IP address
-	watcherIP := strings.Split(address, "/")[0] + "/32"
+	// address is in format `10.63.0.5:0/1254753579`
+	// split with separation ':0/' to remove nounce and concatenating `/32` to define a network with only one IP address
+	watcherIP := strings.Split(address, ":0/")[0] + "/32"
 	return watcherIP
 }
 
