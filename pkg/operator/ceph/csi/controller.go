@@ -38,6 +38,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -47,6 +48,7 @@ const (
 
 // ReconcileCSI reconciles a ceph-csi driver
 type ReconcileCSI struct {
+	scheme             *runtime.Scheme
 	client             client.Client
 	context            *clusterd.Context
 	opManagerContext   context.Context
@@ -70,6 +72,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCSI{
+		scheme:             mgr.GetScheme(),
 		client:             mgr.GetClient(),
 		context:            context,
 		opConfig:           opConfig,
@@ -207,6 +210,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				}
 				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 			}
+			clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
 
 			logger.Debugf("cluster %q is running on multus or CSI_ENABLE_HOST_NETWORK is false, deploying the ceph-csi plugin holder", cluster.Name)
 

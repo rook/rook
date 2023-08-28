@@ -24,6 +24,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -73,7 +74,9 @@ func TestReconcileCSI_configureHolders(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph", Name: "my-cluster"},
 					Spec:       cephv1.ClusterSpec{},
 				},
-				clusterInfo: &cephclient.ClusterInfo{Monitors: map[string]*cephclient.MonInfo{"a": {Name: "a", Endpoint: "10.0.0.1:6789"}}},
+				clusterInfo: &cephclient.ClusterInfo{
+					Monitors:  map[string]*cephclient.MonInfo{"a": {Name: "a", Endpoint: "10.0.0.1:6789"}},
+					OwnerInfo: client.NewMinimumOwnerInfoWithOwnerRef()},
 			},
 		}
 
