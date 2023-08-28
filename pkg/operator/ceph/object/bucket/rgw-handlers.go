@@ -5,15 +5,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (p *Provisioner) bucketExists(name string) (bool, error) {
-	_, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: name})
+func (p *Provisioner) bucketExists(name string) (bool, string, error) {
+	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchBucket) {
-			return false, nil
+			return false, "", nil
 		}
-		return false, errors.Wrapf(err, "failed to get ceph bucket %q", name)
+		return false, "", errors.Wrapf(err, "failed to get ceph bucket %q", name)
 	}
-	return true, nil
+	return true, bucket.Owner, nil
 }
 
 // Create a Ceph user based on the passed-in name or a generated name. Return the
