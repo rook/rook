@@ -30,9 +30,9 @@ require (
 	golang.org/x/sync v0.3.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.28.0
+	k8s.io/api v0.28.1
 	k8s.io/apiextensions-apiserver v0.28.0
-	k8s.io/apimachinery v0.28.0
+	k8s.io/apimachinery v0.28.1
 	k8s.io/cli-runtime v0.28.0
 	k8s.io/client-go v0.28.0
 	k8s.io/cloud-provider v0.28.0
