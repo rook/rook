@@ -348,12 +348,12 @@ func TestRBDStatusUnMarshal(t *testing.T) {
 
 	listIP, err := rbdStatusUnMarshal([]byte(output))
 	assert.NoError(t, err)
-	assert.Equal(t, listIP[0], "192.168.39.137:0/32")
+	assert.Equal(t, listIP[0], "192.168.39.137/32")
 }
 
 func TestConcatenateWatcherIp(t *testing.T) {
 	WatcherIP := concatenateWatcherIp("192.168.39.137:0/3762982934")
-	assert.Equal(t, WatcherIP, "192.168.39.137:0/32")
+	assert.Equal(t, WatcherIP, "192.168.39.137/32")
 }
 
 func TestOnDeviceCMUpdate(t *testing.T) {
