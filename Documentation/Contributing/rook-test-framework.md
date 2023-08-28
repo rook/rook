@@ -9,9 +9,7 @@ The framework includes scripts for starting Kubernetes so users can
 quickly spin up a Kubernetes cluster. The tests are generally designed to install Rook, run tests, and uninstall Rook.
 
 The CI runs the integration tests with each PR and each master or release branch build.
-If the tests fail in a PR, a tmate session is started which will allow you to connect via ssh and troubleshoot the failure.
-The CI is the most efficient way to troubleshoot the tests since the environment is started automatically
-and you will only need to connect to investigate.
+If the tests fail in a PR, [access](development-flow.md#tmate-session) the tmate for debugging.
 
 This document will outline the steps to run the integration tests locally in a minikube environment, should the CI
 not be sufficient to troubleshoot.
