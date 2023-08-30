@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"path"
@@ -39,6 +40,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -897,4 +899,38 @@ func GetContainerImagePullPolicy(containerImagePullPolicy v1.PullPolicy) v1.Pull
 	}
 
 	return containerImagePullPolicy
+}
+
+// GenerateLivenessProbeTcpPort generates a liveness probe that makes sure a daemon has
+// TCP a socket binded to specific port, and may create new connection.
+func GenerateLivenessProbeTcpPort(port, failureThreshold int32) *v1.Probe {
+	return &v1.Probe{
+		ProbeHandler: v1.ProbeHandler{
+			TCPSocket: &v1.TCPSocketAction{
+				Port: intstr.IntOrString{IntVal: port},
+			},
+		},
+		InitialDelaySeconds: livenessProbeInitialDelaySeconds,
+		TimeoutSeconds:      livenessProbeTimeoutSeconds,
+		FailureThreshold:    failureThreshold,
+	}
+}
+
+// GenerateLivenessProbeViaRpcinfo creates a liveness probe using 'rpcinfo' shell
+// command which checks that the local NFS daemon has TCP a socket binded to
+// specific port, and it has valid reply to NULL RPC request.
+func GenerateLivenessProbeViaRpcinfo(port uint16, failureThreshold int32) *v1.Probe {
+	bb := make([]byte, 2)
+	binary.BigEndian.PutUint16(bb, port) // port-num in network-order
+	servAddr := fmt.Sprintf("127.0.0.1.%d.%d", bb[0], bb[1])
+	return &v1.Probe{
+		ProbeHandler: v1.ProbeHandler{
+			Exec: &v1.ExecAction{
+				Command: []string{"rpcinfo", "-a", servAddr, "-T", "tcp", "nfs", "4"},
+			},
+		},
+		InitialDelaySeconds: livenessProbeInitialDelaySeconds,
+		TimeoutSeconds:      livenessProbeTimeoutSeconds,
+		FailureThreshold:    failureThreshold,
+	}
 }

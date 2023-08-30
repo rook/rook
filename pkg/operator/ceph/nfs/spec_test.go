@@ -402,4 +402,55 @@ func TestDeploymentSpec(t *testing.T) {
 		}
 		assert.Contains(t, contNames, "sssd")
 	})
+
+	t.Run("basic with default liveness-probe", func(t *testing.T) {
+		nfs := &cephv1.CephNFS{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "my-nfs",
+				Namespace: "rook-ceph-test-ns",
+			},
+			Spec: cephv1.NFSGaneshaSpec{
+				RADOS: cephv1.GaneshaRADOSSpec{
+					Pool:      "myfs-data0",
+					Namespace: "nfs-test-ns",
+				},
+				Server: cephv1.GaneshaServerSpec{
+					Active: 3,
+					Resources: v1.ResourceRequirements{
+						Limits: v1.ResourceList{
+							v1.ResourceCPU:    *resource.NewQuantity(500.0, resource.BinarySI),
+							v1.ResourceMemory: *resource.NewQuantity(1024.0, resource.BinarySI),
+						},
+						Requests: v1.ResourceList{
+							v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
+							v1.ResourceMemory: *resource.NewQuantity(512.0, resource.BinarySI),
+						},
+					},
+					PriorityClassName: "my-priority-class",
+					LivenessProbe: &cephv1.ProbeSpec{
+						Disabled: false,
+					},
+				},
+			},
+		}
+
+		r, cfg := newDeploymentSpecTest(t)
+		d, err := r.makeDeployment(nfs, cfg)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, d.Spec.Template.Annotations)
+
+		// Expects valid settings to default livness-probe
+		var ganeshaCont *v1.Container = nil
+		for i := range d.Spec.Template.Spec.Containers {
+			if d.Spec.Template.Spec.Containers[i].Name == "nfs-ganesha" {
+				ganeshaCont = &d.Spec.Template.Spec.Containers[i]
+				break
+			}
+		}
+		assert.NotNil(t, ganeshaCont)
+		assert.NotNil(t, ganeshaCont.LivenessProbe)
+		assert.Equal(t, ganeshaCont.LivenessProbe.InitialDelaySeconds, int32(10))
+		assert.Equal(t, ganeshaCont.LivenessProbe.FailureThreshold, int32(10))
+		assert.GreaterOrEqual(t, ganeshaCont.LivenessProbe.TimeoutSeconds, int32(5))
+	})
 }
