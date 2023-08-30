@@ -122,30 +122,22 @@ func executeCommandWithTimeout(timeout time.Duration, command string, stdin *str
 	for {
 		select {
 		case <-time.After(timeout):
-			if interruptSent {
-				logger.Infof("%s process %s to return after interrupt signal was sent. Sending kill signal to the process", TimeoutWaitingForMessage, command)
-				var e error
-				if err := cmd.Process.Kill(); err != nil {
-					logger.Errorf("Failed to kill process %s: %v", command, err)
-					e = fmt.Errorf("%s the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %v", TimeoutWaitingForMessage, command, err)
-				} else {
-					e = fmt.Errorf("%s the command %s to return", TimeoutWaitingForMessage, command)
-				}
-				return strings.TrimSpace(b.String()), e
+			logger.Infof("%s process %s to return after interrupt signal was sent. Sending kill signal to the process", TimeoutWaitingForMessage, command)
+			var e error
+			if err := cmd.Process.Kill(); err != nil {
+				logger.Errorf("Failed to kill process %s: %+v", cmd, err)
+				e = fmt.Errorf("%s the command %+v to return after interrupt signal was sent. Tried to kill the process but that failed: %v", TimeoutWaitingForMessage, cmd, err)
+			} else {
+				e = fmt.Errorf("%s the command %+v to return", TimeoutWaitingForMessage, cmd)
 			}
+			return strings.TrimSpace(b.String()), e
 
-			logger.Infof("%s process %s to return. Sending interrupt signal to the process", TimeoutWaitingForMessage, command)
-			if err := cmd.Process.Signal(os.Interrupt); err != nil {
-				logger.Errorf("Failed to send interrupt signal to process %s: %v", command, err)
-				// kill signal will be sent next loop
-			}
-			interruptSent = true
 		case err := <-done:
 			if err != nil {
 				return strings.TrimSpace(b.String()), err
 			}
 			if interruptSent {
-				return strings.TrimSpace(b.String()), fmt.Errorf("%s the command %s to return", TimeoutWaitingForMessage, command)
+				return strings.TrimSpace(b.String()), fmt.Errorf("%s the command %+v to return", TimeoutWaitingForMessage, cmd)
 			}
 			return strings.TrimSpace(b.String()), nil
 		}
