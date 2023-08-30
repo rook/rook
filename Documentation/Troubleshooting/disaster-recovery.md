@@ -37,7 +37,7 @@ Since Kubernetes does not allow undeleting resources, the following procedure wi
 the CRs to their prior state without even necessarily suffering cluster downtime.
 
 !!! note
-    In the following commands, the affected `CephCluster` resource is called `rook-ceph`. If yours is named differently, the
+    In the following commands, the affected `CephCluster` resource is called `my-cluster`. If yours is named differently, the
     commands will need to be adjusted.
 
 1.  Scale down the operator.
@@ -50,7 +50,7 @@ the CRs to their prior state without even necessarily suffering cluster downtime
 
     ```console
     # Store the `CephCluster` CR settings. Also, save other Rook CRs that are in terminating state.
-    kubectl -n rook-ceph get cephcluster rook-ceph -o yaml > cluster.yaml
+    kubectl -n rook-ceph get cephcluster my-cluster -o yaml > cluster.yaml
 
     # Backup critical secrets and configmaps in case something goes wrong later in the procedure
     kubectl -n rook-ceph get secret -o yaml > secrets.yaml
@@ -71,7 +71,7 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     1.  Programmatically determine all such resources, using this command:
         ```console
         # Determine the `CephCluster` UID
-        ROOK_UID=$(kubectl -n rook-ceph get cephcluster rook-ceph -o 'jsonpath={.metadata.uid}')
+        ROOK_UID=$(kubectl -n rook-ceph get cephcluster my-cluster -o 'jsonpath={.metadata.uid}')
         # List all secrets, configmaps, services, deployments, and PVCs with that ownership UID.
         RESOURCES=$(kubectl -n rook-ceph get secret,configmap,service,deployment,pvc -o jsonpath='{range .items[?(@.metadata.ownerReferences[*].uid=="'"$ROOK_UID"'")]}{.kind}{"/"}{.metadata.name}{"\n"}{end}')
         # Show the collected resources.
@@ -102,8 +102,8 @@ the CRs to their prior state without even necessarily suffering cluster downtime
         - apiVersion: ceph.rook.io/v1
            blockOwnerDeletion: true
            controller: true
-           kind: `CephCluster`
-           name: rook-ceph
+           kind: CephCluster
+           name: my-cluster
            uid: <uid>
         ```
 
@@ -116,7 +116,7 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     Remove the finalizer from the `CephCluster` resource. This will cause the resource to be immediately deleted by Kubernetes.
 
     ```console
-    kubectl -n rook-ceph patch cephcluster/rook-ceph --type json --patch='[ { "op": "remove", "path": "/metadata/finalizers" } ]'
+    kubectl -n rook-ceph patch cephcluster/my-cluster --type json --patch='[ { "op": "remove", "path": "/metadata/finalizers" } ]'
     ```
 
     After the finalizer is removed, the `CephCluster` will be immediately deleted. If all owner references were properly removed,
