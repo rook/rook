@@ -197,7 +197,7 @@ pull_request_rules:
       - base=release-1.12
       - label!=do-not-merge
       - "status-success=DCO"
-      - "check-success=linux-build-all (1.20)"
+      - "check-success=linux-build-all (1.21)"
       - "check-success=unittests"
       - "check-success=golangci-lint"
       - "check-success=codegen"
@@ -228,15 +228,15 @@ pull_request_rules:
       - "check-success=lvm-pvc"
       - "check-success=rgw-multisite-testing"
       - "check-success=TestCephSmokeSuite (v1.22.17)"
-      - "check-success=TestCephSmokeSuite (v1.27.2)"
+      - "check-success=TestCephSmokeSuite (v1.28.0)"
       - "check-success=TestCephHelmSuite (v1.22.17)"
-      - "check-success=TestCephHelmSuite (v1.27.2)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.27.2)"
+      - "check-success=TestCephHelmSuite (v1.28.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.28.0)"
       - "check-success=TestCephObjectSuite (v1.27.2)"
       - "check-success=TestCephUpgradeSuite (v1.22.17)"
-      - "check-success=TestCephUpgradeSuite (v1.27.2)"
+      - "check-success=TestCephUpgradeSuite (v1.28.0)"
       - "check-success=TestHelmUpgradeSuite (v1.22.17)"
-      - "check-success=TestHelmUpgradeSuite (v1.27.2)"
+      - "check-success=TestHelmUpgradeSuite (v1.28.0)"
     actions:
       merge:
         method: merge
