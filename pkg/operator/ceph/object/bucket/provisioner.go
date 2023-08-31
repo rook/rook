@@ -104,7 +104,8 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 
 	// create the bucket
 	var bucketExists bool
-	bucketExists, err = p.bucketExists(p.bucketName)
+	var owner string
+	bucketExists, owner, err = p.bucketExists(p.bucketName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "error creating bucket %q. failed to check if bucket already exists", p.bucketName)
 	}
@@ -116,6 +117,8 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		if err != nil {
 			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		}
+	} else if owner != options.UserID {
+		return nil, errors.Errorf("bucket %q already exists and is owned by %q for different OBC", p.bucketName, owner)
 	} else {
 		logger.Debugf("bucket %q already exists", p.bucketName)
 	}
@@ -149,7 +152,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	// check and make sure the bucket exists
 	logger.Infof("Checking for existing bucket %q", p.bucketName)
-	if exists, err := p.bucketExists(p.bucketName); !exists {
+	if exists, _, err := p.bucketExists(p.bucketName); !exists {
 		return nil, errors.Wrapf(err, "bucket %s does not exist", p.bucketName)
 	}
 
