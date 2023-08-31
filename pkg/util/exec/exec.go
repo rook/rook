@@ -38,7 +38,8 @@ import (
 const TimeoutWaitingForMessage = "exec timeout waiting for"
 
 var (
-	CephCommandsTimeout = 15 * time.Second
+	CephCommandsTimeout         = 15 * time.Second
+	RadosgwAdminCommandsTimeout = 20 * time.Second
 )
 
 // Executor is the main interface for all the exec commands
