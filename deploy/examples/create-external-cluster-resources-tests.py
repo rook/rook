@@ -70,7 +70,7 @@ class TestRadosJSON(unittest.TestCase):
         )
         print(f"cephCSIKeyring without restricting it to a metadata pool. {csiKeyring}")
         self.rjObj._arg_parser.restricted_auth_permission = True
-        self.rjObj._arg_parser.cluster_name = "openshift-storage"
+        self.rjObj._arg_parser.k8s_cluster_name = "openshift-storage"
         csiKeyring = self.rjObj.create_cephCSIKeyring_user(
             "client.csi-cephfs-provisioner"
         )
