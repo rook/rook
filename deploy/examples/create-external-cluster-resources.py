@@ -319,7 +319,7 @@ class RadosJSON:
             help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'",
         )
         common_group.add_argument(
-            "--cluster-name", default="", help="Ceph cluster name"
+            "--k8s-cluster-name", default="", help="Kubernetes cluster name"
         )
         common_group.add_argument(
             "--namespace",
@@ -333,9 +333,9 @@ class RadosJSON:
             "--restricted-auth-permission",
             default=False,
             help="Restrict cephCSIKeyrings auth permissions to specific pools, cluster."
-            + "Mandatory flags that need to be set are --rbd-data-pool-name, and --cluster-name."
+            + "Mandatory flags that need to be set are --rbd-data-pool-name, and --k8s-cluster-name."
             + "--cephfs-filesystem-name flag can also be passed in case of cephfs user restriction, so it can restrict user to particular cephfs filesystem"
-            + "sample run: `python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --cluster-name rookstorage --restricted-auth-permission true`"
+            + "sample run: `python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true`"
             + "Note: Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users."
             + "So apply these secrets only to new `Consumer cluster` deployment while using the same `Source cluster`.",
         )
@@ -474,9 +474,9 @@ class RadosJSON:
             help="Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied."
             + "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade`, this will upgrade all the default csi users(non-restricted)"
             + "For restricted users(For example: client.csi-cephfs-provisioner-openshift-storage-myfs), users created using --restricted-auth-permission flag need to pass mandatory flags"
-            + "mandatory flags: '--rbd-data-pool-name, --cluster-name and --run-as-user' flags while upgrading"
+            + "mandatory flags: '--rbd-data-pool-name, --k8s-cluster-name and --run-as-user' flags while upgrading"
             + "in case of cephfs users if you have passed --cephfs-filesystem-name flag while creating user then while upgrading it will be mandatory too"
-            + "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool`"
+            + "Sample run: `python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool`"
             + "PS: An existing non-restricted user cannot be converted to a restricted user by upgrading."
             + "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access",
         )
@@ -857,16 +857,16 @@ class RadosJSON:
             "osd": "allow rw tag cephfs metadata=*",
         }
         if self._arg_parser.restricted_auth_permission:
-            cluster_name = self._arg_parser.cluster_name
-            if cluster_name == "":
+            k8s_cluster_name = self._arg_parser.k8s_cluster_name
+            if k8s_cluster_name == "":
                 raise ExecutionFailureException(
-                    "cluster_name not found, please set the '--cluster-name' flag"
+                    "k8s_cluster_name not found, please set the '--k8s-cluster-name' flag"
                 )
             cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
             if cephfs_filesystem == "":
-                entity = f"{entity}-{cluster_name}"
+                entity = f"{entity}-{k8s_cluster_name}"
             else:
-                entity = f"{entity}-{cluster_name}-{cephfs_filesystem}"
+                entity = f"{entity}-{k8s_cluster_name}-{cephfs_filesystem}"
                 caps["osd"] = f"allow rw tag cephfs metadata={cephfs_filesystem}"
 
         return caps, entity
@@ -880,21 +880,21 @@ class RadosJSON:
             "mds": "allow rw",
         }
         if self._arg_parser.restricted_auth_permission:
-            cluster_name = self._arg_parser.cluster_name
-            if cluster_name == "":
+            k8s_cluster_name = self._arg_parser.k8s_cluster_name
+            if k8s_cluster_name == "":
                 raise ExecutionFailureException(
-                    "cluster_name not found, please set the '--cluster-name' flag"
+                    "k8s_cluster_name not found, please set the '--k8s-cluster-name' flag"
                 )
             cephfs_filesystem = self._arg_parser.cephfs_filesystem_name
             if cephfs_filesystem == "":
-                entity = f"{entity}-{cluster_name}"
+                entity = f"{entity}-{k8s_cluster_name}"
             else:
-                entity = f"{entity}-{cluster_name}-{cephfs_filesystem}"
+                entity = f"{entity}-{k8s_cluster_name}-{cephfs_filesystem}"
                 caps["osd"] = f"allow rw tag cephfs *={cephfs_filesystem}"
 
         return caps, entity
 
-    def get_entity(self, entity, rbd_pool_name, alias_rbd_pool_name, cluster_name):
+    def get_entity(self, entity, rbd_pool_name, alias_rbd_pool_name, k8s_cluster_name):
         if (
             rbd_pool_name.count(".") != 0
             or rbd_pool_name.count("_") != 0
@@ -912,9 +912,9 @@ class RadosJSON:
                 raise ExecutionFailureException(
                     "'--alias-rbd-data-pool-name' flag value should not contain '.' or '_'"
                 )
-            entity = f"{entity}-{cluster_name}-{alias_rbd_pool_name}"
+            entity = f"{entity}-{k8s_cluster_name}-{alias_rbd_pool_name}"
         else:
-            entity = f"{entity}-{cluster_name}-{rbd_pool_name}"
+            entity = f"{entity}-{k8s_cluster_name}-{rbd_pool_name}"
 
         return entity
 
@@ -928,17 +928,17 @@ class RadosJSON:
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
-            cluster_name = self._arg_parser.cluster_name
+            k8s_cluster_name = self._arg_parser.k8s_cluster_name
             if rbd_pool_name == "":
                 raise ExecutionFailureException(
                     "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
                 )
-            if cluster_name == "":
+            if k8s_cluster_name == "":
                 raise ExecutionFailureException(
-                    "mandatory flag not found, please set the '--cluster-name' flag"
+                    "mandatory flag not found, please set the '--k8s-cluster-name' flag"
                 )
             entity = self.get_entity(
-                entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
+                entity, rbd_pool_name, alias_rbd_pool_name, k8s_cluster_name
             )
             caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
@@ -953,17 +953,17 @@ class RadosJSON:
         if self._arg_parser.restricted_auth_permission:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
-            cluster_name = self._arg_parser.cluster_name
+            k8s_cluster_name = self._arg_parser.k8s_cluster_name
             if rbd_pool_name == "":
                 raise ExecutionFailureException(
                     "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
                 )
-            if cluster_name == "":
+            if k8s_cluster_name == "":
                 raise ExecutionFailureException(
-                    "mandatory flag not found, please set the '--cluster-name' flag"
+                    "mandatory flag not found, please set the '--k8s-cluster-name' flag"
                 )
             entity = self.get_entity(
-                entity, rbd_pool_name, alias_rbd_pool_name, cluster_name
+                entity, rbd_pool_name, alias_rbd_pool_name, k8s_cluster_name
             )
             caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
@@ -1455,15 +1455,15 @@ class RadosJSON:
     def _gen_output_map(self):
         if self.out_map:
             return
-        self._arg_parser.cluster_name = (
-            self._arg_parser.cluster_name.lower()
+        self._arg_parser.k8s_cluster_name = (
+            self._arg_parser.k8s_cluster_name.lower()
         )  # always convert cluster name to lowercase characters
         self.validate_rbd_pool()
         self.validate_rados_namespace()
-        self._excluded_keys.add("CLUSTER_NAME")
+        self._excluded_keys.add("K8S_CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
-        self.out_map["CLUSTER_NAME"] = self._arg_parser.cluster_name
+        self.out_map["K8S_CLUSTER_NAME"] = self._arg_parser.k8s_cluster_name
         self.out_map["ROOK_EXTERNAL_FSID"] = self.get_fsid()
         self.out_map["ROOK_EXTERNAL_USERNAME"] = self.run_as_user
         self.out_map["ROOK_EXTERNAL_CEPH_MON_DATA"] = self.get_ceph_external_mon_data()

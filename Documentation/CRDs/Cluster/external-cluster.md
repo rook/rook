@@ -45,7 +45,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--skip-monitoring-endpoint`: (optional) Skip prometheus exporter endpoints, even if they are available. Useful if the prometheus module is not enabled
 - `--ceph-conf`: (optional) Provide a Ceph conf file
 - `--keyring`: (optional) Path to Ceph keyring file, to be used with `--ceph-conf`
-- `--cluster-name`: (optional) Ceph cluster name
+- `--k8s-cluster-name`: (optional) Kubernetes cluster name
 - `--output`: (optional) Output will be stored into the provided file
 - `--dry-run`: (optional) Prints the executed commands without running them
 - `--run-as-user`: (optional) Provides a user name to check the cluster's health status, must be prefixed by `client`.
@@ -58,7 +58,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 - `--rgw-zone-name`: (optional) Provides the name of the rgw-zone
 - `--rgw-zonegroup-name`: (optional) Provides the name of the rgw-zone-group
 - `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
-- `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
+- `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 - `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
 
 ### Multi-tenancy
@@ -72,7 +72,7 @@ So you would be running different isolated consumer clusters on top of single `S
     So apply these secrets only to new `Consumer cluster` deployment while using the same `Source cluster`.
 
 ```console
-python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --cluster-name <cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoin> --namespace <rook-ceph-external>
+python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --k8s-cluster-name <k8s-cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoin> --namespace <rook-ceph-external>
 ```
 
 ### RGW Multisite
@@ -92,10 +92,10 @@ python3 create-external-cluster-resources.py --upgrade
 ```
 
 2) If the consumer cluster has restricted caps:
-Restricted users created using `--restricted-auth-permission` flag need to pass mandatory flags: '`--rbd-data-pool-name`(if it is a rbd user), `--cluster-name` and `--run-as-user`' flags while upgrading, in case of cephfs users if you have passed `--cephfs-filesystem-name` flag while creating csi-users then while upgrading it will be mandatory too. In this example the user would be `client.csi-rbd-node-rookstorage-replicapool` (following the pattern `csi-user-clusterName-poolName`)
+Restricted users created using `--restricted-auth-permission` flag need to pass mandatory flags: '`--rbd-data-pool-name`(if it is a rbd user), `--k8s-cluster-name` and `--run-as-user`' flags while upgrading, in case of cephfs users if you have passed `--cephfs-filesystem-name` flag while creating csi-users then while upgrading it will be mandatory too. In this example the user would be `client.csi-rbd-node-rookstorage-replicapool` (following the pattern `csi-user-clusterName-poolName`)
 
 ```console
-python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --cluster-name rookstorage --run-as-user client.csi-rbd-node-rookstorage-replicapool
+python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --run-as-user client.csi-rbd-node-rookstorage-replicapool
 ```
 
 !!! note
