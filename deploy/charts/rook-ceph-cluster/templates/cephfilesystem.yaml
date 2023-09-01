@@ -5,6 +5,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephFilesystem
 metadata:
   name: {{ $filesystem.name }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
 {{ toYaml $filesystem.spec | indent 2 }}
 ---

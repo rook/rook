@@ -5,6 +5,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
   name: {{ $objectstore.name }}
+  namespace: {{ .Release.Namespace | quote }}
 spec:
 {{ toYaml $objectstore.spec | indent 2 }}
 ---
