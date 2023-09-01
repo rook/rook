@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
+	apifake "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset/fake"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -105,8 +106,9 @@ func TestCephCSIController(t *testing.T) {
 		fakeClientSet := test.New(t, 1)
 		test.SetFakeKubernetesVersion(fakeClientSet, "v1.21.0")
 		c := &clusterd.Context{
-			Clientset:     fakeClientSet,
-			RookClientset: rookclient.NewSimpleClientset(),
+			Clientset:           fakeClientSet,
+			RookClientset:       rookclient.NewSimpleClientset(),
+			ApiExtensionsClient: apifake.NewSimpleClientset(),
 		}
 		_, err := c.Clientset.CoreV1().Pods(namespace).Create(ctx, test.FakeOperatorPod(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
@@ -128,7 +130,7 @@ func TestCephCSIController(t *testing.T) {
 			},
 		}
 		s := scheme.Scheme
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &v1.ConfigMap{})
 
 		object := []runtime.Object{
 			cephCluster,
@@ -160,8 +162,9 @@ func TestCephCSIController(t *testing.T) {
 		fakeClientSet := test.New(t, 1)
 		test.SetFakeKubernetesVersion(fakeClientSet, "v1.21.0")
 		c := &clusterd.Context{
-			Clientset:     fakeClientSet,
-			RookClientset: rookclient.NewSimpleClientset(),
+			Clientset:           fakeClientSet,
+			RookClientset:       rookclient.NewSimpleClientset(),
+			ApiExtensionsClient: apifake.NewSimpleClientset(),
 		}
 		_, err := c.Clientset.CoreV1().Pods(namespace).Create(ctx, test.FakeOperatorPod(namespace), metav1.CreateOptions{})
 		assert.NoError(t, err)
@@ -205,7 +208,7 @@ func TestCephCSIController(t *testing.T) {
 		_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		s := scheme.Scheme
-		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &v1.ConfigMap{})
 
 		object := []runtime.Object{
 			cephCluster,

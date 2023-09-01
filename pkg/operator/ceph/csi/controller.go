@@ -30,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -88,6 +89,12 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 		return err
 	}
 	logger.Infof("%s successfully started", controllerName)
+
+	// Add CSIAddons client to controller mgr
+	err = addonsv1alpha1.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		return err
+	}
 
 	// Watch for ConfigMap (operator config)
 	configmapKind := source.Kind(mgr.GetCache(),
