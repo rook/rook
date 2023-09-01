@@ -220,8 +220,9 @@ func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortM
 }
 
 // EnableCephExporterServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the exporter
-func EnableCephExporterServiceMonitor(context *clusterd.Context, cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context) error {
-	serviceMonitor := k8sutil.GetServiceMonitor(cephExporterAppName, cephCluster.Namespace)
+func EnableCephExporterServiceMonitor(context *clusterd.Context, cephCluster cephv1.CephCluster, scheme *runtime.Scheme, opManagerContext context.Context, servicePortMetricName string) error {
+	serviceMonitor := k8sutil.GetServiceMonitor(cephExporterAppName, cephCluster.Namespace, servicePortMetricName)
+
 	cephv1.GetCephExporterLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
 	err := controllerutil.SetControllerReference(&cephCluster, serviceMonitor, scheme)

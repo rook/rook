@@ -271,7 +271,7 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 				}
 
 				if cephCluster.Spec.Monitoring.Enabled {
-					if err := EnableCephExporterServiceMonitor(r.context, cephCluster, r.scheme, r.opManagerContext); err != nil {
+					if err := EnableCephExporterServiceMonitor(r.context, cephCluster, r.scheme, r.opManagerContext, exporterServiceMetricName); err != nil {
 						return errors.Wrap(err, "failed to enable service monitor")
 					}
 					logger.Debug("service monitor for ceph exporter was enabled successfully")
