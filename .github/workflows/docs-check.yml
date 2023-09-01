@@ -33,15 +33,10 @@ jobs:
         with:
           python-version: 3.9
 
-      - name: Run docs
-        run: |
-          make docs
-          DIFF=$(git diff)
-          if [ ! -z "$DIFF" ]; then
-            echo "Please run 'make docs' locally, commit the updated docs, and push the change. See https://rook.io/docs/rook/latest/Contributing/documentation/#running-helm-docs"
-          fi
-          git diff --exit-code
-
+      - name: Check helm-docs
+        run: make check-helm-docs
+      - name: Check docs
+        run: make check-docs
       - name: Install mkdocs and dependencies
         run: cd build/release/ && make deps.docs
 
