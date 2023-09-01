@@ -58,6 +58,13 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 		if monConfig.Zone != "" {
 			labels["zone"] = monConfig.Zone
 		}
+		// Populate provided labels if they do not exist already
+		for k, v := range monVolumeClaimTemplate.ObjectMeta.Labels {
+			_, ok := labels[k]
+			if !ok {
+				labels[k] = v
+			}
+		}
 	}
 
 	return labels
