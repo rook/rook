@@ -55,6 +55,7 @@ const (
 	standbyMgrStatus       = "standby"
 	monitoringPath         = "/etc/ceph-monitoring/"
 	serviceMonitorFile     = "service-monitor.yaml"
+	serviceMonitorPort     = "http-metrics"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 	// DefaultMetricsPort prometheus exporter port
@@ -502,7 +503,7 @@ func wellKnownModule(name string) bool {
 
 // EnableServiceMonitor add a servicemonitor that allows prometheus to scrape from the monitoring endpoint of the cluster
 func (c *Cluster) EnableServiceMonitor() error {
-	serviceMonitor := k8sutil.GetServiceMonitor(AppName, c.clusterInfo.Namespace)
+	serviceMonitor := k8sutil.GetServiceMonitor(AppName, c.clusterInfo.Namespace, serviceMonitorPort)
 	cephv1.GetMonitoringLabels(c.spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 
 	if c.spec.External.Enable {

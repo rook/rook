@@ -39,7 +39,7 @@ func getMonitoringClient(context *clusterd.Context) (*monitoringclient.Clientset
 }
 
 // GetServiceMonitor creates serviceMonitor object template
-func GetServiceMonitor(name string, namespace string) *monitoringv1.ServiceMonitor {
+func GetServiceMonitor(name string, namespace string, portName string) *monitoringv1.ServiceMonitor {
 	return &monitoringv1.ServiceMonitor{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -62,7 +62,7 @@ func GetServiceMonitor(name string, namespace string) *monitoringv1.ServiceMonit
 			},
 			Endpoints: []monitoringv1.Endpoint{
 				{
-					Port:     "http-metrics",
+					Port:     portName,
 					Path:     "/metrics",
 					Interval: "5s",
 				},

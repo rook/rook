@@ -26,9 +26,11 @@ import (
 func TestGetServiceMonitor(t *testing.T) {
 	name := "rook-ceph-mgr"
 	namespace := "rook-ceph"
-	servicemonitor := GetServiceMonitor(name, namespace)
+	port := "http-metrics"
+	servicemonitor := GetServiceMonitor(name, namespace, port)
 	assert.Equal(t, name, servicemonitor.GetName())
 	assert.Equal(t, namespace, servicemonitor.GetNamespace())
+	assert.Equal(t, port, servicemonitor.Spec.Endpoints[0].Port)
 	assert.NotNil(t, servicemonitor.GetLabels())
 	assert.NotNil(t, servicemonitor.Spec.NamespaceSelector.MatchNames)
 	assert.NotNil(t, servicemonitor.Spec.Selector.MatchLabels)
