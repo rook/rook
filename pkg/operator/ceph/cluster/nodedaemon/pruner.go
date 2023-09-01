@@ -170,8 +170,7 @@ func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) {
 }
 
 func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
-	cephImage := cephCluster.Spec.CephVersion.Image
-	envVars := append(controller.DaemonEnvVars(cephImage), generateCrashEnvVar())
+	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), generateCrashEnvVar())
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
 	volumeMounts = append(volumeMounts, keyring.VolumeMount().CrashCollector())
@@ -188,7 +187,7 @@ func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion cephver.
 		Args: []string{
 			fmt.Sprintf("%d", cephCluster.Spec.CrashCollector.DaysToRetain),
 		},
-		Image:           cephImage,
+		Image:           cephCluster.Spec.CephVersion.Image,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		Env:             envVars,
 		VolumeMounts:    volumeMounts,
