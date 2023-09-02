@@ -85,10 +85,6 @@ spec:
 {{- end }}
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
-        - name: DISCOVER_DAEMON_UDEV_BLACKLIST
-          value: "{{ .Values.discoverDaemonUdev }}"
-        - name: ROOK_ENABLE_DISCOVERY_DAEMON
-          value: "{{ .Values.enableDiscoveryDaemon }}"
 
         - name: NODE_NAME
           valueFrom:
