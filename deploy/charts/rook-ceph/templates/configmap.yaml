@@ -10,6 +10,10 @@ data:
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: {{ .Values.enableOBCWatchOperatorNamespace | quote }}
   ROOK_CEPH_ALLOW_LOOP_DEVICES: {{ .Values.allowLoopDevices | quote }}
   ROOK_DISABLE_ADMISSION_CONTROLLER: {{ .Values.disableAdmissionController | quote }}
+  ROOK_ENABLE_DISCOVERY_DAEMON: {{ .Values.enableDiscoveryDaemon | quote }}
+{{- if .Values.discoverDaemonUdev }}
+  DISCOVER_DAEMON_UDEV_BLACKLIST: {{ .Values.discoverDaemonUdev | quote }}
+{{- end }}
 {{- if .Values.csi }}
   ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
