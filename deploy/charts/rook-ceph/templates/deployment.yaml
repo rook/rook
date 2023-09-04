@@ -85,7 +85,8 @@ spec:
 {{- end }}
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
-
+        - name: ROOK_DISCOVER_DEVICES_INTERVAL
+          value: "{{ .Values.discoveryDaemonInterval }}"
         - name: NODE_NAME
           valueFrom:
             fieldRef:
