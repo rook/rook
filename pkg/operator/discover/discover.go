@@ -81,10 +81,7 @@ func (d *Discover) Start(ctx context.Context, namespace, discoverImage, security
 }
 
 func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, data map[string]string, useCephVolume bool) error {
-	discoveryInterval := k8sutil.GetValue(data, discoverIntervalEnv, "")
-	if discoverImage == "" {
-		discoveryInterval = defaultDiscoverInterval
-	}
+	discoveryInterval := k8sutil.GetValue(data, discoverIntervalEnv, defaultDiscoverInterval)
 
 	discoveryParameters := []string{"discover",
 		"--discover-interval", discoveryInterval}
