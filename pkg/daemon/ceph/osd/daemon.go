@@ -32,6 +32,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/sys"
@@ -371,6 +372,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 				// This handles the case where the OSD deployment has been removed and the prepare
 				// job kicks in again to re-deploy the OSD.
 				continue
+
 			} else if device.Filesystem == "mpath_member" && agent.pvcBacked {
 				logger.Infof("allowing multipath disk %q with filesystem %q", device.Name, device.Filesystem)
 			} else {
@@ -602,31 +604,31 @@ func getVolumeGroupName(lvPath string) string {
 	return vgSlice[2]
 }
 
-// GetOSDInfoByID returns the OSDInfo using the ceph volume list
-func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (oposd.OSDInfo, error) {
+// GetOSDInfoById returns the osdInfo using the ceph volume list
+func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (*osd.OSDInfo, error) {
 	// LVM mode OSDs
 	osdLVMList, err := GetCephVolumeLVMOSDs(context, clusterInfo, clusterInfo.FSID, "", false, false)
 	if err != nil {
-		return oposd.OSDInfo{}, errors.Wrap(err, "failed to list lvm osd(s)")
+		return nil, errors.Wrap(err, "failed to list lvm osd(s)")
 	}
 
 	for _, osdInfo := range osdLVMList {
 		if osdInfo.ID == osdID {
-			return osdInfo, nil
+			return &osdInfo, nil
 		}
 	}
 
 	// Raw mode OSDs
 	osdRawList, err := GetCephVolumeRawOSDs(context, clusterInfo, clusterInfo.FSID, "", "", "", false, true)
 	if err != nil {
-		return oposd.OSDInfo{}, errors.Wrap(err, "failed to list raw osd(s)")
+		return nil, errors.Wrap(err, "failed to list raw osd(s)")
 	}
 
 	for _, osdInfo := range osdRawList {
 		if osdInfo.ID == osdID {
-			return osdInfo, nil
+			return &osdInfo, nil
 		}
 	}
 
-	return oposd.OSDInfo{}, fmt.Errorf("failed to get details for OSD %d using ceph-volume list", osdID)
+	return nil, fmt.Errorf("failed to get details for OSD %d using ceph-volume list", osdID)
 }
