@@ -1129,9 +1129,11 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			}
 
 			// Close encrypted device
-			err = CloseEncryptedDevice(context, block)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
+			if block != "" {
+				err = CloseEncryptedDevice(context, block)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to close encrypted device %q for osd %d", block, osdID)
+				}
 			}
 
 			// If there is a metadata block

@@ -34,7 +34,7 @@ func GetDeviceClasses(context *clusterd.Context, clusterInfo *ClusterInfo) ([]st
 
 	var deviceclass []string
 	if err := json.Unmarshal(buf, &deviceclass); err != nil {
-		return nil, errors.Wrap(err, "failed to unmarshal osd crush class list response")
+		return nil, errors.Wrapf(err, "failed to unmarshal osd crush class list response %q", string(buf))
 	}
 
 	return deviceclass, nil
