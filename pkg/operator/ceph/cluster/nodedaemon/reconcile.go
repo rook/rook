@@ -287,7 +287,7 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 func (r *ReconcileNode) removeDisabledCrashCollectorDaemons(spec cephv1.ClusterSpec, namespace string) bool {
 	// If the crash daemons are disabled in the spec let's remove them
 	if spec.CrashCollector.Disable {
-		r.deleteNodeDaemon(crashCollectorAppName, namespace)
+		r.deleteNodeDaemon(CrashCollectorAppName, namespace)
 	}
 
 	return spec.CrashCollector.Disable
@@ -362,7 +362,7 @@ func (r *ReconcileNode) cephPodList() ([]corev1.Pod, error) {
 
 func (r *ReconcileNode) listNodeDaemonsAndDelete(nodeName, ns string) error {
 	// delete the crash daemons on the given node
-	if err := r.listDeploymentAndDelete(crashCollectorAppName, nodeName, ns); err != nil {
+	if err := r.listDeploymentAndDelete(CrashCollectorAppName, nodeName, ns); err != nil {
 		return errors.Wrap(err, "failed to delete crash collector")
 	}
 

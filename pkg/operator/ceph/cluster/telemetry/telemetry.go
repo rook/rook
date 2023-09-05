@@ -41,6 +41,11 @@ const (
 	DeviceSetNonPortableKey    = "rook/cluster/storage/device-set/count/non-portable"
 	NetworkProviderKey         = "rook/cluster/network/provider"
 	ExternalModeEnabledKey     = "rook/cluster/external-mode"
+	K8sNodeCount               = "rook/node/count/kubernetes-total"
+	CephNodeCount              = "rook/node/count/with-ceph-daemons"
+	RBDNodeCount               = "rook/node/count/with-csi-rbd-plugin"
+	CephFSNodeCount            = "rook/node/count/with-csi-cephfs-plugin"
+	NFSNodeCount               = "rook/node/count/with-csi-nfs-plugin"
 )
 
 var CSIVersion string
