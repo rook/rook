@@ -300,3 +300,26 @@ func FakeReplicaSet(ns string) *appsv1.ReplicaSet {
 
 	return r
 }
+
+func FakeCustomisePodCreate(t *testing.T, clientset *fake.Clientset, name, ns string, label map[string]string) {
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: ns,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					Kind: "Deployment",
+				},
+			},
+			Labels: label,
+		},
+	}
+	err := clientset.Tracker().Create(podGVR, pod, ns)
+	if err != nil {
+		if errors.IsAlreadyExists(err) {
+			t.Logf("pod %q is already created", pod.GetName())
+		}
+		panic(fmt.Errorf("failed to create Pod %q. %v", pod.Name, err))
+	}
+	t.Logf("job reactor: created pod %q ", pod.Name)
+}

@@ -216,7 +216,7 @@ func TestCephCSIController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		c.Client = cl
-		// // Create a ReconcileCSI object with the scheme and fake client.
+		// Create a ReconcileCSI object with the scheme and fake client.
 		r := &ReconcileCSI{
 			scheme:  s,
 			client:  cl,

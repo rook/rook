@@ -33,6 +33,7 @@ import (
 	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -201,6 +202,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			logger.Debugf("ceph cluster %q has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver", cluster.Name)
 			return reconcile.Result{}, nil
 		}
+
 		holderEnabled := !csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()
 		// Do we have a multus cluster or csi host network disabled?
 		// If so deploy the plugin holder with the fsid attached
@@ -218,11 +220,9 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 			}
 			clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
-
 			logger.Debugf("cluster %q is running on multus or CSI_ENABLE_HOST_NETWORK is false, deploying the ceph-csi plugin holder", cluster.Name)
 
 			r.clustersWithHolder = append(r.clustersWithHolder, ClusterDetail{cluster: &cephClusters.Items[i], clusterInfo: clusterInfo})
-
 		} else {
 			logger.Debugf("not a multus cluster %q or CSI_ENABLE_HOST_NETWORK is true, not deploying the ceph-csi plugin holder", request.NamespacedName)
 		}

@@ -50,7 +50,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 	}
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", crashCollectorAppName), nodeHostnameLabel),
+			Name:      k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", CrashCollectorAppName), nodeHostnameLabel),
 			Namespace: cephCluster.GetNamespace(),
 		},
 	}
@@ -67,7 +67,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		// labels for the pod, the deployment, and the deploymentSelector
 		deploymentLabels := map[string]string{
 			corev1.LabelHostname: nodeHostnameLabel,
-			k8sutil.AppAttr:      crashCollectorAppName,
+			k8sutil.AppAttr:      CrashCollectorAppName,
 			NodeNameLabel:        node.GetName(),
 		}
 		deploymentLabels[config.CrashType] = "crash"
@@ -76,7 +76,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 
 		selectorLabels := map[string]string{
 			corev1.LabelHostname: nodeHostnameLabel,
-			k8sutil.AppAttr:      crashCollectorAppName,
+			k8sutil.AppAttr:      CrashCollectorAppName,
 			NodeNameLabel:        node.GetName(),
 		}
 
