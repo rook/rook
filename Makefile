@@ -197,6 +197,7 @@ crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
+	@build/crds/validate-csv-crd-list.sh
 
 gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
@@ -219,13 +220,13 @@ check-helm-docs:
 	@git diff --exit-code || { \
 	echo "Please run 'make helm-docs' locally, commit the updated docs, and push the change. See https://rook.io/docs/rook/latest/Contributing/documentation/#making-docs" ; \
 	exit 2 ; \
-	}; 
+	};
 check-docs:
 	@$(MAKE) docs
 	@git diff --exit-code || { \
 	echo "Please run 'make docs' locally, commit the updated docs, and push the change." ; \
 	exit 2 ; \
-	}; 
+	};
 
 
 docs-preview: ## Preview the documentation through mkdocs
