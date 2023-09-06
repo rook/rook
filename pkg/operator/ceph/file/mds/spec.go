@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -40,16 +41,16 @@ const (
 	mdsCacheMemoryResourceFactor = 0.8
 )
 
-func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, namespace string) (*apps.Deployment, error) {
+func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.NamespacedName) (*apps.Deployment, error) {
 
-	mdsContainer := c.makeMdsDaemonContainer(mdsConfig)
+	mdsContainer := c.makeMdsDaemonContainer(mdsConfig, fsNamespacedname.Name)
 	mdsContainer = cephconfig.ConfigureStartupProbe(mdsContainer, c.fs.Spec.MetadataServer.StartupProbe)
 	mdsContainer = cephconfig.ConfigureLivenessProbe(mdsContainer, c.fs.Spec.MetadataServer.LivenessProbe)
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mdsConfig.ResourceName,
-			Namespace: namespace,
+			Namespace: fsNamespacedname.Namespace,
 			Labels:    c.podLabels(mdsConfig, true),
 		},
 		Spec: v1.PodSpec{
@@ -127,7 +128,19 @@ func (c *Cluster) makeChownInitContainer(mdsConfig *mdsConfig) v1.Container {
 	)
 }
 
-func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
+func (c *Cluster) getCephConfig() (string, string) {
+	monHost, monIntialMemebers := "", ""
+	cephConfigSecret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, "rook-ceph-config", metav1.GetOptions{})
+	if err != nil {
+		logger.Info("rook-ceph-config secret is not available")
+	} else {
+		monHost = string(cephConfigSecret.Data["mon_host"])
+		monIntialMemebers = string(cephConfigSecret.Data["mon_initial_members"])
+	}
+	return monHost, monIntialMemebers
+}
+
+func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig, fsName string) v1.Container {
 	args := append(
 		controller.DaemonFlags(c.clusterInfo, c.clusterSpec, mdsConfig.DaemonID),
 		"--foreground",
@@ -137,6 +150,8 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		args = append(args,
 			cephconfig.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}
+
+	monHost, monInitialMembers := c.getCephConfig()
 
 	container := v1.Container{
 		Name: "mds",
@@ -151,7 +166,7 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Resources:       c.fs.Spec.MetadataServer.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 		StartupProbe:    controller.GenerateStartupProbeExecDaemon(cephconfig.MdsType, mdsConfig.DaemonID),
-		LivenessProbe:   controller.GenerateLivenessProbeExecDaemon(cephconfig.MdsType, mdsConfig.DaemonID),
+		LivenessProbe:   generateMDSLivenessProbeExecDaemon(mdsConfig.DaemonID, fsName, monHost, monInitialMembers),
 		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
