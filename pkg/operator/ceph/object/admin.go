@@ -221,7 +221,7 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	}
 
 	if err != nil {
-		return fmt.Sprintf("%s. %s", output, stderr), err
+		return output, errors.Wrapf(err, "%v", stderr)
 	}
 	if expectJSON {
 		match, err := extractJSON(output)
