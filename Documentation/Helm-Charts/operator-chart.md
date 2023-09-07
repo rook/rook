@@ -136,6 +136,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `discover.tolerationKey` | The specific key of the taint to tolerate | `nil` |
 | `discover.tolerations` | Array of tolerations in YAML format which will be added to discover deployment | `nil` |
 | `discoverDaemonUdev` | Blacklist certain disks according to the regex provided. | `nil` |
+| `discoveryDaemonInterval` | Set the discovery daemon device discovery interval (default to 60m) | `"60m"` |
 | `enableDiscoveryDaemon` | Enable discovery daemon | `false` |
 | `enableOBCWatchOperatorNamespace` | Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used | `true` |
 | `hostpathRequiresPrivileged` | Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions. | `false` |
