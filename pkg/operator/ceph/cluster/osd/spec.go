@@ -639,7 +639,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if c.spec.Network.IsHost() {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.spec.Network, &podTemplateSpec.ObjectMeta); err != nil {
+		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.spec.Network, &podTemplateSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
 	}

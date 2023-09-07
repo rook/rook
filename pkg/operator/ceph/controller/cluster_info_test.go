@@ -54,10 +54,9 @@ func TestCreateClusterSecrets(t *testing.T) {
 		Clientset: clientset,
 		Executor:  executor,
 	}
-	provider := "Multus"
 	cephClusterSpec := &cephv1.ClusterSpec{
 		Network: cephv1.NetworkSpec{
-			Provider: provider},
+			Provider: cephv1.NetworkProviderMultus},
 	}
 	namespace := "ns"
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()

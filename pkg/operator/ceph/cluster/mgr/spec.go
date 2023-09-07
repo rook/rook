@@ -97,7 +97,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	if c.spec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.spec.Network, &podSpec.ObjectMeta); err != nil {
+		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.spec.Network, &podSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
 		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeCmdProxySidecarContainer(mgrConfig))

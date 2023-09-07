@@ -716,7 +716,7 @@ func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, object
 	}
 	for _, cephCluster := range cephClusters.Items {
 		if cephCluster.Spec.Network.IsMultus() {
-			err = k8sutil.ApplyMultus(cephCluster.Spec.Network, objectMeta)
+			err = k8sutil.ApplyMultus(cephCluster.GetNamespace(), &cephCluster.Spec.Network, objectMeta)
 			if err != nil {
 				return errors.Wrapf(err, "failed to apply multus configuration to CephCluster %q", cephCluster.Name)
 			}
@@ -851,7 +851,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 	// If multus is enabled, add the multus plugin label
 	if c.cluster.Spec.Network.IsMultus() {
 		// Apply Multus annotations to daemonset spec
-		err = k8sutil.ApplyMultus(c.cluster.Spec.Network, &cephPluginHolder.Spec.Template.ObjectMeta)
+		err = k8sutil.ApplyMultus(c.cluster.GetNamespace(), &c.cluster.Spec.Network, &cephPluginHolder.Spec.Template.ObjectMeta)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply multus configuration for holder %q in cluster %q", cephPluginHolder.Name, c.cluster.Namespace)
 		}

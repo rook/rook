@@ -2505,6 +2505,51 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AddressRangesSpec">AddressRangesSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.NetworkSpec">NetworkSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>public</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CIDRList">
+CIDRList
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Public defines a list of CIDRs to use for Ceph public network communication.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cluster</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CIDRList">
+CIDRList
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Cluster defines a list of CIDRs to use for Ceph cluster network communication.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.Annotations">Annotations
 (<code>map[string]string</code> alias)</h3>
 <p>
@@ -2716,6 +2761,13 @@ int64
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.CIDR">CIDR
+(<code>string</code> alias)</h3>
+<div>
+<p>An IPv4 or IPv6 network CIDR.</p>
+<p>This naive kubebuilder regex provides immediate feedback for some typos and for a common problem
+case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code.</p>
+</div>
 <h3 id="ceph.rook.io/v1.COSIDeploymentStrategy">COSIDeploymentStrategy
 (<code>string</code> alias)</h3>
 <p>
@@ -3507,6 +3559,25 @@ string
 </td>
 </tr>
 </tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephNetworkType">CephNetworkType
+(<code>string</code> alias)</h3>
+<div>
+<p>CephNetworkType should be &ldquo;public&rdquo; or &ldquo;cluster&rdquo;.
+Allow any string so that over-specified legacy clusters do not break on CRD update.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;cluster&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;public&#34;</p></td>
+<td></td>
+</tr></tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephStatus">CephStatus
 </h3>
@@ -7979,6 +8050,29 @@ PoolSpec
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.NetworkProviderType">NetworkProviderType
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.NetworkSpec">NetworkSpec</a>)
+</p>
+<div>
+<p>NetworkProviderType defines valid network providers for Rook.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;host&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;multus&#34;</p></td>
+<td></td>
+</tr></tbody>
+</table>
 <h3 id="ceph.rook.io/v1.NetworkSpec">NetworkSpec
 </h3>
 <p>
@@ -7999,7 +8093,9 @@ PoolSpec
 <td>
 <code>provider</code><br/>
 <em>
-string
+<a href="#ceph.rook.io/v1.NetworkProviderType">
+NetworkProviderType
+</a>
 </em>
 </td>
 <td>
@@ -8011,14 +8107,45 @@ string
 <td>
 <code>selectors</code><br/>
 <em>
-map[string]string
+map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.CephNetworkType]string
 </em>
 </td>
 <td>
 <em>(Optional)</em>
-<p>Selectors string values describe what networks will be used to connect the cluster.
-Meanwhile the keys describe each network respective responsibilities or any metadata
-storage provider decide.</p>
+<p>Selectors define NetworkAttachmentDefinitions to be used for Ceph public and/or cluster
+networks when the &ldquo;multus&rdquo; network provider is used. This config section is not used for
+other network providers.</p>
+<p>Valid keys are &ldquo;public&rdquo; and &ldquo;cluster&rdquo;. Refer to Ceph networking documentation for more:
+<a href="https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/">https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/</a></p>
+<p>Refer to Multus network annotation documentation for help selecting values:
+<a href="https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation">https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation</a></p>
+<p>Rook will make a best-effort attempt to automatically detect CIDR address ranges for given
+network attachment definitions. Rook&rsquo;s methods are robust but may be imprecise for
+sufficiently complicated networks. Rook&rsquo;s auto-detection process obtains a new IP address
+lease for each CephCluster reconcile. If Rook fails to detect, incorrectly detects, only
+partially detects, or if underlying networks do not support reusing old IP addresses, it is
+best to use the &lsquo;addressRanges&rsquo; config section to specify CIDR ranges for the Ceph cluster.</p>
+<p>As a contrived example, one can use a theoretical Kubernetes-wide network for Ceph client
+traffic and a theoretical Rook-only network for Ceph replication traffic as shown:
+selectors:
+public: &ldquo;default/cluster-fast-net&rdquo;
+cluster: &ldquo;rook-ceph/ceph-backend-net&rdquo;</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>addressRanges</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AddressRangesSpec">
+AddressRangesSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AddressRanges specify a list of CIDRs that Rook will apply to Ceph&rsquo;s &lsquo;public_network&rsquo; and/or
+&lsquo;cluster_network&rsquo; configurations. This config section may be used for the &ldquo;host&rdquo; or &ldquo;multus&rdquo;
+network providers.</p>
 </td>
 </tr>
 <tr>

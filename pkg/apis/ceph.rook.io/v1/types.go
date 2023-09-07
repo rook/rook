@@ -2267,14 +2267,41 @@ type NetworkSpec struct {
 	// Provider is what provides network connectivity to the cluster e.g. "host" or "multus"
 	// +nullable
 	// +optional
-	Provider string `json:"provider,omitempty"`
+	Provider NetworkProviderType `json:"provider,omitempty"`
 
-	// Selectors string values describe what networks will be used to connect the cluster.
-	// Meanwhile the keys describe each network respective responsibilities or any metadata
-	// storage provider decide.
+	// Selectors define NetworkAttachmentDefinitions to be used for Ceph public and/or cluster
+	// networks when the "multus" network provider is used. This config section is not used for
+	// other network providers.
+	//
+	// Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
+	// https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
+	//
+	// Refer to Multus network annotation documentation for help selecting values:
+	// https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation
+	//
+	// Rook will make a best-effort attempt to automatically detect CIDR address ranges for given
+	// network attachment definitions. Rook's methods are robust but may be imprecise for
+	// sufficiently complicated networks. Rook's auto-detection process obtains a new IP address
+	// lease for each CephCluster reconcile. If Rook fails to detect, incorrectly detects, only
+	// partially detects, or if underlying networks do not support reusing old IP addresses, it is
+	// best to use the 'addressRanges' config section to specify CIDR ranges for the Ceph cluster.
+	//
+	// As a contrived example, one can use a theoretical Kubernetes-wide network for Ceph client
+	// traffic and a theoretical Rook-only network for Ceph replication traffic as shown:
+	//   selectors:
+	//     public: "default/cluster-fast-net"
+	//     cluster: "rook-ceph/ceph-backend-net"
+	//
 	// +nullable
 	// +optional
-	Selectors map[string]string `json:"selectors,omitempty"`
+	Selectors map[CephNetworkType]string `json:"selectors,omitempty"`
+
+	// AddressRanges specify a list of CIDRs that Rook will apply to Ceph's 'public_network' and/or
+	// 'cluster_network' configurations. This config section may be used for the "host" or "multus"
+	// network providers.
+	// +nullable
+	// +optional
+	AddressRanges *AddressRangesSpec `json:"addressRanges,omitempty"`
 
 	// Settings for network connections such as compression and encryption across the
 	// wire.
@@ -2300,6 +2327,45 @@ type NetworkSpec struct {
 	// +optional
 	MultiClusterService MultiClusterServiceSpec `json:"multiClusterService,omitempty"`
 }
+
+// NetworkProviderType defines valid network providers for Rook.
+// +kubebuilder:validation:Enum="";host;multus
+type NetworkProviderType string
+
+const (
+	NetworkProviderDefault = NetworkProviderType("")
+	NetworkProviderHost    = NetworkProviderType("host")
+	NetworkProviderMultus  = NetworkProviderType("multus")
+)
+
+// CephNetworkType should be "public" or "cluster".
+// Allow any string so that over-specified legacy clusters do not break on CRD update.
+type CephNetworkType string
+
+const (
+	CephNetworkPublic  = CephNetworkType("public")
+	CephNetworkCluster = CephNetworkType("cluster")
+)
+
+type AddressRangesSpec struct {
+	// Public defines a list of CIDRs to use for Ceph public network communication.
+	// +optional
+	Public CIDRList `json:"public"`
+
+	// Cluster defines a list of CIDRs to use for Ceph cluster network communication.
+	// +optional
+	Cluster CIDRList `json:"cluster"`
+}
+
+// An IPv4 or IPv6 network CIDR.
+//
+// This naive kubebuilder regex provides immediate feedback for some typos and for a common problem
+// case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code.
+// +kubebuilder:validation:Pattern=`^[0-9a-fA-F:.]{2,}\/[0-9]{1,3}$`
+type CIDR string
+
+// A list of CIDRs.
+type CIDRList []CIDR
 
 type MultiClusterServiceSpec struct {
 	// Enable multiClusterService to export the mon and OSD services to peer cluster.

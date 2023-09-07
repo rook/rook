@@ -105,7 +105,7 @@ type Cluster struct {
 	spec               cephv1.ClusterSpec
 	Namespace          string
 	Keyring            string
-	rookVersion        string
+	rookImage          string
 	orchestrationMutex sync.Mutex
 	Port               int32
 	maxMonID           int
@@ -170,7 +170,7 @@ func (c *Cluster) MaxMonID() int {
 }
 
 // Start begins the process of running a cluster of Ceph mons.
-func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
+func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookImage string, cephVersion cephver.CephVersion, spec cephv1.ClusterSpec) (*cephclient.ClusterInfo, error) {
 	// Only one goroutine can orchestrate the mons at a time
 	c.acquireOrchestrationLock()
 	defer c.releaseOrchestrationLock()
@@ -180,7 +180,7 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookVersion string,
 	if c.ClusterInfo.Context == nil {
 		panic("nil context")
 	}
-	c.rookVersion = rookVersion
+	c.rookImage = rookImage
 	c.spec = spec
 
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
@@ -285,6 +285,11 @@ func (c *Cluster) startMons(targetCount int) error {
 				return errors.Wrap(err, "failed to set Rook and/or user-defined Ceph config options after forcefully updating the existing mons")
 			}
 		}
+	}
+
+	// apply network settings after mons have been created b/c they are set in the mon k-v store
+	if err := controller.ApplyCephNetworkSettings(c.ClusterInfo.Context, c.rookImage, c.context, &c.spec, c.ClusterInfo); err != nil {
+		return errors.Wrap(err, "failed to apply ceph network settings")
 	}
 
 	if c.spec.IsStretchCluster() {
@@ -658,7 +663,7 @@ func scheduleMonitor(c *Cluster, mon *monConfig) (*apps.Deployment, error) {
 	// avoid issues with the real deployment, the canary should be careful not
 	// to modify the storage by instead running an innocuous command.
 	d.Spec.Template.Spec.InitContainers = []v1.Container{}
-	d.Spec.Template.Spec.Containers[0].Image = c.rookVersion
+	d.Spec.Template.Spec.Containers[0].Image = c.rookImage
 	d.Spec.Template.Spec.Containers[0].Command = []string{"sleep"} // sleep responds to signals so we don't need to wrap it
 	d.Spec.Template.Spec.Containers[0].Args = []string{"3600"}
 	// remove the startup and liveness probes on the canary pod
