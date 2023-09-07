@@ -17,184 +17,292 @@ limitations under the License.
 package k8sutil
 
 import (
+	"strings"
 	"testing"
 
-	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestApplyMultus(t *testing.T) {
-	t.Run("short format", func(t *testing.T) {
-		tests := []struct {
-			name         string
-			netSelectors map[string]string
-			labels       map[string]string
-			want         string
-		}{
-			{
-				name: "no applicable networks for non-osd pod",
-				netSelectors: map[string]string{
-					"unknown": "macvlan@net1",
-				},
-				want: "",
+	json1 := `[{"name": "macvlan", "interface": "net1"}]`
+	json2 := `[{"name": "macvlan", "interface": "net2"}]`
+
+	tests := []struct {
+		name         string
+		netSelectors map[cephv1.CephNetworkType]string
+		labels       map[string]string
+		want         string
+	}{
+		{
+			name: "non-osd pods don't get unknown nets",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"aruba":  "macvlan@net1",
+				"bahama": "macvlan@net2",
 			},
-			{
-				name: "for a non-osd pod",
-				netSelectors: map[string]string{
-					publicNetworkSelectorKeyName:  "macvlan@net1",
-					clusterNetworkSelectorKeyName: "macvlan@net2",
-				},
-				want: "macvlan@net1",
+			want: ``,
+		},
+		{
+			name: "osd pods don't get unknown nets",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"key-largo": "macvlan@net1",
+				"montego":   "macvlan@net2",
 			},
-			{
-				name: "for an osd pod",
-				netSelectors: map[string]string{
-					publicNetworkSelectorKeyName:  "macvlan@net1",
-					clusterNetworkSelectorKeyName: "macvlan@net2",
-				},
-				labels: map[string]string{"app": "rook-ceph-osd"},
-				want:   "macvlan@net1, macvlan@net2",
+			labels: map[string]string{"app": "rook-ceph-osd"},
+			want:   ``,
+		},
+
+		{
+			name: "non-osd pods get only public networks",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"public":  "macvlan@net1",
+				"cluster": "macvlan@net2",
 			},
-			{
-				name: "for an osd pod (reverse ordering)",
-				netSelectors: map[string]string{
-					publicNetworkSelectorKeyName:  "macvlan@net2",
-					clusterNetworkSelectorKeyName: "macvlan@net1",
-				},
-				labels: map[string]string{"app": "rook-ceph-osd"},
-				want:   "macvlan@net1, macvlan@net2", // should not change the order of output
+			want: `[{"name":"macvlan","namespace":"ns","interface":"net1"}]`,
+		},
+		{
+			name: "osd pods get both networks",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"public":  "macvlan@net1",
+				"cluster": "macvlan@net2",
 			},
-		}
-		for _, test := range tests {
-			t.Run(test.name, func(t *testing.T) {
-				net := cephv1.NetworkSpec{
-					Provider:  "multus",
-					Selectors: test.netSelectors,
-				}
-				objMeta := metav1.ObjectMeta{}
-				objMeta.Labels = test.labels
-				err := ApplyMultus(net, &objMeta)
-				assert.NoError(t, err)
-				assert.Equal(t, test.want, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"])
-			})
-		}
-	})
+			labels: map[string]string{"app": "rook-ceph-osd"},
+			want:   `[{"name":"macvlan","namespace":"ns","interface":"net1"},{"name":"macvlan","namespace":"ns","interface":"net2"}]`,
+		},
 
-	t.Run("JSON format", func(t *testing.T) {
-		json1 := `{"name": "macvlan", "interface": "net1"}`
-		json2 := `{"name": "macvlan", "interface": "net2"}`
-
-		t.Run("no applicable networks for non-osd pod", func(t *testing.T) {
-			net := cephv1.NetworkSpec{
-				Provider: "multus",
-				Selectors: map[string]string{
-					"server": json1,
-					"broker": json2,
-				},
-			}
-			objMeta := metav1.ObjectMeta{}
-			err := ApplyMultus(net, &objMeta)
-			assert.NoError(t, err)
-			// non-osd pods should not get any network annotations here
-			assert.Equal(t, "[]", objMeta.Annotations["k8s.v1.cni.cncf.io/networks"])
-		})
-
-		t.Run("for a non-osd pod", func(t *testing.T) {
-			net := cephv1.NetworkSpec{
-				Provider: "multus",
-				Selectors: map[string]string{
-					"public":  json1,
-					"cluster": json2,
-				},
-			}
-			objMeta := metav1.ObjectMeta{}
-			err := ApplyMultus(net, &objMeta)
-			assert.NoError(t, err)
-			// non-osd pods should only get public networks
-			assert.Equal(t, "["+json1+"]", objMeta.Annotations["k8s.v1.cni.cncf.io/networks"])
-		})
-
-		t.Run("for an osd pod", func(t *testing.T) {
-			net := cephv1.NetworkSpec{
-				Provider: "multus",
-				Selectors: map[string]string{
-					"server": json1,
-					"broker": json2,
-				},
-			}
-			objMeta := metav1.ObjectMeta{
-				Labels: map[string]string{
-					"app": "rook-ceph-osd",
-				},
-			}
-			err := ApplyMultus(net, &objMeta)
-			assert.NoError(t, err)
-			assert.Equal(t, "["+json1+", "+json2+"]", objMeta.Annotations["k8s.v1.cni.cncf.io/networks"])
-		})
-
-		t.Run("for an osd pod (reverse ordering)", func(t *testing.T) {
-			net := cephv1.NetworkSpec{
-				Provider: "multus",
-				Selectors: map[string]string{
-					"server": json2,
-					"broker": json1,
-				},
-			}
-			objMeta := metav1.ObjectMeta{
-				Labels: map[string]string{
-					"app": "rook-ceph-osd",
-				},
-			}
-			err := ApplyMultus(net, &objMeta)
-			assert.NoError(t, err)
-			// should not change the order of output
-			assert.Equal(t, "["+json1+", "+json2+"]", objMeta.Annotations["k8s.v1.cni.cncf.io/networks"])
-		})
-	})
-
-	t.Run("mixed format (error)", func(t *testing.T) {
-		net := cephv1.NetworkSpec{
-			Provider: "multus",
-			Selectors: map[string]string{
-				"server": `{"name": "macvlan", "interface": "net1"}`,
-				"broker": `macvlan@net2`,
+		{
+			name: "osd pod network ordering is not reversed",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"cluster": "macvlan@net2",
+				"public":  "macvlan@net1",
 			},
-		}
+			labels: map[string]string{"app": "rook-ceph-osd"},
+			want:   `[{"name":"macvlan","namespace":"ns","interface":"net1"},{"name":"macvlan","namespace":"ns","interface":"net2"}]`, // should not change the order of output
+		},
 
-		objMeta := metav1.ObjectMeta{}
-		err := ApplyMultus(net, &objMeta)
+		{
+			name: "non-osd pods take json input",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"public":  json1,
+				"cluster": json2,
+			},
+			want: `[{"name":"macvlan","namespace":"ns","interface":"net1"}]`,
+		},
+		{
+			name: "osd pods take json input",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"public":  json1,
+				"cluster": json2,
+			},
+			labels: map[string]string{"app": "rook-ceph-osd"},
+			want:   `[{"name":"macvlan","namespace":"ns","interface":"net1"},{"name":"macvlan","namespace":"ns","interface":"net2"}]`,
+		},
+		{
+			name: "osd pod network ordering is not reversed with json input",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"cluster": json2,
+				"public":  json1,
+			},
+			labels: map[string]string{"app": "rook-ceph-osd"},
+			want:   `[{"name":"macvlan","namespace":"ns","interface":"net1"},{"name":"macvlan","namespace":"ns","interface":"net2"}]`,
+		},
 
-		assert.Error(t, err)
-	})
-}
-
-func TestGetNetworkAttachmentConfig(t *testing.T) {
-	dummyNetAttachDef := netapi.NetworkAttachmentDefinition{
-		Spec: netapi.NetworkAttachmentDefinitionSpec{
-			Config: `{
-				"cniVersion": "0.3.0",
-				"type": "macvlan",
-				"master": "eth2",
-				"mode": "bridge",
-				"ipam": {
-				  "type": "host-local",
-				  "subnet": "172.18.8.0/24",
-				  "rangeStart": "172.18.8.200",
-				  "rangeEnd": "172.18.8.216",
-				  "routes": [
-					{
-					  "dst": "0.0.0.0/0"
-					}
-				  ],
-				  "gateway": "172.18.8.1"
-				}
-			  }`,
+		{
+			name: "mixed json-non-json format is allowed",
+			netSelectors: map[cephv1.CephNetworkType]string{
+				"public":  "macvlan@net1",
+				"cluster": json2,
+			},
+			labels: map[string]string{"app": "rook-ceph-osd"},
+			want:   `[{"name":"macvlan","namespace":"ns","interface":"net1"},{"name":"macvlan","namespace":"ns","interface":"net2"}]`,
 		},
 	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			netSpec := cephv1.NetworkSpec{
+				Provider:  "multus",
+				Selectors: test.netSelectors,
+			}
+			objMeta := metav1.ObjectMeta{}
+			objMeta.Labels = test.labels
+			err := ApplyMultus("ns", &netSpec, &objMeta)
+			assert.NoError(t, err)
+			assert.Equal(t, test.want, objMeta.Annotations["k8s.v1.cni.cncf.io/networks"])
+		})
+	}
+}
 
-	config, err := GetNetworkAttachmentConfig(dummyNetAttachDef)
-	assert.NoError(t, err)
-	assert.Equal(t, "172.18.8.0/24", config.Ipam.Subnet)
+func TestParseLinuxIpAddrOutput(t *testing.T) {
+	tests := []struct {
+		name            string
+		ipAddrRawOutput string
+		want            []LinuxIpAddrResult
+		wantErr         bool
+	}{
+		{
+			name:            "empty string",
+			ipAddrRawOutput: "",
+			want:            []LinuxIpAddrResult{},
+			wantErr:         true,
+		}, {
+			name:            "full output",
+			ipAddrRawOutput: ipAddrOutputMixedIPv4v6,
+			want: []LinuxIpAddrResult{
+				{
+					InterfaceName: "public",
+					AddrInfo: []LinuxIpAddrInfo{
+						{
+							Local:     "fd4e:7658:764f:15c4:8cec:4aff:fee3:1b96",
+							PrefixLen: 64,
+						}, {
+							Local:     "2000::6",
+							PrefixLen: 112,
+						}, {
+							Local:     "fe80::8cec:4aff:fee3:1b96",
+							PrefixLen: 64,
+						},
+					},
+				}, {
+					InterfaceName: "net1",
+					AddrInfo: []LinuxIpAddrInfo{
+						{
+							Local:     "192.168.20.8",
+							PrefixLen: 24,
+						},
+						{
+							Local:     "fd4e:7658:764f:15c4:9878:30ff:fec3:e504",
+							PrefixLen: 64,
+						},
+						{
+							Local:     "fe80::9878:30ff:fec3:e504",
+							PrefixLen: 64,
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:            "full output syntax error",
+			ipAddrRawOutput: removeLastChar(ipAddrOutputMixedIPv4v6),
+			want:            []LinuxIpAddrResult{},
+			wantErr:         true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParseLinuxIpAddrOutput(tt.ipAddrRawOutput)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("RuntimeLinuxIpAddrParser.Parse() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+var ipAddrOutputMixedIPv4v6 = `[
+    {
+        "ifindex": 3,
+        "link_index": 2,
+        "ifname": "public",
+        "flags": [
+            "BROADCAST",
+            "MULTICAST",
+            "UP",
+            "LOWER_UP"
+        ],
+        "mtu": 1500,
+        "qdisc": "noqueue",
+        "operstate": "UP",
+        "group": "default",
+        "link_type": "ether",
+        "address": "8e:ec:4a:e3:1b:96",
+        "broadcast": "ff:ff:ff:ff:ff:ff",
+        "link_netnsid": 0,
+        "addr_info": [
+            {
+                "family": "inet6",
+                "local": "fd4e:7658:764f:15c4:8cec:4aff:fee3:1b96",
+                "prefixlen": 64,
+                "scope": "global",
+                "dynamic": true,
+                "mngtmpaddr": true,
+                "valid_life_time": 2591998,
+                "preferred_life_time": 604798
+            },
+            {
+                "family": "inet6",
+                "local": "2000::6",
+                "prefixlen": 112,
+                "scope": "global",
+                "valid_life_time": 4294967295,
+                "preferred_life_time": 4294967295
+            },
+            {
+                "family": "inet6",
+                "local": "fe80::8cec:4aff:fee3:1b96",
+                "prefixlen": 64,
+                "scope": "link",
+                "valid_life_time": 4294967295,
+                "preferred_life_time": 4294967295
+            }
+        ]
+    },
+    {
+        "ifindex": 3,
+        "link_index": 2,
+        "ifname": "net1",
+        "flags": [
+          "BROADCAST",
+          "MULTICAST",
+          "UP",
+          "LOWER_UP"
+        ],
+        "mtu": 1500,
+        "qdisc": "noqueue",
+        "operstate": "UP",
+        "group": "default",
+        "link_type": "ether",
+        "address": "9a:78:30:c3:e5:04",
+        "broadcast": "ff:ff:ff:ff:ff:ff",
+        "link_netnsid": 0,
+        "addr_info": [
+          {
+            "family": "inet",
+            "local": "192.168.20.8",
+            "prefixlen": 24,
+            "broadcast": "192.168.20.255",
+            "scope": "global",
+            "label": "net1",
+            "valid_life_time": 4294967295,
+            "preferred_life_time": 4294967295
+          },
+          {
+            "family": "inet6",
+            "local": "fd4e:7658:764f:15c4:9878:30ff:fec3:e504",
+            "prefixlen": 64,
+            "scope": "global",
+            "dynamic": true,
+            "mngtmpaddr": true,
+            "valid_life_time": 2591910,
+            "preferred_life_time": 604710
+          },
+          {
+            "family": "inet6",
+            "local": "fe80::9878:30ff:fec3:e504",
+            "prefixlen": 64,
+            "scope": "link",
+            "valid_life_time": 4294967295,
+            "preferred_life_time": 4294967295
+          }
+        ]
+      }
+]`
+
+func removeLastChar(in string) string {
+	chars := []byte(strings.TrimSpace(in))
+	len := len(chars)
+	return string(chars[0 : len-1])
 }

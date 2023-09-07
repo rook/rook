@@ -137,20 +137,6 @@ func SetOrRemoveDefaultConfigs(
 		}
 	}
 
-	// Apply Multus if needed
-	if clusterSpec.Network.IsMultus() {
-		logger.Info("configuring ceph network(s) with multus")
-		cephNetworks, err := generateNetworkSettings(clusterInfo.Context, context, clusterInfo.Namespace, clusterSpec.Network.Selectors)
-		if err != nil {
-			return errors.Wrap(err, "failed to generate network settings")
-		}
-
-		// Apply ceph network settings to the mon config store
-		if err := monStore.SetAll("global", cephNetworks); err != nil {
-			return errors.Wrap(err, "failed to network config overrides")
-		}
-	}
-
 	// This section will remove any previously configured option(s) from the mon centralized store
 	// This is useful for scenarios where options are not needed anymore and we just want to reset to internal's default
 	// On upgrade, the flag will be removed

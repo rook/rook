@@ -18,124 +18,95 @@ package k8sutil
 
 import (
 	"encoding/json"
-	"fmt"
-	"sort"
 	"strings"
 
-	netapi "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	nadv1 "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/apis/k8s.cni.cncf.io/v1"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const (
-	// publicNetworkSelectorKeyName is the network selector key for the ceph public network
-	publicNetworkSelectorKeyName = "public"
-	// clusterNetworkSelectorKeyName is the network selector key for the ceph cluster network
-	clusterNetworkSelectorKeyName = "cluster"
-)
-
-// NetworkAttachmentConfig represents the configuration of the NetworkAttachmentDefinitions object
-type NetworkAttachmentConfig struct {
-	CniVersion string `json:"cniVersion,omitempty"`
-	Type       string `json:"type,omitempty"`
-	Master     string `json:"master,omitempty"`
-	Mode       string `json:"mode,omitempty"`
-	Ipam       struct {
-		Type      string `json:"type,omitempty"`
-		Subnet    string `json:"subnet,omitempty"`
-		Addresses []struct {
-			Address string `json:"address,omitempty"`
-			Gateway string `json:"gateway,omitempty"`
-		} `json:"addresses,omitempty"`
-		Ranges [][]struct {
-			Subnet     string `json:"subnet,omitempty"`
-			RangeStart string `json:"rangeStart,omitempty"`
-			RangeEnd   string `json:"rangeEnd,omitempty"`
-			Gateway    string `json:"gateway,omitempty"`
-		} `json:"ranges,omitempty"`
-		Range      string `json:"range,omitempty"`
-		RangeStart string `json:"rangeStart,omitempty"`
-		RangeEnd   string `json:"rangeEnd,omitempty"`
-		Routes     []struct {
-			Dst string `json:"dst,omitempty"`
-		} `json:"routes,omitempty"`
-		Gateway string `json:"gateway,omitempty"`
-	} `json:"ipam,omitempty"`
-}
-
 // ApplyMultus apply multus selector to Pods
 // Multus supports short and json syntax, use only one kind at a time.
-func ApplyMultus(net cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
-	v := make([]string, 0, 2)
-	shortSyntax := false
-	jsonSyntax := false
-
-	for k, ns := range net.Selectors {
-		var multusMap map[string]string
-		err := json.Unmarshal([]byte(ns), &multusMap)
-
-		if err == nil {
-			jsonSyntax = true
-		} else {
-			shortSyntax = true
-		}
-
-		app, ok := objectMeta.Labels["app"]
-		if !ok {
-			app = "" // unknown app
-		}
-		isClusterNetApp := false
-		for _, clusterNetworkApp := range getClusterNetworkApps() {
-			if app == clusterNetworkApp {
-				isClusterNetApp = true
-				break
-			}
-		}
-		if isClusterNetApp {
-			// append all networks to apps that are cluster network apps
-			v = append(v, string(ns))
-		} else {
-			// only append public networks to apps that are not cluster network apps
-			if k == publicNetworkSelectorKeyName {
-				v = append(v, string(ns))
-			}
-		}
+func ApplyMultus(clusterNamespace string, netSpec *cephv1.NetworkSpec, objectMeta *metav1.ObjectMeta) error {
+	app, ok := objectMeta.Labels["app"]
+	if !ok {
+		app = "" // unknown app
 	}
 
-	if shortSyntax && jsonSyntax {
-		return fmt.Errorf("ApplyMultus: Can't mix short and JSON form")
+	netSelections := []*nadv1.NetworkSelectionElement{}
+
+	// all apps get the public network
+	pub, err := netSpec.GetNetworkSelection(clusterNamespace, cephv1.CephNetworkPublic)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get %q network selection for app %q", cephv1.CephNetworkPublic, app)
+	}
+	netSelections = append(netSelections, pub)
+
+	if isClusterNetApp(app) {
+		cluster, err := netSpec.GetNetworkSelection(clusterNamespace, cephv1.CephNetworkCluster)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get %q network selection for app %q", cephv1.CephNetworkCluster, app)
+		}
+		netSelections = append(netSelections, cluster)
 	}
 
-	// Sort network strings so that pods/deployments won't need updated in a loop if nothing changes
-	sort.Strings(v)
-
-	networks := strings.Join(v, ", ")
-	if jsonSyntax {
-		networks = "[" + networks + "]"
+	annotationValue, err := cephv1.NetworkSelectionsToAnnotationValue(netSelections...)
+	if err != nil {
+		return errors.Wrapf(err, "failed to generate annotation value to apply nets %v to app %q", netSelections, app)
 	}
 
 	t := cephv1.Annotations{
-		"k8s.v1.cni.cncf.io/networks": networks,
+		"k8s.v1.cni.cncf.io/networks": annotationValue,
 	}
 	t.ApplyToObjectMeta(objectMeta)
 
 	return nil
 }
 
-// getClusterNetworkApps returns the list of ceph apps that utilize cluster network
-func getClusterNetworkApps() []string {
-	return []string{"rook-ceph-osd"}
+func isClusterNetApp(app string) bool {
+	return app == "rook-ceph-osd"
 }
 
-// GetNetworkAttachmentConfig returns the NetworkAttachmentDefinitions configuration
-func GetNetworkAttachmentConfig(n netapi.NetworkAttachmentDefinition) (NetworkAttachmentConfig, error) {
-	netConfigJSON := n.Spec.Config
-	var netConfig NetworkAttachmentConfig
-
-	err := json.Unmarshal([]byte(netConfigJSON), &netConfig)
-	if err != nil {
-		return netConfig, fmt.Errorf("failed to unmarshal netconfig json %q. %v", netConfigJSON, err)
+// ParseNetworkStatusAnnotation takes the annotation value from k8s.v1.cni.cncf.io/network-status
+// and returns the network status struct.
+func ParseNetworkStatusAnnotation(annotationValue string) ([]nadv1.NetworkStatus, error) {
+	netStatuses := []nadv1.NetworkStatus{}
+	if err := json.Unmarshal([]byte(annotationValue), &netStatuses); err != nil {
+		return nil, errors.Wrapf(err, "failed to parse network status annotation %q", annotationValue)
 	}
+	return netStatuses, nil
+}
 
-	return netConfig, nil
+func FindNetworkStatusByInterface(statuses []nadv1.NetworkStatus, ifaceName string) (nadv1.NetworkStatus, bool) {
+	for _, s := range statuses {
+		if s.Interface == ifaceName {
+			return s, true
+		}
+	}
+	return nadv1.NetworkStatus{}, false
+}
+
+// LinuxIpAddrResult provides a pared down Go struct for codifying json-formatted output from
+// `ip --json address show`. Each result contains addresses associated with a single interface.
+type LinuxIpAddrResult struct {
+	InterfaceName string            `json:"ifname"`
+	AddrInfo      []LinuxIpAddrInfo `json:"addr_info"`
+}
+
+type LinuxIpAddrInfo struct {
+	Local     string `json:"local"`
+	PrefixLen int    `json:"prefixlen"`
+}
+
+// ParseLinuxIpAddrOutput parses raw json-encoded `ip --json address show` output
+func ParseLinuxIpAddrOutput(rawOutput string) ([]LinuxIpAddrResult, error) {
+	results := []LinuxIpAddrResult{}
+	if strings.TrimSpace(rawOutput) == "" {
+		return results, errors.Errorf("cannot parse empty 'ip --json address' output")
+	}
+	if err := json.Unmarshal([]byte(rawOutput), &results); err != nil {
+		return []LinuxIpAddrResult{}, errors.Wrap(err, "failed to parse 'ip --json address' output")
+	}
+	return results, nil
 }
