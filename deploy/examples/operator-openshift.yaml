@@ -609,6 +609,39 @@ data:
   CSI_CEPHFS_ATTACH_REQUIRED: "true"
   CSI_RBD_ATTACH_REQUIRED: "true"
   CSI_NFS_ATTACH_REQUIRED: "true"
+  # Rook Discover toleration. Will tolerate all taints with all keys.
+  # (Optional) Rook Discover tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # DISCOVER_TOLERATIONS: |
+  #   - effect: NoSchedule
+  #     key: node-role.kubernetes.io/control-plane
+  #     operator: Exists
+  #   - effect: NoExecute
+  #     key: node-role.kubernetes.io/etcd
+  #     operator: Exists
+  # (Optional) Rook Discover priority class name to set on the pod(s)
+  # DISCOVER_PRIORITY_CLASS_NAME: "<PriorityClassName>"
+  # (Optional) Discover Agent NodeAffinity.
+  # DISCOVER_AGENT_NODE_AFFINITY: |
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: myKey
+  #           operator: DoesNotExist
+  # (Optional) Discover Agent Pod Labels.
+  # DISCOVER_AGENT_POD_LABELS: "key1=value1,key2=value2"
+  # Disable automatic orchestration when new devices are discovered
+  ROOK_DISABLE_DEVICE_HOTPLUG: "false"
+  # The duration between discovering devices in the rook-discover daemonset.
+  ROOK_DISCOVER_DEVICES_INTERVAL: "60m"
+  # DISCOVER_DAEMON_RESOURCES: |
+  #   - name: DISCOVER_DAEMON_RESOURCES
+  #     resources:
+  #       limits:
+  #         cpu: 500m
+  #         memory: 512Mi
+  #       requests:
+  #         cpu: 100m
+  #         memory: 128Mi
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
@@ -659,34 +692,12 @@ spec:
           env:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
-            # Rook Discover toleration. Will tolerate all taints with all keys.
-            # Choose between NoSchedule, PreferNoSchedule and NoExecute:
-            # - name: DISCOVER_TOLERATION
-            #   value: "NoSchedule"
-            # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
-            # - name: DISCOVER_TOLERATION_KEY
-            #  value: "<KeyOfTheTaintToTolerate>"
-            # (Optional) Rook Discover priority class name to set on the pod(s)
-            # - name: DISCOVER_PRIORITY_CLASS_NAME
-            #   value: "<PriorityClassName>"
-            # (Optional) Discover Agent NodeAffinity.
-            # - name: DISCOVER_AGENT_NODE_AFFINITY
-            #   value: "role=storage-node; storage=rook, ceph"
-            # (Optional) Discover Agent Pod Labels.
-            # - name: DISCOVER_AGENT_POD_LABELS
-            #   value: "key1=value1,key2=value2"
 
-            # The duration between discovering devices in the rook-discover daemonset.
-            - name: ROOK_DISCOVER_DEVICES_INTERVAL
-              value: "60m"
             # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
             # Set this to true if SELinux is enabled (e.g. OpenShift) to workaround the anyuid issues.
             # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
             - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
               value: "true"
-            # Disable automatic orchestration when new devices are discovered
-            - name: ROOK_DISABLE_DEVICE_HOTPLUG
-              value: "false"
             # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
             # In case of more than one regex, use comma to separate between them.
             # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
