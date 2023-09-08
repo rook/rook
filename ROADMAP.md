@@ -8,36 +8,23 @@ We hope that the items listed below will inspire further engagement from the com
 Any dates listed below and the specific issues that will ship in a given milestone are subject to change but should give a general idea of what we are planning.
 See the [GitHub project boards](https://github.com/rook/rook/projects) for the most up-to-date issues and their status.
 
-## Rook Ceph 1.12
+## Rook Ceph 1.13
 
-The following high level features are targeted for Rook v1.12 (July 2023). For more detailed project tracking see the [v1.12 board](https://github.com/rook/rook/projects/29).
+The following high level features are targeted for Rook v1.13 (November 2023). For more detailed project tracking see the [v1.13 board](https://github.com/rook/rook/projects/30).
 
-* Automate node fencing for application failover in some scenarios [#1507](https://github.com/rook/rook/issues/1507)
 * OSD encryption on partitions [#10984](https://github.com/rook/rook/issues/10984)
-* Support IPv6 for external clusters [#11602](https://github.com/rook/rook/issues/11602)
 * Object Store
-  * Add alpha support for COSI (Container object storage interface) with K8s 1.25 [#7843](https://github.com/rook/rook/issues/7843)
-  * Support RGW LDAP integration [#4315](https://github.com/rook/rook/issues/4315)
-  * Service account authentication with the Vault agent [#9872](https://github.com/rook/rook/pull/9872)
+  * Declare COSI stable
   * Pool sharing for clusters where many object stores are required [#11411](https://github.com/rook/rook/issues/11411)
-* Ceph-CSI v3.9
+* CephFS
+  * Automatically increase the memory limit when MDS is reporting an oversized cache **OPEN ISSUE**
+  * Automatic subvolume group pinning [#12607](https://github.com/rook/rook/issues/12607)
+* Ceph-CSI v3.10
 
-## Krew Plugin
+## Kubectl Plugin
 
-Features planned in the 1.12 time frame for the [Krew Plugin](https://github.com/rook/kubectl-rook-ceph).
-
-  * Release a rewrite of the plugin in golang to lay the groundwork for future features [#76](https://github.com/rook/kubectl-rook-ceph/issues/76)
-  * Easy command for deploying a test cluster [#95](https://github.com/rook/kubectl-rook-ceph/issues/95)
-
-Features planned that are not yet committed in the timeline of a release.
-
-  * Enable restoring a cluster from the OSDs after all mons are lost [#7049](https://github.com/rook/rook/issues/7049)
+Features are planned in the 1.13 time frame for the [Kubectl Plugin](https://github.com/rook/kubectl-rook-ceph).
   * Recover the CephCluster CR after accidental deletion [#68](https://github.com/rook/kubectl-rook-ceph/issues/68)
+  * Force cleanup the cluster if graceful uninstall is not desired [#131](https://github.com/rook/kubectl-rook-ceph/issues/131)
   * Collect details to help troubleshoot the csi driver [#69](https://github.com/rook/kubectl-rook-ceph/issues/69)
-
-## Beyond 1.12
-
-These feature improvements to Rook are planned, though not yet committed to a release.
-
-* CSI Driver improvements tracked in the [CSI repo](https://github.com/ceph/ceph-csi)
-  * Support for Windows nodes
+  * Enable restoring a cluster from the OSDs after all mons are lost [#7049](https://github.com/rook/rook/issues/7049)
