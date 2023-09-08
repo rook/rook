@@ -31,7 +31,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
   To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v17` will be updated each time a new Quincy build is released.
   Using the `v17` tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
-    * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `pacific` and `quincy` are supported. Future versions such as `reef` (v18) would require this to be set to `true`. Should be set to `false` in production.
+    * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `pacific`, `quincy`, and `reef` are supported. Future versions such as `squid` (v19) would require this to be set to `true`. Should be set to `false` in production.
   `imagePullPolicy`: The image pull policy for the ceph daemon pods. Possible values are `Always`, `IfNotPresent`, and `Never`.
   The default is `IfNotPresent`.
 * `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. Following paths and any of their subpaths **must not be used**: `/etc/ceph`, `/rook` or `/var/log/ceph`.
