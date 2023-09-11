@@ -122,6 +122,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
 | `csi.serviceMonitor.interval` | Service monitor scrape interval | `"5s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |
+| `csi.serviceMonitor.namespace` | Use a different namespace for the ServiceMonitor | `nil` |
 | `csi.sidecarLogLevel` | Set logging level for Kubernetes-csi sidecar containers. Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity. | `0` |
 | `csi.snapshotter.image` | Kubernetes CSI snapshotter image | `registry.k8s.io/sig-storage/csi-snapshotter:v6.2.2` |
 | `csi.topology.domainLabels` | domainLabels define which node labels to use as domains for CSI nodeplugins to advertise their domains | `nil` |

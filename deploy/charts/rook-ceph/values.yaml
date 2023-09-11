@@ -476,6 +476,8 @@ csi:
     interval: 5s
     # -- ServiceMonitor additional labels
     labels: {}
+    # -- Use a different namespace for the ServiceMonitor
+    namespace:
 
   # -- Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag)
   # @default -- `/var/lib/kubelet`
