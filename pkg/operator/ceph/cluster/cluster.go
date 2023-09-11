@@ -597,8 +597,9 @@ func (c *cluster) reportTelemetry() {
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.DeviceSetNonPortableKey, strconv.Itoa(nonportableDeviceSets))
 
 	// Set the telemetry for network settings
-	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NetworkProviderKey, c.Spec.Network.Provider)
-
+	if c.Spec.Network.Provider != "" {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NetworkProviderKey, c.Spec.Network.Provider)
+	}
 	// Set the telemetry for external cluster settings
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.ExternalModeEnabledKey, strconv.FormatBool(c.Spec.External.Enable))
 }
