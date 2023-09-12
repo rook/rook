@@ -7218,7 +7218,7 @@ int
 </td>
 <td>
 <em>(Optional)</em>
-<p>Count is the number of manager to run</p>
+<p>Count is the number of manager daemons to run</p>
 </td>
 </tr>
 <tr>

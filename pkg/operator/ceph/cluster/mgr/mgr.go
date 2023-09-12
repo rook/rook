@@ -44,7 +44,6 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 const (
 	AppName                = "rook-ceph-mgr"
 	serviceAccountName     = "rook-ceph-mgr"
-	maxMgrCount            = 2
 	PrometheusModuleName   = "prometheus"
 	crashModuleName        = "crash"
 	PgautoscalerModuleName = "pg_autoscaler"
@@ -97,9 +96,6 @@ func (c *Cluster) getReplicas() int {
 func (c *Cluster) getDaemonIDs() []string {
 	var daemonIDs []string
 	replicas := c.getReplicas()
-	if replicas > maxMgrCount {
-		replicas = maxMgrCount
-	}
 	for i := 0; i < replicas; i++ {
 		daemonIDs = append(daemonIDs, k8sutil.IndexToName(i))
 	}
@@ -201,14 +197,39 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
+	options := metav1.ListOptions{LabelSelector: "app=" + AppName}
+	mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, options)
+	if err != nil {
+		logger.Warningf("failed to check for extra mgrs. %v", err)
+		return
+	}
+	if len(mgrDeployments.Items) == len(daemonIDs) {
+		logger.Debugf("expected number %d of mgrs found", len(daemonIDs))
+		return
+	}
+
 	// In case the mgr count was reduced, delete the extra mgrs
-	for i := maxMgrCount - 1; i >= len(daemonIDs); i-- {
-		mgrName := fmt.Sprintf("%s-%s", AppName, k8sutil.IndexToName(i))
-		err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, mgrName, metav1.DeleteOptions{})
-		if err == nil {
-			logger.Infof("removed extra mgr %q", mgrName)
-		} else if !kerrors.IsNotFound(err) {
-			logger.Warningf("failed to remove extra mgr %q. %v", mgrName, err)
+	for _, mgrDeployment := range mgrDeployments.Items {
+		id, ok := mgrDeployment.Labels[controller.DaemonIDLabel]
+		if !ok {
+			// skipping evaluation of non-mgr daemon that mistakenly matched the mgr labels
+			continue
+		}
+		found := false
+		for _, daemonID := range daemonIDs {
+			if id == daemonID {
+				// mark the mgr as found if the ID matches
+				found = true
+				break
+			}
+		}
+		if !found {
+			err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, mgrDeployment.Name, metav1.DeleteOptions{})
+			if err == nil {
+				logger.Infof("removed extra mgr %q", mgrDeployment.Name)
+			} else {
+				logger.Warningf("failed to remove extra mgr %q. %v", mgrDeployment.Name, err)
+			}
 		}
 	}
 }
