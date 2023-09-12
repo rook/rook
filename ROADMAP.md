@@ -14,17 +14,15 @@ The following high level features are targeted for Rook v1.13 (November 2023). F
 
 * OSD encryption on partitions [#10984](https://github.com/rook/rook/issues/10984)
 * Object Store
-  * Declare COSI stable
   * Pool sharing for clusters where many object stores are required [#11411](https://github.com/rook/rook/issues/11411)
 * CephFS
-  * Automatically increase the memory limit when MDS is reporting an oversized cache **OPEN ISSUE**
   * Automatic subvolume group pinning [#12607](https://github.com/rook/rook/issues/12607)
-* Ceph-CSI v3.10
+* Ceph-CSI [v3.10](https://github.com/ceph/ceph-csi/issues?q=is%3Aopen+is%3Aissue+milestone%3Arelease-v3.10.0)
 
 ## Kubectl Plugin
 
 Features are planned in the 1.13 time frame for the [Kubectl Plugin](https://github.com/rook/kubectl-rook-ceph).
   * Recover the CephCluster CR after accidental deletion [#68](https://github.com/rook/kubectl-rook-ceph/issues/68)
   * Force cleanup the cluster if graceful uninstall is not desired [#131](https://github.com/rook/kubectl-rook-ceph/issues/131)
+  * Provide a restricted set of commands based on a build flag [#174](https://github.com/rook/kubectl-rook-ceph/issues/174)
   * Collect details to help troubleshoot the csi driver [#69](https://github.com/rook/kubectl-rook-ceph/issues/69)
-  * Enable restoring a cluster from the OSDs after all mons are lost [#7049](https://github.com/rook/rook/issues/7049)
