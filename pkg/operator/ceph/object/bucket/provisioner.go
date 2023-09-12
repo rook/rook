@@ -68,10 +68,7 @@ func (p Provisioner) GenerateUserID(obc *v1alpha1.ObjectBucketClaim, ob *v1alpha
 		return getCephUser(ob), nil
 	}
 
-	username, err := p.genUserName(obc.Name, obc.Namespace)
-	if err != nil {
-		return "", errors.Wrap(err, "failed to generate user id for OBC")
-	}
+	username := p.genUserName(obc)
 
 	return username, nil
 }
