@@ -38,6 +38,30 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+func assertCephExporterArgs(t *testing.T, args []string, ipv6 bool) {
+	var expectedArgsLen int
+	if ipv6 {
+		expectedArgsLen = 10
+	} else {
+		expectedArgsLen = 8
+	}
+	argsLen := len(args)
+	assert.Equal(t, expectedArgsLen, argsLen)
+	assert.Equal(t, "--sock-dir", args[0])
+	assert.Equal(t, "/run/ceph", args[1])
+	assert.Equal(t, "--port", args[2])
+	assert.Equal(t, "9926", args[3])
+	assert.Equal(t, "--prio-limit", args[4])
+	assert.Equal(t, "5", args[5])
+	assert.Equal(t, "--stats-period", args[6])
+	assert.Equal(t, "5", args[7])
+	// Also check argsLen manually to prevent the test from panicking.
+	if argsLen >= 10 && ipv6 {
+		assert.Equal(t, "--addrs", args[8])
+		assert.Equal(t, "::", args[9])
+	}
+}
+
 func TestCreateOrUpdateCephExporter(t *testing.T) {
 	cephCluster := cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"},
@@ -79,15 +103,8 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, false, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
-	assert.Equal(t, 8, len(podSpec.Spec.Containers[0].Args))
-	assert.Equal(t, "--sock-dir", podSpec.Spec.Containers[0].Args[0])
-	assert.Equal(t, "/run/ceph", podSpec.Spec.Containers[0].Args[1])
-	assert.Equal(t, "--port", podSpec.Spec.Containers[0].Args[2])
-	assert.Equal(t, "9926", podSpec.Spec.Containers[0].Args[3])
-	assert.Equal(t, "--prio-limit", podSpec.Spec.Containers[0].Args[4])
-	assert.Equal(t, "5", podSpec.Spec.Containers[0].Args[5])
-	assert.Equal(t, "--stats-period", podSpec.Spec.Containers[0].Args[6])
-	assert.Equal(t, "5", podSpec.Spec.Containers[0].Args[7])
+
+	assertCephExporterArgs(t, podSpec.Spec.Containers[0].Args, cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6")
 
 	cephCluster.Spec.Labels[cephv1.KeyCephExporter] = map[string]string{"foo": "bar"}
 	cephCluster.Spec.Network.HostNetwork = true
@@ -103,6 +120,40 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, true, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "test-priority-class", podSpec.Spec.PriorityClassName)
+}
+
+func TestCephExporterBindAddress(t *testing.T) {
+	t.Run("IPv4", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, false)
+	})
+
+	t.Run("IPv6 via DualStack", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.DualStack = true
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
+
+	t.Run("IPv6 via IPFamily", func(t *testing.T) {
+		cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+		cephCluster.Spec.Labels = cephv1.LabelsSpec{}
+		cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
+		cephCluster.Spec.Network.IPFamily = "IPv6"
+		cephVersion := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
+		exporterContainer := getCephExporterDaemonContainer(cephCluster, cephVersion)
+		assertCephExporterArgs(t, exporterContainer.Args, true)
+	})
 }
 
 func TestServiceSpec(t *testing.T) {

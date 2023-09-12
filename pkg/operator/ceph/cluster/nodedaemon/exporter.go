@@ -174,10 +174,22 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 		controller.DaemonEnvVars(&cephCluster.Spec),
 		v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())})
 
+	args := []string{
+		"--sock-dir", sockDir,
+		"--port", strconv.Itoa(int(DefaultMetricsPort)),
+		"--prio-limit", perfCountersPrioLimit,
+		"--stats-period", statsPeriod,
+	}
+
+	// If DualStack or IPv6 is enabled ensure ceph-exporter binds to both IPv6 and IPv4 interfaces.
+	if cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6" {
+		args = append(args, "--addrs", "::")
+	}
+
 	container := corev1.Container{
 		Name:            "ceph-exporter",
 		Command:         []string{"ceph-exporter"},
-		Args:            []string{"--sock-dir", sockDir, "--port", strconv.Itoa(int(DefaultMetricsPort)), "--prio-limit", perfCountersPrioLimit, "--stats-period", statsPeriod},
+		Args:            args,
 		Image:           cephImage,
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(cephCluster.Spec.CephVersion.ImagePullPolicy),
 		Env:             envVars,
