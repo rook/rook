@@ -49,7 +49,9 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
 
@@ -156,11 +158,22 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 
 	// Set up a manager
 	mgrOpts := manager.Options{
-		LeaderElection:     false,
-		Namespace:          o.config.NamespaceToWatch,
-		MetricsBindAddress: "0",
-		Scheme:             scheme,
-		CertDir:            certDir,
+		LeaderElection: false,
+		Metrics: metricsserver.Options{
+			// BindAddress is the bind address for controller runtime metrics server default is 8080. Since we don't use the
+			// controller runtime metrics server, we need to set the bind address 0 so that port 8080 is available.
+			BindAddress: "0",
+		},
+		Scheme: scheme,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			CertDir: certDir,
+		}),
+	}
+
+	if o.config.NamespaceToWatch != "" {
+		mgrOpts.Cache = cache.Options{
+			DefaultNamespaces: map[string]cache.Config{o.config.NamespaceToWatch: {}},
+		}
 	}
 
 	logger.Info("setting up the controller-runtime manager")
