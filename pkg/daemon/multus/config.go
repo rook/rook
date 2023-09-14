@@ -39,7 +39,10 @@ var (
 	// (1 csi provisioner, 1 csi plugin) x3 for rbd, cephfs, and nfs CSI drivers
 	DefaultValidationDaemonsPerNode = 16
 
-	DefaultValidationNginxImage = "nginxinc/nginx-unprivileged:stable-alpine"
+	// To work for with wide variety of Kubernetes security implementations across vendors, this
+	// image must be unprivileged by its design.
+	// This image provides that but is often rate limited: nginxinc/nginx-unprivileged:stable-alpine
+	DefaultValidationNginxImage = "registry.access.redhat.com/ubi9/nginx-122:latest"
 
 	DefaultValidationResourceTimeout = 3 * time.Minute
 )
