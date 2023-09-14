@@ -1323,8 +1323,8 @@ spec:
                       description: AllowMultiplePerNode allows to run multiple managers on the same node (not recommended)
                       type: boolean
                     count:
-                      description: Count is the number of manager to run
-                      maximum: 2
+                      description: Count is the number of manager daemons to run
+                      maximum: 5
                       minimum: 0
                       type: integer
                     modules:
