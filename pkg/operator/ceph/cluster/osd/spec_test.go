@@ -178,7 +178,6 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, spec.CephVersion.Image, cont.Image)
 	assert.Equal(t, 8, len(cont.VolumeMounts))
-	assert.Equal(t, "ceph-osd", cont.Command[0])
 	verifyEnvVar(t, cont.Env, "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES", "134217728", true)
 
 	// Test OSD on PVC with LVM
@@ -434,7 +433,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NoError(t, err)
 	for _, flag := range defaultTuneFastSettings {
-		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
+		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Command[3], flag)
 	}
 
 	// Test tune Slow settings when OSD on PVC
@@ -442,7 +441,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.NoError(t, err)
 	for _, flag := range defaultTuneSlowSettings {
-		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Args, flag)
+		assert.Contains(t, deployment.Spec.Template.Spec.Containers[0].Command[3], flag)
 	}
 
 	// Test shareProcessNamespace presence

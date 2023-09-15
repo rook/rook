@@ -159,13 +159,8 @@ func TestGenerateLivenessProbeExecDaemon(t *testing.T) {
 		"-i",
 		"sh",
 		"-c",
-		`outp="$(ceph --admin-daemon /run/ceph/ceph-osd.0.asok status 2>&1)"
-rc=$?
-if [ $rc -ne 0 ]; then
-  echo "ceph daemon health check failed with the following output:"
-  echo "$outp" | sed -e 's/^/> /g'
-  exit $rc
-fi`}
+		fmt.Sprintf(osdLivenessProbeScript, "/run/ceph/ceph-osd.0.asok", "status"),
+	}
 
 	assert.Equal(t, expectedCommand, probe.ProbeHandler.Exec.Command)
 	assert.Equal(t, livenessProbeInitialDelaySeconds, probe.InitialDelaySeconds)
