@@ -43,7 +43,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -208,7 +207,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 			if err != nil {
 				return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 			}
-			r.recorder.Event(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+			r.recorder.Event(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 			// Return and do not requeue. Successful deletion.
 			return reconcile.Result{}, *cephObjectStoreUser, nil
@@ -226,7 +225,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("deleting object store user %q", request.NamespacedName)
-		r.recorder.Eventf(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
+		r.recorder.Eventf(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), "deleting CephObjectStoreUser %q", cephObjectStoreUser.Name)
 
 		err := r.deleteUser(cephObjectStoreUser)
 		if err != nil {
@@ -238,7 +237,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStoreUser, errors.Wrap(err, "failed to remove finalizer")
 		}
-		r.recorder.Event(cephObjectStoreUser, v1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
+		r.recorder.Event(cephObjectStoreUser, corev1.EventTypeNormal, string(cephv1.ReconcileSucceeded), "successfully removed finalizer")
 
 		// Return and do not requeue. Successful deletion.
 		return reconcile.Result{}, *cephObjectStoreUser, nil

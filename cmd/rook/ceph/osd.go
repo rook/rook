@@ -31,7 +31,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	osdcfg "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -257,7 +256,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerInfo)
 
 	// destroy the OSD using the OSD ID
-	var replaceOSD *osd.OSDReplaceInfo
+	var replaceOSD *oposd.OSDReplaceInfo
 	if replaceOSDID != -1 {
 		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
 		replaceOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, replaceOSDID, cfg.pvcBacked, cfg.storeConfig.EncryptedDevice)

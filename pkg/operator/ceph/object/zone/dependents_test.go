@@ -13,7 +13,6 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -82,7 +81,7 @@ func TestCephObjectZoneDependentStores(t *testing.T) {
 	})
 	t.Run("one objectstores exists", func(t *testing.T) {
 		c = newClusterdCtx(executor)
-		_, err := c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreA, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreA, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		deps, err := CephObjectZoneDependentStores(c, clusterInfo, objectZoneA, object.NewContext(c, clusterInfo, objectZoneA.Name))
 		assert.NoError(t, err)
@@ -91,7 +90,7 @@ func TestCephObjectZoneDependentStores(t *testing.T) {
 	})
 	t.Run("objectstore exists for different zone", func(t *testing.T) {
 		c = newClusterdCtx(executor)
-		_, err := c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreB, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreB, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		deps, err := CephObjectZoneDependentStores(c, clusterInfo, objectZoneA, object.NewContext(c, clusterInfo, objectZoneA.Name))
 		assert.NoError(t, err)
@@ -99,10 +98,10 @@ func TestCephObjectZoneDependentStores(t *testing.T) {
 	})
 	t.Run("multipleobjectstore exists for zone", func(t *testing.T) {
 		c = newClusterdCtx(executor)
-		_, err := c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreA, v1.CreateOptions{})
+		_, err := c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreA, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStoreB.Spec.Zone.Name = "zone-a"
-		_, err = c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreB, v1.CreateOptions{})
+		_, err = c.RookClientset.CephV1().CephObjectStores(clusterInfo.Namespace).Create(context.TODO(), objectStoreB, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		deps, err := CephObjectZoneDependentStores(c, clusterInfo, objectZoneA, object.NewContext(c, clusterInfo, objectZoneA.Name))
 		assert.NoError(t, err)

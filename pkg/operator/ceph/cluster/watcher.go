@@ -34,7 +34,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -72,7 +71,7 @@ func checkStorageForNode(cluster *cephv1.CephCluster) bool {
 
 // onK8sNodeAdd is triggered when a node is added in the Kubernetes cluster
 func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bool {
-	node, ok := object.(*v1.Node)
+	node, ok := object.(*corev1.Node)
 	if !ok {
 		return false
 	}
@@ -91,7 +90,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	}
 
 	if !k8sutil.GetNodeSchedulable(*node) {
-		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[v1.LabelHostname])
+		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[corev1.LabelHostname])
 		return false
 	}
 
@@ -116,7 +115,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	err := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
 	if err == nil {
 		nodeName := node.Name
-		hostname, ok := node.Labels[v1.LabelHostname]
+		hostname, ok := node.Labels[corev1.LabelHostname]
 		if ok && hostname != "" {
 			nodeName = hostname
 		}
@@ -138,7 +137,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 
 		// Reconcile if there are no OSDs in the CRUSH map and if the host does not exist in the CRUSH map.
 		if osds == "" {
-			logger.Infof("node watcher: adding node %q to cluster %q", node.Labels[v1.LabelHostname], cluster.Namespace)
+			logger.Infof("node watcher: adding node %q to cluster %q", node.Labels[corev1.LabelHostname], cluster.Namespace)
 			return true
 		}
 
@@ -148,7 +147,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	return false
 }
 
-func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.CephCluster, node *v1.Node) error {
+func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.CephCluster, node *corev1.Node) error {
 	watchForNodeLoss, err := k8sutil.GetOperatorSetting(ctx, c.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_WATCH_FOR_NODE_FAILURE", "true")
 	if err != nil {
 		return pkgerror.Wrapf(err, "failed to get configmap value `ROOK_WATCH_FOR_NODE_FAILURE`.")
@@ -170,7 +169,7 @@ func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.C
 
 	nodeHasOutOfServiceTaint := false
 	for _, taint := range node.Spec.Taints {
-		if taint.Key == v1.TaintNodeOutOfService {
+		if taint.Key == corev1.TaintNodeOutOfService {
 			nodeHasOutOfServiceTaint = true
 			logger.Infof("Found taint: Key=%v, Value=%v on node %s\n", taint.Key, taint.Value, node.Name)
 			break
@@ -238,7 +237,7 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 	return nil
 }
 
-func getCephVolumesInUse(cluster *cephv1.CephCluster, volumesInUse []v1.UniqueVolumeName) []string {
+func getCephVolumesInUse(cluster *cephv1.CephCluster, volumesInUse []corev1.UniqueVolumeName) []string {
 	var rbdVolumesInUse []string
 
 	for _, volume := range volumesInUse {
@@ -252,7 +251,7 @@ func getCephVolumesInUse(cluster *cephv1.CephCluster, volumesInUse []v1.UniqueVo
 	return rbdVolumesInUse
 }
 
-func trimeVolumeInUse(volume v1.UniqueVolumeName) []string {
+func trimeVolumeInUse(volume corev1.UniqueVolumeName) []string {
 	volumesInuseRemoveK8sPrefix := strings.TrimPrefix(string(volume), "kubernetes.io/csi/")
 	splitVolumeInUseBased := strings.Split(volumesInuseRemoveK8sPrefix, "^")
 	return splitVolumeInUseBased
@@ -410,7 +409,7 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 	} else if errors.IsNotFound(err) {
 		return nil
 	}
-	logger.Infof("node %s does not have taint %s, unfencing networkFence CR", node.Name, v1.TaintNodeOutOfService)
+	logger.Infof("node %s does not have taint %s, unfencing networkFence CR", node.Name, corev1.TaintNodeOutOfService)
 
 	// Unfencing is required to unblock the node and then delete the network fence CR
 	networkFence.Spec.FenceState = addonsv1alpha1.Unfenced
@@ -449,13 +448,13 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 
 // onDeviceCMUpdate is trigger when the hot plug config map is updated
 func (c *clientCluster) onDeviceCMUpdate(oldObj, newObj runtime.Object) bool {
-	oldCm, ok := oldObj.(*v1.ConfigMap)
+	oldCm, ok := oldObj.(*corev1.ConfigMap)
 	if !ok {
 		return false
 	}
 	logger.Debugf("hot-plug cm watcher: onDeviceCMUpdate old device cm: %+v", oldCm)
 
-	newCm, ok := newObj.(*v1.ConfigMap)
+	newCm, ok := newObj.(*corev1.ConfigMap)
 	if !ok {
 		return false
 	}
