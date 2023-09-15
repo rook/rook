@@ -32,7 +32,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 )
 
 const detectNetworkCIDRTimeout = 15 * time.Minute
@@ -338,9 +337,9 @@ func networkStatusVolumeAndMount() (corev1.Volume, corev1.VolumeMount) {
 		Name: "network-status",
 		VolumeSource: corev1.VolumeSource{
 			DownwardAPI: &corev1.DownwardAPIVolumeSource{
-				Items: []v1.DownwardAPIVolumeFile{{
+				Items: []corev1.DownwardAPIVolumeFile{{
 					Path: "network-status",
-					FieldRef: &v1.ObjectFieldSelector{
+					FieldRef: &corev1.ObjectFieldSelector{
 						FieldPath: `metadata.annotations['` + nadv1.NetworkStatusAnnot + `']`,
 					}}}}}}
 	mnt := corev1.VolumeMount{

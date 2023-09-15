@@ -29,7 +29,6 @@ import (
 	v1 "k8s.io/api/batch/v1"
 	"k8s.io/api/batch/v1beta1"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -160,9 +159,9 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) {
 	// delete v1beta1 cronJob on an update to v1 job,only if v1 job is not created yet
 	if _, err := r.context.Clientset.BatchV1().CronJobs(objectMeta.Namespace).Get(r.opManagerContext, prunerName, metav1.GetOptions{}); err != nil {
-		if apierrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			err = r.client.Delete(r.opManagerContext, &v1beta1.CronJob{ObjectMeta: objectMeta})
-			if err != nil && !apierrors.IsNotFound(err) {
+			if err != nil && !kerrors.IsNotFound(err) {
 				logger.Debugf("could not delete CronJob v1Beta1 %q. %v", prunerName, err)
 			}
 		}
