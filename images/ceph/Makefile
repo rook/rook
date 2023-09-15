@@ -57,7 +57,7 @@ $(info )
 endif
 
 # s5cmd's version
-S5CMD_VERSION = 2.0.0
+S5CMD_VERSION = 2.2.1
 
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
 YQv3 := $(TOOLS_HOST_DIR)/yq-$(YQv3_VERSION)
