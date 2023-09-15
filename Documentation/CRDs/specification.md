@@ -11498,6 +11498,23 @@ OSDStore
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>flappingRestartIntervalHours</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>FlappingRestartIntervalHours defines the time for which the OSD pods, that failed with zero exit code, will sleep before restarting.
+This is needed for OSD flapping where OSD daemons are marked down more than 5 times in 600 seconds by Ceph.
+Preventing the OSD pods to restart immediately in such scenarios will prevent Rook from marking OSD as <code>up</code> and thus
+peering of the PGs mapped to the OSD.
+The interval defaults to 24 hours if no value is provided. User needs to manually restart the OSD pod if they manage to fix
+the underlying OSD flapping issue before the restart interval.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.StoreType">StoreType
