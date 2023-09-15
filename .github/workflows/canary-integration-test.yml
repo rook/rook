@@ -305,6 +305,15 @@ jobs:
           # waiting for toolbox operator image pod to get ready
           kubectl -n rook-ceph wait --for=condition=ready pod -l app=rook-ceph-tools-operator-image  --timeout=180s
 
+      - name: check s5cmd version in the toolbox image
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools-operator-image -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          s5cmd_version="$(kubectl -n rook-ceph exec ${toolbox} -- /usr/local/bin/s5cmd version)"
+          echo ${s5cmd_version} | grep -q "^v2.2.1"  || {
+             echo " Error: the version of s5cmd version in the  toolbox is not the expected v2.2.1 but ${s5cmd_version}"
+             exit 1
+          } 
+
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
 
