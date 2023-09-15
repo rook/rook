@@ -119,8 +119,10 @@ build.version:
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
 # Change how CRDs are generated for CSVs
+ifneq ($(REAL_HOST_PLATFORM),darwin_arm64)
 build.common: export NO_OB_OBC_VOL_GEN=true
 build.common: export MAX_DESC_LEN=0
+endif
 build.common: export SKIP_GEN_CRD_DOCS=true
 build.common: build.version helm.build mod.check crds gen-rbac
 	@$(MAKE) go.init
