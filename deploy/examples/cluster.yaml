@@ -70,6 +70,10 @@ spec:
     # port: 8443
     # serve the dashboard using SSL
     ssl: true
+    # The url of the Prometheus instance
+    # prometheusEndpoint: <protocol>://<prometheus-host>:<port>
+    # Whether SSL should be verified if the Prometheus server is using https
+    # prometheusEndpointSSLVerify: false
   # enable prometheus alerting for cluster
   monitoring:
     # requires Prometheus to be pre-installed
