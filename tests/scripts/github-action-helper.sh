@@ -603,6 +603,14 @@ function deploy_multus_cluster() {
   kubectl create -f nfs-test.yaml
 }
 
+function test_multus_connections() {
+  EXEC='kubectl -n rook-ceph exec -t deploy/rook-ceph-tools -- ceph --connect-timeout 10'
+  # each OSD should exist on both public and cluster network
+  $EXEC osd dump | grep osd.0 | grep "192.168.20." | grep "192.168.21."
+  # MDSes should exist on public network and NOT on cluster network
+  $EXEC fs dump | grep myfs-a | grep "192.168.20." | grep -v "192.168.21."
+}
+
 function create_operator_toolbox() {
   cd deploy/examples
   sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" toolbox-operator-image.yaml

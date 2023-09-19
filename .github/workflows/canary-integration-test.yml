@@ -1543,13 +1543,16 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd_multus 2
+        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
 
       - name: wait for cephnfs to be ready
         run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
+
+      - name: check multus connections
+        run: tests/scripts/github-action-helper.sh test_multus_connections
 
       - name: test ceph-csi-rbd plugin restart
         run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
