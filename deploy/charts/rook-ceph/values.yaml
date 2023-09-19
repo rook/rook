@@ -55,6 +55,10 @@ logLevel: INFO
 # -- If true, create & use RBAC resources
 rbacEnable: true
 
+rbacAggregate:
+  # -- If true, create a ClusterRole aggregated to [user facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) for objectbucketclaims
+  enableOBCs: false
+
 # -- If true, create & use PSP resources
 pspEnable: false
 
