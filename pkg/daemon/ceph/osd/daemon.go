@@ -447,11 +447,6 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 		}
 		logger.Infof("device %q is available.", device.Name)
 
-		if device.Type == sys.PartType && agent.storeConfig.EncryptedDevice {
-			logger.Infof("partition %q is not picked because encrypted OSD on partition is not allowed", device.Name)
-			continue
-		}
-
 		var deviceInfo *DeviceOsdIDEntry
 		if agent.metadataDevice != "" && agent.metadataDevice == device.Name {
 			// current device is desired as the metadata device
