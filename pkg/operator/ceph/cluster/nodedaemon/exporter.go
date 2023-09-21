@@ -33,7 +33,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -172,7 +171,7 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 
 	envVars := append(
 		controller.DaemonEnvVars(&cephCluster.Spec),
-		v1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())})
+		corev1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())})
 
 	args := []string{
 		"--sock-dir", sockDir,
@@ -202,22 +201,22 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 }
 
 // MakeCephExporterMetricsService generates the Kubernetes service object for the exporter monitoring service
-func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortMetricName string, scheme *runtime.Scheme) (*v1.Service, error) {
+func MakeCephExporterMetricsService(cephCluster cephv1.CephCluster, servicePortMetricName string, scheme *runtime.Scheme) (*corev1.Service, error) {
 	labels := controller.AppLabels(cephExporterAppName, cephCluster.Namespace)
 
-	svc := &v1.Service{
+	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cephExporterAppName,
 			Namespace: cephCluster.Namespace,
 			Labels:    labels,
 		},
-		Spec: v1.ServiceSpec{
-			Type: v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Ports: []corev1.ServicePort{
 				{
 					Name:     servicePortMetricName,
 					Port:     int32(DefaultMetricsPort),
-					Protocol: v1.ProtocolTCP,
+					Protocol: corev1.ProtocolTCP,
 				},
 			},
 			Selector: labels,

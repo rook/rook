@@ -30,7 +30,6 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
@@ -888,7 +887,7 @@ func (c *Cluster) updateCephStorageStatus() error {
 	cephCluster := cephv1.CephCluster{}
 	cephClusterStorage := cephv1.CephStorage{}
 
-	deviceClasses, err := client.GetDeviceClasses(c.context, c.clusterInfo)
+	deviceClasses, err := cephclient.GetDeviceClasses(c.context, c.clusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get osd device classes")
 	}
