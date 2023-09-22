@@ -16,8 +16,8 @@ In external mode, Rook will provide the configuration for the CSI driver and oth
 
 Create the desired types of storage in the provider Ceph cluster:
 
-- [RBD pools](https://docs.ceph.com/en/latest/rados/operations/pools/#create-a-pool)
-- [CephFS filesystem](https://docs.ceph.com/en/quincy/cephfs/createfs/)
+* [RBD pools](https://docs.ceph.com/en/latest/rados/operations/pools/#create-a-pool)
+* [CephFS filesystem](https://docs.ceph.com/en/quincy/cephfs/createfs/)
 
 ## Commands on the source Ceph cluster
 
@@ -31,35 +31,35 @@ Run the python script [create-external-cluster-resources.py](https://github.com/
 python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --cephfs-filesystem-name <filesystem-name> --rgw-endpoint  <rgw-endpoint> --namespace <namespace> --format bash
 ```
 
-- `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
-- `--format bash`: The format of the output
-- `--rbd-data-pool-name`: The name of the RBD data pool
-- `--alias-rbd-data-pool-name`: Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore
-- `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>` or `<FQDN>:<PORT>`.
-- `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
-- `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
-- `--rgw-skip-tls`: (optional) Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED)
-- `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool, used for creating ECRBDStorageClass.
-- `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)
-- `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
-- `--skip-monitoring-endpoint`: (optional) Skip prometheus exporter endpoints, even if they are available. Useful if the prometheus module is not enabled
-- `--ceph-conf`: (optional) Provide a Ceph conf file
-- `--keyring`: (optional) Path to Ceph keyring file, to be used with `--ceph-conf`
-- `--k8s-cluster-name`: (optional) Kubernetes cluster name
-- `--output`: (optional) Output will be stored into the provided file
-- `--dry-run`: (optional) Prints the executed commands without running them
-- `--run-as-user`: (optional) Provides a user name to check the cluster's health status, must be prefixed by `client`.
-- `--cephfs-metadata-pool-name`: (optional) Provides the name of the cephfs metadata pool
-- `--cephfs-filesystem-name`: (optional) The name of the filesystem, used for creating CephFS StorageClass
-- `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool, used for creating CephFS StorageClass
-- `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a RadosNamespaces
-- `--subvolume-group`: (optional) Provides the name of the subvolume group, used for creating CephFS PVC in a subvolumeGroup
-- `--rgw-realm-name`: (optional) Provides the name of the rgw-realm
-- `--rgw-zone-name`: (optional) Provides the name of the rgw-zone
-- `--rgw-zonegroup-name`: (optional) Provides the name of the rgw-zone-group
-- `--upgrade`: (optional) Upgrades the 'Ceph CSI keyrings (For example: client.csi-cephfs-provisioner) with new permissions needed for the new cluster version and older permission will still be applied.
-- `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
-- `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
+* `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
+* `--format bash`: The format of the output
+* `--rbd-data-pool-name`: The name of the RBD data pool
+* `--alias-rbd-data-pool-name`: Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore
+* `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>` or `<FQDN>:<PORT>`.
+* `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
+* `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
+* `--rgw-skip-tls`: (optional) Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED)
+* `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool, used for creating ECRBDStorageClass.
+* `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of <IP> entries of active and standby mgrs)
+* `--monitoring-endpoint-port`: (optional) Ceph Manager prometheus exporter port
+* `--skip-monitoring-endpoint`: (optional) Skip prometheus exporter endpoints, even if they are available. Useful if the prometheus module is not enabled
+* `--ceph-conf`: (optional) Provide a Ceph conf file
+* `--keyring`: (optional) Path to Ceph keyring file, to be used with `--ceph-conf`
+* `--k8s-cluster-name`: (optional) Kubernetes cluster name
+* `--output`: (optional) Output will be stored into the provided file
+* `--dry-run`: (optional) Prints the executed commands without running them
+* `--run-as-user`: (optional) Provides a user name to check the cluster's health status, must be prefixed by `client`.
+* `--cephfs-metadata-pool-name`: (optional) Provides the name of the cephfs metadata pool
+* `--cephfs-filesystem-name`: (optional) The name of the filesystem, used for creating CephFS StorageClass
+* `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool, used for creating CephFS StorageClass
+* `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a RadosNamespaces
+* `--subvolume-group`: (optional) Provides the name of the subvolume group, used for creating CephFS PVC in a subvolumeGroup
+* `--rgw-realm-name`: (optional) Provides the name of the rgw-realm
+* `--rgw-zone-name`: (optional) Provides the name of the rgw-zone
+* `--rgw-zonegroup-name`: (optional) Provides the name of the rgw-zone-group
+* `--upgrade`: (optional) Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) and client.healthchecker ceph users with new permissions needed for the new cluster version and older permission will still be applied.
+* `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
+* `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
 
 ### Multi-tenancy
 
@@ -87,6 +87,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 ### Upgrade Example
 
 1) If consumer cluster doesn't have restricted caps, this will upgrade all the default csi-users (non-restricted):
+
 ```console
 python3 create-external-cluster-resources.py --upgrade
 ```
@@ -170,8 +171,9 @@ If not installing with Helm, here are the steps to install with manifests.
     rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
     ```
 
-2.  Verify the creation of the storage class depending on the rbd pools and filesystem provided.
+2. Verify the creation of the storage class depending on the rbd pools and filesystem provided.
     `ceph-rbd` and `cephfs` would be the respective names for the RBD and CephFS storage classes.
+
     ```console
     kubectl -n rook-ceph-external get sc
     ```
@@ -203,16 +205,18 @@ Create the object store resources:
 If encryption or compression on the wire is needed, specify the `--v2-port-enable` flag.
 If the v2 address type is present in the `ceph quorum_status`, then the output of 'ceph mon data' i.e, `ROOK_EXTERNAL_CEPH_MON_DATA` will use the v2 port(`3300`).
 
-##  Exporting Rook to another cluster
+## Exporting Rook to another cluster
 
 If you have multiple K8s clusters running, and want to use the local `rook-ceph` cluster as the central storage,
 you can export the settings from this cluster with the following steps.
 
 1) Copy create-external-cluster-resources.py into the directory `/etc/ceph/` of the toolbox.
+
    ```console
    toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
    kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
    ```
+
 2) Exec to the toolbox pod and execute create-external-cluster-resources.py with needed options to create required [users and keys](#supported-features).
 
 !!! important
