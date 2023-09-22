@@ -85,7 +85,7 @@ class TestRadosJSON(unittest.TestCase):
         self.rjObj.cluster.return_val = 1
         self.rjObj.cluster.err_message = "Dummy Error"
         try:
-            self.rjObj.create_checkerKey()
+            self.rjObj.create_checkerKey("client.healthchecker")
             self.fail("Failed to raise an exception, 'ext.ExecutionFailureException'")
         except ext.ExecutionFailureException as err:
             print(f"Successfully thrown error.\nError: {err}")
@@ -175,6 +175,7 @@ class TestRadosJSON(unittest.TestCase):
         )
         # for testing, we are using 'DummyRados' object
         self.rjObj.cluster = ext.DummyRados.Rados()
+        self.rjObj._arg_parser.rgw_pool_prefix = "default"
         self.rjObj.main()
 
     def test_monitoring_endpoint_validation(self):
