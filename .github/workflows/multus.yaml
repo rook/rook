@@ -31,30 +31,26 @@ jobs:
     env:
       NUMBER_OF_COMPUTE_NODES: 5
     steps:
-      - name: Set up Go version
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
-
       - name: checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
+      - name: Set up Go version
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
+
       - name: Create KinD Cluster
         uses: helm/kind-action@v1.7.0
         with:
           config: tests/scripts/multus/kind-config.yaml
-          cluster_name: rook-multus-e2e
+          cluster_name: kind
 
-      - name: Start tmate
-        if: runner.debug || contains(github.event.pull_request.labels.*.name, 'debug-ci')
-        run: |
-          kubectl apply -f tests/scripts/tmate-pod.yaml
-          sleep 3 # sometimes the next command errors b/c k8s hasn't had time to schedule the pod yet
-          kubectl -n tmate wait --for=condition=ready -l app=tmate pod --timeout=300s
-          sleep 1 # just in case tmate hasn't output its web/ssh links yet
-          kubectl -n tmate logs deploy/tmate
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: Setup multus
         run: ./tests/scripts/multus/setup-multus.sh
@@ -63,14 +59,47 @@ jobs:
         run: kubectl create -f tests/scripts/multus/default-public-cluster-nads.yaml
 
       - name: Quickly build Rook binary
+        id: build
         run: go build -o rook cmd/rook/*.go
 
-      - name: Run multus validation test
-        run: |
-          export KUBECONFIG="/home/runner/.kube/config"
-          kubectl create namespace rook-ceph
-          ./rook --log-level debug multus validation run \
-            --namespace rook-ceph \
-            --public-network default/public-net \
-            --cluster-network default/cluster-net \
-            --daemons-per-node 2
+      - name: Run CLI validation test
+        run: ./tests/scripts/multus/test-110-cli.sh
+
+      - name: Label kind nodes for stretch cluster tests
+        id: label
+        # tests that require labels are independent from previous tests
+        if: steps.build.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-200-stretch-label-nodes.sh
+        # nodes are purposefully not tainted yet for overlap test
+
+      - name: Run stretch cluster overlap test
+        id: overlap
+        # independent from other tests as long as nodes are labeled
+        if: steps.label.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-210-stretch-overlap.sh
+
+      - name: Run cleanup test
+        # cleanup relies on overlap test to be successful
+        if: steps.overlap.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-211-stretch-cleanup.sh
+
+      - name: Taint kind nodes for remaining stretch cluster tests
+        id: taint
+        # tests that require taints+labels are independent from previous tests
+        if: steps.label.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-200-stretch-taint-nodes.sh
+
+      - name: Run stretch cluster test with public and cluster networks
+        # independent from other tests as long as nodes are tainted and labeled
+        if: steps.taint.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-220-stretch-pub-and-cluster.sh
+
+      - name: Run stretch cluster test with public network only
+        # independent from other tests as long as nodes are tainted and labeled
+        if: steps.taint.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-230-stretch-pub-only.sh
+
+      - name: Run stretch cluster test with cluster network only
+        # independent from other tests as long as nodes are tainted and labeled
+        if: steps.taint.outcome == 'success' && !cancelled()
+        run: ./tests/scripts/multus/test-240-stretch-cluster-only.sh

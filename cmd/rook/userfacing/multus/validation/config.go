@@ -26,13 +26,13 @@ import (
 var (
 	configCmd = &cobra.Command{
 		Use:   "config",
-		Short: "Generate a validation test config file for different default scenarios.",
+		Short: "Generate a validation test config file for different default scenarios to stdout.",
 		Args:  cobra.NoArgs,
 	}
 
-	simpleConfigCmd = &cobra.Command{
-		Use:   "simple",
-		Short: "Generate a simple default config file.",
+	converged = &cobra.Command{
+		Use:   "converged",
+		Short: "Example config for a cluster that runs storage and user workloads on all nodes.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			y, err := multus.NewDefaultValidationTestConfig().ToYAML()
@@ -43,8 +43,38 @@ var (
 			return nil
 		},
 	}
+
+	dedicatedStorageNodesConfigCmd = &cobra.Command{
+		Use:   "dedicated-storage-nodes",
+		Short: "Example config file for a cluster that uses dedicated storage nodes.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			y, err := multus.NewDedicatedStorageNodesValidationTestConfig().ToYAML()
+			if err != nil {
+				return err
+			}
+			fmt.Print(y)
+			return nil
+		},
+	}
+
+	stretchClusterConfigCmd = &cobra.Command{
+		Use:   "stretch-cluster",
+		Short: "Example config file for a stretch cluster with dedicated storage nodes.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			y, err := multus.NewArbiterValidationTestConfig().ToYAML()
+			if err != nil {
+				return err
+			}
+			fmt.Print(y)
+			return nil
+		},
+	}
 )
 
 func init() {
-	configCmd.AddCommand(simpleConfigCmd)
+	configCmd.AddCommand(converged)
+	configCmd.AddCommand(dedicatedStorageNodesConfigCmd)
+	configCmd.AddCommand(stretchClusterConfigCmd)
 }

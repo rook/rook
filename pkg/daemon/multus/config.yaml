@@ -9,15 +9,6 @@ namespace: "{{ .Namespace }}"
 publicNetwork: "{{ .PublicNetwork }}"
 clusterNetwork: "{{ .ClusterNetwork }}"
 
-# The number of Multus-connected validation daemons that will run as part of the test. This should
-# be set to the largest number of Ceph daemons that might run on a node in the worst case. Remember
-# to consider failure cases where nodes or availability zones are offline and their workloads must
-# be rescheduled.
-# A Rook cluster with all resource types might run these daemons on one node under failure:
-# 1 mon, 3 OSDs, 1 mgr, 1 MDS, 1 NFS server, 1 RGW, 1 rbdmirror, 1 cephfsmirror,
-# plus 1 csi provisioner and 1 csi plugin for all 3 CSI types: RBD, CSI, and CephFS -- 16 daemons
-daemonsPerNode: {{ .DaemonsPerNode }}
-
 # This is the time to wait for resources to change to the expected state. For example, for the test
 # web server to start, for test clients to become ready, or for test resources to be deleted. At
 # longest, this may need to reflect the time it takes for client pods to get address assignments and
@@ -27,3 +18,52 @@ resourceTimeout: "{{ .ResourceTimeout }}"
 
 # The Nginx image which will be used for the web server and clients.
 nginxImage: "{{ .NginxImage }}"
+
+# Specify validation test config for groups of nodes. A Ceph cluster may span more than one type of
+# node, but usually not more than 3. Node types defined here should not overlap with each other.
+# Common examples of different node types are below:
+#   - General, converged nodes that are used for both Ceph daemons and user applications
+#   - Dedicated storage nodes for hosting Ceph storage daemons
+#   - Non-storage nodes running workloads other than Ceph (running only Ceph CSI plugin daemons)
+#   - Dedicated nodes for hosting Ceph arbiter mons
+#   - Dedicated nodes for hosting only Ceph core (RADOS) components: mons, mgrs, OSDs
+#   - Dedicated nodes for hosting non-core storage components: MDS, RGW, CSI provisioner, etc.
+nodeTypes:
+{{- range $type, $config := .NodeTypes }}
+  {{ $type }}: # Unique name for this node type (lower-case alphanumeric characters and dashes only)
+    # This should reflect the maximum number of OSDs that may run on any given node of this type
+    # during a worst-case failure scenario. This may be a static number expected by the
+    # StorageClassDeviceSets planned for the CephCluster. For portable OSDs, this may be larger to
+    # account for OSDs being rescheduled during node failures.
+    osdsPerNode: {{ $config.OSDsPerNode }}
+
+    # This should reflect the maximum number of Ceph and CSI daemons that may run on any given node
+    # during a worst-case failure scenario. CSI requires 2 Multus addresses per plugin daemon.
+    #
+    # In the converged case, a Rook cluster with a single instance of all resource types might run
+    # these daemons on a single node during worst-case failure:
+    #   1 mon, 1 mgr, 1 MDS, 1 NFS server, 1 RGW, 1 rbdmirror, 1 cephfsmirror, plus
+    #   1 CSI provisioner and 2 CSI plugins for all 3 CSI types (RBD, CephFS, NFS) -- 16 daemons
+    #
+    # A node that is running only client workloads would run only the CSI plugin daemons per node:
+    #   2 CSI plugins for all 3 CSI type (RBD, CephFS, NFS) -- 6 daemons
+    otherDaemonsPerNode: {{ $config.OtherDaemonsPerNode }}
+
+    # Placement options for informing the validation tool how to identify this type of node.
+    # Affinities are not supported because their behavior is too relaxed for ensuring a specific
+    # number of daemons per node.
+    placement:
+      # Kubernetes Pod spec node selector for assigning validation Pods to this node type.
+      # See https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector
+      nodeSelector:
+      {{- range $k, $v := $config.Placement.NodeSelector }}
+        {{ $k }}: {{ $v }}
+      {{- end }}
+
+      # Kubernetes tolerations for assigning validation Pods to this node type.
+      # See https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
+      tolerations:
+      {{- range $idx, $toleration := $config.Placement.Tolerations }}
+        - {{ $toleration.ToJSON }}
+      {{- end }}
+{{ end }}
