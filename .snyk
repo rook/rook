@@ -1,0 +1,3 @@
+ignore:
+  MPL-2.0:
+    - reason: "Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license"
