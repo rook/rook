@@ -37,6 +37,7 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
@@ -150,6 +151,17 @@ func (c *Cluster) Start() error {
 				return errors.Wrapf(err, "failed to create mgr deployment %s", resourceName)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
+
+			mgrsToSkipReconcile, err := c.getMGRsToSkipReconcile()
+
+			if err != nil {
+				return errors.Wrap(err, "failed to check for mgrs to skip reconcile")
+			}
+
+			if mgrsToSkipReconcile.Len() > 0 {
+				logger.Warningf("skipping mgr reconcile since mons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(mgrsToSkipReconcile))
+				return nil
+			}
 
 			if err := updateDeploymentAndWait(c.context, c.clusterInfo, d, config.MgrType, mgrConfig.DaemonID, c.spec.SkipUpgradeChecks, false); err != nil {
 				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
@@ -573,4 +585,21 @@ func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonit
 			logger.Info("monitoring labels not specified")
 		}
 	}
+}
+
+func (c *Cluster) getMGRsToSkipReconcile() (sets.Set[string], error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query mgrs to skip reconcile")
+	}
+	result := sets.New[string]()
+	for _, deployment := range deployments.Items {
+		if mgrID, ok := deployment.Labels[config.MgrType]; ok {
+			logger.Infof("found mgr %q pod to skip reconcile", mgrID)
+			result.Insert(mgrID)
+		}
+	}
+	return result, nil
 }

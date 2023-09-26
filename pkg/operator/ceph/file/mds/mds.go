@@ -38,6 +38,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
@@ -125,6 +126,16 @@ func (c *Cluster) Start() error {
 
 	// Always create double the number of metadata servers to have standby mdses available
 	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
+
+	mdsToSkipReconcile, err := c.getMDSsToSkipReconcile()
+	if err != nil {
+		return errors.Wrap(err, "failed to check for mds to skip reconcile")
+	}
+
+	if mdsToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping mds reconcile since mds daemons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(mdsToSkipReconcile))
+		return nil
+	}
 
 	// keep list of deployments we want so unwanted ones can be deleted later
 	desiredDeployments := map[string]bool{} // improvised set
@@ -396,4 +407,21 @@ func finishedWithDaemonUpgrade(context *clusterd.Context, clusterInfo *cephclien
 	}
 
 	return nil
+}
+
+func (c *Cluster) getMDSsToSkipReconcile() (sets.Set[string], error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query MDSs to skip reconcile")
+	}
+	result := sets.New[string]()
+	for _, deployment := range deployments.Items {
+		if mdsID, ok := deployment.Labels[config.MdsType]; ok {
+			logger.Infof("found mds %q pod to skip reconcile", mdsID)
+			result.Insert(mdsID)
+		}
+	}
+	return result, nil
 }

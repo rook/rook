@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -64,6 +65,15 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 	_, err = r.generateKeyring(r.clusterInfo, daemonConf)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
+	}
+
+	rbdMirrorToSkipReconcile, err := r.getRBDMirrorToSkipReconcile()
+	if err != nil {
+		return errors.Wrap(err, "failed to check for RBD Mirror to skip reconcile")
+	}
+	if rbdMirrorToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping RBD mirror reconcile since RBD mirror daemons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(rbdMirrorToSkipReconcile))
+		return nil
 	}
 
 	// Start the deployment
@@ -105,4 +115,21 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 
 	logger.Infof("%q deployment started", resourceName)
 	return nil
+}
+
+func (r *ReconcileCephRBDMirror) getRBDMirrorToSkipReconcile() (sets.Set[string], error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
+	deployments, err := r.context.Clientset.AppsV1().Deployments(r.clusterInfo.Namespace).List(r.clusterInfo.Context, listOpts)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query RBD mirror daemon to skip reconcile")
+	}
+	result := sets.New[string]()
+	for _, deployment := range deployments.Items {
+		if rbdMirrorID, ok := deployment.Labels[config.RbdMirrorType]; ok {
+			logger.Infof("found RBD mirror %q pod to skip reconcile", rbdMirrorID)
+			result.Insert(rbdMirrorID)
+		}
+	}
+	return result, nil
 }

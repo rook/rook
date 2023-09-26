@@ -41,6 +41,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -145,6 +146,15 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 			}
 		}
 
+		rgwsToSkipReconcile, err := c.getRGWsToSkipReconcile()
+		if err != nil {
+			return errors.Wrap(err, "failed to check for RGWs to skip reconcile")
+		}
+		if rgwsToSkipReconcile.Len() > 0 {
+			logger.Warningf("skipping RGW reconcile since RGWs are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(rgwsToSkipReconcile))
+			return nil
+		}
+
 		// Create deployment
 		deployment, err := c.createDeployment(rgwConfig)
 		if err != nil {
@@ -217,6 +227,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		if err != nil {
 			logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
 		}
+
 		currentRgwInstances = len(deps.Items)
 		if currentRgwInstances == desiredRgwInstances {
 			logger.Infof("successfully scaled down rgw deployments to %d in object store %q", desiredRgwInstances, c.store.Name)
@@ -454,4 +465,21 @@ func genObjectStoreHTTPClient(objContext *Context, spec *cephv1.ObjectStoreSpec)
 		c.Transport = BuildTransportTLS(tlsCert, insecureTLS)
 	}
 	return c, tlsCert, nil
+}
+
+func (c *clusterConfig) getRGWsToSkipReconcile() (sets.Set[string], error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
+	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query RGWs to skip reconcile")
+	}
+	result := sets.New[string]()
+	for _, deployment := range deployments.Items {
+		if rgwID, ok := deployment.Labels[config.RgwType]; ok {
+			logger.Infof("found RGW %q pod to skip reconcile", rgwID)
+			result.Insert(rgwID)
+		}
+	}
+	return result, nil
 }
