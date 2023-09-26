@@ -1,3 +1,7 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
 ignore:
-  MPL-2.0:
-    - reason: "Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license"
+  'snyk:lic:npm:symbol:MPL-2.0':
+    - '*':
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+version: v1.25.0
+patch: {}
