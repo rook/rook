@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -64,6 +65,15 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 	_, err = r.generateKeyring(r.clusterInfo, daemonConf)
 	if err != nil {
 		return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
+	}
+
+	rbdMirrorToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(r.clusterInfo.Context, r.context, r.clusterInfo.Namespace, config.RbdMirrorType, AppName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for RBD Mirror to skip reconcile")
+	}
+	if rbdMirrorToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping RBD mirror reconcile since RBD mirror daemons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(rbdMirrorToSkipReconcile))
+		return nil
 	}
 
 	// Start the deployment

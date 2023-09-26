@@ -114,6 +114,11 @@ func (c *Cluster) Start() error {
 	daemonIDs := c.getDaemonIDs()
 	var deploymentsToWaitFor []*v1.Deployment
 
+	mgrsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, config.MgrType, AppName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for mgrs to skip reconcile")
+	}
+
 	for _, daemonID := range daemonIDs {
 		if c.clusterInfo.Context.Err() != nil {
 			return c.clusterInfo.Context.Err()
@@ -142,6 +147,11 @@ func (c *Cluster) Start() error {
 		err = patch.DefaultAnnotator.SetLastAppliedAnnotation(d)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set annotation for deployment %q", d.Name)
+		}
+
+		if mgrsToSkipReconcile.Has(daemonID) {
+			logger.Warningf("Skipping reconcile of mgr %q labeled with %q", daemonID, cephv1.SkipReconcileLabelKey)
+			continue
 		}
 
 		newDeployment, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, d, metav1.CreateOptions{})
