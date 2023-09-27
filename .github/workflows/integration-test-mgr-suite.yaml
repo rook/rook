@@ -36,12 +36,6 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
