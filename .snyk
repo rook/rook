@@ -1,7 +1,49 @@
 # Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
 ignore:
-  'snyk:lic:npm:symbol:MPL-2.0':
-    - '*':
+  "snyk:lic:golang:github.com:hashicorp:vault:sdk:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:vault:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:vault:api:auth:approle:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:vault:api:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:hcl:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:golang-lru:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-sockaddr:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-secure-stdlib:strutil:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-secure-stdlib:parseutil:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-rootcerts:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-retryablehttp:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-multierror:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-immutable-radix:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:go-cleanhttp:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:errwrap:MPL-2.0":
+    - "*":
         reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
 version: v1.25.0
 patch: {}
