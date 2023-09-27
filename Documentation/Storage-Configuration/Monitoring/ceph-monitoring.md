@@ -63,6 +63,27 @@ Ensure that the Prometheus server pod gets created and advances to the `Running`
 kubectl -n rook-ceph get pod prometheus-rook-prometheus-0
 ```
 
+### Dashboard config
+
+Configure the Prometheus endpoint so the dashboard can retrieve metrics from Prometheus with two settings:
+- `prometheusEndpoint`: The url of the Prometheus instance
+- `prometheusEndpointSSLVerify`: Whether SSL should be verified if the Prometheus server is using https
+
+The following command can be used to get the Prometheus url:
+
+```console
+echo "http://$(kubectl -n rook-ceph -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
+```
+
+Following is an example to configure the Prometheus endpoint in the CephCluster CR.
+
+    ```YAML
+    spec:
+      dashboard:
+        prometheusEndpoint: http://192.168.61.204:30900
+        prometheusEndpointSSLVerify: true
+    ```
+
 !!! note
     It is not recommended to consume storage from the Ceph cluster for Prometheus.
     If the Ceph cluster fails, Prometheus would become unresponsive and thus not alert you of the failure.

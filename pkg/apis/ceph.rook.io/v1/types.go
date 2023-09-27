@@ -318,6 +318,12 @@ type DashboardSpec struct {
 	// SSL determines whether SSL should be used
 	// +optional
 	SSL bool `json:"ssl,omitempty"`
+	// Endpoint for the Prometheus host
+	// +optional
+	PrometheusEndpoint string `json:"prometheusEndpoint,omitempty"`
+	// Whether to verify the ssl endpoint for prometheus. Set to false for a self-signed cert.
+	// +optional
+	PrometheusEndpointSSLVerify bool `json:"prometheusEndpointSSLVerify,omitempty"`
 }
 
 // MonitoringSpec represents the settings for Prometheus based Ceph monitoring

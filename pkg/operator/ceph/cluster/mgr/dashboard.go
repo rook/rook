@@ -129,6 +129,22 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 	}
 	hasChanged = hasChanged || changed
 
+	// Prometheus host end point
+	prometheusEndpoint := c.spec.Dashboard.PrometheusEndpoint
+	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/PROMETHEUS_API_HOST", prometheusEndpoint)
+	if err != nil {
+		return false, err
+	}
+	hasChanged = hasChanged || changed
+
+	// Prometheus host end point ssl verify
+	prometheusEndpointSSLVerify := strconv.FormatBool(c.spec.Dashboard.PrometheusEndpointSSLVerify)
+	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/PROMETHEUS_API_SSL_VERIFY", prometheusEndpointSSLVerify)
+	if err != nil {
+		return false, err
+	}
+	hasChanged = hasChanged || changed
+
 	// server port
 	port := strconv.Itoa(c.dashboardInternalPort())
 	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/server_port", port)
