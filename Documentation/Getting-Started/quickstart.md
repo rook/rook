@@ -170,7 +170,7 @@ Ceph has a dashboard to view the status of the cluster. See the [dashboard guide
 
 Create a toolbox pod for full access to a ceph admin client for debugging and troubleshooting the Rook cluster. See the [toolbox documentation](../Troubleshooting/ceph-toolbox.md) for setup and usage information.
 
-The [Rook Krew plugin](https://github.com/rook/kubectl-rook-ceph) provides commands to view status and troubleshoot issues.
+The [Rook kubectl plugin](https://github.com/rook/kubectl-rook-ceph) provides commands to view status and troubleshoot issues.
 
 See the [advanced configuration](../Storage-Configuration/Advanced/ceph-configuration.md) document for helpful maintenance and tuning examples.
 

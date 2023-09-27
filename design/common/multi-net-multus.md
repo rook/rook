@@ -90,13 +90,13 @@ It is important that the web server be only **a single** instance. If clients co
 node with the web server can make successful HTTP(S) requests but clients on other nodes are not,
 that is an important indicator of inter-node traffic being blocked.
 
-The validation test routine will run in the Rook operator container. Rook's kubectl [Krew plugin]
+The validation test routine will run in the Rook operator container. Rook's kubectl [kubectl plugin]
 may facilitate running the test, but it is useful to have the option of executing a long-running
 validation routine running in the Kubernetes cluster instead of on an administrator's log-in
 session. Additionally, the results of the validation tester may become important for users wanting
 to get help with Multus configuration, and having a tool that is present in the Rook container image
 will allow users to run the routine for bug reports more readily than if they needed to install the
-Krew plugin.
+kubectl plugin.
 
 
 <!--
@@ -106,4 +106,4 @@ LINKS
 [multi-net spec]: https://github.com/k8snetworkplumbingwg/multi-net-spec
 [cni-genie]: https://github.com/cni-genie/CNI-Genie/
 [knitter]: https://github.com/ZTE/Knitter
-[krew plugin]: https://github.com/rook/kubectl-rook-ceph
+[kubectl plugin]: https://github.com/rook/kubectl-rook-ceph
