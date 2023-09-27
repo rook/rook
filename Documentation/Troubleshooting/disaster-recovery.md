@@ -11,7 +11,7 @@ there is a manual procedure to get the quorum going again. The only requirement 
 is still healthy. The following steps will remove the unhealthy
 mons from quorum and allow you to form a quorum again with a single mon, then grow the quorum back to the original size.
 
-The [Rook Krew Plugin](https://github.com/rook/kubectl-rook-ceph/) has a command `restore-quorum` that will
+The [Rook kubectl Plugin](https://github.com/rook/kubectl-rook-ceph/) has a command `restore-quorum` that will
 walk you through the mon quorum automated restoration process.
 
 If the name of the healthy mon is `c`, you would run the command:

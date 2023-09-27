@@ -70,9 +70,9 @@ An [external cluster](../CRDs/Cluster/external-cluster.md) is a Ceph configurati
 
 A [host storage cluster](../CRDs/Cluster/host-cluster.md) is where Rook configures Ceph to store data directly on the host devices.
 
-### Krew Plugin
+### kubectl Plugin
 
-The [Rook Krew plugin](../Troubleshooting/krew-plugin.md) is a tool to help troubleshoot your Rook cluster.
+The [Rook kubectl plugin](../Troubleshooting/kubectl-plugin.md) is a tool to help troubleshoot your Rook cluster.
 
 ### Object Bucket Claim (OBC)
 

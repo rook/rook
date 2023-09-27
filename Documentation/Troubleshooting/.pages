@@ -1,5 +1,5 @@
 nav:
-    - krew-plugin.md
+    - kubectl-plugin.md
     - ceph-toolbox.md
     - common-issues.md
     - ceph-common-issues.md
