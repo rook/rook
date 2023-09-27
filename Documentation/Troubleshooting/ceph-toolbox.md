@@ -14,7 +14,7 @@ The toolbox can be run in two modes:
     Before running the toolbox you should have a running Rook cluster deployed (see the [Quickstart Guide](../Getting-Started/quickstart.md)).
 
 !!! note
-    The toolbox is not necessary if you are using [Krew plugin](krew-plugin.md) to execute Ceph commands.
+    The toolbox is not necessary if you are using [kubectl plugin](kubectl-plugin.md) to execute Ceph commands.
 
 ## Interactive Toolbox
 

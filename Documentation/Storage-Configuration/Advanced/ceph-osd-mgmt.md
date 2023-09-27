@@ -112,10 +112,10 @@ $ kubectl -n rook-ceph scale deployment rook-ceph-osd-<ID> --replicas=0
 $ ceph osd down osd.<ID>
 ```
 
-### Purge the OSD with Krew
+### Purge the OSD with kubectl
 
 !!! note
-    The `rook-ceph` Krew plugin must be [installed](https://github.com/rook/kubectl-rook-ceph#install)
+    The `rook-ceph` kubectl plugin must be [installed](https://github.com/rook/kubectl-rook-ceph#install)
 
 ```bash
 kubectl rook-ceph rook purge-osd 0 --force
