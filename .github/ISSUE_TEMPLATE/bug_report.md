@@ -33,11 +33,11 @@ labels: bug
 
 **Cluster Status to submit**:
 
-* Output of krew commands, if necessary
+* Output of kubectl commands, if necessary
 
   To get the health of the cluster, use `kubectl rook-ceph health`
   To get the status of the cluster, use `kubectl rook-ceph ceph status`
-  For more details, see the [Rook Krew Plugin](https://rook.io/docs/rook/latest-release/Troubleshooting/krew-plugin)
+  For more details, see the [Rook kubectl Plugin](https://rook.io/docs/rook/latest-release/Troubleshooting/kubectl-plugin)
 
 **Environment**:
 * OS (e.g. from /etc/os-release):

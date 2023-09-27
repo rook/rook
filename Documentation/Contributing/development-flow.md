@@ -337,7 +337,7 @@ kubectl exec -n rook-ceph --stdin --tty $(kubectl get pod -n rook-ceph -l ceph_d
 
 1. Restart the modified manager module to test the modifications:
 
-Example for restarting the rook manager module with the [krew plugin](https://github.com/rook/kubectl-rook-ceph):
+Example for restarting the rook manager module with the [kubectl plugin](https://github.com/rook/kubectl-rook-ceph):
 
 ```console
 kubectl rook-ceph ceph mgr module disable rook

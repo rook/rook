@@ -1,8 +1,9 @@
 ---
-title: Krew Plugin
+title: kubectl Plugin
 ---
 
-The Rook Krew plugin is a tool to help troubleshoot your Rook cluster. Here are a few of the operations that the plugin will assist with:
+The Rook kubectl plugin is a tool to help troubleshoot your Rook cluster. Here are a few of the operations that the plugin will assist with:
+
 - Health of the Rook pods
 - Health of the Ceph cluster
 - Create "debug" pods for mons and OSDs that are in need of special Ceph maintenance operations
@@ -14,20 +15,23 @@ See the [kubectl-rook-ceph documentation](https://github.com/rook/kubectl-rook-c
 
 ## Installation
 
-* Install [Krew](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
-* Install Rook plugin
+- Install [krew](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
+- Install Rook plugin
+
   ```console
-    kubectl krew install rook-ceph
+    kubectl kubectl install rook-ceph
   ```
 
 ## Ceph Commands
 
-* Run any `ceph` command with `kubectl rook-ceph ceph <args>`. For example, get the Ceph status:
+- Run any `ceph` command with `kubectl rook-ceph ceph <args>`. For example, get the Ceph status:
+
   ```console
     kubectl rook-ceph ceph status
   ```
 
   Output:
+
   ```console
     cluster:
     id:     a1ac6554-4cc8-4c3b-a8a3-f17f5ec6f529
@@ -56,12 +60,14 @@ Reference: [Ceph Status](https://github.com/rook/kubectl-rook-ceph/blob/master/R
 
 Debug mode can be useful when a MON or OSD needs advanced maintenance operations that require the daemon to be stopped. Ceph tools such as `ceph-objectstore-tool`, `ceph-bluestore-tool`, or `ceph-monstore-tool` are commonly used in these scenarios. Debug mode will set up the MON or OSD so that these commands can be run.
 
-* Start the debug pod for mon b
+- Start the debug pod for mon b
+
   ```console
     kubectl rook-ceph debug start rook-ceph-mon-b
   ```
 
-* Stop the debug pod for mon b
+- Stop the debug pod for mon b
+
   ```console
     kubectl rook-ceph debug stop rook-ceph-mon-b
   ```
