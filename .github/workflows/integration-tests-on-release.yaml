@@ -25,13 +25,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
-
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -73,13 +66,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
-
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -120,13 +106,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
-
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -166,13 +145,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
-
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -211,13 +183,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
@@ -260,13 +225,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          # this might remove tools that are actually needed,
-          # if set to "true" but frees about 6 GB
-          tool-cache: true
 
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
