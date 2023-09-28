@@ -974,6 +974,12 @@ spec:
                       maximum: 65535
                       minimum: 0
                       type: integer
+                    prometheusEndpoint:
+                      description: Endpoint for the Prometheus host
+                      type: string
+                    prometheusEndpointSSLVerify:
+                      description: Whether to verify the ssl endpoint for prometheus. Set to false for a self-signed cert.
+                      type: boolean
                     ssl:
                       description: SSL determines whether SSL should be used
                       type: boolean

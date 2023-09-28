@@ -4982,6 +4982,30 @@ bool
 <p>SSL determines whether SSL should be used</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>prometheusEndpoint</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Endpoint for the Prometheus host</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>prometheusEndpointSSLVerify</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to verify the ssl endpoint for prometheus. Set to false for a self-signed cert.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.Device">Device
