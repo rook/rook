@@ -8,18 +8,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: manually remove gcloud
-      shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: |
-        tests/scripts/github-action-helper.sh remove_gcloud_in_runner
-
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
       with:
         # this might remove tools that are actually needed,
         # if set to "true" but frees about 6 GB
         tool-cache: true
-        large-packages: false
 
     - name: setup golang
       uses: actions/setup-go@v2
