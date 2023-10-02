@@ -61,10 +61,8 @@ func createFilesystem(
 			return errors.Wrapf(err, "failed to create filesystem %q", fs.Name)
 		}
 	}
-	if fs.Spec.MetadataServer.ActiveStandby {
-		if err := cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
-			return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
-		}
+	if err := cephclient.AllowStandbyReplay(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveStandby); err != nil {
+		return errors.Wrapf(err, "failed to set allow_standby_replay to filesystem %q", fs.Name)
 	}
 
 	// set the number of active mds instances
