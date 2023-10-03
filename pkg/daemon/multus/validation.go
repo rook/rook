@@ -113,7 +113,7 @@ func (s *getExpectedNumberOfImagePullPodsState) Run(
 }
 
 /*
- *  Re-usable state to verify that expected number of pods are "Running" but not necessarily "Ready"
+ *  Reusable state to verify that expected number of pods are "Running" but not necessarily "Ready"
  *    > Verify all image pull pods are running
  *        -- next state --> Delete image pull daemonset
  *    > Verify all client pods are running

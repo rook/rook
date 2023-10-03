@@ -154,7 +154,7 @@ jobs:
           kubectl -n rook-ceph exec $toolbox -- ceph auth ls
           # update the existing non-restricted client auth with the new ones
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
-          # print ugraded client auth
+          # print upgraded client auth
           kubectl -n rook-ceph exec $toolbox -- ceph auth ls
 
       - name: test the upgrade flag for restricted auth user
@@ -165,7 +165,7 @@ jobs:
           # restricted auth user need to provide --rbd-data-pool-name,
           #  --cluster-name and --run-as-user flag while upgrading
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
-          # print ugraded client auth
+          # print upgraded client auth
           kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
 
       - name: validate-rgw-endpoint
@@ -276,7 +276,6 @@ jobs:
         with:
           name: canary
 
-
   two-osds-in-device:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -321,7 +320,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary
-
 
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
@@ -374,7 +372,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary
-
 
   encryption:
     runs-on: ubuntu-20.04
@@ -473,7 +470,6 @@ jobs:
         with:
           name: canary
 
-
   pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -546,7 +542,6 @@ jobs:
         with:
           name: pvc
 
-
   pvc-db:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -594,7 +589,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: pvc-db
-
 
   pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -646,7 +640,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: pvc-db-wal
-
 
   encryption-pvc:
     runs-on: ubuntu-20.04
@@ -711,7 +704,6 @@ jobs:
         with:
           name: encryption-pvc
 
-
   encryption-pvc-db:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -761,7 +753,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: encryption-pvc-db
-
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-20.04
@@ -822,7 +813,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: encryption-pvc-db-wal
-
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-20.04
@@ -905,7 +895,6 @@ jobs:
         with:
           name: encryption-pvc-kms-vault-token-auth
 
-
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -967,7 +956,6 @@ jobs:
         with:
           name: encryption-pvc-kms-vault-k8s-auth
 
-
   lvm-pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
@@ -1020,7 +1008,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: lvm-pvc
-
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
@@ -1266,7 +1253,7 @@ jobs:
           # snaps=$(kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror peer status myfs@1 $clusterfsid|jq -r '."/volumes/_nogroup/testsubvolume"."snaps_synced"')
           # echo "snapshots: $snaps"
           # if [ $num_snaps_target = $snaps ]
-          # then echo "Snaphots have synced."
+          # then echo "Snapshots have synced."
           # else echo "Snaps have not synced. NEEDS INVESTIGATION"
           # fi
 
@@ -1275,8 +1262,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: multi-cluster-mirroring
-
-
 
   rgw-multisite-testing:
     runs-on: ubuntu-20.04
@@ -1305,8 +1290,6 @@ jobs:
         with:
           name: rgw-multisite-testing
           path: test
-
-
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-20.04
@@ -1338,8 +1321,6 @@ jobs:
         with:
           name: encryption-pvc-kms-ibm-kp
           path: test
-
-
 
   multus-cluster-network:
     runs-on: ubuntu-20.04
@@ -1418,8 +1399,6 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: canary-multus
-
-
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
