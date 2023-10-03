@@ -189,7 +189,7 @@ kubectl create -f object-multisite-pull-realm.yaml
 ## Scaling a Multisite
 
 Scaling the number of gateways that run the synchronization thread to 2 or more can increase the latency of the
-replication of each S3 object. The recommended way to scale a mutisite configuration is to dissociate the gateway dedicated
+replication of each S3 object. The recommended way to scale a multisite configuration is to dissociate the gateway dedicated
 to the synchronization from gateways that serve clients.
 
 The two types of gateways can be deployed by creating two CephObjectStores associated with the same CephObjectZone. The
