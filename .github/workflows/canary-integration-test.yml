@@ -1303,7 +1303,7 @@ jobs:
           # echo "snapshots: $snaps"
           # if [ $num_snaps_target = $snaps ]
           # then echo "Snapshots have synced."
-          # else echo "Snaps have not synced. NEEDS INVESTIGATION"
+          # else echo "Snapshots have not synced. NEEDS INVESTIGATION"
           # fi
 
       - name: collect common logs
