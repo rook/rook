@@ -58,9 +58,11 @@ except ModuleNotFoundError:
 try:
     # for 2.7.x
     from urlparse import urlparse
+    from urllib import urlencode as urlencode
 except ModuleNotFoundError:
     # for 3.x
     from urllib.parse import urlparse
+    from urllib.parse import urlencode as urlencode
 
 try:
     from base64 import encodestring
@@ -1363,7 +1365,7 @@ class RadosJSON:
         rgw_endpoint = self._arg_parser.rgw_endpoint
         base_url = base_url + "://" + rgw_endpoint + "/admin/info?"
         params = {"format": "json"}
-        request_url = base_url + urllib.parse.urlencode(params)
+        request_url = base_url + urlencode(params)
 
         try:
             r = requests.get(
