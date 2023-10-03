@@ -113,7 +113,7 @@ partprobe $DISK
 ```
 
 Ceph can leave LVM and device mapper data that can lock the disks, preventing the disks from being
-used again. These steps can help to free up old Ceph disks for re-use. Note that this only needs to
+used again. These steps can help to free up old Ceph disks for reuse. Note that this only needs to
 be run once on each node. If you have **only one** Rook cluster and **all** Ceph disks are
 being wiped, run the following command.
 
