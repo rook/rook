@@ -157,7 +157,7 @@ jobs:
           kubectl -n rook-ceph exec $toolbox -- ceph auth ls
           # update the existing non-restricted client auth with the new ones
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
-          # print ugraded client auth
+          # print upgraded client auth
           kubectl -n rook-ceph exec $toolbox -- ceph auth ls
 
       - name: test the upgrade flag for restricted auth user
@@ -168,7 +168,7 @@ jobs:
           # restricted auth user need to provide --rbd-data-pool-name,
           #  --k8s-cluster-name and --run-as-user flag while upgrading
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
-          # print ugraded client auth
+          # print upgraded client auth
           kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
 
       - name: validate-rgw-endpoint
@@ -1286,7 +1286,7 @@ jobs:
           # snaps=$(kubectl -n rook-ceph exec deploy/rook-ceph-fs-mirror -- ceph --admin-daemon /var/run/ceph/$mirror_daemon fs mirror peer status myfs@1 $clusterfsid|jq -r '."/volumes/_nogroup/testsubvolume"."snaps_synced"')
           # echo "snapshots: $snaps"
           # if [ $num_snaps_target = $snaps ]
-          # then echo "Snaphots have synced."
+          # then echo "Snapshots have synced."
           # else echo "Snaps have not synced. NEEDS INVESTIGATION"
           # fi
 
