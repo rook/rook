@@ -302,7 +302,7 @@ func CommitConfigChanges(c *Context) error {
 		return errorOrIsNotFound(err, "failed to get the current RGW configuration period to see if it needs changed")
 	}
 
-	// this stages the current config changees and returns what the new period config will look like
+	// this stages the current config changes and returns what the new period config will look like
 	// without committing the changes
 	stagedPeriod, err := runAdminCommand(c, true, "period", "update")
 	if err != nil {
