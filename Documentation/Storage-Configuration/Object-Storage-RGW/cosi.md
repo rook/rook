@@ -43,33 +43,9 @@ The driver is created in the same namespace as Rook operator.
 
 ## Admin Operations
 
-### Create a Ceph Object Store User
-
-Create a CephObjectStoreUser to be used by the COSI driver for provisioning buckets.
-
-```yaml
-apiVersion: ceph.rook.io/v1
-kind: CephObjectStoreUser
-metadata:
-  name: cosi
-  namespace: rook-ceph
-spec:
-  displayName: "cosi user"
-  store: my-store
-  capabilities:
-    bucket: "*"
-    user: "*"
-```
-
-```console
-kubectl create -f cosi-user.yaml
-```
-
-Above step will be automated in future by the Rook operator.
-
 ### Create a BucketClass and BucketAccessClass
 
-The BucketClass and BucketAccessClass are CRDs defined by COSI. The BucketClass defines the storage class for the bucket. The BucketAccessClass defines the access class for the bucket. The BucketClass and BucketAccessClass are defined as below:
+The BucketClass and BucketAccessClass are CRDs defined by COSI. The BucketClass defines the storage class for the bucket. The BucketAccessClass defines the access class for the bucket. Rook will automatically create a secret named with `rook-ceph-object-user-<store-name>-cosi` which contains credentials used by the COSI driver. This secret is referred by the BucketClass and BucketAccessClass as defined below:
 
 ```yaml
 kind: BucketClass
@@ -96,8 +72,6 @@ parameters:
 ```console
 kubectl create -f bucketclass.yaml -f bucketaccessclass.yaml
 ```
-
-The `objectStoreUserSecretName` and `objectStoreUserSecretNamespace` are the name and namespace of the CephObjectStoreUser created in the previous step.
 
 ## User Operations
 

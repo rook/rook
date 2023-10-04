@@ -17,13 +17,23 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"syscall"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 const (
@@ -225,4 +235,54 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 	}
 
 	return result, errors.Wrapf(err, "failed to delete s3 user uid=%q", id)
+}
+
+func GenerateCephUserSecretName(store, username string) string {
+	return fmt.Sprintf("rook-ceph-object-user-%s-%s", store, username)
+}
+
+func generateCephUserSecret(userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) *corev1.Secret {
+	secretName := GenerateCephUserSecretName(storeName, userConfig.ID)
+	// Store the keys in a secret
+	secrets := map[string]string{
+		"AccessKey": userConfig.Keys[0].AccessKey,
+		"SecretKey": userConfig.Keys[0].SecretKey,
+		"Endpoint":  endpoint,
+	}
+	if tlsSecretName != "" {
+		secrets["SSLCertSecretName"] = tlsSecretName
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":               AppName,
+				"user":              userConfig.ID,
+				"rook_cluster":      namespace,
+				"rook_object_store": storeName,
+			},
+		},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	return secret
+}
+
+func ReconcileCephUserSecret(ctx context.Context, k8sclient client.Client, scheme *runtime.Scheme, ownerRef metav1.Object, userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) (reconcile.Result, error) {
+	// Generate Kubernetes Secret
+	secret := generateCephUserSecret(userConfig, endpoint, namespace, storeName, tlsSecretName)
+
+	// Set owner ref to the object store user object
+	err := controllerutil.SetControllerReference(ownerRef, secret, scheme)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
+	}
+
+	// Create Kubernetes Secret
+	err = opcontroller.CreateOrUpdateObject(ctx, k8sclient, secret)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
+	}
+	return reconcile.Result{}, nil
 }

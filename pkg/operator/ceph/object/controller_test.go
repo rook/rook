@@ -18,7 +18,10 @@ limitations under the License.
 package object
 
 import (
+	"bytes"
 	"context"
+	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"testing"
@@ -26,6 +29,7 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
+	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -320,6 +324,35 @@ var (
 	store     = "my-store"
 )
 
+var mockMultisiteAdminOpsCtxFunc = func(objContext *Context, spec *cephv1.ObjectStoreSpec) (*AdminOpsContext, error) {
+	mockClient := &MockClient{
+		MockDo: func(req *http.Request) (*http.Response, error) {
+			if req.Method == http.MethodGet || req.Method == http.MethodPut {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(userCreateJSON))),
+				}, nil
+			}
+			if req.Method == http.MethodDelete {
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(bytes.NewReader([]byte(""))),
+				}, nil
+			}
+			return nil, errors.Errorf("unexpected method %q", req.Method)
+		},
+	}
+	context := NewContext(objContext.Context, objContext.clusterInfo, store)
+	adminClient, _ := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient)
+
+	return &AdminOpsContext{
+		Context:               *context,
+		AdminOpsUserAccessKey: "EOE7FYCNOBZJ5VFV909G",
+		AdminOpsUserSecretKey: "qmIqpWm8HxCzmynCrD6U6vKWi4hnDBndOnmxXNsV",
+		AdminOpsClient:        adminClient,
+	}, nil
+}
+
 func TestCephObjectStoreController(t *testing.T) {
 	ctx := context.TODO()
 	// Set DEBUG logging
@@ -335,6 +368,13 @@ func TestCephObjectStoreController(t *testing.T) {
 		calledCommitConfigChanges = true
 		return nil
 	}
+
+	// overwrite adminops context func
+	oldNewMultisiteAdminOpsCtxFunc := newMultisiteAdminOpsCtxFunc
+	newMultisiteAdminOpsCtxFunc = mockMultisiteAdminOpsCtxFunc
+	defer func() {
+		newMultisiteAdminOpsCtxFunc = oldNewMultisiteAdminOpsCtxFunc
+	}()
 
 	setupNewEnvironment := func(additionalObjects ...runtime.Object) *ReconcileCephObjectStore {
 		// reset var we use to check if we have called to commit config changes
@@ -377,9 +417,11 @@ func TestCephObjectStoreController(t *testing.T) {
 		s := scheme.Scheme
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+		s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
 
 		// Create a fake client to mock API calls.
 		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+
 		// Create a ReconcileCephObjectStore object with the scheme and fake client.
 		r := &ReconcileCephObjectStore{
 			client:           cl,
@@ -688,7 +730,12 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 
 	commitConfigChangesOrig := commitConfigChanges
 	defer func() { commitConfigChanges = commitConfigChangesOrig }()
-
+	// overwrite adminops context func
+	oldNewMultisiteAdminOpsCtxFunc := newMultisiteAdminOpsCtxFunc
+	newMultisiteAdminOpsCtxFunc = mockMultisiteAdminOpsCtxFunc
+	defer func() {
+		newMultisiteAdminOpsCtxFunc = oldNewMultisiteAdminOpsCtxFunc
+	}()
 	// make sure joining multisite calls to commit config changes
 	calledCommitConfigChanges := false
 	commitConfigChanges = func(c *Context) error {
@@ -711,7 +758,7 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZone{}, &cephv1.CephObjectZoneList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectStore{}, &cephv1.CephObjectStoreList{})
-
+	s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
@@ -915,6 +962,13 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			externalObjectStore,
 			rgwAdminOpsUserSecret,
 		}
+
+		// overwrite adminops context func
+		oldNewMultisiteAdminOpsCtxFunc := newMultisiteAdminOpsCtxFunc
+		newMultisiteAdminOpsCtxFunc = mockMultisiteAdminOpsCtxFunc
+		defer func() {
+			newMultisiteAdminOpsCtxFunc = oldNewMultisiteAdminOpsCtxFunc
+		}()
 
 		r := getReconciler(objects)
 
