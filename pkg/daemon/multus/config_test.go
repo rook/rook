@@ -17,6 +17,8 @@ limitations under the License.
 package multus
 
 import (
+	_ "embed"
+	"reflect"
 	"testing"
 	"time"
 
@@ -34,8 +36,51 @@ func TestValidationTestConfig_YAML(t *testing.T) {
 		{"empty config", emptyValidationTestConfig},
 		{"default config", NewDefaultValidationTestConfig()},
 		{"full config", &ValidationTestConfig{
-			Namespace: "my-rook", PublicNetwork: "my-pub", ClusterNetwork: "my-priv",
-			DaemonsPerNode: 12, ResourceTimeout: 2 * time.Minute, NginxImage: "myorg/nginx:latest",
+			Namespace:       "my-rook",
+			PublicNetwork:   "my-pub",
+			ClusterNetwork:  "my-priv",
+			ResourceTimeout: 2 * time.Minute,
+			NginxImage:      "myorg/nginx:latest",
+			NodeTypes: map[string]NodeConfig{
+				"osdOnlyNodes": {
+					OSDsPerNode:         9,
+					OtherDaemonsPerNode: 0,
+					Placement: PlacementConfig{
+						NodeSelector: map[string]string{
+							"osd-node":     "true",
+							"storage-node": "true",
+						},
+						Tolerations: []TolerationType{
+							{Key: "storage-node", Operator: "Exists", Effect: "NoSchedule"},
+							{Key: "osd-node", Operator: "Exists", Effect: "NoSchedule"},
+						},
+					},
+				},
+				"generalStorageNodes": {
+					OSDsPerNode:         3,
+					OtherDaemonsPerNode: 16,
+					Placement: PlacementConfig{
+						NodeSelector: map[string]string{
+							"storage-node": "true",
+						},
+						Tolerations: []TolerationType{
+							{Key: "storage-node", Operator: "Exists", Effect: "NoSchedule"},
+						},
+					},
+				},
+				"workerNodes": {
+					OSDsPerNode:         0,
+					OtherDaemonsPerNode: 6,
+					Placement: PlacementConfig{
+						NodeSelector: map[string]string{
+							"worker-node": "true",
+						},
+						Tolerations: []TolerationType{
+							{Key: "special-worker", Operator: "Exists"},
+						},
+					},
+				},
+			},
 		}},
 	}
 	for _, tt := range tests {
@@ -50,6 +95,64 @@ func TestValidationTestConfig_YAML(t *testing.T) {
 
 			// config survives round trip to and from yaml
 			assert.Equal(t, tt.config, c2)
+		})
+	}
+}
+
+func TestValidationTestConfig_BestNodePlacementForServer(t *testing.T) {
+	convergedType := NodeConfig{
+		OSDsPerNode:         3,
+		OtherDaemonsPerNode: 10,
+		Placement: PlacementConfig{
+			NodeSelector: map[string]string{"converged": "type"},
+		},
+	}
+	osdType := NodeConfig{
+		OSDsPerNode:         3,
+		OtherDaemonsPerNode: 0,
+		Placement: PlacementConfig{
+			NodeSelector: map[string]string{"osd": "type"},
+		},
+	}
+	workerType := NodeConfig{
+		OSDsPerNode:         0,
+		OtherDaemonsPerNode: 4,
+		Placement: PlacementConfig{
+			NodeSelector: map[string]string{"worker": "type"},
+		},
+	}
+
+	tests := []struct {
+		name      string
+		NodeTypes map[string]NodeConfig
+		want      PlacementConfig
+		wantErr   bool
+	}{
+		{"empty", map[string]NodeConfig{}, PlacementConfig{}, true},
+		{"converged", map[string]NodeConfig{"converged": convergedType}, convergedType.Placement, false},
+		{"worker", map[string]NodeConfig{"worker": workerType}, PlacementConfig{}, true},
+		{"worker and osd", map[string]NodeConfig{
+			"worker": workerType,
+			"osd":    osdType,
+		}, osdType.Placement, false},
+		{"converged and osd", map[string]NodeConfig{
+			"converged": convergedType,
+			"osd":       osdType,
+		}, convergedType.Placement, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &ValidationTestConfig{
+				NodeTypes: tt.NodeTypes,
+			}
+			got, err := c.BestNodePlacementForServer()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidationTestConfig.BestNodePlacementForServer() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ValidationTestConfig.BestNodePlacementForServer() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

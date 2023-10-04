@@ -1,11 +1,12 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: multus-validation-test-image-pull
+  name: multus-validation-test-image-pull-{{ .NodeType }}
   labels:
     app: multus-validation-test-image-pull
+    nodeType: "{{ .NodeType }}"
     app.kubernetes.io/name: "image-puller"
-    app.kubernetes.io/instance: "image-puller"
+    app.kubernetes.io/instance: "image-puller-{{ .NodeType }}"
     app.kubernetes.io/component: "image-puller"
     app.kubernetes.io/part-of: "multus-validation-test"
     app.kubernetes.io/managed-by: "rook-cli"
@@ -13,12 +14,21 @@ spec:
   selector:
     matchLabels:
       app: multus-validation-test-image-pull
+      nodeType: "{{ .NodeType }}"
   template:
     metadata:
       labels:
         app: multus-validation-test-image-pull
+        nodeType: "{{ .NodeType }}"
     spec:
-      # TODO: selectors, affinities, tolerations
+      nodeSelector:
+      {{- range $k, $v := .Placement.NodeSelector }}
+        {{ $k }}: {{ $v }}
+      {{- end }}
+      tolerations:
+      {{- range $idx, $toleration := .Placement.Tolerations }}
+        - {{ $toleration.ToJSON }}
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         seccompProfile:

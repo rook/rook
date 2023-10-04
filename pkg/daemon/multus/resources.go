@@ -81,7 +81,13 @@ func (vt *ValidationTest) createOwningConfigMap(ctx context.Context) ([]meta.Own
 }
 
 func (vt *ValidationTest) startWebServer(ctx context.Context, owners []meta.OwnerReference) error {
-	pod, err := vt.generateWebServerPod()
+	placement, err := vt.BestNodePlacementForServer()
+	if err != nil {
+		return fmt.Errorf("failed to place web server pod: %w", err)
+	}
+
+	// infer good placement for web server pod from the node type with the most OSDs
+	pod, err := vt.generateWebServerPod(placement)
 	if err != nil {
 		return fmt.Errorf("failed to generate web server pod: %w", err)
 	}
@@ -135,15 +141,17 @@ func (vt *ValidationTest) getWebServerInfo(
 }
 
 func (vt *ValidationTest) startImagePullers(ctx context.Context, owners []meta.OwnerReference) error {
-	ds, err := vt.generateImagePullDaemonSet()
-	if err != nil {
-		return fmt.Errorf("failed to generate image pull daemonset: %w", err)
-	}
-	ds.SetOwnerReferences(owners) // set owner so cleanup is easier
+	for typeName, nodeType := range vt.NodeTypes {
+		ds, err := vt.generateImagePullDaemonSet(typeName, nodeType.Placement)
+		if err != nil {
+			return fmt.Errorf("failed to generate image pull daemonset: %w", err)
+		}
+		ds.SetOwnerReferences(owners) // set owner so cleanup is easier
 
-	_, err = vt.Clientset.AppsV1().DaemonSets(vt.Namespace).Create(ctx, ds, meta.CreateOptions{})
-	if err != nil {
-		return fmt.Errorf("failed to create image pull daemonset: %w", err)
+		_, err = vt.Clientset.AppsV1().DaemonSets(vt.Namespace).Create(ctx, ds, meta.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create image pull daemonset: %w", err)
+		}
 	}
 
 	return nil
@@ -172,59 +180,142 @@ func (vt *ValidationTest) startClients(
 	ctx context.Context,
 	owners []meta.OwnerReference,
 	serverPublicAddr, serverClusterAddr string,
-) error {
-	for i := 0; i < vt.DaemonsPerNode; i++ {
-		ds, err := vt.generateClientDaemonSet(i, serverPublicAddr, serverClusterAddr)
+	nodeType string,
+) (int, error) {
+	numDaemonsetsCreated := 0
+
+	nodeConfig := vt.NodeTypes[nodeType]
+
+	// start clients that simulate OSDs (connected to both public and cluster nets)
+	osdsPerNode := nodeConfig.OSDsPerNode
+	vt.Logger.Infof("starting %d %s validation clients for node type %q", osdsPerNode, ClientTypeOSD, nodeType)
+	for i := 0; i < osdsPerNode; i++ {
+		attachToClusterNet := true
+		ds, err := vt.generateClientDaemonSet(true, attachToClusterNet, serverPublicAddr, serverClusterAddr, nodeType, ClientTypeOSD, i, nodeConfig.Placement)
 		if err != nil {
-			return fmt.Errorf("failed to generate client daemonset for client #%d: %w", i, err)
+			return numDaemonsetsCreated, fmt.Errorf("failed to generate client daemonset for node type %q, client type %q, client #%d: %w", nodeType, ClientTypeOSD, i, err)
 		}
 		ds.SetOwnerReferences(owners) // set owner refs so cleanup is easier
 
 		_, err = vt.Clientset.AppsV1().DaemonSets(vt.Namespace).Create(ctx, ds, meta.CreateOptions{})
 		if err != nil {
-			return fmt.Errorf("failed to create client daemonset for client #%d: %w", i, err)
+			return numDaemonsetsCreated, fmt.Errorf("failed to create client daemonset for node type %q, client type %q, client #%d: %w", nodeType, ClientTypeOSD, i, err)
 		}
+		numDaemonsetsCreated++
+	}
+
+	// start clients that simulate non-OSD daemons (connected only to public net)
+	if serverPublicAddr == "" {
+		return numDaemonsetsCreated, nil // no public net; thus, no public-net-only clients to run
+	}
+	otherPerNode := nodeConfig.OtherDaemonsPerNode
+	vt.Logger.Infof("starting %d %s (non-OSD) validation clients for node type %q", otherPerNode, ClientTypeNonOSD, nodeType)
+	for i := 0; i < otherPerNode; i++ {
+		attachToClusterNet := false
+		ds, err := vt.generateClientDaemonSet(true, attachToClusterNet, serverPublicAddr, serverClusterAddr, nodeType, ClientTypeNonOSD, i, nodeConfig.Placement)
+		if err != nil {
+			return numDaemonsetsCreated, fmt.Errorf("failed to generate client daemonset for node type %q, client type %q, client #%d: %w", nodeType, ClientTypeNonOSD, i, err)
+		}
+		ds.SetOwnerReferences(owners) // set owner refs so cleanup is easier
+
+		_, err = vt.Clientset.AppsV1().DaemonSets(vt.Namespace).Create(ctx, ds, meta.CreateOptions{})
+		if err != nil {
+			return numDaemonsetsCreated, fmt.Errorf("failed to create client daemonset for node type %q, client type %q, client #%d: %w", nodeType, ClientTypeNonOSD, i, err)
+		}
+		numDaemonsetsCreated++
+	}
+
+	return numDaemonsetsCreated, nil
+}
+
+type perNodeTypeCount map[string]int
+
+func (a *perNodeTypeCount) Increment(nodeType string) {
+	current, ok := (*a)[nodeType]
+	if !ok {
+		current = 0
+	}
+	(*a)[nodeType] = current + 1
+}
+
+func (a *perNodeTypeCount) Total() int {
+	t := 0
+	for _, c := range *a {
+		t += c
+	}
+	return t
+}
+
+func (a *perNodeTypeCount) Equal(b *perNodeTypeCount) bool {
+	if len(*a) != len(*b) {
+		return false
+	}
+	for nodeType, numA := range *a {
+		numB, ok := (*b)[nodeType]
+		if !ok {
+			return false
+		}
+		if numA != numB {
+			return false
+		}
+	}
+	return true
+}
+
+func (vt *ValidationTest) getImagePullPodCountPerNodeType(
+	ctx context.Context,
+) (perNodeTypeCount, error) {
+	emptyCount := perNodeTypeCount{}
+	listOpts := meta.ListOptions{
+		LabelSelector: imagePullAppLabel(),
+	}
+	dsets, err := vt.Clientset.AppsV1().DaemonSets(vt.Namespace).List(ctx, listOpts)
+	if err != nil {
+		return emptyCount, fmt.Errorf("unexpected error listing daemonsets: %w", err)
+	}
+	expectedNumDaemonsets := len(vt.NodeTypes)
+	if len(dsets.Items) != expectedNumDaemonsets {
+		return emptyCount, fmt.Errorf("got %d daemonsets when %d should exist", len(dsets.Items), expectedNumDaemonsets)
+	}
+
+	numsScheduled := perNodeTypeCount{}
+	for _, d := range dsets.Items {
+		nodeType := getNodeType(&d.ObjectMeta)
+		numScheduled := d.Status.CurrentNumberScheduled
+		if numScheduled == 0 {
+			return emptyCount, fmt.Errorf("image pull daemonset for node type %q expects zero scheduled pods", nodeType)
+		}
+		numsScheduled[nodeType] = int(numScheduled)
+	}
+
+	return numsScheduled, nil
+}
+
+func (vt *ValidationTest) ensureOneImagePullPodPerNode(ctx context.Context) error {
+	listOpts := meta.ListOptions{
+		LabelSelector: imagePullAppLabel(),
+	}
+	pods, err := vt.Clientset.CoreV1().Pods(vt.Namespace).List(ctx, listOpts)
+	if err != nil {
+		return fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	nodesFound := map[string]string{}
+	for _, p := range pods.Items {
+		nodeName := p.Spec.NodeName
+		nodeType := p.GetLabels()["nodeType"]
+		if otherNodeType, ok := nodesFound[nodeName]; ok {
+			return fmt.Errorf("node types must not overlap: node type %q has overlap with node type %q", nodeType, otherNodeType)
+		}
+		nodesFound[nodeName] = nodeType
 	}
 
 	return nil
 }
 
-func (vt *ValidationTest) getExpectedNumberOfDaemonSetPods(
-	ctx context.Context,
-	daemonsetSelectorLabel string,
-	expectedNumDaemonsets int,
-) (int, error) {
-	var agreedNumberScheduled int32
-	listOpts := meta.ListOptions{
-		LabelSelector: daemonsetSelectorLabel,
-	}
-	dsets, err := vt.Clientset.AppsV1().DaemonSets(vt.Namespace).List(ctx, listOpts)
-	if err != nil {
-		return 0, fmt.Errorf("unexpected error listing daemonsets: %w", err)
-	}
-	if len(dsets.Items) != expectedNumDaemonsets {
-		return 0, fmt.Errorf("got %d daemonsets when %d should exist", len(dsets.Items), expectedNumDaemonsets)
-	}
-
-	for _, d := range dsets.Items {
-		numScheduled := d.Status.CurrentNumberScheduled
-		if numScheduled == 0 {
-			return 0, fmt.Errorf("a daemonset expects zero scheduled pods")
-		}
-		if agreedNumberScheduled == 0 {
-			agreedNumberScheduled = numScheduled
-		} else if numScheduled != agreedNumberScheduled {
-			return 0, fmt.Errorf("daemonsets do not all agree on the number of expected pods")
-		}
-	}
-
-	return int(agreedNumberScheduled) * expectedNumDaemonsets, nil
-}
-
 func (vt *ValidationTest) getNumRunningPods(
 	ctx context.Context,
 	podSelectorLabel string,
-	expectedNumTotalPods int,
 ) (int, error) {
 	listOpts := meta.ListOptions{
 		LabelSelector: podSelectorLabel,
@@ -232,9 +323,6 @@ func (vt *ValidationTest) getNumRunningPods(
 	pods, err := vt.Clientset.CoreV1().Pods(vt.Namespace).List(ctx, listOpts)
 	if err != nil {
 		return 0, fmt.Errorf("failed to list pods: %w", err)
-	}
-	if len(pods.Items) != expectedNumTotalPods {
-		return 0, fmt.Errorf("got %d pods when %d should exist", len(pods.Items), expectedNumTotalPods)
 	}
 
 	numRunning := 0
