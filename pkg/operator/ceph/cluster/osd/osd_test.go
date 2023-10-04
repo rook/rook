@@ -27,7 +27,6 @@ import (
 	fakeclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclientfake "github.com/rook/rook/pkg/daemon/ceph/client/fake"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
@@ -35,7 +34,6 @@ import (
 	opconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/test"
 	testexec "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -177,7 +175,7 @@ func TestAddRemoveNode(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	t.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 
-	test.AddReadyNode(t, clientset, nodeName, "23.23.23.23")
+	testexec.AddReadyNode(t, clientset, nodeName, "23.23.23.23")
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
 	assert.Nil(t, cmErr)
 
@@ -872,7 +870,7 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 
 func TestUpdateCephStorageStatus(t *testing.T) {
 	ctx := context.TODO()
-	clusterInfo := client.AdminTestClusterInfo("fake")
+	clusterInfo := cephclient.AdminTestClusterInfo("fake")
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)

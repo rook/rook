@@ -32,7 +32,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/sys"
@@ -600,7 +599,7 @@ func getVolumeGroupName(lvPath string) string {
 }
 
 // GetOSDInfoById returns the osdInfo using the ceph volume list
-func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (*osd.OSDInfo, error) {
+func GetOSDInfoById(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int) (*oposd.OSDInfo, error) {
 	// LVM mode OSDs
 	osdLVMList, err := GetCephVolumeLVMOSDs(context, clusterInfo, clusterInfo.FSID, "", false, false)
 	if err != nil {

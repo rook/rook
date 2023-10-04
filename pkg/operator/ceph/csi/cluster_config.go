@@ -26,7 +26,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -108,10 +107,10 @@ func MonEndpoints(mons map[string]*cephclient.MonInfo, requireMsgr2 bool) []stri
 		endpoint := m.Endpoint
 		if requireMsgr2 {
 			logger.Debugf("evaluating mon %q for msgr1 on endpoint %q", m.Name, m.Endpoint)
-			msgr1Suffix := fmt.Sprintf(":%d", client.Msgr1port)
+			msgr1Suffix := fmt.Sprintf(":%d", cephclient.Msgr1port)
 			if strings.HasSuffix(m.Endpoint, msgr1Suffix) {
 				address := m.Endpoint[0:strings.LastIndex(m.Endpoint, msgr1Suffix)]
-				endpoint = fmt.Sprintf("%s:%d", address, client.Msgr2port)
+				endpoint = fmt.Sprintf("%s:%d", address, cephclient.Msgr2port)
 				logger.Debugf("mon %q will use the msgrv2 port: %q", m.Name, endpoint)
 			}
 		}

@@ -28,7 +28,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
@@ -131,7 +130,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 				logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)
 			}
 		}
-		if pvcName, ok := deployment.GetLabels()[osd.OSDOverPVCLabelKey]; ok {
+		if pvcName, ok := deployment.GetLabels()[oposd.OSDOverPVCLabelKey]; ok {
 			removeOSDPrepareJob(clusterdContext, clusterInfo, pvcName)
 			removePVCs(clusterdContext, clusterInfo, pvcName, preservePVC)
 		} else {
@@ -164,7 +163,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 }
 
 func removeOSDPrepareJob(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, pvcName string) {
-	labelSelector := fmt.Sprintf("%s=%s", osd.OSDOverPVCLabelKey, pvcName)
+	labelSelector := fmt.Sprintf("%s=%s", oposd.OSDOverPVCLabelKey, pvcName)
 	prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(clusterInfo.Context, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil && !kerrors.IsNotFound(err) {
 		logger.Errorf("failed to list osd prepare jobs with pvc %q. %v ", pvcName, err)
@@ -188,10 +187,10 @@ func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterIn
 		return
 	}
 	labels := dataPVC.GetLabels()
-	deviceSet := labels[osd.CephDeviceSetLabelKey]
-	setIndex := labels[osd.CephSetIndexLabelKey]
+	deviceSet := labels[oposd.CephDeviceSetLabelKey]
+	setIndex := labels[oposd.CephSetIndexLabelKey]
 
-	labelSelector := fmt.Sprintf("%s=%s,%s=%s", osd.CephDeviceSetLabelKey, deviceSet, osd.CephSetIndexLabelKey, setIndex)
+	labelSelector := fmt.Sprintf("%s=%s,%s=%s", oposd.CephDeviceSetLabelKey, deviceSet, oposd.CephSetIndexLabelKey, setIndex)
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
 	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(clusterInfo.Context, listOptions)
 	if err != nil {
@@ -204,10 +203,10 @@ func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterIn
 		if preservePVC {
 			// Detach the OSD PVC from Rook. We will continue OSD deletion even if failed to remove PVC label
 			logger.Infof("detach the OSD PVC %q from Rook", pvc.Name)
-			delete(labels, osd.CephDeviceSetPVCIDLabelKey)
+			delete(labels, oposd.CephDeviceSetPVCIDLabelKey)
 			pvc.SetLabels(labels)
 			if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(clusterInfo.Context, &pvcs.Items[i], metav1.UpdateOptions{}); err != nil {
-				logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", osd.CephDeviceSetPVCIDLabelKey, pvc.Name, err)
+				logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", oposd.CephDeviceSetPVCIDLabelKey, pvc.Name, err)
 			}
 		} else {
 			// Remove the OSD PVC
@@ -249,7 +248,7 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 }
 
 // DestroyOSD fetches the OSD to be replaced based on the ID and then destroys that OSD and zaps the backing device
-func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC, isEncrypted bool) (*osd.OSDReplaceInfo, error) {
+func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC, isEncrypted bool) (*oposd.OSDReplaceInfo, error) {
 	var block string
 	osdInfo, err := GetOSDInfoById(context, clusterInfo, id)
 	if err != nil {
@@ -293,5 +292,5 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	logger.Infof("%s\n", output)
 	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, block)
 
-	return &osd.OSDReplaceInfo{ID: osdInfo.ID, Path: block}, nil
+	return &oposd.OSDReplaceInfo{ID: osdInfo.ID, Path: block}, nil
 }

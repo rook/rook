@@ -25,7 +25,6 @@ import (
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -78,7 +77,7 @@ func GetOperatorSetting(context context.Context, clientset kubernetes.Interface,
 	namespace := os.Getenv(PodNamespaceEnvVar)
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(context, configMapName, metav1.GetOptions{})
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			if settingValue, ok := os.LookupEnv(settingName); ok {
 				logger.Infof("%s=%q (env var)", settingName, settingValue)
 				return settingValue, nil

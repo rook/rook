@@ -20,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner"
 	"github.com/pkg/errors"
@@ -93,7 +92,7 @@ func MaxSizeQuota(AdditionalConfig map[string]string) string {
 	return AdditionalConfig["maxSize"]
 }
 
-func GetObjectStoreNameFromBucket(ob *v1alpha1.ObjectBucket) (types.NamespacedName, error) {
+func GetObjectStoreNameFromBucket(ob *bktv1alpha1.ObjectBucket) (types.NamespacedName, error) {
 	// Rook v1.11 OBCs have additional state labels that tell the object store namespace and name.
 	// This is critical for CephObjectStores in external mode that connect to RGW endpoints directly
 	// which don't have a deterministic domain structure.

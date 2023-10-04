@@ -24,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
-	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	bktv1alpha1 "github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -63,7 +62,7 @@ func NewProvisioner(context *clusterd.Context, clusterInfo *client.ClusterInfo) 
 	return &Provisioner{context: context, clusterInfo: clusterInfo}
 }
 
-func (p Provisioner) GenerateUserID(obc *v1alpha1.ObjectBucketClaim, ob *v1alpha1.ObjectBucket) (string, error) {
+func (p Provisioner) GenerateUserID(obc *bktv1alpha1.ObjectBucketClaim, ob *bktv1alpha1.ObjectBucket) (string, error) {
 	if ob != nil {
 		return getCephUser(ob), nil
 	}
