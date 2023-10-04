@@ -74,23 +74,38 @@ const (
 
 const (
 	cephOSDStart = `
+RESTART_INTERVAL=%d
+
+child_pid=""
+sigterm_received=false
+
 function sigterm() {
 	echo "SIGTERM received"
-	exit
+	sigterm_received=true
+	# kill the child process if its still running
+	kill -TERM "$child_pid"
 }
 
 trap sigterm SIGTERM
 
-%s %s & wait
+%s %s &
+child_pid="$!"
+wait "$child_pid" # wait returns the same return code of child process when called with argument
+wait "$child_pid" # first wait returns immediately upon SIGTERM, so wait again for child to actually stop; this is a noop if child exited normally
+osd_rc=$?
 
-RESTART_INTERVAL=%d
-rc=$?
-if [ $rc -eq 0 ]; then
+echo "osd process exit code: ${osd_rc}"
+echo "sigterm received: $sigterm_received"
+if [ $osd_rc -eq 0 ] && ! $sigterm_received; then
 	touch /tmp/osd-sleep
 	echo "OSD daemon exited with code 0, possibly due to OSD flapping. The OSD pod will sleep for $RESTART_INTERVAL hours. Restart the pod manually once the flapping issue is fixed"
-	sleep "$RESTART_INTERVAL"h & wait
-	exit $rc
-fi`
+	sleep "$RESTART_INTERVAL"h &
+	child_pid="$!"
+	wait "$child_pid"
+	wait "$child_pid" # wait again for sleep to stop
+fi
+exit $osd_rc
+`
 
 	activateOSDOnNodeCode = `
 set -o errexit
@@ -1427,6 +1442,6 @@ func osdStartScript(cmd, args []string, interval int) []string {
 		"/bin/bash",
 		"-c",
 		"-x",
-		fmt.Sprintf(cephOSDStart, strings.Join(cmd, " "), strings.Join(args, " "), osdRestartInterval),
+		fmt.Sprintf(cephOSDStart, osdRestartInterval, strings.Join(cmd, " "), strings.Join(args, " ")),
 	}
 }
