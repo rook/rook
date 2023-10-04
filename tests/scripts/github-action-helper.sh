@@ -679,26 +679,6 @@ function test_csi_nfs_workload {
   kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
 }
 
-function remove_gcloud_in_runner() {
-  gcloud_sdk_root=$(gcloud info --format='value(installation.sdk_root)')
-  gcloud_global_config=$(gcloud info --format='value(config.paths.global_config_dir)')
-
-  echo "will remove directory : $gcloud_sdk_root"
-  echo "will remove directory : $gcloud_global_config"
-
-  sudo rm -fr "$gcloud_sdk_root"
-  sudo rm -fr "$gcloud_global_config"
-
-  sudo apt-get remove -y '^dotnet-.*'
-  sudo apt-get remove -y '^llvm-.*'
-  sudo apt-get remove -y 'php.*'
-  sudo apt-get remove -y '^mongodb-.*'
-  sudo apt-get remove -y '^mysql-.*'
-  sudo apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri
-  sudo apt-get autoremove -y
-  sudo apt-get clean
-}
-
 function install_minikube_with_none_driver() {
   CRICTL_VERSION="v1.28.0"
   MINIKUBE_VERSION="v1.31.2"
