@@ -28,14 +28,14 @@ jobs:
   crds-gen:
     runs-on: ubuntu-20.04
     steps:
-      - uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
-
       - name: checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - uses: actions/setup-go@v4
+        with:
+          go-version: "1.21"
 
       - name: run crds-gen
         run: GOPATH=$(go env GOPATH) make crds
