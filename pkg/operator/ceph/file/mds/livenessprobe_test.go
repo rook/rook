@@ -40,19 +40,19 @@ bash "${@}"
 `
 
 var (
-	//go:embed mdsLivenessProbeTestsFiles/0FS.json
+	//go:embed test/0FS.json
 	testJsonData0FS string
-	//go:embed mdsLivenessProbeTestsFiles/0FS-2MDS.json
+	//go:embed test/0FS-2MDS.json
 	testJsonData0FS2MDS string
-	//go:embed mdsLivenessProbeTestsFiles/1FS-2MDS.json
+	//go:embed test/1FS-2MDS.json
 	testJsonData1FS2MDS string
-	//go:embed mdsLivenessProbeTestsFiles/2FS-(0,0)MDS.json
+	//go:embed test/2FS-(0,0)MDS.json
 	testJsonData2FS00MDS string
-	//go:embed mdsLivenessProbeTestsFiles/2FS-(0,2)MDS.json
+	//go:embed test/2FS-(0,2)MDS.json
 	testJsonData2FS02MDS string
-	//go:embed mdsLivenessProbeTestsFiles/2FS-(1,2)MDS.json
+	//go:embed test/2FS-(1,2)MDS.json
 	testJsonData2FS12MDS string
-	//go:embed mdsLivenessProbeTestsFiles/2FS-(2,2)MDS.json
+	//go:embed test/2FS-(2,2)MDS.json
 	testJsonData2FS22MDS string
 )
 
