@@ -24,5 +24,5 @@ import (
 
 func TestCephCrashCollectorKeyringCaps(t *testing.T) {
 	caps := cephCrashCollectorKeyringCaps()
-	assert.Equal(t, caps, []string{"mon", "allow profile crash", "mgr", "allow rw"})
+	assert.Equal(t, caps, []string{"mon", "allow profile crash", "mgr", "allow profile crash"})
 }
