@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -62,36 +61,16 @@ const (
 	// DmcryptMetadataType is a portion of the device mapper name for the encrypted OSD on PVC block
 	DmcryptMetadataType = "db-dmcrypt"
 	// DmcryptWalType is a portion of the device mapper name for the encrypted OSD on PVC wal
-	DmcryptWalType            = "wal-dmcrypt"
-	bluestoreBlockName        = "block"
-	bluestoreMetadataName     = "block.db"
-	bluestoreWalName          = "block.wal"
-	tempEtcCephDir            = "/etc/temp-ceph"
-	osdPortv1                 = 6801
-	osdPortv2                 = 6800
-	defaultOSDRestartInterval = 24
+	DmcryptWalType        = "wal-dmcrypt"
+	bluestoreBlockName    = "block"
+	bluestoreMetadataName = "block.db"
+	bluestoreWalName      = "block.wal"
+	tempEtcCephDir        = "/etc/temp-ceph"
+	osdPortv1             = 6801
+	osdPortv2             = 6800
 )
 
 const (
-	cephOSDStart = `
-function sigterm() {
-	echo "SIGTERM received"
-	exit
-}
-
-trap sigterm SIGTERM
-
-%s %s & wait
-
-RESTART_INTERVAL=%d
-rc=$?
-if [ $rc -eq 0 ]; then
-	touch /tmp/osd-sleep
-	echo "OSD daemon exited with code 0, possibly due to OSD flapping. The OSD pod will sleep for $RESTART_INTERVAL hours. Restart the pod manually once the flapping issue is fixed"
-	sleep "$RESTART_INTERVAL"h & wait
-	exit $rc
-fi`
-
 	activateOSDOnNodeCode = `
 set -o errexit
 set -o pipefail
@@ -421,7 +400,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		"--fsid", c.clusterInfo.FSID,
 		"--setuser", "ceph",
 		"--setgroup", "ceph",
-		fmt.Sprintf("--crush-location=%q", osd.Location),
+		fmt.Sprintf("--crush-location=%s", osd.Location),
 	}...)
 
 	// Ceph expects initial weight as float value in tera-bytes units
@@ -619,7 +598,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			InitContainers:     initContainers,
 			Containers: []v1.Container{
 				{
-					Command:         osdStartScript(command, args, c.spec.Storage.FlappingRestartIntervalHours),
+					Command:         command,
+					Args:            args,
 					Name:            "osd",
 					Image:           c.spec.CephVersion.Image,
 					ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
@@ -1415,18 +1395,4 @@ func (c *Cluster) getOSDServicePorts() []v1.ServicePort {
 	}
 
 	return ports
-}
-
-func osdStartScript(cmd, args []string, interval int) []string {
-	osdRestartInterval := defaultOSDRestartInterval
-	if interval != 0 {
-		osdRestartInterval = interval
-	}
-
-	return []string{
-		"/bin/bash",
-		"-c",
-		"-x",
-		fmt.Sprintf(cephOSDStart, strings.Join(cmd, " "), strings.Join(args, " "), osdRestartInterval),
-	}
 }
