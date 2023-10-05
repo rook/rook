@@ -79,6 +79,22 @@ jobs:
           # print existing client auth
           kubectl -n rook-ceph exec $toolbox -- ceph auth ls
 
+      - name: test re-running of external script should result in same output
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output1.txt
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output2.txt
+          if cmp output1.txt output2.txt; then
+            echo "files have same output"
+            rm output1.txt
+            rm output2.txt
+          else
+            echo "re-run with same flags changed the output, result in failure"
+            rm output1.txt
+            rm output2.txt
+            exit 1
+          fi
+
       - name: dry run external script create-external-cluster-resources.py
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
