@@ -263,7 +263,7 @@ func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *mon
 				logger.Info("rook.io/managedBy not specified in ceph-exporter labels")
 			}
 		} else {
-			logger.Info("ceph-exporter labels not specified")
+			logger.Debug("ceph-exporter labels not specified")
 		}
 	}
 }

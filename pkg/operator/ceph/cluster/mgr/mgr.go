@@ -570,7 +570,7 @@ func applyMonitoringLabels(c *Cluster, serviceMonitor *monitoringv1.ServiceMonit
 				logger.Info("rook.io/managedBy not specified in monitoring labels")
 			}
 		} else {
-			logger.Info("monitoring labels not specified")
+			logger.Debug("monitoring labels not specified")
 		}
 	}
 }
