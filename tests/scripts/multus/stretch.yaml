@@ -1,0 +1,42 @@
+namespace: "stretch-test" # test non-rook namespace
+
+publicNetwork: "public-net"
+clusterNetwork: "cluster-net"
+
+resourceTimeout: "1m0s"
+
+nginxImage: "nginxinc/nginx-unprivileged:stable-alpine"
+
+nodeTypes:
+  arbiter-node:
+    osdsPerNode: 0
+
+    otherDaemonsPerNode: 1
+
+    placement:
+      nodeSelector:
+        topology.kubernetes.io/zone: arbiter
+
+      tolerations:
+        - { "key": "node-role.kubernetes.io/control-plane", "operator": "Exists" }
+
+  storage-nodes:
+    osdsPerNode: 2
+
+    otherDaemonsPerNode: 3
+
+    placement:
+      nodeSelector:
+        storage-node: true
+
+      tolerations:
+        - { "key": "storage-node", "value": "true" }
+
+  worker-nodes:
+    # osdsPerNode: 0 # test that the default is zero
+
+    otherDaemonsPerNode: 2
+
+    # placement: # default no placement
+    #   nodeSelector:
+    #   tolerations:

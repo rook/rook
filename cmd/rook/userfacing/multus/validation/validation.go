@@ -35,6 +35,9 @@ var (
 	validationConfig     = multus.ValidationTest{
 		Logger: capnslog.NewPackageLogger("github.com/rook/rook", "multus-validation"),
 	}
+
+	// keep special var for `--daemons-per-node` that needs put into node config for validation run
+	flagDaemonsPerNode = -1
 )
 
 // commands
@@ -122,7 +125,7 @@ func init() {
 	runCmd.Flags().StringVar(&validationConfig.ClusterNetwork, "cluster-network", defaultConfig.ClusterNetwork,
 		"The name of the Network Attachment Definition (NAD) that will be used for Ceph's cluster network. "+
 			"This should be a namespaced name in the form <namespace>/<name> if the NAD is defined in a different namespace from the cluster namespace.")
-	runCmd.Flags().IntVar(&validationConfig.DaemonsPerNode, "daemons-per-node", defaultConfig.DaemonsPerNode,
+	runCmd.Flags().IntVar(&flagDaemonsPerNode, "daemons-per-node", defaultConfig.TotalDaemonsPerNode(),
 		"The number of validation test daemons to run per node. "+
 			"It is recommended to set this to the maximum number of Ceph daemons that can run on any node in the worst case of node failure(s). "+
 			"The default value is set to the worst-case value for a Rook Ceph cluster with 3 portable OSDs, 3 portable monitors, "+
@@ -157,6 +160,15 @@ func runValidation(ctx context.Context) {
 			os.Exit(22 /* EINVAL */)
 		}
 		validationConfig.ValidationTestConfig = *c
+	} else {
+		// the default CLI test is simplified and assumes all Ceph daemons are OSDs, which get both
+		// public and cluster network attachments. This also preserves legacy CLI behavior.
+		validationConfig.NodeTypes = map[string]multus.NodeConfig{
+			multus.DefaultValidationNodeType: {
+				OSDsPerNode:         flagDaemonsPerNode,
+				OtherDaemonsPerNode: 0,
+			},
+		}
 	}
 
 	if err := validationConfig.ValidationTestConfig.Validate(); err != nil {
