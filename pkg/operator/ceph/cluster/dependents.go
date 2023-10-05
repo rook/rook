@@ -71,10 +71,8 @@ func CephClusterDependents(c *clusterd.Context, namespace string) (*dependents.D
 			errs = append(errs, errors.Wrapf(err, "failed to get %s", listKind))
 			continue
 		}
-		if len(list.Items) > 0 {
-			for _, obj := range list.Items {
-				dependents.Add(listKindToSingularKind(listKind), obj.GetName())
-			}
+		for _, obj := range list.Items {
+			dependents.Add(listKindToSingularKind(listKind), obj.GetName())
 		}
 	}
 	// returns a nil error if there are no errors in the list
