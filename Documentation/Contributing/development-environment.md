@@ -58,3 +58,32 @@ Use [helm.sh](https://github.com/rook/rook/blob/master/tests/scripts/helm.sh) to
 
 !!! note
     If Helm is not available in your `PATH`, Helm will be downloaded to a temporary directory (`/tmp/rook-tests-scripts-helm`) and used from that directory.
+
+
+## Using local Rook image on minikube cluster
+
+Developers can test quickly their changes by building and using the local Rook image
+on their minikube cluster.
+
+1) Set the local Docker environment to use minikube:
+
+```console
+eval $(minikube docker-env -p minikube)
+```
+
+2) Build your local Rook image. The following command will generate a Rook image
+labeled in the format `local/ceph-<arch>`.
+
+```console
+cd <your_rook_src_direcotry>
+make BUILD_REGISTRY=local
+```
+
+3) Tag the generated image as `rook/ceph:master` so operator will pick it.
+
+```console
+docker tag "local/ceph-$(go env GOARCH)" 'rook/ceph:master'
+```
+
+5) Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
+operator image by restarting the operator.
