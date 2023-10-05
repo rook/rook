@@ -1054,11 +1054,9 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 	for i := 0; i < RetryLoop; i++ {
 		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 		if err == nil {
-			if len(podList.Items) >= 1 {
-				for _, pod := range podList.Items {
-					if pod.Status.Phase == v1.PodPhase(state) {
-						return true
-					}
+			for _, pod := range podList.Items {
+				if pod.Status.Phase == v1.PodPhase(state) {
+					return true
 				}
 			}
 		}

@@ -86,12 +86,11 @@ func templateToDeployment(name, templateData string, p templateParam) (*apps.Dep
 
 func applyResourcesToContainers(opConfig map[string]string, key string, podspec *corev1.PodSpec) {
 	resource := getComputeResource(opConfig, key)
-	if len(resource) > 0 {
+
+	for _, r := range resource {
 		for i, c := range podspec.Containers {
-			for _, r := range resource {
-				if c.Name == r.Name {
-					podspec.Containers[i].Resources = r.Resource
-				}
+			if c.Name == r.Name {
+				podspec.Containers[i].Resources = r.Resource
 			}
 		}
 	}
@@ -200,21 +199,19 @@ func applyVolumeToPodSpec(opConfig map[string]string, configName string, podspec
 		logger.Warningf("failed to parse %q for %q. %v", volumesRaw, configName, err)
 		return
 	}
-	if len(volumes) > 0 {
-		for i := range volumes {
-			found := false
-			for j := range podspec.Volumes {
-				// check do we need to override any existing volumes
-				if volumes[i].Name == podspec.Volumes[j].Name {
-					podspec.Volumes[j] = volumes[i]
-					found = true
-					break
-				}
+	for i := range volumes {
+		found := false
+		for j := range podspec.Volumes {
+			// check do we need to override any existing volumes
+			if volumes[i].Name == podspec.Volumes[j].Name {
+				podspec.Volumes[j] = volumes[i]
+				found = true
+				break
 			}
-			if !found {
-				// if not found add volume to volumes list
-				podspec.Volumes = append(podspec.Volumes, volumes[i])
-			}
+		}
+		if !found {
+			// if not found add volume to volumes list
+			podspec.Volumes = append(podspec.Volumes, volumes[i])
 		}
 	}
 }
