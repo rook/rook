@@ -1162,7 +1162,7 @@ class RadosJSON:
         # check if user already exist
         user_key = self.check_user_exist(entity)
         if user_key != "":
-            return user_key, f"{entity.split('.', 1)[1]}"
+            return user_key
 
         ret_val, json_out, err_msg = self._common_cmd_json_gen(cmd_json)
         # if there is an unsuccessful attempt,
