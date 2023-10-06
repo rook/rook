@@ -75,7 +75,7 @@ eval $(minikube docker-env -p minikube)
 labeled in the format `local/ceph-<arch>`.
 
 ```console
-cd <your_rook_src_direcotry>
+cd <your_rook_src_directory>
 make BUILD_REGISTRY=local
 ```
 
@@ -85,5 +85,5 @@ make BUILD_REGISTRY=local
 docker tag "local/ceph-$(go env GOARCH)" 'rook/ceph:master'
 ```
 
-5) Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
+4) Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
 operator image by restarting the operator.
