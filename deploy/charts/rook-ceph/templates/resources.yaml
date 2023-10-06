@@ -2903,6 +2903,9 @@ spec:
                       nullable: true
                       type: array
                       x-kubernetes-preserve-unknown-fields: true
+                    flappingRestartIntervalHours:
+                      description: FlappingRestartIntervalHours defines the time for which the OSD pods, that failed with zero exit code, will sleep before restarting. This is needed for OSD flapping where OSD daemons are marked down more than 5 times in 600 seconds by Ceph. Preventing the OSD pods to restart immediately in such scenarios will prevent Rook from marking OSD as `up` and thus peering of the PGs mapped to the OSD. The interval defaults to 24 hours if no value is provided. User needs to manually restart the OSD pod if they manage to fix the underlying OSD flapping issue before the restart interval.
+                      type: integer
                     nodes:
                       items:
                         description: Node is a storage nodes
@@ -4879,6 +4882,8 @@ spec:
                             type: object
                         type: object
                       type: array
+                  required:
+                    - flappingRestartIntervalHours
                   type: object
                 waitTimeoutForHealthyOSDInMinutes:
                   description: WaitTimeoutForHealthyOSDInMinutes defines the time the operator would wait before an OSD can be stopped for upgrade or restart. If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one if `continueUpgradeAfterChecksEvenIfNotHealthy` is `false`. If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then operator would continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`. The default wait timeout is 10 minutes.
