@@ -97,6 +97,8 @@ spec:
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
+            - name: ceph-csi-mountinfo
+              mountPath: /csi/mountinfo
             - name: csi-plugins-dir
               mountPath: "{{ .KubeletDirPath }}/plugins"
               mountPropagation: "Bidirectional"
@@ -153,6 +155,10 @@ spec:
           imagePullPolicy: {{ .ImagePullPolicy }}
         {{ end }}
       volumes:
+        - name: ceph-csi-mountinfo
+          hostPath:
+          path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/mountinfo"
+          type: DirectoryOrCreate
         - name: plugin-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/"
