@@ -35,6 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deployment, error) {
@@ -81,18 +82,20 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 		ResourceName: "rook-ceph-mds-myfs-a",
 		DataPathMap:  config.NewStatelessDaemonDataPathMap(config.MdsType, "myfs-a", "rook-ceph", "/var/lib/rook/"),
 	}
+	fsNamespacedname := types.NamespacedName{Name: "myfs-a", Namespace: "ns"}
+
 	t.Run(("check mds ConfigureProbe"), func(t *testing.T) {
-		c.fs.Spec.MetadataServer.StartupProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 1000}}
 		c.fs.Spec.MetadataServer.LivenessProbe = &cephv1.ProbeSpec{Disabled: false, Probe: &v1.Probe{InitialDelaySeconds: 900}}
-		deployment, err := c.makeDeployment(mdsTestConfig, "ns")
+		deployment, err := c.makeDeployment(mdsTestConfig, fsNamespacedname)
 		assert.Nil(t, err)
 		assert.NotNil(t, deployment)
 		assert.NotNil(t, c.fs.Spec.MetadataServer.LivenessProbe)
-		assert.NotNil(t, c.fs.Spec.MetadataServer.StartupProbe)
+		assert.Equal(t, "myfs-a", mdsTestConfig.DaemonID)
+		assert.Equal(t, "myfs-a", fsNamespacedname.Name)
 		assert.Equal(t, int32(900), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds)
-		assert.Equal(t, int32(1000), deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds)
+		assert.NotNil(t, deployment.Spec.Template.Spec.Containers[0].LivenessProbe.ProbeHandler.Exec)
 	})
-	return c.makeDeployment(mdsTestConfig, "ns")
+	return c.makeDeployment(mdsTestConfig, fsNamespacedname)
 }
 
 func TestPodSpecs(t *testing.T) {
