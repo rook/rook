@@ -234,7 +234,7 @@ func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
 }
 
 func (m *MonStore) setAll(clientName string, settings map[string]string) ([]string, error) {
-	assimilateConfPath, err := os.CreateTemp("", "")
+	assimilateConfPath, err := os.CreateTemp(m.context.ConfigDir, "")
 	if err != nil {
 		return []string{}, errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
 	}
@@ -244,10 +244,15 @@ func (m *MonStore) setAll(clientName string, settings map[string]string) ([]stri
 		rook.TerminateFatal(errors.Wrapf(err, "failed to write config file"))
 	}
 
+	outFilePath := assimilateConfPath.Name() + ".out"
 	defer func() {
 		err := os.Remove(assimilateConfPath.Name())
 		if err != nil {
 			logger.Errorf("failed to remove file %q. %v", assimilateConfPath.Name(), err)
+		}
+		err = os.Remove(outFilePath)
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", outFilePath, err)
 		}
 	}()
 
@@ -273,13 +278,13 @@ func (m *MonStore) setAll(clientName string, settings map[string]string) ([]stri
 	}
 	logger.Infof("applying ceph settings:\n%s", string(fileContent))
 
-	args := []string{"config", "assimilate-conf", "-i", assimilateConfPath.Name(), "-o", assimilateConfPath.Name() + ".out"}
+	args := []string{"config", "assimilate-conf", "-i", assimilateConfPath.Name(), "-o", outFilePath}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
-	fileContent, readErr := os.ReadFile(assimilateConfPath.Name() + ".out")
+	fileContent, readErr := os.ReadFile(outFilePath)
 	if readErr != nil {
-		logger.Errorf("failed to open assimilate output file %s.out. %v", assimilateConfPath.Name(), readErr)
+		logger.Errorf("failed to open assimilate output file %s. %v", outFilePath, readErr)
 	}
 	if err != nil {
 		logger.Errorf("failed to run command ceph %s", args)
@@ -293,7 +298,7 @@ func (m *MonStore) setAll(clientName string, settings map[string]string) ([]stri
 		// read fileContent to ini format
 		iniContent, err := ini.Load(fileContent)
 		if err != nil {
-			return []string{}, errors.Wrapf(err, "failed to parse assimilate output file %s.out", assimilateConfPath.Name())
+			return []string{}, errors.Wrapf(err, "failed to parse assimilate output file %s", outFilePath)
 		}
 		// get the section for the client
 		section, err := iniContent.GetSection(clientName)
