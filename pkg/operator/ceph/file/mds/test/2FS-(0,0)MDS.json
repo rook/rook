@@ -1,0 +1,138 @@
+{
+  "epoch": 4369,
+  "default_fscid": 1,
+  "compat": {
+    "compat": {},
+    "ro_compat": {},
+    "incompat": {
+      "feature_1": "base v0.20",
+      "feature_2": "client writeable ranges",
+      "feature_3": "default file layouts on dirs",
+      "feature_4": "dir inode in separate object",
+      "feature_5": "mds uses versioned encoding",
+      "feature_6": "dirfrag is stored in omap",
+      "feature_8": "no anchor table",
+      "feature_9": "file layout v2",
+      "feature_10": "snaprealm v2"
+    }
+  },
+  "feature_flags": {
+    "enable_multiple": true,
+    "ever_enabled_multiple": true
+  },
+  "standbys": [],
+  "filesystems": [
+    {
+      "mdsmap": {
+        "epoch": 4367,
+        "flags": 50,
+        "flags_state": {
+          "joinable": true,
+          "allow_snaps": true,
+          "allow_multimds_snaps": true,
+          "allow_standby_replay": true
+        },
+        "ever_allowed_features": 32,
+        "explicitly_allowed_features": 32,
+        "created": "2023-09-28T06:51:11.262949+0000",
+        "modified": "2023-09-29T15:54:44.408889+0000",
+        "tableserver": 0,
+        "root": 0,
+        "session_timeout": 60,
+        "session_autoclose": 300,
+        "required_client_features": {},
+        "max_file_size": 1099511627776,
+        "last_failure": 0,
+        "last_failure_osd_epoch": 45,
+        "compat": {
+          "compat": {},
+          "ro_compat": {},
+          "incompat": {
+            "feature_1": "base v0.20",
+            "feature_2": "client writeable ranges",
+            "feature_3": "default file layouts on dirs",
+            "feature_4": "dir inode in separate object",
+            "feature_5": "mds uses versioned encoding",
+            "feature_6": "dirfrag is stored in omap",
+            "feature_7": "mds uses inline data",
+            "feature_8": "no anchor table",
+            "feature_9": "file layout v2",
+            "feature_10": "snaprealm v2"
+          }
+        },
+        "max_mds": 1,
+        "in": [],
+        "up": {},
+        "failed": [],
+        "damaged": [],
+        "stopped": [],
+        "info": {},
+        "data_pools": [
+          2
+        ],
+        "metadata_pool": 1,
+        "enabled": true,
+        "fs_name": "myfs",
+        "balancer": "",
+        "standby_count_wanted": 0
+      },
+      "id": 1
+    },
+    {
+      "mdsmap": {
+        "epoch": 4369,
+        "flags": 50,
+        "flags_state": {
+          "joinable": true,
+          "allow_snaps": true,
+          "allow_multimds_snaps": true,
+          "allow_standby_replay": true
+        },
+        "ever_allowed_features": 32,
+        "explicitly_allowed_features": 32,
+        "created": "2023-09-29T15:38:54.538991+0000",
+        "modified": "2023-09-29T15:54:47.429406+0000",
+        "tableserver": 0,
+        "root": 0,
+        "session_timeout": 60,
+        "session_autoclose": 300,
+        "required_client_features": {},
+        "max_file_size": 1099511627776,
+        "last_failure": 0,
+        "last_failure_osd_epoch": 46,
+        "compat": {
+          "compat": {},
+          "ro_compat": {},
+          "incompat": {
+            "feature_1": "base v0.20",
+            "feature_2": "client writeable ranges",
+            "feature_3": "default file layouts on dirs",
+            "feature_4": "dir inode in separate object",
+            "feature_5": "mds uses versioned encoding",
+            "feature_6": "dirfrag is stored in omap",
+            "feature_7": "mds uses inline data",
+            "feature_8": "no anchor table",
+            "feature_9": "file layout v2",
+            "feature_10": "snaprealm v2"
+          }
+        },
+        "max_mds": 1,
+        "in": [],
+        "up": {},
+        "failed": [],
+        "damaged": [],
+        "stopped": [],
+        "info": {},
+        "data_pools": [
+          4
+        ],
+        "metadata_pool": 3,
+        "enabled": true,
+        "fs_name": "myfs1",
+        "balancer": "",
+        "standby_count_wanted": 0
+      },
+      "id": 2
+    }
+  ]
+}

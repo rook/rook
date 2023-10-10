@@ -1,0 +1,175 @@
+{
+	"epoch": 4534,
+	"default_fscid": 1,
+	"compat": {
+		"compat": {},
+		"ro_compat": {},
+		"incompat": {
+			"feature_1": "base v0.20",
+			"feature_2": "client writeable ranges",
+			"feature_3": "default file layouts on dirs",
+			"feature_4": "dir inode in separate object",
+			"feature_5": "mds uses versioned encoding",
+			"feature_6": "dirfrag is stored in omap",
+			"feature_8": "no anchor table",
+			"feature_9": "file layout v2",
+			"feature_10": "snaprealm v2"
+		}
+	},
+	"feature_flags": {
+		"enable_multiple": true,
+		"ever_enabled_multiple": true
+	},
+	"standbys": [
+		{
+			"gid": 36824,
+			"name": "myfs-b",
+			"rank": -1,
+			"incarnation": 0,
+			"state": "up:standby",
+			"state_seq": 1,
+			"addr": "10.244.1.24:6801/2525614038",
+			"addrs": {
+				"addrvec": [
+					{
+						"type": "v2",
+						"addr": "10.244.1.24:6800",
+						"nonce": 2525614038
+					},
+					{
+						"type": "v1",
+						"addr": "10.244.1.24:6801",
+						"nonce": 2525614038
+					}
+				]
+			},
+			"join_fscid": 1,
+			"export_targets": [],
+			"features": 4540138320759226367,
+			"flags": 0,
+			"compat": {
+				"compat": {},
+				"ro_compat": {},
+				"incompat": {
+					"feature_1": "base v0.20",
+					"feature_2": "client writeable ranges",
+					"feature_3": "default file layouts on dirs",
+					"feature_4": "dir inode in separate object",
+					"feature_5": "mds uses versioned encoding",
+					"feature_6": "dirfrag is stored in omap",
+					"feature_7": "mds uses inline data",
+					"feature_8": "no anchor table",
+					"feature_9": "file layout v2",
+					"feature_10": "snaprealm v2"
+				}
+			},
+			"epoch": 2551
+		}
+	],
+	"filesystems": [
+		{
+			"mdsmap": {
+				"epoch": 4534,
+				"flags": 50,
+				"flags_state": {
+					"joinable": true,
+					"allow_snaps": true,
+					"allow_multimds_snaps": true,
+					"allow_standby_replay": true
+				},
+				"ever_allowed_features": 32,
+				"explicitly_allowed_features": 32,
+				"created": "2023-09-25T08:42:40.606222+0000",
+				"modified": "2023-09-25T16:35:44.806094+0000",
+				"tableserver": 0,
+				"root": 0,
+				"session_timeout": 60,
+				"session_autoclose": 300,
+				"required_client_features": {},
+				"max_file_size": 1099511627776,
+				"last_failure": 0,
+				"last_failure_osd_epoch": 42,
+				"compat": {
+					"compat": {},
+					"ro_compat": {},
+					"incompat": {
+						"feature_1": "base v0.20",
+						"feature_2": "client writeable ranges",
+						"feature_3": "default file layouts on dirs",
+						"feature_4": "dir inode in separate object",
+						"feature_5": "mds uses versioned encoding",
+						"feature_6": "dirfrag is stored in omap",
+						"feature_7": "mds uses inline data",
+						"feature_8": "no anchor table",
+						"feature_9": "file layout v2",
+						"feature_10": "snaprealm v2"
+					}
+				},
+				"max_mds": 1,
+				"in": [
+					0
+				],
+				"up": {
+					"mds_0": 36794
+				},
+				"failed": [],
+				"damaged": [],
+				"stopped": [],
+				"info": {
+					"gid_36794": {
+						"gid": 36794,
+						"name": "myfs-a",
+						"rank": 0,
+						"incarnation": 2550,
+						"state": "up:creating",
+						"state_seq": 2490,
+						"addr": "10.244.2.28:6801/3456990210",
+						"addrs": {
+							"addrvec": [
+								{
+									"type": "v2",
+									"addr": "10.244.2.28:6800",
+									"nonce": 3456990210
+								},
+								{
+									"type": "v1",
+									"addr": "10.244.2.28:6801",
+									"nonce": 3456990210
+								}
+							]
+						},
+						"join_fscid": 1,
+						"export_targets": [],
+						"features": 4540138320759226367,
+						"flags": 0,
+						"compat": {
+							"compat": {},
+							"ro_compat": {},
+							"incompat": {
+								"feature_1": "base v0.20",
+								"feature_2": "client writeable ranges",
+								"feature_3": "default file layouts on dirs",
+								"feature_4": "dir inode in separate object",
+								"feature_5": "mds uses versioned encoding",
+								"feature_6": "dirfrag is stored in omap",
+								"feature_7": "mds uses inline data",
+								"feature_8": "no anchor table",
+								"feature_9": "file layout v2",
+								"feature_10": "snaprealm v2"
+							}
+						}
+					}
+				},
+				"data_pools": [
+					2
+				],
+				"metadata_pool": 1,
+				"enabled": true,
+				"fs_name": "myfs",
+				"balancer": "",
+				"standby_count_wanted": 0
+			},
+			"id": 1
+		}
+	]
+}

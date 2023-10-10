@@ -10,6 +10,13 @@ on:
     branches:
       - master
       - release-*
+  workflow_dispatch:
+    inputs:
+      version:
+        type: string
+        required: false
+        description: "Version of jq to install"
+        default: "1.7"
 
 defaults:
   run:
@@ -38,5 +45,20 @@ jobs:
         with:
           go-version: "1.21"
 
+      - name: Setup jq
+        uses: dcarbone/install-jq-action@v2.0.2
+        with:
+          version: "${{ inputs.version }}"
+
       - name: run unit tests
-        run: GOPATH=$(go env GOPATH) make -j $(nproc) test
+        run: |
+          export ROOK_UNIT_JQ_PATH="$(which jq)"
+          GOPATH=$(go env GOPATH) make -j $(nproc) test | tee output.txt
+
+      - name: check mds liveness probe script ran successfully
+        run: |
+          if grep "skipping mds liveness probe script unit tests because jq binary location is not known" output.txt
+          then
+              echo "jq not found, fail the test"
+              exit 1
+          fi
