@@ -212,7 +212,9 @@ func TestMonStore_SetAll(t *testing.T) {
 	}
 
 	// commands w/ no error
-	e := monStore.SetAll("osd.0", cfgOverrides)
+	keys, e := monStore.setAll("osd.0", cfgOverrides)
+	// no keys written since it's mocked
+	assert.Equal(t, 0, len(keys))
 	assert.NoError(t, e)
 	assert.True(t, appliedSettings)
 }
