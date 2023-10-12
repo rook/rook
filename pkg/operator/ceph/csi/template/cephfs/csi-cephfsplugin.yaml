@@ -157,8 +157,8 @@ spec:
       volumes:
         - name: ceph-csi-mountinfo
           hostPath:
-          path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/mountinfo"
-          type: DirectoryOrCreate
+            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/mountinfo"
+            type: DirectoryOrCreate
         - name: plugin-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/"
