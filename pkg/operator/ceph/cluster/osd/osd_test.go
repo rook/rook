@@ -973,13 +973,14 @@ func TestUpdateCephStorageStatus(t *testing.T) {
 	})
 }
 
-func TestGetLocationWithRegex(t *testing.T) {
-	location := getLocationWithRegex("")
-	assert.Equal(t, "", location)
+func TestGetOSDLocationFromArgs(t *testing.T) {
+	args := []string{"--id", "2", "--crush-location=root=default host=minikube"}
+	osdLocaiton, locationFound := getOSDLocationFromArgs(args)
+	assert.Equal(t, osdLocaiton, "root=default host=minikube")
+	assert.Equal(t, locationFound, true)
 
-	location = getLocationWithRegex(`ceph-osd --crush-location="root=default host=node" --default-log-to-stderr=true`)
-	assert.Equal(t, "root=default host=node", location)
-
-	location = getLocationWithRegex(`ceph-osd --crush-location="" --default-log-to-stderr=true`)
-	assert.Equal(t, "", location)
+	args = []string{"--id", "2"}
+	osdLocaiton, locationFound = getOSDLocationFromArgs(args)
+	assert.Equal(t, osdLocaiton, "")
+	assert.Equal(t, locationFound, false)
 }

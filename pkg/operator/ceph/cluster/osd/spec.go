@@ -22,7 +22,6 @@ import (
 	"path"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -62,35 +61,42 @@ const (
 	// DmcryptMetadataType is a portion of the device mapper name for the encrypted OSD on PVC block
 	DmcryptMetadataType = "db-dmcrypt"
 	// DmcryptWalType is a portion of the device mapper name for the encrypted OSD on PVC wal
-	DmcryptWalType            = "wal-dmcrypt"
-	bluestoreBlockName        = "block"
-	bluestoreMetadataName     = "block.db"
-	bluestoreWalName          = "block.wal"
-	tempEtcCephDir            = "/etc/temp-ceph"
-	osdPortv1                 = 6801
-	osdPortv2                 = 6800
-	defaultOSDRestartInterval = 24
+	DmcryptWalType        = "wal-dmcrypt"
+	bluestoreBlockName    = "block"
+	bluestoreMetadataName = "block.db"
+	bluestoreWalName      = "block.wal"
+	tempEtcCephDir        = "/etc/temp-ceph"
+	osdPortv1             = 6801
+	osdPortv2             = 6800
 )
 
 const (
 	cephOSDStart = `
+set -o nounset # fail if variables are unset
+child_pid=""
+sigterm_received=false
 function sigterm() {
 	echo "SIGTERM received"
-	exit
+	sigterm_received=true
+	kill -TERM "$child_pid"
 }
-
 trap sigterm SIGTERM
-
-%s %s & wait
-
-RESTART_INTERVAL=%d
-rc=$?
-if [ $rc -eq 0 ]; then
+"${@}" &
+# un-fixable race condition: if receive sigterm here, it won't be sent to child process
+child_pid="$!"
+wait "$child_pid" # wait returns the same return code of child process when called with argument
+wait "$child_pid" # first wait returns immediately upon SIGTERM, so wait again for child to actually stop; this is a noop if child exited normally
+ceph_osd_rc=$?
+if [ $ceph_osd_rc -eq 0 ] && ! $sigterm_received; then
 	touch /tmp/osd-sleep
-	echo "OSD daemon exited with code 0, possibly due to OSD flapping. The OSD pod will sleep for $RESTART_INTERVAL hours. Restart the pod manually once the flapping issue is fixed"
-	sleep "$RESTART_INTERVAL"h & wait
-	exit $rc
-fi`
+	echo "OSD daemon exited with code 0, possibly due to OSD flapping. The OSD pod will sleep for $ROOK_OSD_RESTART_INTERVAL hours. Restart the pod manually once the flapping issue is fixed"
+	sleep "$ROOK_OSD_RESTART_INTERVAL"h &
+	child_pid="$!"
+	wait "$child_pid"
+	wait "$child_pid" # wait again for sleep to stop
+fi
+exit $ceph_osd_rc
+`
 
 	activateOSDOnNodeCode = `
 set -o errexit
@@ -371,6 +377,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	envVars := c.getConfigEnvVars(osdProps, dataDir, false)
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars(c.spec.CephVersion.Image)...)
 	envVars = append(envVars, []v1.EnvVar{
+		{Name: "ROOK_OSD_RESTART_INTERVAL", Value: strconv.Itoa(c.spec.Storage.FlappingRestartIntervalHours)},
 		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_CEPH_MON_HOST",
@@ -421,7 +428,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		"--fsid", c.clusterInfo.FSID,
 		"--setuser", "ceph",
 		"--setgroup", "ceph",
-		fmt.Sprintf("--crush-location=%q", osd.Location),
+		fmt.Sprintf("--crush-location=%s", osd.Location),
 	}...)
 
 	// Ceph expects initial weight as float value in tera-bytes units
@@ -619,7 +626,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			InitContainers:     initContainers,
 			Containers: []v1.Container{
 				{
-					Command:         osdStartScript(command, args, c.spec.Storage.FlappingRestartIntervalHours),
+					Command:         getOSDCmd(command, c.spec.Storage.FlappingRestartIntervalHours),
+					Args:            args,
 					Name:            "osd",
 					Image:           c.spec.CephVersion.Image,
 					ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
@@ -1417,16 +1425,9 @@ func (c *Cluster) getOSDServicePorts() []v1.ServicePort {
 	return ports
 }
 
-func osdStartScript(cmd, args []string, interval int) []string {
-	osdRestartInterval := defaultOSDRestartInterval
+func getOSDCmd(cmd []string, interval int) []string {
 	if interval != 0 {
-		osdRestartInterval = interval
+		return append([]string{"bash", "-x", "-c", cephOSDStart, "--"}, cmd...)
 	}
-
-	return []string{
-		"/bin/bash",
-		"-c",
-		"-x",
-		fmt.Sprintf(cephOSDStart, strings.Join(cmd, " "), strings.Join(args, " "), osdRestartInterval),
-	}
+	return cmd
 }

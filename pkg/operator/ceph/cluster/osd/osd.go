@@ -22,7 +22,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -595,13 +594,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	}
 
 	locationFound := false
-	for _, a := range container.Command {
-		locationPrefix := "--crush-location="
-		if strings.Contains(a, locationPrefix) {
-			locationFound = true
-			osd.Location = getLocationWithRegex(a)
-		}
-	}
+	osd.Location, locationFound = getOSDLocationFromArgs(container.Args)
 
 	if !locationFound {
 		location, _, err := getLocationFromPod(c.clusterInfo.Context, c.context.Clientset, d, cephclient.GetCrushRootFromSpec(&c.spec))
@@ -943,11 +936,15 @@ func (c *Cluster) getOSDStoreStatus() (*cephv1.OSDStatus, error) {
 	}, nil
 }
 
-func getLocationWithRegex(input string) string {
-	rx := regexp.MustCompile(`--crush-location="(.+?)"`)
-	match := rx.FindStringSubmatch(input)
-	if len(match) == 2 {
-		return strings.TrimSpace(match[1])
+func getOSDLocationFromArgs(args []string) (string, bool) {
+	for _, a := range args {
+		locationPrefix := "--crush-location="
+		if strings.HasPrefix(a, locationPrefix) {
+			// Extract the same CRUSH location as originally determined by the OSD prepare pod
+			// by cutting off the prefix: --crush-location=
+			return a[len(locationPrefix):], true
+		}
 	}
-	return ""
+
+	return "", false
 }
