@@ -45,7 +45,7 @@ The driver is created in the same namespace as Rook operator.
 
 ### Create a BucketClass and BucketAccessClass
 
-The BucketClass and BucketAccessClass are CRDs defined by COSI. The BucketClass defines the storage class for the bucket. The BucketAccessClass defines the access class for the bucket. Rook will automatically create a secret named with `rook-ceph-object-user-<store-name>-cosi` which contains credentials used by the COSI driver. This secret is referred by the BucketClass and BucketAccessClass as defined below:
+The BucketClass and BucketAccessClass are CRDs defined by COSI. The BucketClass defines the bucket class for the bucket. The BucketAccessClass defines the access class for the bucket. Rook will automatically create a secret named with `rook-ceph-object-user-<store-name>-cosi` which contains credentials used by the COSI driver. This secret is referred by the BucketClass and BucketAccessClass as defined below:
 
 ```yaml
 kind: BucketClass
@@ -120,7 +120,7 @@ kubectl create -f bucketaccess.yaml
 The secret will be created which contains the access details for the bucket in JSON format in the namespace of BucketAccess:
 
 ``` console
-kubectl get secret sample-secret-name -o yaml
+kubectl get secret sample-secret-name -o jsonpath='{.data.BucketInfo}' | base64 -d
 ```
 
 ```json
@@ -165,51 +165,3 @@ To access the bucket from an application pod, mount the secret for accessing the
 ```
 
 The Secret will be mounted in the pod in the path: `/data/cosi/BucketInfo`. The app must parse the JSON object to load the bucket connection details.
-
-Another approach is the json data can be parsed by the application to access the bucket via init container. Following is a sample init container which parses the json data and creates a file with the access details:
-
-``` bash
-set -e
-
-jsonfile=%s
-
-if [ -d "$jsonfile" ]; then
-    export ENDPOINT=$(jq -r '.spec.secretS3.endpoint' $jsonfile)
-    export BUCKET=$(jq -r '.spec.bucketName' $jsonfile)
-    export AWS_ACCESS_KEY_ID=$(jq -r '.spec.secretS3.accessKeyID' $jsonfile)
-    export AWS_SECRET_ACCESS_KEY=$(jq -r '.spec.secretS3.accessSecretKey' $jsonfile)
-fi
-else
-    echo "Error: $jsonfile does not exist"
-    exit 1
-fi
-
-```
-
-```yaml
-apiVersion: v1
-kind: Pod
-metadata:
-  name: sample-app
-  namespace: rook-ceph
-spec:
-  containers:
-  - name: sample-app
-    image: busybox
-    command: ["/bin/sh", "-c", "sleep 3600"]
-    volumeMounts:
-    - name: cosi-secrets
-      mountPath: /data/cosi
-  initContainers:
-  - name: init-cosi
-    image: busybox
-    command: ["/bin/sh", "-c", "setup-aws-credentials /data/cosi/BucketInfo/credentials"]
-    volumeMounts:
-    - name: cosi-secrets
-      mountPath: /data/cosi
-  volumes:
-  - name: cosi-secrets
-    secret:
-      #  Set the name of the secret from the BucketAccess
-      secretName: sample-secret-name
-```
