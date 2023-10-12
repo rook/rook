@@ -1740,3 +1740,31 @@ func TestIsSafeToUseRawMode(t *testing.T) {
 		assert.False(t, isSafeToUseRawMode(device, cephNextMajor))
 	})
 }
+
+func TestLVMModeAllowed(t *testing.T) {
+	device := &DeviceOsdIDEntry{
+		Config: DesiredDevice{
+			Name: "vda",
+		},
+		DeviceInfo: &sys.LocalDisk{
+			Type: sys.DiskType,
+		},
+	}
+	storeConfig := &config.StoreConfig{EncryptedDevice: false}
+
+	// disk
+	assert.True(t, lvmModeAllowed(device, storeConfig))
+
+	// lvm
+	device.DeviceInfo.Type = sys.LVMType
+	assert.False(t, lvmModeAllowed(device, storeConfig))
+
+	// non-encrypted part
+	device.DeviceInfo.Type = sys.PartType
+	assert.True(t, lvmModeAllowed(device, storeConfig))
+
+	// encrypted part
+	storeConfig.EncryptedDevice = true
+	assert.False(t, lvmModeAllowed(device, storeConfig))
+
+}
