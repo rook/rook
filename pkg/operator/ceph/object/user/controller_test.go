@@ -316,7 +316,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 			return &cephobject.AdminOpsContext{
 				Context:               *context,
 				AdminOpsUserAccessKey: "53S6B9S809NUP19IJ2K3",
-				AdminOpsUserSecretKey: "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR",
+				AdminOpsUserSecretKey: "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", // notsecret
 				AdminOpsClient:        adminClient,
 			}, nil
 		}

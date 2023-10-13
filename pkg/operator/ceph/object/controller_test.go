@@ -348,7 +348,7 @@ var mockMultisiteAdminOpsCtxFunc = func(objContext *Context, spec *cephv1.Object
 	return &AdminOpsContext{
 		Context:               *context,
 		AdminOpsUserAccessKey: "EOE7FYCNOBZJ5VFV909G",
-		AdminOpsUserSecretKey: "qmIqpWm8HxCzmynCrD6U6vKWi4hnDBndOnmxXNsV",
+		AdminOpsUserSecretKey: "qmIqpWm8HxCzmynCrD6U6vKWi4hnDBndOnmxXNsV", // notsecret
 		AdminOpsClient:        adminClient,
 	}, nil
 }
