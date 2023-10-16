@@ -5,7 +5,6 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   labels:
-    prometheus: rook-prometheus
     role: alert-rules
 {{- if  .Values.monitoring.prometheusRule.labels }}
 {{ toYaml .Values.monitoring.prometheusRule.labels | indent 4 }}
