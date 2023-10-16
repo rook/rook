@@ -64,7 +64,8 @@ monitoring:
   # allow adding custom labels and annotations to the prometheus rule
   prometheusRule:
     # -- Labels applied to PrometheusRule
-    labels: {}
+    labels:
+      prometheus: rook-prometheus
     # -- Annotations applied to PrometheusRule
     annotations: {}
 
