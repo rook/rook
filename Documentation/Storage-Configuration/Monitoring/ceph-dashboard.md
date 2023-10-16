@@ -133,6 +133,7 @@ spec:
   selector:
     app: rook-ceph-mgr
     rook_cluster: rook-ceph
+    mgr_role: active
   sessionAffinity: None
   type: NodePort
 ```
