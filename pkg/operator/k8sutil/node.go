@@ -281,11 +281,17 @@ func GetKubernetesNodesMatchingRookNodes(ctx context.Context, rookNodes []cephv1
 	if err != nil {
 		return nodes, fmt.Errorf("failed to list kubernetes nodes. %+v", err)
 	}
-	for _, kn := range k8sNodes.Items {
-		for _, rn := range rookNodes {
+	for _, rn := range rookNodes {
+		nodeFound := false
+		for _, kn := range k8sNodes.Items {
 			if rookNodeMatchesKubernetesNode(rn, kn) {
 				nodes = append(nodes, kn)
+				nodeFound = true
+				break
 			}
+		}
+		if !nodeFound {
+			logger.Warningf("failed to find matching kubernetes node for %q. Check the CephCluster's config and confirm each 'name' field in spec.storage.nodes matches their 'kubernetes.io/hostname' label", rn.Name)
 		}
 	}
 	return nodes, nil
