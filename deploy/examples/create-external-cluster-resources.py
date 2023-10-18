@@ -775,7 +775,10 @@ class RadosJSON:
                 json_out.get("mgrmap", {}).get("services", {}).get("prometheus", "")
             )
             if not monitoring_endpoint:
-                return "", ""
+                raise ExecutionFailureException(
+                    "can't find monitoring_endpoint, prometheus module might not be enabled, "
+                    "enable the module by running 'ceph mgr module enable prometheus'"
+                )
             # now check the stand-by mgr-s
             standby_arr = json_out.get("mgrmap", {}).get("standbys", [])
             for each_standby in standby_arr:
