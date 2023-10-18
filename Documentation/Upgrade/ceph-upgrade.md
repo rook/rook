@@ -85,7 +85,18 @@ NEW_CEPH_IMAGE='quay.io/ceph/ceph:v17.2.6-20230410'
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
-#### **2. Wait for the pod updates**
+#### **2. Update the toolbox image**
+
+Since the [Rook toolbox](https://rook.io/docs/rook/latest/Troubleshooting/ceph-toolbox/) is not controlled by
+the Rook operator, users must perform a manual upgrade by modifying the `image` to match the ceph version
+employed by the new Rook operator release. Employing an outdated Ceph version within the toolbox may result
+in unexpected behaviour.
+
+```console
+kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v17.2.6-20230410
+```
+
+#### **3. Wait for the pod updates**
 
 As with upgrading Rook, now wait for the upgrade to complete. Status can be determined in a similar
 way to the Rook upgrade as well.
@@ -105,6 +116,6 @@ This cluster is finished:
     ceph-version=v17.2.6-0
 ```
 
-#### **3. Verify cluster health**
+#### **4. Verify cluster health**
 
 Verify the Ceph cluster's health using the [health verification](health-verification.md).
