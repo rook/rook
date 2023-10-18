@@ -240,11 +240,22 @@ class TestRadosJSON(unittest.TestCase):
         del cmd_json_out["mgrmap"]["services"]["prometheus"]
         self.rjObj.cluster.cmd_output_map[cmd_key] = json.dumps(cmd_json_out)
 
-        endpoint, port = self.rjObj.get_active_and_standby_mgrs()
+        endpoint = ""
+        port = ""
+        try:
+            endpoint, port = self.rjObj.get_active_and_standby_mgrs()
+            self.fail("An Exception was expected to be thrown")
+        except ext.ExecutionFailureException as err:
+            print(f"Successfully thrown error: {err}")
+
         if endpoint != "" or port != "":
             self.fail("Expected monitoring endpoint and port to be empty")
 
-        self.rjObj.main()
+        try:
+            self.rjObj.main()
+            self.fail("An Exception was expected to be thrown")
+        except ext.ExecutionFailureException as err:
+            print(f"Successfully thrown error: {err}")
 
         if self.rjObj.out_map["MONITORING_ENDPOINT"] != "":
             self.fail("MONITORING_ENDPOINT should be empty")
