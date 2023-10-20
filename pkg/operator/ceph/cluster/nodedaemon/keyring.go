@@ -34,7 +34,7 @@ const (
 [client.crash]
 	key = %s
 	caps mon = "allow profile crash"
-	caps mgr = "allow profile crash"
+	caps mgr = "allow rw"
 `
 )
 
@@ -59,7 +59,7 @@ func CreateCrashCollectorSecret(context *clusterd.Context, clusterInfo *client.C
 func cephCrashCollectorKeyringCaps() []string {
 	return []string{
 		"mon", "allow profile crash",
-		"mgr", "allow profile crash",
+		"mgr", "allow rw",
 	}
 }
 
