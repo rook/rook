@@ -6,6 +6,10 @@ on:
     branches:
       - master
       - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
 
 permissions:
   contents: read
