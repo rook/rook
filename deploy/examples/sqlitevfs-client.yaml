@@ -6,7 +6,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephClient
 metadata:
   name: sqlitevfs
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   caps:
     mon: 'allow r'
