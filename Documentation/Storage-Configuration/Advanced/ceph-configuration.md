@@ -23,6 +23,14 @@ to also change `ROOK_OPERATOR_NAMESPACE` to create a new Rook Operator for each 
 forget to set `ROOK_CURRENT_NAMESPACE_ONLY`), or you can leave it at the same value for every
 Ceph cluster if you only wish to have one Operator manage all Ceph clusters.
 
+If the operator namespace is different from the cluster namespace, the operator namespace must be
+created before running the steps below. The cluster namespace does not need to be created first,
+as it will be created by `common.yaml` in the script below.
+
+```console
+kubectl create namespace $ROOK_OPERATOR_NAMESPACE
+```
+
 This will help you manage namespaces more easily, but you should still make sure the resources are
 configured to your liking.
 
