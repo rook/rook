@@ -7,7 +7,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: mirrored-pool
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   replicated:
     size: 3
