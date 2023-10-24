@@ -19,7 +19,7 @@ See the [kubectl-rook-ceph documentation](https://github.com/rook/kubectl-rook-c
 - Install Rook plugin
 
   ```console
-    kubectl kubectl install rook-ceph
+    kubectl krew install rook-ceph
   ```
 
 ## Ceph Commands
