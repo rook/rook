@@ -3,13 +3,13 @@ ignore:
   "snyk:lic:golang:github.com:hashicorp:vault:sdk:MPL-2.0":
     - "*":
         reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
-  "snyk:lic:golang:github.com:hashicorp:vault:MPL-2.0":
+  "snyk:lic:golang:github.com:hashicorp:vault:api:MPL-2.0":
+    - "*":
+        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
+  "snyk:lic:golang:github.com:hashicorp:vault:api:auth:kubernetes:MPL-2.0":
     - "*":
         reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
   "snyk:lic:golang:github.com:hashicorp:vault:api:auth:approle:MPL-2.0":
-    - "*":
-        reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
-  "snyk:lic:golang:github.com:hashicorp:vault:api:MPL-2.0":
     - "*":
         reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
   "snyk:lic:golang:github.com:hashicorp:hcl:MPL-2.0":
@@ -45,5 +45,3 @@ ignore:
   "snyk:lic:golang:github.com:hashicorp:errwrap:MPL-2.0":
     - "*":
         reason: Mozilla Public License 2.0 is compatible with Rook's Apache 2.0 license
-version: v1.25.0
-patch: {}
