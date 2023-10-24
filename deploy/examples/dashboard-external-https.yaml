@@ -15,6 +15,6 @@ spec:
   selector:
     app: rook-ceph-mgr
     mgr_role: active
-    rook_cluster: rook-ceph
+    rook_cluster: rook-ceph # namespace:cluster
   sessionAffinity: None
   type: NodePort

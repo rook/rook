@@ -12,7 +12,7 @@ spec:
   selector:
     matchLabels:
       app: rook-ceph-mgr
-      rook_cluster: rook-ceph
+      rook_cluster: rook-ceph # namespace:cluster
   endpoints:
     - port: http-metrics
       path: /metrics
