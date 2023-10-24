@@ -7,7 +7,7 @@ This page contains information regarding the CI configuration used for the Rook 
 ## Secrets
 
 * Snyk (Security Scan):
-    * `SNYK_TOKEN` - API Token for the [snyk security scanner](https://snyk.io/) (workflow file: `synk.yaml`).
+    * `SNYK_TOKEN` - API Token for the [snyk security scanner](https://snyk.io/) (workflow file: `snyk.yaml`).
 * Testing:
     * `IBM_INSTANCE_ID`: Used for KMS (Key Management System) IBM Key Protect access (see [`.github/workflows/encryption-pvc-kms-ibm-kp/action.yml`](https://github.com/rook/rook/blob/master/.github/workflows/encryption-pvc-kms-ibm-kp/action.yml)).
     * `IBM_SERVICE_API_KEY`: Used for KMS (Key Management System) IBM Key Protect access (see [`.github/workflows/encryption-pvc-kms-ibm-kp/action.yml`](https://github.com/rook/rook/blob/master/.github/workflows/encryption-pvc-kms-ibm-kp/action.yml)).

@@ -5,7 +5,7 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/rook/ceph)](https://hub.docker.com/u/rook)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1599/badge)](https://bestpractices.coreinfrastructure.org/projects/1599)
-[![Security scanning](https://github.com/rook/rook/actions/workflows/synk.yaml/badge.svg)](https://github.com/rook/rook/actions/workflows/synk.yaml)
+[![Security scanning](https://github.com/rook/rook/actions/workflows/snyk.yaml/badge.svg)](https://github.com/rook/rook/actions/workflows/snyk.yaml)
 [![Slack](https://img.shields.io/badge/rook-slack-blue)](https://slack.rook.io)
 [![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
 
