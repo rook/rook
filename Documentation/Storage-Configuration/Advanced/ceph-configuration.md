@@ -55,12 +55,23 @@ kubectl apply -f common.yaml -f operator.yaml -f cluster.yaml # add other files 
 
 ## Deploying a second cluster
 
-If you wish to create a new CephCluster in a different namespace than `rook-ceph` while using a single operator to manage both clusters execute the following:
+If you wish to create a new CephCluster in a separate namespace, you can easily do so
+by modifying the `ROOK_OPERATOR_NAMESPACE` and `SECOND_ROOK_CLUSTER_NAMESPACE` values in the
+below instructions. The default configuration in `common-second-cluster.yaml` is already
+set up to utilize `rook-ceph` for the operator and `rook-ceph-secondary` for the cluster.
+There's no need to run the `sed` command if you prefer to use these default values.
 
 ```console
 cd deploy/examples
+export ROOK_OPERATOR_NAMESPACE="rook-ceph"
+export SECOND_ROOK_CLUSTER_NAMESPACE="rook-ceph-secondary"
 
-NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+sed -i.bak \
+    -e "s/\(.*\):.*# namespace:operator/\1: $ROOK_OPERATOR_NAMESPACE # namespace:operator/g" \
+    -e "s/\(.*\):.*# namespace:cluster/\1: $SECOND_ROOK_CLUSTER_NAMESPACE # namespace:cluster/g" \
+  common-second-cluster.yaml
+
+kubectl create -f common-second-cluster.yaml
 ```
 
 This will create all the necessary RBACs as well as the new namespace. The script assumes that `common.yaml` was already created.
