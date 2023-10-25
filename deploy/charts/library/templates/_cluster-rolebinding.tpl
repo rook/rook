@@ -67,7 +67,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-mgr-system{{ template "library.suffix-cluster-namespace" . }}
-  namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:operator
+  namespace: {{ .Values.operatorNamespace | default .Release.Namespace }} # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
