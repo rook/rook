@@ -43,11 +43,13 @@ function generate_csv() {
     # This change are just to make the CSV file as it was earlier and as ocs-operator reads.
     # Skipping this change for darwin since `sed -i` doesn't work with darwin properly.
     # and the csv is not ever needed in the mac builds.
-    if [[ "$OSTYPE" != "darwin"* ]]; then
-        sed -i 's/image: rook\/ceph:.*/image: {{.RookOperatorImage}}/g' "$CSV_FILE_NAME"
-        sed -i 's/name: rook-ceph.v.*/name: rook-ceph.v{{.RookOperatorCsvVersion}}/g' "$CSV_FILE_NAME"
-        sed -i 's/version: 0.0.0/version: {{.RookOperatorCsvVersion}}/g' "$CSV_FILE_NAME"
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        return
     fi
+
+    sed -i 's/image: rook\/ceph:.*/image: {{.RookOperatorImage}}/g' "$CSV_FILE_NAME"
+    sed -i 's/name: rook-ceph.v.*/name: rook-ceph.v{{.RookOperatorCsvVersion}}/g' "$CSV_FILE_NAME"
+    sed -i 's/version: 0.0.0/version: {{.RookOperatorCsvVersion}}/g' "$CSV_FILE_NAME"
 
     mv "$CSV_FILE_NAME" "../../build/csv/"
     mv "../../build/csv/ceph/$PLATFORM/manifests/"* "../../build/csv/ceph/"
