@@ -71,7 +71,7 @@ const (
 		"id": "fd8ff110-d3fd-49b4-b24f-f6cd3dddfedf",
 		"name": "my-store",
 		"api_name": "my-store",
-		"is_master": "true",
+		"is_master": true,
 		"endpoints": [
 			"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
 		],
@@ -206,7 +206,7 @@ const (
 		"id": "fd8ff110-d3fd-49b4-b24f-f6cd3dddfedf",
 		"name": "zonegroup-a",
 		"api_name": "zonegroup-a",
-		"is_master": "true",
+		"is_master": true,
 		"endpoints": [],
 		"hostnames": [],
 		"hostnames_s3website": [],
@@ -242,7 +242,7 @@ const (
 		"id": "fd8ff110-d3fd-49b4-b24f-f6cd3dddfedf",
 		"name": "zonegroup-a",
 		"api_name": "zonegroup-a",
-		"is_master": "true",
+		"is_master": true,
 		"endpoints": [
 			"http://rook-ceph-rgw-my-store.rook-ceph.svc:80"
         ],

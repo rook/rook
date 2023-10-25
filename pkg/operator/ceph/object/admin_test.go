@@ -406,7 +406,7 @@ const firstPeriodUpdate = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80"
                 ],
@@ -489,7 +489,7 @@ const secondPeriodGet = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80"
                 ],
@@ -575,7 +575,7 @@ const secondPeriodUpdateWithoutChanges = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80"
                 ],
@@ -659,7 +659,7 @@ const secondPeriodUpdateWithChanges = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80",
                     "https://10.105.59.166:443"
