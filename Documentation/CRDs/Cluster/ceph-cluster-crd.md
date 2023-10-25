@@ -101,7 +101,7 @@ Official releases of Ceph Container images are available from [Docker Hub](https
 These are general purpose Ceph container with all necessary daemons and dependencies installed.
 
 | TAG                  | MEANING                                                   |
-| -------------------- | --------------------------------------------------------- |
+|----------------------|-----------------------------------------------------------|
 | vRELNUM              | Latest release in this series (e.g., *v17* = Quincy)      |
 | vRELNUM.Y            | Latest stable release in this stable series (e.g., v17.2) |
 | vRELNUM.Y.Z          | A specific release (e.g., v17.2.6)                        |
@@ -421,7 +421,7 @@ Below are the settings for host-based cluster. This type of cluster can specify 
     * `name`: The name of the devices and partitions (e.g., `sda`). The full udev path can also be specified for devices, partitions, and logical volumes (e.g. `/dev/disk/by-id/ata-ST4000DM004-XXXX` - this will not change after reboots).
     * `config`: Device-specific config settings. See the [config settings](#osd-configuration-settings) below
 
-Host-based cluster supports raw device, partition, and logical volume. Be sure to see the
+Host-based cluster supports raw devices, partitions, logical volumes, encrypted devices, and multipath devices. Be sure to see the
 [quickstart doc prerequisites](../../Getting-Started/quickstart.md#prerequisites) for additional considerations.
 
 Below are the settings for a PVC-based cluster.
@@ -456,12 +456,16 @@ The following are the settings for Storage Class Device Sets which can be config
 * `tuneDeviceClass`: For example, Ceph cannot detect AWS volumes as HDDs from the storage class "gp2", so you can improve Ceph performance by setting this to true.
 * `tuneFastDeviceClass`: For example, Ceph cannot detect Azure disks as SSDs from the storage class "managed-premium", so you can improve Ceph performance by setting this to true..
 * `volumeClaimTemplates`: A list of PVC templates to use for provisioning the underlying storage devices.
+  * `metadata.name`: "data", "metadata", or "wal". If a single template is provided, the name must be "data". If the name is "metadata" or "wal", the devices are used to store the Ceph metadata or WAL respectively. In both cases, the devices must be raw devices or LVM logical volumes.
+
     * `resources.requests.storage`: The desired capacity for the underlying storage devices.
-    * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass. This StorageClass should provide a raw block device, multipath device, or logical volume. Other types are not supported. If you want to use logical volume, please see [known issue of OSD on LV-backed PVC](../../Troubleshooting/ceph-common-issues.md#lvm-metadata-can-be-corrupted-with-osd-on-lv-backed-pvc)
+    * `storageClassName`: The StorageClass to provision PVCs from. Default would be to use the cluster-default StorageClass.
     * `volumeMode`: The volume mode to be set for the PVC. Which should be Block
     * `accessModes`: The access mode for the PVC to be bound by OSD.
 * `schedulerName`: Scheduler name for OSD pod placement. (Optional)
 * `encrypted`: whether to encrypt all the OSDs in a given storageClassDeviceSet
+
+See the table in [OSD Configuration Settings](#osd-configuration-settings) to know the allowed configurations.
 
 ### OSD Configuration Settings
 
@@ -476,6 +480,16 @@ The following storage selection settings are specific to Ceph and do not apply t
 * `osdsPerDevice`**: The number of OSDs to create on each device. High performance devices such as NVMe can handle running multiple OSDs. If desired, this can be overridden for each node and each device.
 * `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See [encryption](http://docs.ceph.com/docs/master/ceph-volume/lvm/encryption/) for more information on encryption in Ceph.
 * `crushRoot`: The value of the `root` CRUSH map label. The default is `default`. Generally, you should not need to change this. However, if any of your topology labels may have the value `default`, you need to change `crushRoot` to avoid conflicts, since CRUSH map values need to be unique.
+
+Allowed configurations are:
+
+| block device type | host-based cluster                                                                                    | PVC-based cluster                                                               |
+|:------------------|:------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
+| disk              |                                                                                                       |                                                                                 |
+| part              | `encryptedDevice` should be "false"                                                                   | `encrypted` must be `false`                                                     |
+| lvm               | `metadataDevice` should be "", `osdsPerDevice` should be "1", and `encryptedDevice` should be "false" | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
+| crypt             |                                                                                                       |                                                                                 |
+| mpath             |                                                                                                       |                                                                                 |
 
 ### Annotations and Labels
 

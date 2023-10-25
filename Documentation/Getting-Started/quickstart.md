@@ -24,9 +24,11 @@ To check if a Kubernetes cluster is ready for `Rook`, see the [prerequisites](Pr
 
 To configure the Ceph storage cluster, at least one of these local storage options are required:
 
-* Raw devices (no partitions or formatted filesystems)
+* Raw devices (no partitions or formatted filesystem)
 * Raw partitions (no formatted filesystem)
 * LVM Logical Volumes (no formatted filesystem)
+* Encrypted devices (no formatted filesystem)
+* Multipath devices (no formatted filesystem)
 * Persistent Volumes available from a storage class in `block` mode
 
 ## TL;DR
