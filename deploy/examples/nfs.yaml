@@ -59,6 +59,10 @@ spec:
     # The logging levels: NIV_NULL | NIV_FATAL | NIV_MAJ | NIV_CRIT | NIV_WARN | NIV_EVENT | NIV_INFO | NIV_DEBUG | NIV_MID_DEBUG |NIV_FULL_DEBUG |NB_LOG_LEVEL
     logLevel: NIV_INFO
 
+    # Allow liveness-probe via pod's nfs port (TCP 2049)
+    # livenessProbe:
+    #   disabled: false
+
   # Configure security options for the NFS cluster. See docs for more information:
   # https://rook.github.io/docs/rook/latest/Storage-Configuration/NFS/nfs-security/
   security:
