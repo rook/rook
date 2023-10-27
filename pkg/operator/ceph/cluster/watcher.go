@@ -219,7 +219,10 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 		return nil
 	}
 
-	clusterInfo := cephclient.AdminClusterInfo(ctx, cluster.Namespace, cluster.Name)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(c.context, ctx, cluster.Namespace, &cluster.Spec)
+	if err != nil {
+		return pkgerror.Wrapf(err, "Failed to load cluster info.")
+	}
 
 	for i := range rbdPVList {
 		err = c.fenceRbdImage(ctx, node, cluster, clusterInfo, rbdPVList[i])
