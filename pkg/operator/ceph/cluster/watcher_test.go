@@ -271,7 +271,24 @@ func TestHandleNodeFailure(t *testing.T) {
 		},
 	}
 
-	_, err := c.context.Clientset.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{})
+	// Mock clusterInfo
+	secrets := map[string][]byte{
+		"fsid":         []byte("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
+		"mon-secret":   []byte("monsecret"),
+		"admin-secret": []byte("adminsecret"),
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon",
+			Namespace: ns,
+		},
+		Data: secrets,
+		Type: k8sutil.RookType,
+	}
+	_, err := c.context.Clientset.CoreV1().Secrets(ns).Create(ctx, secret, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	_, err = c.context.Clientset.CoreV1().PersistentVolumes().Create(ctx, pv, metav1.CreateOptions{})
 	assert.NoError(t, err)
 
 	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Create(ctx, &v1.CustomResourceDefinition{ObjectMeta: metav1.ObjectMeta{Name: "networkfences.csiaddons.openshift.io"}}, metav1.CreateOptions{})
