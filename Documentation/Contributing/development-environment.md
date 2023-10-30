@@ -87,3 +87,12 @@ docker tag "local/ceph-$(go env GOARCH)" 'rook/ceph:master'
 
 4) Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
 operator image by restarting the operator.
+
+
+## Creating a dev cluster
+
+To accelerate the development process, users have the option to employ the script located
+at `tests/scripts/create-dev-cluster.sh`. This script is designed to rapidly set
+up a new minikube environment, apply the CRDs and the common file, and then utilize the
+`cluster-test.yaml` script to create the Rook cluster. Once setup, users can use the different `*-test.yaml`
+files from the `deploy/examples/` directory to configure their clusters.
