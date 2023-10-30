@@ -40,6 +40,7 @@ func TestValidationTestConfig_YAML(t *testing.T) {
 			PublicNetwork:   "my-pub",
 			ClusterNetwork:  "my-priv",
 			ResourceTimeout: 2 * time.Minute,
+			FlakyThreshold:  30 * time.Second,
 			NginxImage:      "myorg/nginx:latest",
 			NodeTypes: map[string]NodeConfig{
 				"osdOnlyNodes": {

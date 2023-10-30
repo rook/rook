@@ -313,7 +313,7 @@ func (s *verifyAllClientsReadyState) Run(ctx context.Context, vsm *validationSta
 	suggestionsOnSuccess := []string{}
 	if s.suggestFlaky {
 		suggestionsOnSuccess = append(suggestionsOnSuccess,
-			fmt.Sprintf("not all clients became ready within %s; %s", flakyThreshold.String(), flakyNetworkSuggestion))
+			fmt.Sprintf("not all clients became ready within %s; %s", vsm.vt.FlakyThreshold.String(), flakyNetworkSuggestion))
 	}
 	vsm.Exit() // DONE!
 	return suggestionsOnSuccess, nil
@@ -321,8 +321,6 @@ func (s *verifyAllClientsReadyState) Run(ctx context.Context, vsm *validationSta
 
 // clients should all become ready within a pretty short amount of time since they all should start
 // pretty simultaneously
-// TODO: allow tuning this
-var flakyThreshold = 20 * time.Second
 
 func (s *verifyAllClientsReadyState) checkIfFlaky(vsm *validationStateMachine, numReady int) {
 	if s.suggestFlaky {
@@ -338,9 +336,9 @@ func (s *verifyAllClientsReadyState) checkIfFlaky(vsm *validationStateMachine, n
 	if !s.timeClientsStartedBecomingReady.IsZero() {
 		// check to see how long it took since clients first started becoming ready. if the time is
 		// longer than the flaky threshold, warn the user, and record that the network is flaky
-		if time.Since(s.timeClientsStartedBecomingReady) > flakyThreshold {
+		if time.Since(s.timeClientsStartedBecomingReady) > vsm.vt.FlakyThreshold {
 			vsm.vt.Logger.Warningf(
-				"network seems flaky; the time since clients started becoming ready until now is greater than %s", flakyThreshold.String())
+				"network seems flaky; the time since clients started becoming ready until now is greater than %s", vsm.vt.FlakyThreshold.String())
 			s.suggestFlaky = true
 		}
 	}
