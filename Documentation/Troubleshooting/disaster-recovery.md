@@ -63,7 +63,7 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     the valdiating webhook in order to make changes.
 
         ```console
-        kubectl delete ValidatingWebhookConfiguration rook-ceph-webhook
+        kubectl -n rook-ceph delete ValidatingWebhookConfiguration rook-ceph-webhook
         ```
 
 4.  Remove the owner references from all critical Rook resources that were referencing the `CephCluster` CR.
