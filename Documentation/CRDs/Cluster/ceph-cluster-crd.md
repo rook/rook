@@ -547,7 +547,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.6
+    image: quay.io/ceph/ceph:v17.2.7
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -650,7 +650,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.6
+    image: quay.io/ceph/ceph:v17.2.7
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -779,7 +779,7 @@ kubectl -n rook-ceph get CephCluster -o yaml
       deviceClasses:
       - name: hdd
     version:
-      image: quay.io/ceph/ceph:v17.2.6
+      image: quay.io/ceph/ceph:v17.2.7
       version: 16.2.6-0
     conditions:
     - lastHeartbeatTime: "2021-03-02T21:22:11Z"

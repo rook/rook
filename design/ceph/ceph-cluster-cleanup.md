@@ -33,15 +33,7 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
-  cephVersion:
-    image: quay.io/ceph/ceph:v17.2.6
-  dataDirHostPath: /var/lib/rook
-  mon:
-    count: 3
-    allowMultiplePerNode: true
-  storage:
-    useAllNodes: true
-    useAllDevices: true
+  ...
   cleanupPolicy:
     confirmation: yes-really-destroy-data
     sanitizeDisks:

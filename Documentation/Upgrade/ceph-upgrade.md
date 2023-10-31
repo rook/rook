@@ -81,7 +81,7 @@ CephCluster CRD (`spec.cephVersion.image`).
 
 ```console
 ROOK_CLUSTER_NAMESPACE=rook-ceph
-NEW_CEPH_IMAGE='quay.io/ceph/ceph:v17.2.6-20230410'
+NEW_CEPH_IMAGE='quay.io/ceph/ceph:v17.2.7-20231027'
 kubectl -n $ROOK_CLUSTER_NAMESPACE patch CephCluster $ROOK_CLUSTER_NAMESPACE --type=merge -p "{\"spec\": {\"cephVersion\": {\"image\": \"$NEW_CEPH_IMAGE\"}}}"
 ```
 
@@ -93,7 +93,7 @@ employed by the new Rook operator release. Employing an outdated Ceph version wi
 in unexpected behaviour.
 
 ```console
-kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v17.2.6-20230410
+kubectl -n rook-ceph set image deploy/rook-ceph-tools rook-ceph-tools=quay.io/ceph/ceph:v17.2.7-20231027
 ```
 
 #### **3. Wait for the pod updates**
