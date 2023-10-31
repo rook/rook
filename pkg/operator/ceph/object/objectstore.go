@@ -81,7 +81,7 @@ type idType struct {
 
 type zoneGroupType struct {
 	MasterZoneID string     `json:"master_zone"`
-	IsMaster     string     `json:"is_master"`
+	IsMaster     bool       `json:"is_master"`
 	Zones        []zoneType `json:"zones"`
 	Endpoints    []string   `json:"endpoints"`
 }
@@ -302,12 +302,7 @@ func checkZoneGroupIsMaster(objContext *Context) (bool, error) {
 		return false, errors.Wrap(err, "failed to parse master zone id")
 	}
 
-	zoneGroupIsMaster, err := strconv.ParseBool(zoneGroupJson.IsMaster)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to parse is_master from zone group json into bool")
-	}
-
-	return zoneGroupIsMaster, nil
+	return zoneGroupJson.IsMaster, nil
 }
 
 func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
