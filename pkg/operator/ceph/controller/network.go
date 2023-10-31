@@ -250,7 +250,7 @@ func discoverAddressRanges(
 			`},
 		[]string{},
 		rookImage,
-		clusterSpec.CephVersion.Image,
+		rookImage,
 		clusterSpec.CephVersion.ImagePullPolicy,
 	)
 	if err != nil {
@@ -272,7 +272,7 @@ func discoverAddressRanges(
 	netStatusVol, netStatusMount := networkStatusVolumeAndMount()
 	job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes, netStatusVol)
 	job.Spec.Template.Spec.Containers[0].VolumeMounts = append(job.Spec.Template.Spec.Containers[0].VolumeMounts, netStatusMount)
-	job.Spec.Template.Spec.InitContainers = append(job.Spec.Template.Spec.InitContainers, containerWaitForNetworkStatus(clusterSpec))
+	job.Spec.Template.Spec.InitContainers = append(job.Spec.Template.Spec.InitContainers, containerWaitForNetworkStatus(clusterSpec, rookImage))
 
 	stdout, stderr, retcode, err := networkCanary.Run(ctx, detectNetworkCIDRTimeout)
 	if err != nil {
@@ -353,7 +353,7 @@ func networkStatusVolumeAndMount() (corev1.Volume, corev1.VolumeMount) {
 // to wait until the network status annotation is present to output info before running so that it
 // reports all the info. separate step of waiting for network status annotation into an init
 // container so that it can be more easily debugged (output not present in cmd reporter's result)
-func containerWaitForNetworkStatus(clusterSpec *cephv1.ClusterSpec) corev1.Container {
+func containerWaitForNetworkStatus(clusterSpec *cephv1.ClusterSpec, rookImage string) corev1.Container {
 	_, mount := networkStatusVolumeAndMount()
 	return corev1.Container{
 		Name: "wait-for-network-status-annotation",
@@ -369,7 +369,7 @@ func containerWaitForNetworkStatus(clusterSpec *cephv1.ClusterSpec) corev1.Conta
 			echo "" # newline
 			`,
 		},
-		Image:           clusterSpec.CephVersion.Image,
+		Image:           rookImage,
 		ImagePullPolicy: clusterSpec.CephVersion.ImagePullPolicy,
 		VolumeMounts: []corev1.VolumeMount{
 			mount,
