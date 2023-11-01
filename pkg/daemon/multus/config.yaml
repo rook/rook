@@ -16,6 +16,19 @@ clusterNetwork: "{{ .ClusterNetwork }}"
 # This should be at least 1 minute. 2 minutes or more is recommended.
 resourceTimeout: "{{ .ResourceTimeout }}"
 
+# This is the time window in which validation clients are all expected to become "Ready" together.
+# Validation clients are all started at approximately the same time, and they should all stabilize
+# at approximately the same time. Once the first validation client becomes "Ready," the tool checks
+# that all of the remaining clients become "Ready" before this threshold duration elapses.
+# In networks that have connectivity issues, limited bandwidth, or high latency, clients will contend
+# for network traffic with each other, causing some clients to randomly fail and become "Ready" later
+# than others. These randomly-failing clients are considered "flaky." Adjust this value to reflect
+# expectations for the underlying network. For fast and reliable networks, this can be set to a smaller
+# value. For networks that are intended to be slow, this can be set to a larger value. Additionally, for
+# very large Kubernetes clusters, it may take longer for all clients to start, and it therefore may take
+# longer for all clients to become "Ready"; in that case, this value can be set slightly higher.
+flakyThreshold: "{{ .FlakyThreshold }}"
+
 # The Nginx image which will be used for the web server and clients.
 nginxImage: "{{ .NginxImage }}"
 
