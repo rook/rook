@@ -4,7 +4,7 @@ publicNetwork: "public-net"
 clusterNetwork: "cluster-net"
 
 resourceTimeout: "1m0s"
-
+flakyThreshold: "30s"
 nginxImage: "nginxinc/nginx-unprivileged:stable-alpine"
 
 nodeTypes:

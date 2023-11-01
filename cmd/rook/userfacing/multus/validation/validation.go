@@ -134,6 +134,18 @@ func init() {
 	runCmd.Flags().StringVar(&validationConfig.NginxImage, "nginx-image", defaultConfig.NginxImage,
 		"The Nginx image used for the validation server and clients.")
 
+	validationConfig.FlakyThreshold = defaultConfig.FlakyThreshold
+	f := (*timeoutSeconds)(&validationConfig.FlakyThreshold)
+	runCmd.Flags().VarPF(f, "flaky-threshold-seconds", "",
+		"This is the time window in which validation clients are all expected to become 'Ready' together. Validation clients are all started "+
+			"at approximately the same time, and they should all stabilize at approximately the same time. Once the first validation client "+
+			"becomes 'Ready', the tool checks that all of the remaining clients become 'Ready' before this threshold duration elapses. In networks "+
+			"that have connectivity issues, limited bandwidth, or high latency, clients will contend for network traffic with each other, causing some "+
+			"clients to randomly fail and become 'Ready' later than others. These randomly-failing clients are considered 'flaky.' Adjust this value "+
+			"to reflect expectations for the underlying network. For fast and reliable networks, this can be set to a smaller value. For networks that "+
+			"are intended to be slow, this can be set to a larger value. Additionally, for very large Kubernetes clusters, it may take longer for all "+
+			"clients to start, and it therefore may take longer for all clients to become 'Ready'; in that case, this value can be set slightly higher.")
+
 	runCmd.Flags().StringVarP(&validationConfigFile, "config", "c", "",
 		"The validation test config file to use. This cannot be used with other flags.")
 	runCmd.MarkFlagsMutuallyExclusive("config", "timeout-minutes")
@@ -142,6 +154,7 @@ func init() {
 	runCmd.MarkFlagsMutuallyExclusive("config", "cluster-network")
 	runCmd.MarkFlagsMutuallyExclusive("config", "daemons-per-node")
 	runCmd.MarkFlagsMutuallyExclusive("config", "nginx-image")
+	runCmd.MarkFlagsMutuallyExclusive("config", "flaky-threshold-seconds")
 
 	// flags for 'validation cleanup'
 	// none
@@ -252,4 +265,22 @@ func (t *timeoutMinutes) Set(v string) error {
 }
 func (t timeoutMinutes) Type() string {
 	return "timeoutMinutes"
+}
+
+type timeoutSeconds time.Duration
+
+func (t *timeoutSeconds) String() string { return time.Duration(*t).String() }
+func (t *timeoutSeconds) Set(v string) error {
+	i, err := strconv.Atoi(v)
+	if err != nil {
+		return err
+	}
+	if i < 1 {
+		return fmt.Errorf("timeout must be greater than 0")
+	}
+	*t = timeoutSeconds(time.Duration(i) * time.Second)
+	return nil
+}
+func (t timeoutSeconds) Type() string {
+	return "timeoutSeconds"
 }
