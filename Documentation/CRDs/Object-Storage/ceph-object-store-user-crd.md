@@ -46,7 +46,7 @@ spec:
 * `capabilities`: Ceph allows users to be given additional permissions. Due to missing APIs in go-ceph for updating the user capabilities, this setting can currently only be used during the creation of the object store user. If a user's capabilities need modified, the user must be deleted and re-created.
     See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/#add-remove-admin-capabilities) for more info.
     Rook supports adding `read`, `write`, `read, write`, or `*` permissions for the following resources:
-    * `users`
+    * `user`
     * `buckets`
     * `usage`
     * `metadata`
