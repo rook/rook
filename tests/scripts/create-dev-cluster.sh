@@ -48,6 +48,7 @@ get_minikube_driver() {
 }
 
 show_ceph_dashboard_info() {
+    local monitoring_enabled=$1
     DASHBOARD_PASSWORD=$($KUBECTL -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo)
     IP_ADDR=$($KUBECTL get po --selector="app=rook-ceph-mgr" -n rook-ceph --output jsonpath='{.items[*].status.hostIP}')
     PORT="$($KUBECTL -n rook-ceph -o=jsonpath='{.spec.ports[?(@.name == "dashboard")].nodePort}' get services rook-ceph-mgr-dashboard-external-http)"
@@ -56,6 +57,11 @@ show_ceph_dashboard_info() {
     echo "Ceph Dashboard: "
     echo "   IP_ADDRESS: $BASE_URL"
     echo "   PASSWORD: $DASHBOARD_PASSWORD"
+    if [ "$monitoring_enabled" = true ]; then
+	PROMETHEUS_API_HOST="http://$(kubectl -n rook-ceph -o jsonpath='{.status.hostIP}' get pod prometheus-rook-prometheus-0):30900"
+    echo "Prometheus Dashboard: "
+    echo "   API_HOST: $PROMETHEUS_API_HOST"
+    fi
     echo "==========================="
 }
 
@@ -104,9 +110,21 @@ wait_for_rook_operator() {
 enable_rook_orchestrator() {
     echo "Enabling rook orchestrator"
     $KUBECTL rollout status deployment rook-ceph-tools -n rook-ceph --timeout=30s
-    kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph mgr module enable rook
-    kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph orch set backend rook
-    kubectl -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph orch status
+    $KUBECTL -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph mgr module enable rook
+    $KUBECTL -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph orch set backend rook
+    $KUBECTL -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph orch status
+}
+
+enable_monitoring() {
+    echo "Enabling monitoring"
+    $KUBECTL apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
+    $KUBECTL wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus-operator --timeout=30s
+    $KUBECTL apply -f monitoring/service-monitor.yaml
+    $KUBECTL apply -f monitoring/exporter-service-monitor.yaml
+    $KUBECTL apply -f monitoring/prometheus.yaml
+    $KUBECTL apply -f monitoring/prometheus-service.yaml
+    PROMETHEUS_API_HOST="http://$(kubectl -n rook-ceph -o jsonpath='{.status.hostIP}' get pod prometheus-rook-prometheus-0):30900"
+    $KUBECTL -n rook-ceph exec -it deploy/rook-ceph-tools -- ceph dashboard set-prometheus-api-host "$PROMETHEUS_API_HOST"
 }
 
 show_usage() {
@@ -119,7 +137,7 @@ show_usage() {
 ####################################################################
 ################# MAIN #############################################
 
-while getopts ":hrfd:" opt; do
+while getopts ":hrmfd:" opt; do
     case $opt in
 	h)
 	    show_usage
@@ -127,6 +145,9 @@ while getopts ":hrfd:" opt; do
 	    ;;
 	r)
 	    enable_rook=true
+	    ;;
+	m)
+	    enable_monitoring=true
 	    ;;
 	f)
 	    force_minikube=true
@@ -164,7 +185,11 @@ if [ "$enable_rook" = true ]; then
     enable_rook_orchestrator
 fi
 
-show_ceph_dashboard_info
+if [ "$enable_monitoring" = true ]; then
+    enable_monitoring
+fi
+
+show_ceph_dashboard_info "$enable_monitoring"
 
 ####################################################################
 ####################################################################
