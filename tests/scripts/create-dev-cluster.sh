@@ -60,9 +60,19 @@ show_info() {
 }
 
 check_minikube_profile_exists() {
-    if minikube profile list | grep -q $ROOK_PROFILE_NAME; then
-        echo "A minikube profile '$ROOK_PROFILE_NAME' already exists, please use -f to force the minikube  cluster creation."
-	exit 1
+    
+	minikube profile list | grep -q $ROOK_PROFILE_NAME
+	local retcode=$?
+	if [ $retcode -eq 0 ]; then
+        echo "A minikube profile '$ROOK_PROFILE_NAME' already exists."
+	echo "Using the existing minikube environment."
+	echo " please use -f to force the minikube  cluster creation."
+	return  1
+    else
+	echo " A minikube environment does not exist yet."
+	echo " please use -f to force the minikube  cluster creation."
+
+
     fi
 }
 
@@ -164,11 +174,16 @@ echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
 cd "$ROOK_EXAMPLES_DIR" || exit
 check_examples_dir
 
-if [ -z "$force_minikube" ]; then
     check_minikube_profile_exists
+    local exists=$?
+    if [$exists -eq 0 ]; then
+	if [[ -n "${force_minikube}" ]]; then
+    	setup_minikube_env
+fi
 fi
 
-setup_minikube_env
+fi
+
 create_rook_cluster
 wait_for_rook_operator
 wait_for_ceph_cluster
