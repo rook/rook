@@ -125,7 +125,7 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -160,7 +160,7 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -195,7 +195,7 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="reef-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -231,7 +231,7 @@ jobs:
 
       - name: TestCephSmokeSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -266,7 +266,7 @@ jobs:
 
       - name: TestCephObjectSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -301,7 +301,7 @@ jobs:
 
       - name: TestCephObjectSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -336,7 +336,7 @@ jobs:
 
       - name: TestCephUpgradeSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToPacificDevel github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -371,7 +371,7 @@ jobs:
 
       - name: TestCephUpgradeSuite
         run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToQuincyDevel github.com/rook/rook/tests/integration
 
       - name: collect common logs
