@@ -36,7 +36,7 @@ jobs:
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
           tests/scripts/github-action-helper.sh create_helm_tag
           tests/scripts/helm.sh up
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_TEST_CLEANUP=false SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephHelmSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -75,8 +75,8 @@ jobs:
       - name: TestCephMultiClusterDeploySuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ {print $1}'| head -1)1
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)1
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           go test -v -timeout 1800s -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -115,7 +115,7 @@ jobs:
       - name: TestCephSmokeSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -154,7 +154,7 @@ jobs:
       - name: TestCephUpgradeSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           go test -v -timeout 2400s -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -196,7 +196,7 @@ jobs:
           tests/scripts/helm.sh up
 
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           go test -v -timeout 1800s -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -235,7 +235,7 @@ jobs:
       - name: TestCephObjectSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
