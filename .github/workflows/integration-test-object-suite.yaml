@@ -46,7 +46,7 @@ jobs:
       - name: TestCephObjectSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
           SKIP_CLEANUP_POLICY=false go test -v -timeout 2400s -failfast -run CephObjectSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs

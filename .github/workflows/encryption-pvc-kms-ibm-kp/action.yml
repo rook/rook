@@ -36,7 +36,7 @@ runs:
     - name: create cluster prerequisites
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ {print $1}'| head -1)
+        tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
         tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
     - name: deploy cluster
