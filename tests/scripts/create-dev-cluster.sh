@@ -61,7 +61,7 @@ show_info() {
 
 check_minikube_profile_exists() {
     if minikube profile list | grep -q $ROOK_PROFILE_NAME; then
-        echo "A minikube profile '$ROOK_PROFILE_NAME' already exists, please use -f to force the cluster creation."
+        echo "A minikube profile '$ROOK_PROFILE_NAME' already exists, please use -f to force the minikube  cluster creation."
 	exit 1
     fi
 }
