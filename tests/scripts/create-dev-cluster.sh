@@ -18,9 +18,9 @@ wait_for_ceph_cluster() {
 }
 
 get_minikube_driver() {
+	local DRIVER
 	if [[ -n "${minikube_driver}" ]];  then
-		echo "${minikube_driver}"
-		return
+		DRIVER="${minikube_driver}"
 	fi
 	
 
@@ -29,22 +29,25 @@ get_minikube_driver() {
     architecture=$(uname -m)
     if [[ "$os" == "Darwin" ]]; then
         if [[ "$architecture" == "x86_64" ]]; then
-            echo "hyperkit"
+            DRIVER="hyperkit"
 	    return
         elif [[ "$architecture" == "arm64" ]]; then
-            echo "qemu"
-	    return
+            DRIVER="qemu"
+	   
         else
             echo "Unknown Architecture on Apple OS"
 	    exit 1
         fi
     elif [[ "$os" == "Linux" ]]; then
-        echo "kvm2"
+        DRIVER="kvm2"
 	return
     else
         echo "Unknown/Unsupported OS"
 	exit 1
     fi
+
+    echo "${DRIVER}" 
+    return
 
 }
 
@@ -67,7 +70,7 @@ show_info() {
     echo " "
     echo " *** To start using your rook cluster please set the following alias: "
     echo " "
-    echo "    > " alias kubectl=\"$KUBECTL\"
+    echo "    >  alias kubectl=\"$KUBECTL\" "
 }
 
 check_minikube_profile_exists() {
@@ -88,10 +91,10 @@ check_minikube_profile_exists() {
 }
 
 setup_minikube_env() {
-    minikube_driver="$(get_minikube_driver)"
-    echo "Setting up minikube env (using $minikube_driver driver)"
+	minikube_driver="$(get_minikube_driver)"
+    echo "Setting up minikube env \(using driver ${minikube_driver}\)"
     $MINIKUBE delete
-    $MINIKUBE start --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
+    $MINIKUBE start --disk-size=40g --extra-disks=3 --driver "${minikube_driver}"
     eval "$($MINIKUBE docker-env)"
 }
 
@@ -145,8 +148,8 @@ show_usage() {
     echo "  -r        Enable rook orchestrator"
     echo "  -m        Enable monitoring"
     echo "  -f        enforce creation of the minikube environment "
-    echo "  -d value  Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
-    echo "  -y value  Specify minikube driver (hypervisor)"
+    echo "  -d value  Path to Rook examples directory \(i.e github.com/rook/rook/deploy/examples\)"
+    echo "  -y value  Specify minikube driver \(hypervisor\)"
 }
 
 ####################################################################
@@ -172,6 +175,7 @@ while getopts ":hrmfd:y:" opt; do
 	    ;;
     y)
 	    minikube_driver="$OPTARG"
+	    ;;
 	\?)
 	    echo  "Invalid option: -$opt" >&2
 	    show_usage
@@ -184,35 +188,41 @@ while getopts ":hrmfd:y:" opt; do
     esac
 done
 
-echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
+echo "Using '${ROOK_EXAMPLES_DIR}' as examples directory.."
 
-cd "$ROOK_EXAMPLES_DIR" || exit
+cd "${ROOK_EXAMPLES_DIR}" || exit
 check_examples_dir
 
     check_minikube_profile_exists
-    local exists=$?
-    if [$exists -eq 0 ]; then
-	if [[ -n "${force_minikube}" ]]; then
-    if [${exists} -eq 0 ]; then
+    exists=$?
+    if [[ $exists -eq 0 ]]; then
+if [[ -n "${force_minikube}" ]]; then
+    if [[ ${exists} -eq 0 ]]; then
+if [[ -z "${force_minikube}" ]]; then
+    check_minikube_profile_exists
+    exists=$?
+    if [[ ${exists} -eq 0 ]]; then
     	setup_minikube_env
-fi
+    fi
 fi
 
 fi
+fi
+    fi
 
 create_rook_cluster
 wait_for_rook_operator
 wait_for_ceph_cluster
 
-if [ "$enable_rook" = true ]; then
+if [[  "${enable_rook}" == "true" ]]; then
     enable_rook_orchestrator
 fi
 
-if [ "$enable_monitoring" = true ]; then
+if [[ "${enable_monitoring}" == "true" ]]; then
     enable_monitoring
 fi
 
-show_info "$enable_monitoring"
+show_info "${enable_monitoring}"
 
 ####################################################################
 ####################################################################
