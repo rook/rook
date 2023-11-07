@@ -59,7 +59,7 @@ show_info() {
     echo "    > " alias kubectl=\"$KUBECTL\"
 }
 
-check_minikube_exists() {
+check_minikube_profile_exists() {
     if minikube profile list | grep -q $ROOK_PROFILE_NAME; then
         echo "A minikube profile '$ROOK_PROFILE_NAME' already exists, please use -f to force the cluster creation."
 	exit 1
@@ -165,7 +165,7 @@ cd "$ROOK_EXAMPLES_DIR" || exit
 check_examples_dir
 
 if [ -z "$force_minikube" ]; then
-    check_minikube_exists
+    check_minikube_profile_exists
 fi
 
 setup_minikube_env
