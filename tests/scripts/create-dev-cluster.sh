@@ -2,8 +2,10 @@
 
 
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-KUBECTL="minikube kubectl --"
 ROOK_EXAMPLES_DIR="${SCRIPT_ROOT}/../../deploy/examples/"
+ROOK_PROFILE_NAME="rook"
+MINIKUBE="minikube --profile $ROOK_PROFILE_NAME"
+KUBECTL="$MINIKUBE kubectl --"
 
 wait_for_ceph_cluster() {
     echo "Waiting for ceph cluster"
@@ -35,7 +37,7 @@ get_minikube_driver() {
     fi
 }
 
-show_ceph_dashboard_info() {
+show_info() {
     local monitoring_enabled=$1
     DASHBOARD_PASSWORD=$($KUBECTL -n rook-ceph get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo)
     IP_ADDR=$($KUBECTL get po --selector="app=rook-ceph-mgr" -n rook-ceph --output jsonpath='{.items[*].status.hostIP}')
@@ -51,14 +53,15 @@ show_ceph_dashboard_info() {
     echo "   API_HOST: $PROMETHEUS_API_HOST"
     fi
     echo "==========================="
+    echo " "
+    echo " *** To start using your rook cluster please set the following alias: "
+    echo " "
+    echo "    > " alias kubectl=\"$KUBECTL\"
 }
 
 check_minikube_exists() {
-    minikube profile list > /dev/null 2>&1
-    local retcode=$?
-
-    if [ $retcode -eq 0 ]; then
-        echo "A minikube environment already exists, please use -f to force the cluster creation."
+    if minikube profile list | grep -q $ROOK_PROFILE_NAME; then
+        echo "A minikube profile '$ROOK_PROFILE_NAME' already exists, please use -f to force the cluster creation."
 	exit 1
     fi
 }
@@ -66,9 +69,9 @@ check_minikube_exists() {
 setup_minikube_env() {
     minikube_driver="$(get_minikube_driver)"
     echo "Setting up minikube env (using $minikube_driver driver)"
-    minikube delete
-    minikube start --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
-    eval "$(minikube docker-env -p minikube)"
+    $MINIKUBE delete
+    $MINIKUBE start --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
+    eval "$($MINIKUBE docker-env)"
 }
 
 create_rook_cluster() {
@@ -119,6 +122,7 @@ show_usage() {
     echo ""
     echo " Usage: $(basename "$0") [-r] [-d /path/to/rook-examples/dir]"
     echo "  -r        Enable rook orchestrator"
+    echo "  -m        Enable monitoring"
     echo "  -d value  Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
 }
 
@@ -177,7 +181,7 @@ if [ "$enable_monitoring" = true ]; then
     enable_monitoring
 fi
 
-show_ceph_dashboard_info "$enable_monitoring"
+show_info "$enable_monitoring"
 
 ####################################################################
 ####################################################################
