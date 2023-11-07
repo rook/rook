@@ -1599,7 +1599,7 @@ func TestAllowRawMode(t *testing.T) {
 		wantErr bool
 	}{
 		{"raw simple scenario supported", fields{"", config.StoreConfig{}}, args{&clusterd.Context{}, false}, true, false},
-		{"raw encrypted scenario supported", fields{"", config.StoreConfig{EncryptedDevice: true}}, args{&clusterd.Context{}, false}, true, false},
+		{"lvm complex scenario not supported: encrypted", fields{"", config.StoreConfig{EncryptedDevice: true}}, args{&clusterd.Context{}, false}, false, false},
 		{"lvm complex scenario not supported: osd per device > 1", fields{"", config.StoreConfig{OSDsPerDevice: 2}}, args{&clusterd.Context{}, false}, false, false},
 		{"lvm complex scenario not supported: metadata dev", fields{"/dev/sdb", config.StoreConfig{}}, args{&clusterd.Context{}, false}, false, false},
 		{"lvm complex scenario not supported: metadata dev", fields{"/dev/sdb", config.StoreConfig{}}, args{&clusterd.Context{}, false}, false, false},
