@@ -61,7 +61,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.cephFSPluginUpdateStrategy` | CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.cephFSPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI cephFS plugin daemonset update strategy. | `1` |
 | `csi.cephcsi.image` | Ceph CSI image | `quay.io/cephcsi/cephcsi:v3.9.0` |
-| `csi.cephfsGrpcMetricsPort` | CSI CephFS driver GRPC metrics port | `9091` |
 | `csi.cephfsLivenessMetricsPort` | CSI CephFS driver metrics port | `9081` |
 | `csi.cephfsPodLabels` | Labels to add to the CSI CephFS Deployments and DaemonSets Pods | `nil` |
 | `csi.clusterName` | Cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful in cases like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster | `nil` |
@@ -82,7 +81,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.enableCSIHostNetwork` | Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary in some network configurations where the SDN does not provide access to an external cluster or there is significant drop in read/write performance | `true` |
 | `csi.enableCephfsDriver` | Enable Ceph CSI CephFS driver | `true` |
 | `csi.enableCephfsSnapshotter` | Enable Snapshotter in CephFS provisioner pod | `true` |
-| `csi.enableGrpcMetrics` | Enable Ceph CSI GRPC Metrics | `false` |
 | `csi.enableLiveness` | Enable Ceph CSI Liveness sidecar deployment | `false` |
 | `csi.enableMetadata` | Enable adding volume metadata on the CephFS subvolumes and RBD images. Not all users might be interested in getting volume/snapshot details as metadata on CephFS subvolume and RBD images. Hence enable metadata is false by default | `false` |
 | `csi.enableNFSSnapshotter` | Enable Snapshotter in NFS provisioner pod | `true` |
@@ -110,7 +108,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.provisionerTolerations` | Array of tolerations in YAML format which will be added to CSI provisioner deployment | `nil` |
 | `csi.rbdAttachRequired` | Whether to skip any attach operation altogether for RBD PVCs. See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object). If set to false it skips the volume attachments and makes the creation of pods using the RBD PVC fast. **WARNING** It's highly discouraged to use this for RWO volumes as it can cause data corruption. csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set to false since we'll have no VolumeAttachments to determine which node the PVC is mounted on. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details. | `true` |
 | `csi.rbdFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
-| `csi.rbdGrpcMetricsPort` | Ceph CSI RBD driver GRPC metrics port | `9090` |
 | `csi.rbdLivenessMetricsPort` | Ceph CSI RBD driver metrics port | `8080` |
 | `csi.rbdPluginUpdateStrategy` | CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.rbdPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI RBD plugin daemonset update strategy. | `1` |

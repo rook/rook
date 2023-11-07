@@ -181,9 +181,6 @@ spec:
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--pidlimit=-1"
-            - "--metricsport={{ .RBDGRPCMetricsPort }}"
-            - "--metricspath=/metrics"
-            - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
             {{ end }}

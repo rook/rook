@@ -46,7 +46,6 @@ type Param struct {
 	SnapshotterImage                         string
 	ResizerImage                             string
 	DriverNamePrefix                         string
-	EnableCSIGRPCMetrics                     string
 	KubeletDirPath                           string
 	ForceCephFSKernelClient                  string
 	CephFSKernelMountOptions                 string
@@ -83,9 +82,7 @@ type Param struct {
 	NFSAttachRequired                        bool
 	LogLevel                                 uint8
 	SidecarLogLevel                          uint8
-	CephFSGRPCMetricsPort                    uint16
 	CephFSLivenessMetricsPort                uint16
-	RBDGRPCMetricsPort                       uint16
 	CSIAddonsPort                            uint16
 	RBDLivenessMetricsPort                   uint16
 	ProvisionerReplicas                      int32
@@ -115,7 +112,6 @@ var (
 	EnableRBD                 = false
 	EnableCephFS              = false
 	EnableNFS                 = false
-	EnableCSIGRPCMetrics      = false
 	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
 
@@ -321,7 +317,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		}
 
 		// Create service if either liveness or GRPC metrics are enabled.
-		if CSIParam.EnableLiveness || EnableCSIGRPCMetrics {
+		if CSIParam.EnableLiveness {
 			rbdService, err = templateToService("rbd-service", RBDPluginServiceTemplatePath, tp)
 			if err != nil {
 				return errors.Wrap(err, "failed to load rbd plugin service template")
@@ -348,7 +344,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
 		// Create service if either liveness or GRPC metrics are enabled.
-		if CSIParam.EnableLiveness || EnableCSIGRPCMetrics {
+		if CSIParam.EnableLiveness {
 			cephfsService, err = templateToService("cephfs-service", CephFSPluginServiceTemplatePath, tp)
 			if err != nil {
 				return errors.Wrap(err, "failed to load cephfs plugin service template")

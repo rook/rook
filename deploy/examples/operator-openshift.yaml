@@ -121,7 +121,6 @@ data:
   ROOK_CSI_ENABLE_RBD: "true"
   # Enable the CSI NFS driver. To start another version of the CSI driver, see image properties below.
   ROOK_CSI_ENABLE_NFS: "false"
-  ROOK_CSI_ENABLE_GRPC_METRICS: "false"
 
   # Set to true to enable Ceph CSI pvc encryption support.
   CSI_ENABLE_ENCRYPTION: "false"
@@ -549,13 +548,11 @@ data:
   #        memory: 1Gi
   #        cpu: 500m
 
-  # Configure CSI Ceph FS grpc and liveness metrics port
+  # Configure CSI CephFS liveness metrics port
   # Set to true to enable Ceph CSI liveness container.
   CSI_ENABLE_LIVENESS: "false"
-  # CSI_CEPHFS_GRPC_METRICS_PORT: "9091"
   # CSI_CEPHFS_LIVENESS_METRICS_PORT: "9081"
-  # Configure CSI RBD grpc and liveness metrics port
-  # CSI_RBD_GRPC_METRICS_PORT: "9090"
+  # Configure CSI RBD liveness metrics port
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
   # CSIADDONS_PORT: "9070"
 
