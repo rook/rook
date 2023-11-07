@@ -18,23 +18,34 @@ wait_for_ceph_cluster() {
 }
 
 get_minikube_driver() {
+	if [[ -n "${minikube_driver}" ]];  then
+		echo "${minikube_driver}"
+		return
+	fi
+	
+
+
     os=$(uname)
     architecture=$(uname -m)
     if [[ "$os" == "Darwin" ]]; then
         if [[ "$architecture" == "x86_64" ]]; then
             echo "hyperkit"
+	    return
         elif [[ "$architecture" == "arm64" ]]; then
             echo "qemu"
+	    return
         else
             echo "Unknown Architecture on Apple OS"
 	    exit 1
         fi
     elif [[ "$os" == "Linux" ]]; then
         echo "kvm2"
+	return
     else
         echo "Unknown/Unsupported OS"
 	exit 1
     fi
+
 }
 
 show_info() {
@@ -135,12 +146,13 @@ show_usage() {
     echo "  -m        Enable monitoring"
     echo "  -f        enforce creation of the minikube environment "
     echo "  -d value  Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
+    echo "  -y value  Specify minikube driver (hypervisor)"
 }
 
 ####################################################################
 ################# MAIN #############################################
 
-while getopts ":hrmfd:" opt; do
+while getopts ":hrmfd:y:" opt; do
     case $opt in
 	h)
 	    show_usage
@@ -158,13 +170,15 @@ while getopts ":hrmfd:" opt; do
 	d)
 	    ROOK_EXAMPLES_DIR="$OPTARG"
 	    ;;
+    y)
+	    minikube_driver="$OPTARG"
 	\?)
-	    echo  "Invalid option: -$OPTARG" >&2
+	    echo  "Invalid option: -$opt" >&2
 	    show_usage
 	    exit 1
 	    ;;
 	:)
-	    echo "Option -$OPTARG requires an argument." >&2
+	    echo "Option -$opt requires an argument." >&2
 	    exit 1
 	    ;;
     esac
@@ -179,6 +193,7 @@ check_examples_dir
     local exists=$?
     if [$exists -eq 0 ]; then
 	if [[ -n "${force_minikube}" ]]; then
+    if [${exists} -eq 0 ]; then
     	setup_minikube_env
 fi
 fi
