@@ -133,6 +133,7 @@ show_usage() {
     echo " Usage: $(basename "$0") [-r] [-d /path/to/rook-examples/dir]"
     echo "  -r        Enable rook orchestrator"
     echo "  -m        Enable monitoring"
+    echo "  -f        enforce creation of the minikube environment "
     echo "  -d value  Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
 }
 
