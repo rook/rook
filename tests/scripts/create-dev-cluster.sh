@@ -2,10 +2,10 @@
 
 
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
-KUBECTL="minikube kubectl --"
 ROOK_EXAMPLES_DIR="${SCRIPT_ROOT}/../../deploy/examples/"
 ROOK_PROFILE_NAME="rook"
-KUBECTL="minikube --profile $ROOK_PROFILE_NAME kubectl --"
+MINIKUBE="minikube --profile $ROOK_PROFILE_NAME"
+KUBECTL="$MINIKUBE kubectl --"
 
 wait_for_ceph_cluster() {
     echo "Waiting for ceph cluster"
@@ -56,7 +56,7 @@ show_info() {
     echo " "
     echo " *** To start using your rook cluster please set the following alias: "
     echo " "
-    echo "    > " alias kubectl=\"minikube --profile $ROOK_PROFILE_NAME kubectl --\"
+    echo "    > " alias kubectl=\"$KUBECTL\"
 }
 
 check_minikube_exists() {
@@ -69,9 +69,9 @@ check_minikube_exists() {
 setup_minikube_env() {
     minikube_driver="$(get_minikube_driver)"
     echo "Setting up minikube env (using $minikube_driver driver)"
-    minikube delete --profile $ROOK_PROFILE_NAME
-    minikube start --profile $ROOK_PROFILE_NAME --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
-    eval "$(minikube docker-env --profile $ROOK_PROFILE_NAME)"
+    $MINIKUBE delete
+    $MINIKUBE start --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
+    eval "$($MINIKUBE docker-env)"
 }
 
 create_rook_cluster() {
