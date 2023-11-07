@@ -1,9 +1,11 @@
-<!-- Please take a look at our Contributing documentation before submitting a Pull Request!
-https://rook.io/docs/rook/latest/Contributing/development-flow/
+<!-- Thank you for contributing to Rook! -->
 
-Thank you for contributing to Rook! -->
-
-**Description of your changes:**
+<!-- STEPS TO FOLLOW:
+  1. Add a description of the changes (frequently the same as the commit description)
+  2. Enter the issue number next to "Resolves #" below (if there is no tracking issue resolved, **remove that section**)
+  3. Review our Contributing documentation at https://rook.io/docs/rook/latest/Contributing/development-flow/
+  4. Follow the steps in the checklist below, starting with the **Commit Message Formatting**.
+-->
 
 **Which issue is resolved by this Pull Request:**
 Resolves #
