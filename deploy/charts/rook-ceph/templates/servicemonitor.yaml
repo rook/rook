@@ -21,9 +21,4 @@ spec:
       path: /metrics
       interval: {{ .Values.csi.serviceMonitor.interval }}
     {{- end }}
-    {{- if .Values.csi.enableGrpcMetrics }}
-    - port: csi-grpc-metrics
-      path: /metrics
-      interval: {{ .Values.csi.serviceMonitor.interval }}
-    {{- end }}
 {{- end }}

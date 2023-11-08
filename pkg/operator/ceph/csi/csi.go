@@ -17,7 +17,6 @@ limitations under the License.
 package csi
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -81,11 +80,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ALLOW_UNSUPPORTED_VERSION'")
 	}
 
-	if EnableCSIGRPCMetrics, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ENABLE_GRPC_METRICS", "false")); err != nil {
-		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_GRPC_METRICS'")
-	}
-	CSIParam.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
-
 	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true")); err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
 	}
@@ -115,19 +109,10 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	}
 	CSIParam.GRPCTimeout = time.Duration(timeoutSeconds) * time.Second
 
-	// parse GRPC and Liveness ports
-	CSIParam.CephFSGRPCMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
-	if err != nil {
-		return errors.Wrap(err, "error getting CSI CephFS GRPC metrics port.")
-	}
+	// parse Liveness port
 	CSIParam.CephFSLivenessMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI CephFS liveness metrics port.")
-	}
-
-	CSIParam.RBDGRPCMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
-	if err != nil {
-		return errors.Wrap(err, "error getting CSI RBD GRPC metrics port.")
 	}
 	CSIParam.CSIAddonsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSIADDONS_PORT", DefaultCSIAddonsPort)
 	if err != nil {

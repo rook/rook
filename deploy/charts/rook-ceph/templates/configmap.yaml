@@ -61,7 +61,6 @@ data:
 {{- if .Values.csi.kubeletDirPath }}
   ROOK_CSI_KUBELET_DIR_PATH: {{ .Values.csi.kubeletDirPath | quote }}
 {{- end }}
-  ROOK_CSI_ENABLE_GRPC_METRICS: {{ .Values.csi.enableGrpcMetrics | quote }}
 {{- if .Values.csi.cephcsi }}
 {{- if .Values.csi.cephcsi.image }}
   ROOK_CSI_CEPH_IMAGE: {{ .Values.csi.cephcsi.image | quote }}
@@ -176,17 +175,11 @@ data:
 {{- if .Values.csi.nfsPluginNodeAffinity }}
   CSI_NFS_PLUGIN_NODE_AFFINITY: {{ .Values.csi.nfsPluginNodeAffinity }}
 {{- end }}
-{{- if .Values.csi.cephfsGrpcMetricsPort }}
-  CSI_CEPHFS_GRPC_METRICS_PORT: {{ .Values.csi.cephfsGrpcMetricsPort | quote }}
-{{- end }}
 {{- if .Values.csi.cephfsLivenessMetricsPort }}
   CSI_CEPHFS_LIVENESS_METRICS_PORT: {{ .Values.csi.cephfsLivenessMetricsPort | quote }}
 {{- end }}
 {{- if .Values.csi.enableLiveness }}
   CSI_ENABLE_LIVENESS: {{ .Values.csi.enableLiveness | quote }}
-{{- end }}
-{{- if .Values.csi.rbdGrpcMetricsPort }}
-  CSI_RBD_GRPC_METRICS_PORT: {{ .Values.csi.rbdGrpcMetricsPort | quote }}
 {{- end }}
 {{- if .Values.csi.rbdLivenessMetricsPort }}
   CSI_RBD_LIVENESS_METRICS_PORT: {{ .Values.csi.rbdLivenessMetricsPort | quote }}

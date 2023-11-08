@@ -261,7 +261,7 @@ After this you only need to create the service monitor as stated above.
 
 ### CSI Liveness
 
-To integrate CSI liveness and grpc into ceph monitoring we will need to deploy
+To integrate CSI liveness into ceph monitoring we will need to deploy
 a service and service monitor.
 
 ```console

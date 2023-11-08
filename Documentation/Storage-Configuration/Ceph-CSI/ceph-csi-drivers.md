@@ -48,7 +48,7 @@ csi_liveness 1
 ```
 
 Check the [monitoring doc](../Monitoring/ceph-monitoring.md) to see how to integrate CSI
-liveness and grpc metrics into ceph monitoring.
+liveness metrics into ceph monitoring.
 
 ## Dynamically Expand Volume
 
@@ -253,6 +253,7 @@ Execute the following steps:
 
 * Patch the `rook-ceph-operator-config` configmap using the following
 command.
+
 ```console
 kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_READ_AFFINITY": "true"'
 ```

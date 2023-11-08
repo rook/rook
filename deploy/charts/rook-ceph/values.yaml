@@ -82,8 +82,6 @@ csi:
   enableRbdDriver: true
   # -- Enable Ceph CSI CephFS driver
   enableCephfsDriver: true
-  # -- Enable Ceph CSI GRPC Metrics
-  enableGrpcMetrics: false
   # -- Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance
@@ -448,17 +446,9 @@ csi:
   # -- Enable Ceph CSI Liveness sidecar deployment
   enableLiveness: false
 
-  # -- CSI CephFS driver GRPC metrics port
-  # @default -- `9091`
-  cephfsGrpcMetricsPort:
-
   # -- CSI CephFS driver metrics port
   # @default -- `9081`
   cephfsLivenessMetricsPort:
-
-  # -- Ceph CSI RBD driver GRPC metrics port
-  # @default -- `9090`
-  rbdGrpcMetricsPort:
 
   # -- CSI Addons server port
   # @default -- `9070`
