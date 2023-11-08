@@ -95,4 +95,6 @@ To accelerate the development process, users have the option to employ the scrip
 at `tests/scripts/create-dev-cluster.sh`. This script is designed to rapidly set
 up a new minikube environment, apply the CRDs and the common file, and then utilize the
 `cluster-test.yaml` script to create the Rook cluster. Once setup, users can use the different `*-test.yaml`
-files from the `deploy/examples/` directory to configure their clusters.
+files from the `deploy/examples/` directory to configure their clusters. This script supports
+the possibility of creating multiple rook clusters running on the same machine by using the option
+`-p <profile-name>`.

@@ -3,9 +3,13 @@
 
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 ROOK_EXAMPLES_DIR="${SCRIPT_ROOT}/../../deploy/examples/"
-ROOK_PROFILE_NAME="rook"
-MINIKUBE="minikube --profile $ROOK_PROFILE_NAME"
-KUBECTL="$MINIKUBE kubectl --"
+
+init_vars(){
+    local rook_profile_name=$1
+    ROOK_PROFILE_NAME=$rook_profile_name
+    MINIKUBE="minikube --profile $rook_profile_name"
+    KUBECTL="$MINIKUBE kubectl --"
+}
 
 wait_for_ceph_cluster() {
     echo "Waiting for ceph cluster"
@@ -54,13 +58,20 @@ show_info() {
     fi
     echo "==========================="
     echo " "
-    echo " *** To start using your rook cluster please set the following alias: "
+    echo " *** To start using your rook cluster please set the following env: "
     echo " "
-    echo "    > " alias kubectl=\"$KUBECTL\"
+    echo "   > eval \$($MINIKUBE docker-env)"
+    echo "   > alias kubectl=\"$KUBECTL"\"
+    echo " "
+    echo " *** To access the new cluster with k9s: "
+    echo " "
+    echo "   > k9s --context $ROOK_PROFILE_NAME"
+    echo " "
 }
 
 check_minikube_exists() {
-    if minikube profile list | grep -q $ROOK_PROFILE_NAME; then
+    echo "Checking minikube profile '$ROOK_PROFILE_NAME'..."
+    if minikube profile list -l 2> /dev/null | grep -qE "\s$ROOK_PROFILE_NAME\s"; then
         echo "A minikube profile '$ROOK_PROFILE_NAME' already exists, please use -f to force the cluster creation."
 	exit 1
     fi
@@ -68,7 +79,7 @@ check_minikube_exists() {
 
 setup_minikube_env() {
     minikube_driver="$(get_minikube_driver)"
-    echo "Setting up minikube env (using $minikube_driver driver)"
+    echo "Setting up minikube env for profile '$ROOK_PROFILE_NAME' (using $minikube_driver driver)"
     $MINIKUBE delete
     $MINIKUBE start --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
     eval "$($MINIKUBE docker-env)"
@@ -120,16 +131,17 @@ enable_monitoring() {
 
 show_usage() {
     echo ""
-    echo " Usage: $(basename "$0") [-r] [-d /path/to/rook-examples/dir]"
-    echo "  -r        Enable rook orchestrator"
-    echo "  -m        Enable monitoring"
-    echo "  -d value  Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
+    echo " Usage: $(basename "$0") [-r] [-m] [-p <profile-name>] [-d /path/to/rook-examples/dir]"
+    echo "  -r                Enable rook orchestrator"
+    echo "  -m                Enable monitoring"
+    echo "  -p <profile-name> Specify the minikube profile name"
+    echo "  -d value          Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
 }
 
 ####################################################################
 ################# MAIN #############################################
 
-while getopts ":hrmfd:" opt; do
+while getopts ":hrmfd:p:" opt; do
     case $opt in
 	h)
 	    show_usage
@@ -147,6 +159,9 @@ while getopts ":hrmfd:" opt; do
 	d)
 	    ROOK_EXAMPLES_DIR="$OPTARG"
 	    ;;
+	p)
+	    minikube_profile_name="$OPTARG"
+	    ;;
 	\?)
 	    echo  "Invalid option: -$OPTARG" >&2
 	    show_usage
@@ -163,6 +178,7 @@ echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
 
 cd "$ROOK_EXAMPLES_DIR" || exit
 check_examples_dir
+init_vars "${minikube_profile_name:-rook}"
 
 if [ -z "$force_minikube" ]; then
     check_minikube_exists
