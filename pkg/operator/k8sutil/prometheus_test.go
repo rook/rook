@@ -18,19 +18,21 @@ limitations under the License.
 package k8sutil
 
 import (
-	"testing"
-
+	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGetServiceMonitor(t *testing.T) {
 	name := "rook-ceph-mgr"
 	namespace := "rook-ceph"
 	port := "http-metrics"
+	interval := monitoringv1.Duration("5s")
 	servicemonitor := GetServiceMonitor(name, namespace, port)
 	assert.Equal(t, name, servicemonitor.GetName())
 	assert.Equal(t, namespace, servicemonitor.GetNamespace())
 	assert.Equal(t, port, servicemonitor.Spec.Endpoints[0].Port)
+	assert.Equal(t, interval, servicemonitor.Spec.Endpoints[0].Interval)
 	assert.NotNil(t, servicemonitor.GetLabels())
 	assert.NotNil(t, servicemonitor.Spec.NamespaceSelector.MatchNames)
 	assert.NotNil(t, servicemonitor.Spec.Selector.MatchLabels)
