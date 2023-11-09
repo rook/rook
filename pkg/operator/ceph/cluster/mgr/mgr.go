@@ -530,6 +530,10 @@ func (c *Cluster) EnableServiceMonitor() error {
 	if c.spec.External.Enable {
 		serviceMonitor.Spec.Endpoints[0].Port = controller.ServiceExternalMetricName
 	}
+	if c.spec.Monitoring.Interval != nil {
+		duration := c.spec.Monitoring.Interval.Duration.String()
+		serviceMonitor.Spec.Endpoints[0].Interval = monitoringv1.Duration(duration)
+	}
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(serviceMonitor)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set owner reference to service monitor %q", serviceMonitor.Name)
