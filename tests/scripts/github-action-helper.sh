@@ -19,7 +19,7 @@ set -xeEo pipefail
 #############
 # VARIABLES #
 #############
-: "${BLOCK:=$(sudo lsblk --paths | awk '/14G/ {print $1}' | head -1)}"
+: "${BLOCK:=$(sudo lsblk --paths | awk '/14G/ || /64G/ {print $1}' | head -1)}"
 NETWORK_ERROR="connection reset by peer"
 SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
 INTERNAL_ERROR="INTERNAL_ERROR"
@@ -396,7 +396,7 @@ function create_LV_on_disk() {
 }
 
 function deploy_first_rook_cluster() {
-  BLOCK=$(sudo lsblk | awk '/14G/ {print $1}' | head -1)
+  BLOCK=$(sudo lsblk | awk '/14G/ || /64G/ {print $1}' | head -1)
   create_cluster_prerequisites
   cd deploy/examples/
 
@@ -409,7 +409,7 @@ function deploy_first_rook_cluster() {
 }
 
 function deploy_second_rook_cluster() {
-  BLOCK=$(sudo lsblk | awk '/14G/ {print $1}' | head -1)
+  BLOCK=$(sudo lsblk | awk '/14G/ || /64G/ {print $1}' | head -1)
   cd deploy/examples/
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
