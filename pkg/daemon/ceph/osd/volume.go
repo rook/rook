@@ -415,6 +415,12 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 	// by default assume raw mode
 	allowRawMode := true
 
+	// ceph-volume raw mode does not support encryption yet
+	if a.storeConfig.EncryptedDevice {
+		logger.Debug("won't use raw mode since encryption is enabled")
+		allowRawMode = false
+	}
+
 	// ceph-volume raw mode does not support more than one OSD per disk
 	osdsPerDeviceCountString := sanitizeOSDsPerDevice(a.storeConfig.OSDsPerDevice)
 	osdsPerDeviceCount, err := strconv.Atoi(osdsPerDeviceCountString)
