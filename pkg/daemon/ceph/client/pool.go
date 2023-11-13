@@ -471,21 +471,21 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 
 	logger.Infof("reconciling replicated pool %s succeeded", pool.Name)
 
-	if checkFailureDomain {
-		if err = ensureFailureDomain(context, clusterInfo, clusterSpec, pool); err != nil {
+	if checkFailureDomain || pool.PoolSpec.DeviceClass != "" {
+		if err = updatePoolCrushRule(context, clusterInfo, clusterSpec, pool); err != nil {
 			return nil
 		}
 	}
 	return nil
 }
 
-func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
-	if pool.FailureDomain == "" {
-		logger.Debugf("skipping check for failure domain on pool %q as it is not specified", pool.Name)
+func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
+	if pool.FailureDomain == "" && pool.DeviceClass == "" {
+		logger.Debugf("skipping check for failure domain and deviceClass on pool %q as it is not specified", pool.Name)
 		return nil
 	}
 
-	logger.Debugf("checking that pool %q has the failure domain %q", pool.Name, pool.FailureDomain)
+	logger.Debugf("checking that pool %q has the failure domain %q and deviceClass %q", pool.Name, pool.FailureDomain, pool.DeviceClass)
 	details, err := GetPoolDetails(context, clusterInfo, pool.Name)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get pool %q details", pool.Name)
@@ -496,17 +496,24 @@ func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	if err != nil {
 		return errors.Wrapf(err, "failed to get crush rule %q", details.CrushRule)
 	}
-	currentFailureDomain := extractFailureDomain(rule)
-	if currentFailureDomain == pool.FailureDomain {
-		logger.Debugf("pool %q has the expected failure domain %q", pool.Name, pool.FailureDomain)
+	currentFailureDomain, currentDeviceClass := extractPoolDetails(rule)
+	if currentFailureDomain == pool.FailureDomain && currentDeviceClass == pool.DeviceClass {
+		logger.Infof("pool %q has the expected failure domain %q and deviceClass %q", pool.Name, pool.FailureDomain, pool.DeviceClass)
 		return nil
 	}
-	if currentFailureDomain == "" {
-		logger.Warningf("failure domain not found for crush rule %q, proceeding to create a new crush rule", details.CrushRule)
+
+	if currentFailureDomain != pool.FailureDomain {
+		logger.Infof("creating a new crush rule for changed failure domain on crush rule %q", details.CrushRule)
+	}
+	if currentDeviceClass != pool.DeviceClass {
+		logger.Infof("creating a new crush rule for changed deviceClass on crush rule %q", details.CrushRule)
 	}
 
 	// Use a crush rule name that is unique to the desired failure domain
 	crushRuleName := fmt.Sprintf("%s_%s", pool.Name, pool.FailureDomain)
+	if pool.DeviceClass != "" {
+		crushRuleName = fmt.Sprintf("%s_%s_%s", pool.Name, pool.FailureDomain, pool.DeviceClass)
+	}
 	logger.Infof("updating pool %q failure domain from %q to %q with new crush rule %q", pool.Name, currentFailureDomain, pool.FailureDomain, crushRuleName)
 	logger.Infof("crush rule %q will no longer be used by pool %q", details.CrushRule, pool.Name)
 
@@ -524,12 +531,17 @@ func ensureFailureDomain(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 	return nil
 }
 
-func extractFailureDomain(rule ruleSpec) string {
+func extractPoolDetails(rule ruleSpec) (string, string) {
 	// find the failure domain in the crush rule, which is the first step where the
 	// "type" property is set
+
+	var failureDomain, deviceClass string
 	for i, step := range rule.Steps {
 		if step.Type != "" {
-			return step.Type
+			failureDomain = step.Type
+		}
+		if step.ItemName != "" {
+			deviceClass = step.ItemName
 		}
 		// We expect the rule to be found by the second step, or else it is a more
 		// complex rule that would not be supported for updating the failure domain
@@ -537,7 +549,7 @@ func extractFailureDomain(rule ruleSpec) string {
 			break
 		}
 	}
-	return ""
+	return failureDomain, deviceClass
 }
 
 func setCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, crushRule string) error {
