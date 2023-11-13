@@ -281,7 +281,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
-		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "", newCrushRule)
 	})
@@ -295,7 +295,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
-		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "", newCrushRule)
 	})
@@ -309,29 +309,30 @@ func TestUpdateFailureDomain(t *testing.T) {
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
-		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "mypool_zone", newCrushRule)
 	})
 }
 
-func TestExtractFailureDomain(t *testing.T) {
+func TestExtractPoolDetails(t *testing.T) {
 	t.Run("complex crush rule skipped", func(t *testing.T) {
 		rule := ruleSpec{Steps: []stepSpec{
 			{Type: ""},
 			{Type: ""},
 			{Type: "zone"},
 		}}
-		failureDomain := extractFailureDomain(rule)
+		failureDomain, _ := extractPoolDetails(rule)
 		assert.Equal(t, "", failureDomain)
 	})
 	t.Run("valid crush rule", func(t *testing.T) {
 		rule := ruleSpec{Steps: []stepSpec{
 			{Type: ""},
-			{Type: "zone"},
+			{Type: "zone", ItemName: "ssd"},
 		}}
-		failureDomain := extractFailureDomain(rule)
+		failureDomain, deviceClass := extractPoolDetails(rule)
 		assert.Equal(t, "zone", failureDomain)
+		assert.Equal(t, "ssd", deviceClass)
 	})
 }
 
