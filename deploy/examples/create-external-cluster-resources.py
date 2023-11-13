@@ -444,7 +444,7 @@ class RadosJSON:
             "--rados-namespace",
             default="",
             required=False,
-            help="divides a pool into separate logical namespaces",
+            help="Divides a pool into separate logical namespaces, used for creating RBD PVC in a CephBlockPoolRadosNamespace (should be lower case)",
         )
         output_group.add_argument(
             "--subvolume-group",
@@ -893,7 +893,14 @@ class RadosJSON:
 
         return caps, entity
 
-    def get_entity(self, entity, rbd_pool_name, alias_rbd_pool_name, k8s_cluster_name):
+    def get_entity(
+        self,
+        entity,
+        rbd_pool_name,
+        alias_rbd_pool_name,
+        k8s_cluster_name,
+        rados_namespace,
+    ):
         if (
             rbd_pool_name.count(".") != 0
             or rbd_pool_name.count("_") != 0
@@ -915,6 +922,8 @@ class RadosJSON:
         else:
             entity = f"{entity}-{k8s_cluster_name}-{rbd_pool_name}"
 
+        if rados_namespace:
+            entity = f"{entity}-{rados_namespace}"
         return entity
 
     def get_rbd_provisioner_caps_and_entity(self):
@@ -928,6 +937,7 @@ class RadosJSON:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             k8s_cluster_name = self._arg_parser.k8s_cluster_name
+            rados_namespace = self._arg_parser.rados_namespace
             if rbd_pool_name == "":
                 raise ExecutionFailureException(
                     "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
@@ -937,9 +947,18 @@ class RadosJSON:
                     "mandatory flag not found, please set the '--k8s-cluster-name' flag"
                 )
             entity = self.get_entity(
-                entity, rbd_pool_name, alias_rbd_pool_name, k8s_cluster_name
+                entity,
+                rbd_pool_name,
+                alias_rbd_pool_name,
+                k8s_cluster_name,
+                rados_namespace,
             )
-            caps["osd"] = f"profile rbd pool={rbd_pool_name}"
+            if rados_namespace != "":
+                caps[
+                    "osd"
+                ] = f"profile rbd pool={rbd_pool_name} namespace={rados_namespace}"
+            else:
+                caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
         return caps, entity
 
@@ -953,6 +972,7 @@ class RadosJSON:
             rbd_pool_name = self._arg_parser.rbd_data_pool_name
             alias_rbd_pool_name = self._arg_parser.alias_rbd_data_pool_name
             k8s_cluster_name = self._arg_parser.k8s_cluster_name
+            rados_namespace = self._arg_parser.rados_namespace
             if rbd_pool_name == "":
                 raise ExecutionFailureException(
                     "mandatory flag not found, please set the '--rbd-data-pool-name' flag"
@@ -962,9 +982,18 @@ class RadosJSON:
                     "mandatory flag not found, please set the '--k8s-cluster-name' flag"
                 )
             entity = self.get_entity(
-                entity, rbd_pool_name, alias_rbd_pool_name, k8s_cluster_name
+                entity,
+                rbd_pool_name,
+                alias_rbd_pool_name,
+                k8s_cluster_name,
+                rados_namespace,
             )
-            caps["osd"] = f"profile rbd pool={rbd_pool_name}"
+            if rados_namespace != "":
+                caps[
+                    "osd"
+                ] = f"profile rbd pool={rbd_pool_name} namespace={rados_namespace}"
+            else:
+                caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
         return caps, entity
 
@@ -1315,6 +1344,11 @@ class RadosJSON:
         rados_namespace = self._arg_parser.rados_namespace
         if rados_namespace == "":
             return
+        if rados_namespace.islower() == False:
+            raise ExecutionFailureException(
+                f"The provided rados Namespace, '{rados_namespace}', "
+                f"contains upper case"
+            )
         rbd_inst = rbd.RBD()
         ioctx = self.cluster.open_ioctx(rbd_pool_name)
         if rbd_inst.namespace_exists(ioctx, rados_namespace) is False:
@@ -1731,24 +1765,25 @@ class RadosJSON:
                     },
                 }
             )
-        if self.out_map["RBD_METADATA_EC_POOL_NAME"]:
+        # if 'RADOS_NAMESPACE' exists, then only add the "RADOS_NAMESPACE" namespace
+        if (
+            self.out_map["RADOS_NAMESPACE"]
+            and self.out_map["RESTRICTED_AUTH_PERMISSION"]
+            and not self.out_map["RBD_METADATA_EC_POOL_NAME"]
+        ):
             json_out.append(
                 {
-                    "name": "ceph-rbd",
-                    "kind": "StorageClass",
+                    "name": "rados-namespace",
+                    "kind": "CephBlockPoolRadosNamespace",
                     "data": {
-                        "dataPool": self.out_map["RBD_POOL_NAME"],
-                        "pool": self.out_map["RBD_METADATA_EC_POOL_NAME"],
-                        "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
-                        "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        "radosNamespaceName": self.out_map["RADOS_NAMESPACE"],
+                        "pool": self.out_map["RBD_POOL_NAME"],
                     },
                 }
             )
-        else:
             json_out.append(
                 {
-                    "name": "ceph-rbd",
+                    "name": "ceph-rbd-rados-namespace",
                     "kind": "StorageClass",
                     "data": {
                         "pool": self.out_map["RBD_POOL_NAME"],
@@ -1758,6 +1793,35 @@ class RadosJSON:
                     },
                 }
             )
+        else:
+            if self.out_map["RBD_METADATA_EC_POOL_NAME"]:
+                json_out.append(
+                    {
+                        "name": "ceph-rbd",
+                        "kind": "StorageClass",
+                        "data": {
+                            "dataPool": self.out_map["RBD_POOL_NAME"],
+                            "pool": self.out_map["RBD_METADATA_EC_POOL_NAME"],
+                            "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                            "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                            "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        },
+                    }
+                )
+            else:
+                json_out.append(
+                    {
+                        "name": "ceph-rbd",
+                        "kind": "StorageClass",
+                        "data": {
+                            "pool": self.out_map["RBD_POOL_NAME"],
+                            "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                            "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                            "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                        },
+                    }
+                )
+
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
         if self.out_map["CEPHFS_FS_NAME"]:
             json_out.append(

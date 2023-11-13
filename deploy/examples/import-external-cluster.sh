@@ -78,11 +78,50 @@ function createClusterNamespace() {
   fi
 }
 
+function createRadosNamespaceCR() {
+  if ! kubectl -n "$NAMESPACE" get CephBlockPoolRadosNamespace $RADOS_NAMESPACE &>/dev/null; then
+    cat <<eof | kubectl create -f -
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPoolRadosNamespace
+metadata:
+  name: $RADOS_NAMESPACE
+  namespace: $NAMESPACE # namespace:cluster
+spec:
+  # blockPoolName is the name of the CephBlockPool CR where the namespace will be created.
+  blockPoolName: $RBD_POOL_NAME
+eof
+  else
+    echo "radosnamespace $RADOS_NAMESPACE already exists"
+  fi
+}
+
+function createSubvolumeGroupCR() {
+  if ! kubectl -n "$NAMESPACE" get CephFilesystemSubVolumeGroup $SUBVOLUME_GROUP &>/dev/null; then
+    cat <<eof | kubectl create -f -
+---
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: $SUBVOLUME_GROUP
+  namespace: $NAMESPACE # namespace:cluster
+spec:
+  # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
+  filesystemName: $CEPHFS_FS_NAME
+eof
+  else
+    echo "subvolumegroup $SUBVOLUME_GROUP already exists"
+  fi
+}
+
 function importClusterID() {
   if [ -n "$RADOS_NAMESPACE" ]; then
+    createRadosNamespaceCR
+    timeout 20 sh -c "until [ $(kubectl -n "$NAMESPACE" get CephBlockPoolRadosNamespace/"$RADOS_NAMESPACE" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
     CLUSTER_ID_RBD=$(kubectl -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE" -o jsonpath='{.status.info.clusterID}')
   fi
   if [ -n "$SUBVOLUME_GROUP" ]; then
+    createSubvolumeGroupCR
+    timeout 20 sh -c "until [ $(kubectl -n "$NAMESPACE" get CephFilesystemSubVolumeGroup/"$SUBVOLUME_GROUP" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
     CLUSTER_ID_CEPHFS=$(kubectl -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP" -o jsonpath='{.status.info.clusterID}')
   fi
 }
