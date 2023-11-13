@@ -138,8 +138,16 @@ show_usage() {
     echo "  -d value          Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
 }
 
+invocation_error() {
+    printf "%s\n" "$*" > /dev/stderr
+    show_usage
+    exit 1
+}
+
 ####################################################################
 ################# MAIN #############################################
+
+
 
 while getopts ":hrmfd:p:" opt; do
     case $opt in
@@ -163,13 +171,10 @@ while getopts ":hrmfd:p:" opt; do
 	    minikube_profile_name="$OPTARG"
 	    ;;
 	\?)
-	    echo  "Invalid option: -$OPTARG" >&2
-	    show_usage
-	    exit 1
+	    invocation_error "Invalid option: -$OPTARG"
 	    ;;
 	:)
-	    echo "Option -$OPTARG requires an argument." >&2
-	    exit 1
+	    invocation_error "Option -$OPTARG requires an argument."
 	    ;;
     esac
 done
