@@ -2118,6 +2118,11 @@ type GaneshaServerSpec struct {
 	// +nullable
 	// +optional
 	HostNetwork *bool `json:"hostNetwork,omitempty"`
+
+	// A liveness-probe to verify that Ganesha server has valid run-time state.
+	// If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.
+	// +optional
+	LivenessProbe *ProbeSpec `json:"livenessProbe,omitempty"`
 }
 
 // NFSSecuritySpec represents security configurations for an NFS server pod

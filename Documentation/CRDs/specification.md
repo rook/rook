@@ -6274,6 +6274,21 @@ bool
 <p>Whether host networking is enabled for the Ganesha server. If not set, the network settings from the cluster CR will be applied.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>livenessProbe</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ProbeSpec">
+ProbeSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A liveness-probe to verify that Ganesha server has valid run-time state.
+If LivenessProbe.Disabled is false and LivenessProbe.Probe is nil uses default probe.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.GatewaySpec">GatewaySpec
@@ -10014,7 +10029,7 @@ QuotaSpec
 <h3 id="ceph.rook.io/v1.ProbeSpec">ProbeSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.ObjectHealthCheckSpec">ObjectHealthCheckSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.ObjectHealthCheckSpec">ObjectHealthCheckSpec</a>)
 </p>
 <div>
 <p>ProbeSpec is a wrapper around Probe so it can be enabled or disabled for a Ceph daemon</p>
