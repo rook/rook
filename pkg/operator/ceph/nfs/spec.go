@@ -22,8 +22,10 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -224,7 +226,7 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		logLevel = nfs.Spec.Server.LogLevel
 	}
 
-	return v1.Container{
+	container := v1.Container{
 		Name: "nfs-ganesha",
 		Command: []string{
 			"ganesha.nfsd",
@@ -246,7 +248,20 @@ func (r *ReconcileCephNFS) daemonContainer(nfs *cephv1.CephNFS, cfg daemonConfig
 		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       nfs.Spec.Server.Resources,
 		SecurityContext: controller.PodSecurityContext(),
+		LivenessProbe:   r.defaultGaneshaLivenessProbe(nfs),
 	}
+	return cephconfig.ConfigureLivenessProbe(container, nfs.Spec.Server.LivenessProbe)
+}
+
+func (r *ReconcileCephNFS) defaultGaneshaLivenessProbe(nfs *cephv1.CephNFS) *v1.Probe {
+	failureThreshold := int32(10)
+	cephVersionWithRpcinfo := version.CephVersion{Major: 18, Minor: 2, Extra: 1}
+	if r.clusterInfo.CephVersion.IsAtLeast(cephVersionWithRpcinfo) {
+		// liveness-probe using rpcinfo utility
+		return controller.GenerateLivenessProbeViaRpcinfo(nfsPort, failureThreshold)
+	}
+	// liveness-probe using K8s builtin TCP-socket action
+	return controller.GenerateLivenessProbeTcpPort(nfsPort, failureThreshold)
 }
 
 func (r *ReconcileCephNFS) dbusContainer(nfs *cephv1.CephNFS) v1.Container {
