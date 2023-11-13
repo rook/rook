@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path"
 	"strconv"
@@ -204,7 +205,8 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		// Test if the cluster has already been configured if the mgr deployment has been created.
 		// If the mgr does not exist, the mons have never been verified to be in quorum.
 		opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, mgr.AppName)}
-		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(cluster.Namespace).List(c.OpManagerCtx, opts)
+		operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+		mgrDeployments, err := c.context.Clientset.AppsV1().Deployments(operatorNamespace).List(c.OpManagerCtx, opts)
 		if err == nil && len(mgrDeployments.Items) > 0 && cluster.ClusterInfo != nil {
 			c.configureCephMonitoring(cluster, clusterInfo)
 		}

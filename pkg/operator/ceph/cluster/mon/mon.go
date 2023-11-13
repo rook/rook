@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -995,7 +996,8 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 	// 1) New clusters where we are starting one deployment at a time. We only need to check for quorum once when we add a new mon.
 	// 2) Clusters being restored where no mon deployments are running. We need to start all the deployments before checking quorum.
 	onlyCheckQuorumOnce := false
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.Namespace).List(c.ClusterInfo.Context, metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(operatorNamespace).List(c.ClusterInfo.Context, metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", AppName)})
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("0 of %d expected mon deployments exist. creating new deployment(s).", len(mons))
@@ -1535,8 +1537,8 @@ func (c *Cluster) releaseOrchestrationLock() {
 
 func (c *Cluster) getMonsToSkipReconcile() (sets.Set[string], error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
-
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).List(c.ClusterInfo.Context, listOpts)
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(operatorNamespace).List(c.ClusterInfo.Context, listOpts)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query mons to skip reconcile")
 	}

@@ -581,7 +581,8 @@ func (c *Cluster) removeOrphanMonResources() {
 	logger.Info("checking for orphaned mon resources")
 
 	opts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
-	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).List(c.ClusterInfo.Context, opts)
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	pvcs, err := c.context.Clientset.CoreV1().PersistentVolumeClaims(operatorNamespace).List(c.ClusterInfo.Context, opts)
 	if err != nil {
 		logger.Infof("failed to check for orphaned mon pvcs. %v", err)
 		return

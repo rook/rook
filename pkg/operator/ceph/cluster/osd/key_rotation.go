@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
@@ -241,7 +242,8 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 
 	// Get the list of OSDs backed by pvc.
 	osdListOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, osdListOpts)
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	deployments, err := c.context.Clientset.AppsV1().Deployments(operatorNamespace).List(c.clusterInfo.Context, osdListOpts)
 	if err != nil {
 		return errors.Wrap(err, "failed to query existing OSD deployments")
 	}
