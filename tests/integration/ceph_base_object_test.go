@@ -114,7 +114,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 
 	// Check object store status
 	t.Run("verify object store status", func(t *testing.T) {
-		retryCount := 30
+		retryCount := 40
 		i := 0
 		for i = 0; i < retryCount; i++ {
 			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})

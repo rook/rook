@@ -29,12 +29,14 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	kexec "k8s.io/utils/exec"
 )
 
 const (
@@ -666,6 +668,77 @@ func Test_createMultisite(t *testing.T) {
 				assert.NoError(t, err)
 			}
 		})
+	}
+}
+
+func getExecutor() []exec.Executor {
+	executor := []exec.Executor{&exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			if args[0] == "realm" {
+				return `{
+	"id": "237e6250-5f7d-4b85-9359-8cb2b1848507",
+	"name": "realm-a",
+	"current_period": "df665ecb-1762-47a9-9c66-f938d251c02a",
+	"epoch": 2
+}`, nil
+			}
+			return "", nil
+		},
+	},
+		&exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "realm" {
+					return `{}`, errors.Errorf("Error from server (NotFound): pods  not found")
+				}
+				return "", nil
+			},
+		},
+		&exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "realm" {
+					return `{}`, &kexec.CodeExitError{Err: errors.New("some error"), Code: 4}
+				}
+				return "", nil
+			},
+		},
+		&exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "realm" {
+					return `{}`, &kexec.CodeExitError{Err: errors.New("some other error"), Code: 2}
+				}
+				return "", nil
+			},
+		},
+	}
+	return executor
+}
+
+func getreturnErrString() []string {
+	returnErr := []string{
+		"",
+		"'radosgw-admin [\"realm\" \"-1\" \"{}. \" \"\"] get' failed with code %!q(MISSING), for reason %!q(MISSING), error: (%!v(MISSING)): Error from server (NotFound): pods  not found",
+		"'radosgw-admin \"realm\" get' failed with code \"4\", for reason \"{}. \": some error",
+		"failed to create ceph [\"realm\" \"--rgw-realm=\" \"{}. \"] %!q(MISSING), for reason %!q(MISSING): some other error",
+	}
+	return returnErr
+}
+
+func Test_createMultisiteConfigurations(t *testing.T) {
+	executor := getExecutor()
+	returnErrString := getreturnErrString()
+	for i := 0; i < 4; i++ {
+		ctx := &clusterd.Context{
+			Executor: executor[i],
+		}
+		objContext := NewContext(ctx, &client.ClusterInfo{Namespace: "my-cluster"}, "my-store")
+		realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
+
+		err := createMultisiteConfigurations(objContext, "realm", realmArg, "create")
+		if i == 0 {
+			assert.NoError(t, err)
+		} else {
+			assert.Contains(t, err.Error(), returnErrString[i])
+		}
 	}
 }
 
