@@ -82,7 +82,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		MultipleMgrs:              true,
 		EnableAdmissionController: true,
 		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.PacificVersion,
+		CephVersion:               installer.QuincyVersion,
 		RequireMsgr2:              true,
 	}
 	s.settings.ApplyEnvVars()
@@ -92,7 +92,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		Namespace:         "multi-external",
 		OperatorNamespace: s.settings.OperatorNamespace,
 		RookVersion:       s.settings.RookVersion,
-		CephVersion:       installer.PacificVersion,
+		CephVersion:       installer.QuincyVersion,
 	}
 	externalSettings.ApplyEnvVars()
 	s.externalManifests = installer.NewCephManifests(externalSettings)

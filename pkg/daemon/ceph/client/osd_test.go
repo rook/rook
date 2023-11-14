@@ -167,9 +167,9 @@ func TestOSDOkToStop(t *testing.T) {
 		seenArgs = []string{}
 	}
 
-	t.Run("pacific output ok to stop", func(t *testing.T) {
+	t.Run("output ok to stop", func(t *testing.T) {
 		doSetup()
-		clusterInfo.CephVersion = version.Pacific
+		clusterInfo.CephVersion = version.Reef
 		returnString = fake.OsdOkToStopOutput(1, []int{1, 2})
 		returnOkResult = true
 		osds, err := OSDOkToStop(context, clusterInfo, 1, 2)
@@ -179,9 +179,9 @@ func TestOSDOkToStop(t *testing.T) {
 		assert.Equal(t, "--max=2", seenArgs[3])
 	})
 
-	t.Run("pacific output not ok to stop", func(t *testing.T) {
+	t.Run("output not ok to stop", func(t *testing.T) {
 		doSetup()
-		clusterInfo.CephVersion = version.Pacific
+		clusterInfo.CephVersion = version.Reef
 		returnString = fake.OsdOkToStopOutput(3, []int{})
 		returnOkResult = false
 		_, err := OSDOkToStop(context, clusterInfo, 3, 5)
@@ -190,9 +190,9 @@ func TestOSDOkToStop(t *testing.T) {
 		assert.Equal(t, "--max=5", seenArgs[3])
 	})
 
-	t.Run("pacific handles maxReturned=0", func(t *testing.T) {
+	t.Run("handle maxReturned=0", func(t *testing.T) {
 		doSetup()
-		clusterInfo.CephVersion = version.Pacific
+		clusterInfo.CephVersion = version.Reef
 		returnString = fake.OsdOkToStopOutput(4, []int{4, 8})
 		returnOkResult = true
 		osds, err := OSDOkToStop(context, clusterInfo, 4, 0)

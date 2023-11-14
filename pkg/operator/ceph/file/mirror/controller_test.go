@@ -228,7 +228,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-			return &version.Pacific, &version.Quincy, nil
+			return &version.Quincy, &version.Reef, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -236,7 +236,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		assert.True(t, res.Requeue)
 	})
 
-	t.Run("success - running pacific", func(t *testing.T) {
+	t.Run("success create reef", func(t *testing.T) {
 		r.context.Executor = &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				if args[0] == "status" {
@@ -250,7 +250,7 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-			return &version.Pacific, &version.Pacific, nil
+			return &version.Reef, &version.Reef, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)

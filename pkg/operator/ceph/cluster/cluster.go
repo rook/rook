@@ -444,32 +444,6 @@ func (c *cluster) replaceDefaultCrushMap(newRoot string) (err error) {
 
 // preMonStartupActions is a collection of actions to run before the monitors are reconciled.
 func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
-	// Disable the mds sanity checks for the mons due to a ceph upgrade issue
-	// for the mds to Pacific if 16.2.7 or greater. We keep it more general for any
-	// Pacific upgrade greater than 16.2.7 in case they skip upgrading directly to 16.2.7.
-	if c.isUpgrade && cephVersion.IsPacific() && cephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}) {
-		if err := c.skipMDSSanityChecks(true); err != nil {
-			// If there is an error, just print it and continue. Likely there is not a
-			// negative consequence of continuing since several complex conditions must exist to hit
-			// the upgrade issue where the sanity checks need to be disabled.
-			logger.Warningf("failed to disable the mon_mds_skip_sanity. %v", err)
-		}
-	}
-	return nil
-}
-
-func (c *cluster) skipMDSSanityChecks(skip bool) error {
-	// In a running cluster disable the mds skip sanity setting during upgrades.
-	monStore := config.GetMonStore(c.context, c.ClusterInfo)
-	if skip {
-		if err := monStore.Set("mon", "mon_mds_skip_sanity", "1"); err != nil {
-			return err
-		}
-	} else {
-		if err := monStore.Delete("mon", "mon_mds_skip_sanity"); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -487,15 +461,6 @@ func (c *cluster) postMonStartupActions() error {
 	err = nodedaemon.CreateCrashCollectorSecret(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
-	}
-
-	// Always ensure the skip mds sanity checks setting is cleared, for all Pacific deployments
-	if c.ClusterInfo.CephVersion.IsPacific() {
-		if err := c.skipMDSSanityChecks(false); err != nil {
-			// If there is an error, just print it and continue. We can just try again
-			// at the next reconcile.
-			logger.Warningf("failed to re-enable the mon_mds_skip_sanity. %v", err)
-		}
 	}
 
 	if err := c.configureMsgr2(); err != nil {

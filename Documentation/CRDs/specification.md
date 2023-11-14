@@ -6135,8 +6135,7 @@ string
 <td>
 <em>(Optional)</em>
 <p>The Ceph pool used store the shared configuration for NFS-Ganesha daemons.
-This setting is required for Ceph v15 and ignored for Ceph v16.
-As of Ceph Pacific 16.2.7+, this is internally hardcoded to &ldquo;.nfs&rdquo;.</p>
+This setting is deprecated, as it is internally required to be &ldquo;.nfs&rdquo;.</p>
 </td>
 </tr>
 <tr>
@@ -6149,8 +6148,7 @@ string
 <td>
 <em>(Optional)</em>
 <p>The namespace inside the Ceph pool (set by &lsquo;pool&rsquo;) where shared NFS-Ganesha config is stored.
-This setting is required for Ceph v15 and ignored for Ceph v16.
-As of Ceph Pacific v16+, this is internally set to the name of the CephNFS.</p>
+This setting is deprecated as it is internally set to the name of the CephNFS.</p>
 </td>
 </tr>
 </tbody>

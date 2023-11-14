@@ -40,10 +40,8 @@ const (
 
 var (
 	// Minimum supported version
-	Minimum = CephVersion{16, 2, 0, 0, ""}
+	Minimum = CephVersion{17, 2, 0, 0, ""}
 
-	// Pacific Ceph version
-	Pacific = CephVersion{16, 0, 0, 0, ""}
 	// Quincy Ceph version
 	Quincy = CephVersion{17, 0, 0, 0, ""}
 	// Reef Ceph version
@@ -52,7 +50,7 @@ var (
 	Squid = CephVersion{19, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Pacific, Quincy, Reef}
+	supportedVersions = []CephVersion{Quincy, Reef}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions []CephVersion
@@ -86,8 +84,6 @@ func (v *CephVersion) CephVersionFormatted() string {
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
-	case Pacific.Major:
-		return "pacific"
 	case Quincy.Major:
 		return "quincy"
 	case Reef.Major:
@@ -167,11 +163,6 @@ func (v *CephVersion) isRelease(other CephVersion) bool {
 
 func (v *CephVersion) isExactly(other CephVersion) bool {
 	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
-}
-
-// IsPacific checks if the Ceph version is Pacific
-func (v *CephVersion) IsPacific() bool {
-	return v.isRelease(Pacific)
 }
 
 // IsQuincy checks if the Ceph version is Quincy

@@ -10,10 +10,6 @@ This example runs a shared filesystem for the [kube-registry](https://github.com
 
 This guide assumes you have created a Rook cluster as explained in the main [quickstart guide](../../Getting-Started/quickstart.md)
 
-### Multiple Filesystems Support
-
-Multiple filesystems are supported as of the Ceph Pacific release.
-
 ## Create the Filesystem
 
 Create the filesystem by specifying the desired settings for the metadata pool, data pools, and metadata server in the `CephFilesystem` CRD. In this example we create the metadata pool with replication of three and a single data pool with replication of three. For more options, see the documentation on [creating shared filesystems](../../CRDs/Shared-Filesystem/ceph-filesystem-crd.md).

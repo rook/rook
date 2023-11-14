@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
 	monitoringv1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -414,37 +413,6 @@ func TestApplyMonitoringLabels(t *testing.T) {
 	sm.Spec.Endpoints[0].RelabelConfigs = nil
 	applyMonitoringLabels(c, sm)
 	assert.Nil(t, sm.Spec.Endpoints[0].RelabelConfigs)
-}
-
-func TestCluster_enableBalancerModule(t *testing.T) {
-	c := &Cluster{
-		context:     &clusterd.Context{Executor: &exectest.MockExecutor{}, Clientset: testop.New(t, 3)},
-		clusterInfo: cephclient.AdminTestClusterInfo("mycluster"),
-	}
-
-	t.Run("on pacific we configure the balancer ONLY and don't set a mode", func(t *testing.T) {
-		c.clusterInfo.CephVersion = cephver.Pacific
-		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-				logger.Infof("Command: %s %v", command, args)
-				if command == "ceph" {
-					if args[0] == "osd" && args[1] == "set-require-min-compat-client" {
-						return "", nil
-					}
-					if args[0] == "balancer" && args[1] == "mode" {
-						return "", errors.New("balancer mode must not be set")
-					}
-					if args[0] == "balancer" && args[1] == "on" {
-						return "", nil
-					}
-				}
-				return "", errors.New("unknown command")
-			},
-		}
-		c.context.Executor = executor
-		err := c.enableBalancerModule()
-		assert.NoError(t, err)
-	})
 }
 
 func TestCluster_configurePrometheusModule(t *testing.T) {

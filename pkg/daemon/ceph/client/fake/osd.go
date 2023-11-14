@@ -43,7 +43,7 @@ func OsdLsOutput(numOSDs int) string {
 //	      - osd3      - osd4      - osd5
 //	      - osd6      - osd7      - osd8
 func OsdTreeOutput(numNodes, numOSDsPerNode int) string {
-	// JSON output taken from Ceph Pacific
+	// JSON output
 	rootFormat := `		{
 			"id": -1,
 			"name": "default",
@@ -106,7 +106,6 @@ func OsdTreeOutput(numNodes, numOSDsPerNode int) string {
 // If returnOsdIds is empty, this returns a NOT ok-to-stop result. Otherwise, it returns an
 // ok-to-stop result. returnOsdIds should include queriedID if the result should be successful.
 func OsdOkToStopOutput(queriedID int, returnOsdIds []int) string {
-	// For Pacific and up (Pacific+)
 	okTemplate := `{"ok_to_stop":true,"osds":[%s],"num_ok_pgs":132,"num_not_ok_pgs":0,"ok_become_degraded":["1.0","1.2","1.3"]}`
 	notOkTemplate := `{"ok_to_stop":false,"osds":[%d],"num_ok_pgs":161,"num_not_ok_pgs":50,"bad_become_inactive":["1.0","1.3","1.a"],"ok_become_degraded":["1.2","1.4","1.5"]}`
 

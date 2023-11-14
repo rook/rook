@@ -88,13 +88,13 @@ cephClusterSpec:
   # For more details, check https://rook.io/docs/rook/v1.10/CRDs/Cluster/ceph-cluster-crd/
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
-    # v16 is Pacific, v17 is Quincy.
-    # RECOMMENDATION: In production, use a specific version tag instead of the general v16 flag, which pulls the latest release and could result in different
+    # v17 is Quincy, v18 is Reef.
+    # RECOMMENDATION: In production, use a specific version tag instead of the general v18 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    # If you want to be more precise, you can always use a timestamp tag such quay.io/ceph/ceph:v15.2.11-20200419
+    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v17.2.6-20230410
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
     image: quay.io/ceph/ceph:v17.2.6
-    # Whether to allow unsupported versions of Ceph. Currently `pacific`, `quincy`, and `reef` are supported.
+    # Whether to allow unsupported versions of Ceph. Currently `quincy`, and `reef` are supported.
     # Future versions such as `squid` (v19) would require this to be set to `true`.
     # Do not set to true in production.
     allowUnsupported: false

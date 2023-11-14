@@ -160,10 +160,8 @@ func TestMinVersion(t *testing.T) {
 	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 11}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// All versions at least 16.2.0 are valid
-	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
-	assert.NoError(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 17}
+	// All versions at least 17.2.0 are valid
+	v = &cephver.CephVersion{Major: 17, Minor: 2}
 	assert.NoError(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 18}
 	assert.NoError(t, c.validateCephVersion(v))
@@ -174,12 +172,8 @@ func TestSupportedVersion(t *testing.T) {
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
 	// lower version is not supported
-	v := &cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
+	v := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
 	assert.Error(t, c.validateCephVersion(v))
-
-	// Pacific is supported
-	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
-	assert.NoError(t, c.validateCephVersion(v))
 
 	// Quincy is supported
 	v = &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
