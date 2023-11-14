@@ -249,21 +249,22 @@ OSD locations defined in the CRUSH map and topology labels on nodes.
 Refer to the [krbd-options](https://docs.ceph.com/en/latest/man/8/rbd/#kernel-rbd-krbd-options)
 for more details.
 
-Execute the following steps:
+Execute the following step to enable read affinity for a specific ceph cluster:
 
-* Patch the `rook-ceph-operator-config` configmap using the following
-command.
+* Patch the ceph cluster CR to enable read affinity:
 
 ```console
-kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_READ_AFFINITY": "true"'
+kubectl patch cephclusters.ceph.rook.io <cluster-name> -n rook-ceph -p '{"spec":{"csi":{"readAffinity":{"enabled": true}}}}'
+```
+
+```yaml
+  csi:
+    readAffinity:
+      enabled: true
 ```
 
 * Add topology labels to the Kubernetes nodes. The same labels may be used as mentioned in the
 [OSD topology](../../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) topic.
-
-* (optional) Rook will pass the labels mentioned in [osd-topology](../../CRDs/Cluster/ceph-cluster-crd.md#osd-topology)
-as the default set of labels. This can overridden to supply custom labels by updating the
-`CSI_CRUSH_LOCATION_LABELS` value in the `rook-ceph-operator-config` configmap.
 
 Ceph CSI will extract the CRUSH location from the topology labels found on the node
 and pass it though krbd options during mapping RBD volumes.

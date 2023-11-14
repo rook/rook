@@ -962,6 +962,32 @@ spec:
                       description: Disable determines whether we should enable the crash collector
                       type: boolean
                   type: object
+                csi:
+                  description: CSI Driver Options applied per cluster.
+                  properties:
+                    cephfs:
+                      description: CephFS defines CSI Driver settings for CephFS driver.
+                      properties:
+                        fuseMountOptions:
+                          description: FuseMountOptions defines the mount options for ceph fuse mounter.
+                          type: string
+                        kernelMountOptions:
+                          description: KernelMountOptions defines the mount options for kernel mounter.
+                          type: string
+                      type: object
+                    readAffinity:
+                      description: ReadAffinity defines the read affinity settings for CSI driver.
+                      properties:
+                        crushLocationLabels:
+                          description: CrushLocationLabels defines which node labels to use as CRUSH location. This should correspond to the values set in the CRUSH map.
+                          items:
+                            type: string
+                          type: array
+                        enabled:
+                          description: Enables read affinity for CSI driver.
+                          type: boolean
+                      type: object
+                  type: object
                 dashboard:
                   description: Dashboard settings
                   nullable: true

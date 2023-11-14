@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
 )
@@ -389,5 +390,150 @@ func TestMonEndpoints(t *testing.T) {
 func verifyEndpointPort(t *testing.T, endpoints []string, expectedPort string) {
 	for _, endpoint := range endpoints {
 		assert.True(t, strings.HasSuffix(endpoint, expectedPort))
+	}
+}
+
+func TestUpdateCSIDriverOptions(t *testing.T) {
+	type args struct {
+		clusterConfig    csiClusterConfig
+		clusterKey       string
+		csiDriverOptions *cephv1.CSIDriverSpec
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    csiClusterConfig
+		wantErr bool
+	}{
+		{
+			name: "empty current config",
+			args: args{
+				clusterConfig:    []CsiClusterConfigEntry{},
+				clusterKey:       "rook-ceph",
+				csiDriverOptions: &cephv1.CSIDriverSpec{},
+			},
+			want:    []CsiClusterConfigEntry{},
+			wantErr: false,
+		},
+		{
+			name: "single matching current config",
+			args: args{
+				clusterConfig: []CsiClusterConfigEntry{
+					{
+						ClusterID: "rook-ceph",
+						Namespace: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+					},
+				},
+				clusterKey: "rook-ceph",
+				csiDriverOptions: &cephv1.CSIDriverSpec{
+					ReadAffinity: cephv1.ReadAffinitySpec{
+						Enabled:             true,
+						CrushLocationLabels: []string{"topology.rook.io/rack"},
+					},
+					CephFS: cephv1.CSICephFSSpec{
+						KernelMountOptions: "rw,noatime",
+						FuseMountOptions:   "debug",
+					},
+				},
+			},
+			want: []CsiClusterConfigEntry{
+				{
+					ClusterID: "rook-ceph",
+					Namespace: "rook-ceph",
+					Monitors:  []string{"1.1.1.1"},
+					ReadAffinity: &cephv1.ReadAffinitySpec{
+						Enabled:             true,
+						CrushLocationLabels: []string{"topology.rook.io/rack"},
+					},
+					CephFS: &CsiCephFSSpec{
+						KernelMountOptions: "rw,noatime",
+						FuseMountOptions:   "debug",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "multiple matching current config",
+			args: args{
+				clusterConfig: []CsiClusterConfigEntry{
+					{
+						ClusterID: "rook-ceph",
+						Namespace: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+					},
+					{
+						ClusterID: "rook-ceph-2",
+						Namespace: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+					},
+					{
+						ClusterID: "rook-ceph-3",
+						Namespace: "rook-ceph-1",
+						Monitors:  []string{"1.1.1.1"},
+					},
+				},
+				clusterKey: "rook-ceph",
+				csiDriverOptions: &cephv1.CSIDriverSpec{
+					ReadAffinity: cephv1.ReadAffinitySpec{
+						Enabled:             true,
+						CrushLocationLabels: []string{"topology.rook.io/rack"},
+					},
+					CephFS: cephv1.CSICephFSSpec{
+						KernelMountOptions: "rw,noatime",
+						FuseMountOptions:   "debug",
+					},
+				},
+			},
+			want: []CsiClusterConfigEntry{
+				{
+					ClusterID: "rook-ceph",
+					Namespace: "rook-ceph",
+					Monitors:  []string{"1.1.1.1"},
+					ReadAffinity: &cephv1.ReadAffinitySpec{
+						Enabled:             true,
+						CrushLocationLabels: []string{"topology.rook.io/rack"},
+					},
+					CephFS: &CsiCephFSSpec{
+						KernelMountOptions: "rw,noatime",
+						FuseMountOptions:   "debug",
+					},
+				},
+				{
+					ClusterID: "rook-ceph-2",
+					Namespace: "rook-ceph",
+					Monitors:  []string{"1.1.1.1"},
+					ReadAffinity: &cephv1.ReadAffinitySpec{
+						Enabled:             true,
+						CrushLocationLabels: []string{"topology.rook.io/rack"},
+					},
+					CephFS: &CsiCephFSSpec{
+						KernelMountOptions: "rw,noatime",
+						FuseMountOptions:   "debug",
+					},
+				},
+				{
+					ClusterID: "rook-ceph-3",
+					Namespace: "rook-ceph-1",
+					Monitors:  []string{"1.1.1.1"},
+				},
+			},
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dataString, err := formatCsiClusterConfig(tt.args.clusterConfig)
+			assert.NoError(t, err)
+			got, err := updateCSIDriverOptions(dataString, tt.args.clusterKey, tt.args.csiDriverOptions)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("updateCSIDriverOptions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			expectedString, err := formatCsiClusterConfig(tt.want)
+			assert.NoError(t, err)
+			assert.Equal(t, expectedString, got)
+		})
 	}
 }

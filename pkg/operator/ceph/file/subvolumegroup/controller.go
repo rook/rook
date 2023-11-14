@@ -269,8 +269,11 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 		Namespace: r.clusterInfo.Namespace,
 		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
 		CephFS: &csi.CsiCephFSSpec{
-			SubvolumeGroup: cephFilesystemSubVolumeGroup.Name,
+			SubvolumeGroup:     cephFilesystemSubVolumeGroup.Name,
+			KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+			FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
 		},
+		ReadAffinity: &r.clusterInfo.CSIDriverSpec.ReadAffinity,
 	}
 
 	// If the cluster has Multus enabled we need to append the network namespace of the driver's

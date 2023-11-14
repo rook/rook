@@ -48,6 +48,7 @@ type ClusterInfo struct {
 	name              string
 	OsdUpgradeTimeout time.Duration
 	NetworkSpec       cephv1.NetworkSpec
+	CSIDriverSpec     cephv1.CSIDriverSpec
 	// A context to cancel the context it is used to determine whether the reconcile loop should
 	// exist (if the context has been cancelled). This cannot be in main clusterd context since this
 	// is a pointer passed through the entire life cycle or the operator. If the context is

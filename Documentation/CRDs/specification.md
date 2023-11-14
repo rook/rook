@@ -1099,6 +1099,20 @@ LogCollectorSpec
 <p>Logging represents loggings settings</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>csi</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CSIDriverSpec">
+CSIDriverSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CSI Driver Options applied per cluster.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -2794,6 +2808,94 @@ case where the range spec is forgotten (e.g., /24). Rook does in-depth validatio
 </td>
 </tr></tbody>
 </table>
+<h3 id="ceph.rook.io/v1.CSICephFSSpec">CSICephFSSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CSIDriverSpec">CSIDriverSpec</a>)
+</p>
+<div>
+<p>CSICephFSSpec defines the settings for CephFS CSI driver.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>kernelMountOptions</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>KernelMountOptions defines the mount options for kernel mounter.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>fuseMountOptions</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>FuseMountOptions defines the mount options for ceph fuse mounter.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CSIDriverSpec">CSIDriverSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ClusterSpec">ClusterSpec</a>)
+</p>
+<div>
+<p>CSIDriverSpec defines CSI Driver settings applied per cluster.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>readAffinity</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ReadAffinitySpec">
+ReadAffinitySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ReadAffinity defines the read affinity settings for CSI driver.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephfs</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CSICephFSSpec">
+CSICephFSSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CephFS defines CSI Driver settings for CephFS driver.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.Capacity">Capacity
 </h3>
 <p>
@@ -4247,6 +4349,20 @@ LogCollectorSpec
 <td>
 <em>(Optional)</em>
 <p>Logging represents loggings settings</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>csi</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CSIDriverSpec">
+CSIDriverSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CSI Driver Options applied per cluster.</p>
 </td>
 </tr>
 </tbody>
@@ -10305,6 +10421,50 @@ Annotations
 <p>The annotations-related configuration to add/set on each rgw service.
 nullable
 optional</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ReadAffinitySpec">ReadAffinitySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CSIDriverSpec">CSIDriverSpec</a>)
+</p>
+<div>
+<p>ReadAffinitySpec defines the read affinity settings for CSI driver.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>enabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enables read affinity for CSI driver.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>crushLocationLabels</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CrushLocationLabels defines which node labels to use
+as CRUSH location. This should correspond to the values set in
+the CRUSH map.</p>
 </td>
 </tr>
 </tbody>

@@ -220,6 +220,11 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 		go cluster.reportTelemetry()
 	}
 
+	err := csi.SaveCSIDriverOptions(c.context.Clientset, cluster.Namespace, cluster.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to save CSI driver options")
+	}
+
 	// Populate ClusterInfo with the last value
 	cluster.mons.ClusterInfo = cluster.ClusterInfo
 	cluster.mons.ClusterInfo.SetName(c.namespacedName.Name)

@@ -264,6 +264,11 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 			RadosNamespace: cephBlockPoolRadosNamespace.Name,
 		},
 		RadosNamespace: cephBlockPoolRadosNamespace.Name,
+		CephFS: &csi.CsiCephFSSpec{
+			KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+			FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
+		},
+		ReadAffinity: &r.clusterInfo.CSIDriverSpec.ReadAffinity,
 	}
 
 	if cephCluster.Spec.Network.IsMultus() {

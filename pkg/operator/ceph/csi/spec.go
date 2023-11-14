@@ -868,8 +868,12 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 	clusterConfigEntry := &CsiClusterConfigEntry{
 		Monitors: MonEndpoints(c.clusterInfo.Monitors, c.cluster.Spec.RequireMsgr2()),
 		RBD:      &CsiRBDSpec{},
-		CephFS:   &CsiCephFSSpec{},
-		NFS:      &CsiNFSSpec{},
+		CephFS: &CsiCephFSSpec{
+			FuseMountOptions:   c.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
+			KernelMountOptions: c.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+		},
+		NFS:          &CsiNFSSpec{},
+		ReadAffinity: &c.clusterInfo.CSIDriverSpec.ReadAffinity,
 	}
 	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, c.cluster.Namespace)
 	if driver.name == RBDDriverShortName {
