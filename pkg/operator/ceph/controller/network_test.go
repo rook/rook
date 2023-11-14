@@ -287,6 +287,74 @@ func Test_discoverAddressRanges(t *testing.T) {
 			assert.Equal(t, []string{"10.144.0.0/16", "fe05::/96"}, ranges)
 		})
 	})
+
+	t.Run("cluster config with all placement", func(t *testing.T) {
+		tolerations := []v1.Toleration{
+			{
+				Key:      "testkey",
+				Operator: v1.TolerationOpExists,
+			},
+		}
+		clusterdCtx, clusterSpec, clusterInfo := newTestConfigsWithNetworkSpec(
+			cephv1.NetworkSpec{
+				Provider: cephv1.NetworkProviderMultus,
+				Selectors: map[cephv1.CephNetworkType]string{
+					cephv1.CephNetworkPublic:  "macvlan-public",
+					cephv1.CephNetworkCluster: "macvlan-cluster",
+				},
+				AddressRanges: nil, // should auto-detect
+			})
+		clusterSpec.Placement = map[cephv1.KeyType]cephv1.Placement{
+			cephv1.KeyAll: {Tolerations: tolerations},
+		}
+
+		cmdReporter := new(mockCmdReporter)
+		cmdReporter.On("Job")
+		goodOutput := netStatus("public", "2000::1") +
+			"\n" + separator() + "\n" +
+			ipAddrOutput("public", "2000::1/112")
+		cmdReporter.On("Run", mock.Anything, mock.Anything).Return(goodOutput, "", 0, nil)
+		newCmdReporter = mockNewCmdReporter(cmdReporter, nil)
+
+		ranges, err := discoverAddressRanges(context.Background(), "rook/ceph:master", clusterdCtx, clusterSpec, clusterInfo, cephv1.CephNetworkPublic)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"2000::/112"}, ranges)
+		assert.Equal(t, tolerations, cmdReporter.Job().Spec.Template.Spec.Tolerations)
+	})
+
+	t.Run("cluster config with osd placement", func(t *testing.T) {
+		tolerations := []v1.Toleration{
+			{
+				Key:      "testkey",
+				Operator: v1.TolerationOpExists,
+			},
+		}
+		clusterdCtx, clusterSpec, clusterInfo := newTestConfigsWithNetworkSpec(
+			cephv1.NetworkSpec{
+				Provider: cephv1.NetworkProviderMultus,
+				Selectors: map[cephv1.CephNetworkType]string{
+					cephv1.CephNetworkPublic:  "macvlan-public",
+					cephv1.CephNetworkCluster: "macvlan-cluster",
+				},
+				AddressRanges: nil, // should auto-detect
+			})
+		clusterSpec.Placement = map[cephv1.KeyType]cephv1.Placement{
+			cephv1.KeyOSD: {Tolerations: tolerations},
+		}
+
+		cmdReporter := new(mockCmdReporter)
+		cmdReporter.On("Job")
+		goodOutput := netStatus("public", "2000::1") +
+			"\n" + separator() + "\n" +
+			ipAddrOutput("public", "2000::1/112")
+		cmdReporter.On("Run", mock.Anything, mock.Anything).Return(goodOutput, "", 0, nil)
+		newCmdReporter = mockNewCmdReporter(cmdReporter, nil)
+
+		ranges, err := discoverAddressRanges(context.Background(), "rook/ceph:master", clusterdCtx, clusterSpec, clusterInfo, cephv1.CephNetworkPublic)
+		assert.NoError(t, err)
+		assert.Equal(t, []string{"2000::/112"}, ranges)
+		assert.Equal(t, tolerations, cmdReporter.Job().Spec.Template.Spec.Tolerations)
+	})
 }
 
 func mockDiscoverAddressRangesFunc(publicReturn []string, clusterReturn []string, panicIfDiscoverPublic, panicIfDiscoverCluster bool, shouldErr error) func(ctx context.Context, rookImage string, clusterdContext *clusterd.Context, clusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo, discoverPublic bool, discoverCluster bool) (publicRanges []cephv1.CIDR, clusterRanges []cephv1.CIDR, err error) {

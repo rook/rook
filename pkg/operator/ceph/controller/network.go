@@ -266,7 +266,7 @@ func discoverAddressRanges(
 	}
 
 	// use osd placement for net canaries b/c osd pods are present on both public and cluster nets
-	clusterSpec.Placement[cephv1.KeyOSD].ApplyToPodSpec(&job.Spec.Template.Spec)
+	cephv1.GetOSDPlacement(clusterSpec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
 
 	// set up net status vol from downward api, plus init container to wait for net status to be available
 	netStatusVol, netStatusMount := networkStatusVolumeAndMount()
