@@ -42,16 +42,12 @@ import (
 )
 
 const (
-	// test with the latest pacific build
-	pacificTestImage = "quay.io/ceph/ceph:v16"
-	// test with the latest quincy build
+	// test with the latest releases
 	quincyTestImage = "quay.io/ceph/ceph:v17"
-	// test with the latest reef build
-	reefTestImage = "quay.io/ceph/ceph:v18"
-	// test with the current development version of Pacific
-	pacificDevelTestImage = "quay.io/ceph/daemon-base:latest-pacific-devel"
-	quincyDevelTestImage  = "quay.io/ceph/daemon-base:latest-quincy-devel"
-	reefDevelTestImage    = "quay.io/ceph/daemon-base:latest-reef-devel"
+	reefTestImage   = "quay.io/ceph/ceph:v18"
+	// test with the current development versions
+	quincyDevelTestImage = "quay.io/ceph/daemon-base:latest-quincy-devel"
+	reefDevelTestImage   = "quay.io/ceph/daemon-base:latest-reef-devel"
 	// test with the latest Ceph main image
 	mainTestImage      = "quay.io/ceph/daemon-base:latest-main-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
@@ -71,8 +67,6 @@ mon compact on start = true
 )
 
 var (
-	PacificVersion               = cephv1.CephVersionSpec{Image: pacificTestImage}
-	PacificDevelVersion          = cephv1.CephVersionSpec{Image: pacificDevelTestImage}
 	QuincyVersion                = cephv1.CephVersionSpec{Image: quincyTestImage}
 	QuincyDevelVersion           = cephv1.CephVersionSpec{Image: quincyDevelTestImage}
 	ReefVersion                  = cephv1.CephVersionSpec{Image: reefTestImage}
@@ -99,8 +93,6 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 	switch os.Getenv("CEPH_SUITE_VERSION") {
 	case "main":
 		return MainVersion
-	case "pacific-devel":
-		return PacificDevelVersion
 	case "quincy-devel":
 		return QuincyDevelVersion
 	case "reef-devel":

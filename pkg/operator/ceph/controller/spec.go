@@ -390,8 +390,8 @@ func AdminFlags(cluster *client.ClusterInfo) []string {
 func NetworkBindingFlags(cluster *client.ClusterInfo, spec *cephv1.ClusterSpec) []string {
 	var args []string
 
-	// As of Pacific, Ceph supports dual-stack, so setting IPv6 family without disabling IPv4 binding actually enables dual-stack
-	// This is likely not user's intent, so on Pacific let's make sure to disable IPv4 when IPv6 is selected
+	// Ceph supports dual-stack, so setting IPv6 family without disabling IPv4 binding actually enables dual-stack
+	// This is likely not user's intent, so let's make sure to disable IPv4 when IPv6 is selected
 	if !spec.Network.DualStack {
 		switch spec.Network.IPFamily {
 		case cephv1.IPv4:

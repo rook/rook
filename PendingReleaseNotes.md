@@ -2,4 +2,6 @@
 
 ## Breaking Changes
 
+- Removed support for Ceph Pacific (v16)
+
 ## Features

@@ -37,9 +37,7 @@ import (
 
 const (
 	// Default RADOS pool name after the NFS changes in Ceph
-	postNFSChangeDefaultPoolName = ".nfs"
-	// Default RADOS pool name before the NFS changes in Ceph
-	preNFSChangeDefaultPoolName = "nfs-ganesha"
+	nfsDefaultPoolName = ".nfs"
 
 	// CephNFSNameLabelKey is the label key that contains the name of the CephNFS resource
 	CephNFSNameLabelKey = "ceph_nfs"

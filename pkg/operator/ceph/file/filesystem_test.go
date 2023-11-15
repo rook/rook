@@ -377,7 +377,7 @@ func TestCreateFilesystem(t *testing.T) {
 	})
 
 	t.Run("multi filesystem creation should succeed", func(t *testing.T) {
-		clusterInfo.CephVersion = version.Pacific
+		clusterInfo.CephVersion = version.Quincy
 		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 		assert.NoError(t, err)
 	})
@@ -399,7 +399,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Pacific, Context: ctx}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Quincy, Context: ctx}
 
 	// start a basic cluster for upgrade
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -485,7 +485,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 			versionStr, _ := json.Marshal(
 				map[string]map[string]int{
 					"mds": {
-						"ceph version 16.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) pacific (stable)": 2,
+						"ceph version 17.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
 					},
 				})
 			return string(versionStr), nil
@@ -494,7 +494,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		return "", nil
 	}
 	// do upgrade
-	clusterInfo.CephVersion = version.Quincy
+	clusterInfo.CephVersion = version.Reef
 	context = &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,

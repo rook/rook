@@ -247,8 +247,7 @@ func (c *Cluster) upgradeMDS() error {
 		return errors.Wrap(err, "failed to setting allow_standby_replay to false")
 	}
 
-	// In Pacific, standby-replay daemons are stopped automatically. Older versions of Ceph require
-	// us to stop these daemons manually.
+	// Standby-replay daemons are stopped automatically.
 	if err := cephclient.FailAllStandbyReplayMDS(c.context, c.clusterInfo, c.fs.Name); err != nil {
 		return errors.Wrap(err, "failed to fail mds agent in up:standby-replay state")
 	}

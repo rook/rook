@@ -34,7 +34,6 @@ spec:
       - name: b
       - name: c
   cephVersion:
-    # Stretch cluster is supported in Ceph Pacific or newer.
     image: quay.io/ceph/ceph:v17.2.6
     allowUnsupported: true
   # Either storageClassDeviceSets or the storage section can be specified for creating OSDs.

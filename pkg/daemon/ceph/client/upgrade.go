@@ -214,12 +214,12 @@ func okToContinueMDSDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, 
 // Assume the following:
 //
 //	"mon": {
-//	    "ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 2,
-//	    "ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1
+//	    "ceph version 18.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) reef (stable)": 2,
+//	    "ceph version 17.2.6 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1
 //	}
 //
-// In the case we will pick: "ceph version 16.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) pacific (stable)": 2,
-// And eventually return 16.2.5
+// In the case we will pick: "ceph version 18.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) reef (stable)": 2,
+// And eventually return 18.2.5
 func LeastUptodateDaemonVersion(context *clusterd.Context, clusterInfo *ClusterInfo, daemonType string) (cephver.CephVersion, error) {
 	var r map[string]int
 	var vv cephver.CephVersion

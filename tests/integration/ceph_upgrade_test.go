@@ -97,11 +97,11 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 }
 
 func (s *UpgradeSuite) TestUpgradeRook() {
-	s.testUpgrade(false, installer.PacificVersion)
+	s.testUpgrade(false, installer.QuincyVersion)
 }
 
 func (s *UpgradeSuite) TestUpgradeHelm() {
-	s.testUpgrade(true, installer.PacificVersion)
+	s.testUpgrade(true, installer.QuincyVersion)
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
@@ -158,17 +158,6 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	}
 
 	//
-	// Upgrade from pacific to quincy
-	//
-	logger.Infof("*** UPGRADING CEPH FROM PACIFIC TO QUINCY ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_quincy_upgrade")
-	s.upgradeCephVersion(installer.QuincyVersion.Image, numOSDs)
-	// Verify reading and writing to the test clients
-	newFile = "post-quincy-upgrade-file"
-	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from pacific to quincy")
-
-	//
 	// Upgrade from quincy to reef
 	//
 	logger.Infof("*** UPGRADING CEPH FROM QUINCY TO REEF ***")
@@ -215,12 +204,12 @@ func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
 
-func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
-	s.baseSetup(false, installer.PacificVersion)
+func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
+	s.baseSetup(false, installer.ReefVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
-	s.settings.CephVersion = installer.PacificVersion
+	s.settings.CephVersion = installer.ReefVersion
 	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
@@ -235,15 +224,15 @@ func (s *UpgradeSuite) TestUpgradeCephToPacificDevel() {
 	}()
 
 	//
-	// Upgrade from pacific to pacific devel
+	// Upgrade from reef to reef devel
 	//
-	logger.Infof("*** UPGRADING CEPH FROM PACIFIC STABLE TO PACIFIC DEVEL ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_pacific_upgrade")
-	s.upgradeCephVersion(installer.PacificDevelVersion.Image, numOSDs)
+	logger.Infof("*** UPGRADING CEPH FROM REEF STABLE TO REEF DEVEL ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_reef_upgrade")
+	s.upgradeCephVersion(installer.ReefDevelVersion.Image, numOSDs)
 	// Verify reading and writing to the test clients
-	newFile := "post-pacific-upgrade-file"
+	newFile := "post-reef-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("verified upgrade from pacific stable to pacific devel")
+	logger.Infof("verified upgrade from reef stable to reef devel")
 
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }

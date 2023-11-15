@@ -507,7 +507,7 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 	expectedName := "conf-nfs.my-nfs"
 
 	res := getGaneshaConfigObject(cephNFS)
-	logger.Infof("Config Object for Pacific is %s", res)
+	logger.Infof("Config Object is %s", res)
 	assert.Equal(t, expectedName, res)
 }
 

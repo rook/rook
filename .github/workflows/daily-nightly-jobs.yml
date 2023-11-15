@@ -108,41 +108,6 @@ jobs:
           name: canary-arm64
           path: test
 
-  smoke-suite-pacific-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.0"
-
-      - name: TestCephSmokeSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-smoke-suite-pacific-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
   smoke-suite-quincy-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-20.04
@@ -213,7 +178,6 @@ jobs:
           name: ceph-smoke-suite-reef-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-
   smoke-suite-ceph-main:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-20.04
@@ -249,7 +213,7 @@ jobs:
           name: ceph-smoke-suite-master-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  object-suite-pacific-devel:
+  object-suite-quincy-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-20.04
     steps:
@@ -267,7 +231,7 @@ jobs:
       - name: TestCephObjectSuite
         run: |
           export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="pacific-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
@@ -281,7 +245,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: ceph-object-suite-pacific-artifact
+          name: ceph-object-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-ceph-main:
@@ -319,7 +283,7 @@ jobs:
           name: ceph-object-suite-master-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  upgrade-from-pacific-stable-to-pacific-devel:
+  upgrade-from-reef-stable-to-reef-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-20.04
     steps:
@@ -337,7 +301,7 @@ jobs:
       - name: TestCephUpgradeSuite
         run: |
           export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToPacificDevel github.com/rook/rook/tests/integration
+          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToReefDevel github.com/rook/rook/tests/integration
 
       - name: collect common logs
         if: always()
@@ -351,7 +315,7 @@ jobs:
         uses: actions/upload-artifact@v3
         if: failure()
         with:
-          name: ceph-upgrade-suite-pacific-artifact
+          name: ceph-upgrade-suite-reef-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   upgrade-from-quincy-stable-to-quincy-devel:
@@ -395,7 +359,7 @@ jobs:
     strategy:
       matrix:
         ceph-image-tag:
-          ["latest-main-devel", "latest-quincy-devel", "latest-pacific-devel"]
+          ["latest-main-devel", "latest-quincy-devel", "latest-reef-devel"]
 
     steps:
       - uses: actions/checkout@v4

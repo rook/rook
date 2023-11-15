@@ -188,7 +188,7 @@ func testOSDIntegration(t *testing.T) {
 	clientset.PrependReactor("*", "deployments", deploymentReactor)
 
 	clusterInfo := cephclient.NewClusterInfo(namespace, clusterName)
-	clusterInfo.CephVersion = cephver.Pacific
+	clusterInfo.CephVersion = cephver.Reef
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
 	clusterInfo.Context = ctx
