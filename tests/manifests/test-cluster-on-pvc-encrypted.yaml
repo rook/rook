@@ -14,7 +14,7 @@ spec:
           requests:
             storage: 5Gi
   cephVersion:
-    image: quay.io/ceph/daemon-base:latest-reef-devel
+    image: quay.io/guits/ceph:rook-cv-raw-list-fix
   dashboard:
     enabled: false
   network:

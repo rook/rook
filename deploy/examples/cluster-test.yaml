@@ -29,7 +29,7 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/daemon-base:latest-reef-devel
+    image: quay.io/guits/ceph:rook-cv-raw-list-fix
     allowUnsupported: true
   mon:
     count: 1
