@@ -160,9 +160,14 @@ func (c *Cluster) Start() error {
 				return errors.Wrapf(err, "failed to create mgr deployment %s", resourceName)
 			}
 			logger.Infof("deployment for mgr %s already exists. updating if needed", resourceName)
-
-			if err := updateDeploymentAndWait(c.context, c.clusterInfo, d, config.MgrType, mgrConfig.DaemonID, c.spec.SkipUpgradeChecks, false); err != nil {
+			if err := updateDeploymentAndWait(c.context, c.clusterInfo, d, config.MgrType, mgrConfig.DaemonID, c.spec.SkipUpgradeChecks, c.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
 				logger.Errorf("failed to update mgr deployment %q. %v", resourceName, err)
+				if c.spec.ContinueUpgradeAfterChecksEvenIfNotHealthy {
+					logger.Infof("continuing reconcile of ceph cluster in namespace %s after error waiting for mgr because continueUpgradeAfterChecksEvenIfNotHealthy is true", c.clusterInfo.Namespace)
+				} else {
+					logger.Infof("stopping reconcile of ceph cluster in namespace %s after error waiting for mgr because continueUpgradeAfterChecksEvenIfNotHealthy is false", c.clusterInfo.Namespace)
+					return errors.Wrapf(err, "failed to update mgr deployment %q", resourceName)
+				}
 			}
 		} else {
 			// wait for the new deployment
