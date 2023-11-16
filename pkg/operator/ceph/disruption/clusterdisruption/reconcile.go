@@ -173,7 +173,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	activeNodeDrains := len(nodeDrainFailureDomains) > 0
-	return r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, osdDownFailureDomains, activeNodeDrains)
+	pgHealthyRegex := cephCluster.Spec.DisruptionManagement.PGHealthyRegex
+	return r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, osdDownFailureDomains, activeNodeDrains, pgHealthyRegex)
 }
 
 // ClusterMap maintains the association between namespace and clusername

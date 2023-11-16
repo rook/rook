@@ -18,6 +18,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -39,6 +40,11 @@ const (
 	activeClean              = "active+clean"
 	activeCleanScrubbing     = "active+clean+scrubbing"
 	activeCleanScrubbingDeep = "active+clean+scrubbing+deep"
+	defaultPgHealthyRegex    = `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`
+)
+
+var (
+	defaultPgHealthyRegexCompiled = regexp.MustCompile(defaultPgHealthyRegex)
 )
 
 type CephStatus struct {
@@ -190,12 +196,21 @@ func StatusWithUser(context *clusterd.Context, clusterInfo *ClusterInfo) (CephSt
 // msg describes the state of the PGs
 // clean is true if the cluster is clean
 // err is not nil if getting the status failed.
-func IsClusterClean(context *clusterd.Context, clusterInfo *ClusterInfo) (string, bool, error) {
+func IsClusterClean(context *clusterd.Context, clusterInfo *ClusterInfo, pgHealthyRegex string) (string, bool, error) {
 	status, err := Status(context, clusterInfo)
 	if err != nil {
 		return "unable to get PG health", false, err
 	}
-	msg, clean := isClusterClean(status)
+
+	pgHealthyRegexCompiled := defaultPgHealthyRegexCompiled
+	if pgHealthyRegex != "" {
+		pgHealthyRegexCompiled, err = regexp.Compile(pgHealthyRegex)
+		if err != nil {
+			return "unable to compile pgHealthyRegex", false, err
+		}
+	}
+
+	msg, clean := isClusterClean(status, pgHealthyRegexCompiled)
 	if !clean {
 		return msg, false, nil
 	}
@@ -206,8 +221,8 @@ func IsClusterClean(context *clusterd.Context, clusterInfo *ClusterInfo) (string
 // groups are in the active+clean state). It returns nil if the cluster is clean.
 // Using IsClusterClean is recommended if you want to differentiate between a failure of the status query and
 // an unclean cluster.
-func IsClusterCleanError(context *clusterd.Context, clusterInfo *ClusterInfo) error {
-	msg, clean, err := IsClusterClean(context, clusterInfo)
+func IsClusterCleanError(context *clusterd.Context, clusterInfo *ClusterInfo, pgHealthyRegex string) error {
+	msg, clean, err := IsClusterClean(context, clusterInfo, pgHealthyRegex)
 	if err != nil {
 		return err
 	}
@@ -217,7 +232,7 @@ func IsClusterCleanError(context *clusterd.Context, clusterInfo *ClusterInfo) er
 	return nil
 }
 
-func isClusterClean(status CephStatus) (string, bool) {
+func isClusterClean(status CephStatus, pgHealthyRegex *regexp.Regexp) (string, bool) {
 	if status.PgMap.NumPgs == 0 {
 		// there are no PGs yet, that still counts as clean
 		return "cluster has no PGs", true
@@ -225,7 +240,7 @@ func isClusterClean(status CephStatus) (string, bool) {
 
 	cleanPGs := 0
 	for _, pg := range status.PgMap.PgsByState {
-		if pg.StateName == activeClean || pg.StateName == activeCleanScrubbing || pg.StateName == activeCleanScrubbingDeep {
+		if pgHealthyRegex.MatchString(pg.StateName) {
 			cleanPGs += pg.Count
 		}
 	}
