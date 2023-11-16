@@ -42,7 +42,7 @@ import (
 const (
 	controllerName = "ceph-nodedaemon-controller"
 	// AppName is the value to the "app" label for the ceph-crash pods
-	crashCollectorAppName = "rook-ceph-crashcollector"
+	CrashCollectorAppName = "rook-ceph-crashcollector"
 	cephExporterAppName   = "rook-ceph-exporter"
 	prunerName            = "rook-ceph-crashcollector-pruner"
 	// NodeNameLabel is a node name label
@@ -104,7 +104,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			}
 			labels := deployment.GetLabels()
 			appName, ok := labels[k8sutil.AppAttr]
-			if !ok || appName != crashCollectorAppName {
+			if !ok || appName != CrashCollectorAppName {
 				return []reconcile.Request{}
 			}
 			nodeName, ok := deployment.Spec.Template.ObjectMeta.Labels[NodeNameLabel]

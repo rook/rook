@@ -75,7 +75,7 @@ func TestCreateOrUpdateCephCrash(t *testing.T) {
 	res, err := r.createOrUpdateCephCrash(node, tolerations, cephCluster, cephVersion)
 	assert.NoError(t, err)
 	assert.Equal(t, controllerutil.OperationResult("created"), res)
-	name := k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", crashCollectorAppName), "testnode")
+	name := k8sutil.TruncateNodeName(fmt.Sprintf("%s-%%s", CrashCollectorAppName), "testnode")
 	deploy := appsv1.Deployment{}
 	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: name}, &deploy)
 	assert.NoError(t, err)
