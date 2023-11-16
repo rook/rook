@@ -1010,6 +1010,9 @@ spec:
                       description: PGHealthCheckTimeout is the time (in minutes) that the operator will wait for the placement groups to become healthy (active+clean) after a drain was completed and OSDs came back up. Rook will continue with the next drain if the timeout exceeds. It only works if managePodBudgets is true. No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
                       format: int64
                       type: integer
+                    pgHealthyRegex:
+                      description: PgHealthyRegex is the regular expression that is used to determine which PG states should be considered healthy. The default is `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`
+                      type: string
                   type: object
                 external:
                   description: Whether the Ceph Cluster is running external to this Kubernetes cluster mon, mgr, osd, mds, and discover daemons will not be created for external clusters.

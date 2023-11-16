@@ -92,7 +92,7 @@ func (c *Cluster) getOSDReplaceInfo() (*OSDReplaceInfo, error) {
 		return osdReplaceInfo, nil
 	}
 
-	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo)
+	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo, c.spec.DisruptionManagement.PGHealthyRegex)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check if the pgs are clean before replacing OSDs")
 	}
