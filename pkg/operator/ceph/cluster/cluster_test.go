@@ -29,7 +29,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -221,7 +223,8 @@ func TestConfigureMsgr2(t *testing.T) {
 
 func TestTelemetry(t *testing.T) {
 	var expectedSettings map[string]string
-	context := &clusterd.Context{Clientset: testop.New(t, 3)}
+	clientset := testop.New(t, 3)
+	context := &clusterd.Context{Clientset: clientset}
 	context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
@@ -242,9 +245,11 @@ func TestTelemetry(t *testing.T) {
 		context:     context,
 		ClusterInfo: cephclient.AdminTestClusterInfo("cluster"),
 		mons:        &mon.Cluster{},
+		Namespace:   "rook-ceph",
 	}
 
 	t.Run("normal cluster", func(t *testing.T) {
+		ns := "rook-ceph"
 		c.Spec = &cephv1.ClusterSpec{
 			Mon: cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 			Storage: cephv1.StorageScopeSpec{
@@ -254,7 +259,8 @@ func TestTelemetry(t *testing.T) {
 					{Name: "three", Count: 3, Portable: false},
 				},
 			},
-			Network: cephv1.NetworkSpec{Provider: "host"},
+			Network:        cephv1.NetworkSpec{Provider: "host"},
+			CrashCollector: cephv1.CrashCollectorSpec{Disable: false},
 		}
 		expectedSettings = map[string]string{
 			telemetry.K8sVersionKey:              "v0.0.0-master+$Format:%H$",
@@ -268,13 +274,45 @@ func TestTelemetry(t *testing.T) {
 			telemetry.DeviceSetNonPortableKey:    "1",
 			telemetry.NetworkProviderKey:         "host",
 			telemetry.ExternalModeEnabledKey:     "false",
+			telemetry.K8sNodeCount:               "3",
+			telemetry.CephFSNodeCount:            "0",
+			telemetry.RBDNodeCount:               "0",
+			telemetry.NFSNodeCount:               "0",
+			telemetry.CephNodeCount:              "0",
+		}
+		c.reportTelemetry()
+
+		// add some pods to the nodes
+		labels := make(map[string]string)
+		labels["app"] = nodedaemon.CrashCollectorAppName
+		testop.FakeCustomisePodCreate(t, clientset, "crash-collector", ns, labels)
+		labels["app"] = csi.CsiRBDPlugin
+		testop.FakeCustomisePodCreate(t, clientset, "csi-rbdplugin", ns, labels)
+		expectedSettings = map[string]string{
+			telemetry.K8sVersionKey:              "v0.0.0-master+$Format:%H$",
+			telemetry.MonMaxIDKey:                "0",
+			telemetry.MonCountKey:                "3",
+			telemetry.MonAllowMultiplePerNodeKey: "true",
+			telemetry.MonPVCEnabledKey:           "false",
+			telemetry.MonStretchEnabledKey:       "false",
+			telemetry.DeviceSetTotalKey:          "3",
+			telemetry.DeviceSetPortableKey:       "2",
+			telemetry.DeviceSetNonPortableKey:    "1",
+			telemetry.NetworkProviderKey:         "host",
+			telemetry.ExternalModeEnabledKey:     "false",
+			telemetry.K8sNodeCount:               "3",
+			telemetry.CephFSNodeCount:            "0",
+			telemetry.RBDNodeCount:               "1", //should be 1
+			telemetry.NFSNodeCount:               "0",
+			telemetry.CephNodeCount:              "1", //should be 1
 		}
 		c.reportTelemetry()
 	})
 
 	t.Run("external cluster", func(t *testing.T) {
 		c.Spec = &cephv1.ClusterSpec{
-			External: cephv1.ExternalSpec{Enable: true},
+			External:       cephv1.ExternalSpec{Enable: true},
+			CrashCollector: cephv1.CrashCollectorSpec{Disable: true},
 		}
 		expectedSettings = map[string]string{
 			telemetry.K8sVersionKey:              "v0.0.0-master+$Format:%H$",
@@ -288,6 +326,11 @@ func TestTelemetry(t *testing.T) {
 			telemetry.DeviceSetNonPortableKey:    "0",
 			telemetry.NetworkProviderKey:         "",
 			telemetry.ExternalModeEnabledKey:     "true",
+			telemetry.K8sNodeCount:               "3",
+			telemetry.CephFSNodeCount:            "0",
+			telemetry.RBDNodeCount:               "1",
+			telemetry.NFSNodeCount:               "0",
+			telemetry.CephNodeCount:              "-1", // checking the disable scenario
 		}
 		c.reportTelemetry()
 	})

@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path"
 	"strconv"
@@ -493,8 +494,14 @@ func (c *cluster) reportTelemetry() {
 	telemetryMutex.Lock()
 	defer telemetryMutex.Unlock()
 
-	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
+	reportClusterTelemetry(c)
+	reportNodeTelemetry(c)
+}
+
+func reportClusterTelemetry(c *cluster) {
 	logger.Info("reporting cluster telemetry")
+
+	// Identify this as a rook cluster for Ceph telemetry by setting the Rook version.
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.RookVersionKey, rookversion.Version)
 
 	// Report the K8s version
@@ -540,6 +547,58 @@ func (c *cluster) reportTelemetry() {
 
 	// Set the telemetry for external cluster settings
 	telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.ExternalModeEnabledKey, strconv.FormatBool(c.Spec.External.Enable))
+}
+
+func reportNodeTelemetry(c *cluster) {
+	logger.Info("reporting node telemetry")
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+
+	// Report the K8sNodeCount
+	nodelist, err := c.context.Clientset.CoreV1().Nodes().List(c.ClusterInfo.Context, metav1.ListOptions{})
+	if err != nil {
+		logger.Warningf("failed to report the K8s node count. %v", err)
+	} else {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.K8sNodeCount, strconv.Itoa(len(nodelist.Items)))
+	}
+
+	// Report the cephNodeCount
+	if c.Spec.CrashCollector.Disable {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.CephNodeCount, "-1")
+	} else {
+		listoption := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, nodedaemon.CrashCollectorAppName)}
+		cephNodeList, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(c.ClusterInfo.Context, listoption)
+		if err != nil {
+			logger.Warningf("failed to report the ceph node count. %v", err)
+		} else {
+			telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.CephNodeCount, strconv.Itoa(len(cephNodeList.Items)))
+		}
+	}
+	// Report the csi rbd node count
+	listoption := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, csi.CsiRBDPlugin)}
+	cephRbdNodelist, err := c.context.Clientset.CoreV1().Pods(operatorNamespace).List(c.ClusterInfo.Context, listoption)
+	if err != nil {
+		logger.Warningf("failed to report the ceph rbd node count. %v", err)
+	} else {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.RBDNodeCount, strconv.Itoa(len(cephRbdNodelist.Items)))
+	}
+
+	// Report the csi cephfs node count
+	listoption = metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, csi.CsiCephFSPlugin)}
+	cephFSNodelist, err := c.context.Clientset.CoreV1().Pods(operatorNamespace).List(c.ClusterInfo.Context, listoption)
+	if err != nil {
+		logger.Warningf("failed to report the ceph cephfs node count. %v", err)
+	} else {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.CephFSNodeCount, strconv.Itoa(len(cephFSNodelist.Items)))
+	}
+
+	// Report the csi nfs node count
+	listoption = metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, csi.CsiNFSPlugin)}
+	cephNFSNodelist, err := c.context.Clientset.CoreV1().Pods(operatorNamespace).List(c.ClusterInfo.Context, listoption)
+	if err != nil {
+		logger.Warningf("failed to report the ceph nfs node count. %v", err)
+	} else {
+		telemetry.ReportKeyValue(c.context, c.ClusterInfo, telemetry.NFSNodeCount, strconv.Itoa(len(cephNFSNodelist.Items)))
+	}
 }
 
 func (c *cluster) configureMsgr2() error {

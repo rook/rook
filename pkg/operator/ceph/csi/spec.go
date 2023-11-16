@@ -244,9 +244,9 @@ const (
 	onDelete      = "OnDelete"
 
 	// driver daemonset names
-	csiRBDPlugin    = "csi-rbdplugin"
-	csiCephFSPlugin = "csi-cephfsplugin"
-	csiNFSPlugin    = "csi-nfsplugin"
+	CsiRBDPlugin    = "csi-rbdplugin"
+	CsiCephFSPlugin = "csi-cephfsplugin"
+	CsiNFSPlugin    = "csi-nfsplugin"
 
 	// driver deployment names
 	csiRBDProvisioner    = "csi-rbdplugin-provisioner"
@@ -652,7 +652,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableRBD {
 		logger.Info("CSI Ceph RBD driver disabled")
-		err := r.deleteCSIDriverResources(ver, csiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
+		err := r.deleteCSIDriverResources(ver, CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI Ceph RBD driver")
 		}
@@ -661,7 +661,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableCephFS {
 		logger.Info("CSI CephFS driver disabled")
-		err := r.deleteCSIDriverResources(ver, csiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
+		err := r.deleteCSIDriverResources(ver, CsiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI CephFS driver")
 		}
@@ -670,7 +670,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableNFS {
 		logger.Info("CSI NFS driver disabled")
-		err := r.deleteCSIDriverResources(ver, csiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName)
+		err := r.deleteCSIDriverResources(ver, CsiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI NFS driver")
 		}
