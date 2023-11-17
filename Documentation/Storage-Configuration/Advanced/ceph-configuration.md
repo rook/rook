@@ -316,7 +316,7 @@ After the CSI pods are restarted, the new settings should be in effect.
 
 ### Example CSI `ceph.conf` Settings
 
-In this [Example](https://github.com/rook/rook/tree/master/deploy/csi-ceph-conf-override.yaml) we
+In this [Example](https://github.com/rook/rook/tree/master/deploy/examples/csi-ceph-conf-override.yaml) we
 will set the `rbd_validate_pool` to `false` to skip rbd pool validation.
 
 !!! warning
