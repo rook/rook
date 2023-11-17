@@ -1,4 +1,4 @@
-#!/bin/bash +e
+#!/usr/bin/env -S bash +e
 
 temp="/tmp/rook-tests-scripts-helm"
 
