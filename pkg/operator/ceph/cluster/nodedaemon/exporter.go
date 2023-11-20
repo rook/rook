@@ -46,6 +46,8 @@ const (
 	statsPeriod                      = "5"
 	DefaultMetricsPort        uint16 = 9926
 	exporterServiceMetricName        = "ceph-exporter-http-metrics"
+	exporterKeyringUsername          = "client.ceph-exporter"
+	exporterKeyName                  = "rook-ceph-exporter-keyring"
 )
 
 var (
@@ -82,7 +84,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 
 	volumes := append(
 		controller.DaemonVolumesBase(config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath), "", cephCluster.Spec.DataDirHostPath),
-		keyring.Volume().Admin())
+		keyring.Volume().Exporter())
 
 	mutateFunc := func() error {
 
@@ -166,12 +168,10 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	cephImage := cephCluster.Spec.CephVersion.Image
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)
-	// FIX: Use an exporter keyring instead of the admin keyring
-	volumeMounts = append(volumeMounts, keyring.VolumeMount().Admin())
+	volumeMounts = append(volumeMounts, keyring.VolumeMount().Exporter())
 
-	envVars := append(
-		controller.DaemonEnvVars(&cephCluster.Spec),
-		corev1.EnvVar{Name: "CEPH_ARGS", Value: fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -k %s", keyring.VolumeMount().AdminKeyringFilePath())})
+	exporterEnvVar := generateExporterEnvVar()
+	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), exporterEnvVar)
 
 	args := []string{
 		"--sock-dir", sockDir,
@@ -277,4 +277,11 @@ func applyPrometheusAnnotations(cephCluster cephv1.CephCluster, objectMeta *meta
 
 		t.ApplyToObjectMeta(objectMeta)
 	}
+}
+
+func generateExporterEnvVar() corev1.EnvVar {
+	val := fmt.Sprintf("-m $(ROOK_CEPH_MON_HOST) -n %s -k %s", exporterKeyringUsername, keyring.VolumeMount().ExporterKeyringFilePath())
+	env := corev1.EnvVar{Name: "CEPH_ARGS", Value: val}
+
+	return env
 }
