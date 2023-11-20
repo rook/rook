@@ -5,7 +5,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitor
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
       - monitoring.coreos.com
@@ -26,7 +26,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitor
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -34,7 +34,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-system
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 # OLM: END ROLE BINDING
 ---
 # OLM: BEGIN ROLE
@@ -43,7 +43,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-metrics
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
       - ""
@@ -63,7 +63,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-metrics
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -72,7 +72,7 @@ subjects:
   - kind: ServiceAccount
     # change to the serviceaccount and namespace to use for monitoring
     name: prometheus-k8s
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 # OLM: END ROLE BINDING
 ---
 # OLM: BEGIN ROLE
@@ -81,7 +81,7 @@ kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitor-mgr
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 rules:
   - apiGroups:
       - monitoring.coreos.com
@@ -100,7 +100,7 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: rook-ceph-monitor-mgr
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
@@ -108,6 +108,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-mgr
-    namespace: rook-ceph
+    namespace: rook-ceph # namespace:cluster
 # OLM: END ROLE BINDING
 ---
