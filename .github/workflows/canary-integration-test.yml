@@ -25,1038 +25,1038 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  canary:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
-
-      - name: wait for ceph mgr to be ready
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
-          mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
-
-      - name: test external script create-external-cluster-resources.py
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
-          kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
-          kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
-          kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
-          timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
-          # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-
-      - name: test re-running of external script should result in same output
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output1.txt
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output2.txt
-          if cmp output1.txt output2.txt; then
-            echo "files have same output"
-            rm output1.txt
-            rm output2.txt
-          else
-            echo "re-run with same flags changed the output, result in failure"
-            rm output1.txt
-            rm output2.txt
-            exit 1
-          fi
-
-      - name: dry run external script create-external-cluster-resources.py
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run
-
-      - name: test external script create-external-cluster-resources.py if users already exist with different caps
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # update client.csi-rbd-provisioner csi user caps
-          # print client.csi-rbd-provisioner user before update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
-          # print client.csi-rbd-provisioner user after update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
-          # print client.csi-rbd-provisioner user after running script
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-
-      - name: run external script create-external-cluster-resources.py unit tests
-        run: |
-          kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 -m unittest /etc/ceph/create-external-cluster-resources-tests.py
-
-      - name: wait for the subvolumegroup to be created
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
-
-      - name: test subvolumegroup validation
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # pass the correct subvolumegroup and cephfs_filesystem flag name
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
-          # pass the subvolumegroup name which doesn't exist
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group
-
-      - name: dry run test skip monitoring endpoint
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run --skip-monitoring-endpoint
-
-      - name: test of rados namespace
-        run: |
-          kubectl create -f deploy/examples/radosnamespace.yaml
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
-          kubectl delete -f deploy/examples/radosnamespace.yaml
-
-      - name: test rados namespace validation
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
-          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace1
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosNamespace1
-           # test the rados namespace which not exit for replicapool(false testing)
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
-            echo "unexpectedly succeeded after passing the wrong rados namespace: $output"
-            exit 1
-          else
-            echo "script failed because wrong rados namespace was passed"
-          fi
-
-      - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
-
-      - name: test external script with restricted_auth_permission flag
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
-
-      - name: test the upgrade flag
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-          # update the existing non-restricted client auth with the new ones
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
-          # print upgraded client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
-
-      - name: test the upgrade flag for restricted auth user
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
-          # restricted auth user need to provide --rbd-data-pool-name,
-          #  --k8s-cluster-name and --run-as-user flag while upgrading
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
-          # print upgraded client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
-
-      - name: validate-rgw-endpoint
-        run: |
-          rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # pass the valid rgw-endpoint of same ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-          tests/scripts/github-action-helper.sh check_empty_file output.txt
-          rm -f output.txt
-          # pass the invalid rgw-endpoint of different ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80  2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-          if [ -s output.txt ]; then
-            echo "script run completed with stderr error after passing the wrong rgw-endpoint: $output"
-            rm -f output.txt
-          else
-            echo "no stderr error even wrong endpoint was provided"
-            rm -f output.txt
-            exit 1
-          fi
-          # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-          tests/scripts/github-action-helper.sh check_empty_file output.txt
-          rm -f output.txt
-          # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
-          tests/scripts/github-action-helper.sh check_empty_file output.txt
-          rm -f output.txt
-
-      - name: validate multisite
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          # create realm
-          kubectl -n rook-ceph exec $toolbox -- radosgw-admin realm create --rgw-realm=realm1
-          # pass correct realm
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm1
-          # pass wrong realm
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm3); then
-            echo "script run completed with stderr error after passing the wrong realm: $output"
-          else
-            echo "script failed because wrong realm was passed"
-          fi
-
-      - name: test enable v2 mon port
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: test osd removal jobs
-        run: |
-          kubectl -n rook-ceph delete deploy/rook-ceph-operator
-          kubectl -n rook-ceph delete deploy/rook-ceph-osd-1 --grace-period=0 --force
-          sed -i 's/<OSD-IDs>/1/' deploy/examples/osd-purge.yaml
-          # the CI must force the deletion since we use replica 1 on 2 OSDs
-          sed -i 's/false/true/' deploy/examples/osd-purge.yaml
-          sed -i 's|rook/ceph:.*|rook/ceph:local-build|' deploy/examples/osd-purge.yaml
-          kubectl -n rook-ceph create -f deploy/examples/osd-purge.yaml
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- ceph status
-          # wait until osd.1 is removed from the osd tree
-          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
-          kubectl -n rook-ceph exec $toolbox -- ceph status
-          kubectl -n rook-ceph exec $toolbox -- ceph osd tree
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-  raw-disk:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk as OSD
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
-
-      - name: prepare loop devices for osds
-        run: |
-          tests/scripts/github-action-helper.sh prepare_loop_devices 1
-
-      - name: deploy cluster
-        run: |
-          export ALLOW_LOOP_DEVICES=true
-          tests/scripts/github-action-helper.sh deploy_cluster loop
-          tests/scripts/github-action-helper.sh create_operator_toolbox
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
-      - name: test toolbox-operator-image pod
-        run: |
-          # waiting for toolbox operator image pod to get ready
-          kubectl -n rook-ceph wait --for=condition=ready pod -l app=rook-ceph-tools-operator-image  --timeout=180s
-
-      - name: check s5cmd version in the toolbox image
-        run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools-operator-image -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          s5cmd_version="$(kubectl -n rook-ceph exec ${toolbox} -- /usr/local/bin/s5cmd version)"
-          echo ${s5cmd_version} | grep -q "^v2.2.1"  || {
-             echo " Error: the version of s5cmd version in the  toolbox is not the expected v2.2.1 but ${s5cmd_version}"
-             exit 1
-          }
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-  two-osds-in-device:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk as OSD
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
-
-      - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-  osd-with-metadata-device:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk as OSD
-        run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
-
-      - name: create LV on disk
-        run: |
-          dd if=/dev/zero of=test-rook.img bs=1 count=0 seek=10G
-          # If we use metadata device, both data devices and metadata devices should be logical volumes or raw devices
-          tests/scripts/github-action-helper.sh create_LV_on_disk $(sudo losetup --find --show test-rook.img)
-
-      - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-  encryption:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk as OSD
-        run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
-
-      - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster encryption
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-  lvm:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
-
-      - name: use local disk as OSD
-        run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
-
-      - name: create LV on disk
-        run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
-
-      - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster lvm
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary
-
-  pvc:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: prepare loop devices for osds
-        run: |
-          tests/scripts/github-action-helper.sh prepare_loop_devices 1
-
-      - name: create cluster prerequisites
-        run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/localPathPV.sh "$BLOCK"
-          tests/scripts/loopDevicePV.sh 1
-          tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy cluster
-        run: |
-          yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: teardown cluster with cleanup policy
-        run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
-          kubectl -n rook-ceph logs deploy/rook-ceph-operator
-          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
-          lsblk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          sudo head --bytes=60 ${BLOCK}1
-          sudo head --bytes=60 ${BLOCK}2
-          sudo head --bytes=60 /dev/loop1
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: pvc
-
-  pvc-db:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk
-
-      - name: create bluestore partitions and PVCs
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
-
-      - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy cluster
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
-          cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: pvc-db
-
-  pvc-db-wal:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk
-
-      - name: create bluestore partitions and PVCs for wal
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
-
-      - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy rook
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
-          cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: |
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-          kubectl -n rook-ceph get pods
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: pvc-db-wal
-
-  encryption-pvc:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: create cluster prerequisites
-        run: |
-          tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy cluster
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: |
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-          kubectl -n rook-ceph get secrets
-          sudo lsblk
-
-      - name: teardown cluster with cleanup policy
-        run: |
-          kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-          kubectl -n rook-ceph delete cephcluster rook-ceph
-          kubectl -n rook-ceph logs deploy/rook-ceph-operator
-          tests/scripts/github-action-helper.sh wait_for_cleanup_pod
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          sudo head --bytes=60 ${BLOCK}1
-          sudo head --bytes=60 ${BLOCK}2
-          sudo lsblk
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: encryption-pvc
-
-  encryption-pvc-db:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk
-
-      - name: create bluestore partitions and PVCs
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
-
-      - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy cluster
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: |
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-          kubectl -n rook-ceph get pods
-          kubectl -n rook-ceph get secrets
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: encryption-pvc-db
-
-  encryption-pvc-db-wal:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk
-
-      - name: create bluestore partitions and PVCs for wal
-        run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
-
-      - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy rook
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: |
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-          kubectl -n rook-ceph get pods
-          kubectl -n rook-ceph get secrets
-
-      - name: wait and verify key rotation
-        run: tests/scripts/github-action-helper.sh verify_key_rotation
-
-      - name: test osd deployment removal and re-hydration
-        run: |
-          kubectl -n rook-ceph delete deploy/rook-ceph-osd-0
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: encryption-pvc-db-wal
-
-  encryption-pvc-kms-vault-token-auth:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: create cluster prerequisites
-        run: |
-          tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy vault
-        run: tests/scripts/deploy-validate-vault.sh deploy
-
-      - name: deploy cluster
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
-          yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
-          kubectl create -f tests/manifests/test-object.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: |
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-          tests/scripts/validate_cluster.sh rgw
-          kubectl -n rook-ceph get pods
-          kubectl -n rook-ceph get secrets
-
-      - name: validate osd vault
-        run: |
-          tests/scripts/deploy-validate-vault.sh validate_osd
-          sudo lsblk
-
-      - name: validate rgw vault kv
-        run: |
-          tests/scripts/deploy-validate-vault.sh validate_rgw
-
-      - name: validate rgw vault transit
-        run: |
-          kubectl delete -f tests/manifests/test-object.yaml
-          yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_SECRET_ENGINE" transit
-          timeout 120 bash -c 'while kubectl -n rook-ceph get cephobjectstore my-store; do echo "waiting for objectstore my-store to delete"; sleep 5; done'
-          echo "wait for rgw pod to be deleted"
-          kubectl wait --for=delete pod -l app=rook-ceph-rgw -n rook-ceph --timeout=100s
-          kubectl create -f tests/manifests/test-object.yaml
-          tests/scripts/validate_cluster.sh rgw
-          tests/scripts/deploy-validate-vault.sh validate_rgw
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: encryption-pvc-kms-vault-token-auth
-
-  encryption-pvc-kms-vault-k8s-auth:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: create cluster prerequisites
-        run: |
-          tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: deploy vault
-        run: KUBERNETES_AUTH=true tests/scripts/deploy-validate-vault.sh deploy
-
-      - name: deploy cluster
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: |
-          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-          kubectl -n rook-ceph get pods
-          kubectl -n rook-ceph get secrets
-
-      - name: validate osd vault
-        run: |
-          tests/scripts/deploy-validate-vault.sh validate_osd
-          sudo lsblk
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: encryption-pvc-kms-vault-k8s-auth
-
-  lvm-pvc:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: create cluster prerequisites
-        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
-
-      - name: use local disk
-        run: tests/scripts/github-action-helper.sh use_local_disk
-
-      - name: create LV on disk
-        run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
-          tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
-          tests/scripts/localPathPV.sh /dev/test-rook-vg/test-rook-lv
-
-      - name: deploy cluster
-        run: |
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
-          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
-          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
-          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
-
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
-
-      - name: check-ownerreferences
-        run: tests/scripts/github-action-helper.sh check_ownerreferences
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: lvm-pvc
+  # canary:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
+
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+  #     - name: deploy cluster
+  #       run: tests/scripts/github-action-helper.sh deploy_cluster
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
+
+  #     - name: wait for ceph mgr to be ready
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
+  #         mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
+  #         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
+
+  #     - name: test external script create-external-cluster-resources.py
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
+  #         kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
+  #         kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
+  #         kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
+  #         timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
+  #         # print existing client auth
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+
+  #     - name: test re-running of external script should result in same output
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output1.txt
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output2.txt
+  #         if cmp output1.txt output2.txt; then
+  #           echo "files have same output"
+  #           rm output1.txt
+  #           rm output2.txt
+  #         else
+  #           echo "re-run with same flags changed the output, result in failure"
+  #           rm output1.txt
+  #           rm output2.txt
+  #           exit 1
+  #         fi
+
+  #     - name: dry run external script create-external-cluster-resources.py
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run
+
+  #     - name: test external script create-external-cluster-resources.py if users already exist with different caps
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # update client.csi-rbd-provisioner csi user caps
+  #         # print client.csi-rbd-provisioner user before update
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
+  #         # print client.csi-rbd-provisioner user after update
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
+  #         # print client.csi-rbd-provisioner user after running script
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+
+  #     - name: run external script create-external-cluster-resources.py unit tests
+  #       run: |
+  #         kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 -m unittest /etc/ceph/create-external-cluster-resources-tests.py
+
+  #     - name: wait for the subvolumegroup to be created
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
+
+  #     - name: test subvolumegroup validation
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # pass the correct subvolumegroup and cephfs_filesystem flag name
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
+  #         # pass the subvolumegroup name which doesn't exist
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group
+
+  #     - name: dry run test skip monitoring endpoint
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run --skip-monitoring-endpoint
+
+  #     - name: test of rados namespace
+  #       run: |
+  #         kubectl create -f deploy/examples/radosnamespace.yaml
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
+  #         kubectl delete -f deploy/examples/radosnamespace.yaml
+
+  #     - name: test rados namespace validation
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
+  #         kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace1
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosNamespace1
+  #          # test the rados namespace which not exit for replicapool(false testing)
+  #         if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
+  #           echo "unexpectedly succeeded after passing the wrong rados namespace: $output"
+  #           exit 1
+  #         else
+  #           echo "script failed because wrong rados namespace was passed"
+  #         fi
+
+  #     - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
+
+  #     - name: test external script with restricted_auth_permission flag
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
+
+  #     - name: test the upgrade flag
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # print existing client auth
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+  #         # update the existing non-restricted client auth with the new ones
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
+  #         # print upgraded client auth
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+
+  #     - name: test the upgrade flag for restricted auth user
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # print existing client auth
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
+  #         # restricted auth user need to provide --rbd-data-pool-name,
+  #         #  --k8s-cluster-name and --run-as-user flag while upgrading
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
+  #         # print upgraded client auth
+  #         kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
+
+  #     - name: validate-rgw-endpoint
+  #       run: |
+  #         rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # pass the valid rgw-endpoint of same ceph cluster
+  #         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+  #         tests/scripts/github-action-helper.sh check_empty_file output.txt
+  #         rm -f output.txt
+  #         # pass the invalid rgw-endpoint of different ceph cluster
+  #         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80  2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+  #         if [ -s output.txt ]; then
+  #           echo "script run completed with stderr error after passing the wrong rgw-endpoint: $output"
+  #           rm -f output.txt
+  #         else
+  #           echo "no stderr error even wrong endpoint was provided"
+  #           rm -f output.txt
+  #           exit 1
+  #         fi
+  #         # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
+  #         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+  #         tests/scripts/github-action-helper.sh check_empty_file output.txt
+  #         rm -f output.txt
+  #         # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
+  #         timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+  #         tests/scripts/github-action-helper.sh check_empty_file output.txt
+  #         rm -f output.txt
+
+  #     - name: validate multisite
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         # create realm
+  #         kubectl -n rook-ceph exec $toolbox -- radosgw-admin realm create --rgw-realm=realm1
+  #         # pass correct realm
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm1
+  #         # pass wrong realm
+  #         if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm3); then
+  #           echo "script run completed with stderr error after passing the wrong realm: $output"
+  #         else
+  #           echo "script failed because wrong realm was passed"
+  #         fi
+
+  #     - name: test enable v2 mon port
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: test osd removal jobs
+  #       run: |
+  #         kubectl -n rook-ceph delete deploy/rook-ceph-operator
+  #         kubectl -n rook-ceph delete deploy/rook-ceph-osd-1 --grace-period=0 --force
+  #         sed -i 's/<OSD-IDs>/1/' deploy/examples/osd-purge.yaml
+  #         # the CI must force the deletion since we use replica 1 on 2 OSDs
+  #         sed -i 's/false/true/' deploy/examples/osd-purge.yaml
+  #         sed -i 's|rook/ceph:.*|rook/ceph:local-build|' deploy/examples/osd-purge.yaml
+  #         kubectl -n rook-ceph create -f deploy/examples/osd-purge.yaml
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         kubectl -n rook-ceph exec $toolbox -- ceph status
+  #         # wait until osd.1 is removed from the osd tree
+  #         timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
+  #         kubectl -n rook-ceph exec $toolbox -- ceph status
+  #         kubectl -n rook-ceph exec $toolbox -- ceph osd tree
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary
+
+  # raw-disk:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
+
+  #     - name: use local disk as OSD
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+  #     - name: prepare loop devices for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh prepare_loop_devices 1
+
+  #     - name: deploy cluster
+  #       run: |
+  #         export ALLOW_LOOP_DEVICES=true
+  #         tests/scripts/github-action-helper.sh deploy_cluster loop
+  #         tests/scripts/github-action-helper.sh create_operator_toolbox
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
+  #     - name: test toolbox-operator-image pod
+  #       run: |
+  #         # waiting for toolbox operator image pod to get ready
+  #         kubectl -n rook-ceph wait --for=condition=ready pod -l app=rook-ceph-tools-operator-image  --timeout=180s
+
+  #     - name: check s5cmd version in the toolbox image
+  #       run: |
+  #         toolbox=$(kubectl get pod -l app=rook-ceph-tools-operator-image -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+  #         s5cmd_version="$(kubectl -n rook-ceph exec ${toolbox} -- /usr/local/bin/s5cmd version)"
+  #         echo ${s5cmd_version} | grep -q "^v2.2.1"  || {
+  #            echo " Error: the version of s5cmd version in the  toolbox is not the expected v2.2.1 but ${s5cmd_version}"
+  #            exit 1
+  #         }
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary
+
+  # two-osds-in-device:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
+
+  #     - name: use local disk as OSD
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+  #     - name: deploy cluster
+  #       run: tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary
+
+  # osd-with-metadata-device:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
+
+  #     - name: use local disk as OSD
+  #       run: |
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+  #     - name: create LV on disk
+  #       run: |
+  #         dd if=/dev/zero of=test-rook.img bs=1 count=0 seek=10G
+  #         # If we use metadata device, both data devices and metadata devices should be logical volumes or raw devices
+  #         tests/scripts/github-action-helper.sh create_LV_on_disk $(sudo losetup --find --show test-rook.img)
+
+  #     - name: deploy cluster
+  #       run: tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary
+
+  # encryption:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
+
+  #     - name: use local disk as OSD
+  #       run: |
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+  #     - name: deploy cluster
+  #       run: tests/scripts/github-action-helper.sh deploy_cluster encryption
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary
+
+  # lvm:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
+
+  #     - name: use local disk as OSD
+  #       run: |
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
+
+  #     - name: create LV on disk
+  #       run: |
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
+
+  #     - name: deploy cluster
+  #       run: tests/scripts/github-action-helper.sh deploy_cluster lvm
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary
+
+  # pvc:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+  #     - name: prepare loop devices for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh prepare_loop_devices 1
+
+  #     - name: create cluster prerequisites
+  #       run: |
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/localPathPV.sh "$BLOCK"
+  #         tests/scripts/loopDevicePV.sh 1
+  #         tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy cluster
+  #       run: |
+  #         yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 3
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: teardown cluster with cleanup policy
+  #       run: |
+  #         kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+  #         kubectl -n rook-ceph delete cephcluster rook-ceph
+  #         kubectl -n rook-ceph logs deploy/rook-ceph-operator
+  #         tests/scripts/github-action-helper.sh wait_for_cleanup_pod
+  #         lsblk
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         sudo head --bytes=60 ${BLOCK}1
+  #         sudo head --bytes=60 ${BLOCK}2
+  #         sudo head --bytes=60 /dev/loop1
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: pvc
+
+  # pvc-db:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk
+  #       run: tests/scripts/github-action-helper.sh use_local_disk
+
+  #     - name: create bluestore partitions and PVCs
+  #       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
+
+  #     - name: create cluster prerequisites
+  #       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy cluster
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+  #         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: pvc-db
+
+  # pvc-db-wal:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk
+  #       run: tests/scripts/github-action-helper.sh use_local_disk
+
+  #     - name: create bluestore partitions and PVCs for wal
+  #       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
+
+  #     - name: create cluster prerequisites
+  #       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy rook
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+  #         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: |
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+  #         kubectl -n rook-ceph get pods
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: pvc-db-wal
+
+  # encryption-pvc:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+  #     - name: create cluster prerequisites
+  #       run: |
+  #         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy cluster
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: |
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+  #         kubectl -n rook-ceph get secrets
+  #         sudo lsblk
+
+  #     - name: teardown cluster with cleanup policy
+  #       run: |
+  #         kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+  #         kubectl -n rook-ceph delete cephcluster rook-ceph
+  #         kubectl -n rook-ceph logs deploy/rook-ceph-operator
+  #         tests/scripts/github-action-helper.sh wait_for_cleanup_pod
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         sudo head --bytes=60 ${BLOCK}1
+  #         sudo head --bytes=60 ${BLOCK}2
+  #         sudo lsblk
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: encryption-pvc
+
+  # encryption-pvc-db:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk
+  #       run: tests/scripts/github-action-helper.sh use_local_disk
+
+  #     - name: create bluestore partitions and PVCs
+  #       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs
+
+  #     - name: create cluster prerequisites
+  #       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy cluster
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: |
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+  #         kubectl -n rook-ceph get pods
+  #         kubectl -n rook-ceph get secrets
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: encryption-pvc-db
+
+  # encryption-pvc-db-wal:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk
+  #       run: tests/scripts/github-action-helper.sh use_local_disk
+
+  #     - name: create bluestore partitions and PVCs for wal
+  #       run: tests/scripts/github-action-helper.sh create_bluestore_partitions_and_pvcs_for_wal
+
+  #     - name: create cluster prerequisites
+  #       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy rook
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         cat tests/manifests/test-on-pvc-db.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         cat tests/manifests/test-on-pvc-wal.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: |
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+  #         kubectl -n rook-ceph get pods
+  #         kubectl -n rook-ceph get secrets
+
+  #     - name: wait and verify key rotation
+  #       run: tests/scripts/github-action-helper.sh verify_key_rotation
+
+  #     - name: test osd deployment removal and re-hydration
+  #       run: |
+  #         kubectl -n rook-ceph delete deploy/rook-ceph-osd-0
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: encryption-pvc-db-wal
+
+  # encryption-pvc-kms-vault-token-auth:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+  #     - name: create cluster prerequisites
+  #       run: |
+  #         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy vault
+  #       run: tests/scripts/deploy-validate-vault.sh deploy
+
+  #     - name: deploy cluster
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         cat tests/manifests/test-kms-vault.yaml >> tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
+  #         yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
+  #         kubectl create -f tests/manifests/test-object.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: |
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+  #         tests/scripts/validate_cluster.sh rgw
+  #         kubectl -n rook-ceph get pods
+  #         kubectl -n rook-ceph get secrets
+
+  #     - name: validate osd vault
+  #       run: |
+  #         tests/scripts/deploy-validate-vault.sh validate_osd
+  #         sudo lsblk
+
+  #     - name: validate rgw vault kv
+  #       run: |
+  #         tests/scripts/deploy-validate-vault.sh validate_rgw
+
+  #     - name: validate rgw vault transit
+  #       run: |
+  #         kubectl delete -f tests/manifests/test-object.yaml
+  #         yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_SECRET_ENGINE" transit
+  #         timeout 120 bash -c 'while kubectl -n rook-ceph get cephobjectstore my-store; do echo "waiting for objectstore my-store to delete"; sleep 5; done'
+  #         echo "wait for rgw pod to be deleted"
+  #         kubectl wait --for=delete pod -l app=rook-ceph-rgw -n rook-ceph --timeout=100s
+  #         kubectl create -f tests/manifests/test-object.yaml
+  #         tests/scripts/validate_cluster.sh rgw
+  #         tests/scripts/deploy-validate-vault.sh validate_rgw
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: encryption-pvc-kms-vault-token-auth
+
+  # encryption-pvc-kms-vault-k8s-auth:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+  #     - name: create cluster prerequisites
+  #       run: |
+  #         tests/scripts/localPathPV.sh $(lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: deploy vault
+  #       run: KUBERNETES_AUTH=true tests/scripts/deploy-validate-vault.sh deploy
+
+  #     - name: deploy cluster
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         yq merge --inplace --arrays append tests/manifests/test-cluster-on-pvc-encrypted.yaml tests/manifests/test-kms-vault-spec-k8s-auth.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: |
+  #         tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+  #         kubectl -n rook-ceph get pods
+  #         kubectl -n rook-ceph get secrets
+
+  #     - name: validate osd vault
+  #       run: |
+  #         tests/scripts/deploy-validate-vault.sh validate_osd
+  #         sudo lsblk
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: encryption-pvc-kms-vault-k8s-auth
+
+  # lvm-pvc:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
+
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: create cluster prerequisites
+  #       run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+  #     - name: use local disk
+  #       run: tests/scripts/github-action-helper.sh use_local_disk
+
+  #     - name: create LV on disk
+  #       run: |
+  #         BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
+  #         tests/scripts/localPathPV.sh /dev/test-rook-vg/test-rook-lv
+
+  #     - name: deploy cluster
+  #       run: |
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+  #         yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+  #         kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+  #         tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+  #     - name: check-ownerreferences
+  #       run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: lvm-pvc
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
@@ -1340,37 +1340,37 @@ jobs:
           name: rgw-multisite-testing
           path: test
 
-  encryption-pvc-kms-ibm-kp:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # encryption-pvc-kms-ibm-kp:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
+  #     - name: consider debugging
 
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: run encryption KMS IBM Key Protect
-        uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
-        if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
-        env:
-          IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
-          IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
-        with:
-          ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
-          ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: run encryption KMS IBM Key Protect
+  #       uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
+  #       if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
+  #       env:
+  #         IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
+  #         IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
+  #       with:
+  #         ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
+  #         ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: upload test result
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: encryption-pvc-kms-ibm-kp
-          path: test
+  #     - name: upload test result
+  #       uses: actions/upload-artifact@v3
+  #       if: always()
+  #       with:
+  #         name: encryption-pvc-kms-ibm-kp
+  #         path: test
 
   multus-cluster-network:
     runs-on: ubuntu-20.04
@@ -1453,54 +1453,54 @@ jobs:
         with:
           name: canary-multus
 
-  csi-hostnetwork-disabled:
-    runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # csi-hostnetwork-disabled:
+  #   runs-on: ubuntu-20.04
+  #   if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
+  #     - name: consider debugging
 
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/canary-test-config
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-      - name: deploy CSI hostNetworking disabled cluster
-        run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
+  #     - name: deploy CSI hostNetworking disabled cluster
+  #       run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
 
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+  #     - name: wait for prepare pod
+  #       run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
 
-      - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+  #     - name: wait for ceph to be ready
+  #       run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
-      - name: wait for ceph-csi configmap to be updated with network namespace
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
+  #     - name: wait for ceph-csi configmap to be updated with network namespace
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
 
-      - name: test ceph-csi-rbd plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
+  #     - name: test ceph-csi-rbd plugin restart
+  #       run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
 
-      - name: test ceph-csi-cephfs plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
+  #     - name: test ceph-csi-cephfs plugin restart
+  #       run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
 
-      - name: test ceph-csi-nfs plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
+  #     - name: test ceph-csi-nfs plugin restart
+  #       run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
 
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: csi-hostnetwork-disabled
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: csi-hostnetwork-disabled

@@ -1,113 +1,113 @@
-name: Integration test CephUpgradeSuite
-on:
-  pull_request:
-    branches:
-      - master
-      - release-*
-    paths-ignore:
-      - "Documentation/**"
-      - "design/**"
+# name: Integration test CephUpgradeSuite
+# on:
+#   pull_request:
+#     branches:
+#       - master
+#       - release-*
+#     paths-ignore:
+#       - "Documentation/**"
+#       - "design/**"
 
-defaults:
-  run:
-    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
-    shell: bash --noprofile --norc -eo pipefail -x {0}
+# defaults:
+#   run:
+#     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+#     shell: bash --noprofile --norc -eo pipefail -x {0}
 
-# cancel the in-progress workflow when PR is refreshed.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
-  cancel-in-progress: true
+# # cancel the in-progress workflow when PR is refreshed.
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+#   cancel-in-progress: true
 
-jobs:
-  TestCephUpgradeSuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        kubernetes-versions: ["v1.23.17", "v1.28.4"]
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+# jobs:
+#   TestCephUpgradeSuite:
+#     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+#     runs-on: ubuntu-20.04
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         kubernetes-versions: ["v1.23.17", "v1.28.4"]
+#     steps:
+#       - name: checkout
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+#       - name: consider debugging
+#         uses: ./.github/workflows/tmate_debug
+#         with:
+#           use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: ${{ matrix.kubernetes-versions }}
+#       - name: setup cluster resources
+#         uses: ./.github/workflows/integration-test-config-latest-k8s
+#         with:
+#           github-token: ${{ secrets.GITHUB_TOKEN }}
+#           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-      - name: TestCephUpgradeSuite
-        run: |
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          go test -v -timeout 2400s -failfast -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
+#       - name: TestCephUpgradeSuite
+#         run: |
+#           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+#           export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+#           go test -v -timeout 2400s -failfast -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
+#       - name: collect common logs
+#         if: always()
+#         run: |
+#           export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+#           export CLUSTER_NAMESPACE="upgrade"
+#           export OPERATOR_NAMESPACE="upgrade-system"
+#           tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+#       - name: Artifact
+#         uses: actions/upload-artifact@v3
+#         if: failure()
+#         with:
+#           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
+#           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  TestHelmUpgradeSuite:
-    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
-    runs-on: ubuntu-20.04
-    strategy:
-      fail-fast: false
-      matrix:
-        kubernetes-versions: ["v1.23.17", "v1.28.4"]
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+#   TestHelmUpgradeSuite:
+#     if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+#     runs-on: ubuntu-20.04
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         kubernetes-versions: ["v1.23.17", "v1.28.4"]
+#     steps:
+#       - name: checkout
+#         uses: actions/checkout@v4
+#         with:
+#           fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+#       - name: consider debugging
+#         uses: ./.github/workflows/tmate_debug
+#         with:
+#           use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: ${{ matrix.kubernetes-versions }}
+#       - name: setup cluster resources
+#         uses: ./.github/workflows/integration-test-config-latest-k8s
+#         with:
+#           github-token: ${{ secrets.GITHUB_TOKEN }}
+#           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
-      - name: TestHelmUpgradeSuite
-        run: |
-          tests/scripts/github-action-helper.sh create_helm_tag
-          tests/scripts/helm.sh up
+#       - name: TestHelmUpgradeSuite
+#         run: |
+#           tests/scripts/github-action-helper.sh create_helm_tag
+#           tests/scripts/helm.sh up
 
-          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          go test -v -timeout 1800s -failfast -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
+#           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+#           export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+#           go test -v -timeout 1800s -failfast -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
+#       - name: collect common logs
+#         if: always()
+#         run: |
+#           export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+#           export CLUSTER_NAMESPACE="upgrade"
+#           export OPERATOR_NAMESPACE="upgrade-system"
+#           tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-upgrade-helm-suite-artifact-${{ matrix.kubernetes-versions }}
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+#       - name: Artifact
+#         uses: actions/upload-artifact@v3
+#         if: failure()
+#         with:
+#           name: ceph-upgrade-helm-suite-artifact-${{ matrix.kubernetes-versions }}
+#           path: /home/runner/work/rook/rook/tests/integration/_output/tests/

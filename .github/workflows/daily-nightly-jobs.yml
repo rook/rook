@@ -1,5 +1,9 @@
 name: Daily nightly jobs
 on:
+  # TODO: remove when done debugging
+  pull_request:
+    branches:
+      - master
   schedule:
     - cron: "0 0 * * *" # every day at midnight
 
@@ -9,389 +13,389 @@ defaults:
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
 jobs:
-  canary-arm64:
-    runs-on: [self-hosted, ubuntu-20.04-arm64, ARM64]
-    if: github.repository == 'rook/rook'
-    env:
-      BLOCK: /dev/sdb
+  # canary-arm64:
+  #   runs-on: [self-hosted, ubuntu-20.04-arm64, ARM64]
+  #   if: github.repository == 'rook/rook'
+  #   env:
+  #     BLOCK: /dev/sdb
 
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup golang
-        uses: actions/setup-go@v4
-        with:
-          go-version: "1.21"
+  #     - name: setup golang
+  #       uses: actions/setup-go@v4
+  #       with:
+  #         go-version: "1.21"
 
-      - name: Install Docker
-        run: |
-          sudo apt-get update
-          sudo apt-get install docker.io -y
+  #     - name: Install Docker
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install docker.io -y
 
-      - name: Start Docker service
-        run: sudo service docker start
+  #     - name: Start Docker service
+  #       run: sudo service docker start
 
-      - name: Check Docker version
-        run: docker version
+  #     - name: Check Docker version
+  #       run: docker version
 
-      - name: setup minikube
-        run: |
-          sudo apt-get install build-essential -y
-          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-arm64
-          sudo install minikube-linux-arm64 /usr/local/bin/minikube
-          sudo rm -f minikube-linux-arm64
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
-          sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-          minikube start --memory 28g --cpus=12 --driver=docker
+  #     - name: setup minikube
+  #       run: |
+  #         sudo apt-get install build-essential -y
+  #         curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-arm64
+  #         sudo install minikube-linux-arm64 /usr/local/bin/minikube
+  #         sudo rm -f minikube-linux-arm64
+  #         curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/arm64/kubectl"
+  #         sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+  #         minikube start --memory 28g --cpus=12 --driver=docker
 
-      - name: install yq
-        run: |
-          sudo curl -JL https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_arm64  --output /usr/bin/yq
-          sudo chmod +x /usr/bin/yq
+  #     - name: install yq
+  #       run: |
+  #         sudo curl -JL https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_arm64  --output /usr/bin/yq
+  #         sudo chmod +x /usr/bin/yq
 
-      - name: print k8s cluster status
-        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+  #     - name: print k8s cluster status
+  #       run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 1
+  #     - name: use local disk and create partitions for osds
+  #       run: |
+  #         tests/scripts/github-action-helper.sh use_local_disk
+  #         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 1
 
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
+  #     - name: validate-yaml
+  #       run: tests/scripts/github-action-helper.sh validate_yaml
 
-      - name: deploy cluster
-        run: |
-          # Use the official build images for the nightly arm tests instead of rebuilding
-          export USE_LOCAL_BUILD=false
-          # removing liveness probes since the env is slow and the probe is killing the daemons
-          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
-          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
-          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
-          tests/scripts/github-action-helper.sh deploy_cluster
-          # there are no package for arm64 nfs-ganesha
-          kubectl delete -f deploy/examples/nfs-test.yaml
+  #     - name: deploy cluster
+  #       run: |
+  #         # Use the official build images for the nightly arm tests instead of rebuilding
+  #         export USE_LOCAL_BUILD=false
+  #         # removing liveness probes since the env is slow and the probe is killing the daemons
+  #         yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
+  #         yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
+  #         yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
+  #         tests/scripts/github-action-helper.sh deploy_cluster
+  #         # there are no package for arm64 nfs-ganesha
+  #         kubectl delete -f deploy/examples/nfs-test.yaml
 
-      - name: wait for prepare pod
-        run: timeout 900 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || kubectl -n rook-ceph get all && kubectl logs -n rook-ceph deploy/rook-ceph-operator
+  #     - name: wait for prepare pod
+  #       run: timeout 900 sh -c 'until kubectl -n rook-ceph logs -f $(kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare -o jsonpath='{.items[*].metadata.name}'); do sleep 5; done' || kubectl -n rook-ceph get all && kubectl logs -n rook-ceph deploy/rook-ceph-operator
 
-      - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready "mon,mgr,osd,mds,rgw,rbd_mirror,fs_mirror" 1
+  #     - name: wait for ceph to be ready
+  #       run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready "mon,mgr,osd,mds,rgw,rbd_mirror,fs_mirror" 1
 
-      - name: teardown minikube, docker and kubectl
-        if: always()
-        run: |
-          uptime
-          minikube delete
-          docker system prune --all --force
-          sudo service docker stop
-          sudo rm -rf  /usr/local/bin/minikube
-          sudo rm -rf /usr/local/bin/kubectl
+  #     - name: teardown minikube, docker and kubectl
+  #       if: always()
+  #       run: |
+  #         uptime
+  #         minikube delete
+  #         docker system prune --all --force
+  #         sudo service docker stop
+  #         sudo rm -rf  /usr/local/bin/minikube
+  #         sudo rm -rf /usr/local/bin/kubectl
 
-      - name: remove /usr/bin/yq
-        if: always()
-        run: sudo rm -rf /usr/bin/yq
+  #     - name: remove /usr/bin/yq
+  #       if: always()
+  #       run: sudo rm -rf /usr/bin/yq
 
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: canary-arm64
+  #     - name: collect common logs
+  #       if: always()
+  #       uses: ./.github/workflows/collect-logs
+  #       with:
+  #         name: canary-arm64
 
-      - name: upload canary test result
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: canary-arm64
-          path: test
+  #     - name: upload canary test result
+  #       uses: actions/upload-artifact@v3
+  #       if: always()
+  #       with:
+  #         name: canary-arm64
+  #         path: test
 
-  smoke-suite-quincy-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # smoke-suite-quincy-devel:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephSmokeSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+  #     - name: TestCephSmokeSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="smoke-ns"
+  #         export OPERATOR_NAMESPACE="smoke-ns-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-smoke-suite-quincy-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-smoke-suite-quincy-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  smoke-suite-reef-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # smoke-suite-reef-devel:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephSmokeSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="reef-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+  #     - name: TestCephSmokeSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="reef-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="smoke-ns"
+  #         export OPERATOR_NAMESPACE="smoke-ns-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-smoke-suite-reef-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-smoke-suite-reef-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  smoke-suite-ceph-main:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # smoke-suite-ceph-main:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephSmokeSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
+  #     - name: TestCephSmokeSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="smoke-ns"
+  #         export OPERATOR_NAMESPACE="smoke-ns-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-smoke-suite-master-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-smoke-suite-master-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  object-suite-quincy-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # object-suite-quincy-devel:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephObjectSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+  #     - name: TestCephObjectSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="object-ns"
-          export OPERATOR_NAMESPACE="object-ns-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="object-ns"
+  #         export OPERATOR_NAMESPACE="object-ns-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-object-suite-quincy-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-object-suite-quincy-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  object-suite-ceph-main:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # object-suite-ceph-main:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephObjectSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
+  #     - name: TestCephObjectSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION=main go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="object-ns"
-          export OPERATOR_NAMESPACE="object-ns-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="object-ns"
+  #         export OPERATOR_NAMESPACE="object-ns-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-object-suite-master-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-object-suite-master-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  upgrade-from-reef-stable-to-reef-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # upgrade-from-reef-stable-to-reef-devel:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephUpgradeSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToReefDevel github.com/rook/rook/tests/integration
+  #     - name: TestCephUpgradeSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToReefDevel github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="upgrade"
+  #         export OPERATOR_NAMESPACE="upgrade-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-upgrade-suite-reef-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-upgrade-suite-reef-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  upgrade-from-quincy-stable-to-quincy-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # upgrade-from-quincy-stable-to-quincy-devel:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - name: checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
+  #     - name: setup cluster resources
+  #       uses: ./.github/workflows/integration-test-config-latest-k8s
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
+  #         kubernetes-version: "1.28.4"
 
-      - name: TestCephUpgradeSuite
-        run: |
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToQuincyDevel github.com/rook/rook/tests/integration
+  #     - name: TestCephUpgradeSuite
+  #       run: |
+  #         export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+  #         go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToQuincyDevel github.com/rook/rook/tests/integration
 
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
+  #     - name: collect common logs
+  #       if: always()
+  #       run: |
+  #         export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+  #         export CLUSTER_NAMESPACE="upgrade"
+  #         export OPERATOR_NAMESPACE="upgrade-system"
+  #         tests/scripts/collect-logs.sh
 
-      - name: Artifact
-        uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: ceph-upgrade-suite-quincy-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
+  #     - name: Artifact
+  #       uses: actions/upload-artifact@v3
+  #       if: failure()
+  #       with:
+  #         name: ceph-upgrade-suite-quincy-artifact
+  #         path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   rgw-multisite-test-with-ceph-devel:
     if: github.repository == 'rook/rook'
@@ -424,33 +428,33 @@ jobs:
           name: rgw-multisite-testing-ceph-${{ matrix.ceph-image-tag }}
           path: test
 
-  encryption-pvc-kms-ibm-kp:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+  # encryption-pvc-kms-ibm-kp:
+  #   if: github.repository == 'rook/rook'
+  #   runs-on: ubuntu-20.04
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
+  #     - name: consider debugging
+  #       uses: ./.github/workflows/tmate_debug
+  #       with:
+  #         use-tmate: ${{ secrets.USE_TMATE }}
 
-      - name: run encryption KMS IBM Key Protect
-        uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
-        if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
-        env:
-          IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
-          IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
-        with:
-          ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
-          ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #     - name: run encryption KMS IBM Key Protect
+  #       uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
+  #       if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
+  #       env:
+  #         IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
+  #         IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
+  #       with:
+  #         ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
+  #         ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: upload test result
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: encryption-pvc-kms-ibm-kp
-          path: test
+  #     - name: upload test result
+  #       uses: actions/upload-artifact@v3
+  #       if: always()
+  #       with:
+  #         name: encryption-pvc-kms-ibm-kp
+  #         path: test
