@@ -273,7 +273,7 @@ function deploy_cluster() {
     exit 1
   fi
   # enable monitoring
-  yq w -i -d1 cluster-test.yaml spec.monitoring.enabled true
+  yq w -i -d0 cluster-test.yaml spec.monitoring.enabled true
   kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
   kubectl create -f monitoring/rbac.yaml
 
@@ -401,9 +401,9 @@ function deploy_first_rook_cluster() {
   cd deploy/examples/
 
   deploy_manifest_with_local_build operator.yaml
-  yq w -i -d1 cluster-test.yaml spec.dashboard.enabled false
-  yq w -i -d1 cluster-test.yaml spec.storage.useAllDevices false
-  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
+  yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
+  yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
+  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
   kubectl create -f cluster-test.yaml
   deploy_toolbox
 }
@@ -413,8 +413,8 @@ function deploy_second_rook_cluster() {
   cd deploy/examples/
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
-  yq w -i -d1 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
-  yq w -i -d1 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
+  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
+  yq w -i -d0 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
   kubectl create -f cluster-test.yaml
   yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
   deploy_toolbox

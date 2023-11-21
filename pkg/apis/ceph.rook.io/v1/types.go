@@ -226,6 +226,11 @@ type ClusterSpec struct {
 	// CSI Driver Options applied per cluster.
 	// +optional
 	CSI CSIDriverSpec `json:"csi,omitempty"`
+
+	// Ceph Config options
+	// +optional
+	// +nullable
+	CephConfig map[string]map[string]string `json:"cephConfig,omitempty"`
 }
 
 // CSIDriverSpec defines CSI Driver settings applied per cluster.
