@@ -19,6 +19,7 @@ package exec
 
 import (
 	"fmt"
+	kexec "k8s.io/client-go/util/exec"
 	"os/exec"
 	"syscall"
 )
@@ -41,12 +42,12 @@ func ExitStatus(err error) (int, bool) {
 		if ok {
 			return waitStatus.ExitStatus(), true
 		}
-
+	case kexec.CodeExitError:
+		return int(e.ExitStatus()), true
 	case *CephCLIError:
 		return ExitStatus(e.err)
 	case syscall.Errno:
 		return int(e), true
-
 	}
 	return 0, false
 }
