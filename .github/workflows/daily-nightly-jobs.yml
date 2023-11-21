@@ -21,6 +21,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup golang
         uses: actions/setup-go@v4
         with:
@@ -117,6 +122,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -151,6 +161,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
@@ -187,6 +202,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -221,6 +241,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
@@ -257,6 +282,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -292,6 +322,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
@@ -326,6 +361,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
@@ -366,6 +406,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: run RGW multisite test
         uses: ./.github/workflows/rgw-multisite-test
         with:
@@ -386,6 +431,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: run encryption KMS IBM Key Protect
         uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
