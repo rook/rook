@@ -30,11 +30,20 @@ import (
 
 const (
 	crashClient          = `client.crash`
+	exporterClient       = `client.ceph-exporter`
 	crashKeyringTemplate = `
 [client.crash]
 	key = %s
 	caps mon = "allow profile crash"
 	caps mgr = "allow rw"
+`
+	exporterKeyringTemplate = `
+[client.ceph-exporter]
+	key = %s
+	caps mon = "allow profile ceph-exporter"
+	caps mgr = "allow r"
+	caps osd = "allow r"
+	caps mds = "allow r"
 `
 )
 
@@ -100,5 +109,71 @@ func createOrUpdateCrashCollectorSecret(clusterInfo *client.ClusterInfo, crashCo
 	}
 
 	logger.Infof("created kubernetes crash collector secret for cluster %q", clusterInfo.Namespace)
+	return nil
+}
+
+func CreateExporterSecret(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
+	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
+
+	// Create exporter Ceph key
+	exporterSecretKey, err := createExporterKeyring(k)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create %q ceph keyring", exporterKeyringUsername)
+	}
+
+	// Create or update Kubernetes CSI secret
+	if err := createOrUpdateExporterSecret(clusterInfo, exporterSecretKey, k); err != nil {
+		return errors.Wrap(err, "failed to create kubernetes csi secret")
+	}
+
+	return nil
+}
+
+func createExporterKeyringCaps() []string {
+	return []string{
+		"mon", "allow profile ceph-exporter",
+		"mgr", "allow r",
+		"osd", "allow r",
+		"mds", "allow r",
+	}
+}
+
+func createExporterKeyring(s *keyring.SecretStore) (string, error) {
+	key, err := s.GenerateKey(exporterKeyringUsername, createExporterKeyringCaps())
+	if err != nil {
+		return "", err
+	}
+
+	return key, nil
+}
+
+func createOrUpdateExporterSecret(clusterInfo *client.ClusterInfo, exporterSecretKey string, k *keyring.SecretStore) error {
+
+	keyring := fmt.Sprintf(exporterKeyringTemplate, exporterSecretKey)
+
+	exporterSecret := map[string][]byte{
+		"keyring": []byte(keyring),
+	}
+
+	s := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      exporterKeyName,
+			Namespace: clusterInfo.Namespace,
+		},
+		Data: exporterSecret,
+		Type: k8sutil.RookType,
+	}
+	err := clusterInfo.OwnerInfo.SetControllerReference(s)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference to exporter controller secret %q", s.Name)
+	}
+
+	// Create Kubernetes Secret
+	err = k.CreateSecret(s)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
+	}
+
+	logger.Infof("created kubernetes exporter secret for cluster %q", clusterInfo.Namespace)
 	return nil
 }

@@ -464,6 +464,12 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 	}
 
+	// Create exporter Kubernetes Secret
+	err = nodedaemon.CreateExporterSecret(c.context, c.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to create exporter kubernetes secret")
+	}
+
 	if err := c.configureMsgr2(); err != nil {
 		return errors.Wrap(err, "failed to configure msgr2")
 	}
