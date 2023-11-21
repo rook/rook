@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env -S bash
 set -xeo pipefail
 
 # initially copied from https://github.com/k8snetworkplumbingwg/whereabouts

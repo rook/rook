@@ -15,7 +15,7 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 ifneq (, $(shell command -v shasum))
 SHA256CMD := shasum -a 256
 else ifneq (, $(shell command -v sha256sum))

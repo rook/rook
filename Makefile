@@ -42,7 +42,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # set the shell to bash in case some environments use sh
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 
 # Can be used or additional go build flags
 BUILDFLAGS ?=
