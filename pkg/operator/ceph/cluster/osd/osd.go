@@ -207,7 +207,7 @@ func (c *Cluster) Start() error {
 		return errors.Wrapf(err, "failed to replace an OSD that needs migration to new backend store in namespace %q", namespace)
 	}
 
-	osdsToSkipReconcile, err := c.getOSDsToSkipReconcile()
+	osdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
 	if err != nil {
 		logger.Warningf("failed to get osds to skip reconcile. %v", err)
 	}
@@ -300,24 +300,6 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.Set[string], error) {
 	for _, deployment := range deployments.Items {
 		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
 			result.Insert(pvcID)
-		}
-	}
-
-	return result, nil
-}
-
-func (c *Cluster) getOSDsToSkipReconcile() (sets.Set[string], error) {
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, cephv1.SkipReconcileLabelKey)}
-
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query OSDs to skip reconcile")
-	}
-
-	result := sets.New[string]()
-	for _, deployment := range deployments.Items {
-		if osdID, ok := deployment.Labels[OsdIdLabelKey]; ok {
-			result.Insert(osdID)
 		}
 	}
 

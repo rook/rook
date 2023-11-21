@@ -34,12 +34,14 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -847,4 +849,38 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
 	assert.Error(t, err)
+}
+
+func TestSkipReconcile(t *testing.T) {
+	c := New(context.TODO(), &clusterd.Context{Clientset: test.New(t, 1), ConfigDir: t.TempDir()}, "ns", cephv1.ClusterSpec{}, cephclient.NewMinimumOwnerInfoWithOwnerRef())
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+	c.ClusterInfo.Namespace = "ns"
+
+	monDeployment := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon-a",
+			Namespace: c.ClusterInfo.Namespace,
+			Labels: map[string]string{
+				k8sutil.AppAttr: AppName,
+				config.MonType:  "a",
+			},
+		}}
+
+	deployment, err := c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Create(c.ClusterInfo.Context, monDeployment, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	result, err := controller.GetDaemonsToSkipReconcile(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, config.MonType, AppName)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, result.Len())
+
+	deployment, err = c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Get(c.ClusterInfo.Context, deployment.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	deployment.Labels[cephv1.SkipReconcileLabelKey] = ""
+	_, err = c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Update(c.ClusterInfo.Context, deployment, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+
+	result, err = controller.GetDaemonsToSkipReconcile(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, config.MonType, AppName)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.Len())
 }

@@ -34,6 +34,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -102,6 +103,11 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		c.store.Spec.Gateway.Instances = 1
 	}
 
+	rgwsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, config.RgwType, AppName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for RGWs to skip reconcile")
+	}
+
 	// start a new deployment and scale up
 	// We force a single deployment and later set the deployment replica to the "instances" value
 	desiredRgwInstances := 1
@@ -109,6 +115,12 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		var err error
 
 		daemonLetterID := k8sutil.IndexToName(i)
+
+		if rgwsToSkipReconcile.Has(daemonLetterID) {
+			logger.Warningf("skipping reconcile of rgw daemon %q with label %q", daemonLetterID, cephv1.SkipReconcileLabelKey)
+			return nil
+		}
+
 		// Each rgw is id'ed by <store_name>-<letterID>
 		daemonName := fmt.Sprintf("%s-%s", c.store.Name, daemonLetterID)
 		// resource name is rook-ceph-rgw-<store_name>-<daemon_name>
@@ -217,6 +229,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		if err != nil {
 			logger.Warningf("could not get deployments for object store %q (matching label selector %q). %v", c.store.Name, c.storeLabelSelector(), err)
 		}
+
 		currentRgwInstances = len(deps.Items)
 		if currentRgwInstances == desiredRgwInstances {
 			logger.Infof("successfully scaled down rgw deployments to %d in object store %q", desiredRgwInstances, c.store.Name)

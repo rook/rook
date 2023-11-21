@@ -18,6 +18,7 @@ limitations under the License.
 package controller
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
@@ -41,6 +42,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 const (
@@ -933,4 +935,23 @@ func GenerateLivenessProbeViaRpcinfo(port uint16, failureThreshold int32) *v1.Pr
 		TimeoutSeconds:      livenessProbeTimeoutSeconds,
 		FailureThreshold:    failureThreshold,
 	}
+}
+
+func GetDaemonsToSkipReconcile(ctx context.Context, clusterd *clusterd.Context, namespace, daemonName, label string) (sets.Set[string], error) {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, label, cephv1.SkipReconcileLabelKey)}
+
+	deployments, err := clusterd.Clientset.AppsV1().Deployments(namespace).List(ctx, listOpts)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to query %q to skip reconcile", daemonName)
+	}
+
+	result := sets.New[string]()
+	for _, deployment := range deployments.Items {
+		if daemonID, ok := deployment.Labels[daemonName]; ok {
+			logger.Infof("found %s %q pod to skip reconcile", daemonID, daemonName)
+			result.Insert(daemonID)
+		}
+	}
+
+	return result, nil
 }
