@@ -3,9 +3,9 @@
  quay.io/ceph/cosi:v0.1.1
  quay.io/cephcsi/cephcsi:v3.9.0
  quay.io/csiaddons/k8s-sidecar:v0.7.0
- registry.k8s.io/sig-storage/csi-attacher:v4.3.0
- registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.8.0
- registry.k8s.io/sig-storage/csi-provisioner:v3.5.0
- registry.k8s.io/sig-storage/csi-resizer:v1.8.0
- registry.k8s.io/sig-storage/csi-snapshotter:v6.2.2
+ registry.k8s.io/sig-storage/csi-attacher:v4.4.2
+ registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1
+ registry.k8s.io/sig-storage/csi-provisioner:v3.6.2
+ registry.k8s.io/sig-storage/csi-resizer:v1.9.2
+ registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
  rook/ceph:master
