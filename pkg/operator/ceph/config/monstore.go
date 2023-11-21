@@ -26,8 +26,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
+	"golang.org/x/exp/slices"
 	"gopkg.in/ini.v1"
 )
+
+// Alias for cluster CRD ceph config options map
+type CephConfigOptionsMap = map[string]map[string]string
 
 // MonStore provides methods for setting Ceph configurations in the centralized mon
 // configuration database.
@@ -205,8 +209,18 @@ func (m *MonStore) SetKeyValue(key, value string) error {
 	return nil
 }
 
-func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
-	keys, err := m.setAll(clientName, settings)
+func (m *MonStore) SetAllMultiple(settings map[string]map[string]string) error {
+	for who, options := range settings {
+		if err := m.SetAll(who, options); err != nil {
+			return errors.Wrapf(err, "failed to set ceph config for target: %s", who)
+		}
+	}
+
+	return nil
+}
+
+func (m *MonStore) SetAll(who string, settings map[string]string) error {
+	keys, err := m.setAll(who, settings)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set all keys")
 	}
@@ -216,13 +230,13 @@ func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
 	logger.Infof("failed to set keys %v, trying to remove them first", keys)
 	newSettings := map[string]string{}
 	for _, key := range keys {
-		if err := m.Delete(clientName, key); err != nil {
+		if err := m.Delete(who, key); err != nil {
 			return errors.Wrapf(err, "failed to remove key %q", key)
 		}
 		newSettings[key] = settings[key]
 	}
 	// retry setting the removed keys
-	keys, err = m.setAll(clientName, newSettings)
+	keys, err = m.setAll(who, newSettings)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set keys")
 	}
@@ -233,10 +247,10 @@ func (m *MonStore) SetAll(clientName string, settings map[string]string) error {
 	return nil
 }
 
-func (m *MonStore) setAll(clientName string, settings map[string]string) ([]string, error) {
+func (m *MonStore) setAll(who string, settings map[string]string) ([]string, error) {
 	assimilateConfPath, err := os.CreateTemp(m.context.ConfigDir, "")
 	if err != nil {
-		return []string{}, errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", clientName)
+		return []string{}, errors.Wrapf(err, "failed to create assimilateConf temp dir for  %s.", who)
 	}
 
 	err = os.WriteFile(assimilateConfPath.Name(), []byte(""), 0600)
@@ -257,7 +271,7 @@ func (m *MonStore) setAll(clientName string, settings map[string]string) ([]stri
 	}()
 
 	configFile := ini.Empty()
-	s, err := configFile.NewSection(clientName)
+	s, err := configFile.NewSection(who)
 	if err != nil {
 		return []string{}, err
 	}
@@ -301,12 +315,42 @@ func (m *MonStore) setAll(clientName string, settings map[string]string) ([]stri
 			return []string{}, errors.Wrapf(err, "failed to parse assimilate output file %s", outFilePath)
 		}
 		// get the section for the client
-		section, err := iniContent.GetSection(clientName)
+		section, err := iniContent.GetSection(who)
 		if err != nil {
-			return []string{}, errors.Wrapf(err, "failed to get section %s", clientName)
+			return []string{}, errors.Wrapf(err, "failed to get section %s", who)
 		}
 		return section.KeyStrings(), nil
 	}
 	logger.Info("successfully applied settings to the mon configuration database")
 	return []string{}, nil
+}
+
+var criticalConfigOptions = []string{
+	"mon_host",
+	"fsid",
+	"keyring",
+}
+
+func (m *MonStore) UpdateConfigStoreFromMap(cfg CephConfigOptionsMap) error {
+	filtered := filterSettingsMap(cfg)
+
+	return m.SetAllMultiple(filtered)
+}
+
+// Filters out critical config options
+func filterSettingsMap(cfg CephConfigOptionsMap) CephConfigOptionsMap {
+	filtered := CephConfigOptionsMap{}
+
+	for who, options := range cfg {
+		filtered[who] = map[string]string{}
+		for k, v := range options {
+			if slices.Contains(criticalConfigOptions, k) {
+				continue
+			}
+
+			filtered[who][k] = v
+		}
+	}
+
+	return filtered
 }

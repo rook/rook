@@ -893,6 +893,14 @@ spec:
                   nullable: true
                   type: object
                   x-kubernetes-preserve-unknown-fields: true
+                cephConfig:
+                  additionalProperties:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  description: Ceph Config options
+                  nullable: true
+                  type: object
                 cephVersion:
                   description: The version information that instructs Rook to orchestrate a particular version of Ceph.
                   nullable: true

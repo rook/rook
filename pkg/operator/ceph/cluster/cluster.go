@@ -458,25 +458,27 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
-	err := csi.CreateCSISecrets(c.context, c.ClusterInfo)
-	if err != nil {
+	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
 	}
 
 	// Create crash collector Kubernetes Secret
-	err = nodedaemon.CreateCrashCollectorSecret(c.context, c.ClusterInfo)
-	if err != nil {
+	if err := nodedaemon.CreateCrashCollectorSecret(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 	}
 
 	// Create exporter Kubernetes Secret
-	err = nodedaemon.CreateExporterSecret(c.context, c.ClusterInfo)
-	if err != nil {
+	if err := nodedaemon.CreateExporterSecret(c.context, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to create exporter kubernetes secret")
 	}
 
 	if err := c.configureMsgr2(); err != nil {
 		return errors.Wrap(err, "failed to configure msgr2")
+	}
+
+	// Set config store options
+	if err := c.updateConfigStoreFromCRD(); err != nil {
+		return errors.Wrap(err, "")
 	}
 
 	crushRoot := client.GetCrushRootFromSpec(c.Spec)
@@ -490,12 +492,16 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	// Create cluster-wide RBD bootstrap peer token
-	_, err = controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.namespacedName.Name, Namespace: c.Namespace}}, c.ownerInfo)
-	if err != nil {
+	if _, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.namespacedName.Name, Namespace: c.Namespace}}, c.ownerInfo); err != nil {
 		return errors.Wrap(err, "failed to create cluster rbd bootstrap peer token")
 	}
 
 	return nil
+}
+
+func (c *cluster) updateConfigStoreFromCRD() error {
+	monStore := config.GetMonStore(c.context, c.ClusterInfo)
+	return monStore.SetAllMultiple(c.Spec.CephConfig)
 }
 
 func (c *cluster) reportTelemetry() {

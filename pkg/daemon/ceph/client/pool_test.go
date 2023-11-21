@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"testing"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -214,7 +216,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 				assert.Equal(t, failureDomain, args[6])
 			}
 			if deviceClass == "" {
-				assert.False(t, testIsStringInSlice("hdd", args))
+				assert.False(t, slices.Contains(args, "hdd"))
 			} else {
 				assert.Equal(t, deviceClass, args[7])
 			}
@@ -334,15 +336,6 @@ func TestExtractPoolDetails(t *testing.T) {
 		assert.Equal(t, "zone", failureDomain)
 		assert.Equal(t, "ssd", deviceClass)
 	})
-}
-
-func testIsStringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }
 
 func TestGetPoolStatistics(t *testing.T) {
