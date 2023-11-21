@@ -119,6 +119,9 @@ spec:
             {{ if .CSIClusterName }}
             - "--clustername={{ .CSIClusterName }}"
             {{ end }}
+            {{ if .EnableCSIAddonsSideCar }}
+            - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:
@@ -134,6 +137,10 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi-provisioner.sock
+            {{ if .EnableCSIAddonsSideCar }}
+            - name: CSIADDONS_ENDPOINT
+              value: unix:///csi/csi-addons.sock
+            {{ end }}
           imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
@@ -154,6 +161,44 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+        {{ if .EnableCSIAddonsSideCar }}
+        - name: csi-addons
+          image: {{ .CSIAddonsImage }}
+          args :
+            - "--node-id=$(NODE_ID)"
+            - "--v={{ .LogLevel }}"
+            - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
+            - "--controller-port={{ .CSIAddonsPort }}"
+            - "--pod=$(POD_NAME)"
+            - "--namespace=$(POD_NAMESPACE)"
+            - "--pod-uid=$(POD_UID)"
+            - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
+          ports:
+            - containerPort: {{ .CSIAddonsPort }}
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CSIADDONS_ENDPOINT
+              value: unix:///csi/csi-addons.sock
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
         {{ if .EnableLiveness }}
         - name: liveness-prometheus
           image: {{ .CSIPluginImage }}
