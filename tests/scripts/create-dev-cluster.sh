@@ -2,7 +2,7 @@
 
 DEFAULT_NS="rook-ceph"
 CLUSTER_FILES="common.yaml operator.yaml cluster-test.yaml cluster-on-pvc-minikube.yaml dashboard-external-http.yaml toolbox.yaml"
-MONITORING_FILES="monitoring/prometheus.yaml monitoring/service-monitor.yaml monitoring/exporter-service-monitor.yaml monitoring/prometheus-service.yaml"
+MONITORING_FILES="monitoring/prometheus.yaml monitoring/service-monitor.yaml monitoring/exporter-service-monitor.yaml monitoring/prometheus-service.yaml monitoring/rbac.yaml"
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 ROOK_EXAMPLES_DIR="${SCRIPT_ROOT}/../../deploy/examples/"
 
@@ -148,6 +148,7 @@ enable_monitoring() {
     echo "Enabling monitoring"
     $KUBECTL apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
     $KUBECTL wait --for=condition=ready pod -l app.kubernetes.io/name=prometheus-operator --timeout=30s
+    $KUBECTL apply -f monitoring/rbac.yaml
     $KUBECTL apply -f monitoring/service-monitor.yaml
     $KUBECTL apply -f monitoring/exporter-service-monitor.yaml
     $KUBECTL apply -f monitoring/prometheus.yaml
