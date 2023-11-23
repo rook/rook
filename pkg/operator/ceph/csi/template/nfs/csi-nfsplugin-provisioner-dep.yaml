@@ -74,6 +74,7 @@ spec:
             - "--leader-election-renew-deadline=107s"
             - "--leader-election-retry-period=26s"
             - "--handle-volume-inuse-error=false"
+            - "--feature-gates=RecoverVolumeExpansionFailure=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -93,6 +94,8 @@ spec:
             - "--leader-election-lease-duration=137s"
             - "--leader-election-renew-deadline=107s"
             - "--leader-election-retry-period=26s"
+            - "--feature-gates=HonorPVReclaimPolicy=true"
+            - "--prevent-volume-mode-conversion=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
