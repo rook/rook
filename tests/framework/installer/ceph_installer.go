@@ -135,11 +135,6 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 		}
 	}
 
-	err = h.startAdmissionController()
-	if err != nil {
-		return errors.Errorf("Failed to start admission controllers: %v", err)
-	}
-
 	if err := h.CreateVolumeReplicationCRDs(); err != nil {
 		return errors.Wrap(err, "failed to create volume replication CRDs")
 	}
@@ -167,37 +162,6 @@ func (h *CephInstaller) CreateVolumeReplicationCRDs() (err error) {
 	if _, err := h.k8shelper.KubectlWithStdin(readManifestFromURL(volumeReplicationClassCRDURL), createFromStdinArgs...); err != nil {
 		return errors.Wrap(err, "failed to create volumereplicationclass CRD")
 	}
-	return nil
-}
-
-func (h *CephInstaller) startAdmissionController() error {
-	if !h.k8shelper.VersionAtLeast("v1.16.0") {
-		logger.Info("skipping the admission controller on K8s version older than v1.16")
-		return nil
-	}
-	if !h.settings.EnableAdmissionController {
-		logger.Info("skipping admission controller for this test suite")
-		return nil
-	}
-	if utils.IsPlatformOpenShift() {
-		logger.Info("skipping the admission controller on OpenShift")
-		return nil
-	}
-
-	rootPath, err := utils.FindRookRoot()
-	if err != nil {
-		return errors.Errorf("failed to find rook root. %v", err)
-	}
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return errors.Errorf("failed to find user home directory. %v", err)
-	}
-	scriptPath := path.Join(rootPath, "tests/scripts/deploy_cert_manager.sh")
-	err = h.k8shelper.MakeContext().Executor.ExecuteCommandWithEnv([]string{fmt.Sprintf("NAMESPACE=%s", h.settings.OperatorNamespace), fmt.Sprintf("HOME=%s", userHome)}, "bash", scriptPath)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -794,9 +758,6 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 
 	err = h.k8shelper.DeleteResourceAndWait(false, "namespace", h.settings.OperatorNamespace)
 	checkError(h.T(), err, fmt.Sprintf("cannot delete operator namespace %s", h.settings.OperatorNamespace))
-
-	err = h.k8shelper.Clientset.AdmissionregistrationV1().ValidatingWebhookConfigurations().Delete(ctx, "rook-ceph-webhook", metav1.DeleteOptions{})
-	checkError(h.T(), err, "failed to delete webhook configuration")
 
 	logger.Infof("done removing the operator from namespace %s", h.settings.OperatorNamespace)
 	logger.Infof("removing host data dir %s", h.hostPathToDelete)

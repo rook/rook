@@ -619,9 +619,6 @@ discover:
   #       cpu: 100m
   #       memory: 128Mi
 
-# -- Whether to disable the admission controller
-disableAdmissionController: true
-
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false
 
@@ -637,17 +634,6 @@ imagePullSecrets:
 
 # -- Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
 enableOBCWatchOperatorNamespace: true
-
-# -- Set tolerations and nodeAffinity [^1] for admission controller pod.
-# The admission controller would be best to start on the same nodes as other ceph daemons.
-admissionController:
-  # tolerations:
-  #    - key: key
-  #      operator: Exists
-  #      effect: NoSchedule
-  # nodeAffinity: key1=value1,value2; key2=value3
-
-# [^1]: `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
 
 monitoring:
   # -- Enable monitoring. Requires Prometheus to be pre-installed.

@@ -40,13 +40,13 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     In the following commands, the affected `CephCluster` resource is called `rook-ceph`. If yours is named differently, the
     commands will need to be adjusted.
 
-1.  Scale down the operator.
+1. Scale down the operator.
 
     ```console
     kubectl -n rook-ceph scale --replicas=0 deploy/rook-ceph-operator
     ```
 
-2.  Backup all Rook CRs and critical metadata
+2. Backup all Rook CRs and critical metadata
 
     ```console
     # Store the `CephCluster` CR settings. Also, save other Rook CRs that are in terminating state.
@@ -57,18 +57,10 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     kubectl -n rook-ceph get configmap -o yaml > configmaps.yaml
     ```
 
-3.  (Optional, if webhook is enabled)
-    Delete the `ValidatingWebhookConfiguration`. This is the resource which connects Rook custom resources
-    to the operator pod's validating webhook. Because the operator is unavailable, we must temporarily disable
-    the valdiating webhook in order to make changes.
+3. Remove the owner references from all critical Rook resources that were referencing the `CephCluster` CR.
 
-        ```console
-        kubectl -n rook-ceph delete ValidatingWebhookConfiguration rook-ceph-webhook
-        ```
+    1. Programmatically determine all such resources, using this command:
 
-4.  Remove the owner references from all critical Rook resources that were referencing the `CephCluster` CR.
-
-    1.  Programmatically determine all such resources, using this command:
         ```console
         # Determine the `CephCluster` UID
         ROOK_UID=$(kubectl -n rook-ceph get cephcluster rook-ceph -o 'jsonpath={.metadata.uid}')
@@ -78,7 +70,7 @@ the CRs to their prior state without even necessarily suffering cluster downtime
         kubectl -n rook-ceph get $RESOURCES
         ```
 
-    2.  **Verify that all critical resources are shown in the output.** The critical resources are these:
+    2. **Verify that all critical resources are shown in the output.** The critical resources are these:
 
           - Secrets: `rook-ceph-admin-keyring`, `rook-ceph-config`, `rook-ceph-mon`, `rook-ceph-mons-keyring`
           - ConfigMap: `rook-ceph-mon-endpoints`
@@ -86,10 +78,11 @@ the CRs to their prior state without even necessarily suffering cluster downtime
           - Deployments: `rook-ceph-mon-*`, `rook-ceph-osd-*`, `rook-ceph-mgr-*`
           - PVCs (if applicable): `rook-ceph-mon-*` and the OSD PVCs (named `<deviceset>-*`, for example `set1-data-*`)
 
-    3.  For each listed resource, remove the `ownerReferences` metadata field, in order to unlink it from the deleting `CephCluster`
+    3. For each listed resource, remove the `ownerReferences` metadata field, in order to unlink it from the deleting `CephCluster`
         CR.
 
         To do so programmatically, use the command:
+
         ```console
         for resource in $(kubectl -n rook-ceph get $RESOURCES -o name); do
           kubectl -n rook-ceph patch $resource -p '{"metadata": {"ownerReferences":null}}'
@@ -97,6 +90,7 @@ the CRs to their prior state without even necessarily suffering cluster downtime
         ```
 
         For a manual alternative, issue `kubectl edit` on each resource, and remove the block matching:
+
         ```yaml
         ownerReferences:
         - apiVersion: ceph.rook.io/v1
@@ -107,11 +101,10 @@ the CRs to their prior state without even necessarily suffering cluster downtime
            uid: <uid>
         ```
 
-5.  **Before completing this step, validate these things. Failing to do so could result in data loss.**
+4. **Before completing this step, validate these things. Failing to do so could result in data loss.**
 
-    1.  Confirm that `cluster.yaml` contains the `CephCluster` CR.
-    2.  Confirm all critical resources listed above have had the `ownerReference` to the `CephCluster` CR removed.
-
+    1. Confirm that `cluster.yaml` contains the `CephCluster` CR.
+    2. Confirm all critical resources listed above have had the `ownerReference` to the `CephCluster` CR removed.
 
     Remove the finalizer from the `CephCluster` resource. This will cause the resource to be immediately deleted by Kubernetes.
 
@@ -122,32 +115,31 @@ the CRs to their prior state without even necessarily suffering cluster downtime
     After the finalizer is removed, the `CephCluster` will be immediately deleted. If all owner references were properly removed,
     all ceph daemons will continue running and there will be no downtime.
 
-6.  Create the `CephCluster` CR with the same settings as previously
+5. Create the `CephCluster` CR with the same settings as previously
 
     ```console
     # Use the same cluster settings as exported in step 2.
     kubectl create -f cluster.yaml
     ```
 
-7.  If there are other CRs in terminating state such as CephBlockPools, CephObjectStores, or CephFilesystems,
+6. If there are other CRs in terminating state such as CephBlockPools, CephObjectStores, or CephFilesystems,
     follow the above steps as well for those CRs:
 
-      1.  Backup the CR
-      2.  Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
-      3.  Create the CR again
+      1. Backup the CR
+      2. Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
+      3. Create the CR again
 
-8.  Scale up the operator
+7. Scale up the operator
 
     ```console
     kubectl -n rook-ceph scale --replicas=1 deploy/rook-ceph-operator
     ```
 
-9.  Watch the operator log to confirm that the reconcile completes successfully.
+8. Watch the operator log to confirm that the reconcile completes successfully.
 
     ```console
     kubectl -n rook-ceph logs -f deployment/rook-ceph-operator
     ```
-
 
 ## Adopt an existing Rook Ceph cluster into a new Kubernetes cluster
 
@@ -304,14 +296,17 @@ type: kubernetes.io/rook
 ```
 
 The values for the secret can be found in `$dataDirHostPath/rook-ceph/client.admin.keyring` and `$dataDirHostPath/rook-ceph/rook-ceph.config`.
+
 - `ceph-secret` and `mon-secret` are to be filled with the `client.admin`'s keyring contents.
 - `ceph-username`: set to the string `client.admin`
 - `fsid`: set to the original ceph cluster id.
 
 All the fields in data section need to be encoded in base64. Coding could be done like this:
+
 ```console
 echo -n "string to code" | base64 -i -
 ```
+
 Now save the secret as `rook-ceph-mon.yaml`, to be created later in the restore.
 
 The second resource is the configmap named rook-ceph-mon-endpoints as seen in this example below:

@@ -47,7 +47,6 @@ The following table lists the configurable parameters of the rook-operator chart
 
 | Parameter | Description | Default |
 |-----------|-------------|---------|
-| `admissionController` | Set tolerations and nodeAffinity [^1] for admission controller pod. The admission controller would be best to start on the same nodes as other ceph daemons. | `nil` |
 | `allowLoopDevices` | If true, loop devices are allowed to be used for osds in test clusters | `false` |
 | `annotations` | Pod annotations | `{}` |
 | `cephCommandsTimeoutSeconds` | The timeout for ceph commands in seconds | `"15"` |
@@ -125,7 +124,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.topology.domainLabels` | domainLabels define which node labels to use as domains for CSI nodeplugins to advertise their domains | `nil` |
 | `csi.topology.enabled` | Enable topology based provisioning | `false` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |
-| `disableAdmissionController` | Whether to disable the admission controller | `true` |
 | `disableDeviceHotplug` | Disable automatic orchestration when new devices are discovered. | `false` |
 | `discover.nodeAffinity` | The node labels for affinity of `discover-agent` [^1] | `nil` |
 | `discover.podLabels` | Labels to add to the discover pods | `nil` |

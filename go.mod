@@ -16,7 +16,6 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.4.0
 	github.com/hashicorp/vault/api v1.10.0
-	github.com/jetstack/cert-manager v1.7.3
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.4.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20231011182615-5f4b25ceede1

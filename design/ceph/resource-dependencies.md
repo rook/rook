@@ -1,7 +1,9 @@
 # Resource dependency relationships
+
 **Targeted for v1.7**
 
 ## Goal
+
 Custom Resources in Rook-Ceph can act as data/storage "providers" for other Resources in the
 Kubernetes cluster which may be "dependent" on the data/storage provided to them. This dependency
 relationship is not codified in Rook, and it is possible for Custom Resources which have dependents
@@ -40,9 +42,10 @@ in the Kubernetes cluster.
 1. Block deletion of object "multisite" resources with their hierarchy:
    CephObjectRealm -> CephObjectZoneGroup -> CephObjectZone -> CephObjectStore
 
-
 ## Inventory of resources that could have dependency relationships
+
 All Rook-Ceph CRDs:
+
 - CephCluster
 - CephBlockPool
 - CephFilesystem
@@ -57,34 +60,40 @@ All Rook-Ceph CRDs:
 - CephObjectZone
 
 Resources for which Rook-Ceph acts as a driver/provisioner:
+
 - ObjectBucket (lib-bucket-provisioner)
 - Bucket (COSI)
 
 Kubernetes resources which can depend on Rook:
+
 - StorageClass (Kubernetes)
 - PersistentVolume (Kubernetes)
 
-
 ## Proposed dependency relationships
+
 A graph of proposed dependency relationships is shown below with more detail to follow.
 ![Graph view of resource dependencies](resource-dependencies.png)
 
 #### `CephCluster`
+
 A CephCluster does not create pools itself, but the Ceph cluster it represents houses pools, and
 users can manually create pools using Ceph tooling outside of Kubernetes manifests. It is useful but
 not critical to understand which resources interact with pools and in what ways.
 
 Dependents which can create/delete pools:
+
 - CephBlockPools in the same namespace
 - CephFilesystems in the same namespace
 - CephObjectStores in the same namespace
 - CephObjectZones in the same namespace
 
 Dependents which can consume arbitrary pools including user-created pools:
+
 - CephNFSes in the same namespace
 - CephClients in the same namespace
 
 Dependents that do not interact with pools:
+
 - CephRBDMirrors in the same namespace
 - CephFilesystemMirrors in the same namespace
 - CephObjectRealms in the same namespace
@@ -95,11 +104,14 @@ dependents. If a dependent exists in the same namespace, block deletion. In this
 is the most protected provider resource. It also acts as a root for preserving deletion ordering.
 
 #### `CephBlockPool`
+
 Dependents which can consume this provider's pools:
+
 - CephNFSes in the same namespace that have `spec.pool == <a provider pool>`
 - CephClients in the same namespace that have any `spec.caps` value with the string `pool=<a provider pool>`
 
 Dependents via CSI:
+
 - StorageClasses that have:
   - `provisioner == <operator namespace>.rbd.csi.ceph.com` AND
   - `parameters.clusterID == <ceph cluster namespace>` AND
@@ -113,11 +125,14 @@ Dependents via CSI:
   - NOTE: dependents should continue to be ignored if `spec.cleanupPolicy.allowUninstallWithVolumes == true`
 
 #### `CephFilesystem`
+
 Dependents which can consume this provider's pools:
+
 - CephNFSes in the same namespace that have `spec.pool == <a provider pool>`
 - CephClients in the same namespace that have any `spec.caps` value with the string `pool=<a provider pool>`
 
 Dependents via CSI:
+
 - StorageClasses that have:
   - `provisioner == <operator namespace>.cephfs.csi.ceph.com` AND
   - `parameters.clusterID == <ceph cluster namespace>` AND
@@ -131,49 +146,63 @@ Dependents via CSI:
   - NOTE: dependents should continue to be ignored if `spec.cleanupPolicy.allowUninstallWithVolumes == true`
 
 #### `CephObjectStore`
+
 Dependents which can consume this provider's pools:
+
 - CephNFSes in the same namespace that have `spec.pool == <a provider pool>`
 - CephClients in the same namespace that have any `spec.caps` value with the string `pool=<a provider pool>`
 
 Dependents which reference this provider by name:
+
 - CephObjectStoreUsers in the same namespace that have `spec.store == <CephObjectStore.metadata.name>`
 
 Dependents via lib-bucket-provisioner:
+
 - ObjectBucketClaims that have:
   - `spec.endpoint.bucketHost == <provider's service name>.<ceph cluster namespace>.svc` AND
   - `spec.endpoint.bucketName == <a provider bucket>`
 
 Dependents via COSI:
+
 - Buckets with a reference to a provider's service and bucket (specific paths TBD by COSI design)
 
 #### `CephObjectZone`, `CephObjectZoneGroup`, and `CephObjectRealm`
+
 These resources are all part of Rook-Ceph's multi-site object storage strategy.
 
 `CephObjectZone` creates pools. A zone can be effectively thought of as the "object store" itself.
 Dependents which can consume this provider's pools:
+
 - CephObjectStores in the same namespace that have `spec.zone.name == CephObjectZone.metadata.name`
 - CephNFS in the same namespace that have `spec.pool = <a provider pool>`
 - CephClient in the same namespace that has an `spec.caps` value with the string `pool=<a provider pool>`
 
 `CephObjectRealm` has dependents:
+
 - CephObjectZoneGroups in the same namespace that have `spec.realm == CephObjectRealm.metadata.name`
 
 `CephObjectZoneGroup` has dependents:
+
 - CephObjectZones in the same namespace that have `spec.zoneGroup == CephObjectZoneGroup.metadata.name`
 
 #### Mirroring resources
+
 CephRBDMirror has dependents:
+
 - CephBlockPools in the same namespace that have `spec.mirroring.enabled == true`
 
 CephFilesystemMirror has dependents:
+
 - CephFilesystems in the same namespace that have `spec.mirroring.enabled == true`
 
-
 ## Analysis and discussion
+
 ### Reusable patterns
+
 We can identify some common metrics for determining whether a resource is a dependent of a given
 "provider" resource. Not all metrics are always applicable, but each these metrics appear more than
 once. It should be possible to design reusable patterns/methods for reusing logic.
+
 - Is a dependent in the same namespace as the provider?
 - Does a dependent reference the current Rook-Ceph operator?
 - Does a dependent reference the Ceph cluster namespace of the provider?
@@ -181,9 +210,11 @@ once. It should be possible to design reusable patterns/methods for reusing logi
 - Does the dependent reference the provider by name? (e.g., CephObjectZone references CephObjectZoneGroup)
 
 ### User feedback
+
 It will be important for the user to understand why resources are not being deleted if Rook is
 blocking the deletion. This design proposes that the Rook operator report to the user when it is
 blocking deletion of a resource due to dependents in two ways:
+
 - report it in a status condition of the resource object being deleted
 - report a Kubernetes Event ([reference](https://kubernetes.io/blog/2018/01/reporting-errors-using-kubernetes-events/))
 
@@ -191,6 +222,7 @@ Using both of these methods will maximize user visibility.
 
 **Status:**
 Reported statuses will be modified as follows:
+
 1. Object's status.phase should be changed to "Deleting" as soon as a deletion timestamp is detected
    and never changed
 1. A status.condition should be added if the operator is blocking deletion:
@@ -203,6 +235,7 @@ Reported statuses will be modified as follows:
 
 **Event:**
 Reported events will have the following content:
+
 - Type: "Warning"
 - Reason: "ReconcileFailed"
 - Message: "object deletion is blocked because it has dependents:" followed by a full list of which
@@ -210,6 +243,7 @@ Reported events will have the following content:
   of which Ceph kinds (e.g., pools or buckets).
 
 ### Detecting PersistentVolume dependents
+
 Rook currently inspects Kubernetes PersistentVolume (PV) resources when deleting CephClusters. This
 provides protection from deleting the backing Ceph cluster when user applications are using it.
 
@@ -229,6 +263,7 @@ checking when the CephCluster is deleted. Detecting the existence of PVs when th
 deleted then becomes redundant and should be removed.
 
 ### Detecting StorageClass dependents
+
 As a note, StorageClasses (SCs) are only used during initial creation of a
 PersistentVolume based on the StorageClass.
 
@@ -245,6 +280,7 @@ compelling use-case for treating StorageClasses as dependencies, this functional
 implemented at that time.
 
 ### Detecting object bucket dependents without querying lib-bucket-provisioner or COSI resources
+
 Detecting lib-bucket-provisioner ObjectBuckets that are dependent on a given CephObjectStore
 requires inspecting ObjectBuckets for a reference to a bucket found in the object store as well as a
 reference to the address of the Kubernetes Service created for access to RGWs
@@ -286,10 +322,12 @@ developers should revisit the decision at a later date to discuss whether the st
 to adequately meet users' needs and whether the drawbacks noted are causing any issues.
 
 ### Implementation in stages
+
 This design will result in changes to every major Rook-Ceph controller. However, it should be quite
 easy to tackle these changes in stages so that changes can be more easily implemented and reviewed.
 
 Stages by priority:
+
 1. Block deletion of a CephCluster when there are other Rook-Ceph resources in the same namespace
 1. Block deletion of a CephObjectStore when there is a user bucket present in the store.
    - This already has an implementation, but it blocks for unrelated OBs
@@ -306,8 +344,5 @@ Stages by priority:
    - CephClients are seldom used, and few users will be affected if this is not in place.
 
 ### Future work
-Immediate feedback is always more helpful to users when possible. It should be possible to implement
-dependency checks in a validating admission controller quite easily, but we don't currently know if
-the controller is able to validate delete requests. This design leaves this investigation for the
-future, but implementation of the design can strive to make dependency checking code easily reusable
-for the admission controller when work on that might begin.
+
+Immediate feedback is always more helpful to users when possible.

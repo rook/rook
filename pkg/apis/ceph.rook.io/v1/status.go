@@ -20,19 +20,7 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// Based on code from https://github.com/kubernetes/apimachinery/blob/master/pkg/api/meta/conditions.go
-
-// A StatusConditionGetter allows getting a pointer to an object's conditions.
-type StatusConditionGetter interface {
-	client.Object
-
-	// GetStatusConditions returns a pointer to the object's conditions compatible with
-	// SetStatusCondition and FindStatusCondition.
-	GetStatusConditions() *[]Condition
-}
 
 // SetStatusCondition sets the corresponding condition in conditions to newCondition.
 // conditions must be non-nil.

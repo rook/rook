@@ -23,7 +23,6 @@ import (
 	"testing"
 	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/tests/framework/clients"
@@ -34,7 +33,6 @@ import (
 	"github.com/stretchr/testify/suite"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 // ************************************************
@@ -81,23 +79,22 @@ type SmokeSuite struct {
 func (s *SmokeSuite) SetupSuite() {
 	namespace := "smoke-ns"
 	s.settings = &installer.TestCephSettings{
-		ClusterName:               "smoke-cluster",
-		Namespace:                 namespace,
-		OperatorNamespace:         installer.SystemNamespace(namespace),
-		StorageClassName:          installer.StorageClassName(),
-		UseHelm:                   false,
-		UsePVC:                    installer.UsePVC(),
-		Mons:                      3,
-		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
-		ConnectionsEncrypted:      true,
-		ConnectionsCompressed:     true,
-		UseCrashPruner:            true,
-		EnableVolumeReplication:   true,
-		TestNFSCSI:                true,
-		ChangeHostName:            true,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.ReturnCephVersion(),
+		ClusterName:             "smoke-cluster",
+		Namespace:               namespace,
+		OperatorNamespace:       installer.SystemNamespace(namespace),
+		StorageClassName:        installer.StorageClassName(),
+		UseHelm:                 false,
+		UsePVC:                  installer.UsePVC(),
+		Mons:                    3,
+		SkipOSDCreation:         false,
+		ConnectionsEncrypted:    true,
+		ConnectionsCompressed:   true,
+		UseCrashPruner:          true,
+		EnableVolumeReplication: true,
+		TestNFSCSI:              true,
+		ChangeHostName:          true,
+		RookVersion:             installer.LocalBuildTag,
+		CephVersion:             installer.ReturnCephVersion(),
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
@@ -347,105 +344,4 @@ func (s *SmokeSuite) getNonCanaryMonDeployments() ([]appsv1.Deployment, error) {
 		}
 	}
 	return nonCanaryMonDeployments, nil
-}
-
-// Smoke Test for Webhooks
-func (s *SmokeSuite) TestWebhooks() {
-	logger.Info("Create webhook Smoke Test")
-	ctx := context.TODO()
-	t := s.T()
-
-	t.Run("During cephCluster update, hostPath cannot be changed", func(t *testing.T) {
-		cephCRList, err := s.k8sh.RookClientset.CephV1().CephClusters(s.settings.Namespace).List(ctx, metav1.ListOptions{})
-		require.NoError(s.T(), err)
-		cephCR := cephCRList.Items[0]
-		cephCR.Spec.DataDirHostPath = "/var"
-
-		_, err = s.k8sh.RookClientset.CephV1().CephClusters(s.settings.Namespace).Update(ctx, &cephCR, metav1.UpdateOptions{})
-		require.Error(s.T(), err)
-	})
-
-	t.Run("During blockPool creation, both erasurecoded and replicated fields cannot be set at the same time", func(t *testing.T) {
-		pool := &cephv1.CephBlockPool{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "webhook-pool",
-				Namespace: s.settings.Namespace,
-				UID:       types.UID("c47cac40-9bee-4d52-823b-ccd803ba5bfe"),
-			},
-			Spec: cephv1.NamedBlockPoolSpec{
-				PoolSpec: cephv1.PoolSpec{
-					Replicated: cephv1.ReplicatedSpec{
-						Size: uint(1),
-					},
-					ErasureCoded: cephv1.ErasureCodedSpec{
-						CodingChunks: 1,
-						DataChunks:   1,
-					},
-				},
-			},
-		}
-		_, err := s.k8sh.RookClientset.CephV1().CephBlockPools(s.settings.Namespace).Create(ctx, pool, metav1.CreateOptions{})
-		require.Error(s.T(), err)
-	})
-
-	t.Run("During objectStore creation, either of port or securePort fields should be not be zero ", func(t *testing.T) {
-		objectStore := &cephv1.CephObjectStore{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "webhook-store",
-				Namespace: s.settings.Namespace,
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind: "CephObjectStore",
-			},
-			Spec: cephv1.ObjectStoreSpec{
-				Gateway: cephv1.GatewaySpec{
-					Port:       0,
-					SecurePort: 0,
-				},
-			},
-		}
-		_, err := s.k8sh.RookClientset.CephV1().CephObjectStores(s.settings.Namespace).Create(ctx, objectStore, metav1.CreateOptions{})
-		require.Error(s.T(), err)
-	})
-
-	t.Run("During filesystemSubVolumeGroup update filesystem name cannot be changed", func(t *testing.T) {
-		subVolumeGroup := &cephv1.CephFilesystemSubVolumeGroup{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "subvol-name",
-			},
-			Spec: cephv1.CephFilesystemSubVolumeGroupSpec{
-				FilesystemName: "filesystem-name",
-			},
-		}
-		subVolumeGroup, err := s.k8sh.RookClientset.CephV1().CephFilesystemSubVolumeGroups(s.settings.Namespace).Create(ctx, subVolumeGroup, metav1.CreateOptions{})
-		require.NoError(s.T(), err)
-		subVolumeGroup.Spec.FilesystemName = "new-fs"
-		_, err = s.k8sh.RookClientset.CephV1().CephFilesystemSubVolumeGroups(s.settings.Namespace).Update(ctx, subVolumeGroup, metav1.UpdateOptions{})
-		require.Error(s.T(), err)
-
-		// Delete the subVolumeGroup for cleanup
-		err = s.k8sh.RookClientset.CephV1().CephFilesystemSubVolumeGroups(s.settings.Namespace).Delete(ctx, subVolumeGroup.Name, metav1.DeleteOptions{})
-		require.NoError(s.T(), err)
-	})
-
-	t.Run("During blockPoolRadosNamespace update blockpool name cannot be changed", func(t *testing.T) {
-		rn := &cephv1.CephBlockPoolRadosNamespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "rados-name",
-			},
-			Spec: cephv1.CephBlockPoolRadosNamespaceSpec{
-				BlockPoolName: "pool-name",
-			},
-		}
-
-		rn, err := s.k8sh.RookClientset.CephV1().CephBlockPoolRadosNamespaces(s.settings.Namespace).Create(ctx, rn, metav1.CreateOptions{})
-		require.NoError(s.T(), err)
-		rn.Spec.BlockPoolName = "new-pool"
-		_, err = s.k8sh.RookClientset.CephV1().CephBlockPoolRadosNamespaces(s.settings.Namespace).Update(ctx, rn, metav1.UpdateOptions{})
-		require.Error(s.T(), err)
-
-		// Delete the radosNamespace for cleanup
-		err = s.k8sh.RookClientset.CephV1().CephBlockPoolRadosNamespaces(s.settings.Namespace).Delete(ctx, rn.Name, metav1.DeleteOptions{})
-		require.NoError(s.T(), err)
-	})
 }

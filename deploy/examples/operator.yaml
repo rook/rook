@@ -503,8 +503,6 @@ data:
   # The CSI GRPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 
-  ROOK_DISABLE_ADMISSION_CONTROLLER: "true"
-
   # Enable topology based provisioning.
   CSI_ENABLE_TOPOLOGY: "false"
   # Domain labels define which node labels to use as domains
@@ -608,12 +606,6 @@ spec:
               name: rook-config
             - mountPath: /etc/ceph
               name: default-config-dir
-            - mountPath: /etc/webhook
-              name: webhook-cert
-          ports:
-            - containerPort: 9443
-              name: https-webhook
-              protocol: TCP
           env:
             # If the operator should only watch for cluster CRDs in the same namespace, set this to "true".
             # If this is not set to true, the operator will watch for cluster CRDs in all namespaces.
@@ -681,7 +673,5 @@ spec:
         - name: rook-config
           emptyDir: {}
         - name: default-config-dir
-          emptyDir: {}
-        - name: webhook-cert
           emptyDir: {}
 # OLM: END OPERATOR DEPLOYMENT
