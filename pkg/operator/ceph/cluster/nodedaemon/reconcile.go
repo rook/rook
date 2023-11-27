@@ -18,6 +18,7 @@ package nodedaemon
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/pkg/errors"
@@ -248,7 +249,9 @@ func (r *ReconcileNode) createOrUpdateNodeDaemons(node corev1.Node, tolerations 
 			logger.Debugf("crash collector successfully reconciled for node %q. operation: %q", node.Name, op)
 		}
 	}
-	if cephVersion.IsAtLeast(MinVersionForCephExporter) && !cephCluster.Spec.Monitoring.MetricsDisabled {
+	exporterSockFilePath := sockDir + "/ceph-client.ceph-exporter.asok"
+	_, err := os.Stat(exporterSockFilePath)
+	if cephVersion.IsAtLeast(MinVersionForCephExporter) && !cephCluster.Spec.Monitoring.MetricsDisabled && !os.IsNotExist(err) {
 		op, err := r.createOrUpdateCephExporter(node, tolerations, cephCluster, cephVersion)
 		if err != nil {
 			if op == "unchanged" {
