@@ -5146,6 +5146,19 @@ No values or 0 means that the operator will wait until the placement groups are 
 </tr>
 <tr>
 <td>
+<code>pgHealthyRegex</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PgHealthyRegex is the regular expression that is used to determine which PG states should be considered healthy.
+The default is <code>^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$</code></p>
+</td>
+</tr>
+<tr>
+<td>
 <code>manageMachineDisruptionBudgets</code><br/>
 <em>
 bool

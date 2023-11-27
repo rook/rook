@@ -839,7 +839,7 @@ func (c *Cluster) replaceOSDForNewStore() error {
 
 func (c *Cluster) waitForHealthyPGs() (bool, error) {
 	waitFunc := func() (done bool, err error) {
-		pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo)
+		pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo, c.spec.DisruptionManagement.PGHealthyRegex)
 		if err != nil {
 			return false, errors.Wrap(err, "failed to check pg are healthy")
 		}

@@ -17,6 +17,7 @@ package client
 
 import (
 	"encoding/json"
+	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -93,7 +94,7 @@ func TestIsClusterClean(t *testing.T) {
 	}
 
 	// not a clean cluster with PGs not adding up
-	_, clean := isClusterClean(status)
+	_, clean := isClusterClean(status, defaultPgHealthyRegexCompiled)
 	assert.False(t, clean)
 
 	// clean cluster
@@ -101,12 +102,17 @@ func TestIsClusterClean(t *testing.T) {
 		PgStateEntry{StateName: activeCleanScrubbing, Count: 5})
 	status.PgMap.PgsByState = append(status.PgMap.PgsByState,
 		PgStateEntry{StateName: activeCleanScrubbingDeep, Count: 2})
-	_, clean = isClusterClean(status)
+	_, clean = isClusterClean(status, defaultPgHealthyRegexCompiled)
 	assert.True(t, clean)
 
 	// not a clean cluster with PGs in a bad state
 	status.PgMap.PgsByState[0].StateName = "notclean"
-	_, clean = isClusterClean(status)
+	_, clean = isClusterClean(status, defaultPgHealthyRegexCompiled)
+	assert.False(t, clean)
+
+	// clean cluster if the regex is satisfied
+	re := regexp.MustCompile("notclean")
+	_, clean = isClusterClean(status, re)
 	assert.False(t, clean)
 }
 
