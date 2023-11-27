@@ -119,6 +119,11 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		if cephVersion != nil {
 			controller.AddCephVersionLabelToDeployment(*cephVersion, deploy)
 		}
+
+		// wait for previous exporter pod to be deleted, before creating a new one
+		// to avoid fighting for the same socket file
+		deploy.Spec.Strategy.Type = appsv1.RecreateDeploymentStrategyType
+
 		var terminationGracePeriodSeconds int64 = 2
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
