@@ -355,6 +355,7 @@ func (c *Cluster) cephMgrOrchestratorModuleEnvs() []v1.EnvVar {
 		{Name: "ROOK_OPERATOR_NAMESPACE", Value: operatorNamespace},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_VERSION", Value: cephv1.Version},
 		{Name: "ROOK_CEPH_CLUSTER_CRD_NAME", Value: c.clusterInfo.NamespacedName().Name},
+		{Name: "CEPH_ARGS", Value: fmt.Sprintf("--mon-host $(ROOK_CEPH_MON_HOST) --keyring %s", keyring.VolumeMount().KeyringFilePath())},
 		k8sutil.PodIPEnvVar(podIPEnvVar),
 	}
 	return envVars
