@@ -2463,6 +2463,11 @@ func (in *GaneshaServerSpec) DeepCopyInto(out *GaneshaServerSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.LivenessProbe != nil {
+		in, out := &in.LivenessProbe, &out.LivenessProbe
+		*out = new(ProbeSpec)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
