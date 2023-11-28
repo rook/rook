@@ -5,6 +5,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: {{ $ecblockpool.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
 {{ toYaml $ecblockpool.spec | indent 2 }}
 {{ end }}
@@ -43,4 +44,3 @@ parameters:
 allowVolumeExpansion: {{ $cephEcStorage.allowVolumeExpansion }}
 reclaimPolicy: {{ $cephEcStorage.reclaimPolicy }}
 {{ end }}
-
