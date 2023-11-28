@@ -43,8 +43,9 @@ import (
 )
 
 const (
-	healthyCephStatus   = `{"fsid":"877a47e0-7f6c-435e-891a-76983ab8c509","health":{"checks":{},"status":"HEALTH_OK"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["a","b","c"],"monmap":{"epoch":3,"fsid":"877a47e0-7f6c-435e-891a-76983ab8c509","modified":"2020-11-02 09:58:23.015313","created":"2020-11-02 09:57:37.719235","min_mon_release":14,"min_mon_release_name":"nautilus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.74.42:3300","nonce":0},{"type":"v1","addr":"172.30.74.42:6789","nonce":0}]},"addr":"172.30.74.42:6789/0","public_addr":"172.30.74.42:6789/0"},{"rank":1,"name":"b","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.101.61:3300","nonce":0},{"type":"v1","addr":"172.30.101.61:6789","nonce":0}]},"addr":"172.30.101.61:6789/0","public_addr":"172.30.101.61:6789/0"},{"rank":2,"name":"c","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.250.55:3300","nonce":0},{"type":"v1","addr":"172.30.250.55:6789","nonce":0}]},"addr":"172.30.250.55:6789/0","public_addr":"172.30.250.55:6789/0"}]},"osdmap":{"osdmap":{"epoch":19,"num_osds":3,"num_up_osds":3,"num_in_osds":3,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"active+clean","count":96}],"num_pgs":96,"num_pools":3,"num_objects":79,"data_bytes":81553681,"bytes_used":3255447552,"bytes_avail":1646011994112,"bytes_total":1649267441664,"read_bytes_sec":853,"write_bytes_sec":5118,"read_op_per_sec":1,"write_op_per_sec":0},"fsmap":{"epoch":9,"id":1,"up":1,"in":1,"max":1,"by_rank":[{"filesystem_id":1,"rank":0,"name":"ocs-storagecluster-cephfilesystem-b","status":"up:active","gid":14161},{"filesystem_id":1,"rank":0,"name":"ocs-storagecluster-cephfilesystem-a","status":"up:standby-replay","gid":24146}],"up:standby":0},"mgrmap":{"epoch":10,"active_gid":14122,"active_name":"a","active_addrs":{"addrvec":[{"type":"v2","addr":"10.131.0.28:6800","nonce":1},{"type":"v1","addr":"10.131.0.28:6801","nonce":1}]}}}`
-	unHealthyCephStatus = `{"fsid":"613975f3-3025-4802-9de1-a2280b950e75","health":{"checks":{"OSD_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 osds down"}},"OSD_HOST_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 host (1 osds) down"}},"PG_AVAILABILITY":{"severity":"HEALTH_WARN","summary":{"message":"Reduced data availability: 101 pgs stale"}},"POOL_APP_NOT_ENABLED":{"severity":"HEALTH_WARN","summary":{"message":"application not enabled on 1 pool(s)"}}},"status":"HEALTH_WARN","overall_status":"HEALTH_WARN"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["rook-ceph-mon0","rook-ceph-mon2","rook-ceph-mon1"],"monmap":{"epoch":3,"fsid":"613975f3-3025-4802-9de1-a2280b950e75","modified":"2017-08-11 20:13:02.075679","created":"2017-08-11 20:12:35.314510","features":{"persistent":["kraken","luminous"],"optional":[]},"mons":[{"rank":0,"name":"rook-ceph-mon0","addr":"10.3.0.45:6789/0","public_addr":"10.3.0.45:6789/0"},{"rank":1,"name":"rook-ceph-mon2","addr":"10.3.0.249:6789/0","public_addr":"10.3.0.249:6789/0"},{"rank":2,"name":"rook-ceph-mon1","addr":"10.3.0.252:6789/0","public_addr":"10.3.0.252:6789/0"}]},"osdmap":{"osdmap":{"epoch":17,"num_osds":2,"num_up_osds":1,"num_in_osds":2,"full":false,"nearfull":true,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"stale+active+clean","count":101},{"state_name":"active+clean","count":99}],"num_pgs":200,"num_pools":2,"num_objects":243,"data_bytes":976793635,"bytes_used":13611479040,"bytes_avail":19825307648,"bytes_total":33436786688},"fsmap":{"epoch":1,"by_rank":[]},"mgrmap":{"epoch":3,"active_gid":14111,"active_name":"rook-ceph-mgr0","active_addr":"10.2.73.6:6800/9","available":true,"standbys":[],"modules":["restful","status"],"available_modules":["dashboard","prometheus","restful","status","zabbix"]},"servicemap":{"epoch":1,"modified":"0.000000","services":{}}}`
+	healthyCephStatus         = `{"fsid":"877a47e0-7f6c-435e-891a-76983ab8c509","health":{"checks":{},"status":"HEALTH_OK"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["a","b","c"],"monmap":{"epoch":3,"fsid":"877a47e0-7f6c-435e-891a-76983ab8c509","modified":"2020-11-02 09:58:23.015313","created":"2020-11-02 09:57:37.719235","min_mon_release":14,"min_mon_release_name":"nautilus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.74.42:3300","nonce":0},{"type":"v1","addr":"172.30.74.42:6789","nonce":0}]},"addr":"172.30.74.42:6789/0","public_addr":"172.30.74.42:6789/0"},{"rank":1,"name":"b","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.101.61:3300","nonce":0},{"type":"v1","addr":"172.30.101.61:6789","nonce":0}]},"addr":"172.30.101.61:6789/0","public_addr":"172.30.101.61:6789/0"},{"rank":2,"name":"c","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.250.55:3300","nonce":0},{"type":"v1","addr":"172.30.250.55:6789","nonce":0}]},"addr":"172.30.250.55:6789/0","public_addr":"172.30.250.55:6789/0"}]},"osdmap":{"osdmap":{"epoch":19,"num_osds":3,"num_up_osds":3,"num_in_osds":3,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"active+clean","count":96}],"num_pgs":96,"num_pools":3,"num_objects":79,"data_bytes":81553681,"bytes_used":3255447552,"bytes_avail":1646011994112,"bytes_total":1649267441664,"read_bytes_sec":853,"write_bytes_sec":5118,"read_op_per_sec":1,"write_op_per_sec":0},"fsmap":{"epoch":9,"id":1,"up":1,"in":1,"max":1,"by_rank":[{"filesystem_id":1,"rank":0,"name":"ocs-storagecluster-cephfilesystem-b","status":"up:active","gid":14161},{"filesystem_id":1,"rank":0,"name":"ocs-storagecluster-cephfilesystem-a","status":"up:standby-replay","gid":24146}],"up:standby":0},"mgrmap":{"epoch":10,"active_gid":14122,"active_name":"a","active_addrs":{"addrvec":[{"type":"v2","addr":"10.131.0.28:6800","nonce":1},{"type":"v1","addr":"10.131.0.28:6801","nonce":1}]}}}`
+	unHealthyCephStatus       = `{"fsid":"613975f3-3025-4802-9de1-a2280b950e75","health":{"checks":{"OSD_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 osds down"}},"OSD_HOST_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 host (1 osds) down"}},"PG_AVAILABILITY":{"severity":"HEALTH_WARN","summary":{"message":"Reduced data availability: 101 pgs stale"}},"POOL_APP_NOT_ENABLED":{"severity":"HEALTH_WARN","summary":{"message":"application not enabled on 1 pool(s)"}}},"status":"HEALTH_WARN","overall_status":"HEALTH_WARN"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["rook-ceph-mon0","rook-ceph-mon2","rook-ceph-mon1"],"monmap":{"epoch":3,"fsid":"613975f3-3025-4802-9de1-a2280b950e75","modified":"2017-08-11 20:13:02.075679","created":"2017-08-11 20:12:35.314510","features":{"persistent":["kraken","luminous"],"optional":[]},"mons":[{"rank":0,"name":"rook-ceph-mon0","addr":"10.3.0.45:6789/0","public_addr":"10.3.0.45:6789/0"},{"rank":1,"name":"rook-ceph-mon2","addr":"10.3.0.249:6789/0","public_addr":"10.3.0.249:6789/0"},{"rank":2,"name":"rook-ceph-mon1","addr":"10.3.0.252:6789/0","public_addr":"10.3.0.252:6789/0"}]},"osdmap":{"osdmap":{"epoch":17,"num_osds":2,"num_up_osds":1,"num_in_osds":2,"full":false,"nearfull":true,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"stale+active+clean","count":101},{"state_name":"active+clean","count":99}],"num_pgs":200,"num_pools":2,"num_objects":243,"data_bytes":976793635,"bytes_used":13611479040,"bytes_avail":19825307648,"bytes_total":33436786688},"fsmap":{"epoch":1,"by_rank":[]},"mgrmap":{"epoch":3,"active_gid":14111,"active_name":"rook-ceph-mgr0","active_addr":"10.2.73.6:6800/9","available":true,"standbys":[],"modules":["restful","status"],"available_modules":["dashboard","prometheus","restful","status","zabbix"]},"servicemap":{"epoch":1,"modified":"0.000000","services":{}}}`
+	healthyCephStatusRemapped = `{"fsid":"e32d91a2-24ff-4953-bc4a-6864d31dd2a0","health":{"status":"HEALTH_OK","checks":{},"mutes":[]},"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_age":1177701,"monmap":{"epoch":1,"min_mon_release_name":"quincy","num_mons":1},"osdmap":{"epoch":1800,"num_osds":5,"num_up_osds":5,"osd_up_since":1699834324,"num_in_osds":5,"osd_in_since":1699834304,"num_remapped_pgs":11},"pgmap":{"pgs_by_state":[{"state_name":"active+clean","count":174},{"state_name":"active+remapped+backfilling","count":10},{"state_name":"active+clean+remapped","count":1}],"num_pgs":185,"num_pools":9,"num_objects":2383,"data_bytes":2222656224,"bytes_used":8793104384,"bytes_avail":18050441216,"bytes_total":26843545600,"misplaced_objects":139,"misplaced_total":7149,"misplaced_ratio":0.019443278780248985,"recovering_objects_per_sec":10,"recovering_bytes_per_sec":9739877,"recovering_keys_per_sec":0,"num_objects_recovered":62,"num_bytes_recovered":58471087,"num_keys_recovered":0,"write_bytes_sec":2982994,"read_op_per_sec":0,"write_op_per_sec":26},"fsmap":{"epoch":1,"by_rank":[],"up:standby":0},"mgrmap":{"available":true,"num_standbys":0,"modules":["iostat","nfs","prometheus","restful"],"services":{"prometheus":"http://10.244.0.36:9283/"}},"servicemap":{"epoch":1,"modified":"0.000000","services":{}},"progress_events":{}}`
 )
 
 var nodeName = "node01"
@@ -283,6 +284,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 		allFailureDomains                 []string
 		osdDownFailureDomains             []string
 		activeNodeDrains                  bool
+		pgHealthyRegex                    string
 		expectedSetNoOutValue             string
 		expectedOSDPDBCount               int
 		expectedMaxUnavailableCount       int
@@ -296,6 +298,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			osdDownFailureDomains:             []string{},
 			configMap:                         fakePDBConfigMap(""),
 			activeNodeDrains:                  false,
+			pgHealthyRegex:                    "",
 			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               1,
 			expectedMaxUnavailableCount:       1,
@@ -309,6 +312,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			osdDownFailureDomains:             []string{"zone-1"},
 			configMap:                         fakePDBConfigMap(""),
 			activeNodeDrains:                  true,
+			pgHealthyRegex:                    "",
 			expectedSetNoOutValue:             "true",
 			expectedOSDPDBCount:               2,
 			expectedMaxUnavailableCount:       0,
@@ -322,6 +326,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			osdDownFailureDomains:             []string{},
 			configMap:                         fakePDBConfigMap("zone-1"),
 			activeNodeDrains:                  true,
+			pgHealthyRegex:                    "",
 			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               2,
 			expectedMaxUnavailableCount:       0,
@@ -333,8 +338,23 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			fakeOSDDump:                       `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}]}`,
 			allFailureDomains:                 []string{"zone-1", "zone-2", "zone-3"},
 			osdDownFailureDomains:             []string{},
-			configMap:                         fakePDBConfigMap(""),
+			configMap:                         fakePDBConfigMap("zone-1"),
 			activeNodeDrains:                  true,
+			pgHealthyRegex:                    "",
+			expectedSetNoOutValue:             "",
+			expectedOSDPDBCount:               1,
+			expectedMaxUnavailableCount:       1,
+			expectedDrainingFailureDomainName: "",
+		},
+		{
+			name:                              "case 5: remapped pgs are regarded as clean if pgHealthyRegex allows it",
+			fakeCephStatus:                    healthyCephStatusRemapped,
+			fakeOSDDump:                       `{"OSDs": [{"OSD": 3, "Up": 3, "In": 3}]}`,
+			allFailureDomains:                 []string{"zone-1", "zone-2", "zone-3"},
+			osdDownFailureDomains:             []string{},
+			configMap:                         fakePDBConfigMap("zone-1"),
+			activeNodeDrains:                  true,
+			pgHealthyRegex:                    `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep|active\+clean\+remapped|active\+remapped\+backfilling)$`,
 			expectedSetNoOutValue:             "",
 			expectedOSDPDBCount:               1,
 			expectedMaxUnavailableCount:       1,
@@ -364,7 +384,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			// check for PDBV1 version
 			test.SetFakeKubernetesVersion(clientset, "v1.21.0")
 			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
-			_, err := r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains)
+			_, err := r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains, tc.pgHealthyRegex)
 			assert.NoError(t, err)
 
 			// assert that pdb for osd are created correctly
@@ -378,7 +398,7 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			// check for PDBV1Beta1 version
 			test.SetFakeKubernetesVersion(clientset, "v1.20.0")
 			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
-			_, err = r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains)
+			_, err = r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains, tc.pgHealthyRegex)
 			assert.NoError(t, err)
 			existingPDBsV1Beta1 := &policyv1beta1.PodDisruptionBudgetList{}
 			err = r.client.List(context.TODO(), existingPDBsV1Beta1)
@@ -422,7 +442,7 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 	r.pgHealthCheckTimeout = time.Duration(time.Minute * 10)
 
 	// reconcile OSD PDB with active drains (on zone-1) and unhealthy PGs
-	_, err := r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{"zone-1"}, true)
+	_, err := r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{"zone-1"}, true, "")
 	assert.NoError(t, err)
 	assert.Equal(t, "zone-1", pdbConfig.Data[drainingFailureDomainKey])
 	assert.Equal(t, "true", pdbConfig.Data[setNoOut])
@@ -430,7 +450,7 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 	// update the pgHealthCheckDuration time by -9 minutes
 	pdbConfig.Data[pgHealthCheckDurationKey] = time.Now().Add(time.Duration(-7) * time.Minute).Format(time.RFC3339)
 	// reconcile OSD PDB with no active drains and unhealthy PGs
-	_, err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{}, true)
+	_, err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{}, true, "")
 	assert.NoError(t, err)
 	// assert that pdb config map was not reset as the PG health check was not timed out
 	assert.Equal(t, "zone-1", pdbConfig.Data[drainingFailureDomainKey])
@@ -439,7 +459,7 @@ func TestPGHealthcheckTimeout(t *testing.T) {
 	// update the drainingFailureDomain time by -9 minutes
 	pdbConfig.Data[pgHealthCheckDurationKey] = time.Now().Add(time.Duration(-11) * time.Minute).Format(time.RFC3339)
 	// reconcile OSD PDB with no active drains and unhealthy PGs
-	_, err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{}, false)
+	_, err = r.reconcilePDBsForOSDs(clusterInfo, request, pdbConfig, "zone", []string{"zone-1", "zone-2"}, []string{}, false, "")
 	assert.NoError(t, err)
 	// assert that pdb config map was reset as the PG health check was timed out
 	assert.Equal(t, "", pdbConfig.Data[drainingFailureDomainKey])
