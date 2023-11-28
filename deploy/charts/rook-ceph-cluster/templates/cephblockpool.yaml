@@ -5,6 +5,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: {{ $blockpool.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
 {{ toYaml $blockpool.spec | indent 2 }}
 ---

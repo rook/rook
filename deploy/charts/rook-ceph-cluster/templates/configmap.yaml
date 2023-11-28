@@ -4,6 +4,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: rook-config-override
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 data:
   config: |
 {{ .Values.configOverride | nindent 4 }}
