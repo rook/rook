@@ -281,6 +281,22 @@ spec:
     # No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
     pgHealthCheckTimeout: 0
 
+  # csi defines CSI Driver settings applied per cluster.
+  csi:
+    readAffinity:
+      # Enable read affinity to enable clients to optimize reads from an OSD in the same topology.
+      # Enabling the read affinity may cause the OSDs to consume some extra memory.
+      # For more details see this doc:
+      # https://rook.io/docs/rook/latest/Storage-Configuration/Ceph-CSI/ceph-csi-drivers/#enable-read-affinity-for-rbd-volumes
+      enabled: false
+
+    # cephfs driver specific settings.
+    cephfs:
+      # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options.
+      # kernelMountOptions: ""
+      # Set CephFS Fuse mount options to use https://docs.ceph.com/en/quincy/man/8/ceph-fuse/#options.
+      # fuseMountOptions: ""
+
   # healthChecks
   # Valid values for daemons are 'mon', 'osd', 'status'
   healthCheck:

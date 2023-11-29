@@ -221,6 +221,42 @@ type ClusterSpec struct {
 	// +optional
 	// +nullable
 	LogCollector LogCollectorSpec `json:"logCollector,omitempty"`
+
+	// CSI Driver Options applied per cluster.
+	// +optional
+	CSI CSIDriverSpec `json:"csi,omitempty"`
+}
+
+// CSIDriverSpec defines CSI Driver settings applied per cluster.
+type CSIDriverSpec struct {
+	// ReadAffinity defines the read affinity settings for CSI driver.
+	// +optional
+	ReadAffinity ReadAffinitySpec `json:"readAffinity"`
+	// CephFS defines CSI Driver settings for CephFS driver.
+	// +optional
+	CephFS CSICephFSSpec `json:"cephfs,omitempty"`
+}
+
+// CSICephFSSpec defines the settings for CephFS CSI driver.
+type CSICephFSSpec struct {
+	// KernelMountOptions defines the mount options for kernel mounter.
+	// +optional
+	KernelMountOptions string `json:"kernelMountOptions,omitempty"`
+	// FuseMountOptions defines the mount options for ceph fuse mounter.
+	// +optional
+	FuseMountOptions string `json:"fuseMountOptions,omitempty"`
+}
+
+// ReadAffinitySpec defines the read affinity settings for CSI driver.
+type ReadAffinitySpec struct {
+	// Enables read affinity for CSI driver.
+	// +optional
+	Enabled bool `json:"enabled"`
+	// CrushLocationLabels defines which node labels to use
+	// as CRUSH location. This should correspond to the values set in
+	// the CRUSH map.
+	// +optional
+	CrushLocationLabels []string `json:"crushLocationLabels,omitempty"`
 }
 
 // LogCollectorSpec is the logging spec

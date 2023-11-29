@@ -32,6 +32,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -153,6 +154,12 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	// it will also update if Multus is enabled, so ceph cmds
 	// can run on remote executor
 	clusterInfo.NetworkSpec = cephClusterSpec.Network
+
+	// update clusterInfo with cephClusterSpec.CSI.
+	clusterInfo.CSIDriverSpec = cephClusterSpec.CSI
+	if len(clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels) == 0 {
+		clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels = strings.Split(topology.GetDefaultTopologyLabels(), ",")
+	}
 
 	// If an admin key was provided we don't need to load the other resources
 	// Some people might want to give the admin key
