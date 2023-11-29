@@ -2973,6 +2973,9 @@ type CephBlockPoolRadosNamespaceList struct {
 
 // CephBlockPoolRadosNamespaceSpec represents the specification of a CephBlockPool Rados Namespace
 type CephBlockPoolRadosNamespaceSpec struct {
+	// The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
+	// +optional
+	Name string `json:"name,omitempty"`
 	// BlockPoolName is the name of Ceph BlockPool. Typically it's the name of
 	// the CephBlockPool CR.
 	BlockPoolName string `json:"blockPoolName"`
