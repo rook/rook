@@ -261,6 +261,13 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	return reconcile.Result{}, nil
 }
 
+func getSubvolumeGroupName(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) string {
+	if cephFilesystemSubVolumeGroup.Spec.Name != "" {
+		return cephFilesystemSubVolumeGroup.Spec.Name
+	}
+	return cephFilesystemSubVolumeGroup.Name
+}
+
 func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup, cephCluster cephv1.CephCluster) error {
 	// Update CSI config map
 	// If the mon endpoints change, the mon health check go routine will take care of updating the
@@ -269,7 +276,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 		Namespace: r.clusterInfo.Namespace,
 		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
 		CephFS: &csi.CsiCephFSSpec{
-			SubvolumeGroup:     cephFilesystemSubVolumeGroup.Name,
+			SubvolumeGroup:     getSubvolumeGroupName(cephFilesystemSubVolumeGroup),
 			KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
 			FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
 		},
@@ -297,7 +304,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 func (r *ReconcileCephFilesystemSubVolumeGroup) createOrUpdateSubVolumeGroup(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) error {
 	logger.Infof("creating ceph filesystem subvolume group %s in namespace %s", cephFilesystemSubVolumeGroup.Name, cephFilesystemSubVolumeGroup.Namespace)
 
-	err := cephclient.CreateCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+	err := cephclient.CreateCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
 	if err != nil {
 		return errors.Wrapf(err, "failed to create ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
 	}
@@ -309,7 +316,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) createOrUpdateSubVolumeGroup(cep
 func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) error {
 	namespacedName := fmt.Sprintf("%s/%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Name)
 	logger.Infof("deleting ceph filesystem subvolume group object %q", namespacedName)
-	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name); err != nil {
+	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup)); err != nil {
 		code, ok := exec.ExitStatus(err)
 		// If the subvolume group does not exit, we should not return an error
 		if ok && code == int(syscall.ENOENT) {
@@ -357,6 +364,6 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(observedGeneration 
 }
 
 func buildClusterID(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) string {
-	clusterID := fmt.Sprintf("%s-%s-file-%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup.Name)
+	clusterID := fmt.Sprintf("%s-%s-file-%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
 	return k8sutil.Hash(clusterID)
 }
