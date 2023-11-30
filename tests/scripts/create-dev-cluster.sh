@@ -68,7 +68,7 @@ get_minikube_driver() {
 show_info() {
     local monitoring_enabled=$1
     DASHBOARD_PASSWORD=$($KUBECTL -n "$ROOK_CLUSTER_NS" get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo)
-    DASHBOARD_END_POINT=$($MINIKUBE service rook-ceph-mgr-dashboard-external-http -n rook-ceph --url)
+    DASHBOARD_END_POINT=$($MINIKUBE service rook-ceph-mgr-dashboard-external-http -n "$ROOK_CLUSTER_NS" --url)
     BASE_URL="$DASHBOARD_END_POINT"
     echo "==========================="
     echo "Ceph Dashboard:"
