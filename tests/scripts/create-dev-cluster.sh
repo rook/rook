@@ -7,17 +7,18 @@ SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 ROOK_EXAMPLES_DIR="${SCRIPT_ROOT}/../../deploy/examples/"
 
 init_vars(){
-    local rook_profile_name=$1
-    local rook_cluster_namespace=$2
-    local rook_operator_namespace=$3
-    ROOK_PROFILE_NAME=$rook_profile_name
-    MINIKUBE="minikube --profile $rook_profile_name"
+    ROOK_PROFILE_NAME=${1:-rook}
+    ROOK_CLUSTER_NS=${2:-$DEFAULT_NS}
+    ROOK_OPERATOR_NS=${3:-$DEFAULT_NS}
+    ROOK_CLUSTER_SPEC_FILE=${4:-cluster-test.yaml}
+    MINIKUBE="minikube --profile $ROOK_PROFILE_NAME"
     KUBECTL="$MINIKUBE kubectl --"
-    ROOK_CLUSTER_NS=$rook_cluster_namespace
-    ROOK_OPERATOR_NS=$rook_operator_namespace
-    echo "Using $ROOK_CLUSTER_NS as cluster namespace.."
-    echo "Using $ROOK_OPERATOR_NS as operator namespace.."
+
     echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
+    echo "Using '$ROOK_CLUSTER_SPEC_FILE' as cluster spec file.."
+    echo "Using '$ROOK_PROFILE_NAME' as minikube profile.."
+    echo "Using '$ROOK_CLUSTER_NS' as cluster namespace.."
+    echo "Using '$ROOK_OPERATOR_NS' as operator namespace.."
 }
 
 update_namespaces() {
@@ -227,7 +228,7 @@ while getopts ":hrmfd:p:c:o:" opt; do
     esac
 done
 
-init_vars "${minikube_profile_name:-rook}" "${rook_cluster_ns:-$DEFAULT_NS}" "${rook_operator_ns:-$DEFAULT_NS}"
+init_vars "$minikube_profile_name" "$rook_cluster_ns" "$rook_operator_ns"
 change_to_examples_dir
 
 if [ -z "$force_minikube" ]; then
