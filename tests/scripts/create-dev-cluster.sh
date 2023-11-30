@@ -17,6 +17,7 @@ init_vars(){
     ROOK_OPERATOR_NS=$rook_operator_namespace
     echo "Using $ROOK_CLUSTER_NS as cluster namespace.."
     echo "Using $ROOK_OPERATOR_NS as operator namespace.."
+    echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
 }
 
 update_namespaces() {
@@ -118,12 +119,25 @@ create_rook_cluster() {
     $KUBECTL apply -f dashboard-external-http.yaml
 }
 
-check_examples_dir() {
-    CRDS_FILE="crds.yaml"
-    if [ ! -e ${CRDS_FILE} ]; then
-	echo "File ${ROOK_EXAMPLES_DIR}/${CRDS_FILE} does not exist. Please, provide a valid rook examples directory."
+change_to_examples_dir() {
+    if [ ! -e "$ROOK_EXAMPLES_DIR" ]; then
+	echo "Examples directory '$ROOK_EXAMPLES_DIR' does not exist. Please, provide a valid rook examples directory."
 	exit 1
     fi
+
+    CRDS_FILE_PATH=$(realpath "$ROOK_EXAMPLES_DIR/crds.yaml")
+    if [ ! -e "$CRDS_FILE_PATH" ]; then
+	echo "File '$CRDS_FILE_PATH' does not exist. Please, provide a valid rook examples directory."
+	exit 1
+    fi
+
+    ROOK_CLUSTER_SPEC_PATH=$(realpath "$ROOK_EXAMPLES_DIR/$ROOK_CLUSTER_SPEC_FILE")
+    if [ ! -e "$ROOK_CLUSTER_SPEC_PATH" ]; then
+	echo "File '$ROOK_CLUSTER_SPEC_PATH' does not exist. Please, provide a valid cluster spec file."
+	exit 1
+    fi
+
+    cd "$ROOK_EXAMPLES_DIR" || exit
 }
 
 wait_for_rook_operator() {
@@ -213,11 +227,8 @@ while getopts ":hrmfd:p:c:o:" opt; do
     esac
 done
 
-echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
-
-cd "$ROOK_EXAMPLES_DIR" || exit
-check_examples_dir
 init_vars "${minikube_profile_name:-rook}" "${rook_cluster_ns:-$DEFAULT_NS}" "${rook_operator_ns:-$DEFAULT_NS}"
+change_to_examples_dir
 
 if [ -z "$force_minikube" ]; then
     check_minikube_exists
