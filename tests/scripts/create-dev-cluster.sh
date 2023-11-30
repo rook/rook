@@ -116,7 +116,7 @@ create_rook_cluster() {
 	kubectl create namespace "$ROOK_OPERATOR_NS"
     fi
     $KUBECTL apply -f crds.yaml -f common.yaml -f operator.yaml
-    $KUBECTL apply -f cluster-test.yaml -f toolbox.yaml
+    $KUBECTL apply -f "$ROOK_CLUSTER_SPEC_FILE" -f toolbox.yaml
     $KUBECTL apply -f dashboard-external-http.yaml
 }
 
@@ -181,6 +181,7 @@ show_usage() {
     echo "  -d value          Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
     echo "  -c <cluster-namespace>"
     echo "  -o <operator-namespace>"
+    echo "  -i <cluster-spec-yaml>  Specify the cluster file spec name"
 }
 
 invocation_error() {
@@ -192,7 +193,7 @@ invocation_error() {
 ####################################################################
 ################# MAIN #############################################
 
-while getopts ":hrmfd:p:c:o:" opt; do
+while getopts ":hrmfd:p:i:c:o:" opt; do
     case $opt in
 	h)
 	    show_usage
@@ -213,6 +214,9 @@ while getopts ":hrmfd:p:c:o:" opt; do
 	p)
 	    minikube_profile_name="$OPTARG"
 	    ;;
+	i)
+	    cluster_spec_file="$OPTARG"
+	    ;;
 	c)
 	    rook_cluster_ns="$OPTARG"
 	    ;;
@@ -228,7 +232,7 @@ while getopts ":hrmfd:p:c:o:" opt; do
     esac
 done
 
-init_vars "$minikube_profile_name" "$rook_cluster_ns" "$rook_operator_ns"
+init_vars "$minikube_profile_name" "$rook_cluster_ns" "$rook_operator_ns" "$cluster_spec_file"
 change_to_examples_dir
 
 if [ -z "$force_minikube" ]; then
