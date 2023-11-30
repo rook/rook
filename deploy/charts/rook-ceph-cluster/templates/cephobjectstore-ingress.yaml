@@ -5,6 +5,7 @@ apiVersion: {{ include "capabilities.ingress.apiVersion" $ }}
 kind: Ingress
 metadata:
   name: {{ .name }}
+  namespace: {{ .Release.Namespace }} # namespace:cluster
   {{- with .ingress.annotations }}
   annotations: {{- toYaml . | nindent 4 }}
   {{- end }}

@@ -4,6 +4,7 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: rook-ceph-operator-config
+  namespace: {{ .Release.Namespace }} # namespace:operator
 data:
   ROOK_LOG_LEVEL: {{ .Values.logLevel | quote }}
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: {{ .Values.cephCommandsTimeoutSeconds | quote }}
