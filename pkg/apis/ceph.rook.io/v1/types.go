@@ -2913,6 +2913,9 @@ type CephFilesystemSubVolumeGroupList struct {
 
 // CephFilesystemSubVolumeGroupSpec represents the specification of a Ceph Filesystem SubVolumeGroup
 type CephFilesystemSubVolumeGroupSpec struct {
+	// The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
+	// +optional
+	Name string `json:"name,omitempty"`
 	// FilesystemName is the name of Ceph Filesystem SubVolumeGroup volume name. Typically it's the name of
 	// the CephFilesystem CR. If not coming from the CephFilesystem CR, it can be retrieved from the
 	// list of Ceph Filesystem volumes with `ceph fs volume ls`. To learn more about Ceph Filesystem

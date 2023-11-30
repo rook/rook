@@ -24,7 +24,7 @@ import (
 // CreateCephFSSubVolumeGroup create a CephFS subvolume group.
 // volName is the name of the Ceph FS volume, the same as the CephFilesystem CR name.
 func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string) error {
-	logger.Infof("creating cephfs subvolume group %q", volName)
+	logger.Infof("creating cephfs %q subvolume group %q", volName, groupName)
 	//  [--pool_layout <data_pool_name>] [--uid <uid>] [--gid <gid>] [--mode <octal_mode>]
 	args := []string{"fs", "subvolumegroup", "create", volName, groupName}
 	cmd := NewCephCommand(context, clusterInfo, args)
@@ -34,13 +34,13 @@ func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 		return errors.Wrapf(err, "failed to create subvolume group %q. %s", volName, output)
 	}
 
-	logger.Infof("successfully created cephfs subvolume group %q", volName)
+	logger.Infof("successfully created cephfs %q subvolume group %q", volName, groupName)
 	return nil
 }
 
 // DeleteCephFSSubVolumeGroup delete a CephFS subvolume group.
 func DeleteCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string) error {
-	logger.Infof("deleting cephfs subvolume group %q", volName)
+	logger.Infof("deleting cephfs %q subvolume group %q", volName, groupName)
 	//  --force?
 	args := []string{"fs", "subvolumegroup", "rm", volName, groupName}
 	cmd := NewCephCommand(context, clusterInfo, args)
@@ -52,6 +52,6 @@ func DeleteCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 		return err
 	}
 
-	logger.Infof("successfully deleted cephfs subvolume group %q", volName)
+	logger.Infof("successfully deleted cephfs %q subvolume group %q", volName, groupName)
 	return nil
 }

@@ -1498,6 +1498,18 @@ CephFilesystemSubVolumeGroupSpec
 <table>
 <tr>
 <td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>filesystemName</code><br/>
 <em>
 string
@@ -3554,6 +3566,18 @@ int64
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>filesystemName</code><br/>
