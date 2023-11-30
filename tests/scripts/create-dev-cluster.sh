@@ -66,9 +66,8 @@ get_minikube_driver() {
 show_info() {
     local monitoring_enabled=$1
     DASHBOARD_PASSWORD=$($KUBECTL -n "$ROOK_CLUSTER_NS" get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo)
-    IP_ADDR=$($KUBECTL get po --selector="app=rook-ceph-mgr" -n "$ROOK_CLUSTER_NS" --output jsonpath='{.items[*].status.hostIP}')
-    PORT="$($KUBECTL -n "$ROOK_CLUSTER_NS" -o=jsonpath='{.spec.ports[?(@.name == "dashboard")].nodePort}' get services rook-ceph-mgr-dashboard-external-http)"
-    BASE_URL="http://$IP_ADDR:$PORT"
+    DASHBOARD_END_POINT=$($MINIKUBE service rook-ceph-mgr-dashboard-external-http -n rook-ceph --url)
+    BASE_URL="$DASHBOARD_END_POINT"
     echo "==========================="
     echo "Ceph Dashboard:"
     echo "   IP_ADDR  : $BASE_URL"
