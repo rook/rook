@@ -39,8 +39,7 @@
         "subvolumegroup",
         "namespace",
         "test",
-        "tests",
-        "webhook"
+        "tests"
       ]
     ],
     "body-leading-blank": [

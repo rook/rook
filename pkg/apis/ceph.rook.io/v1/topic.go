@@ -21,14 +21,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
-
-// compile-time assertions ensures CephBucketTopic implements webhook.Validator so a webhook builder
-// will be registered for the validating webhook.
-var _ webhook.Validator = &CephBucketTopic{}
 
 func validateURI(uri string, expectedSchemas []string) error {
 	parsedURI, err := url.Parse(uri)
@@ -57,7 +50,7 @@ func ValidateKafkaSpec(s *KafkaEndpointSpec) error {
 }
 
 // ValidateTopicSpec validate the bucket notification topic arguments
-func ValidateTopicSpec(t *CephBucketTopic) error {
+func (t *CephBucketTopic) ValidateTopicSpec() error {
 	hasEndpoint := false
 	if t.Spec.Endpoint.HTTP != nil {
 		hasEndpoint = true
@@ -88,25 +81,4 @@ func ValidateTopicSpec(t *CephBucketTopic) error {
 		return errors.New("missing endpoint spec")
 	}
 	return nil
-}
-
-func (t *CephBucketTopic) ValidateCreate() (admission.Warnings, error) {
-	logger.Infof("validate create cephbuckettopic %v", t)
-	if err := ValidateTopicSpec(t); err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
-func (t *CephBucketTopic) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	logger.Info("validate update cephbuckettopic")
-	if err := ValidateTopicSpec(t); err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
-func (t *CephBucketTopic) ValidateDelete() (admission.Warnings, error) {
-	logger.Info("validate delete cephbuckettopic")
-	return nil, nil
 }

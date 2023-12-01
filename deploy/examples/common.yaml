@@ -233,7 +233,7 @@ rules:
       - nodes/proxy
       - services
       # Rook watches secrets which it uses to configure access to external resources.
-      # e.g., external Ceph cluster; TLS certificates for the admission controller or object store
+      # e.g., external Ceph cluster or object store
       - secrets
       # Rook watches for changes to the rook-operator-config configmap
       - configmaps
@@ -563,9 +563,6 @@ rules:
   - apiGroups: [""]
     resources: ["pods/exec"]
     verbs: ["create"]
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources: ["validatingwebhookconfigurations"]
-    verbs: ["create", "get", "delete", "update"]
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["networkfences"]
     verbs: ["create", "get", "update", "delete", "watch", "list"]

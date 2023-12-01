@@ -11461,11 +11461,6 @@ int64
 </tr>
 </tbody>
 </table>
-<h3 id="ceph.rook.io/v1.StatusConditionGetter">StatusConditionGetter
-</h3>
-<div>
-<p>A StatusConditionGetter allows getting a pointer to an object&rsquo;s conditions.</p>
-</div>
 <h3 id="ceph.rook.io/v1.StorageClassDeviceSet">StorageClassDeviceSet
 </h3>
 <p>

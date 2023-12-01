@@ -10,7 +10,6 @@ data:
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: {{ .Values.cephCommandsTimeoutSeconds | quote }}
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: {{ .Values.enableOBCWatchOperatorNamespace | quote }}
   ROOK_CEPH_ALLOW_LOOP_DEVICES: {{ .Values.allowLoopDevices | quote }}
-  ROOK_DISABLE_ADMISSION_CONTROLLER: {{ .Values.disableAdmissionController | quote }}
   ROOK_ENABLE_DISCOVERY_DAEMON: {{ .Values.enableDiscoveryDaemon | quote }}
 {{- if .Values.discoverDaemonUdev }}
   DISCOVER_DAEMON_UDEV_BLACKLIST: {{ .Values.discoverDaemonUdev | quote }}

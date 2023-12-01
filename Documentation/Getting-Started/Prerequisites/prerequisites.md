@@ -36,16 +36,6 @@ vdb
 
 If the `FSTYPE` field is not empty, there is a filesystem on top of the corresponding device. In this example, `vdb` is available to Rook, while `vda` and its partitions have a filesystem and are not available.
 
-## Admission Controller
-
-Enabling the Rook admission controller is recommended to provide an additional level of validation that Rook is configured correctly with the custom resource (CR) settings. An admission controller intercepts requests to the Kubernetes API server prior to persistence of the object, but after the request is authenticated and authorized.
-
-To deploy the Rook admission controllers, install the cert manager before Rook is installed:
-
-```console
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.11.1/cert-manager.yaml
-```
-
 ## LVM package
 
 Ceph OSDs have a dependency on LVM in the following scenarios:

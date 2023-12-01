@@ -170,7 +170,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.EmptyStatus)
 	}
 
-	if _, err := cephNFS.Spec.Security.Validate(); err != nil {
+	if err := cephNFS.Spec.Security.Validate(); err != nil {
 		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, *cephNFS,
 			errors.Wrapf(err, "failed to validate security spec for CephNFS %q",
 				types.NamespacedName{Namespace: cephNFS.Namespace, Name: cephNFS.Name})

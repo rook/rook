@@ -39,7 +39,6 @@ type TestCephSettings struct {
 	MultipleMgrs                bool
 	SkipOSDCreation             bool
 	EnableDiscovery             bool
-	EnableAdmissionController   bool
 	IsExternal                  bool
 	SkipClusterCleanup          bool
 	SkipCleanupPolicy           bool
@@ -65,10 +64,6 @@ func (s *TestCephSettings) ApplyEnvVars() {
 	if os.Getenv("SKIP_CLEANUP_POLICY") == "false" {
 		s.SkipCleanupPolicy = false
 	}
-	err := os.Setenv("ROOK_DISABLE_ADMISSION_CONTROLLER", "false")
-	if err != nil {
-		logger.Errorf("failed to set ROOK_DISABLE_ADMISSION_CONTROLLER. %v", err)
-	}
 }
 
 func (s *TestCephSettings) readManifest(filename string) string {
@@ -91,7 +86,6 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `ROOK_ENABLE_DISCOVERY_DAEMON: "false"`, fmt.Sprintf(`ROOK_ENABLE_DISCOVERY_DAEMON: "%t"`, s.EnableDiscovery))
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
 	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_NFS: "false"`, fmt.Sprintf(`ROOK_CSI_ENABLE_NFS: "%t"`, s.TestNFSCSI))
-	manifest = strings.ReplaceAll(manifest, `ROOK_DISABLE_ADMISSION_CONTROLLER: "true"`, `ROOK_DISABLE_ADMISSION_CONTROLLER: "false"`)
 	return manifest
 }
 

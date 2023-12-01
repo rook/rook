@@ -63,19 +63,18 @@ type ObjectSuite struct {
 func (s *ObjectSuite) SetupSuite() {
 	namespace := "object-ns"
 	s.settings = &installer.TestCephSettings{
-		ClusterName:               "object-cluster",
-		Namespace:                 namespace,
-		OperatorNamespace:         installer.SystemNamespace(namespace),
-		StorageClassName:          installer.StorageClassName(),
-		UseHelm:                   false,
-		UsePVC:                    installer.UsePVC(),
-		Mons:                      3,
-		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
-		UseCrashPruner:            true,
-		EnableVolumeReplication:   false,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.ReturnCephVersion(),
+		ClusterName:             "object-cluster",
+		Namespace:               namespace,
+		OperatorNamespace:       installer.SystemNamespace(namespace),
+		StorageClassName:        installer.StorageClassName(),
+		UseHelm:                 false,
+		UsePVC:                  installer.UsePVC(),
+		Mons:                    3,
+		SkipOSDCreation:         false,
+		UseCrashPruner:          true,
+		EnableVolumeReplication: false,
+		RookVersion:             installer.LocalBuildTag,
+		CephVersion:             installer.ReturnCephVersion(),
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)

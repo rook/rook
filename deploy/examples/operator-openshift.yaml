@@ -560,8 +560,6 @@ data:
   # Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR
   # CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=secure"
 
-  ROOK_DISABLE_ADMISSION_CONTROLLER: "true"
-
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
 
@@ -680,12 +678,6 @@ spec:
               name: rook-config
             - mountPath: /etc/ceph
               name: default-config-dir
-            - mountPath: /etc/webhook
-              name: webhook-cert
-          ports:
-            - containerPort: 9443
-              name: https-webhook
-              protocol: TCP
           env:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
@@ -764,7 +756,5 @@ spec:
         - name: rook-config
           emptyDir: {}
         - name: default-config-dir
-          emptyDir: {}
-        - name: webhook-cert
           emptyDir: {}
 # OLM: END OPERATOR DEPLOYMENT

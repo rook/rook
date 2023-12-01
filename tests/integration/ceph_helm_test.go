@@ -59,19 +59,18 @@ type HelmSuite struct {
 func (h *HelmSuite) SetupSuite() {
 	namespace := "helm-ns"
 	h.settings = &installer.TestCephSettings{
-		Namespace:                 namespace,
-		OperatorNamespace:         namespace,
-		StorageClassName:          "",
-		UseHelm:                   true,
-		UsePVC:                    false,
-		Mons:                      1,
-		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
-		EnableDiscovery:           true,
-		ChangeHostName:            true,
-		ConnectionsEncrypted:      true,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.QuincyVersion,
+		Namespace:            namespace,
+		OperatorNamespace:    namespace,
+		StorageClassName:     "",
+		UseHelm:              true,
+		UsePVC:               false,
+		Mons:                 1,
+		SkipOSDCreation:      false,
+		EnableDiscovery:      true,
+		ChangeHostName:       true,
+		ConnectionsEncrypted: true,
+		RookVersion:          installer.LocalBuildTag,
+		CephVersion:          installer.QuincyVersion,
 	}
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)

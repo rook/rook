@@ -170,7 +170,7 @@ func (r *ReconcileBucketTopic) reconcile(request reconcile.Request) (reconcile.R
 	}
 
 	// validate the topic settings
-	_, err = cephBucketTopic.ValidateCreate()
+	err = cephBucketTopic.ValidateTopicSpec()
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus, nil)
 		return reconcile.Result{}, errors.Wrapf(err, "invalid CephBucketTopic %q", request.NamespacedName)

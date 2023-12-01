@@ -18,14 +18,7 @@ package v1
 
 import (
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
-
-// compile-time assertions ensures CephObjectStore implements webhook.Validator so a webhook builder
-// will be registered for the validating webhook.
-var _ webhook.Validator = &CephObjectStore{}
 
 const ServiceServingCertKey = "service.beta.openshift.io/serving-cert-secret-name"
 
@@ -70,14 +63,6 @@ func (s *ObjectRealmSpec) IsPullRealm() bool {
 	return s.Pull.Endpoint != ""
 }
 
-func (o *CephObjectStore) ValidateCreate() (admission.Warnings, error) {
-	logger.Infof("validate create cephobjectstore %v", o)
-	if err := ValidateObjectSpec(o); err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
 // ValidateObjectSpec validate the object store arguments
 func ValidateObjectSpec(gs *CephObjectStore) error {
 	if gs.Name == "" {
@@ -104,19 +89,6 @@ func ValidateObjectSpec(gs *CephObjectStore) error {
 		return errors.New("invalid create: either of port or securePort fields should be not be zero")
 	}
 	return nil
-}
-
-func (o *CephObjectStore) ValidateUpdate(old runtime.Object) (admission.Warnings, error) {
-	logger.Info("validate update cephobjectstore")
-	err := ValidateObjectSpec(o)
-	if err != nil {
-		return nil, err
-	}
-	return nil, nil
-}
-
-func (o *CephObjectStore) ValidateDelete() (admission.Warnings, error) {
-	return nil, nil
 }
 
 func (s *ObjectStoreSpec) GetServiceServingCert() string {

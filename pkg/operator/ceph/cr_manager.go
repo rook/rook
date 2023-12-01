@@ -52,27 +52,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-)
-
-const (
-	certDir = "/etc/webhook"
 )
 
 var (
 	resourcesSchemeFuncs = []func(*runtime.Scheme) error{
 		clientgoscheme.AddToScheme,
 		cephv1.AddToScheme,
-	}
-)
-
-var (
-	webhookResources = []webhook.Validator{
-		&cephv1.CephCluster{},
-		&cephv1.CephBlockPool{},
-		&cephv1.CephObjectStore{},
-		&cephv1.CephBlockPoolRadosNamespace{},
-		&cephv1.CephFilesystemSubVolumeGroup{},
 	}
 )
 
@@ -165,9 +150,6 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 			BindAddress: "0",
 		},
 		Scheme: scheme,
-		WebhookServer: webhook.NewServer(webhook.Options{
-			CertDir: certDir,
-		}),
 	}
 
 	if o.config.NamespaceToWatch != "" {
@@ -181,28 +163,6 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to set up overall controller-runtime manager")
 		return
-	}
-
-	// Add webhook if needed
-	isPresent, err := createWebhook(context, o.context)
-	if err != nil {
-		mgrErrorCh <- errors.Wrap(err, "failed to retrieve admission webhook secret")
-		return
-	}
-	if isPresent {
-		err := createWebhookService(context, o.context)
-		if err != nil {
-			mgrErrorCh <- errors.Wrap(err, "failed to create admission webhook service")
-			return
-		}
-		logger.Info("setting up admission webhooks")
-		for _, resource := range webhookResources {
-			err = ctrl.NewWebhookManagedBy(mgr).For(resource).Complete()
-			if err != nil {
-				mgrErrorCh <- errors.Wrapf(err, "failed to register webhook for %q", resource.GetObjectKind().GroupVersionKind().Kind)
-				return
-			}
-		}
 	}
 
 	// options to pass to the controllers

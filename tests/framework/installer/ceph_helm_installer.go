@@ -65,13 +65,11 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"csiCephFSPluginResource":      nil,
 	}
 
-	// create the operator namespace before the admission controller is created
+	// create the operator namespace
 	if err := h.k8shelper.CreateNamespace(h.settings.OperatorNamespace); err != nil {
 		return errors.Errorf("failed to create namespace %s. %v", h.settings.Namespace, err)
 	}
-	if err := h.startAdmissionController(); err != nil {
-		return errors.Errorf("failed to start admission controllers. %v", err)
-	}
+
 	if h.settings.RookVersion == LocalBuildTag {
 		if err := h.helmHelper.InstallLocalHelmChart(upgrade, h.settings.OperatorNamespace, OperatorChartName, values); err != nil {
 			return errors.Errorf("failed to install rook operator via helm, err : %v", err)

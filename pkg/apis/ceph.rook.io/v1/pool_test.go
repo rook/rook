@@ -45,30 +45,6 @@ func TestValidatePoolSpec(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCephBlockPoolValidateUpdate(t *testing.T) {
-	p := &CephBlockPool{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "ec-pool",
-		},
-		Spec: NamedBlockPoolSpec{
-			PoolSpec: PoolSpec{
-				Replicated: ReplicatedSpec{RequireSafeReplicaSize: true, Size: 3},
-			},
-		},
-	}
-	up := p.DeepCopy()
-	up.Spec.ErasureCoded.DataChunks = 2
-	up.Spec.ErasureCoded.CodingChunks = 1
-	_, err := up.ValidateUpdate(p)
-	assert.Error(t, err)
-
-	// validate with different name in Spec.Name
-	ip := p.DeepCopy()
-	ip.Spec.Name = "new-ec-pool"
-	_, err = ip.ValidateUpdate(p)
-	assert.Error(t, err)
-}
-
 func TestMirroringSpec_SnapshotSchedulesEnabled(t *testing.T) {
 	type fields struct {
 		Enabled           bool

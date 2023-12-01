@@ -46,6 +46,12 @@ those releases.
     official releases. Builds from the master branch can have functionality changed or removed at any
     time without compatibility support and without prior notice.
 
+## Breaking changes in v1.13
+
+* The minimum supported version of Kubernetes is v1.23.
+* Support for the admission controller/webhooks has been removed. If admission controller/webhooks is enabled, disable by changing
+`ROOK_DISABLE_ADMISSION_CONTROLLER: "true"` in operator.yaml before upgrading to rook v1.13. CRD validation is now enabled with [Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/). This requires Kubernetes version 1.25 or higher.
+
 ## Breaking changes in v1.12
 
 * The minimum supported version of Kubernetes is v1.22.
