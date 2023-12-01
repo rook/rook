@@ -52,7 +52,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--cephfs-metadata-pool-name`: (optional) Provides the name of the cephfs metadata pool
 * `--cephfs-filesystem-name`: (optional) The name of the filesystem, used for creating CephFS StorageClass
 * `--cephfs-data-pool-name`: (optional) Provides the name of the CephFS data pool, used for creating CephFS StorageClass
-* `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a RadosNamespaces
+* `--rados-namespace`: (optional) Divides a pool into separate logical namespaces, used for creating RBD PVC in a CephBlockPoolRadosNamespace (should be lower case)
 * `--subvolume-group`: (optional) Provides the name of the subvolume group, used for creating CephFS PVC in a subvolumeGroup
 * `--rgw-realm-name`: (optional) Provides the name of the rgw-realm
 * `--rgw-zone-name`: (optional) Provides the name of the rgw-zone

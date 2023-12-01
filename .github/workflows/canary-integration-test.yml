@@ -146,8 +146,8 @@ jobs:
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
-          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosNamespace1
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosNamespace1
+          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosnamespace1
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosnamespace1
            # test the rados namespace which not exit for replicapool(false testing)
           if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
             echo "unexpectedly succeeded after passing the wrong rados namespace: $output"
