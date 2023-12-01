@@ -37,6 +37,11 @@ jobs:
         with:
           go-version: "1.21"
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: run crds-gen
         run: GOPATH=$(go env GOPATH) make crds
 

@@ -63,7 +63,7 @@ type CephClusterHealthCheckSpec struct {
 	// LivenessProbe allows changing the livenessProbe configuration for a given daemon
 	// +optional
 	LivenessProbe map[KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
-	// StartupProbe allows changing the startupProbe configuration for a given daemon
+	// StartupProbe allows changing the startupProbe configuration for a given daemons
 	// +optional
 	StartupProbe map[KeyType]*ProbeSpec `json:"startupProbe,omitempty"`
 }
@@ -881,7 +881,7 @@ type PoolMirroringInfo struct {
 	Mode string `json:"mode,omitempty"`
 	// SiteName is the current site name
 	// +optional
-	SiteName string `json:"site_name,omitempty"`
+	SiteName int `json:"site_name,omitempty"`
 	// Peers are the list of peer sites connected to that cluster
 	// +optional
 	Peers []PeersSpec `json:"peers,omitempty"`
