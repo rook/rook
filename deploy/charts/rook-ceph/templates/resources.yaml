@@ -7990,6 +7990,28 @@ spec:
                 name:
                   description: The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
                   type: string
+                pinning:
+                  description: Pinning configuration of CephFilesystemSubVolumeGroup, reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups only one out of (export, distributed, random) can be set at a time
+                  properties:
+                    distributed:
+                      maximum: 1
+                      minimum: 0
+                      nullable: true
+                      type: integer
+                    export:
+                      maximum: 256
+                      minimum: -1
+                      nullable: true
+                      type: integer
+                    random:
+                      maximum: 1
+                      minimum: 0
+                      nullable: true
+                      type: number
+                  type: object
+                  x-kubernetes-validations:
+                    - message: only one pinning type should be set
+                      rule: (has(self.export) && !has(self.distributed) && !has(self.random)) || (!has(self.export) && has(self.distributed) && !has(self.random)) || (!has(self.export) && !has(self.distributed) && has(self.random)) || (!has(self.export) && !has(self.distributed) && !has(self.random))
               required:
                 - filesystemName
               type: object
