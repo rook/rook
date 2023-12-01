@@ -2930,6 +2930,31 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// list of Ceph Filesystem volumes with `ceph fs volume ls`. To learn more about Ceph Filesystem
 	// abstractions see https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes
 	FilesystemName string `json:"filesystemName"`
+	// Pinning configuration of CephFilesystemSubVolumeGroup,
+	// reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups
+	// only one out of (export, distributed, random) can be set at a time
+	// +optional
+	Pinning CephFilesystemSubVolumeGroupSpecPinning `json:"pinning,omitempty"`
+}
+
+// CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup
+// +kubebuilder:validation:XValidation:message="only one pinning type should be set",rule="(has(self.export) && !has(self.distributed) && !has(self.random)) || (!has(self.export) && has(self.distributed) && !has(self.random)) || (!has(self.export) && !has(self.distributed) && has(self.random)) || (!has(self.export) && !has(self.distributed) && !has(self.random))"
+type CephFilesystemSubVolumeGroupSpecPinning struct {
+	// +kubebuilder:validation:Minimum=-1
+	// +kubebuilder:validation:Maximum=256
+	// +optional
+	// +nullable
+	Export *int `json:"export,omitempty"`
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=1
+	// +optional
+	// +nullable
+	Distributed *int `json:"distributed,omitempty"`
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	Random *float64 `json:"random,,omitempty"`
 }
 
 // CephFilesystemSubVolumeGroupStatus represents the Status of Ceph Filesystem SubVolumeGroup
