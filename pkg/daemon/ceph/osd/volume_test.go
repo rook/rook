@@ -626,7 +626,17 @@ func TestConfigureCVDevices(t *testing.T) {
 }
 
 func testBaseArgs(args []string) error {
+	// stdbuf -oL ceph-volume --log-path /tmp/ceph-log lvm batch --prepare --bluestore --yes --osds-per-device 1 --crush-device-class hdd /dev/sda --db-devices /dev/sdl1 --report
 	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" && args[4] == "lvm" && args[5] == "batch" && args[6] == "--prepare" && args[7] == "--bluestore" && args[8] == "--yes" {
+		return nil
+	}
+
+	return errors.Errorf("unknown args %s ", args)
+}
+
+func testBasePrepareArgs(args []string) error {
+	// stdbuf -oL ceph-volume --log-path /tmp/ceph-log lvm prepare --bluestore --crush-device-class hdd --data /dev/sda --block.db /dev/sdj1
+	if args[1] == "ceph-volume" && args[2] == "--log-path" && args[3] == "/tmp/ceph-log" && args[4] == "lvm" && args[5] == "prepare" && args[6] == "--bluestore" {
 		return nil
 	}
 
@@ -895,6 +905,207 @@ func TestInitializeBlock(t *testing.T) {
 		}
 	}
 
+	// Test with metadata partition devices specified in the global OSD configuration or in the node level OSD configuration
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda"}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc"}},
+			},
+		}
+
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, metadataDevice: "/dev/sdb1"}
+		context := &clusterd.Context{
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"},
+				{Name: "sdc"},
+				{Name: "sdb1", Type: sys.PartType},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		logger.Warning(err)
+		assert.ErrorContains(t, err, "can not be specified as metadataDevice in the global OSD configuration or in the node level OSD configuration")
+	}
+
+	// Test with two devices specifies the same partition, and multiple OSDs per device
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: "sdb1"}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBasePrepareArgs(args)
+			if err != nil {
+				return err
+			}
+
+			if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == "/dev/sdb1" {
+				return nil
+			}
+			if args[7] == "--data" && args[8] == "/dev/sdc" && args[9] == "--block.db" && args[10] == "/dev/sdb1" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{OSDsPerDevice: 3, StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"},
+				{Name: "sdc"},
+				{Name: "sdb1", Type: sys.PartType},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		if err != nil {
+			assert.NoError(t, err, "failed metadata test")
+		} else {
+			logger.Info("success, go to next test")
+		}
+	}
+
+	// Test with metadata partition devices
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBasePrepareArgs(args)
+			if err != nil {
+				return err
+			}
+
+			if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == "/dev/sdb1" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"}, {Name: "sdb1", Type: sys.PartType},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		if err != nil {
+			assert.NoError(t, err, "failed metadata test")
+		} else {
+			logger.Info("success, go to next test")
+		}
+	}
+
+	// Test with two metadata partition devices, one is lvm, one is partition
+	{
+		metadataDevicePath := "/dev/test-rook-vg/test-rook-lv"
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: "sdb1"}},
+				"sdc": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sdc", MetadataDevice: metadataDevicePath}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommand: func(command string, args ...string) error {
+				logger.Infof("%s %v", command, args)
+
+				var err error
+				// Validate base common args
+				if args[8] == "--yes" {
+					// lvm will use `ceph-volume lvm batch`
+					err = testBaseArgs(args)
+				} else {
+					// partition will use `ceph-volume lvm prepare`
+					err = testBasePrepareArgs(args)
+				}
+				if err != nil {
+					return err
+				}
+
+				// for partition
+				if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == "/dev/sdb1" {
+					return nil
+				}
+
+				// First command for lvm
+				if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sdc" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+					return nil
+				}
+
+				// Second command for lvm
+				if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sdc" && args[12] == "--db-devices" && args[13] == metadataDevicePath && args[14] == "--report" {
+					return nil
+				}
+
+				return errors.Errorf("unknown command %s %s", command, args)
+			},
+
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("%s %v", command, args)
+
+				// Validate base common args
+				err := testBaseArgs(args)
+				if err != nil {
+					return "", err
+				}
+
+				// First command
+				if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sdc" && args[12] == "--db-devices" && args[13] == metadataDevicePath {
+					return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}]`, metadataDevicePath, "/dev/sdc"), nil
+				}
+
+				return "", errors.Errorf("unknown command %s %s", command, args)
+			},
+		}
+
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"},
+				{Name: "sdb1", Type: sys.PartType},
+				{
+					Name:     "sdc",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "vg-test-rook-lv",
+					Type:     "lvm",
+					DevLinks: "/dev/mapper/test--rook--vg-test--rook--lv /dev/test-rook-vg/test-rook-lv",
+				},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		if err != nil {
+			assert.NoError(t, err, "failed metadata test")
+		} else {
+			logger.Info("success, go to next test")
+		}
+	}
+
 	// Test with metadata devices with dev by-id
 	{
 		metadataDeviceByIDPath := "/dev/disk/by-id/nvme-Samsung_SSD_970_EVO_Plus_1TB_XXX"
@@ -964,6 +1175,58 @@ func TestInitializeBlock(t *testing.T) {
 		err := a.initializeDevicesLVMMode(context, devices)
 		if err != nil {
 			assert.NoError(t, err, "failed metadata device by-id test")
+		} else {
+			logger.Info("success, go to next test")
+		}
+	}
+
+	// Test with metadata partition devices with dev by-id
+	{
+		metadataDeviceByIDPath := "/dev/disk/by-id/nvme-BC511_NVMe_SK_hynix_512GB_CD08N413611008838-part1"
+		metadataDevicePath := "/dev/nvme0n1p1"
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", MetadataDevice: metadataDeviceByIDPath}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBasePrepareArgs(args)
+			if err != nil {
+				return err
+			}
+
+			if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == metadataDevicePath {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "nvme0n1p1",
+					Type:     "part",
+					DevLinks: "/dev/disk/by-id/nvme-BC511_NVMe_SK_hynix_512GB_CD08N413611008838-part1 /dev/disk/by-partuuid/7cf003d3-3a56-4011-b736-b5a741b0aabc",
+				},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		if err != nil {
+			assert.NoError(t, err, "failed metadata partition device by-id test")
 		} else {
 			logger.Info("success, go to next test")
 		}
@@ -1051,6 +1314,66 @@ func TestInitializeBlock(t *testing.T) {
 		logger.Info("success, go to next test")
 	}
 
+	// Test with metadata partition devices with dev by-path
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {
+					Data:     -1,
+					Metadata: nil,
+					Config: DesiredDevice{
+						Name:           "/dev/sda",
+						MetadataDevice: "/dev/disk/by-path/pci-0000:3a:00.0-nvme-1-part1",
+					},
+				},
+			},
+		}
+		metadataDevicePath := "/dev/nvme0n1p1"
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBasePrepareArgs(args)
+			if err != nil {
+				return err
+			}
+
+			if args[7] == "--data" && args[8] == "/dev/sda" && args[9] == "--block.db" && args[10] == metadataDevicePath {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		agent := &OsdAgent{
+			clusterInfo: &cephclient.ClusterInfo{
+				CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0},
+			},
+			nodeName:    "node1",
+			storeConfig: config.StoreConfig{StoreType: "bluestore"},
+		}
+		context := &clusterd.Context{Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{
+					Name:     "sda",
+					Type:     "disk",
+					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
+				},
+				{
+					Name:     "nvme0n1p1",
+					Type:     "part",
+					DevLinks: "/dev/disk/by-path/pci-0000:3a:00.0-nvme-1-part1 /dev/disk/by-id/nvme-BC511_NVMe_SK_hynix_512GB_CD08N413611008838-part1 /dev/disk/by-partuuid/7cf003d3-3a56-4011-b736-b5a741b0aabc",
+				},
+			},
+		}
+
+		err := agent.initializeDevicesLVMMode(context, devices)
+		assert.NoError(t, err, "failed metadata device by-path test")
+		logger.Info("success, go to next test")
+	}
+
 	// Test with metadata devices with lvm
 	{
 		metadataDevicePath := "/dev/test-rook-vg/test-rook-lv"
@@ -1121,7 +1444,7 @@ func TestInitializeBlock(t *testing.T) {
 					DevLinks: "/dev/disk/by-id/wwn-0x6f4ee080051fd00029bb505f1df6ee3a /dev/disk/by-path/pci-0000:3b:00.0-scsi-0:2:0:0",
 				},
 				{
-					Name:     "nvme0n1",
+					Name:     "vg-test-rook-lv",
 					Type:     "lvm",
 					DevLinks: "/dev/mapper/test--rook--vg-test--rook--lv /dev/test-rook-vg/test-rook-lv",
 				},
@@ -1262,7 +1585,8 @@ func TestInitializeBlockPVC(t *testing.T) {
 	}
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--osd-id" && args[8] == "3" {
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] == "--osd-id" && args[8] == "3" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[9] == "--osd-id" && args[10] == "3" {
 			return initializeBlockPVCTestResult, nil
 		}
 
@@ -1283,7 +1607,8 @@ func TestInitializeBlockPVC(t *testing.T) {
 	}
 	executor.MockExecuteCommandWithCombinedOutput = func(command string, args ...string) (string, error) {
 		logger.Infof("%s %v", command, args)
-		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] != "--osd-id" && args[8] != "3" {
+		if args[1] == "ceph-volume" && args[2] == "raw" && args[3] == "prepare" && args[4] == "--bluestore" && args[7] != "--osd-id" && args[8] != "3" ||
+			args[1] == "ceph-volume" && args[4] == "raw" && args[5] == "prepare" && args[6] == "--bluestore" && args[9] != "--osd-id" && args[10] != "3" {
 			return initializeBlockPVCTestResult, nil
 		}
 
