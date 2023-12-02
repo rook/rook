@@ -51,3 +51,5 @@ The operator will use the Ceph config store (that is accessed via `ceph config a
 ### Limitations
 
 The operator won't be unsetting any previously set config options or restore config options to their default value.
+
+The operator will ignore a few vital config options, such as `fsid`, `keyring` and `mon_host`.
