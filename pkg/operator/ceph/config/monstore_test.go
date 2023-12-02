@@ -218,3 +218,46 @@ func TestMonStore_SetAll(t *testing.T) {
 	assert.NoError(t, e)
 	assert.True(t, appliedSettings)
 }
+
+func TestFilterSettingsMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    CephConfigOptionsMap
+		expected CephConfigOptionsMap
+	}{
+		{
+			name: "no filtered config options",
+			input: map[string]map[string]string{
+				"global": {
+					"osd_pool_default_size": "1",
+				},
+			},
+			expected: map[string]map[string]string{
+				"global": {
+					"osd_pool_default_size": "1",
+				},
+			},
+		},
+		{
+			name: "filtered config options",
+			input: map[string]map[string]string{
+				"global": {
+					"mon_host":              "192.168.1.100:687",
+					"osd_pool_default_size": "1",
+					"bluefs_buffered_io":    "false",
+				},
+			},
+			expected: map[string]map[string]string{
+				"global": {
+					"osd_pool_default_size": "1",
+					"bluefs_buffered_io":    "false",
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, filterSettingsMap(tt.input))
+		})
+	}
+}

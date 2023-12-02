@@ -1113,6 +1113,18 @@ CSIDriverSpec
 <p>CSI Driver Options applied per cluster.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>cephConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ceph Config options</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -4387,6 +4399,18 @@ CSIDriverSpec
 <td>
 <em>(Optional)</em>
 <p>CSI Driver Options applied per cluster.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>cephConfig</code><br/>
+<em>
+map[string]map[string]string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ceph Config options</p>
 </td>
 </tr>
 </tbody>
