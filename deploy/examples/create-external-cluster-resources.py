@@ -557,7 +557,7 @@ class RadosJSON:
             )
 
     def _invalid_endpoint(self, endpoint_str):
-        # separating port, by getting last split of `:` delimiter
+        # extract the port by getting the last split on `:` delimiter
         try:
             endpoint_str_ip, port = endpoint_str.rsplit(":", 1)
         except ValueError:
