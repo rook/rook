@@ -664,6 +664,11 @@ spec:
       labels:
         app: rook-ceph-operator
     spec:
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 5
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
