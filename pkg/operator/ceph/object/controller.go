@@ -300,7 +300,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		)
 		if err != nil {
 			if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
-				logger.Info(opcontroller.OperatorNotInitializedMessage)
+				logger.Infof("%s: %s", opcontroller.OperatorNotInitializedMessage, err.Error())
 				return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephObjectStore, nil
 			}
 			return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to detect running and desired ceph version")
@@ -327,7 +327,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// CREATE/UPDATE
 	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName, cephCluster.Spec)
 	if err != nil && kerrors.IsNotFound(err) {
-		logger.Info(opcontroller.OperatorNotInitializedMessage)
+		logger.Infof("%s %s", opcontroller.OperatorNotInitializedMessage, err.Error())
 		return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephObjectStore, nil
 	} else if err != nil {
 		result, err := r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, "failed to create object store deployments", err)
