@@ -108,6 +108,11 @@ spec:
       disabled: false
     readinessProbe:
       disabled: false
+  # hosting:
+  #   The list of subdomain names for virtual hosting of buckets.
+  #   dnsNames:
+  #     - "mystore.example.com"
+
   # If a CephObjectStoreUser is created in a namespace other than the Rook cluster namespace,
   # the namespace must be added to the list of allowed namespaces, or specify "*" to allow all namespaces.
   # allowUsersInNamespaces:
