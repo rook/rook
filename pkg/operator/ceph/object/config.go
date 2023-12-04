@@ -116,44 +116,44 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 	authType, ok := secret.StringData["OS_AUTH_TYPE"]
 	if ok {
 		if authType != "password" {
-			return nil, errors.New("")
+			return nil, errors.New(fmt.Sprintf("OS_AUTHTYPE %s is not supported. Only OS_AUTH_TYPE password is supported!", authType))
 		}
 	}
 
 	apiVersion, ok := secret.StringData["OS_IDENTITY_API_VERSION"]
 	if ok {
 		if apiVersion != "3" {
-			return nil, errors.New("")
+			return nil, errors.New(fmt.Sprintf("OS_IDENTITY_API_VERSION %s is not supported! Only OS_IDENTITY_API_VERSION 3 is supported!", apiVersion))
 		}
 	}
 
 	projectDomain, ok := secret.StringData["OS_PROJECT_DOMAIN_NAME"]
 	if !ok {
-		return nil, errors.New("")
+		return nil, errors.New("Missing OS_PROJECT_DOMAIN_NAME")
 	}
 
 	userDomain, ok := secret.StringData["OS_USER_DOMAIN_NAME"]
 	if !ok {
-		return nil, errors.New("")
+		return nil, errors.New("Missing OS_USER_DOMAIN_NAME")
 	}
 
 	if projectDomain != userDomain {
-		return nil, errors.New("")
+		return nil, errors.New("The user domain name does not match the project domain name.")
 	}
 
 	project, ok := secret.StringData["OS_PROJECT_NAME"]
 	if !ok {
-		return nil, errors.New("")
+		return nil, errors.New("No OS_PROJECT_NAME set.")
 	}
 
 	username, ok := secret.StringData["OS_USERNAME"]
 	if !ok {
-		return nil, errors.New("")
+		return nil, errors.New("No OS_USERNAME set.")
 	}
 
 	password, ok := secret.StringData["OS_PASSWORD"]
 	if !ok {
-		return nil, errors.New("")
+		return nil, errors.New("No OS_PASSWORD set.")
 	}
 
 	cfg["rgw_keystone_admin_domain"] = userDomain
