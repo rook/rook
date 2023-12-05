@@ -62,7 +62,7 @@ type Option struct {
 
 // SetIfChanged sets a config in the centralized mon configuration database if the config has
 // changed value.
-// https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+// https://docs.ceph.com/en/latest/rados/configuration/ceph-conf/#monitor-configuration-database
 //
 // There is a bug through at least Ceph v18 where `ceph config get global <option>` does not work.
 // As a workaround it is possible to use `ceph config get client <option>` as long as the config
@@ -91,7 +91,7 @@ func (m *MonStore) SetIfChanged(who, option, value string) (bool, error) {
 }
 
 // Set sets a config in the centralized mon configuration database.
-// https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+// https://docs.ceph.com/en/latest/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Set(who, option, value string) error {
 	logger.Infof("setting %q=%q=%q option to the mon configuration database", who, option, value)
 	args := []string{"config", "set", who, normalizeKey(option), value}
@@ -122,7 +122,7 @@ func (m *MonStore) Delete(who, option string) error {
 }
 
 // Get retrieves a config in the centralized mon configuration database.
-// https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
+// https://docs.ceph.com/en/latest/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Get(who, option string) (string, error) {
 	args := []string{"config", "get", who, normalizeKey(option)}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
