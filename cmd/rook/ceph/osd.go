@@ -19,6 +19,7 @@ package ceph
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"strconv"
@@ -77,6 +78,7 @@ var (
 	osdIDsToRemove          string
 	preservePVC             string
 	forceOSDRemoval         string
+	promptIfNotSafe         string
 )
 
 const (
@@ -113,6 +115,7 @@ func addOSDFlags(command *cobra.Command) {
 	osdRemoveCmd.Flags().StringVar(&osdIDsToRemove, "osd-ids", "", "OSD IDs to remove from the cluster")
 	osdRemoveCmd.Flags().StringVar(&preservePVC, "preserve-pvc", "false", "Whether PVCs for OSDs will be deleted")
 	osdRemoveCmd.Flags().StringVar(&forceOSDRemoval, "force-osd-removal", "false", "Whether to force remove the OSD")
+	osdRemoveCmd.Flags().StringVar(&promptIfNotSafe, "prompt-if-not-safe", "false", "Whether to prompt to get user ack before proceeding with removal")
 
 	// add the subcommands to the parent osd command
 	osdCmd.AddCommand(osdConfigCmd,
@@ -326,9 +329,22 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "failed to parse --preserve-pvc flag")
 	}
 
-	exitIfNotSafe := false
-	forceRemovalCallback := func(x int) (bool, bool) {
-		return forceOSDRemovalBool, exitIfNotSafe
+	promptIfNotSafeBool, err := strconv.ParseBool(promptIfNotSafe)
+	if err != nil {
+		return errors.Wrapf(err, "failed to parse --prompt-if-not-safe flag")
+	}
+
+	forceRemovalCallback := func(osdIDsToRemove int) (bool, bool) {
+		if promptIfNotSafeBool {
+			var answer string
+			logger.Infof("Are you sure you want to remove osd ID %d?", osdIDsToRemove)
+			fmt.Scanf("%s", &answer)
+			response := PromptToContinueOrCancel("yes-i-really-want-to-purge", answer)
+			if !response {
+				return false, false
+			}
+		}
+		return forceOSDRemovalBool, promptIfNotSafeBool
 	}
 	// Run OSD remove sequence
 	err = osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","), preservePVCBool, forceRemovalCallback)
@@ -337,6 +353,14 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func PromptToContinueOrCancel(expectedAnswer, answer string) bool {
+	if answer == expectedAnswer {
+		return true
+	}
+	logger.Error("cancelled")
+	return false
 }
 
 func commonOSDInit(cmd *cobra.Command) {

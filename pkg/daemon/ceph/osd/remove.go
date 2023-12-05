@@ -92,7 +92,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 			// If we want to force remove the OSD and there was an error let's break outside of
 			// the loop and proceed with the OSD removal
 
-			if forceRemoval {
+			if forceRemoval && !exitIfNotSafe {
 				logger.Errorf("failed to check if osd %d is safe to destroy, but force removal is enabled so proceeding with removal. %v", osdID, err)
 				break
 			} else if exitIfNotSafe {
