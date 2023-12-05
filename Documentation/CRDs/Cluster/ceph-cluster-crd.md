@@ -488,13 +488,13 @@ The following storage selection settings are specific to Ceph and do not apply t
 
 Allowed configurations are:
 
-| block device type | host-based cluster                                                                                    | PVC-based cluster                                                               |
-|:------------------|:------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
-| disk              |                                                                                                       |                                                                                 |
-| part              | `encryptedDevice` should be "false"                                                                   | `encrypted` must be `false`                                                     |
-| lvm               | `metadataDevice` should be "", `osdsPerDevice` should be "1", and `encryptedDevice` should be "false" | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
-| crypt             |                                                                                                       |                                                                                 |
-| mpath             |                                                                                                       |                                                                                 |
+| block device type | host-based cluster                                                                                | PVC-based cluster                                                               |
+|:------------------|:--------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
+| disk              |                                                                                                   |                                                                                 |
+| part              | `encryptedDevice` must be `false`                                                                 | `encrypted` must be `false`                                                     |
+| lvm               | `metadataDevice` must be `""`, `osdsPerDevice` must be `1`, and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
+| crypt             |                                                                                                   |                                                                                 |
+| mpath             |                                                                                                   |                                                                                 |
 
 ### Annotations and Labels
 
