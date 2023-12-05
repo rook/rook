@@ -111,28 +111,35 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 }
 
 func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[string]string, error) {
-	// TODO: add useful error messages
 
-	authType, ok := secret.StringData["OS_AUTH_TYPE"]
+	data := make(map[string]string)
+	for key, value := range secret.Data {
+
+		logger.Debugf("keystone secret %s => %s", key, value)
+		data[key] = string(value[:])
+
+	}
+
+	authType, ok := data["OS_AUTH_TYPE"]
 	if ok {
 		if authType != "password" {
 			return nil, errors.New(fmt.Sprintf("OS_AUTHTYPE %s is not supported. Only OS_AUTH_TYPE password is supported!", authType))
 		}
 	}
 
-	apiVersion, ok := secret.StringData["OS_IDENTITY_API_VERSION"]
+	apiVersion, ok := data["OS_IDENTITY_API_VERSION"]
 	if ok {
 		if apiVersion != "3" {
 			return nil, errors.New(fmt.Sprintf("OS_IDENTITY_API_VERSION %s is not supported! Only OS_IDENTITY_API_VERSION 3 is supported!", apiVersion))
 		}
 	}
 
-	projectDomain, ok := secret.StringData["OS_PROJECT_DOMAIN_NAME"]
+	projectDomain, ok := data["OS_PROJECT_DOMAIN_NAME"]
 	if !ok {
 		return nil, errors.New("Missing OS_PROJECT_DOMAIN_NAME")
 	}
 
-	userDomain, ok := secret.StringData["OS_USER_DOMAIN_NAME"]
+	userDomain, ok := data["OS_USER_DOMAIN_NAME"]
 	if !ok {
 		return nil, errors.New("Missing OS_USER_DOMAIN_NAME")
 	}
@@ -141,17 +148,17 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 		return nil, errors.New("The user domain name does not match the project domain name.")
 	}
 
-	project, ok := secret.StringData["OS_PROJECT_NAME"]
+	project, ok := data["OS_PROJECT_NAME"]
 	if !ok {
 		return nil, errors.New("No OS_PROJECT_NAME set.")
 	}
 
-	username, ok := secret.StringData["OS_USERNAME"]
+	username, ok := data["OS_USERNAME"]
 	if !ok {
 		return nil, errors.New("No OS_USERNAME set.")
 	}
 
-	password, ok := secret.StringData["OS_PASSWORD"]
+	password, ok := data["OS_PASSWORD"]
 	if !ok {
 		return nil, errors.New("No OS_PASSWORD set.")
 	}
@@ -183,6 +190,9 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
 
 	if ks := rgwConfig.Auth.Keystone; ks != nil {
+
+		logger.Info("Configuring Authentication with keystone")
+
 		configOptions["rgw_keystone_url"] = ks.Url
 		configOptions["rgw_keystone_accepted_roles"] = strings.Join(ks.AcceptedRoles, ",")
 		if ks.ImplicitTenants != "" {
@@ -196,13 +206,16 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 			configOptions["rgw_keystone_revocation_interval"] = fmt.Sprintf("%d", *ks.RevocationInterval)
 		}
 		if rgwConfig.KeystoneSecret == nil {
-			return errors.New("")
+			return errors.New("Cannot find keystone secret")
 		}
 
 		configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
 		if err != nil {
+			logger.Infof("error mapping keystone secret %s to config: %s", rgwConfig.KeystoneSecret.Name, err)
 			return err
 		}
+	} else {
+		logger.Info("Authentication with keystone disabled")
 	}
 
 	s3disabled := false
