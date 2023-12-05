@@ -40,6 +40,7 @@ import (
 )
 
 const (
+	//nolint:gosec // only test values, not a real secret
 	dashboardAdminCreateJSON = `{
     "user_id": "dashboard-admin",
     "display_name": "dashboard-admin",
