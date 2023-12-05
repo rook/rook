@@ -389,8 +389,6 @@ rules:
   - get
   - list
 ---
-# TODO: remove this, once https://github.com/rook/rook/issues/10141
-# is resolved.
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:

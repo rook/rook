@@ -25,14 +25,14 @@ import (
 )
 
 var (
-	//minimum supported version is 3.8.0
-	minimum = CephCSIVersion{3, 8, 0}
+	//minimum supported version is 3.9.0
+	minimum = CephCSIVersion{3, 9, 0}
 	//supportedCSIVersions are versions that rook supports
-	releasev390 = CephCSIVersion{3, 9, 0}
+	releasev310 = CephCSIVersion{3, 10, 0}
 
 	supportedCSIVersions = []CephCSIVersion{
 		minimum,
-		releasev390,
+		releasev310,
 	}
 
 	// for parsing the output of `cephcsi`
