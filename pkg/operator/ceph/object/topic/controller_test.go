@@ -43,9 +43,10 @@ import (
 )
 
 var (
-	name           = "topic-a"
-	namespace      = "rook-ceph"
-	store          = "test-store"
+	name      = "topic-a"
+	namespace = "rook-ceph"
+	store     = "test-store"
+	//nolint:gosec // only test values, not a real secret
 	userCreateJSON = `{
 		"user_id": "rgw-admin-ops-user",
 		"display_name": "RGW Admin Ops User",

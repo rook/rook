@@ -279,8 +279,8 @@ func (vt *ValidationTest) getImagePullPodCountPerNodeType(
 	}
 
 	numsScheduled := perNodeTypeCount{}
-	for _, d := range dsets.Items {
-		nodeType := getNodeType(&d.ObjectMeta)
+	for i, d := range dsets.Items {
+		nodeType := getNodeType(&dsets.Items[i].ObjectMeta)
 		numScheduled := d.Status.CurrentNumberScheduled
 		if numScheduled == 0 {
 			return emptyCount, fmt.Errorf("image pull daemonset for node type %q expects zero scheduled pods", nodeType)
