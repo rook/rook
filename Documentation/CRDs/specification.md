@@ -206,6 +206,18 @@ CephBlockPoolRadosNamespaceSpec
 <table>
 <tr>
 <td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>blockPoolName</code><br/>
 <em>
 string
@@ -2994,6 +3006,18 @@ string
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.</p>
+</td>
+</tr>
 <tr>
 <td>
 <code>blockPoolName</code><br/>
