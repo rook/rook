@@ -208,7 +208,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		// If so deploy the plugin holder with the fsid attached
 		if holderEnabled {
 			// Load cluster info for later use in updating the ceph-csi configmap
-			clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace, &cluster.Spec)
+			clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace, &cephClusters.Items[i].Spec)
 			if err != nil {
 				// This avoids a requeue with exponential backoff and allows the controller to reconcile
 				// more quickly when the cluster is ready.
