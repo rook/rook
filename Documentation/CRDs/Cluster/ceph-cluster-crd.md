@@ -88,7 +88,12 @@ For more details on the mons and when to choose a number other than `3`, see the
     * `flappingRestartIntervalHours`: Defines the time for which an OSD pod will sleep before restarting, if it stopped due to flapping. Flapping occurs where OSDs are marked `down` by Ceph more than 5 times in 600 seconds. The OSDs will stay down when flapping since they likely have a bad disk or other issue that needs investigation. If the issue with the OSD is fixed manually, the OSD pod can be manually restarted. The sleep is disabled if this interval is set to 0.
 * `disruptionManagement`: The section for configuring management of daemon disruptions
     * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
-    * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. This is only relevant when  `managePodBudgets` is `true`. The default value is `30` minutes.
+    * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. The default value is `30` minutes.
+    * `pgHealthCheckTimeout`: A duration in minutes that the operator will wait for the placement groups to become healthy (see `pgHealthyRegex`) after a drain was completed and OSDs came back up.
+    Operator will continue with the next drain if the timeout exceeds.
+    No values or `0` means that the operator will wait until the placement groups are healthy before unblocking the next drain.
+    * `pgHealthyRegex`: The regular expression that is used to determine which PG states should be considered healthy.
+    The default is `^(active\+clean|active\+clean\+scrubbing|active\+clean\+scrubbing\+deep)$`.
 * `removeOSDsIfOutAndSafeToRemove`: If `true` the operator will remove the OSDs that are down and whose data has been restored to other OSDs. In Ceph terms, the OSDs are `out` and `safe-to-destroy` when they are removed.
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 * `security`: [security page for key management configuration](../../Storage-Configuration/Advanced/key-management-system.md)
@@ -484,13 +489,13 @@ The following storage selection settings are specific to Ceph and do not apply t
 
 Allowed configurations are:
 
-| block device type | host-based cluster                                                                                    | PVC-based cluster                                                               |
-|:------------------|:------------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
-| disk              |                                                                                                       |                                                                                 |
-| part              | `encryptedDevice` should be "false"                                                                   | `encrypted` must be `false`                                                     |
-| lvm               | `metadataDevice` should be "", `osdsPerDevice` should be "1", and `encryptedDevice` should be "false" | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
-| crypt             |                                                                                                       |                                                                                 |
-| mpath             |                                                                                                       |                                                                                 |
+| block device type | host-based cluster                                                                                | PVC-based cluster                                                               |
+|:------------------|:--------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
+| disk              |                                                                                                   |                                                                                 |
+| part              | `encryptedDevice` must be `false`                                                                 | `encrypted` must be `false`                                                     |
+| lvm               | `metadataDevice` must be `""`, `osdsPerDevice` must be `1`, and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
+| crypt             |                                                                                                   |                                                                                 |
+| mpath             |                                                                                                   |                                                                                 |
 
 ### Annotations and Labels
 
