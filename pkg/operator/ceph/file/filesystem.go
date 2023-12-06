@@ -30,8 +30,9 @@ import (
 )
 
 const (
-	dataPoolSuffix     = "data"
-	metaDataPoolSuffix = "metadata"
+	defaultCSISubvolumeGroup = "csi"
+	dataPoolSuffix           = "data"
+	metaDataPoolSuffix       = "metadata"
 )
 
 // Filesystem represents an instance of a Ceph filesystem (CephFS)
@@ -70,6 +71,11 @@ func createFilesystem(
 		if err := cephclient.SetNumMDSRanks(context, clusterInfo, fs.Name, fs.Spec.MetadataServer.ActiveCount); err != nil {
 			logger.Warningf("failed setting active mds count to %d. %v", fs.Spec.MetadataServer.ActiveCount, err)
 		}
+	}
+
+	err := cephclient.CreateCephFSSubVolumeGroup(context, clusterInfo, fs.Name, defaultCSISubvolumeGroup)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create subvolume group %q", defaultCSISubvolumeGroup)
 	}
 
 	return nil
