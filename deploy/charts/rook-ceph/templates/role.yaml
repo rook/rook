@@ -71,6 +71,11 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch", "list", "delete", "update", "create"]
+{{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
+  - apiGroups: ["csiaddons.openshift.io"]
+    resources: ["csiaddonsnodes"]
+    verbs: ["create"]
+{{- end }}
 ---
 {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
 kind: Role

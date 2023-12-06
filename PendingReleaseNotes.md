@@ -9,3 +9,4 @@
 ## Features
 
 - Added `cephConfig:` to CephCluster to allow setting Ceph config options in the Ceph MON config store via the CRD
+- CephCSI v3.10.0 is now the default CSI driver version. Refer to [Ceph-CSI v3.10.0 Release Notes](https://github.com/ceph/ceph-csi/releases/tag/v3.10.0) for more details.

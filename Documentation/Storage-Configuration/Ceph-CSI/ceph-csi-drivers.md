@@ -240,9 +240,10 @@ parameters:
 
 * PVCs created using the new storageclass will be encrypted.
 
-## Enable Read affinity for RBD volumes
+## Enable Read affinity for RBD and CephFS volumes
 
-Ceph CSI supports mapping RBD volumes with KRBD options to allow
+Ceph CSI supports mapping RBD volumes with KRBD options and mounting
+CephFS volumes with ceph mount options to allow
 serving reads from an OSD closest to the client, according to
 OSD locations defined in the CRUSH map and topology labels on nodes.
 
