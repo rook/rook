@@ -38,14 +38,42 @@ The release tags should be agreed on by the release team.
 
 ### Creating the Release Branch
 
-The first time a minor release tag is pushed, the release branch will be created from `master`.
-Push an alpha version tag the first time the branch is created (e.g. `v1.8.0-alpha.0`).
+The first time a new release branch is made, the branch is created from `master` with the
+`<release>-alpha.0` tag (e.g., `v1.13.0-alpha.0`). Create the new release branch from master, then
+tag it, and push the tag upstream.
 
-Tagging will cause the release branch to be created. Next, merge a PR to the new release branch
-that updates the documentation and example manifests with a beta tag (e.g. `v1.8.0-beta.0`).
-Now you can tag the release with the beta tag (`v1.8.0-beta.0`) and the release will be built and released.
-For all other minor or patch releases on this branch, simply follow the tagging instructions
-in the next section with the updated version.
+Example:
+```console
+BRANCH_NAME=release-1.13
+git fetch —all
+git checkout master
+git reset --hard upstream/master
+git checkout -b $BRANCH_NAME
+git push upstream $BRANCH_NAME
+TAG_NAME=v1.13.0-alpha.0
+git tag -a $TAG_NAME -m "$TAG_NAME release tag"
+git push upstream $TAG_NAME
+```
+
+Verify the change. Both the branch and master should show the new `...-alpha.0` tag.
+```console
+git fetch --all
+git describe
+#> v1.13.0-alpha.0
+git checkout master
+git describe
+#> v1.13.0-alpha.0
+```
+
+The alpha tag only serves to mark the creation of the new branch. It isn't suitable for installing.
+Now we need to update docs, manifests, and the tag version. Generally, an alpha release isn't
+necessary, and we immediately release `...-beta.0`
+
+Create a PR to the new release branch that updates the documentation and example manifests with a
+beta tag (e.g. `v1.13.0-beta.0`). For example: https://github.com/rook/rook/pull/13308
+
+After the PR is merged, you can tag the release with the beta tag (`v1.13.0-beta.0`) following the
+[Tagging a New Release](#tagging-a-new-release) process below.
 
 ### Tagging a New Release
 
@@ -55,26 +83,29 @@ To publish a new patch release build, follow these steps:
 
 1. Make sure all needed PRs are merged to the release branch
 2. Check that integration tests are green (except intermittent issues)
-3. Open a PR to update the version, and merge it
+3. Open a PR to update the doc/manifest image tag versions, and merge it
+   For example: https://github.com/rook/rook/pull/13301
 4. Tag the branch:
 
     ```console
     # make sure no files are checked out locally, then proceed:
-    git checkout <branch> # e.g. release-1.10
-    git pull
+    BRANCH_NAME=<release branch> # e.g., release-1.12
+    git fetch --all
+    git checkout $BRANCH_NAME
+    git reset --hard upstream/$BRANCH_NAME
     # set to the new release
-    tag_name=<release version> # e.g., v1.10.9
-    git tag -a "$tag_name" -m "$tag_name release tag"
-    git push upstream "$tag_name"
+    TAG_NAME=<release version> # e.g., v1.12.9
+    git tag -a "$TAG_NAME" -m "$TAG_NAME release tag"
+    git push upstream "$TAG_NAME"
     ```
 
 5. Generate release notes:
 
     ```console
     git checkout master
-    git fetch -A
-    export FROM_BRANCH=<release version> # e.g., v1.10.9
-    export TO_TAG=<previous release version> # e.g., v1.10.8
+    git fetch --all
+    export FROM_BRANCH=<release version> # e.g., v1.12.9
+    export TO_TAG=<previous release version> # e.g., v1.12.8
     tests/scripts/gen_release_notes.sh
     ```
 
