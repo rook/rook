@@ -326,12 +326,8 @@ func removeOSDs(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "failed to parse --preserve-pvc flag")
 	}
 
-	exitIfNotSafe := false
-	forceRemovalCallback := func(x int) (bool, bool) {
-		return forceOSDRemovalBool, exitIfNotSafe
-	}
 	// Run OSD remove sequence
-	err = osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","), preservePVCBool, forceRemovalCallback)
+	err = osddaemon.RemoveOSDs(context, &clusterInfo, strings.Split(osdIDsToRemove, ","), preservePVCBool, forceOSDRemovalBool)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
