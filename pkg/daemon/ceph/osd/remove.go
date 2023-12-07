@@ -33,7 +33,7 @@ import (
 )
 
 // RemoveOSDs purges a list of OSDs from the cluster
-func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdsToRemove []string, preservePVC bool, forceRemovalCallback func(osdID int) (bool, bool)) error {
+func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osdsToRemove []string, preservePVC, forceOSDRemoval bool) error {
 	// Generate the ceph config for running ceph commands similar to the operator
 	if err := client.WriteCephConfig(context, clusterInfo); err != nil {
 		return errors.Wrap(err, "failed to write the ceph config")
@@ -63,13 +63,13 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 			logger.Infof("osd.%d is marked 'DOWN'", osdID)
 		}
 
-		removeOSD(context, clusterInfo, osdID, preservePVC, forceRemovalCallback)
+		removeOSD(context, clusterInfo, osdID, preservePVC, forceOSDRemoval)
 	}
 
 	return nil
 }
 
-func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, preservePVC bool, forceRemovalCallback func(osdID int) (bool, bool)) {
+func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, preservePVC, forceOSDRemoval bool) {
 	// Get the host where the OSD is found
 	hostName, err := client.GetCrushHostName(clusterdContext, clusterInfo, osdID)
 	if err != nil {
@@ -83,7 +83,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	if err != nil {
 		logger.Errorf("failed to exclude osd.%d out of the crush map. %v", osdID, err)
 	}
-	forceRemoval, exitIfNotSafe := forceRemovalCallback(osdID)
+
 	// Check we can remove the OSD
 	// Loop forever until the osd is safe-to-destroy
 	for {
@@ -91,13 +91,9 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		if err != nil {
 			// If we want to force remove the OSD and there was an error let's break outside of
 			// the loop and proceed with the OSD removal
-
-			if forceRemoval {
+			if forceOSDRemoval {
 				logger.Errorf("failed to check if osd %d is safe to destroy, but force removal is enabled so proceeding with removal. %v", osdID, err)
 				break
-			} else if exitIfNotSafe {
-				logger.Error("osd.%d is not safe to destroy")
-				return
 			} else {
 				logger.Errorf("failed to check if osd %d is safe to destroy, retrying in 1m. %v", osdID, err)
 				time.Sleep(1 * time.Minute)
@@ -111,12 +107,9 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 			break
 		} else {
 			// If we arrive here and forceOSDRemoval is true, we should proceed with the OSD removal
-			if forceRemoval {
+			if forceOSDRemoval {
 				logger.Infof("osd.%d is NOT ok to destroy but force removal is enabled so proceeding with removal", osdID)
 				break
-			} else if exitIfNotSafe {
-				logger.Error("osd.%d is not safe to destroy")
-				return
 			}
 			// Else we wait until the OSD can be removed
 			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 1m until success", osdID)
