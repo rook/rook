@@ -7,16 +7,18 @@ SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 ROOK_EXAMPLES_DIR="${SCRIPT_ROOT}/../../deploy/examples/"
 
 init_vars(){
-    local rook_profile_name=$1
-    local rook_cluster_namespace=$2
-    local rook_operator_namespace=$3
-    ROOK_PROFILE_NAME=$rook_profile_name
-    MINIKUBE="minikube --profile $rook_profile_name"
+    ROOK_PROFILE_NAME=${1:-rook}
+    ROOK_CLUSTER_NS=${2:-$DEFAULT_NS}
+    ROOK_OPERATOR_NS=${3:-$DEFAULT_NS}
+    ROOK_CLUSTER_SPEC_FILE=${4:-cluster-test.yaml}
+    MINIKUBE="minikube --profile $ROOK_PROFILE_NAME"
     KUBECTL="$MINIKUBE kubectl --"
-    ROOK_CLUSTER_NS=$rook_cluster_namespace
-    ROOK_OPERATOR_NS=$rook_operator_namespace
-    echo "Using $ROOK_CLUSTER_NS as cluster namespace.."
-    echo "Using $ROOK_OPERATOR_NS as operator namespace.."
+
+    echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
+    echo "Using '$ROOK_CLUSTER_SPEC_FILE' as cluster spec file.."
+    echo "Using '$ROOK_PROFILE_NAME' as minikube profile.."
+    echo "Using '$ROOK_CLUSTER_NS' as cluster namespace.."
+    echo "Using '$ROOK_OPERATOR_NS' as operator namespace.."
 }
 
 update_namespaces() {
@@ -66,7 +68,7 @@ get_minikube_driver() {
 show_info() {
     local monitoring_enabled=$1
     DASHBOARD_PASSWORD=$($KUBECTL -n "$ROOK_CLUSTER_NS" get secret rook-ceph-dashboard-password -o jsonpath="{['data']['password']}" | base64 --decode && echo)
-    DASHBOARD_END_POINT=$($MINIKUBE service rook-ceph-mgr-dashboard-external-http -n rook-ceph --url)
+    DASHBOARD_END_POINT=$($MINIKUBE service rook-ceph-mgr-dashboard-external-http -n "$ROOK_CLUSTER_NS" --url)
     BASE_URL="$DASHBOARD_END_POINT"
     echo "==========================="
     echo "Ceph Dashboard:"
@@ -114,16 +116,29 @@ create_rook_cluster() {
 	kubectl create namespace "$ROOK_OPERATOR_NS"
     fi
     $KUBECTL apply -f crds.yaml -f common.yaml -f operator.yaml
-    $KUBECTL apply -f cluster-test.yaml -f toolbox.yaml
+    $KUBECTL apply -f "$ROOK_CLUSTER_SPEC_FILE" -f toolbox.yaml
     $KUBECTL apply -f dashboard-external-http.yaml
 }
 
-check_examples_dir() {
-    CRDS_FILE="crds.yaml"
-    if [ ! -e ${CRDS_FILE} ]; then
-	echo "File ${ROOK_EXAMPLES_DIR}/${CRDS_FILE} does not exist. Please, provide a valid rook examples directory."
+change_to_examples_dir() {
+    if [ ! -e "$ROOK_EXAMPLES_DIR" ]; then
+	echo "Examples directory '$ROOK_EXAMPLES_DIR' does not exist. Please, provide a valid rook examples directory."
 	exit 1
     fi
+
+    CRDS_FILE_PATH=$(realpath "$ROOK_EXAMPLES_DIR/crds.yaml")
+    if [ ! -e "$CRDS_FILE_PATH" ]; then
+	echo "File '$CRDS_FILE_PATH' does not exist. Please, provide a valid rook examples directory."
+	exit 1
+    fi
+
+    ROOK_CLUSTER_SPEC_PATH=$(realpath "$ROOK_EXAMPLES_DIR/$ROOK_CLUSTER_SPEC_FILE")
+    if [ ! -e "$ROOK_CLUSTER_SPEC_PATH" ]; then
+	echo "File '$ROOK_CLUSTER_SPEC_PATH' does not exist. Please, provide a valid cluster spec file."
+	exit 1
+    fi
+
+    cd "$ROOK_EXAMPLES_DIR" || exit
 }
 
 wait_for_rook_operator() {
@@ -166,6 +181,7 @@ show_usage() {
     echo "  -d value          Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)"
     echo "  -c <cluster-namespace>"
     echo "  -o <operator-namespace>"
+    echo "  -i <cluster-spec-yaml>  Specify the cluster file spec name"
 }
 
 invocation_error() {
@@ -177,7 +193,7 @@ invocation_error() {
 ####################################################################
 ################# MAIN #############################################
 
-while getopts ":hrmfd:p:c:o:" opt; do
+while getopts ":hrmfd:p:i:c:o:" opt; do
     case $opt in
 	h)
 	    show_usage
@@ -198,6 +214,9 @@ while getopts ":hrmfd:p:c:o:" opt; do
 	p)
 	    minikube_profile_name="$OPTARG"
 	    ;;
+	i)
+	    cluster_spec_file="$OPTARG"
+	    ;;
 	c)
 	    rook_cluster_ns="$OPTARG"
 	    ;;
@@ -213,11 +232,8 @@ while getopts ":hrmfd:p:c:o:" opt; do
     esac
 done
 
-echo "Using '$ROOK_EXAMPLES_DIR' as examples directory.."
-
-cd "$ROOK_EXAMPLES_DIR" || exit
-check_examples_dir
-init_vars "${minikube_profile_name:-rook}" "${rook_cluster_ns:-$DEFAULT_NS}" "${rook_operator_ns:-$DEFAULT_NS}"
+init_vars "$minikube_profile_name" "$rook_cluster_ns" "$rook_operator_ns" "$cluster_spec_file"
+change_to_examples_dir
 
 if [ -z "$force_minikube" ]; then
     check_minikube_exists
