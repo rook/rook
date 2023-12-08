@@ -1946,7 +1946,6 @@ type HTTPEndpointSpec struct {
 	// +optional
 	DisableVerifySSL bool `json:"disableVerifySSL,omitempty"`
 	// Send the notifications with the CloudEvents header: https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md
-	// Supported for Ceph Quincy (v17) or newer.
 	// +optional
 	SendCloudEvents bool `json:"sendCloudEvents,omitempty"`
 }
@@ -2464,7 +2463,7 @@ type EncryptionSpec struct {
 
 type CompressionSpec struct {
 	// Whether to compress the data in transit across the wire.
-	// The default is not set. Requires Ceph Quincy (v17) or newer.
+	// The default is not set.
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 }
