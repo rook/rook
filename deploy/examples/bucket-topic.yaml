@@ -11,9 +11,9 @@ spec:
   endpoint:
     http:
       uri: http://my-notification-endpoint:8080
-    # uri: https://my-notification-endpoint:8443
+      # uri: https://my-notification-endpoint:8443
       disableVerifySSL: true
-      sendCloudEvents: false # supported only in Ceph Quincy (v17) or newer
+      sendCloudEvents: false
     # amqp:
     #   uri: amqp://my-rabbitmq-service:5672/vhost1
     #   uri: amqps://my-rabbitmq-service:5671/vhost1
