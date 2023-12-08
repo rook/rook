@@ -234,7 +234,7 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
 * TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
 * `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
-* `AWS-SSE:S3` requires Ceph Quincy (v17.2.3) and later.
+* `AWS-SSE:S3` requires Ceph Quincy v17.2.3 or later.
 
 ## Deleting a CephObjectStore
 

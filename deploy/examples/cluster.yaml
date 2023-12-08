@@ -19,9 +19,9 @@ spec:
     # v17 is Quincy, v18 is Reef.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v17 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v17.2.6-20230410
+    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v17.2.6-20231027
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
-    image: quay.io/ceph/ceph:v17.2.6
+    image: quay.io/ceph/ceph:v18.2.0
     # Whether to allow unsupported versions of Ceph. Currently `quincy` and `reef` are supported.
     # Future versions such as `squid` (v19) would require this to be set to `true`.
     # Do not set to true in production.
@@ -92,7 +92,7 @@ spec:
       encryption:
         enabled: false
       # Whether to compress the data in transit across the wire. The default is false.
-      # Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
+      # See the kernel requirements above for encryption.
       compression:
         enabled: false
       # Whether to require communication over msgr2. If true, the msgr v1 port (6789) will be disabled

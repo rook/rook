@@ -21,7 +21,7 @@
         "external",
         "file",
         "helm",
-	"k8sutil",
+        "k8sutil",
         "manifest",
         "mds",
         "mgr",
