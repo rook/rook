@@ -107,7 +107,7 @@ Official releases of Ceph Container images are available from [Docker Hub](https
 These are general purpose Ceph container with all necessary daemons and dependencies installed.
 
 | TAG                  | MEANING                                                   |
-|----------------------|-----------------------------------------------------------|
+| -------------------- | --------------------------------------------------------- |
 | vRELNUM              | Latest release in this series (e.g., *v17* = Quincy)      |
 | vRELNUM.Y            | Latest stable release in this stable series (e.g., v17.2) |
 | vRELNUM.Y.Z          | A specific release (e.g., v17.2.6)                        |
@@ -217,7 +217,7 @@ Configure the network that will be enabled for the cluster and services.
           If this setting is enabled, CephFS volumes also require setting `CSI_CEPHFS_KERNEL_MOUNT_OPTIONS` to `"ms_mode=secure"` in operator.yaml.
     * `compression`:
         * `enabled`: Whether to compress the data in transit across the wire. The default is false.
-      Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
+      See the kernel requirements above for encryption.
 
 !!! caution
     Changing networking configuration after a Ceph cluster has been deployed is NOT
@@ -490,7 +490,7 @@ The following storage selection settings are specific to Ceph and do not apply t
 Allowed configurations are:
 
 | block device type | host-based cluster                                                                                | PVC-based cluster                                                               |
-|:------------------|:--------------------------------------------------------------------------------------------------|:--------------------------------------------------------------------------------|
+| :---------------- | :------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
 | disk              |                                                                                                   |                                                                                 |
 | part              | `encryptedDevice` must be `false`                                                                 | `encrypted` must be `false`                                                     |
 | lvm               | `metadataDevice` must be `""`, `osdsPerDevice` must be `1`, and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
@@ -949,7 +949,10 @@ set the `allowUninstallWithVolumes` to true under `spec.CleanupPolicy`.
 !!! attention
     This feature is experimental.
 
-The Ceph config options are applied after the MONs are all in quorum and running. To set Ceph config options, you can add them to your `CephCluster` spec like this:
+The Ceph config options are applied after the MONs are all in quorum and running.
+To set Ceph config options, you can add them to your `CephCluster` spec as shown below.
+See the [Ceph config reference](https://docs.ceph.com/en/latest/rados/configuration/general-config-ref/)
+for detailed information about how to configure Ceph.
 
 ```yaml
 spec:

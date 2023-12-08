@@ -4649,7 +4649,7 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether to compress the data in transit across the wire.
-The default is not set. Requires Ceph Quincy (v17) or newer.</p>
+The default is not set.</p>
 </td>
 </tr>
 </tbody>
@@ -6754,8 +6754,7 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Send the notifications with the CloudEvents header: <a href="https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md">https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md</a>
-Supported for Ceph Quincy (v17) or newer.</p>
+<p>Send the notifications with the CloudEvents header: <a href="https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md">https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md</a></p>
 </td>
 </tr>
 </tbody>

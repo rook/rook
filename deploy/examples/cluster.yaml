@@ -92,7 +92,7 @@ spec:
       encryption:
         enabled: false
       # Whether to compress the data in transit across the wire. The default is false.
-      # Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
+      # See the kernel requirements above for encryption.
       compression:
         enabled: false
       # Whether to require communication over msgr2. If true, the msgr v1 port (6789) will be disabled
