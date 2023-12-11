@@ -157,6 +157,9 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		if err != nil {
 			// Getting EPERM typically happens when the flag may not be modified at runtime
 			// This is fine to ignore
+			// No it is not: As errors in the mapKeystoneSecretToConfig function are returned
+			// directly and the situation may occur, that only part of the configuration is set
+			// TODO have another look at the error handling here (and in setFlagsMonConfigStore)
 			code, ok := exec.ExitStatus(err)
 			if ok && code != int(syscall.EPERM) {
 				return errors.Wrap(err, "failed to set default rgw config options")

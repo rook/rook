@@ -251,8 +251,10 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	}
 
 	for flag, val := range configOptions {
+		logger.Debugf("Set %s to %q on %q", flag, val, who)
 		err := monStore.Set(who, flag, val)
 		if err != nil {
+			logger.Debugf("failed to setup config option: %s to %q on %q: %s", flag, val, who, err)
 			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
 		}
 	}
