@@ -255,6 +255,12 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
+
+	err = cephclient.PinCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, cephFilesystemSubVolumeGroup, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to pin filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
+	}
+
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
 	// Return and do not requeue
 	logger.Debugf("done reconciling cephFilesystemSubVolumeGroup %q", namespacedName)

@@ -17,8 +17,13 @@ limitations under the License.
 package client
 
 import (
+	"fmt"
+	"strconv"
+
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 // CreateCephFSSubVolumeGroup create a CephFS subvolume group.
@@ -41,7 +46,6 @@ func CreateCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 // DeleteCephFSSubVolumeGroup delete a CephFS subvolume group.
 func DeleteCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName, groupName string) error {
 	logger.Infof("deleting cephfs %q subvolume group %q", volName, groupName)
-	//  --force?
 	args := []string{"fs", "subvolumegroup", "rm", volName, groupName}
 	cmd := NewCephCommand(context, clusterInfo, args)
 	cmd.JsonOutput = false
@@ -54,4 +58,74 @@ func DeleteCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterI
 
 	logger.Infof("successfully deleted cephfs %q subvolume group %q", volName, groupName)
 	return nil
+}
+
+// PinCephFSSubVolumeGroup pin the cephfs subvolume group
+func PinCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo, volName string, cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup, cephFilesystemSubVolumeGroupName string) error {
+	// namespace is the namespace of the svg CR, name is the svg name spec otherwise svg CR name
+	namespaceName := types.NamespacedName{Namespace: cephFilesystemSubVolumeGroup.Namespace, Name: cephFilesystemSubVolumeGroupName}
+	logger.Infof("validating pinning configuration of cephfs subvolume group %v of filesystem %q", namespaceName, volName)
+	err := validatePinningValues(cephFilesystemSubVolumeGroup.Spec.Pinning)
+	if err != nil {
+		return errors.Wrapf(err, "failed to pin subvolume group %q", cephFilesystemSubVolumeGroupName)
+	}
+
+	logger.Infof("pinning cephfs subvolume group %v of filesystem %q", namespaceName, volName)
+	args := []string{"fs", "subvolumegroup", "pin", volName, cephFilesystemSubVolumeGroupName}
+	if cephFilesystemSubVolumeGroup.Spec.Pinning.Distributed != nil {
+		setting := strconv.Itoa(*cephFilesystemSubVolumeGroup.Spec.Pinning.Distributed)
+		args = append(args, "distributed", setting)
+	} else if cephFilesystemSubVolumeGroup.Spec.Pinning.Export != nil {
+		setting := strconv.Itoa(*cephFilesystemSubVolumeGroup.Spec.Pinning.Export)
+		args = append(args, "export", setting)
+	} else if cephFilesystemSubVolumeGroup.Spec.Pinning.Random != nil {
+		setting := strconv.FormatFloat(*cephFilesystemSubVolumeGroup.Spec.Pinning.Random, 'f', -1, 64)
+		args = append(args, "random", setting)
+	} else {
+		// set by default value
+		args = append(args, "distributed", "1")
+	}
+	logger.Infof("subvolume group pinning args %v", args)
+
+	cmd := NewCephCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to pin subvolume group %q. %s", cephFilesystemSubVolumeGroupName, output)
+	}
+
+	logger.Infof("successfully pinned cephfs subvolume group %v", namespaceName)
+	return nil
+}
+
+func validatePinningValues(pinning cephv1.CephFilesystemSubVolumeGroupSpecPinning) error {
+	numNils := 0
+	var err error
+	if pinning.Export != nil {
+		numNils++
+		if *pinning.Export > 256 {
+			err = errors.Errorf("validate pinning type failed, Export: value too big %d", *pinning.Export)
+		} else if *pinning.Export < -1 {
+			err = errors.Errorf("validate pinning type failed, Export: negative value %d not allowed except -1", *pinning.Export)
+		}
+	}
+	if pinning.Distributed != nil {
+		numNils++
+		if !(*pinning.Distributed == 1) && !(*pinning.Distributed == 0) {
+			err = errors.Errorf("validate pinning type failed, Distributed: unknown value %d", *pinning.Distributed)
+		}
+	}
+	if pinning.Random != nil {
+		numNils++
+		if (*pinning.Random < 0) || (*pinning.Random > 1.0) {
+			err = errors.Errorf("validate pinning type failed, Random: value %.2f is not between 0.0 and 1.1 (inclusive)", *pinning.Random)
+		}
+	}
+	if numNils > 1 {
+		return fmt.Errorf("only one can be set")
+	}
+	if numNils == 0 {
+		return nil // pinning disabled
+	}
+	return err
 }

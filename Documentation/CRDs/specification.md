@@ -1546,6 +1546,22 @@ list of Ceph Filesystem volumes with <code>ceph fs volume ls</code>. To learn mo
 abstractions see <a href="https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes">https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes</a></p>
 </td>
 </tr>
+<tr>
+<td>
+<code>pinning</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroupSpecPinning">
+CephFilesystemSubVolumeGroupSpecPinning
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Pinning configuration of CephFilesystemSubVolumeGroup,
+reference <a href="https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups">https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups</a>
+only one out of (export, distributed, random) can be set at a time</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3626,6 +3642,73 @@ string
 the CephFilesystem CR. If not coming from the CephFilesystem CR, it can be retrieved from the
 list of Ceph Filesystem volumes with <code>ceph fs volume ls</code>. To learn more about Ceph Filesystem
 abstractions see <a href="https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes">https://docs.ceph.com/en/latest/cephfs/fs-volumes/#fs-volumes-and-subvolumes</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>pinning</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroupSpecPinning">
+CephFilesystemSubVolumeGroupSpecPinning
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Pinning configuration of CephFilesystemSubVolumeGroup,
+reference <a href="https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups">https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups</a>
+only one out of (export, distributed, random) can be set at a time</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephFilesystemSubVolumeGroupSpecPinning">CephFilesystemSubVolumeGroupSpecPinning
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephFilesystemSubVolumeGroupSpec">CephFilesystemSubVolumeGroupSpec</a>)
+</p>
+<div>
+<p>CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>export</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>distributed</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>random,</code><br/>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
 </td>
 </tr>
 </tbody>
