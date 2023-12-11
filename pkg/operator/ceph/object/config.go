@@ -202,9 +202,6 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		if ks.TokenCacheSize != nil {
 			configOptions["rgw_keystone_token_cache_size"] = fmt.Sprintf("%d", *ks.TokenCacheSize)
 		}
-		if ks.RevocationInterval != nil {
-			configOptions["rgw_keystone_revocation_interval"] = fmt.Sprintf("%d", *ks.RevocationInterval)
-		}
 		if rgwConfig.KeystoneSecret == nil {
 			return errors.New("Cannot find keystone secret")
 		}
