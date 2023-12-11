@@ -115,6 +115,8 @@ type Cluster struct {
 	ownerInfo          *k8sutil.OwnerInfo
 	isUpgrade          bool
 	arbiterMon         string
+	// list of mons to be failed over
+	monsToFailover sets.Set[string]
 }
 
 // monConfig for a single monitor
@@ -162,6 +164,7 @@ func New(ctx context.Context, clusterdContext *clusterd.Context, namespace strin
 		ClusterInfo: &cephclient.ClusterInfo{
 			Context: ctx,
 		},
+		monsToFailover: sets.New[string](),
 	}
 }
 
@@ -1230,11 +1233,6 @@ var updateDeploymentAndWait = UpdateCephDeploymentAndWait
 
 func (c *Cluster) updateMon(m *monConfig, d *apps.Deployment) error {
 
-	if c.HasMonPathChanged(m.DaemonName) {
-		logger.Infof("path has changed for mon %q. Skip updating mon deployment %q in order to failover the mon", m.DaemonName, d.Name)
-		return nil
-	}
-
 	// Expand mon PVC if storage request for mon has increased in cephcluster crd
 	if c.monVolumeClaimTemplate(m) != nil {
 		desiredPvc, err := c.makeDeploymentPVC(m, false)
@@ -1339,6 +1337,12 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 
 	p.ApplyToPodSpec(&d.Spec.Template.Spec)
 	if deploymentExists {
+		// skip update if mon path has changed
+		if hasMonPathChanged(existingDeployment, c.spec.Mon.VolumeClaimTemplate) {
+			c.monsToFailover.Insert(m.DaemonName)
+			return nil
+		}
+
 		// the existing deployment may have a node selector. if the cluster
 		// isn't using host networking and the deployment is using pvc storage,
 		// then the node selector can be removed. this may happen after
@@ -1402,6 +1406,18 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	}
 
 	return nil
+}
+
+func hasMonPathChanged(d *apps.Deployment, claim *v1.PersistentVolumeClaim) bool {
+	if d.Labels["pvc_name"] == "" && claim != nil {
+		logger.Infof("skipping update for mon %q where path has changed from hostPath to pvc", d.Name)
+		return true
+	} else if d.Labels["pvc_name"] != "" && claim == nil {
+		logger.Infof("skipping update for mon %q where path has changed from pvc to hostPath", d.Name)
+		return true
+	}
+
+	return false
 }
 
 func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, mons []string, sleepTime int, requireAllInQuorum bool) error {
