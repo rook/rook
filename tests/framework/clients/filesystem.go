@@ -135,8 +135,15 @@ func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
 func (f *FilesystemOperation) Delete(name, namespace string) error {
 	ctx := context.TODO()
 	options := &metav1.DeleteOptions{}
+
+	logger.Infof("Deleting subvolumegroup %s in namespace %s dependent of ceph filesystem %s", name+"-csi", namespace, name)
+	err := f.k8sh.RookClientset.CephV1().CephFilesystemSubVolumeGroups(namespace).Delete(ctx, name+"-csi", *options)
+	if err != nil && !kerrors.IsNotFound(err) {
+		return err
+	}
+
 	logger.Infof("Deleting filesystem %s in namespace %s", name, namespace)
-	err := f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Delete(ctx, name, *options)
+	err = f.k8sh.RookClientset.CephV1().CephFilesystems(namespace).Delete(ctx, name, *options)
 	if err != nil && !kerrors.IsNotFound(err) {
 		return err
 	}
