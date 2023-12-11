@@ -884,3 +884,36 @@ func TestSkipReconcile(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, result.Len())
 }
+
+func TestHasMonPathChanged(t *testing.T) {
+	monDeployment := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon-a",
+			Namespace: "test",
+			Labels: map[string]string{
+				"pvc_name": "test-pvc",
+			},
+		}}
+
+	pvcTemplate := &v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-claim",
+		},
+	}
+	t.Run("mon path changed from pv to hostpath", func(t *testing.T) {
+		assert.True(t, hasMonPathChanged(monDeployment, nil))
+	})
+
+	t.Run("mon path not changed from pv to hostpath", func(t *testing.T) {
+		assert.False(t, hasMonPathChanged(monDeployment, pvcTemplate))
+	})
+	t.Run("mon path changed from hostPath to pvc", func(t *testing.T) {
+		delete(monDeployment.Labels, "pvc_name")
+		assert.True(t, hasMonPathChanged(monDeployment, pvcTemplate))
+	})
+
+	t.Run("mon path not changed from hostPath to pvc", func(t *testing.T) {
+		delete(monDeployment.Labels, "pvc_name")
+		assert.False(t, hasMonPathChanged(monDeployment, nil))
+	})
+}

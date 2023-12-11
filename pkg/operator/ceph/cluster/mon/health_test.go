@@ -645,37 +645,3 @@ func TestUpdateMonInterval(t *testing.T) {
 		assert.Equal(t, time.Minute, h.interval)
 	})
 }
-
-func TestHasMonPathChanged(t *testing.T) {
-	t.Run("mon path changed from pv to hostpath", func(t *testing.T) {
-		c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
-		c.mapping.Schedule["a"] = nil
-		result := c.HasMonPathChanged("a")
-		assert.True(t, result)
-	})
-
-	t.Run("mon path has not changed from pv to hostpath", func(t *testing.T) {
-		c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
-		c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{}}
-		c.mapping.Schedule["b"] = nil
-		result := c.HasMonPathChanged("b")
-		c.spec.Mon.VolumeClaimTemplate = nil
-		assert.False(t, result)
-	})
-
-	t.Run("mon path changed from hostpath to pv", func(t *testing.T) {
-		c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
-		c.mapping.Schedule["c"] = &opcontroller.MonScheduleInfo{}
-		c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{}}
-		result := c.HasMonPathChanged("c")
-		assert.True(t, result)
-	})
-
-	t.Run("mon path has not changed from host path to pv", func(t *testing.T) {
-		c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
-		c.mapping.Schedule["d"] = &opcontroller.MonScheduleInfo{}
-		result := c.HasMonPathChanged("d")
-		c.spec.Mon.VolumeClaimTemplate = nil
-		assert.False(t, result)
-	})
-}
