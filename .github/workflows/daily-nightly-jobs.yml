@@ -27,7 +27,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup golang
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: "1.21"
 
