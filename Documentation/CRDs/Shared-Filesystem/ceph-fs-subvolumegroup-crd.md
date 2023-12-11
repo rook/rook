@@ -20,8 +20,18 @@ metadata:
   name: group-a
   namespace: rook-ceph # namespace:cluster
 spec:
+  # The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
+  name: csi
   # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
   filesystemName: myfs
+  # reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups
+  # only one out of (export, distributed, random) can be set at a time
+  # by default pinning is set with value: distributed=1
+  # for disabling default values set (distributed=0)
+  pinning:
+    distributed: 1            # distributed=<0, 1> (disabled=0)
+    # export:                 # export=<0-256> (disabled=-1)
+    # random:                 # random=[0.0, 1.0](disabled=0.0)
 ```
 
 ## Settings
@@ -34,4 +44,15 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 ### CephFilesystemSubVolumeGroup spec
 
+* `name`: The spec name that will be used for the Ceph Filesystem subvolume group if not set metadata name will be used.
+
 * `filesystemName`: The metadata name of the CephFilesystem CR where the subvolume group will be created.
+
+* `pinning`: To distribute load across MDS ranks in predictable and stable ways. Reference: https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups.
+    * `distributed`: Range: <0, 1>, for disabling it set to 0
+    * `export`: Range: <0-256>, for disabling it set to -1
+    * `random`: Range: [0.0, 1.0], for disabling it set to 0.0
+
+!!! note
+    Only one out of (export, distributed, random) can be set at a time.
+    By default pinning is set with value: `distributed=1`.
