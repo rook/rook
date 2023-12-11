@@ -163,6 +163,8 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 		return nil, errors.New("No OS_PASSWORD set.")
 	}
 
+	// keystone api version 3 should be used today
+	cfg["rgw_keystone_api_version"] = "3"
 	cfg["rgw_keystone_admin_domain"] = userDomain
 	cfg["rgw_keystone_admin_project"] = project
 	cfg["rgw_keystone_admin_user"] = username
