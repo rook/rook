@@ -1904,6 +1904,23 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	in.Security.DeepCopyInto(&out.Security)
 	in.LogCollector.DeepCopyInto(&out.LogCollector)
 	in.CSI.DeepCopyInto(&out.CSI)
+	if in.CephConfig != nil {
+		in, out := &in.CephConfig, &out.CephConfig
+		*out = make(map[string]map[string]string, len(*in))
+		for key, val := range *in {
+			var outVal map[string]string
+			if val == nil {
+				(*out)[key] = nil
+			} else {
+				in, out := &val, &outVal
+				*out = make(map[string]string, len(*in))
+				for key, val := range *in {
+					(*out)[key] = val
+				}
+			}
+			(*out)[key] = outVal
+		}
+	}
 	return
 }
 
