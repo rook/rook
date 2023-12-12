@@ -98,6 +98,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 * `cleanupPolicy`: [cleanup policy settings](#cleanup-policy)
 * `security`: [security page for key management configuration](../../Storage-Configuration/Advanced/key-management-system.md)
 * `cephConfig`: [Set Ceph config options using the Ceph Mon config store](#ceph-config)
+* `csi`: [Set CSI Driver options](#csi-driver-options)
 
 ### Ceph container images
 
@@ -974,3 +975,15 @@ spec:
     user's responsibility.
 
 The operator does not unset any removed config options, it is the user's responsibility to unset or set the default value for each removed option manually using the Ceph CLI.
+
+## CSI Driver Options
+
+The CSI driver options mentioned here are applied per Ceph cluster. The following options are available:
+
+* `readAffinity`: RBD and CephFS volumes allow serving reads from an OSD in proximity to the client. Refer to the read affinity section in the [Ceph CSI Drivers](../../Storage-Configuration/Ceph-CSI/ceph-csi-drivers.md#enable-read-affinity-for-rbd-and-cephfs-volumes) for more details.
+    * `enabled`: Whether to enable read affinity for the CSI driver. Default is `false`.
+    * `crushLocationLabels`:  Node labels to use as CRUSH location, corresponding to the values set in the CRUSH map. Defaults to the labels mentioned in the
+[OSD topology](#osd-topology) topic.
+* `cephfs`:
+    * `kernelMountOptions`: Mount options for kernel mounter. Refer to the [kernel mount options](https://docs.ceph.com/en/latest/man/8/mount.ceph/#options) for more details.
+    * `fuseMountOptions`: Mount options for fuse mounter. Refer to the [fuse mount options](https://docs.ceph.com/en/latest/man/8/ceph-fuse/#options) for more details.
