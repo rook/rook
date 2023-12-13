@@ -28,7 +28,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: TestCephHelmSuite
@@ -69,7 +68,6 @@ jobs:
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: TestCephMultiClusterDeploySuite
@@ -109,7 +107,6 @@ jobs:
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: TestCephSmokeSuite
@@ -148,7 +145,6 @@ jobs:
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: TestCephUpgradeSuite
@@ -187,7 +183,6 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: TestHelmUpgradeSuite
@@ -229,7 +224,6 @@ jobs:
       - name: setup latest cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           kubernetes-version: ${{ matrix.kubernetes-versions }}
 
       - name: TestCephObjectSuite

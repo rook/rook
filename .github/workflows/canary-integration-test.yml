@@ -41,8 +41,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -274,8 +272,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -340,8 +336,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -386,8 +380,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -438,8 +430,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -484,8 +474,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -535,8 +523,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk and create partitions for osds
         run: |
@@ -607,8 +593,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -655,8 +639,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -706,8 +688,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk and create partitions for osds
         run: |
@@ -769,8 +749,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -819,8 +797,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -879,8 +855,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk and create partitions for osds
         run: |
@@ -960,8 +934,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk and create partitions for osds
         run: |
@@ -1021,8 +993,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: create cluster prerequisites
         run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
@@ -1074,8 +1044,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk into two partitions
         run: |
@@ -1394,8 +1362,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: install deps
         shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -1470,8 +1436,6 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: use local disk and create partitions for osds
         run: |
