@@ -1213,7 +1213,7 @@ jobs:
       - name: create replicated mirrored filesystem on cluster 2
         run: |
           cd deploy/examples/
-          yq w -i filesystem-test.yaml metadata.namespace rook-ceph-secondary
+          sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' filesystem-test.yaml
           yq w -i filesystem-test.yaml spec.mirroring.enabled true
           kubectl create -f filesystem-test.yaml
 
