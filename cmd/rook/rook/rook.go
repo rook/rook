@@ -69,6 +69,7 @@ var (
 //  2. environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
 //  3. command line parameter
 func init() {
+	RootCmd.CompletionOptions.DisableDefaultCmd = true
 	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: ERROR,WARNING,INFO,DEBUG)")
 	RootCmd.InitDefaultHelpCmd()
 	RootCmd.InitDefaultHelpFlag()
