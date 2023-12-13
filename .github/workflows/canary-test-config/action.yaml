@@ -1,9 +1,5 @@
 name: Cluster Setup
 description: Cluster setup for canary test
-inputs:
-  github-token:
-    description: GITHUB_TOKEN from the calling workflow
-    required: true
 
 runs:
   using: "composite"

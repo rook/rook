@@ -23,6 +23,10 @@ if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
   NAMESPACES+=("$OPERATOR_NAMESPACE")
 fi
 
+if [ "$1" == "multi-cluster-mirroring" ]; then
+  NAMESPACES+=("rook-ceph-secondary")
+fi
+
 for NAMESPACE in "${NAMESPACES[@]}"; do
   # each namespace is a sub-directory for easier debugging
   NS_DIR="${LOG_DIR}"/namespace-"${NAMESPACE}"
