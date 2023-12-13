@@ -997,8 +997,8 @@ class RadosJSON:
 
         return caps, entity
 
-    def get_healthchecker_caps_and_entity(self):
-        entity = "client.healthchecker"
+    def get_defaultUser_caps_and_entity(self):
+        entity = self.run_as_user
         caps = {
             "mon": "allow r, allow command quorum_status, allow command version",
             "mgr": "allow command config",
@@ -1027,7 +1027,7 @@ class RadosJSON:
         if "client.healthchecker" in user_name:
             if "client.healthchecker" != user_name:
                 self._arg_parser.restricted_auth_permission = True
-            return self.get_healthchecker_caps_and_entity()
+            return self.get_defaultUser_caps_and_entity()
 
         raise ExecutionFailureException(
             f"no user found with user_name: {user_name}, "
