@@ -111,6 +111,8 @@ The upgrade steps in this guide will clarify what Helm handles automatically.
 
 The `rook-ceph` helm chart upgrade performs the Rook upgrade.
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](#ceph-version-upgrades) if the Ceph image is updated.
+The `rook-ceph` chart should be upgraded before `rook-ceph-cluster`, so the latest operator has the opportunity to update
+custom resources as necessary.
 
 !!! note
     Be sure to update to a [supported Helm version](https://helm.sh/docs/topics/version_skew/#supported-version-skew)
