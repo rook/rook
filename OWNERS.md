@@ -24,6 +24,7 @@ Maintainers will be added according to the [process for adding a maintainer](GOV
 * Sebastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))
 * Blaine Gardner <blaine.gardner@redhat.com> ([BlaineEXE](https://github.com/BlaineEXE))
 * Satoru Takeuchi <satoru.takeuchi@gmail.com> ([satoru-takeuchi](https://github.com/satoru-takeuchi))
+* Subham Rai <srai@redhat.com> ([subhamkrai](https://github.com/subhamkrai))
 
 ## Emeritus maintainers
 
