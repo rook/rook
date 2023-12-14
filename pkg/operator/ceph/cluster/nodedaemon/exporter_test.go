@@ -103,6 +103,7 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, false, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "", podSpec.Spec.PriorityClassName)
+	assert.Equal(t, k8sutil.DefaultServiceAccount, podSpec.Spec.ServiceAccountName)
 
 	assertCephExporterArgs(t, podSpec.Spec.Containers[0].Args, cephCluster.Spec.Network.DualStack || cephCluster.Spec.Network.IPFamily == "IPv6")
 

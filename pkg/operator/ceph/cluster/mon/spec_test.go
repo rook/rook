@@ -72,6 +72,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	d, err := c.makeDeployment(monConfig, false)
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
+	assert.Equal(t, k8sutil.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 
 	if pvc {
 		d.Spec.Template.Spec.Volumes = append(

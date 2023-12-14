@@ -57,4 +57,15 @@ metadata:
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 {{ include "library.imagePullSecrets" . }}
+---
+# Service account for other components
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: {{ .Release.Namespace }} # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+{{ include "library.imagePullSecrets" . }}
 {{ end }}

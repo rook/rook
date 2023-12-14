@@ -54,10 +54,11 @@ const (
 	PodNamespaceEnvVar = "POD_NAMESPACE"
 	// NodeNameEnvVar is the env variable for getting the node via downward api
 	NodeNameEnvVar = "NODE_NAME"
-
 	// RookVersionLabelKey is the key used for reporting the Rook version which last created or
 	// modified a resource.
 	RookVersionLabelKey = "rook-version"
+	// DefaultServiceAccount is a  service-account used for components that do not specify a dedicated service-account.
+	DefaultServiceAccount = "rook-ceph-default"
 )
 
 // GetK8SVersion gets the version of the running K8S cluster

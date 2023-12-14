@@ -39,10 +39,11 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Containers: []v1.Container{
 				r.makeMirroringDaemonContainer(daemonConfig, rbdMirror),
 			},
-			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
-			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
-			PriorityClassName: rbdMirror.Spec.PriorityClassName,
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
+			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
+			PriorityClassName:  rbdMirror.Spec.PriorityClassName,
+			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
 

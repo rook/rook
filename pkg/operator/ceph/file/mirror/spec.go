@@ -42,10 +42,11 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Containers: []v1.Container{
 				r.makeFsMirroringDaemonContainer(daemonConfig, fsMirror),
 			},
-			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
-			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
-			PriorityClassName: fsMirror.Spec.PriorityClassName,
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
+			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
+			PriorityClassName:  fsMirror.Spec.PriorityClassName,
+			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
 

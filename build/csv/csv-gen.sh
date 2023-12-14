@@ -23,7 +23,7 @@ ASSEMBLE_FILE_OCP="../../deploy/olm/assemble/metadata-ocp.yaml"
 #############
 
 function generate_csv() {
-    kubectl kustomize ../../deploy/examples/ | "$operator_sdk" generate bundle --package="rook-ceph" --output-dir="../../build/csv/ceph/$PLATFORM" --extra-service-accounts=rook-ceph-system,rook-csi-rbd-provisioner-sa,rook-csi-rbd-plugin-sa,rook-csi-cephfs-provisioner-sa,rook-csi-nfs-provisioner-sa,rook-csi-nfs-plugin-sa,rook-csi-cephfs-plugin-sa,rook-ceph-system,rook-ceph-rgw,rook-ceph-purge-osd,rook-ceph-osd,rook-ceph-mgr,rook-ceph-cmd-reporter
+    kubectl kustomize ../../deploy/examples/ | "$operator_sdk" generate bundle --package="rook-ceph" --output-dir="../../build/csv/ceph/$PLATFORM" --extra-service-accounts=rook-ceph-default,rook-csi-rbd-provisioner-sa,rook-csi-rbd-plugin-sa,rook-csi-cephfs-provisioner-sa,rook-csi-nfs-provisioner-sa,rook-csi-nfs-plugin-sa,rook-csi-cephfs-plugin-sa,rook-ceph-system,rook-ceph-rgw,rook-ceph-purge-osd,rook-ceph-osd,rook-ceph-mgr,rook-ceph-cmd-reporter
 
     # cleanup to get the expected state before merging the real data from assembles
     "${YQ_CMD_DELETE[@]}" "$CSV_FILE_NAME" 'spec.icon[*]'

@@ -69,7 +69,7 @@ func NewSecurityContextConstraints(name string, namespaces ...string) *secv1.Sec
 			for _, ns := range namespaces {
 				users = append(users, []string{
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-system", ns),
-					fmt.Sprintf("system:serviceaccount:%s:default", ns),
+					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-default", ns),
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-mgr", ns),
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-osd", ns),
 					fmt.Sprintf("system:serviceaccount:%s:rook-ceph-rgw", ns),
