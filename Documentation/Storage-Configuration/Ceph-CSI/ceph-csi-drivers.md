@@ -127,9 +127,9 @@ that the controller inspects and forwards to one or more CSI-Addons sidecars for
 Deploy the controller by running the following commands:
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.7.0/deploy/controller/crds.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.7.0/deploy/controller/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.7.0/deploy/controller/setup-controller.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/crds.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/setup-controller.yaml
 ```
 
 This creates the required CRDs and configures permissions.
@@ -157,15 +157,15 @@ will start automatically in the RBD CSI provisioner and nodeplugin pods.
 CSI-Addons supports the following operations:
 
 * Reclaim Space
-  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/reclaimspace.md#reclaimspacejob)
-  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/reclaimspace.md#reclaimspacecronjob)
-  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
-  * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/reclaimspace.md#annotating-namespace)
+  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacejob)
+  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacecronjob)
+  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+  * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-namespace)
 * Network Fencing
-  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/networkfence.md)
+  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/networkfence.md)
 * Volume Replication
-  * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/volumereplicationclass.md)
-  * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.7.0/docs/volumereplication.md)
+  * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplicationclass.md)
+  * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplication.md)
 
 ## Enable RBD Encryption Support
 

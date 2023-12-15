@@ -64,7 +64,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.cephfsPodLabels` | Labels to add to the CSI CephFS Deployments and DaemonSets Pods | `nil` |
 | `csi.clusterName` | Cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful in cases like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster | `nil` |
 | `csi.csiAddons.enabled` | Enable CSIAddons | `false` |
-| `csi.csiAddons.image` | CSIAddons Sidecar image | `"quay.io/csiaddons/k8s-sidecar:v0.7.0"` |
+| `csi.csiAddons.image` | CSIAddons Sidecar image | `"quay.io/csiaddons/k8s-sidecar:v0.8.0"` |
 | `csi.csiAddonsPort` | CSI Addons server port | `9070` |
 | `csi.csiCephFSPluginResource` | CEPH CSI CephFS plugin resource requirement list | see values.yaml |
 | `csi.csiCephFSPluginVolume` | The volume of the CephCSI CephFS plugin DaemonSet | `nil` |
