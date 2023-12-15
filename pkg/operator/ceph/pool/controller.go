@@ -391,7 +391,7 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	}
 	logger.Infof("initializing pool %q for RBD use", p.Name)
 	args := []string{"pool", "init", p.Name}
-	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).RunWithTimeout(exec.CephRbdInitCommandTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "failed to initialize pool %q for RBD use. %s", p.Name, string(output))
 	}
