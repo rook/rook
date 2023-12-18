@@ -32,6 +32,9 @@ spec:
           key: node.kubernetes.io/unreachable
           operator: Exists
           tolerationSeconds: 5
+{{- if .Values.tolerations }}
+{{ toYaml .Values.tolerations | indent 8 }}
+{{- end }}
       containers:
       - name: rook-ceph-operator
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -109,10 +112,6 @@ spec:
 {{- if .Values.nodeSelector }}
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
-{{- end }}
-{{- if .Values.tolerations }}
-      tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
 {{- end }}
 {{- if .Values.rbacEnable }}
       serviceAccountName: rook-ceph-system
