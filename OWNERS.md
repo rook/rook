@@ -19,17 +19,11 @@ Steering committee members will be added according to the [process for adding a 
 Maintainers will be added according to the [process for adding a maintainer](GOVERNANCE.md#becoming-a-maintainer) in the [governance](GOVERNANCE.md).
 
 * Travis Nielsen <tnielsen@redhat.com> ([travisn](https://github.com/travisn))
-  * Ceph, Operators/Orchestration
 * Jared Watts <jared@upbound.io> ([jbw976](https://github.com/jbw976))
-  * Framework, APIs
 * Alexander Trost <galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
-  * Ceph, Operators/Orchestration, User support
 * Sebastien Han <shan@redhat.com> ([leseb](https://github.com/leseb))
-  * Ceph
 * Blaine Gardner <blaine.gardner@redhat.com> ([BlaineEXE](https://github.com/BlaineEXE))
-  * Ceph
 * Satoru Takeuchi <satoru.takeuchi@gmail.com> ([satoru-takeuchi](https://github.com/satoru-takeuchi))
-  * Ceph
 
 ## Emeritus maintainers
 
