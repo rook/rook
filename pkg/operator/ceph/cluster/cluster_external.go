@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -129,7 +130,13 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 
 	// Save CSI configmap
 	monEndpoints := csi.MonEndpoints(cluster.ClusterInfo.Monitors, cluster.Spec.RequireMsgr2())
-	err = csi.SaveClusterConfig(c.context.Clientset, c.namespacedName.Namespace, cluster.ClusterInfo, &csi.CsiClusterConfigEntry{Namespace: cluster.ClusterInfo.Namespace, Monitors: monEndpoints})
+	csiConfigEntry := &csi.CSIClusterConfigEntry{
+		Namespace: cluster.ClusterInfo.Namespace,
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: monEndpoints,
+		},
+	}
+	err = csi.SaveClusterConfig(c.context.Clientset, c.namespacedName.Namespace, cluster.ClusterInfo, csiConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}

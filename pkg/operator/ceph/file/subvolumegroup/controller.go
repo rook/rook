@@ -46,6 +46,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 const (
@@ -278,15 +280,20 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 	// Update CSI config map
 	// If the mon endpoints change, the mon health check go routine will take care of updating the
 	// config map, so no special care is needed in this controller
-	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
+	csiClusterConfigEntry := csi.CSIClusterConfigEntry{
 		Namespace: r.clusterInfo.Namespace,
-		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
-		CephFS: &csi.CsiCephFSSpec{
-			SubvolumeGroup:     getSubvolumeGroupName(cephFilesystemSubVolumeGroup),
-			KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
-			FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
+			CephFS: cephcsi.CephFS{
+				SubvolumeGroup:     getSubvolumeGroupName(cephFilesystemSubVolumeGroup),
+				KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+				FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
+			},
+			ReadAffinity: cephcsi.ReadAffinity{
+				Enabled:             r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled,
+				CrushLocationLabels: r.clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
+			},
 		},
-		ReadAffinity: &r.clusterInfo.CSIDriverSpec.ReadAffinity,
 	}
 
 	// If the cluster has Multus enabled we need to append the network namespace of the driver's

@@ -49,6 +49,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
+
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 const (
@@ -1104,7 +1106,13 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	monEndpoints := csi.MonEndpoints(c.ClusterInfo.Monitors, c.spec.RequireMsgr2())
-	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, &csi.CsiClusterConfigEntry{Namespace: c.ClusterInfo.Namespace, Monitors: monEndpoints}); err != nil {
+	csiConfigEntry := &csi.CSIClusterConfigEntry{
+		Namespace: c.ClusterInfo.Namespace,
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: monEndpoints,
+		},
+	}
+	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, csiConfigEntry); err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
 

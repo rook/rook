@@ -44,6 +44,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 const (
@@ -264,18 +266,22 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 	// Update CSI config map
 	// If the mon endpoints change, the mon health check go routine will take care of updating the
 	// config map, so no special care is needed in this controller
-	csiClusterConfigEntry := csi.CsiClusterConfigEntry{
+	csiClusterConfigEntry := csi.CSIClusterConfigEntry{
 		Namespace: r.clusterInfo.Namespace,
-		Monitors:  csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
-		RBD: &csi.CsiRBDSpec{
-			RadosNamespace: getRadosNamespaceName(cephBlockPoolRadosNamespace),
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
+			RBD: cephcsi.RBD{
+				RadosNamespace: getRadosNamespaceName(cephBlockPoolRadosNamespace),
+			},
+			CephFS: cephcsi.CephFS{
+				KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+				FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
+			},
+			ReadAffinity: cephcsi.ReadAffinity{
+				Enabled:             r.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled,
+				CrushLocationLabels: r.clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
+			},
 		},
-		RadosNamespace: getRadosNamespaceName(cephBlockPoolRadosNamespace),
-		CephFS: &csi.CsiCephFSSpec{
-			KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
-			FuseMountOptions:   r.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
-		},
-		ReadAffinity: &r.clusterInfo.CSIDriverSpec.ReadAffinity,
 	}
 
 	if cephCluster.Spec.Network.IsMultus() {

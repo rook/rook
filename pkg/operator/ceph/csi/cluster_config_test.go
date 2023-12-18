@@ -17,46 +17,85 @@ limitations under the License.
 package csi
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/stretchr/testify/assert"
+
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
-func TestUpdateCsiClusterConfig(t *testing.T) {
-	csiClusterConfigEntry := CsiClusterConfigEntry{
-		Namespace: "rook-ceph-1",
-		Monitors:  []string{"1.2.3.4:5000"},
+func unmarshal(s string) ([]CSIClusterConfigEntry, error) {
+	var csiClusterConfigEntry []CSIClusterConfigEntry
+	if err := json.Unmarshal([]byte(s), &csiClusterConfigEntry); err != nil {
+		return csiClusterConfigEntry, err
 	}
-	csiClusterConfigEntryMultus := CsiClusterConfigEntry{
+
+	return csiClusterConfigEntry, nil
+}
+
+func compareJSON(t *testing.T, exceptedJSON, actualJSON string) {
+	var (
+		err              error
+		expected, actual []CSIClusterConfigEntry
+	)
+
+	expected, err = unmarshal(exceptedJSON)
+	if err != nil {
+		t.Error(err)
+	}
+	actual, err = unmarshal(exceptedJSON)
+	if err != nil {
+		t.Error(err)
+	}
+
+	assert.Equal(t, expected, actual)
+}
+
+func TestUpdateCsiClusterConfig(t *testing.T) {
+	csiClusterConfigEntry := CSIClusterConfigEntry{
 		Namespace: "rook-ceph-1",
-		Monitors:  []string{"1.2.3.4:5000"},
-		RBD: &CsiRBDSpec{
-			NetNamespaceFilePath: "/var/run/netns/rook-ceph-1",
-			RadosNamespace:       "rook-ceph-1",
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: []string{"1.2.3.4:5000"},
 		},
 	}
-	csiClusterConfigEntry2 := CsiClusterConfigEntry{
-		Namespace: "rook-ceph-2",
-		Monitors:  []string{"20.1.1.1:5000", "20.1.1.2:5000", "20.1.1.3:5000"},
+	csiClusterConfigEntryMultus := CSIClusterConfigEntry{
+		Namespace: "rook-ceph-1",
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: []string{"1.2.3.4:5000"},
+			RBD: cephcsi.RBD{
+				NetNamespaceFilePath: "/var/run/netns/rook-ceph-1",
+				RadosNamespace:       "rook-ceph-1",
+			},
+		},
 	}
-	csiClusterConfigEntry3 := CsiClusterConfigEntry{
+	csiClusterConfigEntry2 := CSIClusterConfigEntry{
+		Namespace: "rook-ceph-2",
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: []string{"20.1.1.1:5000", "20.1.1.2:5000", "20.1.1.3:5000"},
+		},
+	}
+	csiClusterConfigEntry3 := CSIClusterConfigEntry{
 		Namespace: "rook-ceph-3",
-		Monitors:  []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"},
-		CephFS: &CsiCephFSSpec{
-			SubvolumeGroup: "my-group",
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"},
+			CephFS: cephcsi.CephFS{
+				SubvolumeGroup: "my-group",
+			},
 		},
 	}
 
-	var s string
+	var want, s string
 	var err error
 
 	t.Run("add a simple mons list", func(t *testing.T) {
 		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", &csiClusterConfigEntry)
 		assert.NoError(t, err)
-		assert.Equal(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1"}]`, s)
+		want = `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1"}]`
+		compareJSON(t, want, s)
 	})
 
 	t.Run("add a 2nd mon to the current cluster", func(t *testing.T) {
@@ -125,7 +164,6 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, "10.1.1.1:5000", cc[2].Monitors[0])
 		assert.Equal(t, 3, len(cc[2].Monitors))
 		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
-
 	})
 
 	t.Run("add a 4th mon to the 3rd cluster and subvolumegroup is preserved", func(t *testing.T) {
@@ -149,9 +187,11 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	})
 
 	t.Run("add subvolumegroup and mons after", func(t *testing.T) {
-		csiClusterConfigEntry4 := CsiClusterConfigEntry{
-			CephFS: &CsiCephFSSpec{
-				SubvolumeGroup: "my-group2",
+		csiClusterConfigEntry4 := CSIClusterConfigEntry{
+			ClusterInfo: cephcsi.ClusterInfo{
+				CephFS: cephcsi.CephFS{
+					SubvolumeGroup: "my-group2",
+				},
 			},
 		}
 		s, err = updateCsiClusterConfig(s, "quatre", &csiClusterConfigEntry4)
@@ -181,20 +221,24 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		subvolGrpNameofCluster1 := "subvol-group"
 		radosNSofCluster1 := "rados-ns"
 
-		csiCluster1ConfigEntry := CsiClusterConfigEntry{
+		csiCluster1ConfigEntry := CSIClusterConfigEntry{
 			Namespace: clusterIDofCluster1,
-			Monitors:  []string{"1.2.3.4:5000"},
+			ClusterInfo: cephcsi.ClusterInfo{
+				Monitors: []string{"1.2.3.4:5000"},
+			},
 		}
 		s, err := updateCsiClusterConfig("[]", clusterIDofCluster1, &csiCluster1ConfigEntry)
 		assert.NoError(t, err)
-		assert.Equal(t, s,
-			`[{"clusterID":"rook-ceph","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph"}]`)
+		want = `[{"clusterID":"rook-ceph","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph"}]`
+		compareJSON(t, want, s)
 		// add subvolumegroup to same cluster
-		subVolCsiCluster1Config := CsiClusterConfigEntry{
+		subVolCsiCluster1Config := CSIClusterConfigEntry{
 			Namespace: clusterIDofCluster1,
-			Monitors:  csiCluster1ConfigEntry.Monitors,
-			CephFS: &CsiCephFSSpec{
-				SubvolumeGroup: subvolGrpNameofCluster1,
+			ClusterInfo: cephcsi.ClusterInfo{
+				Monitors: csiCluster1ConfigEntry.Monitors,
+				CephFS: cephcsi.CephFS{
+					SubvolumeGroup: subvolGrpNameofCluster1,
+				},
 			},
 		}
 		s, err = updateCsiClusterConfig(s, subvolGrpNameofCluster1, &subVolCsiCluster1Config)
@@ -206,12 +250,13 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, subvolGrpNameofCluster1, cc[1].CephFS.SubvolumeGroup, cc)
 
 		// add rados to same cluster
-		radosNsCsiCluster1Config := CsiClusterConfigEntry{
-			Namespace:      clusterIDofCluster1,
-			Monitors:       csiCluster1ConfigEntry.Monitors,
-			RadosNamespace: radosNSofCluster1,
-			RBD: &CsiRBDSpec{
-				RadosNamespace: radosNSofCluster1,
+		radosNsCsiCluster1Config := CSIClusterConfigEntry{
+			Namespace: clusterIDofCluster1,
+			ClusterInfo: cephcsi.ClusterInfo{
+				Monitors: csiCluster1ConfigEntry.Monitors,
+				RBD: cephcsi.RBD{
+					RadosNamespace: radosNSofCluster1,
+				},
 			},
 		}
 		s, err = updateCsiClusterConfig(s, radosNSofCluster1, &radosNsCsiCluster1Config)
@@ -220,8 +265,6 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(cc), cc)
 		assert.Equal(t, 1, len(cc[2].Monitors))
-		// Now the configuration of new entries goes into RBD.RadosNamespace so it should be empty
-		assert.Empty(t, cc[2].RadosNamespace, cc)
 		assert.Equal(t, radosNSofCluster1, cc[2].RBD.RadosNamespace, cc)
 
 		// update mon IP's and check is it updating for all clusterID's
@@ -241,21 +284,29 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		radosNSofCluster2 := "rados-ns-2"
 
 		cluster2Mons := []string{"192.168.0.2:5000"}
-		csiCluster2ConfigEntry := CsiClusterConfigEntry{
+		csiCluster2ConfigEntry := CSIClusterConfigEntry{
 			Namespace: clusterIDofCluster2,
-			Monitors:  cluster2Mons,
-		}
-		subVolCsiCluster2Config := CsiClusterConfigEntry{
-			Namespace: clusterIDofCluster2,
-			Monitors:  cluster2Mons,
-			CephFS: &CsiCephFSSpec{
-				SubvolumeGroup: subvolGrpNameofCluster2,
+			ClusterInfo: cephcsi.ClusterInfo{
+				Monitors: cluster2Mons,
 			},
 		}
-		radosNsCsiCluster2Config := CsiClusterConfigEntry{
-			Namespace:      clusterIDofCluster2,
-			Monitors:       cluster2Mons,
-			RadosNamespace: radosNSofCluster2,
+		subVolCsiCluster2Config := CSIClusterConfigEntry{
+			Namespace: clusterIDofCluster2,
+			ClusterInfo: cephcsi.ClusterInfo{
+				Monitors: cluster2Mons,
+				CephFS: cephcsi.CephFS{
+					SubvolumeGroup: subvolGrpNameofCluster2,
+				},
+			},
+		}
+		radosNsCsiCluster2Config := CSIClusterConfigEntry{
+			Namespace: clusterIDofCluster2,
+			ClusterInfo: cephcsi.ClusterInfo{
+				Monitors: cluster2Mons,
+				RBD: cephcsi.RBD{
+					RadosNamespace: radosNSofCluster2,
+				},
+			},
 		}
 		s, err = updateCsiClusterConfig(s, clusterIDofCluster2, &csiCluster2ConfigEntry)
 		assert.NoError(t, err)
@@ -323,9 +374,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	t.Run("test multus cluster", func(t *testing.T) {
 		s, err = updateCsiClusterConfig("[]", "rook-ceph-1", &csiClusterConfigEntryMultus)
 		assert.NoError(t, err)
-		assert.Equal(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"namespace":"rook-ceph-1","rbd":{"netNamespaceFilePath":"/var/run/netns/rook-ceph-1","radosNamespace":"rook-ceph-1"}}]`, s)
+		compareJSON(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"rbd":{"netNamespaceFilePath":"/var/run/netns/rook-ceph-1","radosNamespace":"rook-ceph-1"},"namespace":"rook-ceph-1"}]`, s)
 	})
-
 }
 
 func contains(src, dest []string) bool {
@@ -408,21 +458,23 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 		{
 			name: "empty current config",
 			args: args{
-				clusterConfig:    []CsiClusterConfigEntry{},
+				clusterConfig:    []CSIClusterConfigEntry{},
 				clusterKey:       "rook-ceph",
 				csiDriverOptions: &cephv1.CSIDriverSpec{},
 			},
-			want:    []CsiClusterConfigEntry{},
+			want:    []CSIClusterConfigEntry{},
 			wantErr: false,
 		},
 		{
 			name: "single matching current config",
 			args: args{
-				clusterConfig: []CsiClusterConfigEntry{
+				clusterConfig: []CSIClusterConfigEntry{
 					{
-						ClusterID: "rook-ceph",
 						Namespace: "rook-ceph",
-						Monitors:  []string{"1.1.1.1"},
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "rook-ceph",
+							Monitors:  []string{"1.1.1.1"},
+						},
 					},
 				},
 				clusterKey: "rook-ceph",
@@ -437,18 +489,20 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 					},
 				},
 			},
-			want: []CsiClusterConfigEntry{
+			want: []CSIClusterConfigEntry{
 				{
-					ClusterID: "rook-ceph",
 					Namespace: "rook-ceph",
-					Monitors:  []string{"1.1.1.1"},
-					ReadAffinity: &cephv1.ReadAffinitySpec{
-						Enabled:             true,
-						CrushLocationLabels: []string{"topology.rook.io/rack"},
-					},
-					CephFS: &CsiCephFSSpec{
-						KernelMountOptions: "rw,noatime",
-						FuseMountOptions:   "debug",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+						ReadAffinity: cephcsi.ReadAffinity{
+							Enabled:             true,
+							CrushLocationLabels: []string{"topology.rook.io/rack"},
+						},
+						CephFS: cephcsi.CephFS{
+							KernelMountOptions: "rw,noatime",
+							FuseMountOptions:   "debug",
+						},
 					},
 				},
 			},
@@ -457,21 +511,27 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 		{
 			name: "multiple matching current config",
 			args: args{
-				clusterConfig: []CsiClusterConfigEntry{
+				clusterConfig: []CSIClusterConfigEntry{
 					{
-						ClusterID: "rook-ceph",
 						Namespace: "rook-ceph",
-						Monitors:  []string{"1.1.1.1"},
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "rook-ceph",
+							Monitors:  []string{"1.1.1.1"},
+						},
 					},
 					{
-						ClusterID: "rook-ceph-2",
 						Namespace: "rook-ceph",
-						Monitors:  []string{"1.1.1.1"},
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "rook-ceph-2",
+							Monitors:  []string{"1.1.1.1"},
+						},
 					},
 					{
-						ClusterID: "rook-ceph-3",
 						Namespace: "rook-ceph-1",
-						Monitors:  []string{"1.1.1.1"},
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "rook-ceph-3",
+							Monitors:  []string{"1.1.1.1"},
+						},
 					},
 				},
 				clusterKey: "rook-ceph",
@@ -486,37 +546,43 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 					},
 				},
 			},
-			want: []CsiClusterConfigEntry{
+			want: []CSIClusterConfigEntry{
 				{
-					ClusterID: "rook-ceph",
 					Namespace: "rook-ceph",
-					Monitors:  []string{"1.1.1.1"},
-					ReadAffinity: &cephv1.ReadAffinitySpec{
-						Enabled:             true,
-						CrushLocationLabels: []string{"topology.rook.io/rack"},
-					},
-					CephFS: &CsiCephFSSpec{
-						KernelMountOptions: "rw,noatime",
-						FuseMountOptions:   "debug",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+						ReadAffinity: cephcsi.ReadAffinity{
+							Enabled:             true,
+							CrushLocationLabels: []string{"topology.rook.io/rack"},
+						},
+						CephFS: cephcsi.CephFS{
+							KernelMountOptions: "rw,noatime",
+							FuseMountOptions:   "debug",
+						},
 					},
 				},
 				{
-					ClusterID: "rook-ceph-2",
 					Namespace: "rook-ceph",
-					Monitors:  []string{"1.1.1.1"},
-					ReadAffinity: &cephv1.ReadAffinitySpec{
-						Enabled:             true,
-						CrushLocationLabels: []string{"topology.rook.io/rack"},
-					},
-					CephFS: &CsiCephFSSpec{
-						KernelMountOptions: "rw,noatime",
-						FuseMountOptions:   "debug",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "rook-ceph-2",
+						Monitors:  []string{"1.1.1.1"},
+						ReadAffinity: cephcsi.ReadAffinity{
+							Enabled:             true,
+							CrushLocationLabels: []string{"topology.rook.io/rack"},
+						},
+						CephFS: cephcsi.CephFS{
+							KernelMountOptions: "rw,noatime",
+							FuseMountOptions:   "debug",
+						},
 					},
 				},
 				{
-					ClusterID: "rook-ceph-3",
 					Namespace: "rook-ceph-1",
-					Monitors:  []string{"1.1.1.1"},
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "rook-ceph-3",
+						Monitors:  []string{"1.1.1.1"},
+					},
 				},
 			},
 			wantErr: false,

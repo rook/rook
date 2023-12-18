@@ -36,6 +36,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
+
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
 type Param struct {
@@ -865,15 +867,20 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 		}
 	}
 
-	clusterConfigEntry := &CsiClusterConfigEntry{
-		Monitors: MonEndpoints(c.clusterInfo.Monitors, c.cluster.Spec.RequireMsgr2()),
-		RBD:      &CsiRBDSpec{},
-		CephFS: &CsiCephFSSpec{
-			FuseMountOptions:   c.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
-			KernelMountOptions: c.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+	clusterConfigEntry := &CSIClusterConfigEntry{
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: MonEndpoints(c.clusterInfo.Monitors, c.cluster.Spec.RequireMsgr2()),
+			RBD:      cephcsi.RBD{},
+			CephFS: cephcsi.CephFS{
+				FuseMountOptions:   c.clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions,
+				KernelMountOptions: c.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,
+			},
+			NFS: cephcsi.NFS{},
+			ReadAffinity: cephcsi.ReadAffinity{
+				Enabled:             c.clusterInfo.CSIDriverSpec.ReadAffinity.Enabled,
+				CrushLocationLabels: c.clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
+			},
 		},
-		NFS:          &CsiNFSSpec{},
-		ReadAffinity: &c.clusterInfo.CSIDriverSpec.ReadAffinity,
 	}
 	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, c.cluster.Namespace)
 	if driver.name == RBDDriverShortName {
