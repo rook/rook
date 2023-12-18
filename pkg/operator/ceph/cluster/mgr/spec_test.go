@@ -87,7 +87,7 @@ func TestPodSpec(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 3, len(d.Spec.Template.Annotations))                                                                                                                              // Multus annotations
 		assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers))                                                                                                                          // mgr pod + sidecar
-		assert.Equal(t, cephclient.CommandProxyInitContainerName, d.Spec.Template.Spec.Containers[1].Name)                                                                                // sidecar pod
+		assert.Equal(t, cephclient.CommandProxySidecarContainerName, d.Spec.Template.Spec.Containers[1].Name)                                                                             // sidecar pod
 		assert.Equal(t, 7, len(d.Spec.Template.Spec.Containers[1].VolumeMounts))                                                                                                          // + admin keyring
 		assert.Equal(t, "CEPH_ARGS", d.Spec.Template.Spec.Containers[1].Env[len(d.Spec.Template.Spec.Containers[1].Env)-1].Name)                                                          // connection info to the cluster
 		assert.Equal(t, "-m $(ROOK_CEPH_MON_HOST) -k /etc/ceph/admin-keyring-store/keyring", d.Spec.Template.Spec.Containers[1].Env[len(d.Spec.Template.Spec.Containers[1].Env)-1].Value) // connection info to the cluster

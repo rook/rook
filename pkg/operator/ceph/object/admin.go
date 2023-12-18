@@ -212,13 +212,10 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	var output, stderr string
 	var err error
 
-	// If Multus is enabled we proxy all the command to the mgr sidecar
-	if c.clusterInfo.NetworkSpec.IsMultus() {
-		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
-	} else {
-		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
-		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, command, args...)
-	}
+	// always proxy all the command to the mgr sidecar because radosgw-admin does not maintain
+	// forward compatibility. older rook operator versions that attempt to operate on newer ceph
+	// versions often see errors with the object store due to changes in radosgw-admin behavior
+	output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 
 	if err != nil {
 		return fmt.Sprintf("%s. %s", output, stderr), err

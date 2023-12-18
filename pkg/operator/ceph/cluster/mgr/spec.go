@@ -100,8 +100,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.spec.Network, &podSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeCmdProxySidecarContainer(mgrConfig))
 	}
+	// the command proxy sidecar can be used for running ceph-related commands that are strongly
+	// tied to cluster version -- the biggest offender is radosgw-admin
+	podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeCmdProxySidecarContainer(mgrConfig))
 
 	cephv1.GetMgrAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)
@@ -240,7 +242,7 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 func (c *Cluster) makeCmdProxySidecarContainer(mgrConfig *mgrConfig) v1.Container {
 	_, adminKeyringVolMount := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
 	container := v1.Container{
-		Name:            client.CommandProxyInitContainerName,
+		Name:            client.CommandProxySidecarContainerName,
 		Command:         []string{"sleep"},
 		Args:            []string{"infinity"},
 		Image:           c.spec.CephVersion.Image,

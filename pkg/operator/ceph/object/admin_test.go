@@ -158,6 +158,15 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 		// This is not the best but it shows we go through the right codepath
 		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
 	})
+
+	t.Run("without multus - we use the remote executor", func(t *testing.T) {
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: ""}
+		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
+		assert.Error(t, err)
+
+		// This is not the best but it shows we go through the right codepath
+		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
+	})
 }
 
 func TestCommitConfigChanges(t *testing.T) {
