@@ -141,7 +141,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	assert.NoError(t, err)
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{
 		Spec: v1.PersistentVolumeClaimSpec{
-			Resources: v1.ResourceRequirements{
+			Resources: v1.VolumeResourceRequirements{
 				Limits: v1.ResourceList{v1.ResourceStorage: req},
 			},
 		},
@@ -155,7 +155,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	assert.NoError(t, err)
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{
 		Spec: v1.PersistentVolumeClaimSpec{
-			Resources: v1.ResourceRequirements{
+			Resources: v1.VolumeResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceStorage: req},
 			},
 		},
