@@ -57,7 +57,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -104,7 +104,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-upgrade-helm-suite-artifact-${{ matrix.kubernetes-versions }}

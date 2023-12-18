@@ -47,7 +47,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-helm-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -86,7 +86,7 @@ jobs:
           CLUSTER_NAMESPACE="multi-external" tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-multi-cluster-deploy-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -124,7 +124,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -162,7 +162,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -203,7 +203,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-upgrade-suite-artifact-${{ matrix.kubernetes-versions }}
@@ -241,7 +241,7 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: ceph-object-suite-artifact-${{ matrix.kubernetes-versions }}
