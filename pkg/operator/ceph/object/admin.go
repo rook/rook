@@ -31,6 +31,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -211,10 +212,27 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	var output, stderr string
 	var err error
 
-	// always proxy all the command to the mgr sidecar because radosgw-admin does not maintain
-	// forward compatibility. older rook operator versions that attempt to operate on newer ceph
-	// versions often see errors with the object store due to changes in radosgw-admin behavior
-	output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+	// If Multus is enabled we proxy all the command to the mgr sidecar
+	if c.clusterInfo.NetworkSpec.IsMultus() {
+		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+	} else {
+		command, localArgs := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
+		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, command, localArgs...)
+
+		// radosgw-admin does not maintain forward compatibility. when the rook operator is built
+		// atop a ceph version that is even one commit below the cluster version, the operator may
+		// fail radosgw-admin commands with seemingly random messages. this often happens in CI when
+		// checking new ceph versions for breaking changes or user clusters when they upgrade Ceph
+		// before Rook releases its latest-updated base image. to work around forward compatibility
+		// issues, retry the command by proxying it in the mgr pod, which has the current ceph
+		// cluster version. in the worst case, the cluster is being provisioned, and this command
+		// will also fail. in the best case, this is a forward compatibility issue that is fixed by
+		// this workaround. in the truly best case, this is never executed because it works the
+		// first try above.
+		if err != nil {
+			output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+		}
+	}
 
 	if err != nil {
 		return fmt.Sprintf("%s. %s", output, stderr), err

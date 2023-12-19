@@ -18,6 +18,7 @@ package object
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -130,7 +131,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 		clusterInfo: client.AdminTestClusterInfo("mycluster"),
 	}
 
-	t.Run("with multus - we use the remote executor", func(t *testing.T) {
+	t.Run("multus - remote execution", func(t *testing.T) {
 		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
 
 		remoteEx := new(execmock.RemotePodCommandExecutor)
@@ -148,8 +149,36 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 		assert.Equal(t, "GOOD", out)
 	})
 
-	t.Run("without multus - we use the remote executor", func(t *testing.T) {
+	t.Run("no multus - local execution", func(t *testing.T) {
 		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: ""}
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "zone" {
+					return "GOOD", nil
+				}
+				return "", nil
+			},
+		}
+
+		objContext.Context.Executor = executor
+
+		out, err := RunAdminCommandNoMultisite(objContext, false, []string{"zone", "get"}...)
+		assert.NoError(t, err)
+		assert.Equal(t, "GOOD", out)
+	})
+
+	t.Run("no multus - retry with remote execution when local execution fails", func(t *testing.T) {
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: ""}
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "zone" {
+					return "", fmt.Errorf("induced error")
+				}
+				return "", nil
+			},
+		}
 
 		remoteEx := new(execmock.RemotePodCommandExecutor)
 		remoteEx.On(
@@ -159,6 +188,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 			"GOOD", "", nil,
 		)
 
+		objContext.Context.Executor = executor
 		objContext.Context.RemoteExecutor = remoteEx
 
 		out, err := RunAdminCommandNoMultisite(objContext, false, []string{"zone", "get"}...)
@@ -166,7 +196,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 		assert.Equal(t, "GOOD", out)
 	})
 
-	t.Run("JSON parsing", func(t *testing.T) {
+	t.Run("multus - JSON parsing", func(t *testing.T) {
 		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
 
 		remoteEx := new(execmock.RemotePodCommandExecutor)
@@ -184,7 +214,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 		assert.Equal(t, `{"key": "string value"}`, out)
 	})
 
-	t.Run("JSON parsing with unexpected stdout included", func(t *testing.T) {
+	t.Run("multus - JSON parsing with unexpected stdout included", func(t *testing.T) {
 		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
 
 		remoteEx := new(execmock.RemotePodCommandExecutor)
@@ -198,6 +228,27 @@ why is ceph like this`, "", nil,
 		)
 
 		objContext.Context.RemoteExecutor = remoteEx
+
+		out, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
+		assert.NoError(t, err)
+		assert.Equal(t, `{"key": "string value"}`, out)
+	})
+
+	t.Run("no multus - JSON parsing with unexpected stdout included", func(t *testing.T) {
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: ""}
+
+		executor := &exectest.MockExecutor{
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if args[0] == "zone" {
+					return `this is a log line output to stdout for some reason
+{"key": "string value"}
+why is ceph like this`, nil
+				}
+				return "", nil
+			},
+		}
+
+		objContext.Context.Executor = executor
 
 		out, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
 		assert.NoError(t, err)
