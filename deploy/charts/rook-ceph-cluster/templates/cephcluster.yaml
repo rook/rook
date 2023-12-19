@@ -15,6 +15,9 @@ spec:
 {{- if .Values.monitoring.externalMgrPrometheusPort }}
     externalMgrPrometheusPort: {{ toYaml .Values.monitoring.externalMgrPrometheusPort }}
 {{- end }}
+{{- if .Values.monitoring.interval }}
+    interval: {{ .Values.monitoring.interval }}
+{{- end }}
 {{- end }}
 
 {{ toYaml .Values.cephClusterSpec | indent 2 }}
