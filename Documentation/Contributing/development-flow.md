@@ -7,7 +7,7 @@ don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev 
 
 ## Prerequisites
 
-1. [GO 1.20](https://golang.org/dl/) or greater installed
+1. [GO 1.21](https://golang.org/dl/) or greater installed
 2. Git client installed
 3. GitHub account
 
