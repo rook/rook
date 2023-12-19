@@ -149,7 +149,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
 		// and then deletes it.
 		deleteStore := true
-		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable)
+		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, false)
 	})
 
 	// now test operation of the first object store

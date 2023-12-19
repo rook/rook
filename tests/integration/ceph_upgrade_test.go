@@ -267,7 +267,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectUserID, preFilename string)
 		logger.Infof("Initializing object before the upgrade")
 		deleteStore := false
 		tls := false
-		runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.installer, s.settings.Namespace, installer.ObjectStoreName, 1, deleteStore, tls)
+		runObjectE2ETestLite(s.T(), s.helper, s.k8sh, s.installer, s.settings.Namespace, installer.ObjectStoreName, 1, deleteStore, tls, false)
 	}
 
 	logger.Infof("Initializing object user before the upgrade")

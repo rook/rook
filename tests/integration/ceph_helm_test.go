@@ -105,5 +105,5 @@ func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 func (h *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	deleteStore := true
 	tls := false
-	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls)
+	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, false)
 }

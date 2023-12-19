@@ -66,14 +66,14 @@ var (
 )
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool) {
+func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
 	andDeleting := ""
 	if deleteStore {
 		andDeleting = "and deleting"
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
-	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, false)
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
 	if deleteStore {
 		t.Run("delete object store", func(t *testing.T) {
