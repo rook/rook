@@ -105,9 +105,10 @@ func cephCSIKeyringCephFSNodeCaps() []string {
 
 func cephCSIKeyringCephFSProvisionerCaps() []string {
 	return []string{
-		"mon", "allow r",
+		"mon", "allow r, allow command 'osd blocklist'",
 		"mgr", "allow rw",
 		"osd", "allow rw tag cephfs metadata=*",
+		"mds", "allow *", // TODO: replace '*' with required permissions
 	}
 }
 
