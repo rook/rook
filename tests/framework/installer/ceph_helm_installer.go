@@ -173,6 +173,9 @@ func (h *CephInstaller) removeCephClusterHelmResources() {
 	if err := h.k8shelper.RookClientset.CephV1().CephBlockPools(h.settings.Namespace).Delete(context.TODO(), BlockPoolName, v1.DeleteOptions{}); err != nil {
 		assert.True(h.T(), kerrors.IsNotFound(err))
 	}
+	if err := h.k8shelper.RookClientset.CephV1().CephFilesystemSubVolumeGroups(h.settings.Namespace).Delete(context.TODO(), FilesystemName+"-csi", v1.DeleteOptions{}); err != nil {
+		assert.True(h.T(), kerrors.IsNotFound(err))
+	}
 	if err := h.k8shelper.RookClientset.CephV1().CephFilesystems(h.settings.Namespace).Delete(context.TODO(), FilesystemName, v1.DeleteOptions{}); err != nil {
 		assert.True(h.T(), kerrors.IsNotFound(err))
 	}
