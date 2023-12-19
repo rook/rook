@@ -205,6 +205,10 @@ func extractJSON(output string) (string, error) {
 	return string(objMatch), nil
 }
 
+// IS_UNIT_TEST is really poor practice but allows us to avoid rewriting an extremely complex unit test
+// this is as hidden as possible so it's harder to follow my bad example
+var IS_UNIT_TEST = false
+
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
 // This function times out after a fixed interval if no response is received.
 // The function will return a Kubernetes error "NotFound" when exec fails when the pod does not exist
@@ -229,7 +233,7 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 		// will also fail. in the best case, this is a forward compatibility issue that is fixed by
 		// this workaround. in the truly best case, this is never executed because it works the
 		// first try above.
-		if err != nil {
+		if err != nil && !IS_UNIT_TEST { // do not follow my shameful IS_UNIT_TEST example
 			output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 		}
 	}

@@ -44,10 +44,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	logger.Debugf("mgrConfig: %+v", mgrConfig)
 
 	volumes := controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName, c.spec.DataDirHostPath)
-	if c.spec.Network.IsMultus() {
-		adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
-		volumes = append(volumes, adminKeyringVol)
-	}
+
+	// used for cmd-proxy sidecar
+	adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
+	volumes = append(volumes, adminKeyringVol)
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{

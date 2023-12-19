@@ -27,7 +27,7 @@ import (
 type RemotePodCommandExecutor struct {
 	mock.Mock
 
-	// this is optional. if this is given, it is used to ouput cmd logs to the test output
+	// this is optional. if this is given, it is used to output cmd logs to the test output
 	T *testing.T
 }
 

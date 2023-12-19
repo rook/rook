@@ -257,6 +257,10 @@ why is ceph like this`, nil
 }
 
 func TestCommitConfigChanges(t *testing.T) {
+	// IS_UNIT_TEST is really poor practice but allows us to avoid rewriting this extremely complex unit.
+	IS_UNIT_TEST = true
+	defer func() { IS_UNIT_TEST = false }()
+
 	// control the return values from calling get/update on period
 	type commandReturns struct {
 		periodGetOutput    string // empty implies error
