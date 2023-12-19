@@ -18,13 +18,17 @@ $CEPH_CMD osd dump >"${LOG_DIR}"/ceph-osd-dump.txt
 $CEPH_CMD report >"${LOG_DIR}"/ceph-report.txt
 
 NAMESPACES=("$CLUSTER_NAMESPACE")
-NAMESPACES+=("$KUBE_SYSTEM_NAMESPACE")
 if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
   NAMESPACES+=("$OPERATOR_NAMESPACE")
 fi
 
 if [ "$1" == "multi-cluster-mirroring" ]; then
   NAMESPACES+=("rook-ceph-secondary")
+fi
+
+# Add kube-system namespace for multus test only as we need to debug network in multus test
+if [ "$1" == "canary-multus" ]; then
+  NAMESPACES+=("$KUBE_SYSTEM_NAMESPACE")
 fi
 
 for NAMESPACE in "${NAMESPACES[@]}"; do
