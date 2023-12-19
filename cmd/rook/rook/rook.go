@@ -131,8 +131,10 @@ func NewContext() *clusterd.Context {
 	context.Clientset, err = kubernetes.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create k8s clientset")
 
-	context.RemoteExecutor.ClientSet = context.Clientset
-	context.RemoteExecutor.RestClient = context.KubeConfig
+	context.RemoteExecutor = &exec.RemotePodCommandExecutor{
+		ClientSet:  context.Clientset,
+		RestClient: context.KubeConfig,
+	}
 
 	context.RookClientset, err = rookclient.NewForConfig(context.KubeConfig)
 	TerminateOnError(err, "failed to create rook clientset")

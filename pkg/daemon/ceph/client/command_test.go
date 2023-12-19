@@ -26,10 +26,11 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/test"
 	"github.com/rook/rook/pkg/util/exec"
+	execmock "github.com/rook/rook/pkg/util/exec/mock"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestFinalizeCephCommandArgs(t *testing.T) {
@@ -135,14 +136,16 @@ func TestNewRBDCommand(t *testing.T) {
 		clusterInfo := AdminTestClusterInfo("rook")
 		clusterInfo.NetworkSpec.Provider = "multus"
 		executor := &exectest.MockExecutor{}
-		context := &clusterd.Context{Executor: executor, RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}}
+		remoteEx := new(execmock.RemotePodCommandExecutor)
+		remoteEx.On("ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", "rook",
+			"rbd", "create", "--size", "1G", "myvol",
+		).Return("", "", nil)
+		context := &clusterd.Context{Executor: executor, RemoteExecutor: remoteEx}
 		cmd := NewRBDCommand(context, clusterInfo, args)
 		assert.True(t, cmd.RemoteExecution)
 		_, err := cmd.Run()
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.Len(t, cmd.args, 4)
-		// This is not the best but it shows we go through the right codepath
-		assert.Contains(t, err.Error(), "no pods found with selector \"rook-ceph-mgr\"")
 	})
 
 	t.Run("context canceled nothing to run", func(t *testing.T) {
@@ -151,14 +154,15 @@ func TestNewRBDCommand(t *testing.T) {
 		clusterInfo.Context = ctx
 		cancel()
 		executor := &exectest.MockExecutor{}
-		context := &clusterd.Context{Executor: executor, RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}}
+		remoteEx := new(execmock.RemotePodCommandExecutor)
+		// do not set remoteEx.On() here so that if remote executor is called, testify.Mock will error
+		context := &clusterd.Context{Executor: executor, RemoteExecutor: remoteEx}
 		cmd := NewRBDCommand(context, clusterInfo, args)
 		_, err := cmd.Run()
 		assert.Error(t, err)
 		// This is not the best but it shows we go through the right codepath
 		assert.EqualError(t, err, "context canceled")
 	})
-
 }
 
 func TestNewGaneshaRadosGraceCommand(t *testing.T) {

@@ -145,10 +145,10 @@ func validateStart(t *testing.T, c *Cluster) {
 		assert.Contains(t, d.Spec.Template.Labels, "my-label-key")
 		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
 		if c.spec.Mgr.Count == 1 {
-			assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
+			assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers)) // mgr + cmdproxy
 		} else {
 			// The sidecar container is only there when multiple mgrs are enabled
-			assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers))
+			assert.Equal(t, 3, len(d.Spec.Template.Spec.Containers)) // mrg + cmdproxy + watch-active sidecar
 			assert.Equal(t, "watch-active", d.Spec.Template.Spec.Containers[1].Name)
 		}
 	}

@@ -31,7 +31,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/util/exec"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -249,46 +248,8 @@ func runAdminCommand(c *Context, expectJSON bool, args ...string) (string, error
 		args = append(args, options...)
 	}
 
-	// work around FIFO file I/O issue when radosgw-admin is not compatible between version
-	// installed in Rook operator and RGW version in Ceph cluster (#7573)
 	result, err := RunAdminCommandNoMultisite(c, expectJSON, args...)
-	if err != nil && isFifoFileIOError(err) {
-		logger.Debugf("retrying 'radosgw-admin' command with OMAP backend to work around FIFO file I/O issue. %v", result)
-
-		// We can either run 'ceph --version' to determine the Ceph version running in the operator
-		// and then pick a flag to use, or we can just try to use both flags and return the one that
-		// works. Same number of commands being run.
-		retryArgs := append(args, "--rgw-data-log-backing=omap") // v16.2.0- in the operator
-		retryResult, retryErr := RunAdminCommandNoMultisite(c, expectJSON, retryArgs...)
-		if retryErr != nil && isInvalidFlagError(retryErr) {
-			retryArgs = append(args, "--rgw-default-data-log-backing=omap") // v16.2.1+ in the operator
-			retryResult, retryErr = RunAdminCommandNoMultisite(c, expectJSON, retryArgs...)
-		}
-
-		return retryResult, retryErr
-	}
-
 	return result, err
-}
-
-func isFifoFileIOError(err error) bool {
-	exitCode, extractErr := exec.ExtractExitCode(err)
-	if extractErr != nil {
-		logger.Errorf("failed to determine return code of 'radosgw-admin' command. assuming this could be a FIFO file I/O issue. %#v", extractErr)
-		return true
-	}
-	// exit code 5 (EIO) is returned when there is a FIFO file I/O issue
-	return exitCode == 5
-}
-
-func isInvalidFlagError(err error) bool {
-	exitCode, extractErr := exec.ExtractExitCode(err)
-	if extractErr != nil {
-		logger.Errorf("failed to determine return code of 'radosgw-admin' command. assuming this could be an invalid flag error. %#v", extractErr)
-	}
-	// exit code 22 (EINVAL) is returned when there is an invalid flag
-	// it's also returned from some other failures, but this should be rare for Rook
-	return exitCode == 22
 }
 
 // CommitConfigChanges commits changes to RGW configs for realm/zonegroup/zone changes idempotently.

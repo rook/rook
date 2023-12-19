@@ -25,10 +25,10 @@ import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/test"
-	"github.com/rook/rook/pkg/util/exec"
+	execmock "github.com/rook/rook/pkg/util/exec/mock"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func TestExtractJson(t *testing.T) {
@@ -126,46 +126,82 @@ this line can't be parsed as json
 
 func TestRunAdminCommandNoMultisite(t *testing.T) {
 	objContext := &Context{
-		Context:     &clusterd.Context{RemoteExecutor: exec.RemotePodCommandExecutor{ClientSet: test.New(t, 3)}},
+		Context:     &clusterd.Context{},
 		clusterInfo: client.AdminTestClusterInfo("mycluster"),
 	}
 
-	t.Run("no network provider - we run the radosgw-admin command from the operator", func(t *testing.T) {
-		executor := &exectest.MockExecutor{
-			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-				if args[0] == "zone" {
-					return `{
-		"id": "237e6250-5f7d-4b85-9359-8cb2b1848507",
-		"name": "realm-a",
-		"current_period": "df665ecb-1762-47a9-9c66-f938d251c02a",
-		"epoch": 2
-	}`, nil
-				}
-				return "", nil
-			},
-		}
-
-		objContext.Context.Executor = executor
-		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
-		assert.NoError(t, err)
-	})
-
 	t.Run("with multus - we use the remote executor", func(t *testing.T) {
 		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
-		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
-		assert.Error(t, err)
 
-		// This is not the best but it shows we go through the right codepath
-		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
+		remoteEx := new(execmock.RemotePodCommandExecutor)
+		remoteEx.On(
+			"ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", "mycluster",
+			"radosgw-admin", "zone", "get",
+		).Return(
+			"GOOD", "", nil,
+		)
+
+		objContext.Context.RemoteExecutor = remoteEx
+
+		out, err := RunAdminCommandNoMultisite(objContext, false, []string{"zone", "get"}...)
+		assert.NoError(t, err)
+		assert.Equal(t, "GOOD", out)
 	})
 
 	t.Run("without multus - we use the remote executor", func(t *testing.T) {
 		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: ""}
-		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
-		assert.Error(t, err)
 
-		// This is not the best but it shows we go through the right codepath
-		assert.EqualError(t, err, "no pods found with selector \"rook-ceph-mgr\"")
+		remoteEx := new(execmock.RemotePodCommandExecutor)
+		remoteEx.On(
+			"ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", "mycluster",
+			"radosgw-admin", "zone", "get",
+		).Return(
+			"GOOD", "", nil,
+		)
+
+		objContext.Context.RemoteExecutor = remoteEx
+
+		out, err := RunAdminCommandNoMultisite(objContext, false, []string{"zone", "get"}...)
+		assert.NoError(t, err)
+		assert.Equal(t, "GOOD", out)
+	})
+
+	t.Run("JSON parsing", func(t *testing.T) {
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
+
+		remoteEx := new(execmock.RemotePodCommandExecutor)
+		remoteEx.On(
+			"ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", "mycluster",
+			"radosgw-admin", "zone", "get",
+		).Return(
+			`{"key": "string value"}`, "", nil,
+		)
+
+		objContext.Context.RemoteExecutor = remoteEx
+
+		out, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
+		assert.NoError(t, err)
+		assert.Equal(t, `{"key": "string value"}`, out)
+	})
+
+	t.Run("JSON parsing with unexpected stdout included", func(t *testing.T) {
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
+
+		remoteEx := new(execmock.RemotePodCommandExecutor)
+		remoteEx.On(
+			"ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", "mycluster",
+			"radosgw-admin", "zone", "get",
+		).Return(
+			`this is a log line output to stdout for some reason
+{"key": "string value"}
+why is ceph like this`, "", nil,
+		)
+
+		objContext.Context.RemoteExecutor = remoteEx
+
+		out, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
+		assert.NoError(t, err)
+		assert.Equal(t, `{"key": "string value"}`, out)
 	})
 }
 

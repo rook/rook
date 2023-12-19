@@ -20,18 +20,18 @@ package zonegroup
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
-	"github.com/rook/rook/pkg/operator/test"
-
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
+	execmock "github.com/rook/rook/pkg/util/exec/mock"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -161,11 +161,15 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 		},
 	}
 
+	remoteExecutor := new(execmock.RemotePodCommandExecutor)
+	remoteExecutor.T = t
+
 	clientset := test.New(t, 3)
 	c := &clusterd.Context{
-		Executor:      executor,
-		RookClientset: rookclient.NewSimpleClientset(),
-		Clientset:     clientset,
+		Executor:       executor,
+		RookClientset:  rookclient.NewSimpleClientset(),
+		Clientset:      clientset,
+		RemoteExecutor: remoteExecutor,
 	}
 
 	// Register operator types with the runtime scheme.
@@ -216,7 +220,7 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 		cephCluster,
 	}
 
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectRealm{}, &cephv1.CephObjectRealmList{}, &cephv1.CephObjectZoneGroup{}, &cephv1.CephObjectZoneGroupList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{})
 	cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
 	// Create a ReconcileObjectZoneGroup object with the scheme and fake client.
@@ -259,15 +263,6 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-			if args[0] == "realm" && args[1] == "get" {
-				return realmGetJSON, nil
-			}
-			if args[0] == "zonegroup" && args[1] == "get" {
-				return zoneGroupGetJSON, nil
 			}
 			return "", nil
 		},
@@ -316,25 +311,31 @@ func TestCephObjectZoneGroupController(t *testing.T) {
 			}
 			return "", nil
 		},
-		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-			if args[0] == "zonegroup" && args[1] == "get" {
-				return zoneGroupGetJSON, nil
-			}
-			if args[0] == "period" && args[1] == "get" {
-				return periodGetJSON, nil
-			}
-			if args[0] == "realm" && args[1] == "get" {
-				return realmGetJSON, nil
-			}
-			return "", nil
-		},
 	}
+	remoteExecutor = new(execmock.RemotePodCommandExecutor)
+	remoteExecutor.T = t
+	remoteExecutor.On("ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", namespace,
+		"radosgw-admin", "realm", "get", mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+	).Return(
+		realmGetJSON, "", nil,
+	)
+	remoteExecutor.On("ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", namespace,
+		"radosgw-admin", "zonegroup", "get", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+	).Return(
+		zoneGroupGetJSON, "", nil,
+	)
+	remoteExecutor.On("ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", namespace,
+		"radosgw-admin", "period", "get", mock.AnythingOfType("string"), mock.AnythingOfType("string"), mock.AnythingOfType("string"),
+	).Return(
+		periodGetJSON, "", nil,
+	)
 
 	clientset = test.New(t, 3)
 	c = &clusterd.Context{
-		Executor:      executor,
-		RookClientset: rookclient.NewSimpleClientset(),
-		Clientset:     clientset,
+		Executor:       executor,
+		RookClientset:  rookclient.NewSimpleClientset(),
+		Clientset:      clientset,
+		RemoteExecutor: remoteExecutor,
 	}
 
 	_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})

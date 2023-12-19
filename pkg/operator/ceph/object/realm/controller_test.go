@@ -28,8 +28,10 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
+	execmock "github.com/rook/rook/pkg/util/exec/mock"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -69,6 +71,10 @@ func TestCephObjectRealmController(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
+
+	remoteExecutor := new(execmock.RemotePodCommandExecutor)
+	remoteExecutor.T = t
+	r.context.RemoteExecutor = remoteExecutor
 
 	res, err := r.Reconcile(ctx, req)
 	assert.NoError(t, err)
@@ -139,18 +145,15 @@ func TestCephObjectRealmController(t *testing.T) {
 			if args[0] == "status" {
 				return `{"fsid":"c47cac40-9bee-4d52-823b-ccd803ba5bfe","health":{"checks":{},"status":"HEALTH_OK"},"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
-			if args[0] == "realm" && args[1] == "get" {
-				return realmGetJSON, nil
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
-			if args[0] == "realm" && args[1] == "get" {
-				return realmGetJSON, nil
-			}
 			return "", nil
 		},
 	}
+	remoteExecutor.On(
+		"ExecCommandInContainerWithFullOutputWithTimeout", mock.Anything, "rook-ceph-mgr", "cmd-proxy", namespace,
+		"radosgw-admin", "realm", "get", mock.AnythingOfType("string"),
+	).Return(
+		realmGetJSON, "", nil,
+	)
 
 	r.context.Executor = executor
 

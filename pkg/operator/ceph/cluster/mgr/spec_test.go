@@ -77,7 +77,7 @@ func TestPodSpec(t *testing.T) {
 			"200", "100", "500", "250", /* resources */
 			"my-priority-class", "test", "cephclusters.ceph.rook.io", "ceph-mgr")
 		assert.Equal(t, 2, len(d.Spec.Template.Annotations))
-		assert.Equal(t, 1, len(d.Spec.Template.Spec.Containers))
+		assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers)) // mgr + cmdproxy
 		assert.Equal(t, 6, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 	})
 

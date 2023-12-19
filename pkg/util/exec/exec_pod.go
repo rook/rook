@@ -50,6 +50,12 @@ type ExecOptions struct {
 	PreserveWhitespace bool
 }
 
+type RemotePodCommandExecutorInterface interface {
+	ExecCommandInContainerWithFullOutput(ctx context.Context, appLabel string, containerName string, namespace string, cmd ...string) (string, string, error)
+	ExecCommandInContainerWithFullOutputWithTimeout(ctx context.Context, appLabel string, containerName string, namespace string, cmd ...string) (string, string, error)
+	ExecWithOptions(ctx context.Context, options ExecOptions) (string, string, error)
+}
+
 // RemotePodCommandExecutor is an exec.Executor that execs every command in a remote container
 // This is especially useful when the CephCluster networking type is Multus and when the Operator pod
 // does not have the right network annotations.

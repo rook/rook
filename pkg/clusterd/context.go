@@ -48,7 +48,7 @@ type Context struct {
 	Executor exec.Executor
 
 	// The implementation of executing remotely a console command to a given pod
-	RemoteExecutor exec.RemotePodCommandExecutor
+	RemoteExecutor exec.RemotePodCommandExecutorInterface
 
 	// The root configuration directory used by services
 	ConfigDir string
