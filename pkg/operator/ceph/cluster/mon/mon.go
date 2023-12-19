@@ -1343,6 +1343,12 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 			return nil
 		}
 
+		// skip update if mon fail over is required due to change in hostnetwork settings
+		if isMonIPUpdateRequiredForHostNetwork(m.DaemonName, m.UseHostNetwork, &c.spec.Network) {
+			c.monsToFailover.Insert(m.DaemonName)
+			return nil
+		}
+
 		// the existing deployment may have a node selector. if the cluster
 		// isn't using host networking and the deployment is using pvc storage,
 		// then the node selector can be removed. this may happen after
@@ -1406,6 +1412,19 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	}
 
 	return nil
+}
+
+func isMonIPUpdateRequiredForHostNetwork(mon string, isMonUsingHostNetwork bool, network *cephv1.NetworkSpec) bool {
+	isHostNetworkEnabledInSpec := network.IsHost()
+	if isHostNetworkEnabledInSpec && !isMonUsingHostNetwork {
+		logger.Infof("host network is enabled for the cluster but mon %q is not running on host IP address", mon)
+		return true
+	} else if !isHostNetworkEnabledInSpec && isMonUsingHostNetwork {
+		logger.Infof("host network is disabled for the cluster but mon %q is still running on host IP address", mon)
+		return true
+	}
+
+	return false
 }
 
 func hasMonPathChanged(d *apps.Deployment, claim *v1.PersistentVolumeClaim) bool {

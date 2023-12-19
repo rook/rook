@@ -8420,7 +8420,8 @@ NetworkProviderType
 </td>
 <td>
 <em>(Optional)</em>
-<p>Provider is what provides network connectivity to the cluster e.g. &ldquo;host&rdquo; or &ldquo;multus&rdquo;</p>
+<p>Provider is what provides network connectivity to the cluster e.g. &ldquo;host&rdquo; or &ldquo;multus&rdquo;.
+If the Provider is updated from being empty to &ldquo;host&rdquo; on a running cluster, then the operator will automatically fail over all the mons to apply the &ldquo;host&rdquo; network settings.</p>
 </td>
 </tr>
 <tr>
@@ -8492,7 +8493,9 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>HostNetwork to enable host network</p>
+<p>HostNetwork to enable host network.
+If host networking is enabled or disabled on a running cluster, then the operator will automatically fail over all the mons to
+apply the new network settings.</p>
 </td>
 </tr>
 <tr>
