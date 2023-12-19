@@ -58,7 +58,6 @@ jobs:
         run: |
           export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
           export CLUSTER_NAMESPACE="helm-ns"
-          export OPERATOR_NAMESPACE="helm-ns-system"
           tests/scripts/collect-logs.sh
 
       - name: Artifact
