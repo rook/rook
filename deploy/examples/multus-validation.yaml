@@ -101,7 +101,7 @@ spec:
       serviceAccountName: rook-ceph-multus-validation
       containers:
         - name: multus-validation
-          image: rook/ceph:v1.13.0
+          image: rook/ceph:v1.13.1
           command: ["rook"]
           args:
             - "multus"
