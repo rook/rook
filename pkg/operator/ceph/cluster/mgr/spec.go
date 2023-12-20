@@ -45,10 +45,6 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 
 	volumes := controller.DaemonVolumes(mgrConfig.DataPathMap, mgrConfig.ResourceName, c.spec.DataDirHostPath)
 
-	// used for cmd-proxy sidecar
-	adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
-	volumes = append(volumes, adminKeyringVol)
-
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
@@ -101,9 +97,14 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			return nil, err
 		}
 	}
-	// the command proxy sidecar can be used for running ceph-related commands that are strongly
-	// tied to cluster version -- the biggest offender is radosgw-admin
-	podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeCmdProxySidecarContainer(mgrConfig))
+
+	// cmd-proxy sidecar (see https://github.com/rook/rook/pull/13430)
+	// - disable only when mode is doNotFallBackToRemote and multus is not enabled
+	if os.Getenv("ROOK_RADOSGW_ADMIN_CALL_MODE") != "doNotFallBackToRemote" || c.spec.Network.IsMultus() {
+		adminKeyringVol, _ := keyring.Volume().Admin(), keyring.VolumeMount().Admin()
+		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, adminKeyringVol)
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeCmdProxySidecarContainer(mgrConfig))
+	}
 
 	cephv1.GetMgrAnnotations(c.spec.Annotations).ApplyToObjectMeta(&podSpec.ObjectMeta)
 	c.applyPrometheusAnnotations(&podSpec.ObjectMeta)

@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"regexp"
 	"strings"
 
@@ -205,10 +206,6 @@ func extractJSON(output string) (string, error) {
 	return string(objMatch), nil
 }
 
-// IS_UNIT_TEST is really poor practice but allows us to avoid rewriting an extremely complex unit test
-// this is as hidden as possible so it's harder to follow my bad example
-var IS_UNIT_TEST = false
-
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)
 // This function times out after a fixed interval if no response is received.
 // The function will return a Kubernetes error "NotFound" when exec fails when the pod does not exist
@@ -216,24 +213,30 @@ func RunAdminCommandNoMultisite(c *Context, expectJSON bool, args ...string) (st
 	var output, stderr string
 	var err error
 
-	// If Multus is enabled we proxy all the command to the mgr sidecar
-	if c.clusterInfo.NetworkSpec.IsMultus() {
+	// radosgw-admin does not maintain forward compatibility. when the rook operator is built
+	// atop a ceph version that is even one commit below the cluster version, the operator may
+	// fail radosgw-admin commands with seemingly random messages. this often happens in CI when
+	// checking new ceph versions for breaking changes or user clusters when they upgrade Ceph
+	// before Rook releases its latest-updated base image. to work around forward compatibility
+	// issues, retry the command by proxying it in the mgr pod, which has the current ceph
+	// cluster version. in the worst case, the cluster is being provisioned, and this command
+	// will also fail. in the best case, this is a forward compatibility issue that is fixed by
+	// this workaround. in the truly best case, this is never executed because it works the
+	// first try above.
+
+	// ROOK_RADOSGW_ADMIN_CALL_MODE is a hidden env var that controls the proxy fallback behavior
+	//   - because it is hidden, the default value is assumed to be empty ("")
+	//   - "remoteOnly" forces use of the remote executor
+	//   - "doNotFallBackToRemote" disables remote fallback behavior (unless multus is enabled)
+
+	// If Multus is enabled we have to proxy all the command to the mgr sidecar
+	if c.clusterInfo.NetworkSpec.IsMultus() || os.Getenv("ROOK_RADOSGW_ADMIN_CALL_MODE") == "remoteOnly" {
 		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 	} else {
 		command, localArgs := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
 		output, err = c.Context.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, command, localArgs...)
 
-		// radosgw-admin does not maintain forward compatibility. when the rook operator is built
-		// atop a ceph version that is even one commit below the cluster version, the operator may
-		// fail radosgw-admin commands with seemingly random messages. this often happens in CI when
-		// checking new ceph versions for breaking changes or user clusters when they upgrade Ceph
-		// before Rook releases its latest-updated base image. to work around forward compatibility
-		// issues, retry the command by proxying it in the mgr pod, which has the current ceph
-		// cluster version. in the worst case, the cluster is being provisioned, and this command
-		// will also fail. in the best case, this is a forward compatibility issue that is fixed by
-		// this workaround. in the truly best case, this is never executed because it works the
-		// first try above.
-		if err != nil && !IS_UNIT_TEST { // do not follow my shameful IS_UNIT_TEST example
+		if err != nil && os.Getenv("ROOK_RADOSGW_ADMIN_CALL_MODE") != "doNotFallBackToRemote" {
 			output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxySidecarContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
 		}
 	}

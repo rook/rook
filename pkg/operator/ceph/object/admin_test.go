@@ -19,6 +19,7 @@ package object
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -257,9 +258,9 @@ why is ceph like this`, nil
 }
 
 func TestCommitConfigChanges(t *testing.T) {
-	// IS_UNIT_TEST is really poor practice but allows us to avoid rewriting this extremely complex unit.
-	IS_UNIT_TEST = true
-	defer func() { IS_UNIT_TEST = false }()
+	oldCallMode := os.Getenv("ROOK_RADOSGW_ADMIN_CALL_MODE")
+	os.Setenv("ROOK_RADOSGW_ADMIN_CALL_MODE", "doNotFallBackToRemote") // use only local mode for this really complex unit test
+	defer func() { os.Setenv("ROOK_RADOSGW_ADMIN_CALL_MODE", oldCallMode) }()
 
 	// control the return values from calling get/update on period
 	type commandReturns struct {
