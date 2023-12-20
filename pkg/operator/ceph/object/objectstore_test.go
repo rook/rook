@@ -727,6 +727,10 @@ func getreturnErrString() []string {
 }
 
 func Test_createMultisiteConfigurations(t *testing.T) {
+	oldCallMode := os.Getenv("ROOK_RADOSGW_ADMIN_CALL_MODE")
+	os.Setenv("ROOK_RADOSGW_ADMIN_CALL_MODE", "doNotFallBackToRemote") // use only local mode for this really complex unit test
+	defer func() { os.Setenv("ROOK_RADOSGW_ADMIN_CALL_MODE", oldCallMode) }()
+
 	executor := getExecutor()
 	returnErrString := getreturnErrString()
 	for i := 0; i < 4; i++ {
