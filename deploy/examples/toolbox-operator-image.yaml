@@ -24,7 +24,7 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
         - name: rook-ceph-tools-operator-image
-          image: rook/ceph:v1.13.0
+          image: rook/ceph:v1.13.1
           command:
             - /bin/bash
             - -c
