@@ -499,6 +499,17 @@ spec:
       size: 1
       requireSafeReplicaSize: false
   {{ if .SwiftAndKeystone }}
+  auth:
+    keystone:
+      acceptedRoles:
+        - admin
+        - member
+        - service
+      implicitTenants: "true"
+      revocationInterval: 1200
+      serviceUserSecretName: usersecret
+      tokenCacheSize: 1000
+      url: https://keystone.keystoneauth-ns.svc/
   protocols:
     swift:
       accountInUrl: true
@@ -506,14 +517,9 @@ spec:
   {{ end }}
   gateway:
     resources: null
-    type: s3
     {{ if .TLS }}securePort: {{ .Port }}{{ else }}port: {{ .Port }}{{ end }}
     instances: {{ .ReplicaCount }}
-    {{ if .TLS }}sslCertificateRef: {{ .Name }}{{ end }}
-  healthCheck:
-    bucket:
-      disabled: false
-      interval: {{ if .TLS }}10s{{ else }}5s{{ end }}`
+    {{ if .TLS }}sslCertificateRef: {{ .Name }}{{ end }}`
 
 	return renderTemplate(tmpl, spec)
 }

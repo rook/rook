@@ -57,7 +57,7 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
 
-	// TODO: install yaook-keystone here
+	// install yaook-keystone here
 	InstallKeystoneInTestCluster(h.k8shelper)
 
 	h.helper = clients.CreateTestClient(h.k8shelper, h.installer.Manifests)

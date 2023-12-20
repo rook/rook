@@ -18,7 +18,6 @@ package clients
 
 import (
 	"fmt"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -43,8 +42,18 @@ func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManife
 func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32, tlsEnable bool, swiftAndKeystone bool) error {
 
 	logger.Info("creating the object store via CRD")
-	// TODO: if we test keystone create usersecret (usersecret.yaml)
-	// if swiftAndKeystone { ... }
+
+	// TODO: refactor/improve:
+	//   Created GetKeystoneUserSecret() here for the test PoC, but it should definitely be somewhere else
+	// 	 maybe in o.manifests ?
+	//   and it should be variable on all parts
+	if swiftAndKeystone {
+
+		if err := o.k8sh.ResourceOperation("apply", GetKeystoneUserSecret(namespace)); err != nil {
+			return err
+		}
+
+	}
 
 	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStore(storeName, int(replicaCount), rgwPort, tlsEnable, swiftAndKeystone)); err != nil {
 		return err
@@ -58,6 +67,24 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 
 	// create the external service
 	return o.k8sh.CreateExternalRGWService(namespace, storeName)
+}
+
+func GetKeystoneUserSecret(namespace string) string {
+
+	return `apiVersion: v1
+data:
+  OS_AUTH_TYPE: cGFzc3dvcmQ=
+  OS_IDENTITY_API_VERSION: Mw==
+  OS_PROJECT_DOMAIN_NAME: RGVmYXVsdA==
+  OS_USER_DOMAIN_NAME: RGVmYXVsdA==
+  OS_PROJECT_NAME: YWRtaW4=
+  OS_USERNAME: c3dpZnQ=
+  OS_PASSWORD: NXcxZnQxMzU=
+kind: Secret
+metadata:
+  name: usersecret
+  namespace: ` + namespace
+
 }
 
 func (o *ObjectOperation) Delete(namespace, storeName string) error {
