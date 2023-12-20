@@ -18,23 +18,6 @@ updates:
         patterns:
           - "github.com*"
 
-  # Dependencies listed in go.mod
-  - package-ecosystem: "gomod"
-    directory: "/pkg/apis" # Location of package manifests
-    schedule:
-      interval: "weekly"
-    groups:
-      golang-dependencies:
-        patterns:
-          - "github.com/golang*"
-      k8s-dependencies:
-        patterns:
-          - "k8s.io*"
-          - "sigs.k8s.io*"
-      github-dependencies:
-        patterns:
-          - "github.com*"
-
   # Dependencies listed in .github/workflows/*.yml
   - package-ecosystem: "github-actions"
     directory: "/"
