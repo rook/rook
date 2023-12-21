@@ -310,6 +310,7 @@ function deploy_csi_hostnetwork_disabled_cluster() {
 }
 
 function wait_for_prepare_pod() {
+  OSD_COUNT=$1
   get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
   timeout=450
   start_time="${SECONDS}"
@@ -324,9 +325,9 @@ function wait_for_prepare_pod() {
   timeout=60
   start_time="${SECONDS}"
   while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
-    pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd,ceph_daemon_id=0 --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
-    if echo "$pod" | grep 'Running'; then break; fi
-    echo 'waiting for OSD 0 pod to be running'
+    pod_count="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd --output custom-columns=NAME:.metadata.name,PHASE:status.phase | grep --count 'Running' || true)"
+    if [ "$pod_count" -ge "$OSD_COUNT" ]; then break; fi
+    echo 'waiting for $OSD_COUNT OSD pod(s) to be running'
     sleep 1
   done
   # getting the below logs is a best-effort attempt, so use '|| true' to allow failures
