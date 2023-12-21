@@ -57,7 +57,7 @@ runs:
 
     - name: wait for prepare pod
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+      run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
     - name: wait for ceph to be ready
       shell: bash --noprofile --norc -eo pipefail -x {0}
