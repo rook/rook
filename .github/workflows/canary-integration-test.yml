@@ -56,7 +56,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_cluster
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready all 2
@@ -297,7 +297,7 @@ jobs:
           tests/scripts/github-action-helper.sh create_operator_toolbox
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
@@ -356,7 +356,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
@@ -408,7 +408,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
@@ -454,7 +454,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_cluster encryption
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
@@ -505,7 +505,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_cluster lvm
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
@@ -565,7 +565,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 3
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 3
@@ -628,7 +628,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
@@ -677,7 +677,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: |
@@ -728,7 +728,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: |
@@ -789,7 +789,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: |
@@ -841,7 +841,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: |
@@ -909,7 +909,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: |
@@ -986,7 +986,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: |
@@ -1044,7 +1044,7 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
@@ -1424,7 +1424,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_multus_cluster
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
@@ -1482,7 +1482,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
         run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
