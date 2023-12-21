@@ -30,33 +30,27 @@ const (
 )
 
 func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
-	// NewHelmHelper
 
 	ctx := context.TODO()
-	//logger.Errorf("foo")
 
 	// The namespace keystoneauth-ns is created by SetupSuite
 
-	//kubectl apply -n keystone -f ca-issuer.yaml
-
 	// TODO: does this need to be a ClusterIssuer?
 	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer()); err != nil {
-		// TODO
+		logger.Warningf("Could not apply ClusterIssuer in namespace %s", namespace)
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCaCertificate()); err != nil {
-		//TODO
+		logger.Warningf("Could not apply ClusterIssuer CA Certificate in namespace %s", namespace)
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCaIssuer()); err != nil {
-		//TODO
+		logger.Warningf("Could not install CA Issuer in namespace %s", namespace)
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCertificate()); err != nil {
-		// TODO
+		logger.Warningf("Could not create Certificate (request) in namespace %s", namespace)
 	}
-
-	//kubectl apply -n keystone -f certificate.yaml
 
 	data := getKeystoneApache2CM()
 
@@ -85,18 +79,15 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
 	}
 
 	if _, err := shelper.Clientset.CoreV1().Secrets(namespace).Create(ctx, keystoneConfSecret, metav1.CreateOptions{}); err != nil {
-		// TODO
+		logger.Warningf("Could not create keystone config secret in namespace %s", namespace)
 	}
 
-	//	if err := o.k8sh.ResourceOperation("apply", o.manifests.GetObjectStoreUser(userid, displayName, store, usercaps, maxsize, maxbuckets, maxobjects)); err != nil {
-	//	}
-
 	if err := shelper.ResourceOperation("apply", keystoneDeployment()); err != nil {
-		// TODO
+		logger.Warningf("Could not create keystone deployment in namespace %s", namespace)
 	}
 
 	if err := shelper.WaitForPodCount("app=keystone", namespace, 1); err != nil {
-		// TODO
+		logger.Warningf("Wait for keystone pod failed in namespace %s", namespace)
 	}
 
 	// WaitForDeploymentReady does not wait for pods to be ready
@@ -105,12 +96,11 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
 	// therefore exec.CommandExecutor is used directly
 	executor := &exec.CommandExecutor{}
 	if _, err := executor.ExecuteCommandWithTimeout(315*time.Second, "kubectl", "wait", "--timeout=300s", "--namespace", namespace, "pod", "--selector=app=keystone", "--for=condition=Ready"); err != nil {
-
-		// TODO
+		logger.Warningf("Failed to wait for pod keystone in namespace %s", namespace)
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneService()); err != nil {
-
+		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneCreateUserJob()); err != nil {
@@ -508,18 +498,20 @@ func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper) {
 	// Un-Install keystone with yaook
 	err := shelper.DeleteResource("-n", namespace, "configmap", "keystone-apache2-conf")
 	if err != nil {
-		//TODO
+		logger.Warningf("Could not delete configmap keystone-apache2-conf in namespace %s", namespace)
 	}
 
-	//err := shelper.DeleteResource()
 	err = shelper.DeleteResource("-n", namespace, "secret", "keystone-config")
 	if err != nil {
-		//TODO
+		logger.Warningf("Could not delete secret keystone-config in namespace %s", namespace)
 	}
 
 	err = shelper.DeleteResource("-n", namespace, "deployment", "keystone-api")
 	if err != nil {
-		//TODO
+		logger.Warningf("Could not delete deployment keystone-api in namespace %s", namespace)
 	}
+
+	//cert-manager related resources (including certificates and secrets) are not removed here
+	//(as they will be removed anyway on uninstalling cert-manager)
 
 }
