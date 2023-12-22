@@ -25,30 +25,26 @@ import (
 	"time"
 )
 
-const (
-	namespace = "keystoneauth-ns"
-)
-
-func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
+func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	ctx := context.TODO()
 
 	// The namespace keystoneauth-ns is created by SetupSuite
 
 	// TODO: does this need to be a ClusterIssuer?
-	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
 		logger.Warningf("Could not apply ClusterIssuer in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCaCertificate()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneApiCaCertificate(namespace)); err != nil {
 		logger.Warningf("Could not apply ClusterIssuer CA Certificate in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCaIssuer()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneApiCaIssuer(namespace)); err != nil {
 		logger.Warningf("Could not install CA Issuer in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneApiCertificate()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneApiCertificate(namespace)); err != nil {
 		logger.Warningf("Could not create Certificate (request) in namespace %s", namespace)
 	}
 
@@ -82,7 +78,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
 		logger.Warningf("Could not create keystone config secret in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneDeployment()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneDeployment(namespace)); err != nil {
 		logger.Warningf("Could not create keystone deployment in namespace %s", namespace)
 	}
 
@@ -99,11 +95,11 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
 		logger.Warningf("Failed to wait for pod keystone in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneService()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneService(namespace)); err != nil {
 		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", keystoneCreateUserJob()); err != nil {
+	if err := shelper.ResourceOperation("apply", keystoneCreateUserJob(namespace)); err != nil {
 		logger.Warningf("Could not create job in namespace %s", namespace)
 	}
 
@@ -113,7 +109,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper) {
 
 }
 
-func keystoneCreateUserJob() string {
+func keystoneCreateUserJob(namespace string) string {
 
 	return `apiVersion: batch/v1
 kind: Job
@@ -173,7 +169,7 @@ spec:
 
 }
 
-func keystoneApiCaIssuer() string {
+func keystoneApiCaIssuer(namespace string) string {
 
 	return `apiVersion: cert-manager.io/v1
 kind: Issuer
@@ -187,7 +183,7 @@ spec:
 
 }
 
-func keystoneApiCaCertificate() string {
+func keystoneApiCaCertificate(namespace string) string {
 
 	return `apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -208,7 +204,7 @@ spec:
 
 }
 
-func keystoneApiClusterIssuer() string {
+func keystoneApiClusterIssuer(namespace string) string {
 
 	return `apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -221,7 +217,7 @@ spec:
 
 }
 
-func keystoneService() string {
+func keystoneService(namespace string) string {
 
 	return `apiVersion: v1
 kind: Service
@@ -247,7 +243,7 @@ status:
 
 }
 
-func keystoneApiCertificate() string {
+func keystoneApiCertificate(namespace string) string {
 
 	return `
 apiVersion: cert-manager.io/v1
@@ -278,7 +274,7 @@ spec:
 
 }
 
-func keystoneDeployment() string {
+func keystoneDeployment(namespace string) string {
 
 	return `apiVersion: apps/v1
 kind: Deployment
@@ -493,7 +489,7 @@ TraceEnable Off`
 
 }
 
-func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper) {
+func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	// Un-Install keystone with yaook
 	err := shelper.DeleteResource("-n", namespace, "configmap", "keystone-apache2-conf")

@@ -19,6 +19,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"testing"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -100,6 +100,15 @@ func (s *ObjectSuite) TestWithTLS() {
 	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls, swiftAndKeystone)
 	cleanUpTLS(s)
 }
+func cleanUpTLS(s *ObjectSuite) {
+	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Fatal("failed to deleted store TLS secret")
+		}
+	}
+	logger.Info("successfully deleted store TLS secret")
+}
 
 func (s *ObjectSuite) TestWithoutTLS() {
 	if utils.IsPlatformOpenShift() {
@@ -110,24 +119,6 @@ func (s *ObjectSuite) TestWithoutTLS() {
 	swiftAndKeystone := false
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
 	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls, swiftAndKeystone)
-}
-
-func (s *ObjectSuite) TestWithSwiftAndKeystone() {
-	tls := true
-	swiftAndKeystone := true
-	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls, swiftAndKeystone)
-	cleanUpTLS(s)
-}
-
-func cleanUpTLS(s *ObjectSuite) {
-	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			logger.Fatal("failed to deleted store TLS secret")
-		}
-	}
-	logger.Info("successfully deleted store TLS secret")
 }
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order

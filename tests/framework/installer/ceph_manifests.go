@@ -509,7 +509,7 @@ spec:
       revocationInterval: 1200
       serviceUserSecretName: usersecret
       tokenCacheSize: 1000
-      url: https://keystone.keystoneauth-ns.svc/
+      url: https://keystone.{{ .Manifests.Settings.Namespace }}.svc/
   protocols:
     swift:
       accountInUrl: true

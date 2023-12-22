@@ -1,12 +1,14 @@
 package integration
 
 import (
+	"context"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"testing"
-
 	"github.com/stretchr/testify/suite"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"testing"
 )
 
 // ***************************************************
@@ -58,15 +60,14 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
 
 	// install yaook-keystone here
-	InstallKeystoneInTestCluster(h.k8shelper)
+	InstallKeystoneInTestCluster(h.k8shelper, namespace)
 
 	h.helper = clients.CreateTestClient(h.k8shelper, h.installer.Manifests)
 }
 
 func (h *KeystoneAuthSuite) TearDownSuite() {
 	h.installer.UninstallRook()
-	// TODO: cleanup yaook-keystone here
-	CleanUpKeystoneInTestCluster(h.k8shelper)
+	CleanUpKeystoneInTestCluster(h.k8shelper, h.settings.Namespace)
 }
 
 func (h *KeystoneAuthSuite) AfterTest(suiteName, testName string) {
@@ -79,5 +80,28 @@ func (h *KeystoneAuthSuite) TestObjectStoreOnRookInstalledViaHelmUsingKeystone()
 	tls := false
 	swiftAndKeystone := true
 	// TODO: Find out whether this is enough or whether there are other objectstore related tests
+	// -> nope
+
 	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
+}
+
+// TODO: do we want to leave this test here? or shall we move it to the ceph_auth_keystone_test
+func (h *KeystoneAuthSuite) TestWithSwiftAndKeystone() {
+	tls := true
+	swiftAndKeystone := true
+
+	objectStoreServicePrefix = objectStoreServicePrefixUniq
+	runObjectE2ETest(h.helper, h.k8shelper, h.installer, &h.Suite, h.settings.Namespace, tls, swiftAndKeystone)
+	cleanUpTLSks(h)
+
+}
+
+func cleanUpTLSks(h *KeystoneAuthSuite) {
+	err := h.k8shelper.Clientset.CoreV1().Secrets(h.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			logger.Fatal("failed to deleted store TLS secret")
+		}
+	}
+	logger.Info("successfully deleted store TLS secret")
 }
