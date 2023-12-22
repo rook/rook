@@ -73,9 +73,9 @@ jobs:
           # Use the official build images for the nightly arm tests instead of rebuilding
           export USE_LOCAL_BUILD=false
           # removing liveness probes since the env is slow and the probe is killing the daemons
-          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
-          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
-          yq write -d1 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
+          yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mon.disabled" true
+          yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
+          yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
           tests/scripts/github-action-helper.sh deploy_cluster
           # there are no package for arm64 nfs-ganesha
           kubectl delete -f deploy/examples/nfs-test.yaml
