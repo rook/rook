@@ -789,7 +789,7 @@ func TestCephObjectStoreDependents(t *testing.T) {
 		assert.ElementsMatch(t, []string{"zone-b"}, deps.OfKind(zoneIsMasterWithPeersDependentType))
 	})
 
-	t.Run("store belong to master zone with one objectstore users and no buckets and one peer", func(t *testing.T) {
+	t.Run("store belong to master zone with one objectstore user and no buckets and one peer", func(t *testing.T) {
 		executor = &exectest.MockExecutor{
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				logger.Infof("Command: %s %v", command, args)
@@ -853,6 +853,42 @@ func TestCephObjectStoreDependents(t *testing.T) {
 			},
 		}
 		c = newClusterdCtx(executor)
+		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`["my-bucket"]`))
+		assert.NoError(t, err)
+		deps, err := CephObjectStoreDependents(c, clusterInfo, storeZoneA, setMultisiteContext(c, clusterInfo, storeZoneA), &AdminOpsContext{AdminOpsClient: client})
+		assert.Error(t, err)
+		assert.False(t, deps.Empty())
+		assert.ElementsMatch(t, []string{"zone-b"}, deps.OfKind(zoneIsMasterWithPeersDependentType))
+	})
+	t.Run("store belong to master zone with one objectstore user, one bucket and one peer", func(t *testing.T) {
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				logger.Infof("Command: %s %v", command, args)
+				if args[0] == "osd" {
+					if args[1] == "lspools" {
+						output, err := json.Marshal(zoneAPools)
+						assert.Nil(t, err)
+						return string(output), nil
+					}
+				}
+				return "", errors.Errorf("unexpected ceph command %q", args)
+			},
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+				if command == "radosgw-admin" && args[0] == "user" {
+					return userCreateJSON, nil
+				}
+				if command == "radosgw-admin" && args[0] == "zonegroup" && args[1] == "get" {
+					return zoneGroupGetMultipleZoneJSON, nil
+				}
+				if command == "radosgw-admin" && args[0] == "zone" && args[1] == "get" {
+					return zoneGetZoneAJSON, nil
+				}
+				return "", errors.Errorf("no such command %v %v", command, args)
+			},
+		}
+		c = newClusterdCtx(executor, &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1")})
+		_, err := c.RookClientset.CephV1().CephObjectStoreUsers(clusterInfo.Namespace).Create(context.TODO(), &cephv1.CephObjectStoreUser{ObjectMeta: meta("u1"), Spec: cephv1.ObjectStoreUserSpec{Store: storeZoneA.Name}}, v1.CreateOptions{})
+		assert.NoError(t, err)
 		client, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient(`["my-bucket"]`))
 		assert.NoError(t, err)
 		deps, err := CephObjectStoreDependents(c, clusterInfo, storeZoneA, setMultisiteContext(c, clusterInfo, storeZoneA), &AdminOpsContext{AdminOpsClient: client})
