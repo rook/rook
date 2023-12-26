@@ -31,6 +31,10 @@ DOCKERCMD=$(shell podman version >/dev/null 2>&1 && echo podman)
 endif
 endif
 
+ifeq ($(DOCKERCMD),)
+    $(error "No running container engine found.")
+endif
+
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
