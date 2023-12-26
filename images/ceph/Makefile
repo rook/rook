@@ -23,7 +23,7 @@ else
 CEPH_VERSION ?= v17.2.6-20230410
 endif
 REGISTRY_NAME = quay.io
-BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph-$(GOARCH):$(CEPH_VERSION)
+BASEIMAGE = gcr.io/spectro-common-dev/medha/fips-ceph:v17.2.6 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
 OPERATOR_SDK_VERSION = v1.25.0
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
@@ -92,6 +92,7 @@ endif
 		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
 		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
 		-t $(CEPH_IMAGE) \
+		--no-cache \
 		$(TEMP);\
 	fi
 	@rm -fr $(TEMP)

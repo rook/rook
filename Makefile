@@ -86,8 +86,9 @@ GO_PROJECT=github.com/rook/rook
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # CGO_ENABLED value
-CGO_ENABLED_VALUE=0
+CGO_ENABLED_VALUE=1
 
+GOEXPERIMENT = boringcrypto
 # ====================================================================================
 # Setup projects
 

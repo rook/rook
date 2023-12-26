@@ -41,14 +41,14 @@ GO_PKG_DIR ?= $(WORK_DIR)/pkg
 
 # Optional build flags passed to go tools
 GO_BUILDFLAGS ?=
-GO_LDFLAGS ?=
+GO_LDFLAGS = -linkmode=external -extldflags=-static
 GO_TAGS ?=
 GO_TEST_FLAGS ?=
 
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.19|1.20
+GO_SUPPORTED_VERSIONS ?= 1.19|1.20|1.21
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -118,8 +118,8 @@ go.init:
 go.build:
 	@echo === go build $(PLATFORM)
 	$(info Go version: $(shell $(GO) version))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GO) build -v -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
-	$(foreach p,$(GO_TEST_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GO) test -v -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) GOEXPERIMENT=$(GOEXPERIMENT) $(GO) build -v -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
+	$(foreach p,$(GO_TEST_PACKAGES),@CGO_ENABLED=$(CGO_ENABLED_VALUE) GOEXPERIMENT=$(GOEXPERIMENT) $(GO) test -v -c -o $(GO_TEST_OUTPUT)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p)${\n})
 
 .PHONY: go.install
 go.install:
@@ -209,6 +209,7 @@ $(CONTROLLER_GEN):
 		go mod init tmp;\
 		unset GOOS GOARCH ;\
 		export CGO_ENABLED=$(CGO_ENABLED_VALUE) ;\
+		export GOEXPERIMENT=$(GOEXPERIMENT) ;\
 		export GOBIN=$$CONTROLLER_GEN_TMP_DIR ;\
 		echo === installing controller-gen ;\
 		go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_GEN_VERSION);\
