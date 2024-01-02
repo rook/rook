@@ -392,7 +392,7 @@ func createMultisiteConfigurations(objContext *Context, configType, configTypeAr
 	args = append([]string{configType}, args...)
 	args = append(args, configTypeArg)
 	// get the multisite config before creating
-	output, getConfigErr := RunAdminCommandNoMultisite(objContext, true, configType, "get", configTypeArg)
+	output, getConfigErr := RunAdminCommandNoMultisiteT(objContext, true, configType, "get", configTypeArg)
 	if getConfigErr == nil {
 		return nil
 	}
@@ -414,7 +414,7 @@ func createMultisiteConfigurations(objContext *Context, configType, configTypeAr
 	}
 
 	// create the object if it doesn't exist yet
-	output, err = RunAdminCommandNoMultisite(objContext, false, args...)
+	output, err = RunAdminCommandNoMultisiteT(objContext, false, args...)
 	if err != nil {
 		return errorOrIsNotFound(err, "failed to create ceph %q %q, for reason %q", configType, configTypeArg, output)
 	}

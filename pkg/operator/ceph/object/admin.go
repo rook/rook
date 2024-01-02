@@ -23,6 +23,7 @@ import (
 	"net/http/httputil"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
@@ -203,6 +204,32 @@ func extractJSON(output string) (string, error) {
 		return string(arrayMatch), nil
 	}
 	return string(objMatch), nil
+}
+
+func RunAdminCommandNoMultisiteT(c *Context, expectJSON bool, args ...string) (string, error) {
+	var output, stderr string
+	var err error
+
+	// If Multus is enabled we proxy all the command to the mgr sidecar
+	if c.clusterInfo.NetworkSpec.IsMultus() {
+		output, stderr, err = c.Context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, cephclient.ProxyAppLabel, cephclient.CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{"radosgw-admin"}, args...)...)
+	} else {
+		command, args := cephclient.FinalizeCephCommandArgs("radosgw-admin", c.clusterInfo, args, c.Context.ConfigDir)
+		output, err = c.Context.Executor.ExecuteCommandWithTimeout((1 * time.Millisecond), command, args...)
+	}
+
+	if err != nil {
+		return fmt.Sprintf("%s. %s", output, stderr), err
+	}
+	if expectJSON {
+		match, err := extractJSON(output)
+		if err != nil {
+			return output, errors.Wrap(err, "failed to parse as JSON")
+		}
+		output = match
+	}
+
+	return output, nil
 }
 
 // RunAdminCommandNoMultisite is for running radosgw-admin commands in scenarios where an object-store has not been created yet or for commands on the realm or zonegroup (ex: radosgw-admin zonegroup get)

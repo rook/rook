@@ -502,9 +502,11 @@ func Test_createMultisite(t *testing.T) {
 						switch arg[1] {
 						case "get":
 							calledGetZoneGroup = true
+							time.Sleep(10000 * time.Second)
 							return enoentIfNotExist(env.zoneGroupExists)
 						case "create":
 							calledCreateZoneGroup = true
+							time.Sleep(10000 * time.Second)
 							return errorIfFail(env.failCreateZoneGroup)
 						}
 					case "zone":
