@@ -108,7 +108,8 @@ func cephCSIKeyringCephFSProvisionerCaps() []string {
 		"mon", "allow r, allow command 'osd blocklist'",
 		"mgr", "allow rw",
 		"osd", "allow rw tag cephfs metadata=*",
-		"mds", "allow *", // TODO: replace '*' with required permissions
+		// MDS require all(*) permissions to be able to execute admin socket commands like ceph tell required for client eviction in cephFS.
+		"mds", "allow *",
 	}
 }
 
