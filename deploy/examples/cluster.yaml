@@ -19,7 +19,7 @@ spec:
     # v17 is Quincy, v18 is Reef.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v17 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v17.2.6-20231027
+    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v18.2.1-20240103
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
     image: quay.io/ceph/ceph:v18.2.1
     # Whether to allow unsupported versions of Ceph. Currently `quincy` and `reef` are supported.
