@@ -13,6 +13,7 @@ A Rook storage cluster must be configured and running in Kubernetes. In this exa
 ## Object Store Walkthrough
 
 When the storage admin is ready to create an object storage, the admin will specify his desired configuration settings in a yaml file such as the following `object-store.yaml`. This example is a simple object store with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster.
+
 ```yaml
 apiVersion: ceph.rook.io/v1alpha1
 kind: CephObjectStore
@@ -33,6 +34,10 @@ spec:
     port: 80
     securePort: 443
     instances: 3
+    hosting:
+      dnsNames:
+      - "my-ingress.mydomain.com"
+      - "rook-ceph-rgw-my-store.rook-ceph.svc"
 ```
 
 Now create the object store.
@@ -317,3 +322,32 @@ spec:
   gateway:
     caBundleRef: #ldaps-cabundle
 ```
+
+### Virtual Host Style access for buckets
+
+The Ceph Object Gateway supports accessing buckets using [virtual host style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html) which allows accessing buckets using the bucket name as a subdomain in the endpoint. The user can configure this option manually like below:
+
+```sh
+# ceph config set client.rgw.mystore.a rgw_dns_name my-ingress.mydomain.com,rook-ceph-rgw-my-store.rook-ceph.svc
+```
+
+Multiple hostnames can be added to the list separated by comma. Each entry must be a valid RFC-1123 hostname, and Rook Operator will perform input validation using k8s apimachinery `IsDNS1123Subdomain()`.
+
+When `rgw_dns_name` is changed for an RGW cluster, all RGWs need to be restarted. To enforce this in Rook, we can apply the `--rgw-dns-name` flag, which will restart RGWs with no user action needed. This is supported from Ceph Reef release(v18.0) onwards.
+
+This is different from `customEndpoints` which is used for configuring the object store to replicate and sync data amongst Multisite.
+
+The default service endpoint for the object store `rook-ceph-rgw-my-store.rook-ceph.svc` and `customEndpoints` in `CephObjectZone` need to be added automatically by the Rook operator otherwise existing object store may impacted. Also check for deduplication in the `rgw_dns_name` list if user manually add the default service endpoint.
+
+For accessing the bucket point user need to configure wildcard dns in the cluster using [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards) or in openshift cluster use [dns operator](https://docs.openshift.com/container-platform/latest/networking/dns-operator.html). Same for TLS certificate, user need to configure the TLS certificate for the wildcard dns for the RGW endpoint. This option won't be enabled by default, user need to enable it by adding the `hosting` section in the `Gateway` settings:
+
+```yaml
+spec:
+  hosting:
+    dnsNames:
+    - "my-ingress.mydomain.com"
+```
+
+A list of hostnames to use for accessing the bucket directly like a subdomain in the endpoint. For example if the ingress service endpoint `my-ingress.mydomain.com` added and the object store contains a bucket named `sample`, then the s3 [virtual host style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html) would be `http://sample.my-ingress.mydomain.com`. More details about the feature can be found in [Ceph Documentation](https://docs.ceph.com/en/latest/radosgw/s3/commons/#bucket-and-host-name).
+
+When this feature is enabled the endpoint in OBCs and COSI Bucket Access can be clubbed with bucket name and host name. For OBC  the `BUCKET_NAME` and the `BUCKET_HOST` from the config map combine to `http://$BUCKETNAME.$BUCKETHOST`. For COSI Bucket Access the `bucketName` and the `endpoint` in the `BucketInfo` to `http://bucketName.endpoint`.
