@@ -2,13 +2,14 @@ package integration
 
 import (
 	"context"
+	"testing"
+
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 // ***************************************************
@@ -40,21 +41,21 @@ type KeystoneAuthSuite struct {
 func (h *KeystoneAuthSuite) SetupSuite() {
 	namespace := "keystoneauth-ns"
 	h.settings = &installer.TestCephSettings{
-		Namespace:                 namespace,
-		OperatorNamespace:         namespace,
-		StorageClassName:          "",
-		UseHelm:                   true,
-		UsePVC:                    false,
-		Mons:                      1,
-		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
-		EnableDiscovery:           true,
-		ChangeHostName:            true,
-		ConnectionsEncrypted:      true,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.QuincyVersion,
-		SkipClusterCleanup:        false,
-		SkipCleanupPolicy:         false,
+		Namespace:         namespace,
+		OperatorNamespace: namespace,
+		StorageClassName:  "",
+		UseHelm:           true,
+		UsePVC:            false,
+		Mons:              1,
+		SkipOSDCreation:   false,
+		// EnableAdmissionController: true,
+		EnableDiscovery:      true,
+		ChangeHostName:       true,
+		ConnectionsEncrypted: true,
+		RookVersion:          installer.LocalBuildTag,
+		CephVersion:          installer.QuincyVersion,
+		SkipClusterCleanup:   false,
+		SkipCleanupPolicy:    false,
 	}
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
