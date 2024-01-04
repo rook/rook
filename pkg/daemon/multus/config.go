@@ -42,7 +42,7 @@ var (
 
 	DefaultValidationOtherDaemonsPerNode = 16
 
-	DefaultValidationNginxImage = "nginxinc/nginx-unprivileged:stable-alpine"
+	DefaultValidationNginxImage = "quay.io/nginx/nginx-unprivileged:stable-alpine"
 
 	DefaultValidationResourceTimeout = 3 * time.Minute
 
