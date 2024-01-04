@@ -56,7 +56,7 @@ See [environment.go](/tests/framework/installer/environment.go) for the availabl
 Set the following variables:
 
 ```console
-export TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm
+export TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/helm
 export TEST_BASE_DIR=WORKING_DIR
 export TEST_SCRATCH_DEVICE=/dev/vdb
 ```
