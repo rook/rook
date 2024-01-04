@@ -53,6 +53,9 @@ jobs:
       - name: deploy cluster
         run: tests/scripts/github-action-helper.sh deploy_cluster
 
+      - name: setup csi-addons
+        run:  tests/scripts/csiaddons.sh setup_csiaddons
+
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
@@ -233,6 +236,11 @@ jobs:
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+      - name: validate csi-addons
+        run: |
+          tests/scripts/csiaddons.sh verify_crd_created
+          tests/scripts/csiaddons.sh verify_container_is_running
 
       - name: test osd removal jobs
         run: |
