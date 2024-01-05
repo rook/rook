@@ -88,11 +88,11 @@ func TestSetStatusCondition(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			SetStatusCondition(&test.conditions, test.toAdd)
-			if !reflect.DeepEqual(test.conditions, test.expected) {
-				t.Error(test.conditions)
+	for i := range tests {
+		t.Run(tests[i].name, func(t *testing.T) {
+			SetStatusCondition(&tests[i].conditions, tests[i].toAdd)
+			if !reflect.DeepEqual(tests[i].conditions, tests[i].expected) {
+				t.Error(tests[i].conditions)
 			}
 		})
 	}

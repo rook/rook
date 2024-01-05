@@ -49,6 +49,7 @@ import (
 )
 
 const (
+	//nolint:gosec // only test values, not a real secret
 	userCreateJSON = `{
 	"user_id": "my-user",
 	"display_name": "my-user",

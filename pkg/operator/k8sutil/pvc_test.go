@@ -96,7 +96,8 @@ func TestExpandPVCIfRequired(t *testing.T) {
 	for _, tc := range testcases {
 
 		desiredPVC.Spec.Resources.Requests[v1.ResourceStorage] = apiresource.MustParse(tc.currentPVCSize)
-		storageClass.AllowVolumeExpansion = &tc.expansionAllowed
+		expansionAllowed := tc.expansionAllowed
+		storageClass.AllowVolumeExpansion = &expansionAllowed
 
 		// create fake client with PVC
 		cl := fake.NewClientBuilder().WithRuntimeObjects(desiredPVC, storageClass).Build()

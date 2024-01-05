@@ -152,6 +152,7 @@ const (
 			"ceph version 17.2.1 (0000000000000000) quincy (stable)": 3
 		}
 	}`
+	//nolint:gosec // only test values, not a real secret
 	userCreateJSON = `{
 	"user_id": "my-user",
 	"display_name": "my-user",
