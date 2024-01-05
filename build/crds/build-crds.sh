@@ -23,7 +23,7 @@ set -o pipefail
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 CONTROLLER_GEN_BIN_PATH=$1
 YQ_BIN_PATH=$2
-: "${MAX_DESC_LEN:=-1}"
+: "${MAX_DESC_LEN:=100}"
 # allowDangerousTypes is used to accept float64
 CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
 
