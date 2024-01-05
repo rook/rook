@@ -277,6 +277,12 @@ type LogCollectorSpec struct {
 	// MaxLogSize is the maximum size of the log per ceph daemons. Must be at least 1M.
 	// +optional
 	MaxLogSize *resource.Quantity `json:"maxLogSize,omitempty"`
+	// MaxCoreFileToKeep is the maximum number of core dump files to keep in the dumps folder.
+	// +optional
+	MaxCoreFileToKeep int `json:"maxCoreFileToKeep,omitempty"`
+	// CoreFileAgeDays is maximum duration, in days, to keep a core dump file.
+	// +optional
+	CoreFileAgeDays int `json:"coreFileAgeDays,omitempty"`
 }
 
 // SecuritySpec is security spec to include various security items such as kms

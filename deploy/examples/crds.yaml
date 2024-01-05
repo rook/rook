@@ -1353,9 +1353,15 @@ spec:
                   description: Logging represents loggings settings
                   nullable: true
                   properties:
+                    coreFileAgeDays:
+                      description: CoreFileAgeDays is maximum duration, in days, to keep a core dump file.
+                      type: integer
                     enabled:
                       description: Enabled represents whether the log collector is enabled
                       type: boolean
+                    maxCoreFileToKeep:
+                      description: MaxCoreFileToKeep is the maximum number of core dump files to keep in the dumps folder.
+                      type: integer
                     maxLogSize:
                       anyOf:
                         - type: integer

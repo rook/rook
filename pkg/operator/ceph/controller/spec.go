@@ -106,6 +106,8 @@ PERIODICITY=%s
 LOG_ROTATE_CEPH_FILE=/etc/logrotate.d/ceph
 LOG_MAX_SIZE=%s
 ROTATE=%s
+MAX_COREFILE_TO_KEEP=%d
+COREFILE_AGE_DAYS=%d
 
 # edit the logrotate file to only rotate a specific daemon log
 # otherwise we will logrotate log files without reloading certain daemons
@@ -124,6 +126,16 @@ if [ "$LOG_MAX_SIZE" != "0" ]; then
 fi
 
 while true; do
+	if [ "$MAX_COREFILE_TO_KEEP" != 0 ]; then
+		# Keep at most $MAX_COREFILE_TO_KEEP core dump files
+		ls -1tr /var/log/ceph/core.* | head -n -$MAX_COREFILE_TO_KEEP | xargs -d '\n' rm -f --
+	fi
+
+	if [ "$COREFILE_AGE_DAYS" != 0 ]; then
+		# Keep core dump files for $COREFILE_AGE_DAYS days
+		find /var/log/ceph -name 'core.*' -mtime +$COREFILE_AGE_DAYS -delete
+	fi
+
 	# we don't force the logrorate but we let the logrotate binary handle the rotation based on user's input for periodicity and size
 	logrotate --verbose "$LOG_ROTATE_CEPH_FILE"
 	sleep 15m
@@ -795,7 +807,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 			"-e", // Exit immediately if a command exits with a non-zero status.
 			"-m", // Terminal job control, allows job to be terminated by SIGTERM
 			"-c", // Command to run
-			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String(), rotation),
+			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String(), rotation, c.LogCollector.MaxCoreFileToKeep, c.LogCollector.CoreFileAgeDays),
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),

@@ -7375,6 +7375,30 @@ k8s.io/apimachinery/pkg/api/resource.Quantity
 <p>MaxLogSize is the maximum size of the log per ceph daemons. Must be at least 1M.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>maxCoreFileToKeep</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>MaxCoreFileToKeep is the maximum number of core dump files to keep in the dumps folder.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>coreFileAgeDays</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>CoreFileAgeDays is maximum duration, in days, to keep a core dump file.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec
