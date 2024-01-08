@@ -29,6 +29,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/cmd/rook/rook"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
@@ -254,6 +255,10 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	clusterInfo.OwnerInfo = ownerInfo
 	clusterInfo.Context = cmd.Context()
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Namespace, context.Clientset, ownerInfo)
+
+	if err := client.WriteCephConfig(context, &clusterInfo); err != nil {
+		return errors.Wrap(err, "failed to generate ceph config")
+	}
 
 	// destroy the OSD using the OSD ID
 	var replaceOSD *oposd.OSDReplaceInfo
