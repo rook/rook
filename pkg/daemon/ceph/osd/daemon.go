@@ -181,10 +181,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating}
 	oposd.UpdateNodeOrPVCStatus(agent.clusterInfo.Context, agent.kv, agent.nodeName, status)
 
-	if err := client.WriteCephConfig(context, agent.clusterInfo); err != nil {
-		return errors.Wrap(err, "failed to generate ceph config")
-	}
-
 	logger.Infof("discovering hardware")
 
 	var rawDevices []*sys.LocalDisk
