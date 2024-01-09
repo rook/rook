@@ -125,7 +125,7 @@ spec:
     spec:
       containers:
       - image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
-		command: [ "sh", "-c", "'openstack user create --password 4l1c3 --project admin alice'"]
+		command: [ "sh", "-c", "'openstack user create --password 4l1c3 --project admin rook-user'"]
         env:
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/keystone/ca.crt

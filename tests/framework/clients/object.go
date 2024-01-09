@@ -78,7 +78,7 @@ data:
   OS_PROJECT_DOMAIN_NAME: RGVmYXVsdA==
   OS_USER_DOMAIN_NAME: RGVmYXVsdA==
   OS_PROJECT_NAME: YWRtaW4=
-  OS_USERNAME: c3dpZnQ=
+  OS_USERNAME: cm9vay11c2Vy
   OS_PASSWORD: NXcxZnQxMzU=
 kind: Secret
 metadata:
