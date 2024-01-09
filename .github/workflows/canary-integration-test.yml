@@ -54,7 +54,7 @@ jobs:
         run: tests/scripts/github-action-helper.sh deploy_cluster
 
       - name: setup csi-addons
-        run:  tests/scripts/csiaddons.sh setup_csiaddons
+        run: tests/scripts/csiaddons.sh setup_csiaddons
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
@@ -161,6 +161,11 @@ jobs:
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
+
+      - name: test external script with restricted_auth_permission flag and with --cluster-name legacy flag
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cluster-name rookstorage --restricted-auth-permission true
 
       - name: test external script with restricted_auth_permission flag
         run: |
