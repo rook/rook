@@ -324,6 +324,11 @@ class RadosJSON:
             help="Provides a user name to check the cluster's health status, must be prefixed by 'client.'",
         )
         common_group.add_argument(
+            "--cluster-name",
+            default="",
+            help="Kubernetes cluster name(legacy flag), Note: Either use this or --k8s-cluster-name",
+        )
+        common_group.add_argument(
             "--k8s-cluster-name", default="", help="Kubernetes cluster name"
         )
         common_group.add_argument(
@@ -1508,6 +1513,9 @@ class RadosJSON:
     def _gen_output_map(self):
         if self.out_map:
             return
+        # support legacy flag with upgrades
+        if self._arg_parser.cluster_name:
+            self._arg_parser.k8s_cluster_name = self._arg_parser.cluster_name
         self._arg_parser.k8s_cluster_name = (
             self._arg_parser.k8s_cluster_name.lower()
         )  # always convert cluster name to lowercase characters
