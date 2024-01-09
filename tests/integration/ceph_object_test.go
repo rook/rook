@@ -140,13 +140,16 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
 		// and then deletes it.
 		deleteStore := true
+		// TODO: Why ist swiftAndKeystone always set to false?
 		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable, false)
 	})
 
 	// now test operation of the first object store
+	// TODO: Why is there no swiftAndKeystone needed?
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
+	// TODO: Why ist swiftAndKeystone always set to false?
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, false)
 	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
 	if !tlsEnable {

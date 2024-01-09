@@ -80,6 +80,7 @@ func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.
 			deleteObjectStore(t, k8sh, namespace, storeName)
 			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
 		})
+		// remove user secret
 	}
 }
 
