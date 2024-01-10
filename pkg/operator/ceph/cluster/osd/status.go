@@ -218,10 +218,10 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 		ResourceVersion: configMapList.ResourceVersion,
 	}
 	watcher, err := cmClient.Watch(c.clusterInfo.Context, watchOptions)
-	defer watcher.Stop()
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to start watching OSD provisioning status ConfigMaps")
 	}
+	defer watcher.Stop()
 
 	// tick after a short time of waiting for new OSD provision status configmaps to change state
 	// in order to allow opportunistic deployment updates while we wait
