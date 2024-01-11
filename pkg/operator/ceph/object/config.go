@@ -170,6 +170,9 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 	cfg["rgw_keystone_admin_user"] = username
 	cfg["rgw_keystone_admin_password"] = password
 
+	// authenticate s3 via keystone
+	cfg["rgw_s3_auth_use_keystone"] = "true"
+
 	return cfg, nil
 }
 
