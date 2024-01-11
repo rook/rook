@@ -7,8 +7,10 @@
   4. Follow the steps in the checklist below, starting with the **Commit Message Formatting**.
 -->
 
-**Which issue is resolved by this Pull Request:**
+<!-- Uncomment this section with the issue number if an issue is being resolved
+**Issue resolved by this Pull Request:**
 Resolves #
+--->
 
 **Checklist:**
 
