@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"os"
 	"time"
 )
 
@@ -30,6 +31,36 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	ctx := context.TODO()
 
 	// The namespace keystoneauth-ns is created by SetupSuite
+
+	if err := shelper.CreateNamespace("cert-manager"); err != nil {
+		logger.Warning("Could not create namespace cert-manager")
+	}
+
+	// install cert-manager using helm
+	// the helm installer uses the rook repository and cannot be used as is
+
+	// use helm path from environment (the same is used by the helm installer)
+	helmPath := os.Getenv("TEST_HELM_PATH")
+	if helmPath == "" {
+		helmPath = "/tmp/rook-tests-scripts-helm/helm"
+	}
+	helmHelper := utils.NewHelmHelper(helmPath)
+
+	// add the cert-manager helm repo
+	logger.Infof("adding cert-manager helm repo")
+	cmdArgs := []string{"repo", "add", "cert-manager", "https://charts.jetstack.io"}
+	if _, err := helmHelper.Execute(cmdArgs...); err != nil {
+		// Continue on error in case the repo already was added
+		logger.Warningf("failed to add repo cert-manager, err=%v", err)
+	}
+	cmdArgs = []string{"repo", "update"}
+	if _, err := helmHelper.Execute(cmdArgs...); err != nil {
+		// Continue on error in case the repo already was added
+		logger.Warningf("failed to update helm repositories, err=%v", err)
+	}
+
+	installHelmChart(helmHelper, "cert-manager", "cert-manager", "jetstack/cert-manager", "1.13.3", "")
+	installHelmChart(helmHelper, "cert-manager", "trust-manager", "jetstack/trust-manager", "0.7.0", "app.trust.namespace="+namespace)
 
 	// TODO: does this need to be a ClusterIssuer?
 	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
@@ -46,6 +77,10 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCertificate(namespace)); err != nil {
 		logger.Warningf("Could not create Certificate (request) in namespace %s", namespace)
+	}
+
+	if err := shelper.ResourceOperation("apply", trustManagerBundle(namespace)); err != nil {
+		logger.Warningf("Could not create CA Certificate Bundle in namespace %s", namespace)
 	}
 
 	data := getKeystoneApache2CM()
@@ -107,6 +142,41 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Failed to wait for job setup-keystone in namespace %s", namespace)
 	}
 
+}
+
+func trustManagerBundle(namespace string) string {
+
+	return `apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: keystone-bundle
+  namespace: ` + namespace + `
+spec:
+  sources:
+  - useDefaultCAs: true
+  - secret:
+      name: "root-secret"
+      key: "tls.crt"
+  target:
+    configMap:
+      key: "ca-bundle.crt"`
+
+}
+
+func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName string, chart string, version string, setting string) {
+
+	logger.Infof("installing helm chart %s with version %s", chart, version)
+
+	var err error
+
+	if setting == "" {
+		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait")
+	} else {
+		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait", "--set", setting)
+	}
+	if err != nil {
+		logger.Errorf("failed to install helm chart %s with version %s in namespace: %v, err=%v", chart, version, namespace, err)
+	}
 }
 
 func keystoneCreateUserJob(namespace string) string {
