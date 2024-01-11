@@ -7104,7 +7104,7 @@ spec:
                     activeCount:
                       description: The number of metadata servers that are active.
                       format: int32
-                      maximum: 10
+                      maximum: 50
                       minimum: 1
                       type: integer
                     activeStandby:

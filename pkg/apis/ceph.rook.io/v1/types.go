@@ -1141,7 +1141,7 @@ type FilesystemSpec struct {
 type MetadataServerSpec struct {
 	// The number of metadata servers that are active. The remaining servers in the cluster will be in standby mode.
 	// +kubebuilder:validation:Minimum=1
-	// +kubebuilder:validation:Maximum=10
+	// +kubebuilder:validation:Maximum=50
 	ActiveCount int32 `json:"activeCount"`
 
 	// Whether each active MDS instance will have an active standby with a warm metadata cache for faster failover.
