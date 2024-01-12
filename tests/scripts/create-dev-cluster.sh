@@ -9,7 +9,7 @@ SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 export ROOK_PROFILE_NAME="${ROOK_PROFILE_NAME:=rook}" ## Specify the minikube profile name
 export ROOK_CLUSTER_NS="${ROOK_CLUSTER_NS:=$DEFAULT_NS}" ## CephCluster namespace
 export ROOK_OPERATOR_NS="${ROOK_OPERATOR_NS:=$DEFAULT_NS}" ## Rook operator namespace (if different from CephCluster namespace)
-export ROOK_EXAMPLES_DIR="${ROOK_EXAMPLES_DIR:=deploy/examples}" ## Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)
+export ROOK_EXAMPLES_DIR="${ROOK_EXAMPLES_DIR:="$SCRIPT_ROOT"/../../deploy/examples}" ## Path to Rook examples directory (i.e github.com/rook/rook/deploy/examples)
 export ROOK_CLUSTER_SPEC_FILE="${ROOK_CLUSTER_SPEC_FILE:=cluster-test.yaml}" ## CephCluster manifest file
 
 init_vars(){
