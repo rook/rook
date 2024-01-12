@@ -19,10 +19,14 @@ package integration
 import (
 	"context"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"os"
+	"testing"
 	"time"
 )
 
@@ -134,6 +138,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
 	}
 
+	// TODO: check if job is still necessary (could be done with openstack client)
 	if err := shelper.ResourceOperation("apply", keystoneCreateUserJob(namespace)); err != nil {
 		logger.Warningf("Could not create job in namespace %s", namespace)
 	}
@@ -142,6 +147,145 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Failed to wait for job setup-keystone in namespace %s", namespace)
 	}
 
+	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace)); err != nil {
+		logger.Warningf("Could not create job in namespace %s", namespace)
+	}
+
+	if err := shelper.ResourceOperation("apply", createUnPrivilegedOpenStackClient(namespace)); err != nil {
+		logger.Warningf("Could not create job in namespace %s", namespace)
+	}
+
+}
+
+func createUnPrivilegedOpenStackClient(namespace string) string {
+	return `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osc-alice
+  namespace: ` + namespace + `
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: osc-alice
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: osc-alice
+    spec:
+      containers:
+      - command:
+        - sleep
+        - "7200"
+        image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
+        env:
+        - name: REQUESTS_CA_BUNDLE
+          value: /etc/ssl/keystone/ca.crt
+        - name: OS_AUTH_TYPE
+          value: password
+        - name: OS_AUTH_URL
+          value: https://keystone.keystone.svc/v3
+        - name: OS_IDENTITY_API_VERSION
+          value: "3"
+        - name: OS_PROJECT_DOMAIN_NAME
+          value: Default
+        - name: OS_INTERFACE
+          value: internal
+        - name: OS_USER_DOMAIN_NAME
+          value: Default
+        - name: OS_PROJECT_NAME
+          value: testproject
+        - name: OS_USERNAME
+          value: alice
+        - name: OS_PASSWORD
+          value: 4l1c3
+        imagePullPolicy: IfNotPresent
+        name: openstackclient
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/ssl/keystone
+          name: keystone-certificate
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: keystone-certificate
+        secret:
+          defaultMode: 420
+          secretName: keystone-api-tls
+`
+}
+
+func createOpenStackClient(namespace string) string {
+	return `apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: osc
+  namespace: ` + namespace + `
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: osc
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: osc
+    spec:
+      containers:
+      - command:
+        - sleep
+        - "7200"
+        image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
+        env:
+        - name: REQUESTS_CA_BUNDLE
+          value: /etc/ssl/keystone/ca.crt
+        - name: OS_AUTH_TYPE
+          value: password
+        - name: OS_AUTH_URL
+          value: https://keystone.keystone.svc/v3
+        - name: OS_IDENTITY_API_VERSION
+          value: "3"
+        - name: OS_PROJECT_DOMAIN_NAME
+          value: Default
+        - name: OS_INTERFACE
+          value: internal
+        - name: OS_USER_DOMAIN_NAME
+          value: Default
+        - name: OS_PROJECT_NAME
+          value: admin
+        - name: OS_USERNAME
+          value: admin
+        - name: OS_PASSWORD
+          value: s3cr3t
+        imagePullPolicy: IfNotPresent
+        name: openstackclient
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/ssl/keystone
+          name: keystone-certificate
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - name: keystone-certificate
+        secret:
+          defaultMode: 420
+          secretName: keystone-api-tls`
 }
 
 func trustManagerBundle(namespace string) string {
@@ -579,5 +723,93 @@ func CleanUpKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	//cert-manager related resources (including certificates and secrets) are not removed here
 	//(as they will be removed anyway on uninstalling cert-manager)
+
+}
+
+// Test Object StoreCreation on Rook that was installed via helm
+func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
+	andDeleting := ""
+	if deleteStore {
+		andDeleting = "and deleting"
+	}
+	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
+
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
+
+	// TODO: add swift integration tests here
+	// TODO: rename container from foo to test-container
+
+	t.Run("create test project in keystone", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "project create", "testproject")
+	})
+	t.Run("create unprivileged user in keystone", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "user", "create", "--project", "testproject", "--password", "4l1c3", "alice")
+	})
+	t.Run("assign unprivilege user to test project (in keystone)", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "role", "add", "--user", "alice", "--project", "testproject", "member")
+	})
+
+	t.Run("create container", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack container create foo")
+	})
+	t.Run("create local testfile", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "bash", "-c", "echo test-content > /tmp/testfile")
+	})
+
+	// openstack object create foo /testfile
+	t.Run("create object in container (using the local testfile)", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "object", "create", "foo", "/tmp/testfile")
+	})
+
+	t.Run("list objects in container", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "object", "list", "foo")
+	})
+
+	t.Run("show testfile object in container", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "object", "show", "foo", "/tmp/testfile")
+	})
+
+	t.Run("save testfile object from container to local disk", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "object", "save", "--file", "/tmp/testfile.saved", "foo", "/tmp/testfile")
+	})
+
+	t.Run("check testfile", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "bash", "-c", "diff /tmp/testfile /tmp/testfile.saved")
+	})
+
+	t.Run("delete object in container", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "object", "delete", "foo", "/tmp/testfile")
+	})
+
+	t.Run("delete container", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "container", "delete", "foo")
+	})
+
+	if deleteStore {
+		t.Run("delete object store", func(t *testing.T) {
+			deleteObjectStore(t, k8sh, namespace, storeName)
+			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
+		})
+		// remove user secret
+	}
+}
+
+func execInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, privileged bool, command ...string) {
+
+	commandLine := []string{"exec", "-n", namespace, "deployment/osc-unprivileged", "--"}
+
+	if privileged {
+		commandLine = []string{"exec", "-n", namespace, "deployment/osc", "--"}
+	}
+
+	commandLine = append(commandLine, command...)
+	// kubectl exec -n keystone -ti deployment/osc-alice --
+	output, err := sh.Kubectl(commandLine...)
+
+	if err != nil {
+		logger.Warningf("failed to executed command %s: %s", commandLine, output)
+	}
+
+	assert.NoError(t, err)
 
 }

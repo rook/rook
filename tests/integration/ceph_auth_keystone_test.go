@@ -86,13 +86,13 @@ func (h *KeystoneAuthSuite) TestObjectStoreOnRookInstalledViaHelmUsingKeystone()
 	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
 }
 
-// TODO: do we want to leave this test here? or shall we move it to the ceph_auth_keystone_test
 func (h *KeystoneAuthSuite) TestWithSwiftAndKeystone() {
+	deleteStore := true
 	tls := true
 	swiftAndKeystone := true
 
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(h.helper, h.k8shelper, h.installer, &h.Suite, h.settings.Namespace, tls, swiftAndKeystone)
+	runSwiftE2ETest(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
 	cleanUpTLSks(h)
 
 }
