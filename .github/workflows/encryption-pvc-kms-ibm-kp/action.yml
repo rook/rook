@@ -7,9 +7,6 @@ inputs:
   ibm-service-api-key:
     description: IBM_KP_SERVICE_API_KEY from the calling workflow
     required: true
-  github-token:
-    description: GITHUB_TOKEN from the calling workflow
-    required: true
 
 runs:
   using: "composite"
@@ -24,8 +21,10 @@ runs:
 
     - name: setup cluster resources
       uses: ./.github/workflows/canary-test-config
-      with:
-        github-token: ${{ inputs.github-token }}
+
+    - name: set Ceph version in CephCluster manifest
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
     - name: use local disk and create partitions for osds
       shell: bash --noprofile --norc -eo pipefail -x {0}

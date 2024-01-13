@@ -1,20 +1,11 @@
 name: RGW Multisite Test
 description: Reusable workflow to test RGW multisite integration
-inputs:
-  github-token:
-    description: GITHUB_TOKEN from the calling workflow
-    required: true
-  ceph-image:
-    description: Ceph image to use for the workflow (e.g., quay.io/ceph/ceph:v17)
-    required: false
 
 runs:
   using: "composite"
   steps:
     - name: setup cluster resources
       uses: ./.github/workflows/canary-test-config
-      with:
-        github-token: ${{ inputs.github-token }}
 
     - name: install additional deps for object testing
       shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -28,12 +19,6 @@ runs:
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
-
-    - name: set Ceph version in CephCluster manifest
-      shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: |
-        tests/scripts/github-action-helper.sh replace_ceph_image \
-          "deploy/examples/cluster-test.yaml" "${{ inputs.ceph-image }}"
 
     - name: deploy first cluster rook
       shell: bash --noprofile --norc -eo pipefail -x {0}
