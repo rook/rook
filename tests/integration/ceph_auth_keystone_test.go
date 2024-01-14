@@ -88,7 +88,7 @@ func (h *KeystoneAuthSuite) TestObjectStoreOnRookInstalledViaHelmUsingKeystone()
 
 func (h *KeystoneAuthSuite) TestWithSwiftAndKeystone() {
 	deleteStore := true
-	tls := true
+	tls := false
 	swiftAndKeystone := true
 
 	objectStoreServicePrefix = objectStoreServicePrefixUniq

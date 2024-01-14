@@ -52,7 +52,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	// add the cert-manager helm repo
 	logger.Infof("adding cert-manager helm repo")
-	cmdArgs := []string{"repo", "add", "cert-manager", "https://charts.jetstack.io"}
+	cmdArgs := []string{"repo", "add", "jetstack", "https://charts.jetstack.io"}
 	if _, err := helmHelper.Execute(cmdArgs...); err != nil {
 		// Continue on error in case the repo already was added
 		logger.Warningf("failed to add repo cert-manager, err=%v", err)
@@ -87,7 +87,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Could not create CA Certificate Bundle in namespace %s", namespace)
 	}
 
-	data := getKeystoneApache2CM()
+	data := getKeystoneApache2CM(namespace)
 
 	keystoneApacheCM := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -139,13 +139,13 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	}
 
 	// TODO: check if job is still necessary (could be done with openstack client)
-	if err := shelper.ResourceOperation("apply", keystoneCreateUserJob(namespace)); err != nil {
-		logger.Warningf("Could not create job in namespace %s", namespace)
-	}
+	//if err := shelper.ResourceOperation("apply", keystoneCreateUserJob(namespace)); err != nil {
+	//	logger.Warningf("Could not create job in namespace %s", namespace)
+	//}
 
-	if _, err := executor.ExecuteCommandWithTimeout(315*time.Second, "kubectl", "wait", "--timeout=120s", "--namespace", namespace, "job", "--selector=job=setup-keystone", "--for=condition=Completed"); err != nil {
-		logger.Warningf("Failed to wait for job setup-keystone in namespace %s", namespace)
-	}
+	//if _, err := executor.ExecuteCommandWithTimeout(315*time.Second, "kubectl", "wait", "--timeout=120s", "--namespace", namespace, "job", "--selector=job=setup-keystone", "--for=condition=Completed"); err != nil {
+	//	logger.Warningf("Failed to wait for job setup-keystone in namespace %s", namespace)
+	//}
 
 	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace)); err != nil {
 		logger.Warningf("Could not create job in namespace %s", namespace)
@@ -161,7 +161,7 @@ func createUnPrivilegedOpenStackClient(namespace string) string {
 	return `apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: osc-alice
+  name: osc-unprivileged
   namespace: ` + namespace + `
 spec:
   progressDeadlineSeconds: 600
@@ -169,12 +169,12 @@ spec:
   revisionHistoryLimit: 10
   selector:
     matchLabels:
-      app: osc-alice
+      app: osc-unprivileged
   template:
     metadata:
       creationTimestamp: null
       labels:
-        app: osc-alice
+        app: osc-unprivileged
     spec:
       containers:
       - command:
@@ -187,7 +187,7 @@ spec:
         - name: OS_AUTH_TYPE
           value: password
         - name: OS_AUTH_URL
-          value: https://keystone.keystone.svc/v3
+          value: https://keystone.` + namespace + `.svc/v3
         - name: OS_IDENTITY_API_VERSION
           value: "3"
         - name: OS_PROJECT_DOMAIN_NAME
@@ -253,7 +253,7 @@ spec:
         - name: OS_AUTH_TYPE
           value: password
         - name: OS_AUTH_URL
-          value: https://keystone.keystone.svc/v3
+          value: https://keystone.` + namespace + `.svc/v3
         - name: OS_IDENTITY_API_VERSION
           value: "3"
         - name: OS_PROJECT_DOMAIN_NAME
@@ -302,8 +302,8 @@ spec:
       name: "root-secret"
       key: "tls.crt"
   target:
-    configMap:
-      key: "ca-bundle.crt"`
+    secret:
+      key: "cabundle"`
 
 }
 
@@ -316,7 +316,11 @@ func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName 
 	if setting == "" {
 		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait")
 	} else {
-		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait", "--set", setting)
+		// TODO: make settings an string array or string...; move trust manager specific settings out of here
+		// This allows for secrets to be read/written by trust-manager in all namespaces
+		// This is considered insecure in production environments! This is here only for the quick test setup.
+		// TODO: maybe try to come up with the more secure solution of allowing secretTargets only in the rook-ceph namespace
+		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait", "--set", setting, "--set", "secretTargets.enabled=true", "--set", "secretTargets.authorizedSecretsAll=true")
 	}
 	if err != nil {
 		logger.Errorf("failed to install helm chart %s with version %s in namespace: %v, err=%v", chart, version, namespace, err)
@@ -339,7 +343,7 @@ spec:
     spec:
       containers:
       - image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
-		command: [ "sh", "-c", "'openstack user create --password 4l1c3 --project admin rook-user'"]
+        command: [ "sh", "-c", "'openstack user create --password 4l1c3 --project admin rook-user'"]
         env:
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/keystone/ca.crt
@@ -648,7 +652,7 @@ enabled = false`
 
 }
 
-func getKeystoneApache2CM() map[string]string {
+func getKeystoneApache2CM(namespace string) map[string]string {
 
 	returnMap := make(map[string]string)
 
@@ -676,7 +680,7 @@ Listen 443
 ErrorLog "/proc/self/fd/2"
 
 <VirtualHost *:443>
-  ServerName keystone-api.keystone.svc
+  ServerName keystone-api.` + namespace + `.svc
   SSLEngine on
   SSLCertificateFile /etc/ssl/keystone/tls.crt
   SSLCertificateKeyFile /etc/ssl/keystone/tls.key
@@ -734,23 +738,43 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
+	t.Run("create swift user for objectstore in keystone", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "user", "create", "--enable", "--password", "5w1ft135", "--project", "admin", "--description", "swift admin account", "rook-user")
+	})
+
+	t.Run("make swift user admin", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "role", "add", "--user", "rook-user", "--project", "admin", "admin")
+	})
+
 	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
 	// TODO: add swift integration tests here
 	// TODO: rename container from foo to test-container
 
 	t.Run("create test project in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "project create", "testproject")
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "project", "create", "testproject")
 	})
 	t.Run("create unprivileged user in keystone", func(t *testing.T) {
 		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "user", "create", "--project", "testproject", "--password", "4l1c3", "alice")
 	})
-	t.Run("assign unprivilege user to test project (in keystone)", func(t *testing.T) {
+	t.Run("assign unprivileged user to test project (in keystone)", func(t *testing.T) {
 		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "role", "add", "--user", "alice", "--project", "testproject", "member")
 	})
 
+	t.Run("create service swift in keystone", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "service", "create", "--name", "swift", "object-store")
+	})
+
+	t.Run("create internal swift endpoint in keystone", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1")
+	})
+
+	t.Run("create admin swift endpoint in keystone", func(t *testing.T) {
+		execInOpenStackClient(t, k8sh, namespace, true, "openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1")
+	})
+
 	t.Run("create container", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, false, "openstack container create foo")
+		execInOpenStackClient(t, k8sh, namespace, false, "openstack", "container", "create", "foo")
 	})
 	t.Run("create local testfile", func(t *testing.T) {
 		execInOpenStackClient(t, k8sh, namespace, false, "bash", "-c", "echo test-content > /tmp/testfile")
@@ -803,7 +827,7 @@ func execInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 	}
 
 	commandLine = append(commandLine, command...)
-	// kubectl exec -n keystone -ti deployment/osc-alice --
+	// kubectl exec -n keystone -ti deployment/osc-unprivileged --
 	output, err := sh.Kubectl(commandLine...)
 
 	if err != nil {

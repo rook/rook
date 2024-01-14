@@ -519,6 +519,9 @@ spec:
     resources: null
     {{ if .TLS }}securePort: {{ .Port }}{{ else }}port: {{ .Port }}{{ end }}
     instances: {{ .ReplicaCount }}
+    {{ if .SwiftAndKeystone }}
+    caBundleRef: keystone-bundle
+    {{ end }}
     {{ if .TLS }}sslCertificateRef: {{ .Name }}{{ end }}`
 
 	return renderTemplate(tmpl, spec)
