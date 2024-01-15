@@ -87,6 +87,9 @@ type Param struct {
 	CephFSLivenessMetricsPort                uint16
 	CSIAddonsPort                            uint16
 	RBDLivenessMetricsPort                   uint16
+	LeaderElectionLeaseDuration              time.Duration
+	LeaderElectionRenewDeadline              time.Duration
+	LeaderElectionRetryPeriod                time.Duration
 	ProvisionerReplicas                      int32
 	CSICephFSPodLabels                       map[string]string
 	CSINFSPodLabels                          map[string]string
@@ -234,6 +237,11 @@ const (
 	// default log level for csi containers
 	defaultLogLevel        uint8 = 0
 	defaultSidecarLogLevel uint8 = 0
+
+	// default leader election flags
+	defaultLeaderElectionLeaseDuration = 137 * time.Second
+	defaultLeaderElectionRenewDeadline = 107 * time.Second
+	defaultLeaderElectionRetryPeriod   = 26 * time.Second
 
 	// GRPC timeout.
 	defaultGRPCTimeout = 150
