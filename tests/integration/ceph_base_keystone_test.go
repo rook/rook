@@ -138,15 +138,6 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
 	}
 
-	// TODO: check if job is still necessary (could be done with openstack client)
-	//if err := shelper.ResourceOperation("apply", keystoneCreateUserJob(namespace)); err != nil {
-	//	logger.Warningf("Could not create job in namespace %s", namespace)
-	//}
-
-	//if _, err := executor.ExecuteCommandWithTimeout(315*time.Second, "kubectl", "wait", "--timeout=120s", "--namespace", namespace, "job", "--selector=job=setup-keystone", "--for=condition=Completed"); err != nil {
-	//	logger.Warningf("Failed to wait for job setup-keystone in namespace %s", namespace)
-	//}
-
 	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace)); err != nil {
 		logger.Warningf("Could not create job in namespace %s", namespace)
 	}
@@ -325,66 +316,6 @@ func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName 
 	if err != nil {
 		logger.Errorf("failed to install helm chart %s with version %s in namespace: %v, err=%v", chart, version, namespace, err)
 	}
-}
-
-func keystoneCreateUserJob(namespace string) string {
-
-	return `apiVersion: batch/v1
-kind: Job
-metadata:
-  name: setup-keystone
-  namespace: ` + namespace + `
-spec:
-  template:
-    metadata:
-      creationTimestamp: null
-      labels:
-        job: setup-keystone
-    spec:
-      containers:
-      - image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
-        command: [ "sh", "-c", "'openstack user create --password 4l1c3 --project admin rook-user'"]
-        env:
-        - name: REQUESTS_CA_BUNDLE
-          value: /etc/ssl/keystone/ca.crt
-        - name: OS_AUTH_TYPE
-          value: password
-        - name: OS_AUTH_URL
-          value: https://keystone.` + namespace + `.svc/v3
-        - name: OS_IDENTITY_API_VERSION
-          value: "3"
-        - name: OS_PROJECT_DOMAIN_NAME
-          value: Default
-        - name: OS_INTERFACE
-          value: internal
-        - name: OS_USER_DOMAIN_NAME
-          value: Default
-        - name: OS_PROJECT_NAME
-          value: admin
-        - name: OS_USERNAME
-          value: admin
-        - name: OS_PASSWORD
-          value: s3cr3t
-        imagePullPolicy: IfNotPresent
-        name: openstackclient
-        resources: {}
-        terminationMessagePath: /dev/termination-log
-        terminationMessagePolicy: File
-        volumeMounts:
-        - mountPath: /etc/ssl/keystone
-          name: keystone-certificate
-      dnsPolicy: ClusterFirst
-      restartPolicy: Never
-      schedulerName: default-scheduler
-      securityContext: {}
-      terminationGracePeriodSeconds: 30
-      volumes:
-      - name: keystone-certificate
-        secret:
-          defaultMode: 420
-          secretName: keystone-api-tls
-`
-
 }
 
 func keystoneApiCaIssuer(namespace string) string {
