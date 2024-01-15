@@ -238,6 +238,39 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		}
 	}
 
+	leaderElectionLeaseDuration := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LEADER_ELECTION_LEASE_DURATION", "")
+	CSIParam.LeaderElectionLeaseDuration = defaultLeaderElectionLeaseDuration
+	if leaderElectionLeaseDuration != "" {
+		d, err := time.ParseDuration(leaderElectionLeaseDuration)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LEADER_ELECTION_LEASE_DURATION. Defaulting to %s. %v", defaultLeaderElectionLeaseDuration, err)
+		} else {
+			CSIParam.LeaderElectionLeaseDuration = d
+		}
+	}
+
+	leaderElectionRenewDeadline := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LEADER_ELECTION_RENEW_DEADLINE", "")
+	CSIParam.LeaderElectionRenewDeadline = defaultLeaderElectionRenewDeadline
+	if leaderElectionRenewDeadline != "" {
+		d, err := time.ParseDuration(leaderElectionRenewDeadline)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LEADER_ELECTION_RENEW_DEADLINE. Defaulting to %s. %v", defaultLeaderElectionRenewDeadline, err)
+		} else {
+			CSIParam.LeaderElectionRenewDeadline = d
+		}
+	}
+
+	leaderElectionRetryPeriod := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LEADER_ELECTION_RETRY_PERIOD", "")
+	CSIParam.LeaderElectionRetryPeriod = defaultLeaderElectionRetryPeriod
+	if leaderElectionRetryPeriod != "" {
+		d, err := time.ParseDuration(leaderElectionRetryPeriod)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LEADER_ELECTION_RETRY_PERIOD. Defaulting to %s. %v", defaultLeaderElectionRetryPeriod, err)
+		} else {
+			CSIParam.LeaderElectionRetryPeriod = d
+		}
+	}
+
 	CSIParam.ProvisionerReplicas = defaultProvisionerReplicas
 	nodes, err := r.context.Clientset.CoreV1().Nodes().List(r.opManagerContext, metav1.ListOptions{})
 	if err == nil {

@@ -604,6 +604,16 @@ data:
   CSI_CEPHFS_ATTACH_REQUIRED: "true"
   CSI_RBD_ATTACH_REQUIRED: "true"
   CSI_NFS_ATTACH_REQUIRED: "true"
+
+  # (Optional) Duration in seconds that non-leader candidates will wait to force acquire leadership. Default to 137 seconds.
+  # CSI_LEADER_ELECTION_LEASE_DURATION: "137s"
+
+  # (Optional) Deadline in seconds that the acting leader will retry refreshing leadership before giving up. Defaults to 107 seconds.
+  # CSI_LEADER_ELECTION_RENEW_DEADLINE: "107s"
+
+  # (Optional) Retry period in seconds the LeaderElector clients should wait between tries of actions. Defaults to 26 seconds.
+  # CSI_LEADER_ELECTION_RETRY_PERIOD: "26s"
+
   # Rook Discover toleration. Will tolerate all taints with all keys.
   # (Optional) Rook Discover tolerations list. Put here list of taints you want to tolerate in YAML format.
   # DISCOVER_TOLERATIONS: |
