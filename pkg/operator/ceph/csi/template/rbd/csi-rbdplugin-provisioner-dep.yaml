@@ -36,6 +36,8 @@ spec:
             - "--leader-election-retry-period=26s"
             - "--default-fstype=ext4"
             - "--extra-create-metadata=true"
+            - "--prevent-volume-mode-conversion=true"
+            - "--feature-gates=HonorPVReclaimPolicy=true"
             {{- if .EnableCSITopology }}
             - "--feature-gates=Topology=true"
             {{- end }}
@@ -58,6 +60,7 @@ spec:
             - "--leader-election-renew-deadline=107s"
             - "--leader-election-retry-period=26s"
             - "--handle-volume-inuse-error=false"
+            - "--feature-gates=RecoverVolumeExpansionFailure=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
