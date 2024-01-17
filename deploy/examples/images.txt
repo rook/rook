@@ -5,7 +5,7 @@
  quay.io/csiaddons/k8s-sidecar:v0.8.0
  registry.k8s.io/sig-storage/csi-attacher:v4.4.2
  registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1
- registry.k8s.io/sig-storage/csi-provisioner:v3.6.2
+ registry.k8s.io/sig-storage/csi-provisioner:v3.6.3
  registry.k8s.io/sig-storage/csi-resizer:v1.9.2
  registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
  rook/ceph:master
