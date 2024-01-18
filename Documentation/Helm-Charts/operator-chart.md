@@ -100,7 +100,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.pluginNodeAffinity` | The node labels for affinity of the CephCSI RBD plugin DaemonSet [^1] | `nil` |
 | `csi.pluginPriorityClassName` | PriorityClassName to be set on csi driver plugin pods | `"system-node-critical"` |
 | `csi.pluginTolerations` | Array of tolerations in YAML format which will be added to CephCSI plugin DaemonSet | `nil` |
-| `csi.provisioner.image` | Kubernetes CSI provisioner image | `registry.k8s.io/sig-storage/csi-provisioner:v3.6.2` |
+| `csi.provisioner.image` | Kubernetes CSI provisioner image | `registry.k8s.io/sig-storage/csi-provisioner:v3.6.3` |
 | `csi.provisionerNodeAffinity` | The node labels for affinity of the CSI provisioner deployment [^1] | `nil` |
 | `csi.provisionerPriorityClassName` | PriorityClassName to be set on csi driver provisioner pods | `"system-cluster-critical"` |
 | `csi.provisionerReplicas` | Set replicas for csi provisioner deployment | `2` |
