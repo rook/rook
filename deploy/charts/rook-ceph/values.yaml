@@ -477,6 +477,18 @@ csi:
   # @default -- `/var/lib/kubelet`
   kubeletDirPath:
 
+  # -- Duration in seconds that non-leader candidates will wait to force acquire leadership.
+  # @default -- `137s`
+  csiLeaderElectionLeaseDuration:
+
+  # -- Deadline in seconds that the acting leader will retry refreshing leadership before giving up.
+  # @default -- `107s`
+  csiLeaderElectionRenewDeadline:
+
+  # -- Retry period in seconds the LeaderElector clients should wait between tries of actions.
+  # @default -- `26s`
+  csiLeaderElectionRetryPeriod:
+
   cephcsi:
     # -- Ceph CSI image
     # @default -- `quay.io/cephcsi/cephcsi:v3.10.1`

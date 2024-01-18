@@ -61,6 +61,15 @@ data:
 {{- if .Values.csi.kubeletDirPath }}
   ROOK_CSI_KUBELET_DIR_PATH: {{ .Values.csi.kubeletDirPath | quote }}
 {{- end }}
+{{- if .Values.csi.csiLeaderElectionLeaseDuration }}
+  CSI_LEADER_ELECTION_LEASE_DURATION: {{ .Values.csi.csiLeaderElectionLeaseDuration | quote }}
+{{- end }}
+{{- if .Values.csi.csiLeaderElectionRenewDeadline }}
+  CSI_LEADER_ELECTION_RENEW_DEADLINE: {{ .Values.csi.csiLeaderElectionRenewDeadline | quote }}
+{{- end }}
+{{- if .Values.csi.csiLeaderElectionRetryPeriod }}
+  CSI_LEADER_ELECTION_RETRY_PERIOD: {{ .Values.csi.csiLeaderElectionRetryPeriod | quote }}
+{{- end }}
 {{- if .Values.csi.cephcsi }}
 {{- if .Values.csi.cephcsi.image }}
   ROOK_CSI_CEPH_IMAGE: {{ .Values.csi.cephcsi.image | quote }}
