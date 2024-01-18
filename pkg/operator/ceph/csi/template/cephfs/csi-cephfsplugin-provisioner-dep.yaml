@@ -31,9 +31,9 @@ spec:
             - "--leader-election=true"
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
@@ -51,9 +51,9 @@ spec:
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
@@ -71,9 +71,9 @@ spec:
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--handle-volume-inuse-error=false"
             - "--feature-gates=RecoverVolumeExpansionFailure=true"
           env:
@@ -92,11 +92,11 @@ spec:
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
             - "--feature-gates=HonorPVReclaimPolicy=true"
             - "--prevent-volume-mode-conversion=true"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
@@ -177,9 +177,9 @@ spec:
             - "--pod-uid=$(POD_UID)"
             - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:

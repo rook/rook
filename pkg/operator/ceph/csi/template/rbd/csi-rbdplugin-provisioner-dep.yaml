@@ -31,9 +31,9 @@ spec:
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--default-fstype=ext4"
             - "--extra-create-metadata=true"
             - "--prevent-volume-mode-conversion=true"
@@ -56,9 +56,9 @@ spec:
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--handle-volume-inuse-error=false"
             - "--feature-gates=RecoverVolumeExpansionFailure=true"
           env:
@@ -77,9 +77,9 @@ spec:
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--default-fstype=ext4"
           env:
             - name: ADDRESS
@@ -98,9 +98,9 @@ spec:
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
@@ -149,9 +149,9 @@ spec:
             - "--pod-uid=$(POD_UID)"
             - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
             - "--leader-election-namespace={{ .Namespace }}"
-            - "--leader-election-lease-duration=137s"
-            - "--leader-election-renew-deadline=107s"
-            - "--leader-election-retry-period=26s"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
