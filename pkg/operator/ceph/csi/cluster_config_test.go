@@ -474,6 +474,9 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 						ClusterInfo: cephcsi.ClusterInfo{
 							ClusterID: "rook-ceph",
 							Monitors:  []string{"1.1.1.1"},
+							CephFS: cephcsi.CephFS{
+								NetNamespaceFilePath: "netnamespacefilepath",
+							},
 						},
 					},
 				},
@@ -500,8 +503,9 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 							CrushLocationLabels: []string{"topology.rook.io/rack"},
 						},
 						CephFS: cephcsi.CephFS{
-							KernelMountOptions: "rw,noatime",
-							FuseMountOptions:   "debug",
+							KernelMountOptions:   "rw,noatime",
+							FuseMountOptions:     "debug",
+							NetNamespaceFilePath: "netnamespacefilepath",
 						},
 					},
 				},
