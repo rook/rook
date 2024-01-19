@@ -13,6 +13,11 @@ on:
     paths-ignore:
       - "Documentation/**"
       - "design/**"
+  workflow_dispatch:
+    inputs:
+      ceph-image:
+        description: 'Ceph image for creating Ceph cluster'
+        default: 'quay.io/ceph/ceph:v18'
 
 defaults:
   run:
@@ -41,6 +46,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -286,6 +294,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
@@ -350,6 +361,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
@@ -393,6 +407,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -444,6 +461,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
@@ -487,6 +507,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -536,6 +559,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk and create partitions for osds
         run: |
@@ -607,6 +633,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
 
@@ -652,6 +681,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -701,6 +733,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk and create partitions for osds
         run: |
@@ -763,6 +798,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
 
@@ -810,6 +848,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk
         run: tests/scripts/github-action-helper.sh use_local_disk
@@ -868,6 +909,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk and create partitions for osds
         run: |
@@ -948,6 +992,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: use local disk and create partitions for osds
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
@@ -1007,6 +1054,9 @@ jobs:
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: create cluster prerequisites
         run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
 
@@ -1057,6 +1107,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk into two partitions
         run: |
@@ -1308,11 +1361,11 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
       - name: run RGW multisite test
         uses: ./.github/workflows/rgw-multisite-test
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # ceph-image: # use default
 
       - name: upload test result
         uses: actions/upload-artifact@v4
@@ -1375,6 +1428,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: install deps
         shell: bash --noprofile --norc -eo pipefail -x {0}
@@ -1449,6 +1505,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: use local disk and create partitions for osds
         run: |
