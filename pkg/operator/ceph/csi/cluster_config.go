@@ -271,14 +271,11 @@ func updateCSIDriverOptions(curr, clusterKey string,
 	for i := range cc {
 		// If the clusterID belongs to the same cluster, update the entry.
 		if clusterKey == cc[i].Namespace {
-			cc[i].ReadAffinity = cephcsi.ReadAffinity{
-				Enabled:             csiDriverOptions.ReadAffinity.Enabled,
-				CrushLocationLabels: csiDriverOptions.ReadAffinity.CrushLocationLabels,
-			}
-			cc[i].CephFS = cephcsi.CephFS{
-				KernelMountOptions: csiDriverOptions.CephFS.KernelMountOptions,
-				FuseMountOptions:   csiDriverOptions.CephFS.FuseMountOptions,
-			}
+			cc[i].ReadAffinity.Enabled = csiDriverOptions.ReadAffinity.Enabled
+			cc[i].ReadAffinity.CrushLocationLabels = csiDriverOptions.ReadAffinity.CrushLocationLabels
+
+			cc[i].CephFS.KernelMountOptions = csiDriverOptions.CephFS.KernelMountOptions
+			cc[i].CephFS.FuseMountOptions = csiDriverOptions.CephFS.FuseMountOptions
 		}
 	}
 
