@@ -268,20 +268,30 @@ func (c *Cluster) Start() error {
 		return errors.Wrapf(err, "failed to update ceph storage status")
 	}
 
-	if c.replaceOSD != nil {
-		delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
-		err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
-		if err != nil {
-			return errors.Wrapf(err, "failed to delete the %q configmap", OSDReplaceConfigName)
+	if c.spec.Storage.Store.UpdateStore == OSDStoreUpdateConfirmation {
+		if c.replaceOSD != nil {
+			delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
+			err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete the %q configmap", OSDReplaceConfigName)
+			}
 		}
 
-		// Wait for PGs to be healthy before continuing the reconcile
-		_, err = c.waitForHealthyPGs()
+		// wait for the pgs to be healthy before attempting to migrate the next OSD
+		_, err := c.waitForHealthyPGs()
 		if err != nil {
 			return errors.Wrapf(err, "failed to wait for pgs to be healhty")
 		}
 
-		return errors.New("reconcile operator to replace OSDs that are pending migration")
+		// reconcile if migration of one or more OSD is pending.
+		osdsToReplace, err := c.getOSDWithNonMatchingStore()
+		if err != nil {
+			return errors.Wrapf(err, "failed to check if any OSD migration is pending")
+		}
+
+		if len(osdsToReplace) != 0 {
+			return errors.New("reconcile operator to replace OSDs that are pending migration")
+		}
 	}
 
 	logger.Infof("finished running OSDs in namespace %q", namespace)
@@ -846,7 +856,7 @@ func (c *Cluster) waitForHealthyPGs() (bool, error) {
 		if pgClean {
 			return true, nil
 		}
-		logger.Infof("waiting for PGs to be healthy after replacing an OSD, status: %q", pgHealthMsg)
+		logger.Infof("waiting for PGs to be healthy. PG status: %q", pgHealthMsg)
 		return false, nil
 	}
 
