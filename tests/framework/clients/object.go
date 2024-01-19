@@ -17,10 +17,14 @@ limitations under the License.
 package clients
 
 import (
+	"context"
 	"fmt"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"strings"
 )
 
 const rgwPort = 80
@@ -47,10 +51,38 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 	//   Created GetKeystoneUserSecret() here for the test PoC, but it should definitely be somewhere else
 	// 	 maybe in o.manifests ?
 	//   and it should be variable on all parts
+
 	if swiftAndKeystone {
 
-		if err := o.k8sh.ResourceOperation("apply", GetKeystoneUserSecret(namespace)); err != nil {
-			return err
+		testCtx := context.TODO()
+
+		secrets := map[string][]byte{
+			"OS_AUTH_TYPE":            []byte("password"),
+			"OS_IDENTITY_API_VERSION": []byte("3"),
+			"OS_PROJECT_DOMAIN_NAME":  []byte("Default"),
+			"OS_USER_DOMAIN_NAME":     []byte("Default"),
+			"OS_PROJECT_NAME":         []byte("admin"),
+			"OS_USERNAME":             []byte("rook-user"),
+			"OS_PASSWORD":             []byte("5w1ft135"),
+		}
+
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "usersecret",
+				Namespace: namespace,
+			},
+			Data: secrets,
+		}
+
+		_, err := o.k8sh.Clientset.CoreV1().Secrets(namespace).Create(testCtx, secret, metav1.CreateOptions{})
+		if err != nil {
+
+			if !strings.Contains(err.Error(), "\"usersecret\" already exists") {
+
+				return err
+
+			}
+
 		}
 
 	}
@@ -67,24 +99,6 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 
 	// create the external service
 	return o.k8sh.CreateExternalRGWService(namespace, storeName)
-}
-
-func GetKeystoneUserSecret(namespace string) string {
-
-	return `apiVersion: v1
-data:
-  OS_AUTH_TYPE: cGFzc3dvcmQ=
-  OS_IDENTITY_API_VERSION: Mw==
-  OS_PROJECT_DOMAIN_NAME: RGVmYXVsdA==
-  OS_USER_DOMAIN_NAME: RGVmYXVsdA==
-  OS_PROJECT_NAME: YWRtaW4=
-  OS_USERNAME: cm9vay11c2Vy
-  OS_PASSWORD: NXcxZnQxMzU=
-kind: Secret
-metadata:
-  name: usersecret
-  namespace: ` + namespace
-
 }
 
 func (o *ObjectOperation) Delete(namespace, storeName string) error {
