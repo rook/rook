@@ -61,7 +61,7 @@ For more details on the mons and when to choose a number other than `3`, see the
 	updates the label `mgr_role` on the mgr pods to be either `active` or `standby`. Therefore, services need just to add the label
     `mgr_role=active` to their selector to point to the active mgr. This applies to all services that rely on the ceph mgr such as
 	the dashboard or the prometheus metrics collector.
-    * `modules`: is the list of Ceph manager modules to enable
+    * `modules`: A list of Ceph manager modules to enable or disable. Note the "dashboard" and "monitoring" modules are already configured by other settings.
 * `crashCollector`: The settings for crash collector daemon(s).
     * `disable`: is set to `true`, the crash collector will not run on any node where a Ceph daemon runs
     * `daysToRetain`: specifies the number of days to keep crash entries in the Ceph cluster. By default the entries are kept indefinitely.
