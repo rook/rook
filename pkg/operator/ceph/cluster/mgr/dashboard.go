@@ -51,7 +51,8 @@ const (
 )
 
 var (
-	dashboardInitWaitTime = 5 * time.Second
+	dashboardInitWaitTime        = 5 * time.Second
+	removeMgrDaemonConfiguration = true
 )
 
 func (c *Cluster) configureDashboardService() error {
@@ -93,15 +94,9 @@ func (c *Cluster) configureDashboardModules() error {
 		return errors.Wrap(err, "failed to initialize dashboard")
 	}
 
-	var hasChanged bool
-	for _, daemonID := range c.getDaemonIDs() {
-		changed, err := c.configureDashboardModuleSettings(daemonID)
-		if err != nil {
-			return err
-		}
-		if changed {
-			hasChanged = true
-		}
+	hasChanged, err := c.configureDashboardModuleSettings()
+	if err != nil {
+		return err
 	}
 	if hasChanged {
 		logger.Info("dashboard config has changed. restarting the dashboard module")
@@ -110,20 +105,19 @@ func (c *Cluster) configureDashboardModules() error {
 	return nil
 }
 
-func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
+func (c *Cluster) configureDashboardModuleSettings() (bool, error) {
+
 	monStore := config.GetMonStore(c.context, c.clusterInfo)
 
-	daemonID = fmt.Sprintf("mgr.%s", daemonID)
-
 	// url prefix
-	hasChanged, err := monStore.SetIfChanged(daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix)
+	hasChanged, err := monStore.SetIfChanged(config.MgrType, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix)
 	if err != nil {
 		return false, err
 	}
 
 	// ssl support
 	ssl := strconv.FormatBool(c.spec.Dashboard.SSL)
-	changed, err := monStore.SetIfChanged(daemonID, "mgr/dashboard/ssl", ssl)
+	changed, err := monStore.SetIfChanged(config.MgrType, "mgr/dashboard/ssl", ssl)
 	if err != nil {
 		return false, err
 	}
@@ -131,7 +125,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// Prometheus host end point
 	prometheusEndpoint := c.spec.Dashboard.PrometheusEndpoint
-	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/PROMETHEUS_API_HOST", prometheusEndpoint)
+	changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/PROMETHEUS_API_HOST", prometheusEndpoint)
 	if err != nil {
 		return false, err
 	}
@@ -139,7 +133,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// Prometheus host end point ssl verify
 	prometheusEndpointSSLVerify := strconv.FormatBool(c.spec.Dashboard.PrometheusEndpointSSLVerify)
-	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/PROMETHEUS_API_SSL_VERIFY", prometheusEndpointSSLVerify)
+	changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/PROMETHEUS_API_SSL_VERIFY", prometheusEndpointSSLVerify)
 	if err != nil {
 		return false, err
 	}
@@ -147,7 +141,7 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// server port
 	port := strconv.Itoa(c.dashboardInternalPort())
-	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/server_port", port)
+	changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/server_port", port)
 	if err != nil {
 		return false, err
 	}
@@ -155,11 +149,26 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// SSL enabled. Needed to set specifically the ssl port setting
 	if c.spec.Dashboard.SSL {
-		changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/ssl_server_port", port)
+		changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/ssl_server_port", port)
 		if err != nil {
 			return false, err
 		}
 		hasChanged = hasChanged || changed
+	}
+
+	// Remove any existing per mgr-daemon configuration
+	if removeMgrDaemonConfiguration {
+		logger.Info("Removing any previous per mgr-daemon configuration")
+		for _, daemonID := range c.getDaemonIDs() {
+			mgrDaemonID := fmt.Sprintf("%s.%s", config.MgrType, daemonID)
+			monStore.Delete(mgrDaemonID, "mgr/dashboard/url_prefix")
+			monStore.Delete(mgrDaemonID, "mgr/dashboard/ssl")
+			monStore.Delete(mgrDaemonID, "mgr/dashboard/PROMETHEUS_API_HOST")
+			monStore.Delete(mgrDaemonID, "mgr/dashboard/PROMETHEUS_API_SSL_VERIFY")
+			monStore.Delete(mgrDaemonID, "mgr/dashboard/server_port")
+			monStore.Delete(mgrDaemonID, "mgr/dashboard/ssl_server_port")
+		}
+		removeMgrDaemonConfiguration = false
 	}
 
 	return hasChanged, nil
