@@ -521,8 +521,8 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 					return false
 				}
 
-				// If the resource is a canary deployment we don't reconcile because it's ephemeral
-				if isCanary(e.Object) || isCrashCollector(e.Object) {
+				// If the resource is a canary, crash collector, or exporter we don't reconcile because it's ephemeral
+				if isCanary(e.Object) || isCrashCollector(e.Object) || isExporter(e.Object) {
 					return false
 				}
 
@@ -693,6 +693,14 @@ func isCanary(obj runtime.Object) bool {
 }
 
 func isCrashCollector(obj runtime.Object) bool {
+	return isDeployment(obj, "rook-ceph-crashcollector")
+}
+
+func isExporter(obj runtime.Object) bool {
+	return isDeployment(obj, "rook-ceph-exporter")
+}
+
+func isDeployment(obj runtime.Object, appName string) bool {
 	// If not a deployment, let's not reconcile
 	d, ok := obj.(*appsv1.Deployment)
 	if !ok {
@@ -703,8 +711,8 @@ func isCrashCollector(obj runtime.Object) bool {
 	labels := d.GetLabels()
 
 	labelVal, labelKeyExist := labels["app"]
-	if labelKeyExist && labelVal == "rook-ceph-crashcollector" {
-		logger.Debugf("do not reconcile %q on crash collectors", d.Name)
+	if labelKeyExist && labelVal == appName {
+		logger.Debugf("do not reconcile %q on %s", d.Name, appName)
 		return true
 	}
 
