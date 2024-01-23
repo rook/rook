@@ -86,7 +86,6 @@ spec:
               # create the keyring file
               cat <<EOF > ${KEYRING_FILE}
               [${ROOK_CEPH_USERNAME}]
-              key = ${ROOK_CEPH_SECRET}
               key = ${ceph_secret}
               EOF
 
