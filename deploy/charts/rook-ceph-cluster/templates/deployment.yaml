@@ -86,7 +86,6 @@ spec:
               # create the keyring file
               cat <<EOF > ${KEYRING_FILE}
               [${ROOK_CEPH_USERNAME}]
-              key = ${ROOK_CEPH_SECRET}
               key = ${ceph_secret}
               EOF
 
@@ -127,8 +126,8 @@ spec:
           configMap:
             name: rook-ceph-mon-endpoints
             items:
-                - key: data
-                  path: mon-endpoints
+            - key: data
+              path: mon-endpoints
         - name: ceph-config
           emptyDir: {}
       tolerations:
