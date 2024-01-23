@@ -1,11 +1,16 @@
 # v1.13 Pending Release Notes
 
 ## Breaking Changes
+<<<<<<< HEAD
 
 - Removed official support for Kubernetes v1.22
 - Removed support for Ceph Pacific (v16)
 - Support for the admission controller has been removed. See the
   [Rook upgrade guide](./Documentation/Upgrade/rook-upgrade.md#breaking-changes-in-v113) for more details.
+=======
+- The removal of `CSI_ENABLE_READ_AFFINITY` option and its replacement with per-cluster
+read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https://github.com/rook/rook/pull/13665)
+>>>>>>> d28febaa6 (csi: remove CSI_ENABLE_READ_AFFINITY)
 
 ## Features
 

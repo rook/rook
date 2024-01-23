@@ -118,12 +118,6 @@ data:
   CSI_TOPOLOGY_DOMAIN_LABELS: {{ .Values.csi.topology.domainLabels | join "," }}
 {{- end }}
 {{- end }}
-{{- if .Values.csi.readAffinity }}
-  CSI_ENABLE_READ_AFFINITY: {{ .Values.csi.readAffinity.enabled | quote }}
-{{- if .Values.csi.readAffinity.crushLocationLabels }}
-  CSI_CRUSH_LOCATION_LABELS: {{ .Values.csi.readAffinity.crushLocationLabels | join "," }}
-{{- end }}
-{{- end }}
 {{- if .Values.csi.nfs }}
   ROOK_CSI_ENABLE_NFS: {{ .Values.csi.nfs.enabled | quote }}
 {{- end }}

@@ -79,10 +79,6 @@ spec:
             {{- if .EnableCSITopology }}
             - "--domainlabels={{ .CSIDomainLabels }}"
             {{- end }}
-            {{- if .EnableReadAffinity }}
-            - "--enable-read-affinity=true"
-            - "--crush-location-labels={{ .CrushLocationLabels }}"
-            {{- end }}
           env:
             - name: POD_IP
               valueFrom:
