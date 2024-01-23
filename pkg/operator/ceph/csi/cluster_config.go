@@ -149,6 +149,9 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			if newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.RBD.NetNamespaceFilePath != "" {
 				centry.RBD = newCsiClusterConfigEntry.RBD
 			}
+			if len(newCsiClusterConfigEntry.ReadAffinity.CrushLocationLabels) != 0 {
+				centry.ReadAffinity = newCsiClusterConfigEntry.ReadAffinity
+			}
 			found = true
 			cc[i] = centry
 			break
@@ -170,6 +173,9 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			}
 			if newCsiClusterConfigEntry.NFS.NetNamespaceFilePath != "" {
 				centry.NFS = newCsiClusterConfigEntry.NFS
+			}
+			if len(newCsiClusterConfigEntry.ReadAffinity.CrushLocationLabels) != 0 {
+				centry.ReadAffinity = newCsiClusterConfigEntry.ReadAffinity
 			}
 			cc = append(cc, centry)
 		}
