@@ -67,8 +67,8 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 }
 
 func (h *KeystoneAuthSuite) TearDownSuite() {
-	h.installer.UninstallRook()
 	CleanUpKeystoneInTestCluster(h.k8shelper, h.settings.Namespace)
+	h.installer.UninstallRook()
 }
 
 func (h *KeystoneAuthSuite) AfterTest(suiteName, testName string) {
