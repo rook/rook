@@ -53,6 +53,12 @@ type clientCluster struct {
 
 var nodesCheckedForReconcile = sets.New[string]()
 
+// drivers that supports fencing, used in naming networkFence object
+const (
+	rbdDriver    = "rbd"
+	cephfsDriver = "cephfs"
+)
+
 func newClientCluster(client client.Client, namespace string, context *clusterd.Context) *clientCluster {
 	return &clientCluster{
 		client:    client,
@@ -185,9 +191,14 @@ func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.C
 		return nil
 	}
 
-	err = c.unfenceAndDeleteNetworkFence(ctx, *node, cluster)
+	err = c.unfenceAndDeleteNetworkFence(ctx, *node, cluster, rbdDriver)
 	if err != nil {
-		return pkgerror.Wrapf(err, "failed to delete network fence for node %q.", node.Name)
+		return pkgerror.Wrapf(err, "failed to delete rbd network fence for node %q.", node.Name)
+	}
+
+	err = c.unfenceAndDeleteNetworkFence(ctx, *node, cluster, cephfsDriver)
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to delete cephFS network fence for node %q.", node.Name)
 	}
 
 	return nil
@@ -343,7 +354,7 @@ func listRWOCephFSPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephC
 				continue
 			}
 
-			if pv.Spec.CSI.VolumeAttributes["staticVolume"] == "true" || pv.Spec.CSI.VolumeAttributes["pool"] == "" {
+			if pv.Spec.CSI.VolumeAttributes["staticVolume"] == "true" {
 				logger.Debugf("skipping, static pv %q", pv.Name)
 				continue
 			}
@@ -388,7 +399,7 @@ func (c *clientCluster) fenceRbdImage(
 		return pkgerror.Wrapf(err, "failed to unmarshal rbd status output")
 	}
 	if len(ips) != 0 {
-		err = c.createNetworkFence(ctx, rbdPV, node, cluster, ips)
+		err = c.createNetworkFence(ctx, rbdPV, node, cluster, ips, rbdDriver)
 		if err != nil {
 			return pkgerror.Wrapf(err, "failed to create network fence for node %q", node.Name)
 		}
@@ -428,7 +439,7 @@ func (c *clientCluster) fenceCephFSVolume(
 		return fmt.Errorf("failed to unmarshal cephfs mds  output. %v", err)
 	}
 
-	err = c.createNetworkFence(ctx, cephFSPV, node, cluster, ips)
+	err = c.createNetworkFence(ctx, cephFSPV, node, cluster, ips, cephfsDriver)
 	if err != nil {
 		return fmt.Errorf("failed to create network fence for node %q. %v", node.Name, err)
 	}
@@ -500,7 +511,11 @@ func concatenateWatcherIp(address string) string {
 	return watcherIP
 }
 
-func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.PersistentVolume, node *corev1.Node, cluster *cephv1.CephCluster, cidr []string) error {
+func fenceResourceName(nodeName, driver string) string {
+	return fmt.Sprintf("%s-%s", nodeName, driver)
+}
+
+func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.PersistentVolume, node *corev1.Node, cluster *cephv1.CephCluster, cidr []string, driver string) error {
 	logger.Warningf("Blocking node IP %s", cidr)
 
 	secretName := pv.Annotations["volume.kubernetes.io/provisioner-deletion-secret-name"]
@@ -516,7 +531,7 @@ func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.Persis
 
 	networkFence := &addonsv1alpha1.NetworkFence{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      node.Name,
+			Name:      fenceResourceName(node.Name, driver),
 			Namespace: cluster.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(cluster, cephv1.SchemeGroupVersion.WithKind("CephCluster")),
@@ -546,9 +561,9 @@ func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.Persis
 	return nil
 }
 
-func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node corev1.Node, cluster *cephv1.CephCluster) error {
+func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node corev1.Node, cluster *cephv1.CephCluster, driver string) error {
 	networkFence := &addonsv1alpha1.NetworkFence{}
-	err := c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cluster.Namespace}, networkFence)
+	err := c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver), Namespace: cluster.Namespace}, networkFence)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -565,7 +580,7 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 	}
 
 	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
-		err = c.client.Get(ctx, types.NamespacedName{Name: node.Name, Namespace: cluster.Namespace}, networkFence)
+		err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver), Namespace: cluster.Namespace}, networkFence)
 		if err != nil && !errors.IsNotFound(err) {
 			return false, err
 		}
@@ -575,7 +590,7 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 			return false, err
 		}
 
-		logger.Infof("successfully unfenced network fence cr %q, proceeding with deletion", networkFence.Name)
+		logger.Infof("successfully unfenced %q network fence cr %q, proceeding with deletion", driver, networkFence.Name)
 
 		err = c.client.Delete(ctx, networkFence)
 		if err == nil || errors.IsNotFound(err) {
@@ -585,7 +600,7 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 		return false, nil
 	})
 	if err != nil {
-		return pkgerror.Wrapf(err, "timeout out deleting the network fence CR %s", networkFence.Name)
+		return pkgerror.Wrapf(err, "timeout out deleting the %s network fence CR %s", driver, networkFence.Name)
 	}
 
 	return nil
