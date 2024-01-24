@@ -108,7 +108,7 @@ func (m *MonStore) Set(who, option, value string) error {
 
 // Delete a config in the centralized mon configuration database.
 func (m *MonStore) Delete(who, option string) error {
-	logger.Infof("deleting %q option from the mon configuration database", option)
+	logger.Infof("deleting %q %q option from the mon configuration database", who, option)
 	args := []string{"config", "rm", who, normalizeKey(option)}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
