@@ -105,6 +105,41 @@ func (c *Cluster) configureDashboardModules() error {
 	return nil
 }
 
+// Delete the manager per-daemon configuration. Returns true
+// if all the configuration entries have been delete successfully.
+func (c *Cluster) deleteManagerDaemonConfiguration() bool {
+
+	mgrKeysToDelete := []string{
+		"mgr/dashboard/url_prefix",
+		"mgr/dashboard/ssl",
+		"mgr/dashboard/PROMETHEUS_API_HOST",
+		"mgr/dashboard/PROMETHEUS_API_SSL_VERIFY",
+		"mgr/dashboard/server_port",
+		"mgr/dashboard/ssl_server_port",
+	}
+
+	success := true
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	for _, daemonID := range c.getDaemonIDs() {
+		mgrDaemonID := fmt.Sprintf("%s.%s", config.MgrType, daemonID)
+		for _, key := range mgrKeysToDelete {
+			err := monStore.Delete(mgrDaemonID, key)
+			if err != nil {
+				logger.Errorf("failed to delete configuration entry %q %q, err: %v", mgrDaemonID, key, err)
+				success = false
+			}
+		}
+	}
+
+	if success {
+		logger.Info("All per-daemon mgr configuration has been deleted successfully.")
+	} else {
+		logger.Error("At least one delete operation failed while trying to delete per-daemon mgr configuration.")
+	}
+
+	return success
+}
+
 func (c *Cluster) configureDashboardModuleSettings() (bool, error) {
 
 	monStore := config.GetMonStore(c.context, c.clusterInfo)
@@ -158,17 +193,7 @@ func (c *Cluster) configureDashboardModuleSettings() (bool, error) {
 
 	// Remove any existing per mgr-daemon configuration
 	if removeMgrDaemonConfiguration {
-		logger.Info("Removing any previous per mgr-daemon configuration")
-		for _, daemonID := range c.getDaemonIDs() {
-			mgrDaemonID := fmt.Sprintf("%s.%s", config.MgrType, daemonID)
-			monStore.Delete(mgrDaemonID, "mgr/dashboard/url_prefix")
-			monStore.Delete(mgrDaemonID, "mgr/dashboard/ssl")
-			monStore.Delete(mgrDaemonID, "mgr/dashboard/PROMETHEUS_API_HOST")
-			monStore.Delete(mgrDaemonID, "mgr/dashboard/PROMETHEUS_API_SSL_VERIFY")
-			monStore.Delete(mgrDaemonID, "mgr/dashboard/server_port")
-			monStore.Delete(mgrDaemonID, "mgr/dashboard/ssl_server_port")
-		}
-		removeMgrDaemonConfiguration = false
+		removeMgrDaemonConfiguration = !c.deleteManagerDaemonConfiguration()
 	}
 
 	return hasChanged, nil
