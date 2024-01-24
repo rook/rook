@@ -6,6 +6,9 @@ MONITORING_FILES="monitoring/prometheus.yaml monitoring/service-monitor.yaml mon
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 # Script arguments: new arguments must be added here (following the same format)
+export MINIKUBE_NODES="${MINIKUBE_NODES:=1}" ## Specify the minikube number of nodes to create
+export MINIKUBE_DISK_SIZE="${MINIKUBE_DISK_SIZE:=40g}" ## Specify the minikube disk size
+export MINIKUBE_EXTRA_DISKS="${MINIKUBE_EXTRA_DISKS:=3}" ## Specify the minikube number of extra disks
 export ROOK_PROFILE_NAME="${ROOK_PROFILE_NAME:=rook}" ## Specify the minikube profile name
 export ROOK_CLUSTER_NS="${ROOK_CLUSTER_NS:=$DEFAULT_NS}" ## CephCluster namespace
 export ROOK_OPERATOR_NS="${ROOK_OPERATOR_NS:=$DEFAULT_NS}" ## Rook operator namespace (if different from CephCluster namespace)
@@ -109,7 +112,7 @@ setup_minikube_env() {
     minikube_driver="$(get_minikube_driver)"
     echo "Setting up minikube env for profile '$ROOK_PROFILE_NAME' (using $minikube_driver driver)"
     $MINIKUBE delete
-    $MINIKUBE start --disk-size=40g --extra-disks=3 --driver "$minikube_driver"
+    $MINIKUBE start --disk-size="$MINIKUBE_DISK_SIZE" --extra-disks="$MINIKUBE_EXTRA_DISKS" --driver "$minikube_driver" -n "$MINIKUBE_NODES"
     eval "$($MINIKUBE docker-env)"
 }
 
