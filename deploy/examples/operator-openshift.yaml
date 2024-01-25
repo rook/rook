@@ -642,10 +642,10 @@ data:
   #   - name: DISCOVER_DAEMON_RESOURCES
   #     resources:
   #       limits:
-  #         cpu: 500m
+  #         cpu: 1500m
   #         memory: 512Mi
   #       requests:
-  #         cpu: 100m
+  #         cpu: 200m
   #         memory: 128Mi
 ---
 # The deployment for the rook operator
