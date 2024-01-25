@@ -671,10 +671,10 @@ spec:
           # Recommended resource requests and limits, if desired
           #resources:
           #  limits:
-          #    cpu: 500m
+          #    cpu: 1500m
           #    memory: 512Mi
           #  requests:
-          #    cpu: 100m
+          #    cpu: 200m
           #    memory: 128Mi
 
           #  Uncomment it to run lib bucket provisioner in multithreaded mode
