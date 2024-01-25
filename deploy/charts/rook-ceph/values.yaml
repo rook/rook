@@ -23,10 +23,10 @@ crds:
 # -- Pod resource requests & limits
 resources:
   limits:
-    cpu: 500m
+    cpu: 1500m
     memory: 512Mi
   requests:
-    cpu: 100m
+    cpu: 200m
     memory: 128Mi
 
 # -- Kubernetes [`nodeSelector`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector) to add to the Deployment.
