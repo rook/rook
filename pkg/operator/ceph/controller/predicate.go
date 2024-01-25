@@ -436,6 +436,34 @@ func WatchControllerPredicate() predicate.Funcs {
 				if isUpgrade {
 					return true
 				}
+
+			case *cephv1.CephCOSIDriver:
+				objNew := e.ObjectNew.(*cephv1.CephCOSIDriver)
+				namespacedName := fmt.Sprintf("%s/%s", objNew.Namespace, objNew.Name)
+				logger.Debug("update event on CephCOSIDriver %q CR", namespacedName)
+				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
+				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
+				if IsDoNotReconcile {
+					logger.Debugf("object %q matched on update but %q label is set, doing nothing",
+						namespacedName, DoNotReconcileLabelName)
+					return false
+				}
+				diff := cmp.Diff(objOld.Spec, objNew.Spec)
+				if diff != "" {
+					logger.Infof("CephCOSIDriver CR has changed for %q. diff=%s", namespacedName, diff)
+					return true
+				} else if objectToBeDeleted(objOld, objNew) {
+					logger.Debugf("CephCOSIDriver CR %q is going be deleted", namespacedName)
+					return true
+				} else if objOld.GetGeneration() != objNew.GetGeneration() {
+					logger.Debugf("skipping CephCOSIDriver resource %q update with unchanged spec", namespacedName)
+				}
+				// Handling upgrades
+				isUpgrade := isUpgrade(objOld.GetLabels(), objNew.GetLabels())
+				if isUpgrade {
+					return true
+				}
+
 			}
 			return false
 		},
