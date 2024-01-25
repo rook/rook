@@ -20,6 +20,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
@@ -36,6 +37,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
+	"k8s.io/client-go/kubernetes"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
@@ -263,11 +265,17 @@ const (
 	csiCephFSProvisioner = "csi-cephfsplugin-provisioner"
 	csiNFSProvisioner    = "csi-nfsplugin-provisioner"
 
+	// cephcsi container names
+	csiRBDContainerName    = "csi-rbdplugin"
+	csiCephFSContainerName = "csi-cephfsplugin"
+	csiNFSContainerName    = "csi-nfsplugin"
+
 	RBDDriverShortName    = "rbd"
 	CephFSDriverShortName = "cephfs"
 	NFSDriverShortName    = "nfs"
 	rbdDriverSuffix       = "rbd.csi.ceph.com"
 	cephFSDriverSuffix    = "cephfs.csi.ceph.com"
+	nfsDriverSuffix       = "nfs.csi.ceph.com"
 )
 
 func CSIEnabled() bool {
@@ -307,11 +315,25 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		Namespace: r.opConfig.OperatorNamespace,
 	}
 
-	tp.DriverNamePrefix = fmt.Sprintf("%s.", r.opConfig.OperatorNamespace)
+	if strings.HasSuffix(tp.DriverNamePrefix, ".") {
+		// As operator is adding a dot at the end of the prefix, we should not
+		// allow the user to add a dot at the end of the prefix. as it will
+		// result in two dots at the end of the prefix. which cases the csi
+		// driver name creation failure
+		return errors.Errorf("driver name prefix %q should not end with a dot", tp.DriverNamePrefix)
+	}
+
+	err = validateCSIDriverNamePrefix(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, tp.DriverNamePrefix)
+	if err != nil {
+		return err
+	}
+	// Add a dot at the end of the prefix for having the driver name prefix
+	// with format <prefix>.<driver-name>
+	tp.DriverNamePrefix = fmt.Sprintf("%s.", tp.DriverNamePrefix)
 
 	CephFSDriverName = tp.DriverNamePrefix + cephFSDriverSuffix
 	RBDDriverName = tp.DriverNamePrefix + rbdDriverSuffix
-	NFSDriverName = tp.DriverNamePrefix + "nfs.csi.ceph.com"
+	NFSDriverName = tp.DriverNamePrefix + nfsDriverSuffix
 
 	tp.Param.MountCustomCephConf = CustomCSICephConfigExists
 
@@ -934,4 +956,84 @@ func GenerateNetNamespaceFilePath(ctx context.Context, client client.Client, clu
 
 func generateNetNamespaceFilePath(kubeletDirPath, driverFullName, clusterNamespace string) string {
 	return fmt.Sprintf("%s/plugins/%s/%s.net.ns", kubeletDirPath, driverFullName, clusterNamespace)
+}
+
+func validateCSIDriverNamePrefix(ctx context.Context, clientset kubernetes.Interface, namespace, driverNamePrefix string) error {
+	if EnableRBD {
+		rbdDriverNamePrefix, err := getCSIDriverNamePrefixFromDeployment(ctx, clientset, namespace, csiRBDProvisioner, "csi-rbdplugin")
+		if err != nil {
+			return err
+		}
+		if rbdDriverNamePrefix != "" {
+			if rbdDriverNamePrefix != driverNamePrefix {
+				return errors.Errorf("rbd driver already exists with prefix %q, cannot use prefix %q", rbdDriverNamePrefix, driverNamePrefix)
+			}
+			return nil
+		}
+	}
+
+	if EnableCephFS {
+		cephFSDriverNamePrefix, err := getCSIDriverNamePrefixFromDeployment(ctx, clientset, namespace, csiCephFSProvisioner, "csi-cephfsplugin")
+		if err != nil {
+			return err
+		}
+		if cephFSDriverNamePrefix != "" {
+			if cephFSDriverNamePrefix != driverNamePrefix {
+				return errors.Errorf("cephFS driver already exists with prefix %q, cannot use prefix %q", cephFSDriverNamePrefix, driverNamePrefix)
+			}
+			return nil
+
+		}
+	}
+
+	if EnableNFS {
+		nfsDriverNamePrefix, err := getCSIDriverNamePrefixFromDeployment(ctx, clientset, namespace, csiNFSProvisioner, "csi-nfsplugin")
+		if err != nil {
+			return err
+		}
+		if nfsDriverNamePrefix != "" {
+			if nfsDriverNamePrefix != driverNamePrefix {
+				return errors.Errorf("nfs driver already exists with prefix %q, cannot use prefix %q", nfsDriverNamePrefix, driverNamePrefix)
+			}
+			return nil
+		}
+	}
+
+	return nil
+}
+
+func getCSIDriverNamePrefixFromDeployment(ctx context.Context, clientset kubernetes.Interface, namespace, deploymentName, containerName string) (string, error) {
+	deployment, err := clientset.AppsV1().Deployments(namespace).Get(ctx, deploymentName, metav1.GetOptions{})
+	if kerrors.IsNotFound(err) {
+		return "", nil
+	}
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get deployment %q", deploymentName)
+	}
+
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		if container.Name == containerName {
+			for _, arg := range container.Args {
+				if prefix, ok := getPrefixFromArg(arg); ok {
+					return prefix, nil
+				}
+			}
+		}
+	}
+
+	return "", errors.Errorf("failed to get CSI driver name from deployment %q", deploymentName)
+}
+
+func getPrefixFromArg(arg string) (string, bool) {
+	if strings.Contains(arg, "--drivername=") {
+		driverName := strings.Split(arg, "=")[1]
+
+		for _, suffix := range []string{rbdDriverSuffix, cephFSDriverSuffix, nfsDriverSuffix} {
+			// Add a dot as we are adding it to the Prefix
+			if prefix, ok := strings.CutSuffix(driverName, "."+suffix); ok {
+				return prefix, true
+			}
+		}
+	}
+	return "", false
 }

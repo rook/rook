@@ -1,3 +1,4 @@
+{{- $root := . -}}
 {{- $filesystemvsc := .Values.cephFileSystemVolumeSnapshotClass -}}
 {{- $blockpoolvsc := .Values.cephBlockPoolsVolumeSnapshotClass -}}
 
@@ -16,7 +17,11 @@ metadata:
 {{- if $filesystemvsc.annotations }}
 {{ toYaml $filesystemvsc.annotations | indent 4 }}
 {{- end }}
-driver: {{ .Values.operatorNamespace }}.cephfs.csi.ceph.com
+{{- if $root.Values.csiDriverNamePrefix }}
+driver: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
+{{- else }}
+driver: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
+{{- end }}
 parameters:
   clusterID: {{ .Release.Namespace }}
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
@@ -42,7 +47,11 @@ metadata:
 {{- if $blockpoolvsc.annotations }}
 {{ toYaml $blockpoolvsc.annotations | indent 4 }}
 {{- end }}
-driver: {{ .Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- if $root.Values.csiDriverNamePrefix }}
+driver: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
+driver: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
 parameters:
   clusterID: {{ .Release.Namespace }}
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner

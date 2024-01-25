@@ -647,8 +647,6 @@ cephObjectStores:
 # if cephECBlockPools are uncommented you must remove the comments of cephEcStorageClass as well
 #cephECStorageClass:
 #  name: rook-ceph-block
-#  # Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-#  provisioner: rook-ceph.rbd.csi.ceph.com # driver:namespace:operator
 #  parameters:
 #    # clusterID is the namespace where the rook cluster is running
 #    # If you change this namespace, also change the namespace below where the secret namespaces are defined
@@ -687,3 +685,7 @@ cephObjectStores:
 #    imageFeatures: layering
 #  allowVolumeExpansion: true
 #  reclaimPolicy: Delete
+
+# -- CSI driver name prefix for cephfs, rbd and nfs.
+# @default -- `namespace name where rook-ceph operator is deployed`
+csiDriverNamePrefix:

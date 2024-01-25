@@ -35,7 +35,11 @@ metadata:
   name: {{ $filesystem.storageClass.name }}
   annotations:
     storageclass.kubernetes.io/is-default-class: "{{ if default false $filesystem.storageClass.isDefault }}true{{ else }}false{{ end }}"
+{{- if $root.Values.csiDriverNamePrefix }}
+provisioner: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
+{{- else }}
 provisioner: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
+{{- end }}
 parameters:
   fsName: {{ $filesystem.name }}
   pool: {{ $filesystem.name }}-{{ default "data0" $filesystem.storageClass.pool }}

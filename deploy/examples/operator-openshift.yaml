@@ -614,6 +614,12 @@ data:
   # (Optional) Retry period in seconds the LeaderElector clients should wait between tries of actions. Defaults to 26 seconds.
   # CSI_LEADER_ELECTION_RETRY_PERIOD: "26s"
 
+  # csi driver name prefix for cephfs, rbd and nfs. if not specified, default
+  # will be the namespace name where rook-ceph operator is deployed.
+  # search for `# csi-provisioner-name` in the storageclass and
+  # volumesnashotclass and update the name accordingly.
+  # CSI_DRIVER_NAME_PREFIX: "rook-ceph"
+
   # Rook Discover toleration. Will tolerate all taints with all keys.
   # (Optional) Rook Discover tolerations list. Put here list of taints you want to tolerate in YAML format.
   # DISCOVER_TOLERATIONS: |

@@ -16,7 +16,11 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $cephEcStorage.name }}
-provisioner: {{ $cephEcStorage.provisioner }}
+{{- if $root.Values.csiDriverNamePrefix }}
+provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
+provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
 parameters:
   clusterID: {{ $cephEcStorage.parameters.clusterID }}
   dataPool: {{ $cephEcStorage.parameters.dataPool }}

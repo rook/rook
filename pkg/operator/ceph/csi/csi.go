@@ -320,5 +320,8 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_ATTACH_REQUIRED", "true"), "false") {
 		CSIParam.NFSAttachRequired = false
 	}
+
+	CSIParam.DriverNamePrefix = k8sutil.GetValue(r.opConfig.Parameters, "CSI_DRIVER_NAME_PREFIX", r.opConfig.OperatorNamespace)
+
 	return nil
 }
