@@ -216,7 +216,7 @@ help:
 	@echo ''
 	@echo 'Options:'
 	@echo '    VERSION      Sets the release version.'
-	@echo '    BRANCH_NAME  Name of the branch we're releasing from.'
+	@echo '    BRANCH_NAME  Name of the branch we are releasing from.'
 	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
 	@echo '                 or release. Default is not set.'
 	@echo '    PLATFORMS    The supported platforms to build when running.'
