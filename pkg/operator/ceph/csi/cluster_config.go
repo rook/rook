@@ -123,6 +123,49 @@ func MonEndpoints(mons map[string]*cephclient.MonInfo, requireMsgr2 bool) []stri
 	return endpoints
 }
 
+// updateNetNamespaceFilePath modify the netNamespaceFilePath for all cluster IDs.
+// If holderEnabled is set to true. Otherwise, removes the netNamespaceFilePath value
+// for all the clusterIDs.
+func updateNetNamespaceFilePath(clusterNamespace string, cc csiClusterConfig) {
+	var (
+		cephFSNetNamespaceFilePath string
+		rbdNetNamespaceFilePath    string
+		nfsNetNamespaceFilePath    string
+	)
+
+	if IsHolderEnabled() {
+		for _, centry := range cc {
+			if centry.Namespace == clusterNamespace && centry.ClusterID == clusterNamespace {
+				if centry.CephFS.NetNamespaceFilePath != "" {
+					cephFSNetNamespaceFilePath = centry.CephFS.NetNamespaceFilePath
+				}
+				if centry.RBD.NetNamespaceFilePath != "" {
+					rbdNetNamespaceFilePath = centry.RBD.NetNamespaceFilePath
+				}
+				if centry.NFS.NetNamespaceFilePath != "" {
+					nfsNetNamespaceFilePath = centry.NFS.NetNamespaceFilePath
+				}
+			}
+		}
+
+		for i, centry := range cc {
+			if centry.Namespace == clusterNamespace {
+				cc[i].CephFS.NetNamespaceFilePath = cephFSNetNamespaceFilePath
+				cc[i].RBD.NetNamespaceFilePath = rbdNetNamespaceFilePath
+				cc[i].NFS.NetNamespaceFilePath = nfsNetNamespaceFilePath
+			}
+		}
+	} else {
+		for i := range cc {
+			if cc[i].Namespace == clusterNamespace {
+				cc[i].CephFS.NetNamespaceFilePath = ""
+				cc[i].RBD.NetNamespaceFilePath = ""
+				cc[i].NFS.NetNamespaceFilePath = ""
+			}
+		}
+	}
+}
+
 // updateCsiClusterConfig returns a json-formatted string containing
 // the cluster-to-mon mapping required to configure ceph csi.
 func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *CsiClusterConfigEntry) (string, error) {
@@ -191,7 +234,11 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			centry.ClusterID = clusterKey
 			centry.Namespace = newCsiClusterConfigEntry.Namespace
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
+<<<<<<< HEAD
 			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
+=======
+			if newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.RBD.NetNamespaceFilePath != "" {
+>>>>>>> f67bbc834 (csi: fix netNamespaceFilePath addition and removal for all clusterIDs)
 				centry.RBD = newCsiClusterConfigEntry.RBD
 			}
 			// Add a condition not to fill with empty values
@@ -208,6 +255,7 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 		}
 	}
 
+	updateNetNamespaceFilePath(clusterKey, cc)
 	return formatCsiClusterConfig(cc)
 }
 
