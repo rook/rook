@@ -45,13 +45,16 @@ sed -i.bak \
     -e "s/\(.*\):.*# namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE # namespace:cluster/g" \
     -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:operator/\1:$ROOK_OPERATOR_NAMESPACE:\2 # serviceaccount:namespace:operator/g" \
     -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:cluster/\1:$ROOK_CLUSTER_NAMESPACE:\2 # serviceaccount:namespace:cluster/g" \
-    -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:operator/\1: $ROOK_OPERATOR_NAMESPACE.\2 # driver:namespace:operator/g" \
     -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE.\2 # driver:namespace:cluster/g" \
   common.yaml operator.yaml cluster.yaml # add other files or change these as desired for your config
 
 # You need to use `apply` for all Ceph clusters after the first if you have only one Operator
 kubectl apply -f common.yaml -f operator.yaml -f cluster.yaml # add other files as desired for yourconfig
 ```
+
+Also see the CSI driver
+[documentation](../Ceph-CSI/ceph-csi-drivers.md#Configure-CSI-Drivers-in-non-default-namespace)
+to update the csi provisioner names in the storageclass and volumesnapshotclass.
 
 ## Deploying a second cluster
 

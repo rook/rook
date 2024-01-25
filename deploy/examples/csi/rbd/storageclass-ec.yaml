@@ -30,8 +30,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: rook-ceph-block
-# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-provisioner: rook-ceph.rbd.csi.ceph.com # driver:namespace:operator
+provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
 parameters:
   # clusterID is the namespace where the rook cluster is running
   # If you change this namespace, also change the namespace below where the secret namespaces are defined

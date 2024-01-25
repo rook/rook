@@ -18,8 +18,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: rook-ceph-block
-# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-provisioner: rook-ceph.rbd.csi.ceph.com
+provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
 parameters:
   # clusterID is the namespace where the rook cluster is running
   # If you change this namespace, also change the namespace below where the secret namespaces are defined
@@ -47,14 +46,14 @@ parameters:
   # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
   # unmapOptions: force
 
-   # (optional) Set it to true to encrypt each volume with encryption keys
-   # from a key management system (KMS)
-   # encrypted: "true"
+  # (optional) Set it to true to encrypt each volume with encryption keys
+  # from a key management system (KMS)
+  # encrypted: "true"
 
-   # (optional) Use external key management system (KMS) for encryption key by
-   # specifying a unique ID matching a KMS ConfigMap. The ID is only used for
-   # correlation to configmap entry.
-   # encryptionKMSID: <kms-config-id>
+  # (optional) Use external key management system (KMS) for encryption key by
+  # specifying a unique ID matching a KMS ConfigMap. The ID is only used for
+  # correlation to configmap entry.
+  # encryptionKMSID: <kms-config-id>
 
   # RBD image format. Defaults to "2".
   imageFormat: "2"
