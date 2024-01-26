@@ -18,8 +18,9 @@ package integration
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
 	"testing"
+
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -137,7 +138,8 @@ func (h *KeystoneAuthSuite) TestWithSwiftAndKeystone() {
 	swiftAndKeystone := true
 
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runSwiftE2ETest(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
+	// runSwiftE2ETest(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
+	runS3E2ETest(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
 	cleanUpTLSks(h)
 
 }

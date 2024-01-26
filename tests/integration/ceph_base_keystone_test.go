@@ -254,7 +254,7 @@ spec:
       - command:
         - sleep
         - "7200"
-        image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
+        image: nixery.dev/shell/awscli2/openstackclient/jq/busybox
         env:
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/keystone/ca.crt
@@ -1091,4 +1091,106 @@ func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName st
 		})
 
 	}
+}
+
+func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
+	andDeleting := ""
+	if deleteStore {
+		andDeleting = "and deleting"
+	}
+	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
+
+	testContainerName := "test-container"
+
+	prepareE2ETest(t, helper, k8sh, installer, namespace, storeName, replicaSize, deleteStore, enableTLS, swiftAndKeystone, testContainerName)
+
+	t.Run("create container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"openstack", "container", "create", testContainerName,
+		)
+
+	})
+
+	t.Run("create AWS config file", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "mkdir -p .aws && openstack ec2 credentials create -fjson | jq -r '\"[default]\\naws_access_key_id = \" + .access + \"\\naws_secret_access_key = \" + .secret + \"\\n\"' | tee .aws/credentials",
+		)
+	})
+
+	t.Run("List bucket with S3 with aws debugg", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --debug --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3api list-buckets",
+		)
+
+	})
+
+	t.Run("List bucket with S3", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3api list-buckets | jq '.Buckets | .[].Name' -r | grep "+testContainerName,
+		)
+
+	})
+
+	t.Run("List file with S3 created by OS", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "touch testfile2")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"openstack", "object", "create", "foo", "testfile2")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 ls s3://"+testContainerName+"| grep testfile2",
+		)
+
+	})
+
+	t.Run("Upload test file using S3", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "echo test-content > /tmp/testfile",
+		)
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url=http://rook-ceph-rgw-examplestore.rook-ceph.svc s3 cp /tmp/testfile s3://foo/testfile",
+		)
+
+	})
+
+	t.Run("save testfile object from container to local disk", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url=http://rook-ceph-rgw-examplestore.rook-ceph.svc s3 cp s3://foo/testfile /tmp/testfile.saved")
+	})
+
+	t.Run("check testfile", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "diff /tmp/testfile /tmp/testfile.saved")
+	})
+
+	t.Run("delete object in container", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 rm s3://"+testContainerName+"/testfile2")
+	})
+
+	t.Run("delete container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"openstack", "container", "delete", testContainerName,
+		)
+	})
+
+	cleanupE2ETest(t, k8sh, namespace, storeName, deleteStore, testContainerName)
 }
