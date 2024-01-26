@@ -22,3 +22,4 @@ runs:
       with:
         limit-access-to-actor: false
         detached: true
+        timeout-minutes: 120
