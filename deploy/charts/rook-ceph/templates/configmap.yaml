@@ -25,6 +25,9 @@ data:
   CSI_ENABLE_OMAP_GENERATOR: {{ .Values.csi.enableOMAPGenerator | quote }}
   CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
   CSI_ENABLE_METADATA: {{ .Values.csi.enableMetadata | quote }}
+{{- if .Values.csi.csiDriverNamePrefix }}
+  CSI_DRIVER_NAME_PREFIX: {{ .Values.csi.csiDriverNamePrefix | quote }}
+{{- end }}
 {{- if .Values.csi.pluginPriorityClassName }}
   CSI_PLUGIN_PRIORITY_CLASSNAME: {{ .Values.csi.pluginPriorityClassName | quote }}
 {{- end }}

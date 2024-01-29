@@ -61,6 +61,12 @@ data:
   # Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity.
   # CSI_SIDECAR_LOG_LEVEL: "0"
 
+  # csi driver name prefix for cephfs, rbd and nfs. if not specified, default
+  # will be the namespace name where rook-ceph operator is deployed.
+  # search for `# csi-provisioner-name` in the storageclass and
+  # volumesnashotclass and update the name accordingly.
+  # CSI_DRIVER_NAME_PREFIX: "rook-ceph"
+
   # Set replicas for csi provisioner deployment.
   CSI_PROVISIONER_REPLICAS: "2"
 

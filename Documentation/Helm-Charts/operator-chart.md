@@ -70,6 +70,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.csiCephFSPluginVolume` | The volume of the CephCSI CephFS plugin DaemonSet | `nil` |
 | `csi.csiCephFSPluginVolumeMount` | The volume mounts of the CephCSI CephFS plugin DaemonSet | `nil` |
 | `csi.csiCephFSProvisionerResource` | CEPH CSI CephFS provisioner resource requirement list | see values.yaml |
+| `csi.csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
 | `csi.csiLeaderElectionLeaseDuration` | Duration in seconds that non-leader candidates will wait to force acquire leadership. | `137s` |
 | `csi.csiLeaderElectionRenewDeadline` | Deadline in seconds that the acting leader will retry refreshing leadership before giving up. | `107s` |
 | `csi.csiLeaderElectionRetryPeriod` | Retry period in seconds the LeaderElector clients should wait between tries of actions. | `26s` |

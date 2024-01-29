@@ -147,6 +147,10 @@ csi:
   # @default -- `0`
   sidecarLogLevel:
 
+  # -- CSI driver name prefix for cephfs, rbd and nfs.
+  # @default -- `namespace name where rook-ceph operator is deployed`
+  csiDriverNamePrefix:
+
   # -- CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate
   # @default -- `RollingUpdate`
   rbdPluginUpdateStrategy:
