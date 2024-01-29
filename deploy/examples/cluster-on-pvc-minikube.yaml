@@ -1,6 +1,6 @@
 #################################################################################################################
 # Define the settings for the rook-ceph cluster with settings for a minikube cluster with a single node
-
+#
 # This example expects a single node minikube cluster with three extra disks: vdb, vdc and vdd. Please modify
 # it according to your environment. See the documentation for more details on storage settings available.
 
@@ -9,8 +9,10 @@
 #   kubectl create -f cluster-on-pvc-minikube.yaml
 #
 # or by using the using the tests/scripts/create-dev-cluster.sh and the following minikube configuration:
-
+#
 #  --disk-size=20g --extra-disks=4
+#
+# Note: this spec was tested with kvm2 driver. Other minikube drivers could lead to a different device naming.
 #
 #################################################################################################################
 kind: StorageClass
