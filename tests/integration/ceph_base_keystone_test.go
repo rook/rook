@@ -42,6 +42,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	// install cert-manager using helm
 	// the helm installer uses the rook repository and cannot be used as is
+	// therefor parts of the installer are adapted here
 
 	// use helm path from environment (the same is used by the helm installer)
 	helmPath := os.Getenv("TEST_HELM_PATH")
@@ -68,7 +69,6 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	// this won't work with k8s<1.25
 	installHelmChart(helmHelper, "cert-manager", "trust-manager", "jetstack/trust-manager", "0.7.0", "app.trust.namespace="+namespace)
 
-	// TODO: does this need to be a ClusterIssuer?
 	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
 		logger.Warningf("Could not apply ClusterIssuer in namespace %s", namespace)
 	}
@@ -101,7 +101,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	if _, err := shelper.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, keystoneApacheCM, metav1.CreateOptions{}); err != nil {
 
-		logger.Fatal("failed to create apache2.conf configmap in namespace " + namespace)
+		logger.Fatalf("failed to create apache2.conf configmap in namespace %s with error %s", namespace, err)
 
 	}
 
@@ -144,8 +144,20 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Could not create openstack client deployment in namespace %s", namespace)
 	}
 
+	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "admin", "rook-user", "5w1ft135")); err != nil {
+		logger.Warningf("Could not create openstack client deployment in namespace %s", namespace)
+	}
+
 	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "testproject", "alice", "4l1c3")); err != nil {
-		logger.Warningf("Could not create unprivileded openstack client in namespace %s", namespace)
+		logger.Warningf("Could not create unprivileded openstack client for user alice in namespace %s", namespace)
+	}
+
+	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "testproject", "carol", "n0tth3xm45")); err != nil {
+		logger.Warningf("Could not create unprivileded openstack client for user alice in namespace %s", namespace)
+	}
+
+	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "testproject", "mallory", "b4db0y4l1f3")); err != nil {
+		logger.Warningf("Could not create unprivileded openstack client for user alice in namespace %s", namespace)
 	}
 
 }
@@ -607,86 +619,399 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
 	t.Run("create swift user for objectstore in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "user", "create", "--enable", "--password", "5w1ft135", "--project", "admin", "--description", "swift admin account", "rook-user")
+		testInOpenStackClient(t, k8sh, namespace, "admin", "admin", true, "openstack", "user", "create", "--enable", "--password", "5w1ft135", "--project", "admin", "--description", "swift admin account", "rook-user")
 	})
 
 	t.Run("make swift user admin", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "role", "add", "--user", "rook-user", "--project", "admin", "admin")
+		testInOpenStackClient(t, k8sh, namespace, "admin", "admin", true, "openstack", "role", "add", "--user", "rook-user", "--project", "admin", "admin")
 	})
 
 	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
-	// TODO: add swift integration tests here
 	// TODO: rename container from foo to test-container
 
 	t.Run("create test project in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "project", "create", "testproject")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "project", "create", "testproject",
+		)
+
 	})
+
 	t.Run("create unprivileged user in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "user", "create", "--project", "testproject", "--password", "4l1c3", "alice")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "user", "create", "--project", "testproject", "--password", "4l1c3", "alice",
+		)
+
 	})
+
 	t.Run("assign unprivileged user to test project (in keystone)", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "role", "add", "--user", "alice", "--project", "testproject", "member")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "role", "add", "--user", "alice", "--project", "testproject", "member",
+		)
+
 	})
 
 	t.Run("create service swift in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "service", "create", "--name", "swift", "object-store")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "service", "create", "--name", "swift", "object-store",
+		)
+
 	})
 
 	t.Run("create internal swift endpoint in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
+		)
+
 	})
 
 	t.Run("create admin swift endpoint in keystone", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "admin", "admin", "openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
+		)
+
 	})
 
-	t.Run("create container", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "container", "create", "foo")
+	// test with user with read+write access (member-role)
+
+	t.Run("create container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "container", "create", "foo",
+		)
+
 	})
+
+	t.Run("show container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "container", "show", "foo",
+		)
+
+	})
+
 	t.Run("create local testfile", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "bash", "-c", "echo test-content > /tmp/testfile")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"bash", "-c", "echo test-content > /tmp/testfile",
+		)
+
 	})
 
 	// openstack object create foo /testfile
-	t.Run("create object in container (using the local testfile)", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "object", "create", "foo", "/tmp/testfile")
+	t.Run("create object in container (using the local testfile) (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "create", "foo", "/tmp/testfile",
+		)
+
 	})
 
-	t.Run("list objects in container", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "object", "list", "foo")
+	t.Run("list objects in container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "list", "foo",
+		)
+
 	})
 
-	t.Run("show testfile object in container", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "object", "show", "foo", "/tmp/testfile")
+	t.Run("show testfile object in container  (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "show", "foo", "/tmp/testfile",
+		)
+
 	})
 
-	t.Run("save testfile object from container to local disk", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "object", "save", "--file", "/tmp/testfile.saved", "foo", "/tmp/testfile")
+	t.Run("save testfile object from container to local disk  (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "save", "--file", "/tmp/testfile.saved", "foo", "/tmp/testfile",
+		)
+
 	})
 
-	t.Run("check testfile", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "bash", "-c", "diff /tmp/testfile /tmp/testfile.saved")
+	t.Run("check testfile (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"bash", "-c", "diff /tmp/testfile /tmp/testfile.saved",
+		)
+
 	})
 
-	t.Run("delete object in container", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "object", "delete", "foo", "/tmp/testfile")
+	t.Run("delete object in container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "delete", "foo", "/tmp/testfile",
+		)
+
 	})
 
-	t.Run("delete container", func(t *testing.T) {
-		execInOpenStackClient(t, k8sh, namespace, "testproject", "alice", "openstack", "container", "delete", "foo")
+	t.Run("delete container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "container", "delete", "foo",
+		)
+
+	})
+
+	// unauthorized (?) access
+	// create container (with alice)
+	t.Run("prepare container for unauthorized access test (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "container", "create", "foo",
+		)
+
+		// create object (with alice)
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"bash", "-c", "echo test-content > /tmp/testfile",
+		)
+
+		// openstack object create foo /testfile
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "create", "foo", "/tmp/testfile",
+		)
+
+		// check whether container got created
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "alice", true,
+			"openstack", "object", "list", "foo",
+		)
+
+	})
+
+	// mallory create user
+	t.Run("create unprivileged user in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "user", "create", "--project", "testproject", "--password", "b4db0y4l1f3", "mallory",
+		)
+
+	})
+
+	// try access container with id (with mallory, expect: denied)
+	t.Run("display a container (as unprivileged user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "mallory", false,
+			"openstack", "container", "show", "foo",
+		)
+
+	})
+
+	// try read access object with id (with mallory, expect: denied)
+	t.Run("show testfile object in container (as unprivileged user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "mallory", false,
+			"openstack", "object", "show", "foo", "/tmp/testfile",
+		)
+
+	})
+
+	// try write access object with id (with mallory, expect: denied)
+	t.Run("create local testfile", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "mallory", true,
+			"bash", "-c", "echo bad-content > /tmp/testfile",
+		)
+
+	})
+
+	// openstack object create foo /testfile
+	t.Run("create object in container (using the local testfile) (as unprivileged user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "mallory", false,
+			"openstack", "object", "create", "foo", "/tmp/testfile",
+		)
+
+	})
+
+	// try deleting object (with mallory, expect: denied)
+	t.Run("delete object in container (as unprivileged user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "mallory", false,
+			"openstack", "object", "delete", "foo", "/tmp/testfile",
+		)
+
+	})
+
+	// try deleting container (with mallory, expect: denied)
+	t.Run("delete container (as unprivileged user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "mallory", false,
+			"openstack", "container", "delete", "foo",
+		)
+
+	})
+
+	t.Run("create project admin user in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "user", "create", "--project", "testproject", "--password", "n0tth3xm45", "carol",
+		)
+
+	})
+
+	// try access container with id (with bob, expect: success)
+	t.Run("assign unprivileged user to test project (in keystone)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "role", "add", "--user", "carol", "--project", "testproject", "admin",
+		)
+
+	})
+
+	// try access container with id (with rook-user, expect: success)
+	t.Run("show container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "container", "show", "foo",
+		)
+
+	})
+
+	t.Run("create local testfile (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"bash", "-c", "echo test-content > /tmp/testfile",
+		)
+
+	})
+
+	t.Run("create local testfile (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"bash", "-c", "echo test-content > /tmp/testfile-rook-user",
+		)
+
+	})
+
+	// openstack object create foo /testfile
+	// try write access object with id (with rook-user, expect: success)
+	t.Run("create object in container (using the local testfile) (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "object", "create", "foo", "/tmp/testfile-rook-user",
+		)
+
+	})
+
+	t.Run("list objects in container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "object", "list", "foo",
+		)
+
+	})
+
+	// try read access object with id (with rook-user, expect: success)
+	t.Run("show testfile object in container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "object", "show", "foo", "/tmp/testfile",
+		)
+
+	})
+
+	t.Run("save testfile object from container to local disk (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "object", "save", "--file", "/tmp/testfile.saved", "foo", "/tmp/testfile",
+		)
+
+	})
+
+	t.Run("check testfile (admin-user)", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"bash", "-c", "diff /tmp/testfile /tmp/testfile.saved",
+		)
+
+	})
+
+	// try deleting object (with rook-user, expect: success)
+	t.Run("delete object in container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "object", "delete", "foo", "/tmp/testfile",
+		)
+
+	})
+
+	t.Run("delete object in container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "object", "delete", "foo", "/tmp/testfile-rook-user",
+		)
+
+	})
+
+	// try deleting container (with rook-user, expect: success)
+	t.Run("delete container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"testproject", "carol", true,
+			"openstack", "container", "delete", "foo",
+		)
 	})
 
 	if deleteStore {
+
 		t.Run("delete object store", func(t *testing.T) {
+
 			deleteObjectStore(t, k8sh, namespace, storeName)
 			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
+
 		})
 		// remove user secret
+
 	}
 }
 
-func execInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, projectname string, username string, command ...string) {
+func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, projectname string, username string, expectNoError bool, command ...string) {
 
 	commandLine := []string{"exec", "-n", namespace, "deployment/osc-" + projectname + "-" + username, "--"}
 
@@ -697,6 +1022,14 @@ func execInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 		logger.Warningf("failed to execute command in openstack cli: %s: %s", commandLine, output)
 	}
 
-	assert.NoError(t, err)
+	if expectNoError {
+
+		assert.NoError(t, err)
+
+	} else {
+
+		assert.Error(t, err)
+
+	}
 
 }
