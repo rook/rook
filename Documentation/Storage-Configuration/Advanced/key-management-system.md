@@ -22,16 +22,18 @@ The `security` section contains settings related to encryption of the cluster.
 
 Supported KMS providers:
 
-- [Vault](#vault)
-  - [Authentication methods](#authentication-methods)
-    - [Token-based authentication](#token-based-authentication)
-    - [Kubernetes-based authentication](#kubernetes-based-authentication)
-  - [General Vault configuration](#general-vault-configuration)
-  - [TLS configuration](#tls-configuration)
-- [IBM Key Protect](#ibm-key-protect)
-  - [Configuration](#configuration)
-- [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
-  - [Configuration](#configuration-1)
+* [Vault](#vault)
+  * [Authentication methods](#authentication-methods)
+    * [Token-based authentication](#token-based-authentication)
+    * [Kubernetes-based authentication](#kubernetes-based-authentication)
+  * [General Vault configuration](#general-vault-configuration)
+  * [TLS configuration](#tls-configuration)
+* [IBM Key Protect](#ibm-key-protect)
+  * [Configuration](#configuration)
+* [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
+  * [Configuration](#configuration-1)
+* [Azure Key Vault](#azure-key-vault)
+  * [Client Authentication](#client-authentication)
 
 ## Vault
 
@@ -334,3 +336,36 @@ security:
     # name of the k8s secret containing the credentials.
     tokenSecretName: kmip-credentials
 ```
+
+## Azure Key Vault
+
+Rook supports storing OSD encryption keys in [Azure Key vault](https://learn.microsoft.com/en-us/azure/key-vault/general/quick-create-portal)
+
+### Client Authentication
+
+Different methods are available in Azure to authenticate a client. Rook supports Azure recommended method of authentication with Service Principal and a certificate. Refer the following Azure documentation to set up key vault and authenticate it via service principal and certtificate
+
+* [Create Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/quick-create-portal)
+  * `AZURE_VAULT_URL` can be retrieved at this step
+
+* [Create Service Principal](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal)
+  * `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` can be obtained after creating the service principal
+  * Ensure that the service principal is authenticated with a certificate and not with a client secret.
+
+* [Set Azure Key Vault RBAC](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide?tabs=azure-cli#enable-azure-rbac-permissions-on-key-vault)
+  * Ensure that the role assigned to the key vault should be able to create, retrieve and delete secrets in the key vault.
+
+Provide the following KMS connection details in order to connect with Azure Key Vault.
+
+```yaml
+security:
+  kms:
+    connectionDetails:
+      KMS_PROVIDER: azure-kv
+      AZURE_VAULT_URL: https://<key-vault name>.vault.azure.net
+      AZURE_CLIENT_ID: Application ID of an Azure service principal
+      AZURE_TENANT_ID: ID of the application's Microsoft Entra tenant
+      AZURE_CERT_SECRET_NAME: <name of the k8s secret containing the certificate along with the private key (without password protection)>
+```
+
+* `AZURE_CERT_SECRET_NAME` should hold the name of the k8s secret. The secret data should be base64 encoded certificate along with private key (without password protection)
