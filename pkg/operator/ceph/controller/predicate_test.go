@@ -164,16 +164,39 @@ func TestIsCanary(t *testing.T) {
 
 func TestIsCMToIgnoreOnUpdate(t *testing.T) {
 	blockPool := &cephv1.CephBlockPool{}
-	assert.False(t, isCMTConfigOverride(blockPool))
+	reconcile := shouldReconcileCM(blockPool, blockPool)
+	assert.False(t, reconcile)
 
 	cm := &corev1.ConfigMap{}
-	assert.False(t, isCMTConfigOverride(cm))
+	reconcile = shouldReconcileCM(cm, cm)
+	assert.False(t, reconcile)
 
 	cm.Name = "rook-ceph-mon-endpoints"
-	assert.False(t, isCMTConfigOverride(cm))
+	reconcile = shouldReconcileCM(cm, cm)
+	assert.False(t, reconcile)
 
+	// Valid name, but cm completely empty
 	cm.Name = "rook-config-override"
-	assert.True(t, isCMTConfigOverride(cm))
+	oldCM := &corev1.ConfigMap{}
+	oldCM.Name = cm.Name
+	reconcile = shouldReconcileCM(oldCM, cm)
+	assert.False(t, reconcile)
+
+	// Both have empty config value
+	cm.Data = map[string]string{"config": ""}
+	oldCM.Data = map[string]string{"config": ""}
+	reconcile = shouldReconcileCM(oldCM, cm)
+	assert.False(t, reconcile)
+
+	// Something added to the CM
+	cm.Data = map[string]string{"config": "somevalue"}
+	reconcile = shouldReconcileCM(oldCM, cm)
+	assert.True(t, reconcile)
+
+	// A value changed in the CM
+	oldCM.Data = map[string]string{"config": "diffvalue"}
+	reconcile = shouldReconcileCM(oldCM, cm)
+	assert.True(t, reconcile)
 }
 
 func TestIsCMToIgnoreOnDelete(t *testing.T) {
