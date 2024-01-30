@@ -28,6 +28,7 @@
         "mon",
         "monitoring",
         "multus",
+	"network",
         "nfs",
         "object",
         "operator",
