@@ -87,6 +87,13 @@ func TestNetworkCephIsHost(t *testing.T) {
 	assert.True(t, net.IsHost())
 }
 
+func TestNetworkCephIsHostStrict(t *testing.T) {
+	net := NetworkSpec{Provider: "host-strict"}
+	assert.True(t, net.IsHostStrict())
+	net = NetworkSpec{Provider: "host"}
+	assert.False(t, net.IsHostStrict())
+}
+
 func TestNetworkSpec(t *testing.T) {
 	netSpecYAML := []byte(`
 provider: host

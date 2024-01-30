@@ -34,9 +34,25 @@ func (n *NetworkSpec) IsMultus() bool {
 
 // IsHost can be used to determine if pods should use host networking by
 // checking whether the cephCluster is configured to use the "host" network provider.
+// This  network mode only applies host networking to pods that require it in
+// order to limit the number of pods exposed to the host network, improving
+// cluster security.
 // This method also maintains compatibility with the old hostNetwork setting
 func (n *NetworkSpec) IsHost() bool {
 	return (n.HostNetwork && n.Provider == NetworkProviderDefault) || n.Provider == NetworkProviderHost || n.Provider == NetworkProviderHostStrict
+}
+
+// IsHostStrict determines whether the CephCluster is configured to use the use host
+// networking on all pods. This is achieved by checking whether the "host-strict" network provider
+// is set on the CephCluster.
+// This network mode applies host networking to all pods without caveat. This is
+// useful for clusters with no default CNI. This mode is less secure than "host"
+// The "host-strict"  network mode is needed rarely and so is supported on a best-effort
+// basis.
+// mode. Users  are advised use "host" mode instead of "host-strict" when possible.
+// The IsHostStrict  method does not preserve compatibility with the old HostNetwork setting
+func (n *NetworkSpec) IsHostStrict() bool {
+	return n.Provider == NetworkProviderHostStrict
 }
 
 func ValidateNetworkSpec(clusterNamespace string, spec NetworkSpec) error {
