@@ -5,9 +5,9 @@ title: Prerequisites
 Rook can be installed on any existing Kubernetes cluster as long as it meets the minimum version
 and Rook is granted the required privileges (see below for more information).
 
-## Minimum Version
+## Kubernetes Version
 
-Kubernetes **v1.22** or higher is supported.
+Kubernetes versions **v1.23** through **v1.29** are supported.
 
 ## CPU Architecture
 
