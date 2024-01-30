@@ -99,22 +99,22 @@ class DummyRados(object):
         ) as json_file:
             ceph_status_str = json_file.read()
         self.cmd_names["fs ls"] = """{"format": "json", "prefix": "fs ls"}"""
-        self.cmd_names[
-            "quorum_status"
-        ] = """{"format": "json", "prefix": "quorum_status"}"""
-        self.cmd_names[
-            "mgr services"
-        ] = """{"format": "json", "prefix": "mgr services"}"""
+        self.cmd_names["quorum_status"] = (
+            """{"format": "json", "prefix": "quorum_status"}"""
+        )
+        self.cmd_names["mgr services"] = (
+            """{"format": "json", "prefix": "mgr services"}"""
+        )
         # all the commands and their output
-        self.cmd_output_map[
-            self.cmd_names["fs ls"]
-        ] = """[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-replicated"]}]"""
-        self.cmd_output_map[
-            self.cmd_names["quorum_status"]
-        ] = """{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}"""
-        self.cmd_output_map[
-            self.cmd_names["mgr services"]
-        ] = """{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}"""
+        self.cmd_output_map[self.cmd_names["fs ls"]] = (
+            """[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":2,"data_pool_ids":[3],"data_pools":["myfs-replicated"]}]"""
+        )
+        self.cmd_output_map[self.cmd_names["quorum_status"]] = (
+            """{"election_epoch":3,"quorum":[0],"quorum_names":["a"],"quorum_leader_name":"a","quorum_age":14385,"features":{"quorum_con":"4540138292836696063","quorum_mon":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"]},"monmap":{"epoch":1,"fsid":"af4e1673-0b72-402d-990a-22d2919d0f1c","modified":"2020-05-07T03:36:39.918035Z","created":"2020-05-07T03:36:39.918035Z","min_mon_release":15,"min_mon_release_name":"octopus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus","octopus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"10.110.205.174:3300","nonce":0},{"type":"v1","addr":"10.110.205.174:6789","nonce":0}]},"addr":"10.110.205.174:6789/0","public_addr":"10.110.205.174:6789/0","priority":0,"weight":0}]}}"""
+        )
+        self.cmd_output_map[self.cmd_names["mgr services"]] = (
+            """{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}"""
+        )
         self.cmd_output_map[
             """{"caps": ["mon", "allow r, allow command quorum_status", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}"""
         ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]"""
@@ -142,9 +142,9 @@ class DummyRados(object):
         self.cmd_output_map[
             """{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}"""
         ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSRKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]"""
-        self.cmd_output_map[
-            """{"format": "json", "prefix": "mgr services"}"""
-        ] = """{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}"""
+        self.cmd_output_map["""{"format": "json", "prefix": "mgr services"}"""] = (
+            """{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}"""
+        )
         self.cmd_output_map[
             """{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}"""
         ] = """{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}"""
@@ -218,7 +218,6 @@ class DummyRados(object):
 
 
 class S3Auth(AuthBase):
-
     """Attaches AWS Authentication to the given Request object."""
 
     service_base_url = "s3.amazonaws.com"
@@ -959,9 +958,9 @@ class RadosJSON:
                 rados_namespace,
             )
             if rados_namespace != "":
-                caps[
-                    "osd"
-                ] = f"profile rbd pool={rbd_pool_name} namespace={rados_namespace}"
+                caps["osd"] = (
+                    f"profile rbd pool={rbd_pool_name} namespace={rados_namespace}"
+                )
             else:
                 caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
@@ -994,9 +993,9 @@ class RadosJSON:
                 rados_namespace,
             )
             if rados_namespace != "":
-                caps[
-                    "osd"
-                ] = f"profile rbd pool={rbd_pool_name} namespace={rados_namespace}"
+                caps["osd"] = (
+                    f"profile rbd pool={rbd_pool_name} namespace={rados_namespace}"
+                )
             else:
                 caps["osd"] = f"profile rbd pool={rbd_pool_name}"
 
@@ -1542,13 +1541,13 @@ class RadosJSON:
             self.out_map["CSI_RBD_PROVISIONER_SECRET_NAME"],
         ) = self.create_cephCSIKeyring_user("client.csi-rbd-provisioner")
         self.out_map["CEPHFS_POOL_NAME"] = self._arg_parser.cephfs_data_pool_name
-        self.out_map[
-            "CEPHFS_METADATA_POOL_NAME"
-        ] = self._arg_parser.cephfs_metadata_pool_name
+        self.out_map["CEPHFS_METADATA_POOL_NAME"] = (
+            self._arg_parser.cephfs_metadata_pool_name
+        )
         self.out_map["CEPHFS_FS_NAME"] = self._arg_parser.cephfs_filesystem_name
-        self.out_map[
-            "RESTRICTED_AUTH_PERMISSION"
-        ] = self._arg_parser.restricted_auth_permission
+        self.out_map["RESTRICTED_AUTH_PERMISSION"] = (
+            self._arg_parser.restricted_auth_permission
+        )
         self.out_map["RADOS_NAMESPACE"] = self._arg_parser.rados_namespace
         self.out_map["SUBVOLUME_GROUP"] = self._arg_parser.subvolume_group
         self.out_map["CSI_CEPHFS_NODE_SECRET"] = ""
@@ -1591,9 +1590,9 @@ class RadosJSON:
                 self.out_map["MONITORING_ENDPOINT_PORT"],
             ) = self.get_active_and_standby_mgrs()
         self.out_map["RBD_POOL_NAME"] = self._arg_parser.rbd_data_pool_name
-        self.out_map[
-            "RBD_METADATA_EC_POOL_NAME"
-        ] = self.validate_rbd_metadata_ec_pool_name()
+        self.out_map["RBD_METADATA_EC_POOL_NAME"] = (
+            self.validate_rbd_metadata_ec_pool_name()
+        )
         self.out_map["RGW_POOL_PREFIX"] = self._arg_parser.rgw_pool_prefix
         self.out_map["RGW_ENDPOINT"] = ""
         if self._arg_parser.rgw_endpoint:
@@ -1632,9 +1631,9 @@ class RadosJSON:
                     ) = self.create_rgw_admin_ops_user()
                     err = self.validate_rgw_endpoint(info_cap_supported)
                     if self._arg_parser.rgw_tls_cert_path:
-                        self.out_map[
-                            "RGW_TLS_CERT"
-                        ] = self.validate_rgw_endpoint_tls_cert()
+                        self.out_map["RGW_TLS_CERT"] = (
+                            self.validate_rgw_endpoint_tls_cert()
+                        )
                     # if there is no error, set the RGW_ENDPOINT
                     if err != "-1":
                         self.out_map["RGW_ENDPOINT"] = self._arg_parser.rgw_endpoint
