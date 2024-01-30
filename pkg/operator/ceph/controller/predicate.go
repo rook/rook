@@ -579,17 +579,17 @@ func WatchPredicateForNonCRDObject(owner runtime.Object, scheme *runtime.Scheme)
 				logger.Debugf("object %q matched on update", objectName)
 
 				// CONFIGMAP WHITELIST
-				// Only reconcile on rook-config-override CM changes
-				isCMTConfigOverride := isCMTConfigOverride(e.ObjectNew)
-				if isCMTConfigOverride {
-					logger.Debugf("do reconcile when the cm is %s", k8sutil.ConfigOverrideName)
+				// Only reconcile on rook-config-override CM changes if the configmap changed
+				shouldReconcileCM := shouldReconcileCM(e.ObjectOld, e.ObjectNew)
+				if shouldReconcileCM {
+					logger.Infof("reconcile due to updated configmap %s", k8sutil.ConfigOverrideName)
 					return true
 				}
 
 				// If the resource is a ConfigMap we don't reconcile
 				_, ok := e.ObjectNew.(*corev1.ConfigMap)
 				if ok {
-					logger.Debugf("do not reconcile on configmap that is not %q", k8sutil.ConfigOverrideName)
+					logger.Debugf("do not reconcile on configmap %q", objectName)
 					return false
 				}
 
@@ -747,15 +747,27 @@ func isDeployment(obj runtime.Object, appName string) bool {
 	return false
 }
 
-func isCMTConfigOverride(obj runtime.Object) bool {
+func shouldReconcileCM(objOld runtime.Object, objNew runtime.Object) bool {
 	// If not a ConfigMap, let's not reconcile
-	cm, ok := obj.(*corev1.ConfigMap)
+	cmNew, ok := objNew.(*corev1.ConfigMap)
 	if !ok {
 		return false
 	}
 
-	objectName := cm.GetName()
-	return objectName == k8sutil.ConfigOverrideName
+	// If not a ConfigMap, let's not reconcile
+	cmOld, ok := objOld.(*corev1.ConfigMap)
+	if !ok {
+		return false
+	}
+
+	objectName := cmNew.GetName()
+	if objectName != k8sutil.ConfigOverrideName {
+		return false
+	}
+	if !reflect.DeepEqual(cmNew.Data, cmOld.Data) {
+		return true
+	}
+	return false
 }
 
 func isCMToIgnoreOnDelete(obj runtime.Object) bool {
