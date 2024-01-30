@@ -73,8 +73,17 @@ func TestValidateNetworkSpec(t *testing.T) {
 }
 
 func TestNetworkCephIsHostLegacy(t *testing.T) {
-	net := NetworkSpec{HostNetwork: true}
+	net := NetworkSpec{HostNetwork: true,
+		Provider: "",
+	}
+	assert.True(t, net.IsHost())
+}
 
+func TestNetworkCephIsHost(t *testing.T) {
+	net := NetworkSpec{Provider: "host"}
+	assert.True(t, net.IsHost())
+
+	net = NetworkSpec{Provider: "host-strict"}
 	assert.True(t, net.IsHost())
 }
 

@@ -32,10 +32,11 @@ func (n *NetworkSpec) IsMultus() bool {
 	return n.Provider == NetworkProviderMultus
 }
 
-// IsHost get whether to use host network provider. This method also preserve
-// compatibility with the old HostNetwork field.
+// IsHost can be used to determine if pods should use host networking by
+// checking whether the cephCluster is configured to use the "host" network provider.
+// This method also maintains compatibility with the old hostNetwork setting
 func (n *NetworkSpec) IsHost() bool {
-	return (n.HostNetwork && n.Provider == NetworkProviderDefault) || n.Provider == NetworkProviderHost
+	return (n.HostNetwork && n.Provider == NetworkProviderDefault) || n.Provider == NetworkProviderHost || n.Provider == NetworkProviderHostStrict
 }
 
 func ValidateNetworkSpec(clusterNamespace string, spec NetworkSpec) error {
