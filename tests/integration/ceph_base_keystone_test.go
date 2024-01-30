@@ -144,24 +144,40 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
 	}
 
-	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "admin", "admin", "s3cr3t")); err != nil {
-		logger.Warningf("Could not create openstack client deployment in namespace %s", namespace)
+	testuserdata := map[string]map[string]string{
+		"admin": {
+			"username": "admin",
+			"password": "s3cr3t",
+			"project":  "admin",
+		},
+		"rook-user": {
+			"username": "rook-user",
+			"password": "5w1ft135",
+			"project":  "admin",
+		},
+		"alice": {
+			"username": "alice",
+			"password": "4l1c3",
+			"project":  "testproject",
+		},
+		"carol": {
+			"username": "carol",
+			"password": "n0tth3xm45",
+			"project":  "testproject",
+		},
+		"mallory": {
+			"username": "mallory",
+			"password": "b4db0y4l1f3",
+			"project":  "testproject",
+		},
 	}
 
-	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "admin", "rook-user", "5w1ft135")); err != nil {
-		logger.Warningf("Could not create openstack client deployment in namespace %s", namespace)
-	}
+	for _, userdata := range testuserdata {
 
-	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "testproject", "alice", "4l1c3")); err != nil {
-		logger.Warningf("Could not create unprivileded openstack client for user alice in namespace %s", namespace)
-	}
+		if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, userdata["project"], userdata["username"], userdata["password"])); err != nil {
+			logger.Warningf("Could not create openstack client deployment in namespace %s", namespace)
+		}
 
-	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "testproject", "carol", "n0tth3xm45")); err != nil {
-		logger.Warningf("Could not create unprivileded openstack client for user alice in namespace %s", namespace)
-	}
-
-	if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, "testproject", "mallory", "b4db0y4l1f3")); err != nil {
-		logger.Warningf("Could not create unprivileded openstack client for user alice in namespace %s", namespace)
 	}
 
 }
