@@ -1,12 +1,19 @@
 #################################################################################################################
 # Define the settings for the rook-ceph cluster with settings for a minikube cluster with a single node
-
+#
 # This example expects a single node minikube cluster with three extra disks: vdb, vdc and vdd. Please modify
 # it according to your environment. See the documentation for more details on storage settings available.
 
 # For example, to create the cluster:
 #   kubectl create -f crds.yaml -f common.yaml -f operator.yaml
 #   kubectl create -f cluster-on-pvc-minikube.yaml
+#
+# or by using the using the tests/scripts/create-dev-cluster.sh and the following minikube configuration:
+#
+#  --disk-size=20g --extra-disks=4
+#
+# Note: this spec was tested with kvm2 driver. Other minikube drivers could lead to a different device naming.
+#
 #################################################################################################################
 kind: StorageClass
 apiVersion: storage.k8s.io/v1
@@ -90,6 +97,31 @@ spec:
               values:
                 - minikube
 ---
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: local0-3
+spec:
+  storageClassName: local-storage
+  capacity:
+    storage: 20Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  # PV for mon must be a filesystem volume.
+  volumeMode: Block
+  local:
+    # To use dm devices like logical volume, please replace `/dev/sdb` with their device names like `/dev/vg-name/lv-name`.
+    path: /dev/vde
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - minikube
+---
 apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -124,7 +156,7 @@ spec:
   storage:
     storageClassDeviceSets:
       - name: set1
-        count: 2
+        count: 3
         portable: false
         tuneDeviceClass: true
         tuneFastDeviceClass: false
@@ -156,3 +188,18 @@ spec:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
     pgHealthCheckTimeout: 0
+  cephConfig:
+    global:
+      mon_warn_on_pool_no_redundancy: "false"
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: builtin-mgr
+  namespace: rook-ceph # namespace:cluster
+spec:
+  name: .mgr
+  failureDomain: osd
+  replicated:
+    size: 1
+    requireSafeReplicaSize: false
