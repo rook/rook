@@ -64,10 +64,14 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 		logger.Warningf("failed to update helm repositories, err=%v", err)
 	}
 
-	installHelmChart(helmHelper, "cert-manager", "cert-manager", "jetstack/cert-manager", "1.13.3", "")
+	installHelmChart(helmHelper, "cert-manager", "cert-manager", "jetstack/cert-manager", "1.13.3",
+		"installCRDs=true")
 
-	// this won't work with k8s<1.25
-	installHelmChart(helmHelper, "cert-manager", "trust-manager", "jetstack/trust-manager", "0.7.0", "app.trust.namespace="+namespace)
+	// trust-manager does not support k8s<1.25
+	// This allows for secrets to be read/written by trust-manager in all namespaces
+	// This is considered insecure in production environments! This is here only for the quick test setup.
+	installHelmChart(helmHelper, "cert-manager", "trust-manager", "jetstack/trust-manager", "0.7.0",
+		"app.trust.namespace="+namespace, "installCRDs=true", "secretTargets.enabled=true", "secretTargets.authorizedSecretsAll=true")
 
 	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
 		logger.Warningf("Could not apply ClusterIssuer in namespace %s", namespace)
@@ -247,24 +251,23 @@ spec:
 
 }
 
-func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName string, chart string, version string, setting string) {
+func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName string, chart string, version string, settings ...string) {
 
 	logger.Infof("installing helm chart %s with version %s", chart, version)
 
-	var err error
+	arguments := []string{"upgrade", "--install", "--debug", "--namespace", namespace, chartName, chart, "--version=" + version, "--wait"}
 
-	if setting == "" {
-		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait")
-	} else {
-		// TODO: make settings an string array or string...; move trust manager specific settings out of here
-		// This allows for secrets to be read/written by trust-manager in all namespaces
-		// This is considered insecure in production environments! This is here only for the quick test setup.
-		// TODO: maybe try to come up with the more secure solution of allowing secretTargets only in the rook-ceph namespace
-		_, err = helmHelper.Execute("upgrade", "--install", "--debug", "--namespace", namespace, chartName, "--set", "installCRDs=true", chart, "--version="+version, "--wait", "--set", setting, "--set", "secretTargets.enabled=true", "--set", "secretTargets.authorizedSecretsAll=true")
+	for _, setting := range settings {
+
+		arguments = append(arguments, "--set", setting)
+
 	}
+
+	_, err := helmHelper.Execute(arguments...)
 	if err != nil {
 		logger.Errorf("failed to install helm chart %s with version %s in namespace: %v, err=%v", chart, version, namespace, err)
 	}
+
 }
 
 func keystoneApiCaIssuer(namespace string) string {
