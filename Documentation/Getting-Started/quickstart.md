@@ -10,9 +10,9 @@ This guide will walk through the basic setup of a Ceph cluster and enable K8s ap
 
 **Always use a virtual machine when testing Rook. Never use a host system where local devices may mistakenly be consumed.**
 
-## Minimum Version
+## Kubernetes Version
 
-Kubernetes **v1.22** or higher is supported by Rook.
+Kubernetes versions **v1.22** through **v1.28** are supported.
 
 ## CPU Architecture
 
