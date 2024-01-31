@@ -69,6 +69,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `cephObjectStores` | A list of CephObjectStore configurations to deploy | See [below](#ceph-object-stores) |
 | `clusterName` | The metadata.name of the CephCluster CR | The same as the namespace |
 | `configOverride` | Cluster ceph.conf override | `nil` |
+| `csiDriverNamePrefix` | CSI driver name prefix for cephfs, rbd and nfs. | `namespace name where rook-ceph operator is deployed` |
 | `ingress.dashboard` | Enable an ingress for the ceph-dashboard | `{}` |
 | `kubeVersion` | Optional override of the target kubernetes version | `nil` |
 | `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts | `false` |

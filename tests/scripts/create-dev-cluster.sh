@@ -21,13 +21,13 @@ init_vars(){
 
 update_namespaces() {
     for file in $CLUSTER_FILES $MONITORING_FILES; do
-	echo "Updating namespace on $file"
-	sed -i.bak \
+        echo "Updating namespace on $file"
+        sed -i.bak \
             -e "s/\(.*\):.*# namespace:operator/\1: $ROOK_OPERATOR_NS # namespace:operator/g" \
             -e "s/\(.*\):.*# namespace:cluster/\1: $ROOK_CLUSTER_NS # namespace:cluster/g" \
             -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:operator/\1:$ROOK_OPERATOR_NS:\2 # serviceaccount:namespace:operator/g" \
             -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:cluster/\1:$ROOK_CLUSTER_NS:\2 # serviceaccount:namespace:cluster/g" \
-            -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:operator/\1: $ROOK_OPERATOR_NS.\2 # driver:namespace:operator/g" \
+            -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # csi-provisioner-name/\1: $ROOK_OPERATOR_NS.\2 # csi-provisioner-name/g" \
             -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:cluster/\1: $ROOK_CLUSTER_NS.\2 # driver:namespace:cluster/g" \
             "$file"
     done

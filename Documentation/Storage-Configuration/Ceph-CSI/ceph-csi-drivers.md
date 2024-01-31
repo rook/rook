@@ -35,6 +35,59 @@ example, if the Rook operator is running in the namespace `my-namespace` the
 provisioner value should be `my-namespace.rbd.csi.ceph.com`. The same provisioner
 name must be set in both the storageclass and snapshotclass.
 
+To find the provisioner name in the example storageclasses and
+volumesnapshotclass, search for: `# csi-provisioner-name`
+
+### Configure custom Driver name prefix for CSI Drivers
+
+To use a custom prefix for the CSI drivers instead of the namespace prefix, set
+the `CSI_DRIVER_NAME_PREFIX` environment variable in the operator configmap.
+For instance, to use the prefix `my-prefix` for the CSI drivers, set
+the following in the operator configmap:
+
+```console
+kubectl patch cm rook-ceph-operator-config -n rook-ceph -p $'data:\n "CSI_DRIVER_NAME_PREFIX": "my-prefix"'
+```
+
+Once the configmap is updated, the CSI drivers will be deployed with the
+`my-prefix` prefix. The same prefix must be set in both the storageclass and
+snapshotclass. For example, to use the prefix `my-prefix` for the
+CSI drivers, update the provisioner in the storageclass:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-block-sc
+provisioner: my-prefix.rbd.csi.ceph.com
+...
+```
+
+The same prefix must be set in the volumesnapshotclass as well:
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: rook-ceph-block-vsc
+driver: my-prefix.rbd.csi.ceph.com
+...
+```
+
+When the prefix is set, the driver names will be:
+
+* RBD: `my-prefix.rbd.csi.ceph.com`
+* CephFS: `my-prefix.cephfs.csi.ceph.com`
+* NFS: `my-prefix.nfs.csi.ceph.com`
+
+!!! note
+    Please be careful when setting the `CSI_DRIVER_NAME_PREFIX`
+    environment variable. It should be done only in fresh deployments because
+    changing the prefix in an existing cluster will result in unexpected behavior.
+
+To find the provisioner name in the example storageclasses and
+volumesnapshotclass, search for: `# csi-provisioner-name`
+
 ## Liveness Sidecar
 
 All CSI pods are deployed with a sidecar container that provides a Prometheus
@@ -115,7 +168,6 @@ when a pod is spawned and destroyed when the pod is deleted.
 Refer to the [ephemeral-doc](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) for more info.
 See example manifests for an [RBD ephemeral volume](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/pod-ephemeral.yaml)
 and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/pod-ephemeral.yaml).
-
 
 ## CSI-Addons Controller
 

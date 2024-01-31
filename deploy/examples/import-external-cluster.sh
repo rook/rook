@@ -22,8 +22,9 @@ RBD_STORAGE_CLASS_NAME=ceph-rbd
 CEPHFS_STORAGE_CLASS_NAME=cephfs
 ROOK_EXTERNAL_MONITOR_SECRET=mon-secret
 OPERATOR_NAMESPACE=rook-ceph                                 # default set to rook-ceph
-RBD_PROVISIONER=$OPERATOR_NAMESPACE".rbd.csi.ceph.com"       # driver:namespace:operator
-CEPHFS_PROVISIONER=$OPERATOR_NAMESPACE".cephfs.csi.ceph.com" # driver:namespace:operator
+CSI_DRIVER_NAME_PREFIX=${CSI_DRIVER_NAME_PREFIX:-$OPERATOR_NAMESPACE}
+RBD_PROVISIONER=$CSI_DRIVER_NAME_PREFIX".rbd.csi.ceph.com"       # csi-provisioner-name
+CEPHFS_PROVISIONER=$CSI_DRIVER_NAME_PREFIX=".cephfs.csi.ceph.com" # csi-provisioner-name
 CLUSTER_ID_RBD=$NAMESPACE
 CLUSTER_ID_CEPHFS=$NAMESPACE
 : "${ROOK_EXTERNAL_ADMIN_SECRET:=admin-secret}"

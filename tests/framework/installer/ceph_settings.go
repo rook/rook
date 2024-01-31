@@ -110,8 +110,8 @@ func replaceNamespaces(name, manifest, operatorNamespace, clusterNamespace strin
 	manifest = strings.ReplaceAll(manifest, "rook-ceph:rook-csi-cephfs-provisioner-sa # serviceaccount:namespace:operator", operatorNamespace+":rook-csi-cephfs-provisioner-sa")
 
 	// CSI Drivers
-	manifest = strings.ReplaceAll(manifest, "rook-ceph.cephfs.csi.ceph.com # driver:namespace:operator", operatorNamespace+".cephfs.csi.ceph.com")
-	manifest = strings.ReplaceAll(manifest, "rook-ceph.rbd.csi.ceph.com # driver:namespace:operator", operatorNamespace+".rbd.csi.ceph.com")
+	manifest = strings.ReplaceAll(manifest, "rook-ceph.cephfs.csi.ceph.com # csi-provisioner-name", operatorNamespace+".cephfs.csi.ceph.com")
+	manifest = strings.ReplaceAll(manifest, "rook-ceph.rbd.csi.ceph.com # csi-provisioner-name", operatorNamespace+".rbd.csi.ceph.com")
 
 	// Bucket storage class
 	manifest = strings.ReplaceAll(manifest, "rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster", clusterNamespace+".ceph.rook.io/bucket")
