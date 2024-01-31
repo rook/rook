@@ -270,19 +270,37 @@ func (c *Cluster) setLoginCredentials(password string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create a temporary dashboard password file")
 	}
-	args = []string{"dashboard", "ac-user-create", dashboardUsername, "-i", file.Name(), "administrator"}
+
 	defer func() {
 		if err := os.Remove(file.Name()); err != nil {
 			logger.Errorf("failed to clean up dashboard password file %q. %v", file.Name(), err)
 		}
 	}()
 
+	// Create dashboard user
+	// > ceph dashboard ac-user-create <username> -i <path-to-password-file>
+	//
+	// Note: this command will succeed in case the user <dashboardUsername> already
+	// exists however it will not update the password. That why we need to explicitly
+	// call the ac-user-set-password command to ensure the password is updated correctly
+	args = []string{"dashboard", "ac-user-create", dashboardUsername, "-i", file.Name(), "administrator"}
 	_, err = client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
-		return "set dashboard creds", output, err
+		return "create dashboard user", output, err
 	}, 5, dashboardInitWaitTime)
 	if err != nil {
-		return errors.Wrap(err, "failed to set login creds on mgr")
+		return errors.Wrapf(err, "failed to create dashboard user %q", dashboardUsername)
+	}
+
+	// Set dashboard user password
+	// > ceph dashboard ac-user-set-password <username> -i <path-to-password-file>
+	args = []string{"dashboard", "ac-user-set-password", dashboardUsername, "-i", file.Name()}
+	_, err = client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
+		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+		return "set dashboard user password", output, err
+	}, 5, dashboardInitWaitTime)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set password for user %q", dashboardUsername)
 	}
 
 	logger.Info("successfully set ceph dashboard creds")
