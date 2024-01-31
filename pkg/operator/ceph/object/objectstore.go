@@ -392,7 +392,11 @@ func createMultisiteConfigurations(objContext *Context, configType, configTypeAr
 	args = append([]string{configType}, args...)
 	args = append(args, configTypeArg)
 	// get the multisite config before creating
-	output, getConfigErr := RunAdminCommandNoMultisite(objContext, true, configType, "get", configTypeArg)
+	configTypeArgs := []string{configType, "get", configTypeArg}
+	if configType == "zonegroup" {
+		configTypeArgs = append(configTypeArgs, fmt.Sprintf("--rgw-realm=%s", objContext.Realm))
+	}
+	output, getConfigErr := RunAdminCommandNoMultisite(objContext, true, configTypeArgs...)
 	if getConfigErr == nil {
 		return nil
 	}
