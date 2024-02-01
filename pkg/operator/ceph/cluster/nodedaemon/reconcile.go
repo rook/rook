@@ -207,10 +207,6 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			if err != nil {
 				return reconcile.Result{}, errors.Wrapf(err, "failed to list and delete deployments in namespace %q on node %q", namespace, request.Name)
 			}
-			result, err := r.cleanupExporterResources(cephCluster.Namespace, namespace, request.Name)
-			if err != nil {
-				return result, errors.Wrapf(err, "failed to cleanup exporter resources in namespace %q on node %q", namespace, request.Name)
-			}
 		}
 		// Cleanup exporter if the ceph version isn't supported
 		if !cephVersion.IsAtLeast(MinVersionForCephExporter) {
