@@ -30,6 +30,54 @@ import (
 	"time"
 )
 
+var testuserdata = map[string]map[string]string{
+	"admin": {
+		"description": "keystone admin account",
+		"username":    "admin",
+		"password":    "s3cr3t",
+		"project":     "admin",
+		"role":        "admin",
+	},
+	"rook-user": {
+		"description": "swift admin account",
+		"password":    "5w1ft135",
+		"project":     "admin",
+		"username":    "rook-user",
+		"role":        "admin",
+	},
+	"alice": {
+		"description": "normal user account",
+		"username":    "alice",
+		"password":    "4l1c3",
+		"project":     "testproject",
+		"role":        "member",
+	},
+	"carol": {
+		"description": "normal user account",
+		"username":    "carol",
+		"password":    "n0tth3xm45",
+		"project":     "testproject",
+		"role":        "admin",
+	},
+	"mallory": {
+		"description": "bad actor user",
+		"username":    "mallory",
+		"password":    "b4db0y4l1f3",
+		"project":     "testproject",
+		"role":        "",
+	},
+}
+
+// TODO: refaktor
+// constants for admin-user admin credential normal-user normal credential
+//        - name: OS_IDENTITY_API_VERSION
+//        - name: OS_PROJECT_DOMAIN_NAME
+//        - name: OS_INTERFACE
+//        - name: OS_USER_DOMAIN_NAME
+//        - name: OS_PROJECT_NAME
+//        - name: OS_USERNAME
+//        - name: OS_PASSWORD
+
 func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	ctx := context.TODO()
@@ -142,34 +190,6 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 
 	if err := shelper.ResourceOperation("apply", keystoneService(namespace)); err != nil {
 		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
-	}
-
-	testuserdata := map[string]map[string]string{
-		"admin": {
-			"username": "admin",
-			"password": "s3cr3t",
-			"project":  "admin",
-		},
-		"rook-user": {
-			"username": "rook-user",
-			"password": "5w1ft135",
-			"project":  "admin",
-		},
-		"alice": {
-			"username": "alice",
-			"password": "4l1c3",
-			"project":  "testproject",
-		},
-		"carol": {
-			"username": "carol",
-			"password": "n0tth3xm45",
-			"project":  "testproject",
-		},
-		"mallory": {
-			"username": "mallory",
-			"password": "b4db0y4l1f3",
-			"project":  "testproject",
-		},
 	}
 
 	for _, userdata := range testuserdata {
@@ -637,16 +657,6 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
-	t.Run("create swift user for objectstore in keystone", func(t *testing.T) {
-		testInOpenStackClient(t, k8sh, namespace, "admin", "admin", true, "openstack", "user", "create", "--enable", "--password", "5w1ft135", "--project", "admin", "--description", "swift admin account", "rook-user")
-	})
-
-	t.Run("make swift user admin", func(t *testing.T) {
-		testInOpenStackClient(t, k8sh, namespace, "admin", "admin", true, "openstack", "role", "add", "--user", "rook-user", "--project", "admin", "admin")
-	})
-
-	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
-
 	// TODO: rename container from foo to test-container
 
 	t.Run("create test project in keystone", func(t *testing.T) {
@@ -658,23 +668,35 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 
 	})
 
-	t.Run("create unprivileged user in keystone", func(t *testing.T) {
+	for _, value := range testuserdata {
 
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "user", "create", "--project", "testproject", "--password", "4l1c3", "alice",
-		)
+		if value["username"] == "admin" {
+			continue
+		}
 
-	})
+		t.Run("create test user "+value["username"]+" in keystone", func(t *testing.T) {
+			testInOpenStackClient(t, k8sh, namespace,
+				"admin", "admin", true,
+				"openstack", "user", "create", "--project", value["project"], "--password", value["password"], value["username"],
+			)
+		})
 
-	t.Run("assign unprivileged user to test project (in keystone)", func(t *testing.T) {
+		if value["role"] != "" {
 
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "role", "add", "--user", "alice", "--project", "testproject", "member",
-		)
+			t.Run("assign test user "+value["username"]+" to project "+value["project"]+" in keystone", func(t *testing.T) {
 
-	})
+				testInOpenStackClient(t, k8sh, namespace,
+					"admin", "admin", true,
+					"openstack", "role", "add", "--user", value["username"], "--project", value["project"], value["role"],
+				)
+
+			})
+
+		}
+
+	}
+
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
 	t.Run("create service swift in keystone", func(t *testing.T) {
 
@@ -825,16 +847,6 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 
 	})
 
-	// mallory create user
-	t.Run("create unprivileged user in keystone", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "user", "create", "--project", "testproject", "--password", "b4db0y4l1f3", "mallory",
-		)
-
-	})
-
 	// try access container with id (with mallory, expect: denied)
 	t.Run("display a container (as unprivileged user)", func(t *testing.T) {
 
@@ -891,25 +903,6 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 		testInOpenStackClient(t, k8sh, namespace,
 			"testproject", "mallory", false,
 			"openstack", "container", "delete", "foo",
-		)
-
-	})
-
-	t.Run("create project admin user in keystone", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "user", "create", "--project", "testproject", "--password", "n0tth3xm45", "carol",
-		)
-
-	})
-
-	// try access container with id (with bob, expect: success)
-	t.Run("assign unprivileged user to test project (in keystone)", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "role", "add", "--user", "carol", "--project", "testproject", "admin",
 		)
 
 	})
@@ -1035,7 +1028,7 @@ func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 	commandLine := []string{"exec", "-n", namespace, "deployment/osc-" + projectname + "-" + username, "--"}
 
 	commandLine = append(commandLine, command...)
-	output, err := sh.Kubectl(commandLine...)
+	output, err := sh.KubectlWithTimeout(60, commandLine...)
 
 	if err != nil {
 		logger.Warningf("failed to execute command in openstack cli: %s: %s", commandLine, output)
