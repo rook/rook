@@ -3,7 +3,7 @@ module github.com/rook/rook/pkg/apis
 go 1.21
 
 require (
-	github.com/hashicorp/vault/api v1.10.0
+	github.com/hashicorp/vault/api v1.11.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.5.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20231011182615-5f4b25ceede1
@@ -14,7 +14,7 @@ require (
 )
 
 require (
-	github.com/google/uuid v1.5.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/onsi/ginkgo/v2 v2.14.0 // indirect
 	github.com/onsi/gomega v1.30.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
