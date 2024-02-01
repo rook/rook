@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -62,6 +63,33 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 
 	// install yaook-keystone here
 	InstallKeystoneInTestCluster(h.k8shelper, namespace)
+
+	// create usersecret for object store to use
+	testCtx := context.TODO()
+
+	secrets := map[string][]byte{
+		"OS_AUTH_TYPE":            []byte("password"),
+		"OS_IDENTITY_API_VERSION": []byte("3"),
+		"OS_PROJECT_DOMAIN_NAME":  []byte("Default"),
+		"OS_USER_DOMAIN_NAME":     []byte("Default"),
+		"OS_PROJECT_NAME":         []byte(testuserdata["rook-user"]["project"]),
+		"OS_USERNAME":             []byte(testuserdata["rook-user"]["username"]),
+		"OS_PASSWORD":             []byte(testuserdata["rook-user"]["password"]),
+	}
+
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "usersecret",
+			Namespace: namespace,
+		},
+		Data: secrets,
+	}
+
+	_, err := h.k8shelper.Clientset.CoreV1().Secrets(namespace).Create(testCtx, secret, metav1.CreateOptions{})
+
+	if err != nil {
+		return
+	}
 
 	h.helper = clients.CreateTestClient(h.k8shelper, h.installer.Manifests)
 }
