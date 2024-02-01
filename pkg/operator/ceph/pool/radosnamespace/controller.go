@@ -286,7 +286,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPool
 
 	if cephCluster.Spec.Network.IsMultus() {
 		// Build the network namespace config to be injected into the csi config
-		netNamespaceFilePath, err := csi.GenerateNetNamespaceFilePath(r.opManagerContext, r.client, cephCluster.Name, r.opConfig.OperatorNamespace, csi.RBDDriverShortName)
+		netNamespaceFilePath, err := csi.GenerateNetNamespaceFilePath(r.opManagerContext, r.client, cephCluster.Namespace, r.opConfig.OperatorNamespace, csi.RBDDriverShortName)
 		if err != nil {
 			return errors.Wrap(err, "failed to generate rbd net namespace file path")
 		}
