@@ -769,7 +769,7 @@ func TestInitializeBlock(t *testing.T) {
 		logger.Info("success, go to next test")
 	}
 
-	// Test with metadata devices
+	// Test with metadata device and one osd per device
 	{
 		devices := &DeviceOsdMapping{
 			Entries: map[string]*DeviceOsdIDEntry{
@@ -812,6 +812,69 @@ func TestInitializeBlock(t *testing.T) {
 			// First command
 			if args[9] == "--osds-per-device" && args[10] == "1" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdb" {
 				return `[{"data": "/dev/sdb"}]`, nil
+			}
+
+			return "", errors.Errorf("unknown command %s %s", command, args)
+		}
+		a := &OsdAgent{clusterInfo: &cephclient.ClusterInfo{CephVersion: cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}}, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}}
+		context := &clusterd.Context{
+			Executor: executor,
+			Devices: []*sys.LocalDisk{
+				{Name: "sda"}, {Name: "sdb"},
+			},
+		}
+
+		err := a.initializeDevicesLVMMode(context, devices)
+		if err != nil {
+			assert.NoError(t, err, "failed metadata test")
+		} else {
+			logger.Info("success, go to next test")
+		}
+	}
+
+	// Test with metadata device and multiple osds per device
+	{
+		devices := &DeviceOsdMapping{
+			Entries: map[string]*DeviceOsdIDEntry{
+				"sda": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/dev/sda", OSDsPerDevice: 2, MetadataDevice: "sdb"}},
+			},
+		}
+
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommand = func(command string, args ...string) error {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "2" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdb" {
+				return nil
+			}
+
+			// Second command
+			if args[9] == "--osds-per-device" && args[10] == "2" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdb" && args[14] == "--report" {
+				return nil
+			}
+
+			return errors.Errorf("unknown command %s %s", command, args)
+		}
+
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("%s %v", command, args)
+
+			// Validate base common args
+			err := testBaseArgs(args)
+			if err != nil {
+				return "", err
+			}
+
+			// First command
+			if args[9] == "--osds-per-device" && args[10] == "2" && args[11] == "/dev/sda" && args[12] == "--db-devices" && args[13] == "/dev/sdb" {
+				return fmt.Sprintf(`[{"block_db": "%s", "data": "%s"}, {"block_db": "%s", "data": "%s"}]`, "/dev/sdb", "/dev/sda", "/dev/sdb", "/dev/sda"), nil
 			}
 
 			return "", errors.Errorf("unknown command %s %s", command, args)
