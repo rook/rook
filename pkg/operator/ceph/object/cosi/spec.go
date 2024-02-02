@@ -97,11 +97,13 @@ func createCOSIPodSpec(cephCOSIDriver *cephv1.CephCOSIDriver) (corev1.PodTemplat
 
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   CephCOSIDriverName,
-			Labels: getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
+			Name:        CephCOSIDriverName,
+			Labels:      getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
+			HostNetwork: CephCOSIDriver.Spec.Network.IsHostStrict(),
 		},
-		Spec: podSpec,
-	}
+			Spec:        podSpec,
+	,
+}
 
 	return podTemplateSpec, nil
 }

@@ -121,6 +121,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 							Image:           discoverImage,
 							Args:            discoveryParameters,
 							SecurityContext: controller.PrivilegedContext(true),
+							HostNetwork:     c.spec.Network.IsHostStrict(),
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "dev",

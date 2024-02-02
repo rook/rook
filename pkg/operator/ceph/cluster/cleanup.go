@@ -161,6 +161,7 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 			Volumes:           volumes,
 			RestartPolicy:     v1.RestartPolicyOnFailure,
 			PriorityClassName: cephv1.GetCleanupPriorityClassName(cluster.Spec.PriorityClassNames),
+			HostNetwork:       c.spec.Network.IsHostStrict(),
 		},
 	}
 
