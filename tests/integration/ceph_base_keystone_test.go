@@ -1060,7 +1060,7 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default."+namespace+".svc/swift/v1",
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://"+RgwServiceName(storeName)+"."+namespace+".svc/swift/v1",
 		)
 
 	})
@@ -1069,7 +1069,7 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default."+namespace+".svc/swift/v1",
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://"+RgwServiceName(storeName)+"."+namespace+".svc/swift/v1",
 		)
 
 	})
@@ -1161,7 +1161,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://rook-ceph-rgw-examplestore."+namespace+".svc s3 cp /tmp/testfile s3://"+testContainerName+"/testfile",
+			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 cp /tmp/testfile s3://"+testContainerName+"/testfile",
 		)
 
 	})
@@ -1169,7 +1169,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	t.Run("save testfile object from container to local disk", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://rook-ceph-rgw-examplestore."+namespace+".svc s3 cp s3://"+testContainerName+"/testfile /tmp/testfile.saved")
+			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 cp s3://"+testContainerName+"/testfile /tmp/testfile.saved")
 	})
 
 	t.Run("check testfile", func(t *testing.T) {
