@@ -62,15 +62,15 @@ func checkError(t *testing.T, err error, message string) {
 	assert.NoError(t, err, "%s. %+v", message, err)
 }
 
-func renderTemplate(tmplSrc string, data any) string {
-	tmpl, err := template.New("template").Parse(tmplSrc)
+func renderTemplate(templateSource string, data any) string {
+	templateInstance, err := template.New("template").Parse(templateSource)
 	if err != nil {
 		panic(fmt.Errorf("syntax error in template: %s", err))
 	}
-	var b strings.Builder
-	err = tmpl.Execute(&b, data)
+	var builder strings.Builder
+	err = templateInstance.Execute(&builder, data)
 	if err != nil {
 		panic(fmt.Errorf("error while rendering the template: %s", err))
 	}
-	return b.String()
+	return builder.String()
 }
