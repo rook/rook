@@ -43,7 +43,10 @@ const (
 
 func NewBucketController(cfg *rest.Config, p *Provisioner, data map[string]string) (*provisioner.Provisioner, error) {
 	const allNamespaces = ""
-	provName := cephObject.GetObjectBucketProvisioner(data, p.clusterInfo.Namespace)
+	provName, err := cephObject.GetObjectBucketProvisioner(data, p.clusterInfo.Namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get provisioner name")
+	}
 
 	logger.Infof("ceph bucket provisioner launched watching for provisioner %q", provName)
 	return provisioner.NewProvisioner(cfg, provName, p, allNamespaces)
