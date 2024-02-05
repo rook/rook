@@ -18,6 +18,10 @@ package integration
 
 import (
 	"context"
+	"os"
+	"testing"
+	"time"
+
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -25,9 +29,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"os"
-	"testing"
-	"time"
 )
 
 const testProjectName = "testproject"
@@ -653,71 +654,7 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 
 	testContainerName := "test-container"
 
-	t.Run("create test project in keystone", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "project", "create", testProjectName,
-		)
-
-	})
-
-	for _, value := range testuserdata {
-
-		if value["username"] == "admin" {
-			continue
-		}
-
-		t.Run("create test user "+value["username"]+" in keystone", func(t *testing.T) {
-			testInOpenStackClient(t, k8sh, namespace,
-				"admin", "admin", true,
-				"openstack", "user", "create", "--project", value["project"], "--password", value["password"], value["username"],
-			)
-		})
-
-		if value["role"] != "" {
-
-			t.Run("assign test user "+value["username"]+" to project "+value["project"]+" in keystone", func(t *testing.T) {
-
-				testInOpenStackClient(t, k8sh, namespace,
-					"admin", "admin", true,
-					"openstack", "role", "add", "--user", value["username"], "--project", value["project"], value["role"],
-				)
-
-			})
-
-		}
-
-	}
-
-	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
-
-	t.Run("create service swift in keystone", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "service", "create", "--name", "swift", "object-store",
-		)
-
-	})
-
-	t.Run("create internal swift endpoint in keystone", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
-		)
-
-	})
-
-	t.Run("create admin swift endpoint in keystone", func(t *testing.T) {
-
-		testInOpenStackClient(t, k8sh, namespace,
-			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
-		)
-
-	})
+	prepareE2ETest(t, helper, k8sh, installer, namespace, storeName, replicaSize, deleteStore, enableTLS, swiftAndKeystone, testContainerName)
 
 	// test with user with read+write access (member-role)
 
@@ -1004,17 +941,7 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 		)
 	})
 
-	if deleteStore {
-
-		t.Run("delete object store", func(t *testing.T) {
-
-			deleteObjectStore(t, k8sh, namespace, storeName)
-			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
-
-		})
-		// remove user secret
-
-	}
+	cleanupE2ETest(t, k8sh, namespace, storeName, deleteStore, testContainerName)
 }
 
 func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, projectname string, username string, expectNoError bool, command ...string) {
@@ -1038,4 +965,87 @@ func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 
 	}
 
+}
+
+func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool, testContainerName string) {
+
+	t.Run("create test project in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "project", "create", testProjectName,
+		)
+
+	})
+
+	for _, value := range testuserdata {
+
+		if value["username"] == "admin" {
+			continue
+		}
+
+		t.Run("create test user "+value["username"]+" in keystone", func(t *testing.T) {
+			testInOpenStackClient(t, k8sh, namespace,
+				"admin", "admin", true,
+				"openstack", "user", "create", "--project", value["project"], "--password", value["password"], value["username"],
+			)
+		})
+
+		if value["role"] != "" {
+
+			t.Run("assign test user "+value["username"]+" to project "+value["project"]+" in keystone", func(t *testing.T) {
+
+				testInOpenStackClient(t, k8sh, namespace,
+					"admin", "admin", true,
+					"openstack", "role", "add", "--user", value["username"], "--project", value["project"], value["role"],
+				)
+
+			})
+
+		}
+
+	}
+
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
+
+	t.Run("create service swift in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "service", "create", "--name", "swift", "object-store",
+		)
+
+	})
+
+	t.Run("create internal swift endpoint in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
+		)
+
+	})
+
+	t.Run("create admin swift endpoint in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
+		)
+
+	})
+}
+
+func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string, deleteStore bool, testContainerName string) {
+	if deleteStore {
+
+		t.Run("delete object store", func(t *testing.T) {
+
+			deleteObjectStore(t, k8sh, namespace, storeName)
+			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
+
+		})
+		// remove user secret
+
+	}
 }
