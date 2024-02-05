@@ -154,7 +154,7 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 	return err
 }
 
-// Kubectl is wrapper for executing kubectl commands
+// KubectlWithTimeout is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string) (string, error) {
 	result, err := k8sh.executor.ExecuteCommandWithTimeout(timeout*time.Second, "kubectl", args...)
 	if err != nil {
@@ -168,7 +168,7 @@ func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string)
 	return result, nil
 }
 
-// Kubectl is wrapper for executing kubectl commands
+// Kubectl is wrapper for executing kubectl commands and a timeout of 15 seconds
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 
 	return k8sh.KubectlWithTimeout(15, args...)
