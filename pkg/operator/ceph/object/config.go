@@ -177,7 +177,6 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 }
 
 func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
-	var err error
 
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
@@ -196,28 +195,42 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 
 	if ks := rgwConfig.Auth.Keystone; ks != nil {
 
-		logger.Info("Configuring Authentication with keystone")
+		logger.Info("Configuring authentication with keystone")
 
 		configOptions["rgw_keystone_url"] = ks.Url
 		configOptions["rgw_keystone_accepted_roles"] = strings.Join(ks.AcceptedRoles, ",")
 		if ks.ImplicitTenants != "" {
-			// XXX: where do we validate this?
+
+			// only two values are valid here (swift and s3)
+			// https://docs.ceph.com/en/latest/radosgw/keystone/#integrating-with-openstack-keystone
+			if strings.ToLower(string(ks.ImplicitTenants)) != "swift" && strings.ToLower(string(ks.ImplicitTenants)) != "s3" {
+
+				errString := fmt.Sprintf("ImplicitTenantSetting can only be either swift or s3, not %s", string(ks.ImplicitTenants))
+				logger.Errorf(errString)
+				return errors.New(errString)
+
+			}
+
 			configOptions["rgw_keystone_implicit_tenants"] = string(ks.ImplicitTenants)
+
 		}
 		if ks.TokenCacheSize != nil {
 			configOptions["rgw_keystone_token_cache_size"] = fmt.Sprintf("%d", *ks.TokenCacheSize)
 		}
 		if rgwConfig.KeystoneSecret == nil {
+			logger.Error("Cannot find keystone secret!")
 			return errors.New("Cannot find keystone secret")
 		}
 
+		var err error
 		configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
 		if err != nil {
 			logger.Infof("error mapping keystone secret %s to config: %s", rgwConfig.KeystoneSecret.Name, err)
 			return err
 		}
+
 	} else {
-		logger.Info("Authentication with keystone disabled")
+		logger.Info("Authentication with keystone is disabled")
 	}
 
 	s3disabled := false
@@ -250,7 +263,7 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		// – not sure about the additional APIs
 
 		// Swift was enabled so far already by default, so perhaps better
-		// not change that if someon relies on it.
+		// not change that if someone relies on it.
 
 		configOptions["rgw_enabled_apis"] = "s3website, swift, swift_auth, admin, sts, iam, notifications"
 	}
