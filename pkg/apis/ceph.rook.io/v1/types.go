@@ -1589,7 +1589,7 @@ type ProtocolSpec struct {
 	// +nullable
 	S3 *S3Spec `json:"s3,omitempty"`
 
-	// The spec for S3
+	// The spec for Swift
 	// +optional
 	// +nullable
 	Swift *SwiftSpec `json:"swift"`
@@ -1601,7 +1601,7 @@ type S3Spec struct {
 	AuthUseKeystone *bool `json:"authUseKeystone,omitempty"`
 }
 
-// S3Spec represents Ceph Object Store specification for the Swift API
+// SwiftSpec represents Ceph Object Store specification for the Swift API
 type SwiftSpec struct {
 	AccountInUrl      *bool   `json:"accountInUrl,omitempty"`
 	UrlPrefix         *string `json:"urlPrefix,omitempty"`
