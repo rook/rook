@@ -255,4 +255,60 @@ func TestCephCOSIDriverController(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, "quay.io/ceph/cosi:custom", cephCOSIDriverDeployment.Spec.Template.Spec.Containers[0].Image)
 	})
+
+	t.Run("ceph cosi driver CRD with custom namespace", func(t *testing.T) {
+		cephCOSIDriver := &cephv1.CephCOSIDriver{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      CephCOSIDriverName,
+				Namespace: "custom-namespace",
+			},
+			Spec: cephv1.CephCOSIDriverSpec{
+				Image:              "quay.io/ceph/cosi:custom",
+				DeploymentStrategy: cephv1.COSIDeploymentStrategyAuto,
+			},
+		}
+		r := setupNewEnvironment(cephCOSIDriver)
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      CephCOSIDriverName,
+				Namespace: "custom-namespace",
+			},
+		}
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, false, res.Requeue)
+	})
+
+	t.Run("multiple ceph cosi driver CRDs", func(t *testing.T) {
+		cephCOSIDriver1 := &cephv1.CephCOSIDriver{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ceph-cosi-driver-1",
+				Namespace: namespace,
+			},
+			Spec: cephv1.CephCOSIDriverSpec{
+				Image:              "quay.io/ceph/cosi:custom",
+				DeploymentStrategy: cephv1.COSIDeploymentStrategyAuto,
+			},
+		}
+		cephCOSIDriver2 := &cephv1.CephCOSIDriver{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "ceph-cosi-driver-2",
+				Namespace: namespace,
+			},
+			Spec: cephv1.CephCOSIDriverSpec{
+				Image:              "quay.io/ceph/cosi:custom",
+				DeploymentStrategy: cephv1.COSIDeploymentStrategyAuto,
+			},
+		}
+		r := setupNewEnvironment(cephCOSIDriver1, cephCOSIDriver2)
+		req := reconcile.Request{
+			NamespacedName: types.NamespacedName{
+				Name:      "ceph-cosi-driver-1",
+				Namespace: namespace,
+			},
+		}
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, false, res.Requeue)
+	})
 }
