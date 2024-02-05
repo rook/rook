@@ -45,7 +45,7 @@ jobs:
       - name: TestCephUpgradeSuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
           go test -v -timeout 2400s -failfast -run CephUpgradeSuite/TestUpgradeRook github.com/rook/rook/tests/integration
 
       - name: collect common logs
@@ -92,7 +92,7 @@ jobs:
           tests/scripts/helm.sh up
 
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
           go test -v -timeout 1800s -failfast -run CephUpgradeSuite/TestUpgradeHelm github.com/rook/rook/tests/integration
 
       - name: collect common logs

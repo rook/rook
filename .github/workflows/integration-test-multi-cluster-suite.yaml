@@ -45,8 +45,9 @@ jobs:
       - name: TestCephMultiClusterDeploySuite
         run: |
           tests/scripts/github-action-helper.sh collect_udev_logs_in_background
-          export TEST_SCRATCH_DEVICE=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)1
-          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          export TEST_SCRATCH_DEVICE="${BLOCK}1"
+          export DEVICE_FILTER="$BLOCK"
           go test -v -timeout 1800s -failfast -run CephMultiClusterDeploySuite github.com/rook/rook/tests/integration
 
       - name: collect common logs
