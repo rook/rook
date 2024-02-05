@@ -303,7 +303,7 @@ jobs:
       - name: use local disk as OSD
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: prepare loop devices for osds
@@ -370,7 +370,7 @@ jobs:
       - name: use local disk as OSD
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
@@ -416,7 +416,7 @@ jobs:
 
       - name: use local disk as OSD
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
@@ -469,7 +469,7 @@ jobs:
 
       - name: use local disk as OSD
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
@@ -516,13 +516,13 @@ jobs:
 
       - name: use local disk as OSD
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: create LV on disk
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
 
       - name: deploy cluster
@@ -574,7 +574,7 @@ jobs:
 
       - name: create cluster prerequisites
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/localPathPV.sh "$BLOCK"
           tests/scripts/loopDevicePV.sh 1
           tests/scripts/github-action-helper.sh create_cluster_prerequisites
@@ -605,7 +605,7 @@ jobs:
           kubectl -n rook-ceph logs deploy/rook-ceph-operator
           tests/scripts/github-action-helper.sh wait_for_cleanup_pod
           lsblk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           sudo head --bytes=60 ${BLOCK}1
           sudo head --bytes=60 ${BLOCK}2
           sudo head --bytes=60 /dev/loop1
@@ -770,7 +770,7 @@ jobs:
           kubectl -n rook-ceph delete cephcluster rook-ceph
           kubectl -n rook-ceph logs deploy/rook-ceph-operator
           tests/scripts/github-action-helper.sh wait_for_cleanup_pod
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           sudo head --bytes=60 ${BLOCK}1
           sudo head --bytes=60 ${BLOCK}2
           sudo lsblk
@@ -1065,7 +1065,7 @@ jobs:
 
       - name: create LV on disk
         run: |
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
           tests/scripts/localPathPV.sh /dev/test-rook-vg/test-rook-lv
 
@@ -1114,7 +1114,7 @@ jobs:
       - name: use local disk into two partitions
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+          BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
           sudo lsblk
 

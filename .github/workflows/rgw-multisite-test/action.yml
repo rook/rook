@@ -15,7 +15,7 @@ runs:
     - name: use local disk into two partitions
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        BLOCK=$(sudo lsblk --paths|awk '/14G/ || /64G/ {print $1}'| head -1)
+        BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}'| head -1)
         tests/scripts/github-action-helper.sh use_local_disk
         tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
         sudo lsblk
