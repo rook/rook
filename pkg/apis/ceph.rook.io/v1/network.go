@@ -39,6 +39,9 @@ func (n *NetworkSpec) IsHost() bool {
 }
 
 func ValidateNetworkSpec(clusterNamespace string, spec NetworkSpec) error {
+	if spec.HostNetwork && (spec.Provider != NetworkProviderDefault) {
+		return errors.Errorf(`the legacy hostNetwork setting is only valid with the default network provider ("") and not with '%q'`, spec.Provider)
+	}
 	if spec.IsMultus() {
 		if len(spec.Selectors) == 0 {
 			return errors.Errorf("at least one network selector must be specified when using the %q network provider", NetworkProviderMultus)
