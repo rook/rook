@@ -79,8 +79,6 @@ func TestStartRGW(t *testing.T) {
 	// start a basic cluster
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
-	err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
-	assert.Nil(t, err)
 
 	t.Run("Deployment is created", func(t *testing.T) {
 		store.Spec.Gateway.Instances = 1
