@@ -261,11 +261,12 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		// swift in the resource, `admin` is required for the operator to
 		// work, `swift_auth` is required to access swift without keystone
 		// – not sure about the additional APIs
+		// https://docs.ceph.com/en/quincy/radosgw/config-ref/#confval-rgw_enable_apis
 
 		// Swift was enabled so far already by default, so perhaps better
 		// not change that if someone relies on it.
 
-		configOptions["rgw_enabled_apis"] = "s3website, swift, swift_auth, admin, sts, iam, notifications"
+		configOptions["rgw_enable_apis"] = "s3website, swift, swift_auth, admin, sts, iam, notifications"
 	}
 
 	for flag, val := range configOptions {
