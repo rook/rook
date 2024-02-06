@@ -242,6 +242,14 @@ spec:
       databaseSizeMB: "1024"
 `
 	}
+
+	if m.settings.ConnectionsEncrypted {
+		clusterSpec += `
+  csi:
+    cephfs:
+      kernelMountOptions: ms_mode=secure
+  `
+	}
 	return clusterSpec + `
   priorityClassNames:
     mon: system-node-critical
@@ -349,9 +357,9 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.Namespace + `
 `
 	if m.settings.ConnectionsEncrypted {
-		// encryption requires either the 5.11 kernel or the fuse mounter. Until the newer
-		// kernel is available in minikube, we need to test with fuse.
-		sc += "  mounter: fuse"
+		// Encryption with kernel version <= 5.11 requires 'mounter: fuse'. For kernel version >= 5.12, it requires 'mounter: kernel'.
+		// Since the Github action Minikube has kernel version > 5.12, the setting is set to 'mounter: kernel'.
+		sc += "  mounter: kernel"
 	}
 	return sc
 }
