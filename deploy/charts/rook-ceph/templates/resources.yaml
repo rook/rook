@@ -12027,7 +12027,7 @@ spec:
                           type: boolean
                       type: object
                     swift:
-                      description: The spec for S3
+                      description: The spec for Swift
                       nullable: true
                       properties:
                         accountInUrl:
