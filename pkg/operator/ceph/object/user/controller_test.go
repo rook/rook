@@ -291,8 +291,7 @@ func TestCephObjectStoreUserController(t *testing.T) {
 		newMultisiteAdminOpsCtxFunc = func(objContext *cephobject.Context, spec *cephv1.ObjectStoreSpec) (*cephobject.AdminOpsContext, error) {
 			mockClient := &cephobject.MockClient{
 				MockDo: func(req *http.Request) (*http.Response, error) {
-					if (req.URL.RawQuery == "display-name=my-user&format=json&max-buckets=1000&uid=my-user" && req.Method == http.MethodPost && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") || // TODO: Leave this in?
-						(req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" && req.Method == http.MethodPut && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") ||
+					if (req.URL.RawQuery == "enabled=false&format=json&max-objects=-1&max-size=-1&quota=&quota-type=user&uid=my-user" && req.Method == http.MethodPut && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") ||
 						(req.URL.RawQuery == "format=json&uid=my-user" && (req.Method == http.MethodGet || req.Method == http.MethodPost) && req.URL.Path == "rook-ceph-rgw-my-store.mycluster.svc/admin/user") {
 						return &http.Response{
 							StatusCode: 200,
