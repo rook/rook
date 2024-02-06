@@ -20,9 +20,7 @@ import (
 	"context"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -73,14 +71,17 @@ var testuserdata = map[string]map[string]string{
 	},
 }
 
-func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
+func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) error {
 
 	ctx := context.TODO()
 
 	// The namespace keystoneauth-ns is created by SetupSuite
 
 	if err := shelper.CreateNamespace("cert-manager"); err != nil {
-		logger.Warning("Could not create namespace cert-manager")
+
+		logger.Error("Could not create namespace cert-manager")
+		return err
+
 	}
 
 	// install cert-manager using helm
@@ -99,41 +100,52 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	cmdArgs := []string{"repo", "add", "jetstack", "https://charts.jetstack.io"}
 	if _, err := helmHelper.Execute(cmdArgs...); err != nil {
 		// Continue on error in case the repo already was added
-		logger.Warningf("failed to add repo cert-manager, err=%v", err)
+		logger.Errorf("failed to add repo cert-manager, err=%v", err)
+		return err
 	}
 	cmdArgs = []string{"repo", "update"}
 	if _, err := helmHelper.Execute(cmdArgs...); err != nil {
 		// Continue on error in case the repo already was added
 		logger.Warningf("failed to update helm repositories, err=%v", err)
+		return err
 	}
 
-	installHelmChart(helmHelper, "cert-manager", "cert-manager", "jetstack/cert-manager", "1.13.3",
-		"installCRDs=true")
+	if err := installHelmChart(helmHelper, "cert-manager", "cert-manager", "jetstack/cert-manager", "1.13.3",
+		"installCRDs=true"); err != nil {
+		return err
+	}
 
 	// trust-manager does not support k8s<1.25
 	// This allows for secrets to be read/written by trust-manager in all namespaces
 	// This is considered insecure in production environments! This is here only for the quick test setup.
-	installHelmChart(helmHelper, "cert-manager", "trust-manager", "jetstack/trust-manager", "0.7.0",
-		"app.trust.namespace="+namespace, "installCRDs=true", "secretTargets.enabled=true", "secretTargets.authorizedSecretsAll=true")
+	if err := installHelmChart(helmHelper, "cert-manager", "trust-manager", "jetstack/trust-manager", "0.7.0",
+		"app.trust.namespace="+namespace, "installCRDs=true", "secretTargets.enabled=true", "secretTargets.authorizedSecretsAll=true"); err != nil {
+		return err
+	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiClusterIssuer(namespace)); err != nil {
-		logger.Warningf("Could not apply ClusterIssuer in namespace %s", namespace)
+		logger.Errorf("Could not apply ClusterIssuer in namespace %s: %s", namespace, err)
+		return err
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCaCertificate(namespace)); err != nil {
-		logger.Warningf("Could not apply ClusterIssuer CA Certificate in namespace %s", namespace)
+		logger.Errorf("Could not apply ClusterIssuer CA Certificate in namespace %s: %s", namespace, err)
+		return err
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCaIssuer(namespace)); err != nil {
-		logger.Warningf("Could not install CA Issuer in namespace %s", namespace)
+		logger.Errorf("Could not install CA Issuer in namespace %s: %s", namespace, err)
+		return err
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneApiCertificate(namespace)); err != nil {
-		logger.Warningf("Could not create Certificate (request) in namespace %s", namespace)
+		logger.Errorf("Could not create Certificate (request) in namespace %s", namespace)
+		return err
 	}
 
 	if err := shelper.ResourceOperation("apply", trustManagerBundle(namespace)); err != nil {
-		logger.Warningf("Could not create CA Certificate Bundle in namespace %s", namespace)
+		logger.Errorf("Could not create CA Certificate Bundle in namespace %s", namespace)
+		return err
 	}
 
 	data := getKeystoneApache2CM(namespace)
@@ -149,6 +161,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	if _, err := shelper.Clientset.CoreV1().ConfigMaps(namespace).Create(ctx, keystoneApacheCM, metav1.CreateOptions{}); err != nil {
 
 		logger.Fatalf("failed to create apache2.conf configmap in namespace %s with error %s", namespace, err)
+		return err
 
 	}
 
@@ -163,37 +176,40 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) {
 	}
 
 	if _, err := shelper.Clientset.CoreV1().Secrets(namespace).Create(ctx, keystoneConfSecret, metav1.CreateOptions{}); err != nil {
-		logger.Warningf("Could not create keystone config secret in namespace %s", namespace)
+		logger.Errorf("Could not create keystone config secret in namespace %s", namespace)
+		return err
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneDeployment(namespace)); err != nil {
-		logger.Warningf("Could not create keystone deployment in namespace %s", namespace)
+		logger.Errorf("Could not create keystone deployment in namespace %s", namespace)
+		return err
 	}
 
 	if err := shelper.WaitForPodCount("app=keystone", namespace, 1); err != nil {
-		logger.Warningf("Wait for keystone pod failed in namespace %s", namespace)
+		logger.Errorf("Wait for keystone pod failed in namespace %s", namespace)
+		return err
 	}
 
-	// WaitForDeploymentReady does not wait for pods to be ready
-	// wait for the keystone-pod to be ready
-	// shelper.Kubectl() has a timeout of 15 seconds for a command and thus cannot be used here
-	// therefore exec.CommandExecutor is used directly
-	executor := &exec.CommandExecutor{}
-	if _, err := executor.ExecuteCommandWithTimeout(315*time.Second, "kubectl", "wait", "--timeout=300s", "--namespace", namespace, "pod", "--selector=app=keystone", "--for=condition=Ready"); err != nil {
-		logger.Warningf("Failed to wait for pod keystone in namespace %s", namespace)
+	if _, err := shelper.KubectlWithTimeout(315, "wait", "--timeout=300s", "--namespace", namespace, "pod", "--selector=app=keystone", "--for=condition=Ready"); err != nil {
+		logger.Errorf("Failed to wait for pod keystone in namespace %s", namespace)
+		return err
 	}
 
 	if err := shelper.ResourceOperation("apply", keystoneService(namespace)); err != nil {
-		logger.Warningf("Could not create service for keystone in namespace %s", namespace)
+		logger.Errorf("Could not create service for keystone in namespace %s", namespace)
+		return err
 	}
 
 	for _, userdata := range testuserdata {
 
 		if err := shelper.ResourceOperation("apply", createOpenStackClient(namespace, userdata["project"], userdata["username"], userdata["password"])); err != nil {
-			logger.Warningf("Could not create openstack client deployment in namespace %s", namespace)
+			logger.Errorf("Could not create openstack client deployment in namespace %s", namespace)
+			return err
 		}
 
 	}
+
+	return nil
 
 }
 
@@ -282,7 +298,7 @@ spec:
 
 }
 
-func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName string, chart string, version string, settings ...string) {
+func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName string, chart string, version string, settings ...string) error {
 
 	logger.Infof("installing helm chart %s with version %s", chart, version)
 
@@ -297,7 +313,10 @@ func installHelmChart(helmHelper *utils.HelmHelper, namespace string, chartName 
 	_, err := helmHelper.Execute(arguments...)
 	if err != nil {
 		logger.Errorf("failed to install helm chart %s with version %s in namespace: %v, err=%v", chart, version, namespace, err)
+		return err
 	}
+
+	return nil
 
 }
 
