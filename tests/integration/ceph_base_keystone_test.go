@@ -32,19 +32,15 @@ import (
 
 const testProjectName = "testproject"
 
-// TODO: funny passwords are cool, but best to make them totally random
-
 var testuserdata = map[string]map[string]string{
 	"admin": {
 		"description": "keystone admin account",
 		"username":    "admin",
-		"password":    "",
 		"project":     "admin",
 		"role":        "admin",
 	},
 	"rook-user": {
 		"description": "swift admin account",
-		"password":    "",
 		"project":     "admin",
 		"username":    "rook-user",
 		"role":        "admin",
@@ -52,21 +48,18 @@ var testuserdata = map[string]map[string]string{
 	"alice": {
 		"description": "normal user account",
 		"username":    "alice",
-		"password":    "",
 		"project":     testProjectName,
 		"role":        "member",
 	},
 	"carol": {
 		"description": "normal user account",
 		"username":    "carol",
-		"password":    "",
 		"project":     testProjectName,
 		"role":        "admin",
 	},
 	"mallory": {
 		"description": "bad actor user",
 		"username":    "mallory",
-		"password":    "",
 		"project":     testProjectName,
 		"role":        "",
 	},
