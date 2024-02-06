@@ -416,26 +416,26 @@ function create_LV_on_disk() {
 }
 
 function deploy_first_rook_cluster() {
-  BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-  export BLOCK
+  DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+  export BLOCK="/dev/${DEVICE_NAME}"
   create_cluster_prerequisites
   cd deploy/examples/
 
   deploy_manifest_with_local_build operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
-  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"1
+  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"1
   kubectl create -f cluster-test.yaml
   deploy_toolbox
 }
 
 function deploy_second_rook_cluster() {
-  BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-  export BLOCK
+  DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+  export BLOCK="/dev/${DEVICE_NAME}"
   cd deploy/examples/
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
-  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${BLOCK}"2
+  yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"2
   yq w -i -d0 cluster-test.yaml spec.dataDirHostPath "/var/lib/rook-external"
   kubectl create -f cluster-test.yaml
   yq w -i toolbox.yaml metadata.namespace rook-ceph-secondary
