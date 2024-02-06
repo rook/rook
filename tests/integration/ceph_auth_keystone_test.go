@@ -1,3 +1,19 @@
+/*
+Copyright 2023 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package integration
 
 import (
@@ -16,13 +32,14 @@ import (
 // ***************************************************
 // *** Major scenarios tested by the TestKeystoneAuthSuite ***
 // Setup
-// - An CephObject store will be created in a test cluster
+// - A CephObject store will be created in a test cluster
 // Access
 // - Create a container
 // - Put a file in a container
 // - Get a file from the container
 // - Try to get the file without valid credentials
 // ***************************************************
+
 func TestCephKeystoneAuthSuite(t *testing.T) {
 	s := new(KeystoneAuthSuite)
 	defer func(s *KeystoneAuthSuite) {
@@ -62,7 +79,9 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
 
 	// install yaook-keystone here
-	InstallKeystoneInTestCluster(h.k8shelper, namespace)
+	if err := InstallKeystoneInTestCluster(h.k8shelper, namespace); err != nil {
+		return
+	}
 
 	// create usersecret for object store to use
 	testCtx := context.TODO()
@@ -108,8 +127,6 @@ func (h *KeystoneAuthSuite) TestObjectStoreOnRookInstalledViaHelmUsingKeystone()
 	deleteStore := true
 	tls := false
 	swiftAndKeystone := true
-	// TODO: Find out whether this is enough or whether there are other objectstore related tests
-	// -> nope
 
 	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
 }
