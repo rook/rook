@@ -33,7 +33,7 @@ spec:
           requests:
             storage: 10Gi
   cephVersion:
-    image: quay.io/ceph/ceph:v17.2.1
+    image: quay.io/ceph/ceph:v18.2.1
     allowUnsupported: false
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
@@ -47,6 +47,10 @@ spec:
     ssl: true
   crashCollector:
     disable: false
+  logCollector:
+    enabled: true
+    periodicity: daily # one of: hourly, daily, weekly, monthly
+    maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
   storage:
     storageClassDeviceSets:
       - name: set1
@@ -179,10 +183,17 @@ spec:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
     pgHealthCheckTimeout: 0
-    manageMachineDisruptionBudgets: false
-    machineDisruptionBudgetNamespace: openshift-machine-api
   # security oriented settings
   # security:
+  # Settings to enable key rotation for KEK(Key Encryption Key).
+  # Currently, this is supported only for the default encryption type,
+  # using kubernetes secrets.
+  #   keyRotation:
+  #     enabled: true
+  #     # The schedule, written in [cron format](https://en.wikipedia.org/wiki/Cron),
+  #     # with which key rotation [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/)
+  #     # is created. The default value is `"@weekly"`.
+  #     schedule: "@monthly"
   # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file
   #   kms:
   #     # name of the config map containing all the kms connection details

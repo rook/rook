@@ -16,21 +16,41 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   docs-check:
     name: docs-check
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-20.04
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.9
 
+      - name: Check helm-docs
+        run: make check-helm-docs
+      - name: Check docs
+        run: make check-docs
       - name: Install mkdocs and dependencies
         run: cd build/release/ && make deps.docs
+
+      - name: Check documentation for CRDs
+        run: |
+          make generate-docs-crds
+          DIFF_ON_DOCS=$(git diff --ignore-matching-lines='on git commit')
+          if [ ! -z "$DIFF_ON_DOCS" ]; then
+          echo "Please run 'make generate-docs-crds' locally, commit the updated crds docs, and push the change"
+          fi
+          git diff --ignore-matching-lines='on git commit' --exit-code
 
       - name: Build documentation using mkdocs
         run: make docs-build

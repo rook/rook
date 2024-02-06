@@ -120,7 +120,7 @@ const (
 	effectDeny  effect = "Deny"
 )
 
-// PolicyStatment is the Go representation of a PolicyStatement json struct
+// PolicyStatement is the Go representation of a PolicyStatement json struct
 // it defines what Actions that a Principle can or cannot perform on a Resource
 type PolicyStatement struct {
 	// Sid (optional) is the PolicyStatement's unique  identifier
@@ -234,7 +234,7 @@ func (bp *BucketPolicy) EjectPrincipals(users ...string) *BucketPolicy {
 	return bp
 }
 
-// NewPolicyStatement generates a new PolicyStatement. PolicyStatment methods are designed to
+// NewPolicyStatement generates a new PolicyStatement. PolicyStatement methods are designed to
 // be chain called with dot notation to allow for easy configuration at creation.  This is preferable
 // to a long parameter list.
 func NewPolicyStatement() *PolicyStatement {

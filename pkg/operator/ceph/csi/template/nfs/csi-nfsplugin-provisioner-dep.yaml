@@ -21,19 +21,85 @@ spec:
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
       containers:
+        {{ if .NFSAttachRequired }}
+        - name: csi-attacher
+          image: {{ .AttacherImage }}
+          args:
+            - "--v={{ .SidecarLogLevel }}"
+            - "--csi-address=$(ADDRESS)"
+            - "--leader-election=true"
+            - "--timeout={{ .GRPCTimeout }}"
+            - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+          env:
+            - name: ADDRESS
+              value: /csi/csi-provisioner.sock
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
+        {{ if .EnableNFSSnapshotter }}
+        - name: csi-snapshotter
+          image:  {{ .SnapshotterImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v={{ .SidecarLogLevel }}"
+            - "--timeout={{ .GRPCTimeout }}"
+            - "--leader-election=true"
+            - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+            - "--extra-create-metadata=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
+        - name: csi-resizer
+          image: {{ .ResizerImage }}
+          args:
+            - "--csi-address=$(ADDRESS)"
+            - "--v={{ .SidecarLogLevel }}"
+            - "--timeout={{ .GRPCTimeout }}"
+            - "--leader-election=true"
+            - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+            - "--handle-volume-inuse-error=false"
+            - "--feature-gates=RecoverVolumeExpansionFailure=true"
+          env:
+            - name: ADDRESS
+              value: unix:///csi/csi-provisioner.sock
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
         - name: csi-provisioner
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--feature-gates=HonorPVReclaimPolicy=true"
+            - "--prevent-volume-mode-conversion=true"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -62,7 +128,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

@@ -29,7 +29,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -52,11 +51,12 @@ const (
 )
 
 var (
-	dashboardInitWaitTime = 5 * time.Second
+	dashboardInitWaitTime        = 5 * time.Second
+	removeMgrDaemonConfiguration = true
 )
 
-func (c *Cluster) configureDashboardService(activeDaemon string) error {
-	dashboardService, err := c.makeDashboardService(AppName, activeDaemon)
+func (c *Cluster) configureDashboardService() error {
+	dashboardService, err := c.makeDashboardService(AppName)
 	if err != nil {
 		return err
 	}
@@ -89,49 +89,94 @@ func (c *Cluster) configureDashboardModules() error {
 		return nil
 	}
 
-	hasChanged, err := c.initializeSecureDashboard()
+	err := c.initializeSecureDashboard()
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize dashboard")
 	}
 
-	for _, daemonID := range c.getDaemonIDs() {
-		changed, err := c.configureDashboardModuleSettings(daemonID)
-		if err != nil {
-			return err
-		}
-		if changed {
-			hasChanged = true
-		}
+	hasChanged, err := c.configureDashboardModuleSettings()
+	if err != nil {
+		return err
 	}
 	if hasChanged {
 		logger.Info("dashboard config has changed. restarting the dashboard module")
-		return c.restartDashboard()
+		return c.restartMgrModule(dashboardModuleName)
 	}
 	return nil
 }
 
-func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error) {
+// Delete the manager per-daemon configuration. Returns true
+// if all the configuration entries have been delete successfully.
+func (c *Cluster) deleteManagerDaemonConfiguration() bool {
+
+	mgrKeysToDelete := []string{
+		"mgr/dashboard/url_prefix",
+		"mgr/dashboard/ssl",
+		"mgr/dashboard/PROMETHEUS_API_HOST",
+		"mgr/dashboard/PROMETHEUS_API_SSL_VERIFY",
+		"mgr/dashboard/server_port",
+		"mgr/dashboard/ssl_server_port",
+	}
+
+	success := true
+	monStore := config.GetMonStore(c.context, c.clusterInfo)
+	for _, daemonID := range c.getDaemonIDs() {
+		mgrDaemonID := fmt.Sprintf("%s.%s", config.MgrType, daemonID)
+		for _, key := range mgrKeysToDelete {
+			err := monStore.Delete(mgrDaemonID, key)
+			if err != nil {
+				logger.Errorf("failed to delete configuration entry %q %q, err: %v", mgrDaemonID, key, err)
+				success = false
+			}
+		}
+	}
+
+	if success {
+		logger.Info("All per-daemon mgr configuration has been deleted successfully.")
+	} else {
+		logger.Error("At least one delete operation failed while trying to delete per-daemon mgr configuration.")
+	}
+
+	return success
+}
+
+func (c *Cluster) configureDashboardModuleSettings() (bool, error) {
+
 	monStore := config.GetMonStore(c.context, c.clusterInfo)
 
-	daemonID = fmt.Sprintf("mgr.%s", daemonID)
-
 	// url prefix
-	hasChanged, err := monStore.SetIfChanged(daemonID, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix)
+	hasChanged, err := monStore.SetIfChanged(config.MgrType, "mgr/dashboard/url_prefix", c.spec.Dashboard.URLPrefix)
 	if err != nil {
 		return false, err
 	}
 
 	// ssl support
 	ssl := strconv.FormatBool(c.spec.Dashboard.SSL)
-	changed, err := monStore.SetIfChanged(daemonID, "mgr/dashboard/ssl", ssl)
+	changed, err := monStore.SetIfChanged(config.MgrType, "mgr/dashboard/ssl", ssl)
+	if err != nil {
+		return false, err
+	}
+	hasChanged = hasChanged || changed
+
+	// Prometheus host end point
+	prometheusEndpoint := c.spec.Dashboard.PrometheusEndpoint
+	changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/PROMETHEUS_API_HOST", prometheusEndpoint)
+	if err != nil {
+		return false, err
+	}
+	hasChanged = hasChanged || changed
+
+	// Prometheus host end point ssl verify
+	prometheusEndpointSSLVerify := strconv.FormatBool(c.spec.Dashboard.PrometheusEndpointSSLVerify)
+	changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/PROMETHEUS_API_SSL_VERIFY", prometheusEndpointSSLVerify)
 	if err != nil {
 		return false, err
 	}
 	hasChanged = hasChanged || changed
 
 	// server port
-	port := strconv.Itoa(c.dashboardPort())
-	changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/server_port", port)
+	port := strconv.Itoa(c.dashboardInternalPort())
+	changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/server_port", port)
 	if err != nil {
 		return false, err
 	}
@@ -139,40 +184,48 @@ func (c *Cluster) configureDashboardModuleSettings(daemonID string) (bool, error
 
 	// SSL enabled. Needed to set specifically the ssl port setting
 	if c.spec.Dashboard.SSL {
-		changed, err = monStore.SetIfChanged(daemonID, "mgr/dashboard/ssl_server_port", port)
+		changed, err = monStore.SetIfChanged(config.MgrType, "mgr/dashboard/ssl_server_port", port)
 		if err != nil {
 			return false, err
 		}
 		hasChanged = hasChanged || changed
 	}
 
+	// Remove any existing per mgr-daemon configuration
+	if removeMgrDaemonConfiguration {
+		removeMgrDaemonConfiguration = !c.deleteManagerDaemonConfiguration()
+	}
+
 	return hasChanged, nil
 }
 
-func (c *Cluster) initializeSecureDashboard() (bool, error) {
+func (c *Cluster) initializeSecureDashboard() error {
 	// we need to wait a short period after enabling the module before we can call the `ceph dashboard` commands.
 	time.Sleep(dashboardInitWaitTime)
 
 	password, err := c.getOrGenerateDashboardPassword()
 	if err != nil {
-		return false, errors.Wrap(err, "failed to generate a password for the ceph dashboard")
+		return errors.Wrap(err, "failed to generate a password for the ceph dashboard")
 	}
 
 	if c.spec.Dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
-			return false, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
+			return errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
 		}
 		if alreadyCreated {
-			return false, nil
+			return nil
+		}
+		if err := c.restartMgrModule(dashboardModuleName); err != nil {
+			logger.Warningf("failed to restart dashboard after generating ssl cert. %v", err)
 		}
 	}
 
 	if err := c.setLoginCredentials(password); err != nil {
-		return false, errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
+		return errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
 	}
 
-	return false, nil
+	return nil
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {
@@ -206,44 +259,48 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 	return false, nil
 }
 
-// FileBasedPasswordSupported check if Ceph versions have the latest Ceph dashboard command
-func FileBasedPasswordSupported(c *client.ClusterInfo) bool {
-	if (c.CephVersion.IsOctopus() && c.CephVersion.IsAtLeast(cephver.CephVersion{Major: 15, Minor: 2, Extra: 10})) ||
-		c.CephVersion.IsAtLeastPacific() {
-		return true
-	}
-	return false
-}
-
 func (c *Cluster) setLoginCredentials(password string) error {
 	// Set the login credentials. Write the command/args to the debug log so we don't write the password by default to the log.
 	logger.Infof("setting ceph dashboard %q login creds", dashboardUsername)
 
 	var args []string
 	// for latest Ceph versions
-	if FileBasedPasswordSupported(c.clusterInfo) {
-		// Generate a temp file
-		file, err := util.CreateTempFile(password)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a temporary dashboard password file")
-		}
-		args = []string{"dashboard", "ac-user-create", dashboardUsername, "-i", file.Name(), "administrator"}
-		defer func() {
-			if err := os.Remove(file.Name()); err != nil {
-				logger.Errorf("failed to clean up dashboard password file %q. %v", file.Name(), err)
-			}
-		}()
-	} else {
-		// for older Ceph versions
-		args = []string{"dashboard", "set-login-credentials", dashboardUsername, password}
+	// Generate a temp file
+	file, err := util.CreateTempFile(password)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a temporary dashboard password file")
 	}
 
-	_, err := client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
+	defer func() {
+		if err := os.Remove(file.Name()); err != nil {
+			logger.Errorf("failed to clean up dashboard password file %q. %v", file.Name(), err)
+		}
+	}()
+
+	// Create dashboard user
+	// > ceph dashboard ac-user-create <username> -i <path-to-password-file>
+	//
+	// Note: this command will succeed in case the user <dashboardUsername> already
+	// exists however it will not update the password. That why we need to explicitly
+	// call the ac-user-set-password command to ensure the password is updated correctly
+	args = []string{"dashboard", "ac-user-create", dashboardUsername, "-i", file.Name(), "administrator"}
+	_, err = client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
 		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
-		return "set dashboard creds", output, err
-	}, c.exitCode, 5, invalidArgErrorCode, dashboardInitWaitTime)
+		return "create dashboard user", output, err
+	}, 5, dashboardInitWaitTime)
 	if err != nil {
-		return errors.Wrap(err, "failed to set login creds on mgr")
+		return errors.Wrapf(err, "failed to create dashboard user %q", dashboardUsername)
+	}
+
+	// Set dashboard user password
+	// > ceph dashboard ac-user-set-password <username> -i <path-to-password-file>
+	args = []string{"dashboard", "ac-user-set-password", dashboardUsername, "-i", file.Name()}
+	_, err = client.ExecuteCephCommandWithRetry(func() (string, []byte, error) {
+		output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+		return "set dashboard user password", output, err
+	}, 5, dashboardInitWaitTime)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set password for user %q", dashboardUsername)
 	}
 
 	logger.Info("successfully set ceph dashboard creds")
@@ -318,15 +375,4 @@ func decodeSecret(secret *v1.Secret) (string, error) {
 		return "", errors.New("password not found in secret")
 	}
 	return string(password), nil
-}
-
-func (c *Cluster) restartDashboard() error {
-	logger.Info("restarting the mgr module")
-	if err := client.MgrDisableModule(c.context, c.clusterInfo, dashboardModuleName); err != nil {
-		return errors.Wrapf(err, "failed to disable mgr module %q.", dashboardModuleName)
-	}
-	if err := client.MgrEnableModule(c.context, c.clusterInfo, dashboardModuleName, true); err != nil {
-		return errors.Wrapf(err, "failed to enable mgr module %q.", dashboardModuleName)
-	}
-	return nil
 }

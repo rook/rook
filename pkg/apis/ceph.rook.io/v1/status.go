@@ -20,25 +20,13 @@ import (
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
-
-// Based on code from https://github.com/kubernetes/apimachinery/blob/master/pkg/api/meta/conditions.go
-
-// A StatusConditionGetter allows getting a pointer to an object's conditions.
-type StatusConditionGetter interface {
-	client.Object
-
-	// GetStatusConditions returns a pointer to the object's conditions compatible with
-	// SetStatusCondition and FindStatusCondition.
-	GetStatusConditions() *[]Condition
-}
 
 // SetStatusCondition sets the corresponding condition in conditions to newCondition.
 // conditions must be non-nil.
-// 1. if the condition of the specified type already exists (all fields of the existing condition are updated to
-//    newCondition, LastTransitionTime is set to now if the new status differs from the old status)
-// 2. if a condition of the specified type does not exist (LastTransitionTime is set to now() if unset, and newCondition is appended)
+//  1. if the condition of the specified type already exists (all fields of the existing condition are updated to
+//     newCondition, LastTransitionTime is set to now if the new status differs from the old status)
+//  2. if a condition of the specified type does not exist (LastTransitionTime is set to now() if unset, and newCondition is appended)
 func SetStatusCondition(conditions *[]Condition, newCondition Condition) {
 	if conditions == nil {
 		return

@@ -88,7 +88,7 @@ func cephCSIKeyringRBDNodeCaps() []string {
 
 func cephCSIKeyringRBDProvisionerCaps() []string {
 	return []string{
-		"mon", "profile rbd",
+		"mon", "profile rbd, allow command 'osd blocklist'",
 		"mgr", "allow rw",
 		"osd", "profile rbd",
 	}
@@ -105,9 +105,11 @@ func cephCSIKeyringCephFSNodeCaps() []string {
 
 func cephCSIKeyringCephFSProvisionerCaps() []string {
 	return []string{
-		"mon", "allow r",
+		"mon", "allow r, allow command 'osd blocklist'",
 		"mgr", "allow rw",
 		"osd", "allow rw tag cephfs metadata=*",
+		// MDS require all(*) permissions to be able to execute admin socket commands like ceph tell required for client eviction in cephFS.
+		"mds", "allow *",
 	}
 }
 

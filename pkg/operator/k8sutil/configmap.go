@@ -20,12 +20,17 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
+
+var loggedOperatorSettings = sync.Map{}
 
 // DeleteConfigMap deletes a ConfigMap.
 func DeleteConfigMap(ctx context.Context, clientset kubernetes.Interface, cmName, namespace string, opts *DeleteOptions) error {
@@ -40,6 +45,31 @@ func DeleteConfigMap(ctx context.Context, clientset kubernetes.Interface, cmName
 	return DeleteResource(delete, verify, resource, opts, defaultWaitOptions)
 }
 
+func CreateOrUpdateConfigMap(ctx context.Context, clientset kubernetes.Interface, cm *v1.ConfigMap) (*v1.ConfigMap, error) {
+	name := cm.GetName()
+	namespace := cm.GetNamespace()
+	existingCm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			cm, err := clientset.CoreV1().ConfigMaps(namespace).Create(ctx, cm, metav1.CreateOptions{})
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to create %q configmap", name)
+			}
+			return cm, nil
+		}
+
+		return nil, errors.Wrapf(err, "failed to retrieve %q configmap.", name)
+	}
+
+	existingCm.Data = cm.Data
+	existingCm.OwnerReferences = cm.OwnerReferences
+	if existingCm, err := clientset.CoreV1().ConfigMaps(namespace).Update(ctx, existingCm, metav1.UpdateOptions{}); err != nil {
+		return nil, errors.Wrapf(err, "failed to update existing %q configmap", existingCm.Name)
+	}
+
+	return existingCm, nil
+}
+
 // GetOperatorSetting gets the operator setting from ConfigMap or Env Var
 // returns defaultValue if setting is not found
 func GetOperatorSetting(context context.Context, clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
@@ -47,7 +77,7 @@ func GetOperatorSetting(context context.Context, clientset kubernetes.Interface,
 	namespace := os.Getenv(PodNamespaceEnvVar)
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(context, configMapName, metav1.GetOptions{})
 	if err != nil {
-		if apierrors.IsNotFound(err) {
+		if kerrors.IsNotFound(err) {
 			if settingValue, ok := os.LookupEnv(settingName); ok {
 				logger.Infof("%s=%q (env var)", settingName, settingValue)
 				return settingValue, nil
@@ -62,13 +92,28 @@ func GetOperatorSetting(context context.Context, clientset kubernetes.Interface,
 }
 
 func GetValue(data map[string]string, settingName, defaultValue string) string {
-	if settingValue, ok := data[settingName]; ok {
-		logger.Infof("%s=%q (configmap)", settingName, settingValue)
-		return settingValue
-	} else if settingValue, ok := os.LookupEnv(settingName); ok {
-		logger.Infof("%s=%q (env var)", settingName, settingValue)
-		return settingValue
+	settingValue := defaultValue
+	settingSource := "default"
+
+	if val, ok := data[settingName]; ok {
+		settingValue = val
+		settingSource = "configmap"
+	} else if val, ok := os.LookupEnv(settingName); ok {
+		settingValue = val
+		settingSource = "env var"
 	}
-	logger.Infof("%s=%q (default)", settingName, defaultValue)
-	return defaultValue
+
+	if logChangedSettings(settingName, settingValue) {
+		logger.Infof("%s=%q (%s)", settingName, settingValue, settingSource)
+	}
+
+	return settingValue
+}
+
+func logChangedSettings(settingName, settingValue string) bool {
+	if val, ok := loggedOperatorSettings.Load(settingName); !ok || val != settingValue {
+		loggedOperatorSettings.Store(settingName, settingValue)
+		return true
+	}
+	return false
 }

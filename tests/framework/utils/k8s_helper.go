@@ -20,7 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -34,9 +34,10 @@ import (
 	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -198,7 +199,7 @@ func getManifestFromURL(url string) (string, error) {
 		return "", errors.Wrapf(err, "failed to get manifest from url %s", url)
 	}
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to read manifest from url %s", url)
 	}
@@ -258,7 +259,7 @@ func (k8sh *K8sHelper) DeleteResource(args ...string) error {
 func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, checkerFunc func() error) error {
 
 	// wait for the operator to finalize and delete the CRD
-	for i := 0; i < 60; i++ {
+	for i := 0; i < 90; i++ {
 		err := checkerFunc()
 		if err == nil {
 			logger.Infof("custom resource %q in namespace %q still exists", name, namespace)
@@ -272,7 +273,7 @@ func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace, name string, che
 		return err
 	}
 	logger.Errorf("gave up deleting custom resource %q ", name)
-	return nil
+	return fmt.Errorf("Timed out waiting for deletion of custom resource %q", name)
 }
 
 // DeleteResource performs a kubectl delete on give args.
@@ -296,7 +297,7 @@ func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 	if err == nil {
 		return result, nil
 	}
-	return "", fmt.Errorf("Could Not get resource in k8s -- %v", err)
+	return result, fmt.Errorf("Could Not get resource in k8s -- %v", err)
 }
 
 func (k8sh *K8sHelper) CreateNamespace(namespace string) error {
@@ -346,7 +347,7 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 
 func (k8sh *K8sHelper) WaitForStatusPhase(namespace, kind, name, desiredPhase string, timeout time.Duration) error {
 	baseErr := fmt.Sprintf("waiting for resource %q %q in namespace %q to have status.phase %q", kind, name, namespace, desiredPhase)
-	err := wait.Poll(3*time.Second, timeout, func() (done bool, err error) {
+	err := wait.PollUntilContextTimeout(context.TODO(), 3*time.Second, timeout, true, func(context context.Context) (done bool, err error) {
 		phase, err := k8sh.GetResource("--namespace", namespace, kind, name, "--output", "jsonpath={.status.phase}")
 		if err != nil {
 			logger.Warningf("error %s. %v", baseErr, err)
@@ -448,6 +449,31 @@ func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
 	}
 	for _, pod := range pods.Items {
 		logger.Infof("%s (%s) pod status: %+v", pod.Name, namespace, pod.Status)
+	}
+}
+
+func (k8sh *K8sHelper) GetPodRestartsFromNamespace(namespace, testName, platformName string) {
+	logger.Infof("will alert if any pods were restarted in namespace %s", namespace)
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		logger.Errorf("failed to list pods in namespace %s. %+v", namespace, err)
+		return
+	}
+	for _, pod := range pods.Items {
+		podName := pod.Name
+		for _, status := range pod.Status.ContainerStatuses {
+			if strings.Contains(podName, status.Name) {
+				if status.RestartCount > int32(0) {
+					logger.Infof("number of time pod %s has restarted is %d", podName, status.RestartCount)
+				}
+
+				// Skipping `mgr` pod count to get the CI green and seems like this is related to ceph Reef.
+				// Refer to this issue https://github.com/rook/rook/issues/12646 and remove once it is fixed.
+				if !strings.Contains(podName, "rook-ceph-mgr") && status.RestartCount == int32(1) {
+					assert.Equal(k8sh.T(), int32(0), status.RestartCount)
+				}
+			}
+		}
 	}
 }
 
@@ -866,8 +892,8 @@ func (k8sh *K8sHelper) IsPodInError(podNamePattern, namespace, reason, containin
 	return false
 }
 
-// GetPodHostID returns HostIP address of a pod
-func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
+// GetPodHostIP returns HostIP address of a pod
+func (k8sh *K8sHelper) GetPodHostIP(podNamePattern string, namespace string) (string, error) {
 	ctx := context.TODO()
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
 	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
@@ -1028,11 +1054,9 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 	for i := 0; i < RetryLoop; i++ {
 		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
 		if err == nil {
-			if len(podList.Items) >= 1 {
-				for _, pod := range podList.Items {
-					if pod.Status.Phase == v1.PodPhase(state) {
-						return true
-					}
+			for _, pod := range podList.Items {
+				if pod.Status.Phase == v1.PodPhase(state) {
+					return true
 				}
 			}
 		}
@@ -1181,6 +1205,24 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 	return false
 }
 
+func (k8sh *K8sHelper) WaitUntilZeroPVs() bool {
+	ListOpts := metav1.ListOptions{}
+	ctx := context.TODO()
+	for i := 0; i < RetryLoop; i++ {
+		pvList, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(ctx, ListOpts)
+		if err != nil && kerrors.IsNotFound(err) {
+			return true
+		}
+		if len(pvList.Items) == 0 {
+			return true
+		}
+		logger.Infof("waiting for PV count to be zero.")
+
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return false
+}
+
 func (k8sh *K8sHelper) DeletePvcWithLabel(namespace string, podName string) bool {
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
@@ -1275,7 +1317,7 @@ func (k8sh *K8sHelper) getInternalRGWServiceURL(storeName string, namespace stri
 
 // GetRGWServiceURL returns URL of ceph RGW service in the cluster
 func (k8sh *K8sHelper) getExternalRGWServiceURL(storeName string, namespace string) (string, error) {
-	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", namespace)
+	hostip, err := k8sh.GetPodHostIP("rook-ceph-rgw", namespace)
 	if err != nil {
 		return "", fmt.Errorf("RGW pods not found. %+v", err)
 	}
@@ -1385,7 +1427,7 @@ func (k8sh *K8sHelper) createTestLogFile(platformName, name, namespace, testName
 		}
 	}
 	fileName := fmt.Sprintf("%s_%s_%s_%s%s_%d.log", testName, platformName, namespace, name, suffix, time.Now().Unix())
-	filePath := path.Join(logDir, fileName)
+	filePath := path.Join(logDir, strings.ReplaceAll(fileName, "/", "_"))
 	file, err := os.Create(filePath)
 	if err != nil {
 		logger.Errorf("Cannot create file %s. %v", filePath, err)
@@ -1559,7 +1601,7 @@ func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get k8s version")
 	}
-	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(crash.MinVersionForCronV1))
+	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(nodedaemon.MinVersionForCronV1))
 	for i := 0; i < RetryLoop; i++ {
 		var err error
 		if useCronJobV1 {

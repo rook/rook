@@ -74,6 +74,21 @@ roleRef:
   name: cephfs-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
+# This is required by operator-sdk to map the cluster/clusterrolebindings with SA
+# otherwise operator-sdk will create a individual file for these.
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cephfs-csi-nodeplugin-role
+subjects:
+  - kind: ServiceAccount
+    name: rook-csi-cephfs-plugin-sa
+    namespace: {{ .Release.Namespace }} # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: cephfs-csi-nodeplugin
+  apiGroup: rbac.authorization.k8s.io
+---
 {{- if .Values.csi.nfs.enabled }}
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
@@ -115,5 +130,23 @@ subjects:
 roleRef:
   kind: ClusterRole
   name: rbd-external-provisioner-runner
+  apiGroup: rbac.authorization.k8s.io
+---
+# RBAC for ceph cosi driver service account
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: objectstorage-provisioner-role-binding
+  labels:
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-ceph
+    app.kubernetes.io/name: cosi-driver-ceph
+subjects:
+  - kind: ServiceAccount
+    name: objectstorage-provisioner
+    namespace: {{ .Release.Namespace }} # namespace:operator
+roleRef:
+  kind: ClusterRole
+  name: objectstorage-provisioner-role
   apiGroup: rbac.authorization.k8s.io
 {{- end }}

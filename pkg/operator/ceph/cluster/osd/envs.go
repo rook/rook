@@ -48,6 +48,8 @@ const (
 	lvBackedPVVarName                   = "ROOK_LV_BACKED_PV"
 	CrushDeviceClassVarName             = "ROOK_OSD_CRUSH_DEVICE_CLASS"
 	CrushInitialWeightVarName           = "ROOK_OSD_CRUSH_INITIAL_WEIGHT"
+	OSDStoreTypeVarName                 = "ROOK_OSD_STORE_TYPE"
+	ReplaceOSDIDVarName                 = "ROOK_REPLACE_OSD"
 	CrushRootVarName                    = "ROOK_CRUSHMAP_ROOT"
 	tcmallocMaxTotalThreadCacheBytesEnv = "TCMALLOC_MAX_TOTAL_THREAD_CACHE_BYTES"
 )
@@ -56,7 +58,7 @@ var (
 	cephEnvConfigFile = "/etc/sysconfig/ceph"
 )
 
-func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.EnvVar {
+func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string, prepare bool) []v1.EnvVar {
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(osdProps.crushHostname),
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.clusterInfo.OwnerInfo.GetUID())},
@@ -65,19 +67,23 @@ func (c *Cluster) getConfigEnvVars(osdProps osdProperties, dataDir string) []v1.
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		opmon.PodNamespaceEnvVar(c.clusterInfo.Namespace),
 		opmon.EndpointEnvVar(),
-		opmon.SecretEnvVar(),
-		opmon.CephUsernameEnvVar(),
-		opmon.CephSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
-		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
-			SecretKeyRef: &v1.SecretKeySelector{
-				LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
-				Key:                  "fsid",
-			},
-		}},
 		k8sutil.NodeEnvVar(),
 		{Name: CrushRootVarName, Value: client.GetCrushRootFromSpec(&c.spec)},
+	}
+	if prepare {
+		envVars = append(envVars, []v1.EnvVar{
+			opmon.CephUsernameEnvVar(),
+			{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
+				SecretKeyRef: &v1.SecretKeySelector{
+					LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
+					Key:                  "fsid",
+				},
+			}},
+		}...)
+
+		envVars = append(envVars, osdStoreTypeEnvVar(c.spec.Storage.GetOSDStore()))
 	}
 
 	// Give a hint to the prepare pod for what the host in the CRUSH map should be
@@ -164,6 +170,14 @@ func lvBackedPVEnvVar(lvBackedPV string) v1.EnvVar {
 
 func crushDeviceClassEnvVar(crushDeviceClass string) v1.EnvVar {
 	return v1.EnvVar{Name: CrushDeviceClassVarName, Value: crushDeviceClass}
+}
+
+func osdStoreTypeEnvVar(storeType string) v1.EnvVar {
+	return v1.EnvVar{Name: OSDStoreTypeVarName, Value: storeType}
+}
+
+func replaceOSDIDEnvVar(id string) v1.EnvVar {
+	return v1.EnvVar{Name: ReplaceOSDIDVarName, Value: id}
 }
 
 func crushInitialWeightEnvVar(crushInitialWeight string) v1.EnvVar {

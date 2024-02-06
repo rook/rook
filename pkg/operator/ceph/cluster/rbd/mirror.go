@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -66,6 +67,15 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		return errors.Wrapf(err, "failed to generate keyring for %q", resourceName)
 	}
 
+	rbdMirrorToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(r.clusterInfo.Context, r.context, r.clusterInfo.Namespace, config.RbdMirrorType, AppName)
+	if err != nil {
+		return errors.Wrap(err, "failed to check for RBD Mirror to skip reconcile")
+	}
+	if rbdMirrorToSkipReconcile.Len() > 0 {
+		logger.Warningf("skipping RBD mirror reconcile since RBD mirror daemons are labeled with %s: %v", cephv1.SkipReconcileLabelKey, sets.List(rbdMirrorToSkipReconcile))
+		return nil
+	}
+
 	// Start the deployment
 	d, err := r.makeDeployment(daemonConf, cephRBDMirror)
 	if err != nil {
@@ -93,8 +103,8 @@ func (r *ReconcileCephRBDMirror) start(cephRBDMirror *cephv1.CephRBDMirror) erro
 		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.RbdMirrorType, daemonConf.DaemonID, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
 			logger.Debugf("updateDeploymentAndWait failed for rbd-mirror %q. Attempting del-and-recreate. %v", resourceName, err)
-			err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(r.opManagerContext, cephRBDMirror.Name, metav1.DeleteOptions{})
-			if err != nil {
+			err = r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Delete(r.opManagerContext, d.Name, metav1.DeleteOptions{})
+			if err != nil && !kerrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete rbd-mirror %q during del-and-recreate update attempt", resourceName)
 			}
 			if _, err := r.context.Clientset.AppsV1().Deployments(cephRBDMirror.Namespace).Create(r.opManagerContext, d, metav1.CreateOptions{}); err != nil {

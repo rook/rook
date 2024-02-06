@@ -1,0 +1,16 @@
+name: Assign issue to contributor
+on:
+  issue_comment:
+    types: [created, edited]
+
+jobs:
+  assign:
+    name: Run self assign job
+    runs-on: ubuntu-latest
+    steps:
+      - name: take the issue
+        uses: bdougie/take-action@main
+        with:
+          message: Thanks for taking this issue! Let us know if you have any questions!
+          trigger: /assign
+          token: ${{ secrets.GITHUB_TOKEN }}

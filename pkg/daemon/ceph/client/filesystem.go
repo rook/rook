@@ -17,9 +17,11 @@ limitations under the License.
 package client
 
 import (
+	ctx "context"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -96,8 +98,10 @@ func ListFilesystems(context *clusterd.Context, clusterInfo *ClusterInfo) ([]Cep
 	return filesystems, nil
 }
 
-// GetFilesystem gets detailed status information about a Ceph filesystem.
-func GetFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) (*CephFilesystemDetails, error) {
+var GetFilesystem = getFilesystem
+
+// getFilesystem gets detailed status information about a Ceph filesystem.
+func getFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) (*CephFilesystemDetails, error) {
 	args := []string{"fs", "get", fsName}
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -115,7 +119,7 @@ func GetFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName s
 
 // AllowStandbyReplay gets detailed status information about a Ceph filesystem.
 func AllowStandbyReplay(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, allowStandbyReplay bool) error {
-	logger.Infof("setting allow_standby_replay for filesystem %q", fsName)
+	logger.Infof("setting allow_standby_replay to %t for filesystem %q", allowStandbyReplay, fsName)
 	args := []string{"fs", "set", fsName, "allow_standby_replay", strconv.FormatBool(allowStandbyReplay)}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -134,18 +138,15 @@ func CreateFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, name,
 	logger.Infof("creating filesystem %q with metadata pool %q and data pools %v", name, metadataPool, dataPools)
 	var err error
 
-	// Always enable multiple fs when running on Pacific
-	if clusterInfo.CephVersion.IsAtLeastPacific() {
-		// enable multiple file systems in case this is not the first
-		args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
-		_, err = NewCephCommand(context, clusterInfo, args).Run()
-		if err != nil {
-			return errors.Wrap(err, "failed to enable multiple file systems")
-		}
+	// enable multiple file systems in case this is not the first
+	args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
+	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to enable multiple file systems")
 	}
 
 	// create the filesystem
-	args := []string{"fs", "new", name, metadataPool, dataPools[0]}
+	args = []string{"fs", "new", name, metadataPool, dataPools[0]}
 
 	_, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -168,6 +169,14 @@ func AddDataPoolToFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo
 	args := []string{"fs", "add_data_pool", name, poolName}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
+		// Reef disallows calling add_data_pool for a pool that has already
+		// been added, so ignore the error code.
+		// Previous releases do not return an error when an existing data pool is added.
+		if clusterInfo.CephVersion.IsAtLeastReef() {
+			if code, ok := exec.ExitStatus(err); ok && code == int(syscall.EINVAL) {
+				return nil
+			}
+		}
 		return errors.Wrapf(err, "failed to add pool %q to file system %q. (%v)", poolName, name, err)
 	}
 	return nil
@@ -186,13 +195,13 @@ func SetNumMDSRanks(context *clusterd.Context, clusterInfo *ClusterInfo, fsName 
 
 // FailAllStandbyReplayMDS: fail all mds in up:standby-replay state
 func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string) error {
-	fs, err := GetFilesystem(context, clusterInfo, fsName)
+	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fail standby-replay MDSes for fs %q", fsName)
 	}
 	for _, info := range fs.MDSMap.Info {
 		if info.State == "up:standby-replay" {
-			if err := FailMDS(context, clusterInfo, info.GID); err != nil {
+			if err := failMDS(context, clusterInfo, info.GID); err != nil {
 				return errors.Wrapf(err, "failed to fail MDS %q for filesystem %q in up:standby-replay state", info.Name, fsName)
 			}
 		}
@@ -202,7 +211,7 @@ func FailAllStandbyReplayMDS(context *clusterd.Context, clusterInfo *ClusterInfo
 
 // GetMdsIdByRank get mds ID from the given rank
 func GetMdsIdByRank(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, rank int32) (string, error) {
-	fs, err := GetFilesystem(context, clusterInfo, fsName)
+	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get ceph fs dump")
 	}
@@ -232,8 +241,8 @@ func WaitForActiveRanks(
 	}
 	logger.Infof("waiting %.2f second(s) for number of active mds daemons for fs %s to become %s",
 		float64(timeout/time.Second), fsName, countText)
-	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
-		fs, err := GetFilesystem(context, clusterInfo, fsName)
+	err := wait.PollUntilContextTimeout(clusterInfo.Context, 3*time.Second, timeout, true, func(ctx ctx.Context) (bool, error) {
+		fs, err := getFilesystem(context, clusterInfo, fsName)
 		if err != nil {
 			logger.Errorf(
 				"Error getting filesystem %q details while waiting for num mds ranks to become %d. %v",
@@ -274,8 +283,8 @@ func MarkFilesystemAsDown(context *clusterd.Context, clusterInfo *ClusterInfo, f
 	return nil
 }
 
-// FailMDS instructs Ceph to fail an mds daemon.
-func FailMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error {
+// failMDS instructs Ceph to fail an mds daemon.
+func failMDS(context *clusterd.Context, clusterInfo *ClusterInfo, gid int) error {
 	args := []string{"mds", "fail", strconv.Itoa(gid)}
 	_, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -298,7 +307,7 @@ func FailFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName 
 // RemoveFilesystem performs software configuration steps to remove a Ceph filesystem and its
 // backing pools.
 func RemoveFilesystem(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, preservePoolsOnDelete bool) error {
-	fs, err := GetFilesystem(context, clusterInfo, fsName)
+	fs, err := getFilesystem(context, clusterInfo, fsName)
 	if err != nil {
 		return errors.Wrapf(err, "filesystem %s not found", fsName)
 	}
@@ -354,7 +363,7 @@ func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames
 
 // WaitForNoStandbys waits for all standbys go away
 func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, timeout time.Duration) error {
-	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
+	err := wait.PollUntilContextTimeout(clusterInfo.Context, 3*time.Second, timeout, true, func(ctx ctx.Context) (bool, error) {
 		mdsDump, err := GetMDSDump(context, clusterInfo)
 		if err != nil {
 			logger.Errorf("failed to get fs dump. %v", err)

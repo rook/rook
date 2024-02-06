@@ -20,6 +20,7 @@ import (
 
 	"github.com/rook/rook/cmd/rook/ceph"
 	rook "github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/cmd/rook/userfacing"
 	"github.com/rook/rook/cmd/rook/util"
 	"github.com/rook/rook/cmd/rook/version"
 )
@@ -41,6 +42,12 @@ func addCommands() {
 
 		// util commands
 		util.CmdReporterCmd,
-		util.CopyBinsCmd,
 	)
+	// do double diligence to ensure non-user-facing commands are hidden from end users
+	for _, cmd := range rook.RootCmd.Commands() {
+		cmd.Hidden = true
+	}
+
+	// all user-facing commands
+	rook.RootCmd.AddCommand(userfacing.Commands...)
 }

@@ -11,7 +11,7 @@ For common issues specific to Ceph, see the [Ceph Common Issues](ceph-common-iss
 
 ## Troubleshooting Techniques
 
-Kubernetes status and logs are the the main resources needed to investigate issues in any Rook cluster.
+Kubernetes status and logs are the main resources needed to investigate issues in any Rook cluster.
 
 ## Kubernetes Tools
 

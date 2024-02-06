@@ -42,6 +42,11 @@ func GetMonAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyMon)
 }
 
+// GetKeyRotationAnnotations returns the annotations for the key rotation job
+func GetKeyRotationAnnotations(a AnnotationsSpec) Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyRotation)
+}
+
 // GetOSDPrepareAnnotations returns the annotations for the OSD service
 func GetOSDPrepareAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyOSDPrepare)
@@ -55,6 +60,11 @@ func GetOSDAnnotations(a AnnotationsSpec) Annotations {
 // GetCleanupAnnotations returns the Annotations for the cleanup job
 func GetCleanupAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyCleanup)
+}
+
+// GetCephExporterAnnotations returns the Annotations for the MGR service
+func GetCephExporterAnnotations(a AnnotationsSpec) Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyCephExporter)
 }
 
 func GetClusterMetadataAnnotations(a AnnotationsSpec) Annotations {

@@ -24,19 +24,19 @@ import (
 )
 
 func TestToString(t *testing.T) {
-	assert.Equal(t, "15.0.0-0 octopus", Octopus.String())
-	received := CephVersion{-1, 0, 0, 0, ""}
+	assert.Equal(t, "17.0.0-0 quincy", Quincy.String())
 
+	received := CephVersion{-1, 0, 0, 0, ""}
 	expected := fmt.Sprintf("-1.0.0-0 %s", unknownVersionString)
 	assert.Equal(t, expected, received.String())
 }
 
 func TestCephVersionFormatted(t *testing.T) {
-	assert.Equal(t, "ceph version 15.0.0-0 octopus", Octopus.CephVersionFormatted())
+	assert.Equal(t, "ceph version 17.0.0-0 quincy", Quincy.CephVersionFormatted())
 }
 
 func TestReleaseName(t *testing.T) {
-	assert.Equal(t, "octopus", Octopus.ReleaseName())
+	assert.Equal(t, "quincy", Quincy.ReleaseName())
 	ver := CephVersion{-1, 0, 0, 0, ""}
 	assert.Equal(t, unknownVersionString, ver.ReleaseName())
 }
@@ -50,24 +50,24 @@ func extractVersionHelper(t *testing.T, text string, major, minor, extra, build 
 
 func TestExtractVersion(t *testing.T) {
 	// release build
-	v0c := "ceph version 16.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) pacific (stable)"
+	v0c := "ceph version 18.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) reef (stable)"
 	v0d := `
 root@7a97f5a78bc6:/# ceph --version
-ceph version 16.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) pacific (stable)
+ceph version 18.2.6 (ae699615bac534ea496ee965ac6192cb7e0e07c1) reef (stable)
 `
-	extractVersionHelper(t, v0c, 16, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
-	extractVersionHelper(t, v0d, 16, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
+	extractVersionHelper(t, v0c, 18, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
+	extractVersionHelper(t, v0d, 18, 2, 6, 0, "ae699615bac534ea496ee965ac6192cb7e0e07c1")
 
 	// development build
-	v1c := "ceph version 16.1.33-403-g7ba6bece41 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) pacific (rc)"
+	v1c := "ceph version 18.1.33-403-g7ba6bece41 (7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) reef (rc)"
 	v1d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version 16.1.33-403-g7ba6bece41
-(7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) pacific (rc)
+ceph version 18.1.33-403-g7ba6bece41
+(7ba6bece4187eda5d05a9b84211fe6ba8dd287bd) reef (rc)
 `
-	extractVersionHelper(t, v1c, 16, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
-	extractVersionHelper(t, v1d, 16, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
+	extractVersionHelper(t, v1c, 18, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
+	extractVersionHelper(t, v1d, 18, 1, 33, 403, "7ba6bece4187eda5d05a9b84211fe6ba8dd287bd")
 
 	// build without git version info. it is possible to build the ceph tree
 	// without a version number, but none of the container builds do this.
@@ -75,11 +75,11 @@ ceph version 16.1.33-403-g7ba6bece41
 	// explicitly adding fine-grained versioning to avoid issues with
 	// release granularity. adding the reverse name-to-version is easy
 	// enough if this ever becomes a need.
-	v2c := "ceph version Development (no_version) pacific (rc)"
+	v2c := "ceph version Development (no_version) reef (rc)"
 	v2d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
-ceph version Development (no_version) octopus (rc)
+ceph version Development (no_version) quincy (rc)
 `
 	v, err := ExtractCephVersion(v2c)
 	assert.Error(t, err)
@@ -90,41 +90,38 @@ ceph version Development (no_version) octopus (rc)
 	assert.Nil(t, v)
 
 	// Test the round trip for serializing and deserializing the version
-	v3c := "ceph version 16.2.5-1 pacific"
+	v3c := "ceph version 18.2.5-1 reef"
 	v, err = ExtractCephVersion(v3c)
 	assert.NoError(t, err)
 	assert.NotNil(t, v)
-	assert.Equal(t, "16.2.5-1 pacific", v.String())
+	assert.Equal(t, "18.2.5-1 reef", v.String())
 }
 
 func TestSupported(t *testing.T) {
 	for _, v := range supportedVersions {
 		assert.True(t, v.Supported())
 	}
-	assert.False(t, Reef.Supported())
+	assert.False(t, Squid.Supported())
 }
 
 func TestIsRelease(t *testing.T) {
-	assert.True(t, Octopus.isRelease(Octopus))
-	assert.True(t, Pacific.isRelease(Pacific))
 	assert.True(t, Quincy.isRelease(Quincy))
 	assert.True(t, Reef.isRelease(Reef))
 
-	assert.False(t, Pacific.isRelease(Octopus))
 	assert.False(t, Reef.isRelease(Quincy))
 
-	OctopusUpdate := Octopus
-	OctopusUpdate.Minor = 33
-	OctopusUpdate.Extra = 4
-	assert.True(t, OctopusUpdate.isRelease(Octopus))
+	QuincyUpdate := Quincy
+	QuincyUpdate.Minor = 33
+	QuincyUpdate.Extra = 4
+	assert.True(t, QuincyUpdate.isRelease(Quincy))
 }
 
 func TestIsReleaseX(t *testing.T) {
-	assert.False(t, Pacific.IsOctopus())
+	assert.False(t, Quincy.IsReef())
 }
 
 func TestVersionAtLeast(t *testing.T) {
-	assert.True(t, Octopus.IsAtLeast(Octopus))
+	assert.True(t, Quincy.IsAtLeast(Quincy))
 
 	assert.True(t, (&CephVersion{1, 0, 0, 0, ""}).IsAtLeast(CephVersion{0, 0, 0, 0, ""}))
 	assert.False(t, (&CephVersion{0, 0, 0, 0, ""}).IsAtLeast(CephVersion{1, 0, 0, 0, ""}))
@@ -136,9 +133,8 @@ func TestVersionAtLeast(t *testing.T) {
 }
 
 func TestVersionAtLeastX(t *testing.T) {
-	assert.True(t, Octopus.IsAtLeastOctopus())
-	assert.True(t, Pacific.IsAtLeastPacific())
-	assert.False(t, Octopus.IsAtLeastPacific())
+	assert.True(t, Quincy.IsAtLeastQuincy())
+	assert.False(t, Quincy.IsAtLeastReef())
 }
 
 func TestIsIdentical(t *testing.T) {
@@ -209,9 +205,6 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		fields fields
 		want   bool
 	}{
-		{"octopus", fields{Major: 15, Minor: 2, Extra: 1, Build: 0}, false},
-		{"octopus", fields{Major: 15, Minor: 2, Extra: 6, Build: 0}, false},
-		{"pacific", fields{Major: 16, Minor: 2, Extra: 1, Build: 0}, false},
 		{"quincy", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
 		{"reef", fields{Major: 18, Minor: 2, Extra: 0, Build: 0}, false},
 	}

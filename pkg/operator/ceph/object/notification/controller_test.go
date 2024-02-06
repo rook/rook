@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -58,6 +57,7 @@ var (
 	multipleCreateBucketName = "multi-create"
 	multipleDeleteBucketName = "multi-delete"
 	multipleBothBucketName   = "multi-both"
+	otherClusterBucketName   = "other-cluster"
 	startEvent               = string(cephv1.ReconcileStarted)
 	finishedEvent            = string(cephv1.ReconcileSucceeded)
 	failedEvent              = string(cephv1.ReconcileFailed)
@@ -151,7 +151,7 @@ func mockSetup(t *testing.T) {
 		}
 		return nil, nil
 	}
-	deleteNotification = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, notificationId string) error {
+	deleteNotificationFunc = func(p provisioner, bucket *bktv1alpha1.ObjectBucket, notificationId string) error {
 		deletedNotifications = append(deletedNotifications, notificationId)
 		return nil
 	}
@@ -427,7 +427,7 @@ func TestCephBucketNotificationControllerWithOBC(t *testing.T) {
 				StorageClassName: testSCName,
 				Connection: &bktv1alpha1.Connection{
 					Endpoint: &bktv1alpha1.Endpoint{
-						BucketHost: object.BuildDomainName(testStoreName, testNamespace),
+						BucketHost: "rook-ceph-rgw-test-store.rook-ceph.svc",
 					},
 				},
 			},

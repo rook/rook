@@ -49,10 +49,15 @@ func TestReconcileDeleteCephCluster(t *testing.T) {
 	}
 
 	fakeCluster := &cephv1.CephCluster{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       "CephCluster",
+			APIVersion: "ceph.rook.io/v1",
+		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:              clusterName,
 			Namespace:         cephNs,
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
+			Finalizers:        []string{"cephcluster.ceph.rook.io"},
 		},
 	}
 

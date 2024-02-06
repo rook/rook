@@ -70,17 +70,17 @@ func getRadosNamespaceStatistics(context *clusterd.Context, clusterInfo *Cluster
 }
 
 func checkForImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, namespaceName string) error {
-	logger.Debugf("checking any images/snapshosts present in pool %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
+	logger.Debugf("checking any images/snapshots present in pool %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
 	stats, err := getRadosNamespaceStatistics(context, clusterInfo, poolName, namespaceName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list images/snapshosts in pool %s/%s", poolName, namespaceName)
+		return errors.Wrapf(err, "failed to list images/snapshots in pool %s/%s", poolName, namespaceName)
 	}
 	if stats.Images.Count == 0 && stats.Images.SnapCount == 0 {
-		logger.Infof("no images/snapshosts present in pool %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
+		logger.Infof("no images/snapshots present in pool %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
 		return nil
 	}
 
-	return errors.Errorf("pool %s/%s contains %d images and %d snapshosts", poolName, namespaceName, stats.Images.Count, stats.Images.SnapCount)
+	return errors.Errorf("pool %s/%s contains %d images and %d snapshots", poolName, namespaceName, stats.Images.Count, stats.Images.SnapCount)
 }
 
 // DeleteRadosNamespace delete a rados namespace.

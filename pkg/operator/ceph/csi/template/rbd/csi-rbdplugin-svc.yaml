@@ -12,9 +12,5 @@ spec:
       port: 8080
       protocol: TCP
       targetPort: {{ .RBDLivenessMetricsPort }}
-    - name: csi-grpc-metrics
-      port: 8081
-      protocol: TCP
-      targetPort: {{ .RBDGRPCMetricsPort }}
   selector:
     contains: csi-rbdplugin-metrics

@@ -151,7 +151,7 @@ func TestRunAdminCommandNoMultisite(t *testing.T) {
 	})
 
 	t.Run("with multus - we use the remote executor", func(t *testing.T) {
-		objContext.CephClusterSpec = v1.ClusterSpec{Network: v1.NetworkSpec{Provider: "multus"}}
+		objContext.clusterInfo.NetworkSpec = v1.NetworkSpec{Provider: "multus"}
 		_, err := RunAdminCommandNoMultisite(objContext, true, []string{"zone", "get"}...)
 		assert.Error(t, err)
 
@@ -406,7 +406,7 @@ const firstPeriodUpdate = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80"
                 ],
@@ -489,7 +489,7 @@ const secondPeriodGet = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80"
                 ],
@@ -562,7 +562,7 @@ const secondPeriodGet = `{
 // example real-world output from 'radosgw-admin period update' after the first period commit,
 // and with no changes since the first commit
 // note: output was modified to increment the epoch to make sure this code works in case the "epoch"
-//       behavior changes in radosgw-admin in the future
+// behavior changes in radosgw-admin in the future
 const secondPeriodUpdateWithoutChanges = `{
     "id": "94ba560d-a560-431d-8ed4-85a2891f9122:staging",
     "epoch": 2,
@@ -575,7 +575,7 @@ const secondPeriodUpdateWithoutChanges = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80"
                 ],
@@ -659,7 +659,7 @@ const secondPeriodUpdateWithChanges = `{
                 "id": "1580fd1d-a065-4484-82ff-329e9a779999",
                 "name": "my-store",
                 "api_name": "my-store",
-                "is_master": "true",
+                "is_master": true,
                 "endpoints": [
                     "http://10.105.59.166:80",
                     "https://10.105.59.166:443"

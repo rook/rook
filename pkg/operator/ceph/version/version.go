@@ -39,22 +39,21 @@ const (
 )
 
 var (
-	// Minimum supported version is 15.2.0
-	Minimum = CephVersion{15, 2, 0, 0, ""}
-	// Octopus Ceph version
-	Octopus = CephVersion{15, 0, 0, 0, ""}
-	// Pacific Ceph version
-	Pacific = CephVersion{16, 0, 0, 0, ""}
+	// Minimum supported version
+	Minimum = CephVersion{17, 2, 0, 0, ""}
+
 	// Quincy Ceph version
 	Quincy = CephVersion{17, 0, 0, 0, ""}
 	// Reef Ceph version
 	Reef = CephVersion{18, 0, 0, 0, ""}
+	// Squid ceph version
+	Squid = CephVersion{19, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Octopus, Pacific, Quincy}
+	supportedVersions = []CephVersion{Quincy, Reef}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
-	unsupportedVersions = []CephVersion{}
+	unsupportedVersions []CephVersion
 
 	// for parsing the output of `ceph --version`
 	versionPattern = regexp.MustCompile(`ceph version (\d+)\.(\d+)\.(\d+)`)
@@ -85,14 +84,12 @@ func (v *CephVersion) CephVersionFormatted() string {
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
-	case Octopus.Major:
-		return "octopus"
-	case Pacific.Major:
-		return "pacific"
 	case Quincy.Major:
 		return "quincy"
 	case Reef.Major:
 		return "reef"
+	case Squid.Major:
+		return "squid"
 	default:
 		return unknownVersionString
 	}
@@ -168,16 +165,6 @@ func (v *CephVersion) isExactly(other CephVersion) bool {
 	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
 }
 
-// IsOctopus checks if the Ceph version is Octopus
-func (v *CephVersion) IsOctopus() bool {
-	return v.isRelease(Octopus)
-}
-
-// IsPacific checks if the Ceph version is Pacific
-func (v *CephVersion) IsPacific() bool {
-	return v.isRelease(Pacific)
-}
-
 // IsQuincy checks if the Ceph version is Quincy
 func (v *CephVersion) IsQuincy() bool {
 	return v.isRelease(Quincy)
@@ -186,6 +173,11 @@ func (v *CephVersion) IsQuincy() bool {
 // IsReef checks if the Ceph version is Reef
 func (v *CephVersion) IsReef() bool {
 	return v.isRelease(Reef)
+}
+
+// IsSquid checks if the Ceph version is Squid
+func (v *CephVersion) IsSquid() bool {
+	return v.isRelease(Squid)
 }
 
 // IsAtLeast checks a given Ceph version is at least a given one
@@ -219,16 +211,6 @@ func (v *CephVersion) IsAtLeastReef() bool {
 // IsAtLeastQuincy check that the Ceph version is at least Quincy
 func (v *CephVersion) IsAtLeastQuincy() bool {
 	return v.IsAtLeast(Quincy)
-}
-
-// IsAtLeastPacific check that the Ceph version is at least Pacific
-func (v *CephVersion) IsAtLeastPacific() bool {
-	return v.IsAtLeast(Pacific)
-}
-
-// IsAtLeastOctopus check that the Ceph version is at least Octopus
-func (v *CephVersion) IsAtLeastOctopus() bool {
-	return v.IsAtLeast(Octopus)
 }
 
 // IsIdentical checks if Ceph versions are identical
@@ -317,8 +299,8 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, externalV
 	logger.Debugf("local version is %q, external version is %q", localVersion.String(), externalVersion.String())
 
 	// We only support Octopus or newer
-	if !externalVersion.IsAtLeastOctopus() {
-		return errors.Errorf("unsupported ceph version %q, need at least octopus, delete your cluster CR and create a new one with a correct ceph version", externalVersion.String())
+	if !externalVersion.IsAtLeast(CephVersion{Major: 15}) {
+		return errors.Errorf("unsupported external ceph version %q, need at least octopus, delete your cluster CR and create a new one with a correct ceph version", externalVersion.String())
 	}
 
 	// Identical version, regardless if other CRs are running, it's ok!

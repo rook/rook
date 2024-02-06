@@ -39,10 +39,14 @@ const (
 	CephTool = "ceph"
 	// RBDTool is the name of the CLI tool for 'rbd'
 	RBDTool = "rbd"
+	// RadosTool is the name of the CLI tool for 'rados'
+	RadosTool = "rados"
 	// Kubectl is the name of the CLI tool for 'kubectl'
 	Kubectl = "kubectl"
 	// CrushTool is the name of the CLI tool for 'crushtool'
 	CrushTool = "crushtool"
+	// GaneshaRadosGraceTool is the name of the CLI tool for 'ganesha-rados-grace'
+	GaneshaRadosGraceTool = "ganesha-rados-grace"
 	// DefaultPGCount will cause Ceph to use the internal default PG count
 	DefaultPGCount = "0"
 	// CommandProxyInitContainerName is the name of the init container for proxying ceph command when multus is used
@@ -59,15 +63,19 @@ func CephConfFilePath(configDir, clusterName string) string {
 
 // FinalizeCephCommandArgs builds the command line to be called
 func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []string, configDir string) (string, []string) {
-	// the rbd client tool does not support the '--connect-timeout' option
-	// so we only use it for the 'ceph' command
-	// Also, there is no point of adding that option to 'crushtool' since that CLI does not connect to anything
-	// 'crushtool' is a utility that lets you create, compile, decompile and test CRUSH map files.
-
-	// we could use a slice and iterate over it but since we have only 3 elements
-	// I don't think this is worth a loop
 	timeout := strconv.Itoa(int(exec.CephCommandsTimeout.Seconds()))
-	if command != "rbd" && command != "crushtool" && command != "radosgw-admin" {
+	cephConfPath := CephConfFilePath(configDir, clusterInfo.Namespace)
+
+	// some tools not support the '--connect-timeout' option
+	// so we only use it for the 'ceph' command
+	switch command {
+	case RBDTool, CrushTool, RadosTool, "radosgw-admin":
+		// do not add timeout flag
+	case GaneshaRadosGraceTool:
+		// do not add timeout flag
+		// ganesha-rados-grace uses '--cephconf' for config file path
+		args = append(args, fmt.Sprintf("--cephconf=%s", cephConfPath))
+	default:
 		args = append(args, "--connect-timeout="+timeout)
 	}
 
@@ -78,14 +86,21 @@ func FinalizeCephCommandArgs(command string, clusterInfo *ClusterInfo, args []st
 		return Kubectl, append(toolArgs, args...)
 	}
 
-	// Append the args to find the config and keyring
-	keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
-	configArgs := []string{
-		fmt.Sprintf("--cluster=%s", clusterInfo.Namespace),
-		fmt.Sprintf("--conf=%s", CephConfFilePath(configDir, clusterInfo.Namespace)),
-		fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
-		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterInfo.Namespace, keyringFile)),
+	configArgs := []string{}
+	switch command {
+	case GaneshaRadosGraceTool:
+		// ganesha-rados-grace does not accept any standard flags
+	default:
+		// Append the standard flags for config and keyring
+		keyringFile := fmt.Sprintf("%s.keyring", clusterInfo.CephCred.Username)
+		configArgs = []string{
+			fmt.Sprintf("--cluster=%s", clusterInfo.Namespace),
+			fmt.Sprintf("--conf=%s", cephConfPath),
+			fmt.Sprintf("--name=%s", clusterInfo.CephCred.Username),
+			fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterInfo.Namespace, keyringFile)),
+		}
 	}
+
 	return command, append(args, configArgs...)
 }
 
@@ -127,6 +142,30 @@ func NewRBDCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []s
 	return cmd
 }
 
+func NewRadosCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
+	cmd := newCephToolCommand(RadosTool, context, clusterInfo, args)
+	cmd.JsonOutput = false
+
+	// When Multus is enabled, the rados tool should run inside the proxy container
+	if clusterInfo.NetworkSpec.IsMultus() {
+		cmd.RemoteExecution = true
+	}
+
+	return cmd
+}
+
+func NewGaneshaRadosGraceCommand(context *clusterd.Context, clusterInfo *ClusterInfo, args []string) *CephToolCommand {
+	cmd := newCephToolCommand(GaneshaRadosGraceTool, context, clusterInfo, args)
+	cmd.JsonOutput = false
+
+	// When Multus is enabled, the rados tool should run inside the proxy container
+	if clusterInfo.NetworkSpec.IsMultus() {
+		cmd.RemoteExecution = true
+	}
+
+	return cmd
+}
+
 func (c *CephToolCommand) run() ([]byte, error) {
 	// Return if the context has been canceled
 	if c.clusterInfo.Context.Err() != nil {
@@ -153,7 +192,10 @@ func (c *CephToolCommand) run() ([]byte, error) {
 		args = append(args, "--format", "json")
 	} else {
 		// the `rbd` tool doesn't use special flag for plain format
-		if c.tool != RBDTool {
+		switch c.tool {
+		case RBDTool, RadosTool, GaneshaRadosGraceTool:
+			// do not add format option
+		default:
 			args = append(args, "--format", "plain")
 		}
 	}
@@ -163,11 +205,14 @@ func (c *CephToolCommand) run() ([]byte, error) {
 
 	// NewRBDCommand does not use the --out-file option so we only check for remote execution here
 	// Still forcing the check for the command if the behavior changes in the future
-	if command == RBDTool {
+	if command == RBDTool || command == RadosTool || command == GaneshaRadosGraceTool {
 		if c.RemoteExecution {
 			output, stderr, err = c.context.RemoteExecutor.ExecCommandInContainerWithFullOutputWithTimeout(c.clusterInfo.Context, ProxyAppLabel, CommandProxyInitContainerName, c.clusterInfo.Namespace, append([]string{command}, args...)...)
-			if stderr != "" || err != nil {
-				err = errors.Errorf("%s. %s", err.Error(), stderr)
+			if err != nil {
+				err = errors.Errorf("%s", err.Error())
+			}
+			if stderr != "" {
+				err = errors.Errorf("%s", stderr)
 			}
 		} else if c.timeout == 0 {
 			output, err = c.context.Executor.ExecuteCommandWithOutput(command, args...)
@@ -208,23 +253,15 @@ func ExecuteRBDCommandWithTimeout(context *clusterd.Context, args []string) (str
 
 func ExecuteCephCommandWithRetry(
 	cmd func() (string, []byte, error),
-	getExitCode func(err error) (int, bool),
 	retries int,
-	retryOnExitCode int,
 	waitTime time.Duration,
 ) ([]byte, error) {
 	for i := 0; i < retries; i++ {
 		action, data, err := cmd()
 		if err != nil {
-			exitCode, parsed := getExitCode(err)
-			if parsed {
-				if exitCode == retryOnExitCode {
-					logger.Infof("command failed for %s. trying again...", action)
-					time.Sleep(waitTime)
-					continue
-				}
-			}
-			return nil, errors.Wrapf(err, "failed to complete command for %s", action)
+			logger.Infof("command failed for %s. trying again...", action)
+			time.Sleep(waitTime)
+			continue
 		}
 		if i > 0 {
 			logger.Infof("action %s succeeded on attempt %d", action, i)

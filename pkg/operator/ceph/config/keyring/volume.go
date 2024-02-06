@@ -13,6 +13,7 @@ const (
 	// mounted independently
 	adminKeyringDir          = "/etc/ceph/admin-keyring-store/"
 	crashCollectorKeyringDir = "/etc/ceph/crash-collector-keyring-store/"
+	exporterKeyringDir       = "/etc/ceph/exporter-keyring-store/"
 )
 
 // VolumeBuilder is a helper for creating Kubernetes pod volumes with content sourced by keyrings
@@ -45,6 +46,11 @@ func (v *VolumeBuilder) Admin() v1.Volume {
 // CrashCollector returns a kubernetes pod volume whose content is sourced by the SecretStore crash collector keyring.
 func (v *VolumeBuilder) CrashCollector() v1.Volume {
 	return v.Resource(crashCollectorKeyringResourceName)
+}
+
+// Exporter returns a kubernetes pod volume whose content is sourced by the SecretStore exporter keyring.
+func (v *VolumeBuilder) Exporter() v1.Volume {
+	return v.Resource(exporterKeyringResourceName)
 }
 
 // VolumeMount returns a VolumeMountBuilder.
@@ -80,6 +86,16 @@ func (*VolumeMountBuilder) CrashCollector() v1.VolumeMount {
 	}
 }
 
+// Exporter returns a Kubernetes container volume mount that mounts the content from the matching
+// VolumeBuilder Exporter volume.
+func (*VolumeMountBuilder) Exporter() v1.VolumeMount {
+	return v1.VolumeMount{
+		Name:      keyringSecretName(exporterKeyringResourceName),
+		ReadOnly:  true, // should be no reason to write to the keyring in pods, so enforce this
+		MountPath: exporterKeyringDir,
+	}
+}
+
 // KeyringFilePath returns the full path to the regular keyring file within a container.
 func (*VolumeMountBuilder) KeyringFilePath() string {
 	return path.Join(keyringDir, keyringFileName)
@@ -93,4 +109,9 @@ func (*VolumeMountBuilder) AdminKeyringFilePath() string {
 // CrashCollectorKeyringFilePath returns the full path to the admin keyring file within a container.
 func (*VolumeMountBuilder) CrashCollectorKeyringFilePath() string {
 	return path.Join(crashCollectorKeyringDir, keyringFileName)
+}
+
+// ExporterKeyringFilePath returns the full path to the admin keyring file within a container.
+func (*VolumeMountBuilder) ExporterKeyringFilePath() string {
+	return path.Join(exporterKeyringDir, keyringFileName)
 }

@@ -20,6 +20,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	// SkipReconcileLabelKey is a label indicating that the pod should not be reconciled
+	SkipReconcileLabelKey = "ceph.rook.io/do-not-reconcile"
+)
+
 // LabelsSpec is the main spec label for all daemons
 type LabelsSpec map[KeyType]Labels
 
@@ -41,6 +46,11 @@ func GetMgrLabels(a LabelsSpec) Labels {
 // GetMonLabels returns the Labels for the MON service
 func GetMonLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMon)
+}
+
+// GetKeyRotationLabels returns labels for the key Rotation job
+func GetKeyRotationLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyRotation)
 }
 
 // GetOSDPrepareLabels returns the Labels for the OSD prepare job
@@ -66,6 +76,10 @@ func GetMonitoringLabels(a LabelsSpec) Labels {
 // GetCrashCollectorLabels returns the Labels for the crash collector resources
 func GetCrashCollectorLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyCrashCollector)
+}
+
+func GetCephExporterLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyCephExporter)
 }
 
 func mergeAllLabelsWithKey(a LabelsSpec, name KeyType) Labels {

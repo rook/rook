@@ -64,7 +64,6 @@ func (d *ContainerTestDefinition) TestContainer(
 	cont *v1.Container,
 	logger *capnslog.PackageLogger,
 ) {
-
 	if d.Image != nil {
 		assert.Equal(t, *d.Image, cont.Image)
 	}
@@ -76,27 +75,26 @@ func (d *ContainerTestDefinition) TestContainer(
 	if d.Args != nil {
 		assert.Nil(t, optest.ArgumentsMatchExpected(cont.Args, d.Args))
 	}
-	if d.InOrderArgs != nil {
-		for argNum, arg := range d.InOrderArgs {
-			assert.Equal(t, cont.Args[argNum], arg)
-		}
+
+	for argNum, arg := range d.InOrderArgs {
+		assert.Equal(t, cont.Args[argNum], arg)
 	}
-	if d.VolumeMountNames != nil {
-		assert.Equal(t, len(d.VolumeMountNames), len(cont.VolumeMounts))
-		for _, n := range d.VolumeMountNames {
-			assert.Nil(t, optest.VolumeMountExists(n, cont.VolumeMounts))
-		}
+
+	assert.Equal(t, len(d.VolumeMountNames), len(cont.VolumeMounts))
+	for _, n := range d.VolumeMountNames {
+		assert.Nil(t, optest.VolumeMountExists(n, cont.VolumeMounts))
 	}
+
 	if d.EnvCount != nil {
 		assert.Equal(t, *d.EnvCount, len(cont.Env))
 	}
-	if d.Ports != nil {
-		assert.Equal(t, len(d.Ports), len(cont.Ports))
-		for i, p := range d.Ports {
-			assert.Equal(t, p.ContainerPort, cont.Ports[i].ContainerPort)
-			assert.Equal(t, p.Protocol, cont.Ports[i].Protocol)
-		}
+
+	assert.Equal(t, len(d.Ports), len(cont.Ports))
+	for i, p := range d.Ports {
+		assert.Equal(t, p.ContainerPort, cont.Ports[i].ContainerPort)
+		assert.Equal(t, p.Protocol, cont.Ports[i].Protocol)
 	}
+
 	if d.IsPrivileged != nil {
 		assert.Equal(t, *d.IsPrivileged, *cont.SecurityContext.Privileged)
 	}

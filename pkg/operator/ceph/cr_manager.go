@@ -23,20 +23,19 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/crash"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/rbd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/clusterdisruption"
 	"github.com/rook/rook/pkg/operator/ceph/disruption/controllerconfig"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/machinedisruption"
-	"github.com/rook/rook/pkg/operator/ceph/disruption/machinelabel"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/file/subvolumegroup"
 	"github.com/rook/rook/pkg/operator/ceph/nfs"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/object/bucket"
+	"github.com/rook/rook/pkg/operator/ceph/object/cosi"
 	"github.com/rook/rook/pkg/operator/ceph/object/notification"
 	"github.com/rook/rook/pkg/operator/ceph/object/realm"
 	"github.com/rook/rook/pkg/operator/ceph/object/topic"
@@ -47,35 +46,18 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool/radosnamespace"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	mapiv1 "github.com/openshift/cluster-api/pkg/apis/machine/v1beta1"
-	healthchecking "github.com/openshift/machine-api-operator/pkg/apis/healthchecking/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-)
-
-const (
-	certDir = "/etc/webhook"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
 
 var (
 	resourcesSchemeFuncs = []func(*runtime.Scheme) error{
 		clientgoscheme.AddToScheme,
-		mapiv1.AddToScheme,
-		healthchecking.AddToScheme,
 		cephv1.AddToScheme,
-	}
-)
-
-var (
-	webhookResources = []webhook.Validator{
-		&cephv1.CephCluster{},
-		&cephv1.CephBlockPool{},
-		&cephv1.CephObjectStore{},
-		&cephv1.CephBlockPoolRadosNamespace{},
-		&cephv1.CephFilesystemSubVolumeGroup{},
 	}
 )
 
@@ -89,15 +71,9 @@ var AddToManagerFuncsMaintenance = []func(manager.Manager, *controllerconfig.Con
 	clusterdisruption.Add,
 }
 
-// MachineDisruptionBudgetAddToManagerFuncs is a list of fencing related functions to add all Controllers to the Manager (entrypoint for controller)
-var MachineDisruptionBudgetAddToManagerFuncs = []func(manager.Manager, *controllerconfig.Context) error{
-	machinelabel.Add,
-	machinedisruption.Add,
-}
-
 // AddToManagerFuncs is a list of functions to add all Controllers to the Manager (entrypoint for controller)
 var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Context, opcontroller.OperatorConfig) error{
-	crash.Add,
+	nodedaemon.Add,
 	pool.Add,
 	objectuser.Add,
 	realm.Add,
@@ -116,6 +92,7 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 	notification.Add,
 	subvolumegroup.Add,
 	radosnamespace.Add,
+	cosi.Add,
 }
 
 // AddToManagerOpFunc is a list of functions to add all Controllers to the Manager (entrypoint for
@@ -149,15 +126,6 @@ func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, 
 		}
 	}
 
-	// If machine disruption budget is enabled let's add the controllers
-	if EnableMachineDisruptionBudget {
-		for _, f := range MachineDisruptionBudgetAddToManagerFuncs {
-			if err := f(m, c); err != nil {
-				return err
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -176,9 +144,18 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
-		Namespace:      o.config.NamespaceToWatch,
-		Scheme:         scheme,
-		CertDir:        certDir,
+		Metrics: metricsserver.Options{
+			// BindAddress is the bind address for controller runtime metrics server default is 8080. Since we don't use the
+			// controller runtime metrics server, we need to set the bind address 0 so that port 8080 is available.
+			BindAddress: "0",
+		},
+		Scheme: scheme,
+	}
+
+	if o.config.NamespaceToWatch != "" {
+		mgrOpts.Cache = cache.Options{
+			DefaultNamespaces: map[string]cache.Config{o.config.NamespaceToWatch: {}},
+		}
 	}
 
 	logger.Info("setting up the controller-runtime manager")
@@ -186,28 +163,6 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to set up overall controller-runtime manager")
 		return
-	}
-
-	// Add webhook if needed
-	isPresent, err := createWebhook(context, o.context)
-	if err != nil {
-		mgrErrorCh <- errors.Wrap(err, "failed to retrieve admission webhook secret")
-		return
-	}
-	if isPresent {
-		err := createWebhookService(context, o.context)
-		if err != nil {
-			mgrErrorCh <- errors.Wrap(err, "failed to create admission webhook service")
-			return
-		}
-		logger.Info("setting up admission webhooks")
-		for _, resource := range webhookResources {
-			err = ctrl.NewWebhookManagedBy(mgr).For(resource).Complete()
-			if err != nil {
-				mgrErrorCh <- errors.Wrapf(err, "failed to register webhook for %q", resource.GetObjectKind().GroupVersionKind().Kind)
-				return
-			}
-		}
 	}
 
 	// options to pass to the controllers

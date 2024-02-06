@@ -8,7 +8,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rook-ceph-osd-env-override
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 data:
   # Bypass the ASan's assertion that it is the very first loaded DSO.
   # This is necessary for crimson-osd as it's currently built with

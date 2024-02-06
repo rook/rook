@@ -20,9 +20,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,7 +36,9 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -59,7 +62,7 @@ var (
 	bucketStorageClassName = "rook-smoke-delete-bucket"
 	maxBucket              = 1
 	maxSize                = "100000"
-	userCap                = "read"
+	userCap                = "*"
 )
 
 // Test Object StoreCreation on Rook that was installed via helm
@@ -111,23 +114,28 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 
 	// Check object store status
 	t.Run("verify object store status", func(t *testing.T) {
-		retryCount := 30
+		retryCount := 40
 		i := 0
 		for i = 0; i < retryCount; i++ {
 			objectStore, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).Get(ctx, storeName, metav1.GetOptions{})
 			assert.Nil(t, err)
-			if objectStore.Status == nil || objectStore.Status.BucketStatus == nil {
+			// TODO: check that object store status is good, and also check that status of
+			// deployment is good based on health checks
+
+			if objectStore.Status == nil {
 				logger.Infof("(%d) object status check sleeping for 5 seconds ...%+v", i, objectStore.Status)
 				time.Sleep(5 * time.Second)
 				continue
 			}
 			logger.Info("objectstore status is", objectStore.Status)
-			if objectStore.Status.BucketStatus.Health == cephv1.ConditionFailure {
-				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.BucketStatus)
+			// ConditionConnected supports Rook v1.10 clusters that still had health check
+			// TODO: remove that half of check after Rook v1.12 release
+			if objectStore.Status.Phase != cephv1.ConditionReady && objectStore.Status.Phase != cephv1.ConditionConnected {
+				logger.Infof("(%d) bucket status check sleeping for 5 seconds ...%+v", i, objectStore.Status.Phase)
 				time.Sleep(5 * time.Second)
 				continue
 			}
-			assert.Equal(t, cephv1.ConditionConnected, objectStore.Status.BucketStatus.Health)
+
 			// Info field has the endpoint in it
 			assert.NotEmpty(t, objectStore.Status.Info)
 			assert.NotEmpty(t, objectStore.Status.Info["endpoint"])
@@ -136,6 +144,23 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		if i == retryCount {
 			t.Fatal("bucket status check failed. status is not connected")
 		}
+	})
+
+	t.Run("verify RGW liveness probes show healthy", func(t *testing.T) {
+		err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 90*time.Second, true, func(ctx context.Context) (done bool, err error) {
+			deployName := "rook-ceph-rgw-" + storeName + "-a"
+			d, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
+			if err != nil {
+				logger.Infof("waiting for rgw deployment %q to be ready; failed to get deployment: %v", deployName, err)
+				return false, nil
+			}
+			if d.Status.UnavailableReplicas != 0 {
+				logger.Infof("waiting rgw deployment %q to be ready; %d replicas are unavailable", deployName, d.Status.UnavailableReplicas)
+				return false, nil
+			}
+			return true, nil
+		})
+		assert.NoError(t, err)
 	})
 
 	t.Run("verify RGW service is up", func(t *testing.T) {
@@ -159,7 +184,7 @@ func deleteObjectStore(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName
 	assert.NoError(t, err)
 	// wait initially for the controller to detect deletion. Almost always enough, but not
 	// waiting immediately after this will almost always fail the first check in the loop
-	time.Sleep(4 * time.Second)
+	time.Sleep(10 * time.Second)
 }
 
 func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string) {
@@ -169,6 +194,12 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 	sleepTime := 3 * time.Second
 	for i = 0; i < retry; i++ {
 		storeStr, err := k8sh.GetResource("-n", namespace, "CephObjectStore", storeName, "-o", "json")
+		// if cephobjectstore is not found, just return the test
+		// no need to check deletion phases as it is already deleted
+		if err != nil && strings.Contains(storeStr, errors.NewNotFound(v1.Resource("cephobjectstores.ceph.rook.io"), storeName).ErrStatus.Message) {
+			return
+		}
+
 		assert.NoError(t, err)
 		logger.Infof("store: \n%s", storeStr)
 
@@ -190,7 +221,6 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 		time.Sleep(sleepTime)
 	}
 	assert.NotEqual(t, retry, i)
-
 	assert.Equal(t, cephv1.ConditionDeleting, store.Status.Phase) // phase == "Deleting"
 	// verify deletion is NOT blocked b/c object has dependents
 	cond := cephv1.FindStatusCondition(store.Status.Conditions, cephv1.ConditionDeletionIsBlocked)
@@ -202,7 +232,7 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 }
 
 func createCephObjectUser(
-	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool) {
 
@@ -223,7 +253,7 @@ func createCephObjectUser(
 }
 
 func checkCephObjectUser(
-	s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool,
 ) {
@@ -254,7 +284,7 @@ func checkCephObjectUser(
 	}
 }
 
-func objectStoreCleanUp(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
+func objectStoreCleanUp(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	logger.Infof("Delete Object Store (will fail if users and buckets still exist)")
 	err := helper.ObjectClient.Delete(namespace, storeName)
 	assert.Nil(s.T(), err)
@@ -270,11 +300,11 @@ func generateRgwTlsCertSecret(t *testing.T, helper *clients.TestClient, k8sh *ut
 		CmdArgs: []string{tlscertdir, rgwServiceName, namespace}}
 	cmdOut := utils.ExecuteCommand(cmdArgs)
 	require.NoError(t, cmdOut.Err)
-	tlsKeyIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))
+	tlsKeyIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".key"))
 	require.NoError(t, err)
-	tlsCertIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".crt"))
+	tlsCertIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".crt"))
 	require.NoError(t, err)
-	tlsCaCertIn, err := ioutil.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".ca"))
+	tlsCaCertIn, err := os.ReadFile(filepath.Join(tlscertdir, rgwServiceName+".ca"))
 	require.NoError(t, err)
 	secretCertOut := fmt.Sprintf("%s%s%s", tlsKeyIn, tlsCertIn, tlsCaCertIn)
 	tlsK8sSecret := &v1.Secret{

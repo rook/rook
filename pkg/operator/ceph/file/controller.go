@@ -118,17 +118,20 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephFilesystem CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
 
 	// Watch all other resources
 	for _, t := range objectsToWatch {
-		err = c.Watch(&source.Kind{Type: t}, &handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &cephv1.CephFilesystem{},
-		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		ownerRequest := handler.EnqueueRequestForOwner(
+			mgr.GetScheme(),
+			mgr.GetRESTMapper(),
+			&cephv1.CephFilesystem{},
+		)
+		err = c.Watch(source.Kind(mgr.GetCache(), t), ownerRequest,
+			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 		if err != nil {
 			return err
 		}
@@ -142,7 +145,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 
 	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
-	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}}, handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges())
+	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}), handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges())
 	if err != nil {
 		return err
 	}
@@ -184,7 +187,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	}
 
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephFilesystem.ObjectMeta.Generation
 
@@ -194,9 +197,13 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 		return reconcile.Result{}, *cephFilesystem, errors.Wrap(err, "failed to add finalizer")
 	}
 
-	// The CR was just created, initializing status fields
+	// The CR was just created, initialize status as 'Progressing'
 	if cephFilesystem.Status == nil {
-		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.EmptyStatus, nil)
+		updatedCephFS := r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionProgressing, nil)
+		if updatedCephFS == nil || updatedCephFS.Status == nil {
+			return reconcile.Result{}, *cephFilesystem, errors.Errorf("failed to update ceph filesystem status")
+		}
+		cephFilesystem = updatedCephFS
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -237,7 +244,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.cephClusterSpec)
 	if err != nil {
 		return reconcile.Result{}, *cephFilesystem, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -306,7 +313,8 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
 	// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
 	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
-	if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
+	// Skip waiting for upgrades to finish in case of external cluster.
+	if !cephCluster.Spec.External.Enable && !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
 		// Upgrade is in progress, let's wait for the mons to be done
 		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading, *cephFilesystem,
 			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
@@ -360,7 +368,7 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 				}
 
 				logger.Info("reconciling add cephfs-mirror peer configuration")
-				err = r.reconcileAddBoostrapPeer(cephFilesystem, request.NamespacedName)
+				err = r.reconcileAddBootstrapPeer(cephFilesystem, request.NamespacedName)
 				if err != nil {
 					return opcontroller.ImmediateRetryResult, *cephFilesystem,
 						errors.Wrapf(err, "failed to configure mirroring for filesystem %q.", cephFilesystem.Name)
@@ -368,8 +376,9 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 
 				// update ObservedGeneration in status at the end of reconcile
 				// Set Ready status, we are done reconciling
-				r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem))
-				statusUpdated = true
+				if r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem)) != nil {
+					statusUpdated = true
+				}
 
 				// Run go routine check for mirroring status
 				if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
@@ -473,7 +482,7 @@ func (r *ReconcileCephFilesystem) reconcileMirroring(cephFilesystem *cephv1.Ceph
 	return nil
 }
 
-func (r *ReconcileCephFilesystem) reconcileAddBoostrapPeer(cephFilesystem *cephv1.CephFilesystem, namespacedName types.NamespacedName) error {
+func (r *ReconcileCephFilesystem) reconcileAddBootstrapPeer(cephFilesystem *cephv1.CephFilesystem, namespacedName types.NamespacedName) error {
 	if cephFilesystem.Spec.Mirroring.Peers == nil {
 		return nil
 	}

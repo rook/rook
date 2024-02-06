@@ -18,7 +18,6 @@ package kms
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -205,16 +204,16 @@ func Test_configTLS(t *testing.T) {
 		assert.NoFileExists(t, config["VAULT_CLIENT_KEY"])
 	})
 
-	// This test verifies that if any of ioutil.TempFile or ioutil.WriteFile fail during the TLS
+	// This test verifies that if any of os.CreateTemp or os.WriteFile fail during the TLS
 	// config loop we cleanup the already generated files. For instance, let's say we are at the
-	// second iteration, a file has been created, and then ioutil.TempFile fails, we must cleanup
+	// second iteration, a file has been created, and then os.CreateTemp fails, we must cleanup
 	// the previous file. Essentially we are verifying that defer does what it is supposed to do.
 	// Also, in this situation the cleanup function will be 'nil' and the caller won't run it so the
 	// configTLS() must do its own cleanup.
 	t.Run("advanced TLS config with temp file creation error", func(t *testing.T) {
 		createTmpFile = func(dir string, pattern string) (f *os.File, err error) {
 			// Create a fake temp file
-			ff, err := ioutil.TempFile("", "")
+			ff, err := os.CreateTemp("", "")
 			if err != nil {
 				logger.Error(err)
 				return nil, err
@@ -233,7 +232,7 @@ func Test_configTLS(t *testing.T) {
 					}
 				}
 			}
-			os.Setenv("ROOK_TMP_FILE", ff.Name())
+			t.Setenv("ROOK_TMP_FILE", ff.Name())
 
 			return ff, errors.New("error creating tmp file")
 		}
@@ -250,7 +249,6 @@ func Test_configTLS(t *testing.T) {
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to generate temp file for k8s secret \"vault-ca-cert\" content: error creating tmp file")
 		assert.NoFileExists(t, os.Getenv("ROOK_TMP_FILE"))
-		os.Unsetenv("ROOK_TMP_FILE")
 	})
 }
 

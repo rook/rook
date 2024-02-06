@@ -17,7 +17,6 @@ limitations under the License.
 package kms
 
 import (
-	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -83,20 +82,15 @@ func TestConfigEnvsToMapString(t *testing.T) {
 	assert.Equal(t, 0, len(envs))
 
 	// Single KMS value
-	os.Setenv("KMS_PROVIDER", "vault")
-	defer os.Unsetenv("KMS_PROVIDER")
+	t.Setenv("KMS_PROVIDER", "vault")
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 1, len(envs))
 
 	// Some more Vault KMS with one intruder
-	os.Setenv("KMS_PROVIDER", "vault")
-	defer os.Unsetenv("KMS_PROVIDER")
-	os.Setenv("VAULT_ADDR", "1.1.1.1")
-	defer os.Unsetenv("VAULT_ADDR")
-	os.Setenv("VAULT_SKIP_VERIFY", "true")
-	defer os.Unsetenv("VAULT_SKIP_VERIFY")
-	os.Setenv("foo", "bar")
-	defer os.Unsetenv("foo")
+	t.Setenv("KMS_PROVIDER", "vault")
+	t.Setenv("VAULT_ADDR", "1.1.1.1")
+	t.Setenv("VAULT_SKIP_VERIFY", "true")
+	t.Setenv("foo", "bar")
 	envs = ConfigEnvsToMapString()
 	assert.Equal(t, 3, len(envs))
 	assert.True(t, envs["KMS_PROVIDER"] == "vault")
@@ -145,6 +139,14 @@ func TestVaultConfigToEnvVar(t *testing.T) {
 				{Name: "IBM_KP_SERVICE_API_KEY", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: "ibm-kp-token"}, Key: "IBM_KP_SERVICE_API_KEY"}}},
 				{Name: "IBM_KP_SERVICE_INSTANCE_ID", Value: "1"},
 				{Name: "KMS_PROVIDER", Value: TypeIBM},
+			},
+		},
+		{
+			"kmip - token details is removed from the details",
+			args{spec: cephv1.ClusterSpec{Security: cephv1.SecuritySpec{KeyManagementService: cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{"KMS_PROVIDER": TypeKMIP, "CLIENT_KEY": "foo", "CLIENT_CERT": "foo", "CA_CERT": "foo", "TLS_SERVER_NAME": "pykmip"}, TokenSecretName: "kmip-token"}}}},
+			[]v1.EnvVar{
+				{Name: "KMIP_KMS_PROVIDER", Value: TypeKMIP},
+				{Name: "KMIP_TLS_SERVER_NAME", Value: "pykmip"},
 			},
 		},
 	}

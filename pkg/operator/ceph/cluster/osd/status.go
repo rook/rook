@@ -162,7 +162,7 @@ func (c *Cluster) updateAndCreateOSDs(
 	updateConfig *updateConfig,
 	errs *provisionErrors, // add errors here
 ) error {
-	// tick every mintue to check-in on housekeeping stuff and report overall progress
+	// tick every minute to check-in on housekeeping stuff and report overall progress
 	minuteTicker := time.NewTicker(minuteTickerDuration)
 	defer minuteTicker.Stop()
 
@@ -218,10 +218,10 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 		ResourceVersion: configMapList.ResourceVersion,
 	}
 	watcher, err := cmClient.Watch(c.clusterInfo.Context, watchOptions)
-	defer watcher.Stop()
 	if err != nil {
 		return false, errors.Wrapf(err, "failed to start watching OSD provisioning status ConfigMaps")
 	}
+	defer watcher.Stop()
 
 	// tick after a short time of waiting for new OSD provision status configmaps to change state
 	// in order to allow opportunistic deployment updates while we wait
@@ -268,13 +268,14 @@ func (c *Cluster) updateAndCreateOSDsLoop(
 			updateConfig.updateExistingOSDs(errs)
 
 		case <-minuteTicker.C:
-			if c.clusterInfo.Context.Err() != nil {
-				return false, c.clusterInfo.Context.Err()
-			}
 			// Log progress
 			c, cExp := createConfig.progress()
 			u, uExp := updateConfig.progress()
 			logger.Infof("waiting... %d of %d OSD prepare jobs have finished processing and %d of %d OSDs have been updated", c, cExp, u, uExp)
+
+		case <-c.clusterInfo.Context.Done():
+			logger.Infof("context cancelled, exiting OSD update and create loop")
+			return false, c.clusterInfo.Context.Err()
 		}
 	}
 

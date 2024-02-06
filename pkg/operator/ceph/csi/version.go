@@ -25,23 +25,15 @@ import (
 )
 
 var (
-	//minimum supported version is 3.5.0
-	minimum = CephCSIVersion{3, 5, 0}
+	//minimum supported version is 3.9.0
+	minimum = CephCSIVersion{3, 9, 0}
 	//supportedCSIVersions are versions that rook supports
-	releasev350 = CephCSIVersion{3, 5, 0}
-	releasev360 = CephCSIVersion{3, 6, 0}
+	releasev310 = CephCSIVersion{3, 10, 0}
 
 	supportedCSIVersions = []CephCSIVersion{
 		minimum,
-		releasev350,
-		releasev360,
+		releasev310,
 	}
-
-	// custom ceph.conf is supported in v3.5.0+
-	cephConfSupportedVersion = CephCSIVersion{3, 5, 0}
-
-	// pod networking fix with the extra holder pod is supported with at least v3.6.1
-	nsenterSupportedVersion = CephCSIVersion{3, 6, 1}
 
 	// for parsing the output of `cephcsi`
 	versionCSIPattern = regexp.MustCompile(`v(\d+)\.(\d+)\.(\d+)`)
@@ -119,25 +111,4 @@ func extractCephCSIVersion(src string) (*CephCSIVersion, error) {
 	}
 
 	return &CephCSIVersion{major, minor, bugfix}, nil
-}
-
-// SupportsCustomCephConf checks if the detected version supports custom ceph.conf
-func (v *CephCSIVersion) SupportsCustomCephConf() bool {
-	// if AllowUnsupported is set also a csi-image greater than the supported ones are allowed
-	if AllowUnsupported {
-		return true
-	}
-
-	return v.isAtLeast(&cephConfSupportedVersion)
-}
-
-// SupportsNsenter checks if the csi image has support for calling "nsenter" while executing
-// mount/map commands. This is needed for Multus scenarios.
-func (v *CephCSIVersion) SupportsNsenter() bool {
-	// if AllowUnsupported is set also a csi-image greater than the supported ones are allowed
-	if AllowUnsupported {
-		return true
-	}
-
-	return v.isAtLeast(&nsenterSupportedVersion)
 }

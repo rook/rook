@@ -1,5 +1,5 @@
 ---
-title: Object Store CRD
+title: CephObjectStore CRD
 ---
 
 Rook allows creation and customization of object stores through the custom resource definitions (CRDs). The following settings are available for Ceph object stores.
@@ -76,13 +76,19 @@ spec:
 
 ### Pools
 
-The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](../Block-Storage/ceph-block-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
+The pools allow all of the settings defined in the Block Pool CRD spec. For more details, see the [Block Pool CRD](../Block-Storage/ceph-block-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
 
 When the `zone` section is set pools with the object stores name will not be created since the object-store will the using the pools created by the ceph-object-zone.
 
 * `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 * `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
-* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified is also deemed as 'false'.
+* `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store
+  will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified
+  is also deemed as 'false'.
+* `allowUsersInNamespaces`: If a CephObjectStoreUser is created in a namespace other than the Rook cluster namespace,
+  the namespace must be added to this list of allowed namespaces, or specify "*" to allow all namespaces.
+  This is useful for applications that need object store credentials to be created in their own namespace,
+  where neither OBCs nor COSI is being used to create buckets. The default is empty.
 
 ## Gateway Settings
 
@@ -104,10 +110,16 @@ The gateway settings correspond to the RGW daemon settings.
 * `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
   contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
   cluster. Rook will look in the secret provided at the `cabundle` key name.
+* `hostNetwork`: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.
-* `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways (works with external mode). This setting will be ignored if the `CephCluster` does not have `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster) for more details.
+* `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
+  (works with external mode). This setting will be ignored if the `CephCluster` does not have
+  `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)
+  for more details. Multiple endpoints can be given, but for stability of ObjectBucketClaims, we
+	highly recommend that users give only a single external RGW endpoint that is a load balancer that
+	sends requests to the multiple RGWs.
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
 * `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
@@ -129,6 +141,7 @@ gateway:
   port: 80
   externalRgwEndpoints:
     - ip: 192.168.39.182
+      # hostname: example.com
 ```
 
 This will create a service with the endpoint `192.168.39.182` on port `80`, pointing to the Ceph object external gateway.
@@ -136,7 +149,7 @@ All the other settings from the gateway section will be ignored, except for `sec
 
 ## Zone Settings
 
-The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-multisite-crd.md).
+The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-zone-crd.md).
 
 * `name`: the name of the ceph-object-zone the object store will be in.
 
@@ -157,52 +170,34 @@ created anew.
 
 ## Health settings
 
-Rook-Ceph will be default monitor the state of the object store endpoints.
+Rook will be default monitor the state of the object store endpoints.
 The following CRD settings are available:
 
 * `healthCheck`: main object store health monitoring section
-  * `bucket`: Rook checks that the object store is usable regularly. This is explained in more
-    detail below. Use this config to disable or change the interval at which Rook verifies the
-    object store connectivity.
-  * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
-  * `livenessProbe`: Disable, or override timing and threshold values of the object gateway liveness probe.
-  * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
+    * `startupProbe`: Disable, or override timing and threshold values of the object gateway startup probe.
+    * `readinessProbe`: Disable, or override timing and threshold values of the object gateway readiness probe.
 
 Here is a complete example:
 
 ```yaml
 healthCheck:
-  bucket:
-    disabled: false
-    interval: 60s
   startupProbe:
     disabled: false
-  livenessProbe:
-    disabled: false
-    periodSeconds: 5
-    failureThreshold: 4
   readinessProbe:
     disabled: false
     periodSeconds: 5
     failureThreshold: 2
 ```
 
-The endpoint health check procedure is the following:
-
-1. Create an S3 user
-2. Create a bucket with that user
-3. PUT the file in the object store
-4. GET the file from the object store
-5. Verify object consistency
-6. Update CR health status check
-
-Rook-Ceph always keeps the bucket and the user for the health check, it just does a PUT and GET of an s3 object since creating a bucket is an expensive operation.
+You can monitor the health of a CephObjectStore by monitoring the gateway deployments it creates.
+The primary deployment created is named `rook-ceph-rgw-<store-name>-a` where `store-name` is the
+name of the CephObjectStore (don't forget the `-a` at the end).
 
 ## Security settings
 
-Ceph RGW supports encryption via Key Management System (KMS) using HashiCorp Vault. Refer to the [vault kms section](../Cluster/ceph-cluster-crd.md#vault-kms) for detailed explanation.
-If these settings are defined, then RGW establish a connection between Vault and whenever S3 client sends a request with Server Side Encryption,
-it encrypts that using the key specified by the client. For more details w.r.t RGW, please refer [Ceph Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/)
+Ceph RGW supports Server Side Encryption as defined in [AWS S3 protocol](https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html) with three different modes: AWS-SSE:C, AWS-SSE:KMS and AWS-SSE:S3. The last two modes require a Key Management System (KMS) like HashiCorp Vault. Currently, Vault is the only supported KMS backend for CephObjectStore.
+
+Refer to the [Vault KMS section](../../Storage-Configuration/Advanced/key-management-system.md#vault) for details about Vault. If these settings are defined, then RGW will establish a connection between Vault and whenever S3 client sends request with Server Side Encryption. [Ceph's Vault documentation](https://docs.ceph.com/en/latest/radosgw/vault/) has more details.
 
 The `security` section contains settings related to KMS encryption of the RGW.
 
@@ -216,13 +211,21 @@ security:
       VAULT_SECRET_ENGINE: kv
       VAULT_BACKEND: v2
     # name of the k8s secret containing the kms authentication token
-    tokenSecretName: rgw-vault-token
+    tokenSecretName: rgw-vault-kms-token
+  s3:
+    connectionDetails:
+      KMS_PROVIDER: vault
+      VAULT_ADDR: http://vault.default.svc.cluster.local:8200
+      VAULT_BACKEND_PATH: rgw
+      VAULT_SECRET_ENGINE: transit
+    # name of the k8s secret containing the kms authentication token
+    tokenSecretName: rgw-vault-s3-token
 ```
 
 For RGW, please note the following:
 
-* `VAULT_SECRET_ENGINE` option is specifically for RGW to mention about the secret engine which can be used, currently supports two: [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). And for kv engine only version 2 is supported.
-* The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption
+* `VAULT_SECRET_ENGINE`: the secret engine which Vault should use. Currently supports [kv](https://www.vaultproject.io/docs/secrets/kv) and [transit](https://www.vaultproject.io/docs/secrets/transit). AWS-SSE:KMS supports `transit` engine and `kv` engine version 2. AWS-SSE:S3 only supports `transit` engine.
+* The Storage administrator needs to create a secret in the Vault server so that S3 clients use that key for encryption for AWS-SSE:KMS
 
 ```console
 vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
@@ -230,6 +233,8 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 ```
 
 * TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
+* `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
+* `AWS-SSE:S3` requires Ceph Quincy v17.2.3 or later.
 
 ## Deleting a CephObjectStore
 
@@ -246,4 +251,8 @@ Rook will warn about which buckets are blocking deletion in three ways:
 
 1. An event will be registered on the CephObjectStore resource
 1. A status condition will be added to the CephObjectStore resource
-1. An error will be added to the Rook-Ceph Operator log
+1. An error will be added to the Rook Ceph Operator log
+
+If the CephObjectStore is configured in a [multisite setup](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) the above conditions are applicable only to stores that belong to a single master zone.
+Otherwise the conditions are ignored. Even if the store is removed the user can access the
+data from a peer object store.

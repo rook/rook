@@ -30,8 +30,7 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: rook-ceph-block
-# Change "rook-ceph" provisioner prefix to match the operator namespace if needed
-provisioner: rook-ceph.rbd.csi.ceph.com # driver:namespace:operator
+provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
 parameters:
   # clusterID is the namespace where the rook cluster is running
   # If you change this namespace, also change the namespace below where the secret namespaces are defined
@@ -62,7 +61,11 @@ parameters:
   # RBD image format. Defaults to "2".
   imageFormat: "2"
 
-  # RBD image features. Available for imageFormat: "2". CSI RBD currently supports only `layering` feature.
+  # RBD image features, equivalent to OR'd bitfield value: 63
+  # Available for imageFormat: "2". Older releases of CSI RBD
+  # support only the `layering` feature. The Linux kernel (KRBD) supports the
+  # full feature complement as of 5.4
+  # imageFeatures: layering,fast-diff,object-map,deep-flatten,exclusive-lock
   imageFeatures: layering
 
   # The secrets contain Ceph admin credentials. These are generated automatically by the operator

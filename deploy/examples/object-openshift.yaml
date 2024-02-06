@@ -98,18 +98,15 @@ spec:
     #    service.beta.openshift.io/serving-cert-secret-name: <name of TLS secret automatic generation>
   # service endpoint healthcheck
   healthCheck:
-    bucket:
-      disabled: false
-      interval: 60s
     # Configure the pod probes for the rgw daemon
-    livenessProbe:
+    startupProbe:
       disabled: false
     readinessProbe:
       disabled: false
   # security oriented settings
   # security:
   # To enable the KMS configuration properly don't forget to uncomment the Secret at the end of the file
-  #   kms:
+  #   kms: # configures RGW with AWS-SSE:KMS settings
   #     # name of the config map containing all the kms connection details
   #     connectionDetails:
   #        KMS_PROVIDER: "vault"
@@ -117,6 +114,15 @@ spec:
   #        VAULT_BACKEND_PATH: "rook"
   #        VAULT_SECRET_ENGINE: "kv"
   #        VAULT_BACKEND: v2
+  #     # name of the secret containing the kms authentication token
+  #     tokenSecretName: rook-vault-token
+  #   s3: # configures RGW with AWS-SSE:S3 settings
+  #     # name of the config map containing all the kms connection details
+  #     connectionDetails:
+  #        KMS_PROVIDER: "vault"
+  #        VAULT_ADDR: VAULT_ADDR_CHANGE_ME # e,g: http://vault.my-domain.com:8200
+  #        VAULT_BACKEND_PATH: "rook"
+  #        VAULT_SECRET_ENGINE: "transit"
   #     # name of the secret containing the kms authentication token
   #     tokenSecretName: rook-vault-token
 # # UNCOMMENT THIS TO ENABLE A KMS CONNECTION
@@ -140,12 +146,12 @@ metadata:
 spec:
   port:
     targetPort: http
-# if TLS is enabled, remove the above http port and uncomment the https port and tls settings
-#  port:
-#    targetPort: https
-#  tls:
-#    insecureEdgeTerminationPolicy: Redirect
-#    termination: reencrypt
+  # if TLS is enabled, remove the above http port and uncomment the https port and tls settings
+  #  port:
+  #    targetPort: https
+  #  tls:
+  #    insecureEdgeTerminationPolicy: Redirect
+  #    termination: reencrypt
   to:
     kind: Service
     name: rook-ceph-rgw-my-store # The name of the RGW service is in the form 'rook-ceph-rgw-<objectstore-name>'

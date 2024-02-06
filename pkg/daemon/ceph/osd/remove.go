@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"time"
 
@@ -27,7 +28,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -62,46 +63,13 @@ func RemoveOSDs(context *clusterd.Context, clusterInfo *client.ClusterInfo, osds
 			logger.Infof("osd.%d is marked 'DOWN'", osdID)
 		}
 
-		// Check we can remove the OSD
-		// Loop forever until the osd is safe-to-destroy
-		for {
-			isSafeToDestroy, err := client.OsdSafeToDestroy(context, clusterInfo, osdID)
-			if err != nil {
-				// If we want to force remove the OSD and there was an error let's break outside of
-				// the loop and proceed with the OSD removal
-				if forceOSDRemoval {
-					logger.Errorf("failed to check if osd %d is safe to destroy, but force removal is enabled so proceeding with removal. %v", osdID, err)
-					break
-				} else {
-					logger.Errorf("failed to check if osd %d is safe to destroy, retrying in 1m. %v", osdID, err)
-					time.Sleep(1 * time.Minute)
-					continue
-				}
-			}
-
-			// If no error and the OSD is safe to destroy, we can proceed with the OSD removal
-			if isSafeToDestroy {
-				logger.Infof("osd.%d is safe to destroy, proceeding", osdID)
-				break
-			} else {
-				// If we arrive here and forceOSDRemoval is true, we should proceed with the OSD removal
-				if forceOSDRemoval {
-					logger.Infof("osd.%d is NOT be ok to destroy but force removal is enabled so proceeding with removal", osdID)
-					break
-				}
-				// Else we wait until the OSD can be removed
-				logger.Warningf("osd.%d is NOT be ok to destroy, retrying in 1m until success", osdID)
-				time.Sleep(1 * time.Minute)
-			}
-		}
-
-		removeOSD(context, clusterInfo, osdID, preservePVC)
+		removeOSD(context, clusterInfo, osdID, preservePVC, forceOSDRemoval)
 	}
 
 	return nil
 }
 
-func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, preservePVC bool) {
+func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, osdID int, preservePVC, forceOSDRemoval bool) {
 	// Get the host where the OSD is found
 	hostName, err := client.GetCrushHostName(clusterdContext, clusterInfo, osdID)
 	if err != nil {
@@ -114,6 +82,39 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	_, err = client.NewCephCommand(clusterdContext, clusterInfo, args).Run()
 	if err != nil {
 		logger.Errorf("failed to exclude osd.%d out of the crush map. %v", osdID, err)
+	}
+
+	// Check we can remove the OSD
+	// Loop forever until the osd is safe-to-destroy
+	for {
+		isSafeToDestroy, err := client.OsdSafeToDestroy(clusterdContext, clusterInfo, osdID)
+		if err != nil {
+			// If we want to force remove the OSD and there was an error let's break outside of
+			// the loop and proceed with the OSD removal
+			if forceOSDRemoval {
+				logger.Errorf("failed to check if osd %d is safe to destroy, but force removal is enabled so proceeding with removal. %v", osdID, err)
+				break
+			} else {
+				logger.Errorf("failed to check if osd %d is safe to destroy, retrying in 1m. %v", osdID, err)
+				time.Sleep(1 * time.Minute)
+				continue
+			}
+		}
+
+		// If no error and the OSD is safe to destroy, we can proceed with the OSD removal
+		if isSafeToDestroy {
+			logger.Infof("osd.%d is safe to destroy, proceeding", osdID)
+			break
+		} else {
+			// If we arrive here and forceOSDRemoval is true, we should proceed with the OSD removal
+			if forceOSDRemoval {
+				logger.Infof("osd.%d is NOT ok to destroy but force removal is enabled so proceeding with removal", osdID)
+				break
+			}
+			// Else we wait until the OSD can be removed
+			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 1m until success", osdID)
+			time.Sleep(1 * time.Minute)
+		}
 	}
 
 	// Remove the OSD deployment
@@ -129,7 +130,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 				logger.Errorf("failed to delete deployment for OSD %d. %v", osdID, err)
 			}
 		}
-		if pvcName, ok := deployment.GetLabels()[osd.OSDOverPVCLabelKey]; ok {
+		if pvcName, ok := deployment.GetLabels()[oposd.OSDOverPVCLabelKey]; ok {
 			removeOSDPrepareJob(clusterdContext, clusterInfo, pvcName)
 			removePVCs(clusterdContext, clusterInfo, pvcName, preservePVC)
 		} else {
@@ -146,11 +147,13 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	}
 
 	// Attempting to remove the parent host. Errors can be ignored if there are other OSDs on the same host
-	logger.Infof("attempting to remove host %q from crush map if not in use", osdID)
+	logger.Infof("attempting to remove host %q from crush map if not in use", hostName)
 	hostArgs := []string{"osd", "crush", "rm", hostName}
 	_, err = client.NewCephCommand(clusterdContext, clusterInfo, hostArgs).Run()
 	if err != nil {
 		logger.Infof("failed to remove CRUSH host %q. %v", hostName, err)
+	} else {
+		logger.Infof("removed CRUSH host %q", hostName)
 	}
 
 	// call archiveCrash to silence crash warning in ceph health if any
@@ -160,7 +163,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 }
 
 func removeOSDPrepareJob(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInfo, pvcName string) {
-	labelSelector := fmt.Sprintf("%s=%s", osd.OSDOverPVCLabelKey, pvcName)
+	labelSelector := fmt.Sprintf("%s=%s", oposd.OSDOverPVCLabelKey, pvcName)
 	prepareJobList, err := clusterdContext.Clientset.BatchV1().Jobs(clusterInfo.Namespace).List(clusterInfo.Context, metav1.ListOptions{LabelSelector: labelSelector})
 	if err != nil && !kerrors.IsNotFound(err) {
 		logger.Errorf("failed to list osd prepare jobs with pvc %q. %v ", pvcName, err)
@@ -184,10 +187,10 @@ func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterIn
 		return
 	}
 	labels := dataPVC.GetLabels()
-	deviceSet := labels[osd.CephDeviceSetLabelKey]
-	setIndex := labels[osd.CephSetIndexLabelKey]
+	deviceSet := labels[oposd.CephDeviceSetLabelKey]
+	setIndex := labels[oposd.CephSetIndexLabelKey]
 
-	labelSelector := fmt.Sprintf("%s=%s,%s=%s", osd.CephDeviceSetLabelKey, deviceSet, osd.CephSetIndexLabelKey, setIndex)
+	labelSelector := fmt.Sprintf("%s=%s,%s=%s", oposd.CephDeviceSetLabelKey, deviceSet, oposd.CephSetIndexLabelKey, setIndex)
 	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
 	pvcs, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).List(clusterInfo.Context, listOptions)
 	if err != nil {
@@ -200,10 +203,10 @@ func removePVCs(clusterdContext *clusterd.Context, clusterInfo *client.ClusterIn
 		if preservePVC {
 			// Detach the OSD PVC from Rook. We will continue OSD deletion even if failed to remove PVC label
 			logger.Infof("detach the OSD PVC %q from Rook", pvc.Name)
-			delete(labels, osd.CephDeviceSetPVCIDLabelKey)
+			delete(labels, oposd.CephDeviceSetPVCIDLabelKey)
 			pvc.SetLabels(labels)
 			if _, err := clusterdContext.Clientset.CoreV1().PersistentVolumeClaims(clusterInfo.Namespace).Update(clusterInfo.Context, &pvcs.Items[i], metav1.UpdateOptions{}); err != nil {
-				logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", osd.CephDeviceSetPVCIDLabelKey, pvc.Name, err)
+				logger.Errorf("failed to remove label %q from pvc for OSD %q. %v", oposd.CephDeviceSetPVCIDLabelKey, pvc.Name, err)
 			}
 		} else {
 			// Remove the OSD PVC
@@ -242,4 +245,52 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 	if err != nil {
 		logger.Errorf("failed to archive the crash %q. %v", crashID, err)
 	}
+}
+
+// DestroyOSD fetches the OSD to be replaced based on the ID and then destroys that OSD and zaps the backing device
+func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC, isEncrypted bool) (*oposd.OSDReplaceInfo, error) {
+	var block string
+	osdInfo, err := GetOSDInfoById(context, clusterInfo, id)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", id)
+	}
+
+	block = osdInfo.BlockPath
+
+	logger.Infof("destroying osd.%d", osdInfo.ID)
+	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
+	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to destroy osd.%d.", osdInfo.ID)
+	}
+	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
+
+	if isPVC && isEncrypted {
+		// remove the dm device
+		pvcName := os.Getenv(oposd.PVCNameEnvVarName)
+		target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
+		err = removeEncryptedDevice(context, target)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to remove dm device %q", target)
+		}
+		// ceph-volume uses `/dev/mapper/*` for encrypted disks. This is not a block device. So we need to fetch the corresponding
+		// block device for cleanup using `ceph-volume lvm zap`
+		blockPath := fmt.Sprintf("/mnt/%s", pvcName)
+		diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
+		}
+		block = diskInfo.RealPath
+	}
+
+	logger.Infof("zap OSD.%d path %q", osdInfo.ID, block)
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", block, "--destroy")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, block, output)
+	}
+
+	logger.Infof("%s\n", output)
+	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, block)
+
+	return &oposd.OSDReplaceInfo{ID: osdInfo.ID, Path: block}, nil
 }

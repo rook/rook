@@ -65,7 +65,7 @@ func (c *clusterConfig) portString() string {
 
 	port := c.store.Spec.Gateway.Port
 	if port != 0 {
-		if !c.clusterSpec.Network.IsHost() {
+		if !c.store.Spec.IsHostNetwork(c.clusterSpec) {
 			port = rgwPortInternalPort
 		}
 		portString = fmt.Sprintf("port=%s", strconv.Itoa(int(port)))
@@ -110,10 +110,15 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 	return keyring, s.CreateOrUpdate(rgwConfig.ResourceName, keyring)
 }
 
-func (c *clusterConfig) setDefaultFlagsMonConfigStore(rgwConfig *rgwConfig) error {
+func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
 	configOptions := make(map[string]string)
+
+	configOptions["rgw_run_sync_thread"] = "true"
+	if c.store.Spec.Gateway.DisableMultisiteSyncTraffic {
+		configOptions["rgw_run_sync_thread"] = "false"
+	}
 
 	configOptions["rgw_log_nonexistent_bucket"] = "true"
 	configOptions["rgw_log_object_name_utc"] = "true"

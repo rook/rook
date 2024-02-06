@@ -1,0 +1,25 @@
+{
+    "epoch": 26,
+    "default_fscid": -1,
+    "compat": {
+        "compat": {},
+        "ro_compat": {},
+        "incompat": {
+            "feature_1": "base v0.20",
+            "feature_2": "client writeable ranges",
+            "feature_3": "default file layouts on dirs",
+            "feature_4": "dir inode in separate object",
+            "feature_5": "mds uses versioned encoding",
+            "feature_6": "dirfrag is stored in omap",
+            "feature_8": "no anchor table",
+            "feature_9": "file layout v2",
+            "feature_10": "snaprealm v2"
+        }
+    },
+    "feature_flags": {
+        "enable_multiple": true,
+        "ever_enabled_multiple": true
+    },
+    "standbys": [],
+    "filesystems": []
+}

@@ -16,14 +16,14 @@ metadata:
 spec:
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
-    # v15 is octopus, v16 is pacific, and v17 is quincy.
+    # v17 is Quincy, v18 is Reef.
     # RECOMMENDATION: In production, use a specific version tag instead of the general v17 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    # If you want to be more precise, you can always use a timestamp tag such quay.io/ceph/ceph:v17.2.1-20220623
+    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v18.2.1-20240103
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
-    image: quay.io/ceph/ceph:v17.2.1
-    # Whether to allow unsupported versions of Ceph. Currently `octopus` and `pacific` are supported.
-    # Future versions such as `pacific` would require this to be set to `true`.
+    image: quay.io/ceph/ceph:v18.2.1
+    # Whether to allow unsupported versions of Ceph. Currently `quincy` and `reef` are supported.
+    # Future versions such as `squid` (v19) would require this to be set to `true`.
     # Do not set to true in production.
     allowUnsupported: false
   # The path on the host where configuration files will be persisted. Must be specified.
@@ -39,7 +39,7 @@ spec:
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   # WaitTimeoutForHealthyOSDInMinutes defines the time (in minutes) the operator would wait before an OSD can be stopped for upgrade or restart.
   # If the timeout exceeds and OSD is not ok to stop, then the operator would skip upgrade for the current OSD and proceed with the next one
-  # if `continueUpgradeAfterChecksEvenIfNotHealthy` is `false`. If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then opertor would
+  # if `continueUpgradeAfterChecksEvenIfNotHealthy` is `false`. If `continueUpgradeAfterChecksEvenIfNotHealthy` is `true`, then operator would
   # continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
   # The default wait timeout is 10 minutes.
   waitTimeoutForHealthyOSDInMinutes: 10
@@ -57,10 +57,10 @@ spec:
     count: 2
     allowMultiplePerNode: false
     modules:
-      # Several modules should not need to be included in this list. The "dashboard" and "monitoring" modules
-      # are already enabled by other settings in the cluster CR.
-      - name: pg_autoscaler
-        enabled: true
+      # List of modules to optionally enable or disable.
+      # Note the "dashboard" and "monitoring" modules are already configured by other settings in the cluster CR.
+      # - name: rook
+      #   enabled: true
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
@@ -70,10 +70,17 @@ spec:
     # port: 8443
     # serve the dashboard using SSL
     ssl: true
+    # The url of the Prometheus instance
+    # prometheusEndpoint: <protocol>://<prometheus-host>:<port>
+    # Whether SSL should be verified if the Prometheus server is using https
+    # prometheusEndpointSSLVerify: false
   # enable prometheus alerting for cluster
   monitoring:
     # requires Prometheus to be pre-installed
     enabled: false
+    # Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
+    # If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
+    metricsDisabled: false
   network:
     connections:
       # Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
@@ -85,27 +92,37 @@ spec:
       encryption:
         enabled: false
       # Whether to compress the data in transit across the wire. The default is false.
-      # Requires Ceph Quincy (v17) or newer. Also see the kernel requirements above for encryption.
+      # See the kernel requirements above for encryption.
       compression:
         enabled: false
+      # Whether to require communication over msgr2. If true, the msgr v1 port (6789) will be disabled
+      # and clients will be required to connect to the Ceph cluster with the v2 port (3300).
+      # Requires a kernel that supports msgr v2 (kernel 5.11 or CentOS 8.4 or newer).
+      requireMsgr2: false
     # enable host networking
     #provider: host
     # enable the Multus network provider
     #provider: multus
     #selectors:
-      # The selector keys are required to be `public` and `cluster`.
-      # Based on the configuration, the operator will do the following:
-      #   1. if only the `public` selector key is specified both public_network and cluster_network Ceph settings will listen on that interface
-      #   2. if both `public` and `cluster` selector keys are specified the first one will point to 'public_network' flag and the second one to 'cluster_network'
-      #
-      # In order to work, each selector value must match a NetworkAttachmentDefinition object in Multus
-      #
-      #public: public-conf --> NetworkAttachmentDefinition object name in Multus
-      #cluster: cluster-conf --> NetworkAttachmentDefinition object name in Multus
+    #  The selector keys are required to be `public` and `cluster`.
+    #  Based on the configuration, the operator will do the following:
+    #    1. if only the `public` selector key is specified both public_network and cluster_network Ceph settings will listen on that interface
+    #    2. if both `public` and `cluster` selector keys are specified the first one will point to 'public_network' flag and the second one to 'cluster_network'
+    #
+    #  In order to work, each selector value must match a NetworkAttachmentDefinition object in Multus
+    #
+    #  public: public-conf --> NetworkAttachmentDefinition object name in Multus
+    #  cluster: cluster-conf --> NetworkAttachmentDefinition object name in Multus
     # Provide internet protocol version. IPv6, IPv4 or empty string are valid options. Empty string would mean IPv4
     #ipFamily: "IPv6"
     # Ceph daemons to listen on both IPv4 and Ipv6 networks
     #dualStack: false
+    # Enable multiClusterService to export the mon and OSD services to peer cluster.
+    # This is useful to support RBD mirroring between two clusters having overlapping CIDRs.
+    # Ensure that peer clusters are connected using an MCS API compatible application, like Globalnet Submariner.
+    #multiClusterService:
+    #  enabled: false
+
   # enable the crash collector for ceph daemon crash collection
   crashCollector:
     disable: false
@@ -113,9 +130,10 @@ spec:
     # specified number of days.
     #daysToRetain: 30
   # enable log collector, daemons will log on files and rotate
-  # logCollector:
-  #   enabled: true
-  #   periodicity: 24h # SUFFIX may be 'h' for hours or 'd' for days.
+  logCollector:
+    enabled: true
+    periodicity: daily # one of: hourly, daily, weekly, monthly
+    maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
   # automate [data cleanup process](https://github.com/rook/rook/blob/master/Documentation/Storage-Configuration/ceph-teardown.md#delete-the-data-on-hosts) in cluster destruction.
   cleanupPolicy:
     # Since cluster cleanup is destructive to data, confirmation is required.
@@ -143,76 +161,77 @@ spec:
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage-node' and
   # tolerate taints with a key of 'storage-node'.
-#  placement:
-#    all:
-#      nodeAffinity:
-#        requiredDuringSchedulingIgnoredDuringExecution:
-#          nodeSelectorTerms:
-#          - matchExpressions:
-#            - key: role
-#              operator: In
-#              values:
-#              - storage-node
-#      podAffinity:
-#      podAntiAffinity:
-#      topologySpreadConstraints:
-#      tolerations:
-#      - key: storage-node
-#        operator: Exists
-# The above placement information can also be specified for mon, osd, and mgr components
-#    mon:
-# Monitor deployments may contain an anti-affinity rule for avoiding monitor
-# collocation on the same node. This is a required rule when host network is used
-# or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
-# preferred rule with weight: 50.
-#    osd:
-#    prepareosd:
-#    mgr:
-#    cleanup:
+  # placement:
+  #   all:
+  #     nodeAffinity:
+  #       requiredDuringSchedulingIgnoredDuringExecution:
+  #         nodeSelectorTerms:
+  #         - matchExpressions:
+  #           - key: role
+  #             operator: In
+  #             values:
+  #             - storage-node
+  #     podAffinity:
+  #     podAntiAffinity:
+  #     topologySpreadConstraints:
+  #     tolerations:
+  #     - key: storage-node
+  #       operator: Exists
+  # The above placement information can also be specified for mon, osd, and mgr components
+  #   mon:
+  # Monitor deployments may contain an anti-affinity rule for avoiding monitor
+  # collocation on the same node. This is a required rule when host network is used
+  # or when AllowMultiplePerNode is false. Otherwise this anti-affinity rule is a
+  # preferred rule with weight: 50.
+  #   osd:
+  #    prepareosd:
+  #    mgr:
+  #    cleanup:
   annotations:
-#    all:
-#    mon:
-#    osd:
-#    cleanup:
-#    prepareosd:
-# clusterMetadata annotations will be applied to only `rook-ceph-mon-endpoints` configmap and the `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets.
-# And clusterMetadata annotations will not be merged with `all` annotations.
-#    clusterMetadata:
-#       kubed.appscode.com/sync: "true"
-# If no mgr annotations are set, prometheus scrape annotations will be set by default.
-#    mgr:
+  #   all:
+  #   mon:
+  #   osd:
+  #   cleanup:
+  #   prepareosd:
+  # clusterMetadata annotations will be applied to only `rook-ceph-mon-endpoints` configmap and the `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets.
+  # And clusterMetadata annotations will not be merged with `all` annotations.
+  #    clusterMetadata:
+  #       kubed.appscode.com/sync: "true"
+  # If no mgr annotations are set, prometheus scrape annotations will be set by default.
+  #   mgr:
   labels:
-#    all:
-#    mon:
-#    osd:
-#    cleanup:
-#    mgr:
-#    prepareosd:
-# monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
-# These labels can be passed as LabelSelector to Prometheus
-#    monitoring:
-#    crashcollector:
+  #   all:
+  #   mon:
+  #   osd:
+  #   cleanup:
+  #   mgr:
+  #   prepareosd:
+  # monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
+  # These labels can be passed as LabelSelector to Prometheus
+  #   monitoring:
+  #   crashcollector:
   resources:
-# The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
-#    mgr:
-#      limits:
-#        cpu: "500m"
-#        memory: "1024Mi"
-#      requests:
-#        cpu: "500m"
-#        memory: "1024Mi"
-# The above example requests/limits can also be added to the other components
-#    mon:
-#    osd:
-# For OSD it also is a possible to specify requests/limits based on device class
-#    osd-hdd:
-#    osd-ssd:
-#    osd-nvme:
-#    prepareosd:
-#    mgr-sidecar:
-#    crashcollector:
-#    logcollector:
-#    cleanup:
+  #The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
+  #   mgr:
+  #     limits:
+  #       cpu: "500m"
+  #       memory: "1024Mi"
+  #     requests:
+  #       cpu: "500m"
+  #       memory: "1024Mi"
+  # The above example requests/limits can also be added to the other components
+  #   mon:
+  #   osd:
+  # For OSD it also is a possible to specify requests/limits based on device class
+  #   osd-hdd:
+  #   osd-ssd:
+  #   osd-nvme:
+  #   prepareosd:
+  #   mgr-sidecar:
+  #   crashcollector:
+  #   logcollector:
+  #   cleanup:
+  #   exporter:
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
   priorityClassNames:
@@ -229,11 +248,10 @@ spec:
       # crushRoot: "custom-root" # specify a non-default root label for the CRUSH map
       # metadataDevice: "md0" # specify a non-rotational storage so ceph-volume will use it as block db device of bluestore.
       # databaseSizeMB: "1024" # uncomment if the disks are smaller than 100 GB
-      # journalSizeMB: "1024"  # uncomment if the disks are 20 GB or smaller
       # osdsPerDevice: "1" # this value can be overridden at the node or device level
       # encryptedDevice: "true" # the default value for this option is "false"
-# Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
-# nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
+    # Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
+    # nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
     # nodes:
     #   - name: "172.17.4.201"
     #     devices: # specific devices to use for storage can be specified for each node
@@ -247,6 +265,8 @@ spec:
     #     deviceFilter: "^sd."
     # when onlyApplyOSDPlacement is false, will merge both placement.All() and placement.osd
     onlyApplyOSDPlacement: false
+    # Time for which an OSD pod will sleep before restarting, if it stopped due to flapping
+    # flappingRestartIntervalHours: 24
   # The section for configuring management of daemon disruptions during upgrade or fencing.
   disruptionManagement:
     # If true, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically
@@ -260,11 +280,22 @@ spec:
     # Operator will continue with the next drain if the timeout exceeds. It only works if `managePodBudgets` is `true`.
     # No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
     pgHealthCheckTimeout: 0
-    # If true, the operator will create and manage MachineDisruptionBudgets to ensure OSDs are only fenced when the cluster is healthy.
-    # Only available on OpenShift.
-    manageMachineDisruptionBudgets: false
-    # Namespace in which to watch for the MachineDisruptionBudgets.
-    machineDisruptionBudgetNamespace: openshift-machine-api
+
+  # csi defines CSI Driver settings applied per cluster.
+  csi:
+    readAffinity:
+      # Enable read affinity to enable clients to optimize reads from an OSD in the same topology.
+      # Enabling the read affinity may cause the OSDs to consume some extra memory.
+      # For more details see this doc:
+      # https://rook.io/docs/rook/latest/Storage-Configuration/Ceph-CSI/ceph-csi-drivers/#enable-read-affinity-for-rbd-volumes
+      enabled: false
+
+    # cephfs driver specific settings.
+    cephfs:
+      # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options.
+      # kernelMountOptions: ""
+      # Set CephFS Fuse mount options to use https://docs.ceph.com/en/quincy/man/8/ceph-fuse/#options.
+      # fuseMountOptions: ""
 
   # healthChecks
   # Valid values for daemons are 'mon', 'osd', 'status'

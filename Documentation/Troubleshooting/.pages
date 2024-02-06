@@ -1,4 +1,5 @@
 nav:
+    - kubectl-plugin.md
     - ceph-toolbox.md
     - common-issues.md
     - ceph-common-issues.md

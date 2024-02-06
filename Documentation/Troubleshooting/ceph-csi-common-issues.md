@@ -230,11 +230,11 @@ If any issue exists in the snapshot Create/Delete operation you can check the lo
 kubectl -n rook-ceph logs deploy/csi-rbdplugin-provisioner -c csi-snapshotter
 ```
 
-If you see an error such as:
+If you see an error about a volume already existing such as:
 
 ```console
 GRPC error: rpc error: code = Aborted desc = an operation with the given Volume ID
-0001-0009-rook-ceph-0000000000000001-8d0ba728-0e17-11eb-a680-ce6eecc894de already >exists.
+0001-0009-rook-ceph-0000000000000001-8d0ba728-0e17-11eb-a680-ce6eecc894de already exists.
 ```
 
 The issue typically is in the Ceph cluster or network connectivity. If the issue is
@@ -301,7 +301,7 @@ The external-attacher is a sidecar container that attaches volumes to nodes by c
 running in Kubernetes controller-manager does not have any direct interfaces to CSI drivers. More details can
 be found [here](https://github.com/kubernetes-csi/external-attacher).
 
-If any issue exists in attaching the PVC to the application pod first check the volumettachment object created
+If any issue exists in attaching the PVC to the application pod first check the volumeattachment object created
 and also log from csi-attacher sidecar container in provisioner pod.
 
 ```console
@@ -413,7 +413,8 @@ Where `-m` is one of the mon endpoints and the `--key` is the key used by the CS
 
 When a node is lost, you will see application pods on the node stuck in the `Terminating` state while another pod is rescheduled and is in the `ContainerCreating` state.
 
-To allow the application pod to start on another node, force delete the pod.
+!!! important
+    For clusters with Kubernetes version 1.26 or greater, see the [improved automation](../Storage-Configuration/Block-Storage-RBD/block-storage.md#recover-rbd-rwo-volume-in-case-of-node-loss) to recover from the node loss. If using K8s 1.25 or older, continue with these instructions.
 
 ### Force deleting the pod
 
@@ -429,18 +430,9 @@ After the force delete, wait for a timeout of about 8-10 minutes. If the pod sti
 
 To shorten the timeout, you can mark the node as "blocklisted" from the [Rook toolbox](ceph-toolbox.md) so Rook can safely failover the pod sooner.
 
-If the Ceph version is at least Pacific(v16.2.x), run the following command:
-
 ```console
 $ ceph osd blocklist add <NODE_IP> # get the node IP you want to blocklist
 blocklisting <NODE_IP>
-```
-
-If the Ceph version is Octopus(v15.2.x) or older, run the following command:
-
-```console
-$ ceph osd blacklist add <NODE_IP> # get the node IP you want to blacklist
-blacklisting <NODE_IP>
 ```
 
 After running the above command within a few minutes the pod will be running.
@@ -449,16 +441,7 @@ After running the above command within a few minutes the pod will be running.
 
 After you are absolutely sure the node is permanently offline and that the node no longer needs to be blocklisted, remove the node from the blocklist.
 
-If the Ceph version is at least Pacific(v16.2.x), run:
-
 ```console
 $ ceph osd blocklist rm <NODE_IP>
 un-blocklisting <NODE_IP>
-```
-
-If the Ceph version is Octopus(v15.2.x) or older, run:
-
-```console
-$ ceph osd blacklist rm <NODE_IP> # get the node IP you want to blacklist
-un-blacklisting <NODE_IP>
 ```

@@ -20,18 +20,44 @@ configuration options which users are well advised to consider for any productio
 
 ### Default PG and PGP counts
 
-The number of PGs and PGPs can be configured on a per-pool basis, but it is highly advised to set
-default values that are appropriate for your Ceph cluster. Appropriate values depend on the number
-of OSDs the user expects to have backing each pool. The Ceph [OSD and Pool config
+The number of PGs and PGPs can be configured on a per-pool basis, but it is
+advised to set default values that are appropriate for your Ceph
+cluster.
+Appropriate values depend on the number of OSDs the user expects to have
+backing each pool. These can be configured by declaring pg_num and pgp_num
+parameters under CephBlockPool resource.
+
+For determining the right value for pg_num please refer [placement group
+sizing](ceph-configuration.md#placement-group-sizing)
+
+In this example configuration, 128 PGs are applied to the pool:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: ceph-block-pool-test
+  namespace: rook-ceph
+spec:
+  deviceClass: hdd
+  replicated:
+    size: 3
+spec:
+  parameters:
+    pg_num: '128' # create the pool with a pre-configured placement group number
+    pgp_num: '128' # this should at least match `pg_num` so that all PGs are used
+```
+
+ Ceph [OSD and Pool config
 docs](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#a-preselection-of-pg-num)
-provide detailed information about how to tune these parameters: `osd_pool_default_pg_num` and `osd_pool_default_pgp_num`.
+provide detailed information about how to tune these parameters.
 
 Nautilus [introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)
 capable of automatically managing PG and PGP values for pools. Please see
 [Ceph New in Nautilus: PG merging and autotuning](https://ceph.io/rados/new-in-nautilus-pg-merging-and-autotuning/)
 for more information about this module.
 
-In Octopus (v15.2.x) and newer, module `pg_autoscaler` is enabled by default without the above-mentioned setting.
+The `pg_autoscaler` module is enabled by default.
 
 To disable this module, in the [CephCluster CR](../../CRDs/Cluster/ceph-cluster-crd.md#mgr-settings):
 
@@ -48,15 +74,12 @@ the autoscaler enabled for all new pools, you will need to use the Rook toolbox 
 and [enable the autoscaling](https://docs.ceph.com/docs/master/rados/operations/placement-groups/)
 on individual pools.
 
-The autoscaler is not enabled for the existing pools after enabling the module. So if you want to
-enable the autoscaling for these existing pools, they must be configured from the toolbox.
-
 ## Specifying configuration options
 
 ### Toolbox + Ceph CLI
 
 The most recommended way of configuring Ceph is to set Ceph's configuration directly. The first
-method for doing so is to use Ceph's CLI from the Rook-Ceph toolbox pod. Using the toolbox pod is
+method for doing so is to use Ceph's CLI from the Rook toolbox pod. Using the toolbox pod is
 detailed [here](../../Troubleshooting/ceph-toolbox.md). From the toolbox, the user can change Ceph configurations, enable
 manager modules, create users and pools, and much more.
 

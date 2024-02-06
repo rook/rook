@@ -17,10 +17,12 @@ limitations under the License.
 package object
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
 	"path"
-	"reflect"
 	"strings"
+	"text/template"
 
 	"github.com/hashicorp/vault/api"
 	"github.com/libopenstorage/secrets/vault"
@@ -38,42 +40,74 @@ import (
 )
 
 const (
-	readinessProbePath = "/swift/healthcheck"
 	serviceAccountName = "rook-ceph-rgw"
+	sseKMS             = "ssekms"
+	sseS3              = "sses3"
+	vaultPrefix        = "/v1/"
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
 
 VAULT_TOKEN_OLD_PATH=%s
 VAULT_TOKEN_NEW_PATH=%s
-
-cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/..data/. $VAULT_TOKEN_NEW_PATH
-
-chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/*
+if [ -d $VAULT_TOKEN_OLD_PATH/ssekms ]
+then
+cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/ssekms/..data/. $VAULT_TOKEN_NEW_PATH/ssekms
+chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/ssekms/*
+chmod --verbose 700 $VAULT_TOKEN_NEW_PATH/ssekms
+fi
+if [ -d $VAULT_TOKEN_OLD_PATH/sses3 ]
+then
+cp --recursive --verbose $VAULT_TOKEN_OLD_PATH/sses3/..data/. $VAULT_TOKEN_NEW_PATH/sses3
+chmod --recursive --verbose 400 $VAULT_TOKEN_NEW_PATH/sses3/*
+chmod --verbose 700 $VAULT_TOKEN_NEW_PATH/sses3
+fi
 chmod --verbose 700 $VAULT_TOKEN_NEW_PATH
 chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 `
 )
+
+var (
+	cephVersionMinRGWSSES3     = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
+	cephVersionMinRGWSSEKMSTLS = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+
+	//go:embed rgw-probe.sh
+	rgwProbeScriptTemplate string
+)
+
+type ProbeType string
+type ProtocolType string
+
+const (
+	StartupProbeType   ProbeType = "startup"
+	ReadinessProbeType ProbeType = "readiness"
+
+	HTTPProtocol  ProtocolType = "HTTP"
+	HTTPSProtocol ProtocolType = "HTTPS"
+)
+
+type rgwProbeConfig struct {
+	ProbeType ProbeType
+
+	Protocol ProtocolType
+	Port     string
+}
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
 	pod, err := c.makeRGWPodSpec(rgwConfig)
 	if err != nil {
 		return nil, err
 	}
-	replicas := int32(1)
 	strategy := apps.DeploymentStrategy{
 		Type: apps.RecreateDeploymentStrategyType,
 	}
-	if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-		// On Pacific, we can use the same keyring and have dedicated rgw instances reflected in the service map
-		replicas = c.store.Spec.Gateway.Instances
+	// Use the same keyring and have dedicated rgw instances reflected in the service map
+	replicas := c.store.Spec.Gateway.Instances
 
-		// On Pacific, rgw gateway deployments rolling update
-		strategy.Type = apps.RollingUpdateDeploymentStrategyType
-		strategy.RollingUpdate = &apps.RollingUpdateDeployment{
-			MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
-			MaxSurge:       &intstr.IntOrString{IntVal: int32(0)},
-		}
+	strategy.Type = apps.RollingUpdateDeploymentStrategyType
+	strategy.RollingUpdate = &apps.RollingUpdateDeployment{
+		MaxUnavailable: &intstr.IntOrString{IntVal: int32(1)},
+		MaxSurge:       &intstr.IntOrString{IntVal: int32(0)},
 	}
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -99,10 +133,12 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 }
 
 func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec, error) {
-	rgwDaemonContainer := c.makeDaemonContainer(rgwConfig)
-	if reflect.DeepEqual(rgwDaemonContainer, v1.Container{}) {
-		return v1.PodTemplateSpec{}, errors.New("got empty container for RGW daemon")
+	rgwDaemonContainer, err := c.makeDaemonContainer(rgwConfig)
+	if err != nil {
+		return v1.PodTemplateSpec{}, err
 	}
+
+	hostNetwork := c.store.Spec.IsHostNetwork(c.clusterSpec)
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			c.makeChownInitContainer(rgwConfig),
@@ -110,10 +146,10 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		Containers:    []v1.Container{rgwDaemonContainer},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: append(
-			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName),
+			controller.DaemonVolumes(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolume(),
 		),
-		HostNetwork:        c.clusterSpec.Network.IsHost(),
+		HostNetwork:        hostNetwork,
 		PriorityClassName:  c.store.Spec.Gateway.PriorityClassName,
 		ServiceAccountName: serviceAccountName,
 	}
@@ -166,27 +202,38 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	if err != nil {
 		return v1.PodTemplateSpec{}, err
 	}
-	if kmsEnabled {
-		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-			vaultFileVol, _ := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
-				c.store.Spec.Security.KeyManagementService.TokenSecretName)
-			tmpvolume := v1.Volume{
-				Name: rgwVaultVolumeName,
-				VolumeSource: v1.VolumeSource{
-					EmptyDir: &v1.EmptyDirVolumeSource{},
-				},
-			}
-
-			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol, tmpvolume)
-			podSpec.InitContainers = append(podSpec.InitContainers,
-				c.vaultTokenInitContainer(rgwConfig))
+	s3Enabled, err := c.CheckRGWSSES3Enabled()
+	if err != nil {
+		return v1.PodTemplateSpec{}, err
+	}
+	if kmsEnabled || s3Enabled {
+		v := v1.Volume{
+			Name: rgwVaultVolumeName,
+			VolumeSource: v1.VolumeSource{
+				EmptyDir: &v1.EmptyDirVolumeSource{},
+			},
 		}
+		podSpec.Volumes = append(podSpec.Volumes, v)
+
+		if kmsEnabled && c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
+			vaultFileVol, _ := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.KeyManagementService.ConnectionDetails,
+				c.store.Spec.Security.KeyManagementService.TokenSecretName, sseKMS)
+			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol)
+		}
+		if s3Enabled && c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
+			vaultFileVol, _ := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails,
+				c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName, sseS3)
+			podSpec.Volumes = append(podSpec.Volumes, vaultFileVol)
+		}
+
+		podSpec.InitContainers = append(podSpec.InitContainers,
+			c.vaultTokenInitContainer(rgwConfig, kmsEnabled, s3Enabled))
 	}
 	c.store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
 	// If host networking is not enabled, preferred pod anti-affinity is added to the rgw daemons
 	labels := getLabels(c.store.Name, c.store.Namespace, false)
-	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.clusterSpec.Network.IsHost(), v1.LabelHostname, labels, nil)
+	k8sutil.SetNodeAntiAffinityForPod(&podSpec, c.store.Spec.IsHostNetwork(c.clusterSpec), v1.LabelHostname, labels, nil)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -198,10 +245,10 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	c.store.Spec.Gateway.Annotations.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 	c.store.Spec.Gateway.Labels.ApplyToObjectMeta(&podTemplateSpec.ObjectMeta)
 
-	if c.clusterSpec.Network.IsHost() {
+	if hostNetwork {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.clusterSpec.Network.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.clusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
+		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.clusterSpec.Network, &podTemplateSpec.ObjectMeta); err != nil {
 			return podTemplateSpec, err
 		}
 	}
@@ -211,7 +258,7 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 
 func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) v1.Container {
 	caBundleMount := v1.VolumeMount{Name: caBundleVolumeName, MountPath: caBundleSourceCustomDir, ReadOnly: true}
-	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), caBundleMount)
+	volumeMounts := append(controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), caBundleMount)
 	updatedCaBundleDir := "/tmp/new-ca-bundle/"
 	updatedBundleMount := v1.VolumeMount{Name: caBundleUpdatedVolumeName, MountPath: updatedCaBundleDir, ReadOnly: false}
 	volumeMounts = append(volumeMounts, updatedBundleMount)
@@ -223,6 +270,7 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 			fmt.Sprintf("/usr/bin/update-ca-trust extract; cp -rf %s/* %s", caBundleExtractedDir, updatedCaBundleDir),
 		},
 		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts:    volumeMounts,
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.PodSecurityContext(),
@@ -236,9 +284,19 @@ func (c *clusterConfig) createCaBundleUpdateInitContainer(rgwConfig *rgwConfig) 
 // predefined value, so it won't work there. Hence the token file and certs (if present)
 // are copied to other volume from mounted secrets then ownership/permissions are changed
 // accordingly with help of an init container.
-func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Container {
-	_, srcVaultVolMount := kms.VaultVolumeAndMount(c.store.Spec.Security.KeyManagementService.ConnectionDetails, "")
+func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig, kmsEnabled, s3Enabled bool) v1.Container {
+	var vaultVolMounts []v1.VolumeMount
+
 	tmpVaultMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
+	vaultVolMounts = append(vaultVolMounts, tmpVaultMount)
+	if kmsEnabled {
+		_, ssekmsVaultVolMount := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.KeyManagementService.ConnectionDetails, "", sseKMS)
+		vaultVolMounts = append(vaultVolMounts, ssekmsVaultVolMount)
+	}
+	if s3Enabled {
+		_, sses3VaultVolMount := kms.VaultVolumeAndMountWithCustomName(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, "", sseS3)
+		vaultVolMounts = append(vaultVolMounts, sses3VaultVolMount)
+	}
 	return v1.Container{
 		Name: "vault-initcontainer-token-file-setup",
 		Command: []string{
@@ -247,9 +305,10 @@ func (c *clusterConfig) vaultTokenInitContainer(rgwConfig *rgwConfig) v1.Contain
 			fmt.Sprintf(setupVaultTokenFile,
 				kms.EtcVaultDir, rgwVaultDirName),
 		},
-		Image: c.clusterSpec.CephVersion.Image,
+		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName), srcVaultVolMount, tmpVaultMount),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath), vaultVolMounts...),
 		Resources:       c.store.Spec.Gateway.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 	}
@@ -259,17 +318,29 @@ func (c *clusterConfig) makeChownInitContainer(rgwConfig *rgwConfig) v1.Containe
 	return controller.ChownCephDataDirsInitContainer(
 		*c.DataPathMap,
 		c.clusterSpec.CephVersion.Image,
-		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+		controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
+		controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 		c.store.Spec.Gateway.Resources,
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
-func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
+func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container, error) {
 	// start the rgw daemon in the foreground
+	startupProbe, err := c.defaultStartupProbe()
+	if err != nil {
+		return v1.Container{}, errors.Wrap(err, "failed to generate default startup probe")
+	}
+	readinessProbe, err := c.defaultReadinessProbe()
+	if err != nil {
+		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
+	}
+
 	container := v1.Container{
-		Name:  "rgw",
-		Image: c.clusterSpec.CephVersion.Image,
+		Name:            "rgw",
+		Image:           c.clusterSpec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.clusterSpec.CephVersion.ImagePullPolicy),
 		Command: []string{
 			"radosgw",
 		},
@@ -285,22 +356,20 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 			cephconfig.NewFlag("rgw zone", rgwConfig.Zone),
 		),
 		VolumeMounts: append(
-			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName),
+			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             controller.DaemonEnvVars(c.clusterSpec.CephVersion.Image),
+		Env:             controller.DaemonEnvVars(c.clusterSpec),
 		Resources:       c.store.Spec.Gateway.Resources,
-		StartupProbe:    c.defaultStartupProbe(),
-		LivenessProbe:   c.defaultLivenessProbe(),
-		ReadinessProbe:  c.defaultReadinessProbe(),
+		StartupProbe:    startupProbe,
+		LivenessProbe:   noLivenessProbe(),
+		ReadinessProbe:  readinessProbe,
 		SecurityContext: controller.PodSecurityContext(),
 		WorkingDir:      cephconfig.VarLogCephDir,
 	}
 
 	// If the startup probe is enabled
 	container = cephconfig.ConfigureStartupProbe(container, c.store.Spec.HealthCheck.StartupProbe)
-	// If the liveness probe is enabled
-	container = cephconfig.ConfigureLivenessProbe(container, c.store.Spec.HealthCheck.LivenessProbe)
 	// If the readiness probe is enabled
 	configureReadinessProbe(&container, c.store.Spec.HealthCheck)
 	if c.store.Spec.IsTLSEnabled() {
@@ -314,51 +383,46 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) v1.Container {
 	}
 	kmsEnabled, err := c.CheckRGWKMS()
 	if err != nil {
-		logger.Errorf("failed to enable KMS. %v", err)
-		return v1.Container{}
+		logger.Errorf("failed to enable SSE-KMS. %v", err)
+		return v1.Container{}, err
 	}
 	if kmsEnabled {
-		container.Args = append(container.Args,
-			cephconfig.NewFlag("rgw crypt s3 kms backend",
-				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
-			cephconfig.NewFlag("rgw crypt vault addr",
-				c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
-		)
+		logger.Debugf("enabliing SSE-KMS. %v", c.store.Spec.Security.KeyManagementService)
+		container.Args = append(container.Args, c.sseKMSDefaultOptions(kmsEnabled)...)
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
-			container.Args = append(container.Args,
-				cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
-				cephconfig.NewFlag("rgw crypt vault token file",
-					path.Join(rgwVaultDirName, kms.VaultFileName)),
-				cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
-				cephconfig.NewFlag("rgw crypt vault secret engine",
-					c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
-			)
+			container.Args = append(container.Args, c.sseKMSVaultTokenOptions(kmsEnabled)...)
 		}
 		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() &&
-			c.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}) {
-			container.Args = append(container.Args,
-				cephconfig.NewFlag("rgw crypt vault verify ssl", "true"))
-			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientCert) != "" {
-				container.Args = append(container.Args,
-					cephconfig.NewFlag("rgw crypt vault ssl clientcert", path.Join(rgwVaultDirName, kms.VaultCertFileName)))
-			}
-			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientKey) != "" {
-				container.Args = append(container.Args,
-					cephconfig.NewFlag("rgw crypt vault ssl clientkey", path.Join(rgwVaultDirName, kms.VaultKeyFileName)))
-			}
-			if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultCACert) != "" {
-				container.Args = append(container.Args,
-					cephconfig.NewFlag("rgw crypt vault ssl cacert", path.Join(rgwVaultDirName, kms.VaultCAFileName)))
-			}
+			c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSEKMSTLS) {
+			container.Args = append(container.Args, c.sseKMSVaultTLSOptions(kmsEnabled)...)
 		}
+	}
+
+	s3Enabled, err := c.CheckRGWSSES3Enabled()
+	if err != nil {
+		return v1.Container{}, err
+	}
+	if s3Enabled {
+		logger.Debugf("enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
+
+		container.Args = append(container.Args, c.sseS3DefaultOptions(s3Enabled)...)
+		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
+			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3Enabled)...)
+		}
+		if c.store.Spec.Security.ServerSideEncryptionS3.IsTLSEnabled() {
+			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3Enabled)...)
+		}
+	}
+
+	if s3Enabled || kmsEnabled {
 		vaultVolMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
 		container.VolumeMounts = append(container.VolumeMounts, vaultVolMount)
 	}
-	return container
+	return container, nil
 }
 
 // configureReadinessProbe returns the desired readiness probe for a given daemon
-func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketHealthCheckSpec) {
+func configureReadinessProbe(container *v1.Container, healthCheck cephv1.ObjectHealthCheckSpec) {
 	if ok := healthCheck.ReadinessProbe; ok != nil {
 		if !healthCheck.ReadinessProbe.Disabled {
 			probe := healthCheck.ReadinessProbe.Probe
@@ -373,64 +437,97 @@ func configureReadinessProbe(container *v1.Container, healthCheck cephv1.BucketH
 	}
 }
 
-func (c *clusterConfig) defaultLivenessProbe() *v1.Probe {
-	return &v1.Probe{
+// RGW has internal mechanisms for restarting its processing if it gets stuck. any failures detected
+// in a liveness probe are likely to either (1) be resolved by the RGW internally or (2) be a result
+// of connection issues to the Ceph cluster. in the first case, restarting is unnecessary. in the
+// second case, restarting will only cause more load to the Ceph cluster by causing RGWs to attempt
+// to re-connect, potentially causing more issues with the Ceph cluster. forcing a restart of the
+// RGW is more likely to cause issues than solve them, so do not implement this probe.
+func noLivenessProbe() *v1.Probe {
+	return nil
+}
+
+func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
+	proto, port := c.endpointInfo()
+	cfg := rgwProbeConfig{
+		ProbeType: ReadinessProbeType,
+		Protocol:  proto,
+		Port:      port.String(),
+	}
+	script, err := renderProbe(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	probe := &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
-			TCPSocket: &v1.TCPSocketAction{
-				Port: c.generateProbePort(),
+			Exec: &v1.ExecAction{
+				Command: []string{
+					"bash", "-c", script,
+				},
 			},
 		},
+		TimeoutSeconds:      5,
 		InitialDelaySeconds: 10,
+		// if RGWs aren't responding reliably, remove them from service routing until they are stable
+		PeriodSeconds:    10,
+		FailureThreshold: 3,
+		SuccessThreshold: 3, // don't re-add too soon to "flappy" RGWs from being rout-able
 	}
+
+	return probe, nil
 }
 
-func (c *clusterConfig) defaultReadinessProbe() *v1.Probe {
-	return &v1.Probe{
+func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
+	proto, port := c.endpointInfo()
+	cfg := rgwProbeConfig{
+		ProbeType: StartupProbeType,
+		Protocol:  proto,
+		Port:      port.String(),
+	}
+	script, err := renderProbe(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	probe := &v1.Probe{
 		ProbeHandler: v1.ProbeHandler{
-			HTTPGet: &v1.HTTPGetAction{
-				Path:   readinessProbePath,
-				Port:   c.generateProbePort(),
-				Scheme: c.generateReadinessProbeScheme(),
+			Exec: &v1.ExecAction{
+				Command: []string{
+					"bash", "-c", script,
+				},
 			},
 		},
+		TimeoutSeconds:      5,
 		InitialDelaySeconds: 10,
-	}
-}
-
-func (c *clusterConfig) defaultStartupProbe() *v1.Probe {
-	probe := c.defaultLivenessProbe()
-	probe.PeriodSeconds = 10
-	probe.FailureThreshold = 18
-	return probe
-}
-
-func (c *clusterConfig) generateReadinessProbeScheme() v1.URIScheme {
-	// Default to HTTP
-	uriScheme := v1.URISchemeHTTP
-
-	// If rgw is configured to use a secured port we need get on https://
-	// Only do this when the Non-SSL port is not used
-	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.IsTLSEnabled() {
-		uriScheme = v1.URISchemeHTTPS
+		// RGW's default init timeout is 300 seconds; give an extra margin before the pod should be
+		// restarted by kubernetes
+		PeriodSeconds:    10,
+		FailureThreshold: 33,
 	}
 
-	return uriScheme
+	return probe, nil
 }
 
-func (c *clusterConfig) generateProbePort() intstr.IntOrString {
+func (c *clusterConfig) endpointInfo() (ProtocolType, *intstr.IntOrString) {
 	// The port the liveness probe needs to probe
 	// Assume we run on SDN by default
+	proto := HTTPProtocol
 	port := intstr.FromInt(int(rgwPortInternalPort))
 
 	// If Host Networking is enabled, the port from the spec must be reflected
-	if c.clusterSpec.Network.IsHost() {
+	if c.store.Spec.IsHostNetwork(c.clusterSpec) {
+		proto = HTTPProtocol
 		port = intstr.FromInt(int(c.store.Spec.Gateway.Port))
 	}
 
 	if c.store.Spec.Gateway.Port == 0 && c.store.Spec.IsTLSEnabled() {
+		proto = HTTPSProtocol
 		port = intstr.FromInt(int(c.store.Spec.Gateway.SecurePort))
 	}
-	return port
+
+	logger.Debugf("rgw %q probe port is %v", c.store.Namespace+"/"+c.store.Name, port)
+	return proto, &port
 }
 
 func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore) *v1.Service {
@@ -445,11 +542,11 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 	if c.store.Spec.Gateway.Service != nil {
 		c.store.Spec.Gateway.Service.Annotations.ApplyToObjectMeta(&svc.ObjectMeta)
 	}
-	if c.clusterSpec.Network.IsHost() {
+	if c.store.Spec.IsHostNetwork(c.clusterSpec) {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	destPort := c.generateProbePort()
+	_, destPort := c.endpointInfo()
 
 	// When the cluster is external we must use the same one as the gateways are listening on
 	if cephObjectStore.Spec.IsExternal() {
@@ -470,6 +567,15 @@ func (c *clusterConfig) generateService(cephObjectStore *cephv1.CephObjectStore)
 func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore) *v1.Endpoints {
 	labels := getLabels(cephObjectStore.Name, cephObjectStore.Namespace, true)
 
+	k8sEndpointAddrs := []v1.EndpointAddress{}
+	for _, rookEndpoint := range cephObjectStore.Spec.Gateway.ExternalRgwEndpoints {
+		k8sEndpointAddr := v1.EndpointAddress{
+			IP:       rookEndpoint.IP,
+			Hostname: rookEndpoint.Hostname,
+		}
+		k8sEndpointAddrs = append(k8sEndpointAddrs, k8sEndpointAddr)
+	}
+
 	endpoints := &v1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      instanceName(cephObjectStore.Name),
@@ -478,7 +584,7 @@ func (c *clusterConfig) generateEndpoint(cephObjectStore *cephv1.CephObjectStore
 		},
 		Subsets: []v1.EndpointSubset{
 			{
-				Addresses: cephObjectStore.Spec.Gateway.ExternalRgwEndpoints,
+				Addresses: k8sEndpointAddrs,
 			},
 		},
 	}
@@ -507,38 +613,33 @@ func (c *clusterConfig) reconcileExternalEndpoint(cephObjectStore *cephv1.CephOb
 	return nil
 }
 
-func (c *clusterConfig) reconcileService(cephObjectStore *cephv1.CephObjectStore) (string, error) {
-	service := c.generateService(cephObjectStore)
+func (c *clusterConfig) reconcileService(store *cephv1.CephObjectStore) error {
+	service := c.generateService(store)
 	// Set owner ref to the parent object
 	err := c.ownerInfo.SetControllerReference(service)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to set owner reference to ceph object store service %q", service.Name)
+		return errors.Wrapf(err, "failed to set owner reference to ceph object store service %q", service.Name)
 	}
 
-	svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, cephObjectStore.Namespace, service)
+	svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, store.Namespace, service)
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to create or update object store %q service", cephObjectStore.Name)
+		return errors.Wrapf(err, "failed to create or update object store %q service", store.Name)
 	}
 
 	logger.Infof("ceph object store gateway service running at %s", svc.Spec.ClusterIP)
 
-	return svc.Spec.ClusterIP, nil
+	return nil
 }
 
 func (c *clusterConfig) vaultPrefixRGW() string {
 	secretEngine := c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
-	vaultPrefixPath := "/v1/"
-
+	var vaultPrefixPath string
 	switch secretEngine {
 	case kms.VaultKVSecretEngineKey:
-		vaultPrefixPath = path.Join(vaultPrefixPath,
+		vaultPrefixPath = path.Join(vaultPrefix,
 			c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendPathKey], "/data")
 	case kms.VaultTransitSecretEngineKey:
-		if c.clusterInfo.CephVersion.IsAtLeastPacific() {
-			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine)
-		} else {
-			vaultPrefixPath = path.Join(vaultPrefixPath, secretEngine, "/export/encryption-key")
-		}
+		vaultPrefixPath = path.Join(vaultPrefix, secretEngine)
 	}
 
 	return vaultPrefixPath
@@ -546,13 +647,13 @@ func (c *clusterConfig) vaultPrefixRGW() string {
 
 func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 	if c.store.Spec.Security != nil && c.store.Spec.Security.KeyManagementService.IsEnabled() {
-		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, c.store.Spec.Security, c.store.Namespace)
+		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, &c.store.Spec.Security.KeyManagementService, c.store.Namespace)
 		if err != nil {
 			return false, err
 		}
 		secretEngine := c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]
 
-		// currently RGW supports kv(version 2) and transit secret engines in vault
+		// currently RGW supports kv(version 2) and transit secret engines in vault for sse:kms
 		switch secretEngine {
 		case kms.VaultKVSecretEngineKey:
 			kvVers := c.store.Spec.Security.KeyManagementService.ConnectionDetails[vault.VaultBackendKey]
@@ -572,6 +673,26 @@ func (c *clusterConfig) CheckRGWKMS() (bool, error) {
 			return false, errors.New("failed to validate vault secret engine")
 
 		}
+	}
+
+	return false, nil
+}
+
+func (c *clusterConfig) CheckRGWSSES3Enabled() (bool, error) {
+	if c.store.Spec.Security != nil && c.store.Spec.Security.ServerSideEncryptionS3.IsEnabled() {
+		if !c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSES3) {
+			return false, errors.New("minimum ceph quincy is required for AWS-SSE:S3")
+		}
+		err := kms.ValidateConnectionDetails(c.clusterInfo.Context, c.context, &c.store.Spec.Security.ServerSideEncryptionS3, c.store.Namespace)
+		if err != nil {
+			return false, err
+		}
+
+		// currently RGW supports only transit secret engines in vault for sse:s3
+		if c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey] != kms.VaultTransitSecretEngineKey {
+			return false, errors.New("vault secret engine is not transit")
+		}
+		return true, nil
 	}
 
 	return false, nil
@@ -677,4 +798,117 @@ func (c *clusterConfig) rgwTLSSecretType(secretName string) (v1.SecretType, erro
 
 func getDaemonName(rgwConfig *rgwConfig) string {
 	return fmt.Sprintf("ceph-%s", generateCephXUser(rgwConfig.ResourceName))
+}
+
+// Following apis set the RGW options if requested, since they are used in unit tests for validating different scenarios
+func (c *clusterConfig) sseKMSDefaultOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt s3 kms backend",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
+			cephconfig.NewFlag("rgw crypt vault addr",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseS3DefaultOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt sse s3 backend",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.Provider]),
+			cephconfig.NewFlag("rgw crypt sse s3 vault addr",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[api.EnvVaultAddress]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseKMSVaultTokenOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
+			cephconfig.NewFlag("rgw crypt vault token file",
+				path.Join(rgwVaultDirName, sseKMS, kms.VaultFileName)),
+			cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
+			cephconfig.NewFlag("rgw crypt vault secret engine",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseS3VaultTokenOptions(setOptions bool) []string {
+	if setOptions {
+		return []string{
+			cephconfig.NewFlag("rgw crypt sse s3 vault auth", kms.KMSTokenSecretNameKey),
+			cephconfig.NewFlag("rgw crypt sse s3 vault token file",
+				path.Join(rgwVaultDirName, sseS3, kms.VaultFileName)),
+			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
+				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
+			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
+		}
+	}
+	return []string{}
+}
+
+func (c *clusterConfig) sseKMSVaultTLSOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt vault verify ssl", "true"))
+
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientCert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt vault ssl clientcert", path.Join(rgwVaultDirName, sseKMS, kms.VaultCertFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultClientKey) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt vault ssl clientkey", path.Join(rgwVaultDirName, sseKMS, kms.VaultKeyFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.KeyManagementService.ConnectionDetails, api.EnvVaultCACert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt vault ssl cacert", path.Join(rgwVaultDirName, sseKMS, kms.VaultCAFileName)))
+		}
+	}
+	return rgwOptions
+}
+
+func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt sse s3 vault verify ssl", "true"))
+
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, api.EnvVaultClientCert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt sse s3 vault ssl clientcert", path.Join(rgwVaultDirName, sseS3, kms.VaultCertFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, api.EnvVaultClientKey) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt sse s3 vault ssl clientkey", path.Join(rgwVaultDirName, sseS3, kms.VaultKeyFileName)))
+		}
+		if kms.GetParam(c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails, api.EnvVaultCACert) != "" {
+			rgwOptions = append(rgwOptions,
+				cephconfig.NewFlag("rgw crypt sse s3 vault ssl cacert", path.Join(rgwVaultDirName, sseS3, kms.VaultCAFileName)))
+		}
+	}
+	return rgwOptions
+}
+
+func renderProbe(cfg rgwProbeConfig) (string, error) {
+	var writer bytes.Buffer
+	name := string(cfg.ProbeType) + "-probe"
+
+	t := template.New(name)
+	t, err := t.Parse(rgwProbeScriptTemplate)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to parse template %q", name)
+	}
+
+	if err := t.Execute(&writer, cfg); err != nil {
+		return "", errors.Wrapf(err, "failed to render template %q", name)
+	}
+
+	return writer.String(), nil
 }

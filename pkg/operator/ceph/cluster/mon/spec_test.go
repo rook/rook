@@ -53,6 +53,7 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, "rook/rook:myversion")
 	c.spec.CephVersion = cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:myceph"}
 	c.spec.Resources = map[string]v1.ResourceRequirements{}
+	c.spec.DataDirHostPath = "/var/lib/rook"
 	c.spec.Resources["mon"] = v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU:    *resource.NewQuantity(200.0, resource.BinarySI),
@@ -140,7 +141,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	assert.NoError(t, err)
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{
 		Spec: v1.PersistentVolumeClaimSpec{
-			Resources: v1.ResourceRequirements{
+			Resources: v1.VolumeResourceRequirements{
 				Limits: v1.ResourceList{v1.ResourceStorage: req},
 			},
 		},
@@ -154,7 +155,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	assert.NoError(t, err)
 	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{
 		Spec: v1.PersistentVolumeClaimSpec{
-			Resources: v1.ResourceRequirements{
+			Resources: v1.VolumeResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceStorage: req},
 			},
 		},

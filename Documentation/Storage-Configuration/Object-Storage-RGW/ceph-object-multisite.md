@@ -23,11 +23,11 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 
 ## Creating Object Multisite
 
-If an admin wants to set up multisite on a Rook Ceph cluster, the admin should create:
+If an admin wants to set up multisite on a Rook Ceph cluster, the following resources must be created:
 
-1. A [realm](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-realm-settings)
-1. A [zonegroup](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-group-settings)
-1. A [zone](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-settings)
+1. A [realm](../../CRDs/Object-Storage/ceph-object-realm-crd.md#settings)
+1. A [zonegroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings)
+1. A [zone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings)
 1. A ceph object store with the `zone` section
 
 object-multisite.yaml in the [examples](https://github.com/rook/rook/blob/master/deploy/examples/) directory can be used to create the multisite CRDs.
@@ -44,7 +44,10 @@ The zone will create the pools for the object-store(s) that are in the zone to u
 
 When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted, neither are the pools created by the zone. See the "Multisite Cleanup" section for more information.
 
-For more information on the multisite CRDs please read [ceph-object-multisite-crd](../../CRDs/Object-Storage/ceph-object-multisite-crd.md).
+For more information on the multisite CRDs, see the related CRDs:
+- [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-realm-crd.md)
+- [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md)
+- [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md)
 
 ## Pulling a Realm
 
@@ -98,11 +101,17 @@ The access key and secret key of the system user are keys that allow other Ceph 
 
 #### Getting the Realm Access Key and Secret Key from the Rook Ceph Cluster
 
+##### System User for Multisite
+
 When an admin creates a ceph-object-realm a system user automatically gets created for the realm with an access key and a secret key.
 
-This system user has the name "$REALM_NAME-system-user". For the example realm, the uid for the system user is "realm-a-system-user".
+This system user has the name "$REALM_NAME-system-user". For the example if realm name is `realm-a`, then uid for the system user is "realm-a-system-user".
 
 These keys for the user are exported as a kubernetes [secret](https://kubernetes.io/docs/concepts/configuration/secret/) called "$REALM_NAME-keys" (ex: realm-a-keys).
+
+This system user used by RGW internally for the data replication.
+
+##### Getting keys from k8s secret
 
 To get these keys from the cluster the realm was originally created on, run:
 
@@ -166,15 +175,55 @@ kubectl create -f realm-a-keys.yaml
 
 Once the admin knows the endpoint and the secret for the keys has been created, the admin should create:
 
-1. A [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-realm-settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
-1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-group-settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the the realm was pulled from.
-1. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-multisite-crd.md#object-zone-settings) referring to the CephObjectZoneGroup created above.
+1. A [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-realm-crd.md#settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
+1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the realm was pulled from.
+1. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings) referring to the CephObjectZoneGroup created above.
 1. A CephObjectStore referring to the new CephObjectZone resource.
 
 object-multisite-pull-realm.yaml (with changes) in the [examples](https://github.com/rook/rook/blob/master/deploy/examples/) directory can be used to create the multisite CRDs.
 
 ```console
 kubectl create -f object-multisite-pull-realm.yaml
+```
+
+## Scaling a Multisite
+
+Scaling the number of gateways that run the synchronization thread to 2 or more can increase the latency of the
+replication of each S3 object. The recommended way to scale a multisite configuration is to dissociate the gateway dedicated
+to the synchronization from gateways that serve clients.
+
+The two types of gateways can be deployed by creating two CephObjectStores associated with the same CephObjectZone. The
+objectstore that deploys the gateway dedicated to the synchronization must have `spec.gateway.instances` set to `1`,
+while the objectstore that deploys the client gateways have multiple replicas and should disable the synchronization
+thread on the gateways by setting `spec.gateway.disableMultisiteSyncTraffic` to `true`.
+
+```yaml
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: replication
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 1
+    disableMultisiteSyncTraffic: false
+  zone:
+    name: zone-a
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: clients
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 5
+    disableMultisiteSyncTraffic: true
+  zone:
+    name: zone-a
 ```
 
 ## Multisite Cleanup
@@ -293,3 +342,67 @@ kubectl delete -f object-store.yaml
 ```
 
 Removing object store(s) from the master zone of the master zone group should be done with caution. When all of these object-stores are deleted the period cannot be updated and that realm cannot be pulled.
+
+## Configure an Existing Object Store for Multisite
+
+When an object store is configured by Rook, it internally creates a zone, zone group, and realm with the same name as the object store. To enable multisite, you will need to create the corresponding zone, zone group, and realm CRs with the same name as the object store. For example, to create multisite CRs for an object store named `my-store`:
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: my-store
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: my-store
+  metadataPool:
+    replicated:
+      size: 3
+  dataPool:
+    replicated:
+      size: 3
+  preservePoolsOnDelete: false
+  # recommended to set this value if ingress used for exposing rgw endpoints
+  # customEndpoints:
+  #   - "http://rgw-a.fqdn"
+```
+
+Now modify the existing `CephObjectStore` CR to exclude pool settings and add a reference to the zone.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: my-store
+```
+
+#### Using custom names
+If names different from the object store need to be set for the realm, zone, or zone group, first rename them in the backend via toolbox pod, then following the procedure above.
+```console
+radosgw-admin realm rename --rgw-realm=my-store --realm-new-name=<new-realm-name>
+radosgw-admin zonegroup rename --rgw-zonegroup=my-store --zonegroup-new-name=<new-zonegroup-name> --rgw-realm=<new-realm-name>
+radosgw-admin zone rename --rgw-zone=my-store --zone-new-name=<new-zone-name>  --rgw-zonegroup=<new-zonegroup-name> --rgw-realm=<new-realm-name>
+radosgw-admin period update --commit
+```
+!!! important
+    Renaming in the toolbox must be performed **before** creating the multisite CRs

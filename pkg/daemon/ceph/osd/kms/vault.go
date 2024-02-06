@@ -18,7 +18,6 @@ package kms
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -48,7 +47,7 @@ var (
 
 // Used for unit tests mocking too as well as production code
 var (
-	createTmpFile      = ioutil.TempFile
+	createTmpFile      = os.CreateTemp
 	getRemoveCertFiles = getRemoveCertFilesFunc
 )
 
@@ -148,7 +147,7 @@ func configTLS(ctx context.Context, clusterdContext *clusterd.Context, namespace
 			}
 
 			// Write into a file
-			err = ioutil.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0444)
+			err = os.WriteFile(file.Name(), secret.Data[tlsSecretKeyToCheck(tlsOption)], 0400)
 			if err != nil {
 				return nil, removeCertFiles, errors.Wrapf(err, "failed to write k8s secret %q content to a file", tlsSecretName)
 			}
@@ -203,7 +202,7 @@ func put(v secrets.Secrets, secretName, secretValue string, keyContext map[strin
 	data[secretName] = secretValue
 
 	//nolint:gosec // Write the encryption key in Vault
-	err = v.PutSecret(secretName, data, keyContext)
+	_, err = v.PutSecret(secretName, data, keyContext)
 	if err != nil {
 		return errors.Wrapf(err, "failed to put secret %q in vault", secretName)
 	}
@@ -213,7 +212,7 @@ func put(v secrets.Secrets, secretName, secretValue string, keyContext map[strin
 
 func get(v secrets.Secrets, secretName string, keyContext map[string]string) (string, error) {
 	//nolint:gosec // Write the encryption key in Vault
-	s, err := v.GetSecret(secretName, keyContext)
+	s, _, err := v.GetSecret(secretName, keyContext)
 	if err != nil {
 		return "", err
 	}

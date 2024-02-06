@@ -48,7 +48,7 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 	}
 
 	// Starting an object store takes longer than the average operation, so add more retries
-	err := o.k8sh.WaitForLabeledPodsToRunWithRetries(fmt.Sprintf("rook_object_store=%s", storeName), namespace, 40)
+	err := o.k8sh.WaitForLabeledPodsToRunWithRetries(fmt.Sprintf("rook_object_store=%s", storeName), namespace, 80)
 	if err != nil {
 		return fmt.Errorf("rgw did not start via crd. %+v", err)
 	}

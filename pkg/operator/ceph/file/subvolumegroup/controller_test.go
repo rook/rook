@@ -195,6 +195,8 @@ func TestCephClientController(t *testing.T) {
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "create" {
 					return "", nil
+				} else if args[0] == "fs" && args[1] == "subvolumegroup" && args[2] == "pin" {
+					return "", nil
 				}
 
 				return "", errors.Errorf("unknown command. %v", args)
@@ -213,7 +215,7 @@ func TestCephClientController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
+		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
@@ -260,7 +262,7 @@ func TestCephClientController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
+		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")
@@ -309,7 +311,7 @@ func TestCephClientController(t *testing.T) {
 
 		// Enable CSI
 		csi.EnableRBD = true
-		os.Setenv("POD_NAMESPACE", namespace)
+		t.Setenv("POD_NAMESPACE", namespace)
 		// Create CSI config map
 		ownerRef := &metav1.OwnerReference{}
 		ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, "")

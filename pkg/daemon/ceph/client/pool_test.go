@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"testing"
 
+	"golang.org/x/exp/slices"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -214,7 +216,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 				assert.Equal(t, failureDomain, args[6])
 			}
 			if deviceClass == "" {
-				assert.False(t, testIsStringInSlice("hdd", args))
+				assert.False(t, slices.Contains(args, "hdd"))
 			} else {
 				assert.Equal(t, deviceClass, args[7])
 			}
@@ -281,7 +283,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
-		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "", newCrushRule)
 	})
@@ -295,7 +297,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
-		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "", newCrushRule)
 	})
@@ -309,39 +311,31 @@ func TestUpdateFailureDomain(t *testing.T) {
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
-		err := ensureFailureDomain(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
 		assert.Equal(t, "mypool_zone", newCrushRule)
 	})
 }
 
-func TestExtractFailureDomain(t *testing.T) {
+func TestExtractPoolDetails(t *testing.T) {
 	t.Run("complex crush rule skipped", func(t *testing.T) {
 		rule := ruleSpec{Steps: []stepSpec{
 			{Type: ""},
 			{Type: ""},
 			{Type: "zone"},
 		}}
-		failureDomain := extractFailureDomain(rule)
+		failureDomain, _ := extractPoolDetails(rule)
 		assert.Equal(t, "", failureDomain)
 	})
 	t.Run("valid crush rule", func(t *testing.T) {
 		rule := ruleSpec{Steps: []stepSpec{
 			{Type: ""},
-			{Type: "zone"},
+			{Type: "zone", ItemName: "ssd"},
 		}}
-		failureDomain := extractFailureDomain(rule)
+		failureDomain, deviceClass := extractPoolDetails(rule)
 		assert.Equal(t, "zone", failureDomain)
+		assert.Equal(t, "ssd", deviceClass)
 	})
-}
-
-func testIsStringInSlice(a string, list []string) bool {
-	for _, b := range list {
-		if b == a {
-			return true
-		}
-	}
-	return false
 }
 
 func TestGetPoolStatistics(t *testing.T) {

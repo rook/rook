@@ -20,9 +20,9 @@ package cluster
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/coreos/pkg/capnslog"
+	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -130,13 +130,18 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 	logger.Info("successfully started")
 
+	err = addonsv1alpha1.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		return err
+	}
+
 	// Watch for changes on the CephCluster CR object
+	s := source.Kind(mgr.GetCache(),
+		&cephv1.CephCluster{
+			TypeMeta: ControllerTypeMeta,
+		})
 	err = c.Watch(
-		&source.Kind{
-			Type: &cephv1.CephCluster{
-				TypeMeta: ControllerTypeMeta,
-			},
-		},
+		s,
 		&handler.EnqueueRequestForObject{},
 		watchControllerPredicate(opManagerContext, mgr.GetClient()))
 	if err != nil {
@@ -146,13 +151,12 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	// Watch all other resources of the Ceph Cluster
 	for _, t := range objectsToWatch {
 		err = c.Watch(
-			&source.Kind{
-				Type: t,
-			},
-			&handler.EnqueueRequestForOwner{
-				IsController: true,
-				OwnerType:    &cephv1.CephCluster{},
-			},
+			source.Kind(mgr.GetCache(), t),
+			handler.EnqueueRequestForOwner(
+				mgr.GetScheme(),
+				mgr.GetRESTMapper(),
+				&cephv1.CephCluster{},
+			),
 			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephCluster{TypeMeta: ControllerTypeMeta}, mgr.GetScheme()))
 		if err != nil {
 			return err
@@ -167,15 +171,15 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 
 	// Watch for nodes additions and updates
-	err = c.Watch(
-		&source.Kind{
-			Type: &corev1.Node{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Node",
-					APIVersion: corev1.SchemeGroupVersion.String(),
-				},
+	nodeKind := source.Kind(mgr.GetCache(),
+		&corev1.Node{
+			TypeMeta: metav1.TypeMeta{
+				Kind:       "Node",
+				APIVersion: corev1.SchemeGroupVersion.String(),
 			},
-		},
+		})
+	err = c.Watch(
+		nodeKind,
 		handler.EnqueueRequestsFromMapFunc(handlerFunc),
 		predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context))
 	if err != nil {
@@ -184,18 +188,21 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 
 	// Watch for changes on the hotplug config map
 	// TODO: to improve, can we run this against the operator namespace only?
-	disableVal := os.Getenv(disableHotplugEnv)
+	disableVal, err := k8sutil.GetOperatorSetting(opManagerContext, context.Clientset, opcontroller.OperatorSettingConfigMapName, disableHotplugEnv, "false")
+	if err != nil {
+		logger.Errorf("failed to get %s setting %s. %v", disableHotplugEnv, opcontroller.OperatorSettingConfigMapName, err)
+	}
 	if disableVal != "true" {
 		logger.Info("enabling hotplug orchestration")
-		err = c.Watch(
-			&source.Kind{
-				Type: &corev1.ConfigMap{
-					TypeMeta: metav1.TypeMeta{
-						Kind:       "ConfigMap",
-						APIVersion: corev1.SchemeGroupVersion.String(),
-					},
+		s := source.Kind(mgr.GetCache(),
+			&corev1.ConfigMap{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       "ConfigMap",
+					APIVersion: corev1.SchemeGroupVersion.String(),
 				},
-			},
+			})
+		err = c.Watch(
+			s,
 			handler.EnqueueRequestsFromMapFunc(handlerFunc),
 			predicateForHotPlugCMWatcher(mgr.GetClient()))
 		if err != nil {
@@ -256,6 +263,18 @@ func (r *ReconcileCephCluster) reconcile(request reconcile.Request) (reconcile.R
 	// Do reconcile here!
 	ownerInfo := k8sutil.NewOwnerInfo(cephCluster, r.scheme)
 	if err := r.clusterController.reconcileCephCluster(cephCluster, ownerInfo); err != nil {
+		// If the error has a context cancelled let's return a success result so that the controller can
+		// exit gracefully and the goroutine (the one the manager runs in) won't block retrying even if the parent context has been
+		// cancelled.
+		// Normally this should not happen but in some circumstances if the context is cancelled we will
+		// error-loop (backoff) and the controller will never exit (even though a new one has been
+		// started). So we would get messages from the other go routine printing a message
+		// repeatedly that the context is cancelled.
+		if errors.Is(r.opManagerContext.Err(), context.Canceled) {
+			logger.Info("context cancelled, exiting reconcile")
+			return reconcile.Result{}, *cephCluster, nil
+		}
+
 		return reconcile.Result{}, *cephCluster, errors.Wrapf(err, "failed to reconcile cluster %q", cephCluster.Name)
 	}
 
@@ -287,7 +306,7 @@ func (r *ReconcileCephCluster) reconcileDelete(cephCluster *cephv1.CephCluster) 
 	// Start cluster clean up only if cleanupPolicy is applied to the ceph cluster
 	internalCtx := context.Context(r.opManagerContext)
 	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.Spec.External.Enable {
-		monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(cephCluster.Namespace)
+		monSecret, clusterFSID, err := r.clusterController.getCleanUpDetails(&cephCluster.Spec, cephCluster.Namespace)
 		if err != nil {
 			logger.Warningf("failed to get mon secret. skip cluster cleanup. remove finalizer. %v", err)
 			doCleanup = false
@@ -466,26 +485,28 @@ func (c *ClusterController) checkPVPresentInCluster(drivers []string, clusterID 
 	return false, nil
 }
 
-func (r *ReconcileCephCluster) removeFinalizers(client client.Client, name types.NamespacedName) error {
-	// Remove cephcluster finalizer
-	err := r.removeFinalizer(client, name, &cephv1.CephCluster{}, "")
-	if err != nil {
-		return errors.Wrap(err, "failed to remove cephcluster finalizer")
-	}
+func (r *ReconcileCephCluster) removeFinalizers(client client.Client, clusterName types.NamespacedName) error {
 
 	// Remove finalizer for rook-ceph-mon secret
-	name = types.NamespacedName{Name: mon.AppName, Namespace: name.Namespace}
-	err = r.removeFinalizer(client, name, &corev1.Secret{}, mon.DisasterProtectionFinalizerName)
+	name := types.NamespacedName{Name: mon.AppName, Namespace: clusterName.Namespace}
+	err := r.removeFinalizer(client, name, &corev1.Secret{}, mon.DisasterProtectionFinalizerName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove finalizer for the secret %q", name.Name)
 	}
 
 	// Remove finalizer for rook-ceph-mon-endpoints configmap
-	name = types.NamespacedName{Name: mon.EndpointConfigMapName, Namespace: name.Namespace}
+	name = types.NamespacedName{Name: mon.EndpointConfigMapName, Namespace: clusterName.Namespace}
 	err = r.removeFinalizer(client, name, &corev1.ConfigMap{}, mon.DisasterProtectionFinalizerName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove finalizer for the configmap %q", name.Name)
 	}
+
+	// Remove cephcluster finalizer
+	err = r.removeFinalizer(client, clusterName, &cephv1.CephCluster{}, "")
+	if err != nil {
+		return errors.Wrap(err, "failed to remove cephcluster finalizer")
+	}
+
 	return nil
 }
 
@@ -531,6 +552,7 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 
 	// Initialize the KMS code
 	kmsConfig := kms.NewConfig(c.context, &currentCluster.Spec, c.clusterMap[currentCluster.Namespace].ClusterInfo)
+	kmsConfig.ClusterInfo.Context = ctx
 
 	// If token auth is used by the KMS we set it as an env variable
 	if currentCluster.Spec.Security.KeyManagementService.IsTokenAuthEnabled() && currentCluster.Spec.Security.KeyManagementService.IsVaultKMS() {
@@ -540,10 +562,11 @@ func (c *ClusterController) deleteOSDEncryptionKeyFromKMS(currentCluster *cephv1
 		}
 	}
 
-	// We need to fetch the IBM_KP_SERVICE_API_KEY value
-	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() {
-		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec
-		err = kms.ValidateConnectionDetails(ctx, c.context, &currentCluster.Spec.Security, currentCluster.Namespace)
+	// We need to fetch the IBM_KP_SERVICE_API_KEY value and KMIP kms related values too.
+	if currentCluster.Spec.Security.KeyManagementService.IsIBMKeyProtectKMS() || currentCluster.Spec.Security.KeyManagementService.IsKMIPKMS() {
+		// This will validate the connection details again and will add the IBM_KP_SERVICE_API_KEY to the spec and
+		// token details required for KMIP kms is added too.
+		err = kms.ValidateConnectionDetails(ctx, c.context, &currentCluster.Spec.Security.KeyManagementService, currentCluster.Namespace)
 		if err != nil {
 			return errors.Wrap(err, "failed to validate kms connection details to delete the secret")
 		}

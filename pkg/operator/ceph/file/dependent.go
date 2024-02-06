@@ -18,13 +18,15 @@ package file
 
 import (
 	"fmt"
+	"syscall"
 
 	"github.com/pkg/errors"
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/dependents"
+	kexec "github.com/rook/rook/pkg/util/exec"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,15 +52,36 @@ var ignoredDependentSubvolumeGroups = []string{"_nogroup", "_index", "_legacy", 
 // groups with no subvolumes don't block deletion.
 var CephFilesystemDependents = cephFilesystemDependents
 
+// check filesystem whether it exists
+func filesystemExists(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, name, nsName string) (bool, error) {
+	_, err := cephclient.GetFilesystem(clusterdCtx, clusterInfo, name)
+	if err != nil {
+		if code, ok := kexec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+			logger.Infof("filesystem %q deletion will continue without checking for dependencies since the the filesystem does not exist within Ceph", nsName)
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to check for existence of CephFilesystem %q", nsName)
+	}
+	return true, nil
+}
+
 // with above, allow this to be overridden for unit testing
-func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
+func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
 	nsName := fmt.Sprintf("%s/%s", filesystem.Namespace, filesystem.Name)
 	baseErrMsg := fmt.Sprintf("failed to get dependents of CephFilesystem %q", nsName)
 
-	// subvolume groups that contain subvolumes
-	deps, err := subvolumeGroupDependents(clusterdCtx, clusterInfo, filesystem)
+	deps := dependents.NewDependentList()
+	fsExists, err := filesystemExists(clusterdCtx, clusterInfo, filesystem.Name, nsName)
 	if err != nil {
-		return deps, errors.Wrapf(err, baseErrMsg)
+		return deps, nil
+	}
+
+	// subvolume groups that contain subvolumes
+	if fsExists {
+		deps, err = subvolumeGroupDependents(clusterdCtx, clusterInfo, filesystem)
+		if err != nil {
+			return deps, errors.Wrapf(err, baseErrMsg)
+		}
 	}
 
 	// CephFilesystemSubVolumeGroups
@@ -77,18 +100,18 @@ func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *client
 }
 
 // return subvolume groups that have 1 or more subvolumes present in them
-func subvolumeGroupDependents(clusterdCtx *clusterd.Context, clusterInfo *client.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
+func subvolumeGroupDependents(clusterdCtx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, filesystem *v1.CephFilesystem) (*dependents.DependentList, error) {
 	baseErr := "failed to get Ceph subvolume groups containing subvolumes"
 
 	deps := dependents.NewDependentList()
 
-	svgs, err := client.ListSubvolumeGroups(clusterdCtx, clusterInfo, filesystem.Name)
+	svgs, err := cephclient.ListSubvolumeGroups(clusterdCtx, clusterInfo, filesystem.Name)
 	if err != nil {
 		return deps, errors.Wrap(err, baseErr)
 	}
 
 	// also check the case where subvolumes are not in a group
-	svgs = append(svgs, client.SubvolumeGroup{Name: client.NoSubvolumeGroup})
+	svgs = append(svgs, cephclient.SubvolumeGroup{Name: cephclient.NoSubvolumeGroup})
 
 	errs := []error{}
 	for _, svg := range svgs {
@@ -96,14 +119,14 @@ func subvolumeGroupDependents(clusterdCtx *clusterd.Context, clusterInfo *client
 			continue
 		}
 
-		svs, err := client.ListSubvolumesInGroup(clusterdCtx, clusterInfo, filesystem.Name, svg.Name)
+		svs, err := cephclient.ListSubvolumesInGroup(clusterdCtx, clusterInfo, filesystem.Name, svg.Name)
 		if err != nil {
 			errs = append(errs, errors.Wrapf(err, "failed to list subvolumes in subvolume group %q", svg.Name))
 		}
 
 		if len(svs) > 0 {
 			name := svg.Name
-			if name == client.NoSubvolumeGroup {
+			if name == cephclient.NoSubvolumeGroup {
 				// identify the "no group" case clearly for users
 				name = noGroupDependentName
 			}

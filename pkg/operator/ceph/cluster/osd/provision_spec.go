@@ -20,10 +20,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -38,9 +40,7 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 		return nil, err
 	}
 
-	if !osdProps.onPVC() {
-		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
-	} else {
+	if osdProps.onPVC() {
 		// This is not needed in raw mode and 14.2.8 brings it
 		// but we still want to do this not to lose backward compatibility with lvm based OSDs...
 		podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, c.getPVCInitContainer(osdProps))
@@ -50,6 +50,8 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 		if osdProps.onPVCWithWal() {
 			podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, c.getPVCWalInitContainer("/wal", osdProps))
 		}
+	} else {
+		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
 	}
 
 	job := &batch.Job{
@@ -100,19 +102,16 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
-	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, true), copyBinariesVolume)
+	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, c.spec.DataDirHostPath, true), copyBinariesVolume)
 
 	// create a volume on /dev so the pod can access devices on the host
 	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
-	volumes = append(volumes, devVolume)
 	udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
-	volumes = append(volumes, udevVolume)
-
-	// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
-	if !osdProps.onPVC() {
-		rootFSVolume := v1.Volume{Name: "rootfs", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/"}}}
-		volumes = append(volumes, rootFSVolume)
-	}
+	volumes = append(volumes, []v1.Volume{
+		udevVolume,
+		devVolume,
+		mon.CephSecretVolume(),
+	}...)
 
 	if osdProps.onPVC() {
 		// Create volume config for PVCs
@@ -124,8 +123,16 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 					volumeTLS, _ := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
 					volumes = append(volumes, volumeTLS)
 				}
+				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
+					volumeKMIP, _ := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
+					volumes = append(volumes, volumeKMIP)
+				}
 			}
 		}
+	} else {
+		// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
+		rootFSVolume := v1.Volume{Name: "rootfs", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/"}}}
+		volumes = append(volumes, rootFSVolume)
 	}
 
 	if len(volumes) == 0 {
@@ -190,7 +197,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 }
 
 func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMount v1.VolumeMount, provisionConfig *provisionConfig) (v1.Container, error) {
-	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir)
+	envVars := c.getConfigEnvVars(osdProps, k8sutil.DataDir, true)
 
 	// enable debug logging in the prepare job
 	envVars = append(envVars, setDebugLogLevelEnvVar(true))
@@ -233,11 +240,11 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 		{Name: "devices", MountPath: "/dev"},
 		{Name: "udev", MountPath: "/run/udev"},
 		copyBinariesMount,
+		mon.CephSecretVolumeMount(),
 	}...)
 
-	// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
-	if !osdProps.onPVC() {
-		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "rootfs", MountPath: "/rootfs", ReadOnly: true})
+	if controller.LoopDevicesAllowed() {
+		envVars = append(envVars, v1.EnvVar{Name: "CEPH_VOLUME_ALLOW_LOOP_DEVICES", Value: "true"})
 	}
 
 	// If the OSD runs on PVC
@@ -283,8 +290,32 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 					volumeMounts = append(volumeMounts, volumeMountsTLS)
 				}
 				envVars = append(envVars, kms.ConfigToEnvVar(c.spec)...)
+				if c.spec.Security.KeyManagementService.IsKMIPKMS() {
+					envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
+					_, volmeMountsKMIP := kms.KMIPVolumeAndMount(c.spec.Security.KeyManagementService.TokenSecretName)
+					volumeMounts = append(volumeMounts, volmeMountsKMIP)
+				}
 			} else {
 				envVars = append(envVars, cephVolumeRawEncryptedEnvVarFromSecret(osdProps))
+			}
+		}
+	} else {
+		// If not running on PVC we mount the rootfs of the host to validate the presence of the LVM package
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: "rootfs", MountPath: "/rootfs", ReadOnly: true})
+	}
+
+	// Add OSD ID as environment variables.
+	// When this env is set, prepare pod job will destroy this OSD.
+	if c.replaceOSD != nil {
+		// Compare pvc claim name in case of OSDs on PVC
+		if osdProps.onPVC() {
+			if strings.Contains(c.replaceOSD.Path, osdProps.pvc.ClaimName) {
+				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.replaceOSD.ID)))
+			}
+		} else {
+			// Compare the node name in case of OSDs on disk
+			if c.replaceOSD.Node == osdProps.crushHostname {
+				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.replaceOSD.ID)))
 			}
 		}
 	}
@@ -296,13 +327,14 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 	readOnlyRootFilesystem := false
 
 	osdProvisionContainer := v1.Container{
-		Command:      []string{path.Join(rookBinariesMountPath, "rook")},
-		Args:         []string{"ceph", "osd", "provision"},
-		Name:         "provision",
-		Image:        c.spec.CephVersion.Image,
-		VolumeMounts: volumeMounts,
-		Env:          envVars,
-		EnvFrom:      getEnvFromSources(),
+		Command:         []string{path.Join(rookBinariesMountPath, "rook")},
+		Args:            []string{"ceph", "osd", "provision"},
+		Name:            "provision",
+		Image:           c.spec.CephVersion.Image,
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    volumeMounts,
+		Env:             envVars,
+		EnvFrom:         getEnvFromSources(),
 		SecurityContext: &v1.SecurityContext{
 			Privileged:             &privileged,
 			RunAsUser:              &runAsUser,

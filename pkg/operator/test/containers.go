@@ -44,9 +44,14 @@ type ResourceLimitExpectations struct {
 // intended to test the full list of containers (both init and run containers) in a PodSpec, this
 // method is the only way of creating a ContainersTester.
 func (ps *PodSpecTester) Containers() *ContainersTester {
+	return NewContainersSpecTester(ps.t, allContainers(ps.spec))
+}
+
+// NewContainersSpecTester creates a new tester for the given container spec.
+func NewContainersSpecTester(t *testing.T, cc []v1.Container) *ContainersTester {
 	return &ContainersTester{
-		t:          ps.t,
-		containers: allContainers(ps.spec),
+		t:          t,
+		containers: cc,
 	}
 }
 

@@ -41,10 +41,10 @@ while read -r line; do
 done < <(find . -type f -name '*.yml' | sort)
 
 # For debugging, output the resource kinds and names we processed and the number we are keeping
-for file in "${RBAC_FILES[@]}"; do
+#for file in "${RBAC_FILES[@]}"; do
   # basename to get rid of the leading './' which find adds; %.yml to remove the .yml suffix
-  basename "${file%.yml}" >/dev/stderr
-done
+#  basename "${file%.yml}" >/dev/stderr
+#done
 # shellcheck disable=SC2012 # we know filenames are alphanumeric from being k8s resources
 echo "Number of RBAC resources: ${#RBAC_FILES[@]}" >/dev/stderr
 

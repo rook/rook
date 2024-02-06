@@ -50,6 +50,14 @@ type CephBucketTopicListerExpansion interface{}
 // CephBucketTopicNamespaceLister.
 type CephBucketTopicNamespaceListerExpansion interface{}
 
+// CephCOSIDriverListerExpansion allows custom methods to be added to
+// CephCOSIDriverLister.
+type CephCOSIDriverListerExpansion interface{}
+
+// CephCOSIDriverNamespaceListerExpansion allows custom methods to be added to
+// CephCOSIDriverNamespaceLister.
+type CephCOSIDriverNamespaceListerExpansion interface{}
+
 // CephClientListerExpansion allows custom methods to be added to
 // CephClientLister.
 type CephClientListerExpansion interface{}

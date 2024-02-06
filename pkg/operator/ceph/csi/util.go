@@ -18,6 +18,7 @@ package csi
 
 import (
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 	"text/template"
@@ -85,12 +86,11 @@ func templateToDeployment(name, templateData string, p templateParam) (*apps.Dep
 
 func applyResourcesToContainers(opConfig map[string]string, key string, podspec *corev1.PodSpec) {
 	resource := getComputeResource(opConfig, key)
-	if len(resource) > 0 {
+
+	for _, r := range resource {
 		for i, c := range podspec.Containers {
-			for _, r := range resource {
-				if c.Name == r.Name {
-					podspec.Containers[i].Resources = r.Resource
-				}
+			if c.Name == r.Name {
+				podspec.Containers[i].Resources = r.Resource
 			}
 		}
 	}
@@ -102,7 +102,7 @@ func getComputeResource(opConfig map[string]string, key string) []k8sutil.Contai
 	var err error
 
 	if resourceRaw := k8sutil.GetValue(opConfig, key, ""); resourceRaw != "" {
-		resource, err = k8sutil.YamlToContainerResource(resourceRaw)
+		resource, err = k8sutil.YamlToContainerResourceArray(resourceRaw)
 		if err != nil {
 			logger.Warningf("failed to parse %q. %v", resourceRaw, err)
 		}
@@ -187,4 +187,78 @@ func GetPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
 			},
 		},
 	}
+}
+
+func applyVolumeToPodSpec(opConfig map[string]string, configName string, podspec *corev1.PodSpec) {
+	volumesRaw := k8sutil.GetValue(opConfig, configName, "")
+	if volumesRaw == "" {
+		return
+	}
+	volumes, err := k8sutil.YamlToVolumes(volumesRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %q for %q. %v", volumesRaw, configName, err)
+		return
+	}
+	for i := range volumes {
+		found := false
+		for j := range podspec.Volumes {
+			// check do we need to override any existing volumes
+			if volumes[i].Name == podspec.Volumes[j].Name {
+				podspec.Volumes[j] = volumes[i]
+				found = true
+				break
+			}
+		}
+		if !found {
+			// if not found add volume to volumes list
+			podspec.Volumes = append(podspec.Volumes, volumes[i])
+		}
+	}
+}
+
+func applyVolumeMountToContainer(opConfig map[string]string, configName, containerName string, podspec *corev1.PodSpec) {
+	volumeMountsRaw := k8sutil.GetValue(opConfig, configName, "")
+	if volumeMountsRaw == "" {
+		return
+	}
+	volumeMounts, err := k8sutil.YamlToVolumeMounts(volumeMountsRaw)
+	if err != nil {
+		logger.Warningf("failed to parse %q for %q. %v", volumeMountsRaw, configName, err)
+		return
+	}
+	if len(volumeMounts) > 0 {
+		for i, c := range podspec.Containers {
+			if c.Name == containerName {
+				for j := range volumeMounts {
+					found := false
+					for k := range podspec.Containers[i].VolumeMounts {
+						// override if the name is matching
+						if volumeMounts[j].Name == podspec.Containers[i].VolumeMounts[k].Name {
+							found = true
+							podspec.Containers[i].VolumeMounts[k] = volumeMounts[j]
+							break
+						}
+					}
+					if !found {
+						// if not found append it to the exiting volumes
+						podspec.Containers[i].VolumeMounts = append(podspec.Containers[i].VolumeMounts, volumeMounts[j])
+					}
+				}
+				// return as we finished with found container
+				return
+			}
+		}
+	}
+}
+
+// getImage returns the image for the given setting name. If the image does not contain version,
+// the default version is appended from the default image.
+func getImage(data map[string]string, settingName, defaultImage string) string {
+	image := k8sutil.GetValue(data, settingName, defaultImage)
+	if !strings.Contains(image, ":") {
+		version := strings.SplitN(defaultImage, ":", 2)[1]
+		image = fmt.Sprintf("%s:%s", image, version)
+	}
+
+	return image
 }

@@ -52,7 +52,7 @@ type ReconcileConfig struct {
 // Add creates a new Operator configuration Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
-	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext, opConfig))
+	return add(opManagerContext, context, mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -65,7 +65,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 	}
 }
 
-func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error {
+func add(ctx context.Context, context *clusterd.Context, mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -74,15 +74,10 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	logger.Infof("%s successfully started", controllerName)
 
 	// Watch for ConfigMap (operator config)
-	err = c.Watch(&source.Kind{
-		Type: &v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
-	if err != nil {
-		return err
-	}
-
-	// Watch for Secret (admission controller secret)
-	err = c.Watch(&source.Kind{
-		Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
+	s := source.Kind(
+		mgr.GetCache(),
+		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}})
+	err = c.Watch(s, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()))
 	if err != nil {
 		return err
 	}
@@ -129,13 +124,12 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 	reconcileOperatorLogLevel(opConfig.Data)
 
 	// Reconcile discovery daemon
-	err = r.reconcileDiscoveryDaemon()
+	err = r.reconcileDiscoveryDaemon(opConfig.Data)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, err
 	}
 
-	// Reconcile webhook secret
-	// This is done in the predicate function
+	opcontroller.SetAllowLoopDevices(r.config.Parameters)
 
 	logger.Infof("%s done reconciling", controllerName)
 	return reconcile.Result{}, nil
@@ -146,10 +140,10 @@ func reconcileOperatorLogLevel(data map[string]string) {
 	util.SetGlobalLogLevel(rookLogLevel, logger)
 }
 
-func (r *ReconcileConfig) reconcileDiscoveryDaemon() error {
+func (r *ReconcileConfig) reconcileDiscoveryDaemon(data map[string]string) error {
 	rookDiscover := discover.New(r.context.Clientset)
 	if opcontroller.DiscoveryDaemonEnabled(r.config.Parameters) {
-		if err := rookDiscover.Start(r.opManagerContext, r.config.OperatorNamespace, r.config.Image, r.config.ServiceAccount, true); err != nil {
+		if err := rookDiscover.Start(r.opManagerContext, r.config.OperatorNamespace, r.config.Image, r.config.ServiceAccount, data, true); err != nil {
 			return errors.Wrap(err, "failed to start device discovery daemonset")
 		}
 	} else {

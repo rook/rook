@@ -71,13 +71,35 @@ func (n *NFSOperation) Delete(namespace, name string) error {
 		return err
 	}
 
+	crdCheckerFunc := func() error {
+		_, err := n.k8sh.RookClientset.CephV1().CephNFSes(namespace).Get(ctx, name, metav1.GetOptions{})
+		return err
+	}
+
+	logger.Infof("Deleted nfs %s in namespace %s", name, namespace)
+	err = n.k8sh.WaitForCustomResourceDeletion(namespace, name, crdCheckerFunc)
+	if err != nil {
+		return err
+	}
+
 	logger.Infof("Deleting .nfs pool in namespace %s", namespace)
 	err = n.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Delete(ctx, "dot-nfs", *options)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
 
-	logger.Infof("Deleted nfs %s in namespace %s", name, namespace)
+	crdCheckerFunc = func() error {
+		_, err := n.k8sh.RookClientset.CephV1().CephBlockPools(namespace).Get(ctx, "dot-nfs", metav1.GetOptions{})
+		return err
+	}
+
+	logger.Infof("Deleted .nfs pool %s in namespace %s", name, namespace)
+	err = n.k8sh.WaitForCustomResourceDeletion(namespace, name, crdCheckerFunc)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("Verified Deletion of nfs %s in namespace %s", name, namespace)
 	return nil
 }
 
@@ -86,4 +108,14 @@ func (f *NFSOperation) CreateStorageClass(fsName, nfsClusterName, systemNamespac
 	server := fmt.Sprintf("rook-ceph-nfs-%s-a.%s.svc.cluster.local", nfsClusterName, namespace)
 
 	return f.k8sh.ResourceOperation("apply", f.manifests.GetNFSStorageClass(fsName, nfsClusterName, server, storageClassName))
+}
+
+// CreateSnapshotClass creates a Snapshot class for NFS clients
+func (f *NFSOperation) CreateSnapshotClass(fsName, snapshotClassName string) error {
+	return f.k8sh.ResourceOperation("apply", f.manifests.GetNFSSnapshotClass(fsName, snapshotClassName))
+}
+
+// DeleteSnapshotClass deletes a Snapshot class for NFS clients
+func (f *NFSOperation) DeleteSnapshotClass(fsName, snapshotClassName string) error {
+	return f.k8sh.ResourceOperation("delete", f.manifests.GetNFSSnapshotClass(fsName, snapshotClassName))
 }

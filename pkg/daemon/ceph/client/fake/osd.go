@@ -36,13 +36,14 @@ func OsdLsOutput(numOSDs int) string {
 // OsdTreeOutput returns JSON output from 'ceph osd tree' that can be used for unit tests.
 // It returns output for a Ceph cluster with the given number of nodes and the given number of OSDs
 // per node with no complex configuration. This should work even for 0 nodes.
-//   example:  OsdTreeOutput(3, 3) // returns JSON output for the Ceph cluster below
-//       node0:       node1:      node2:
-//         - osd0      - osd1      - osd2
-//         - osd3      - osd4      - osd5
-//         - osd6      - osd7      - osd8
+//
+//	example:  OsdTreeOutput(3, 3) // returns JSON output for the Ceph cluster below
+//	    node0:       node1:      node2:
+//	      - osd0      - osd1      - osd2
+//	      - osd3      - osd4      - osd5
+//	      - osd6      - osd7      - osd8
 func OsdTreeOutput(numNodes, numOSDsPerNode int) string {
-	// JSON output taken from Ceph Pacific
+	// JSON output
 	rootFormat := `		{
 			"id": -1,
 			"name": "default",
@@ -104,24 +105,16 @@ func OsdTreeOutput(numNodes, numOSDsPerNode int) string {
 // be returned with relevant NOT ok-to-stop results.
 // If returnOsdIds is empty, this returns a NOT ok-to-stop result. Otherwise, it returns an
 // ok-to-stop result. returnOsdIds should include queriedID if the result should be successful.
-// usePacificPlusOutput instructs the function to render output for Ceph Pacific (v16) and above or
-// to render output for Ceph Octopus (v15) and below.
-func OsdOkToStopOutput(queriedID int, returnOsdIds []int, useCephPacificPlusOutput bool) string {
-	// For Pacific and up (Pacific+)
+func OsdOkToStopOutput(queriedID int, returnOsdIds []int) string {
 	okTemplate := `{"ok_to_stop":true,"osds":[%s],"num_ok_pgs":132,"num_not_ok_pgs":0,"ok_become_degraded":["1.0","1.2","1.3"]}`
 	notOkTemplate := `{"ok_to_stop":false,"osds":[%d],"num_ok_pgs":161,"num_not_ok_pgs":50,"bad_become_inactive":["1.0","1.3","1.a"],"ok_become_degraded":["1.2","1.4","1.5"]}`
 
-	// Ceph Octopus and below don't return anything on stdout, only success/failure via retcode
-	if !useCephPacificPlusOutput {
-		return ""
-	}
-
-	// Pacific+, NOT ok-to-stop
+	// NOT ok-to-stop
 	if len(returnOsdIds) == 0 {
 		return fmt.Sprintf(notOkTemplate, queriedID)
 	}
 
-	// Pacific+, ok-to-stop
+	// ok-to-stop
 	osdIdsStr := make([]string, len(returnOsdIds))
 	for i := 0; i < len(returnOsdIds); i++ {
 		osdIdsStr[i] = strconv.Itoa(returnOsdIds[i])

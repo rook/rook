@@ -30,14 +30,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
 
+	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -47,6 +50,7 @@ const (
 
 // ReconcileCSI reconciles a ceph-csi driver
 type ReconcileCSI struct {
+	scheme             *runtime.Scheme
 	client             client.Client
 	context            *clusterd.Context
 	opManagerContext   context.Context
@@ -70,6 +74,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCSI{
+		scheme:             mgr.GetScheme(),
 		client:             mgr.GetClient(),
 		context:            context,
 		opConfig:           opConfig,
@@ -86,16 +91,25 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 	}
 	logger.Infof("%s successfully started", controllerName)
 
+	// Add CSIAddons client to controller mgr
+	err = addonsv1alpha1.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		return err
+	}
+
 	// Watch for ConfigMap (operator config)
-	err = c.Watch(&source.Kind{
-		Type: &v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace))
+	configmapKind := source.Kind(mgr.GetCache(),
+		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}})
+	err = c.Watch(configmapKind, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace))
 	if err != nil {
 		return err
 	}
 
 	// Watch for CephCluster
-	err = c.Watch(&source.Kind{
-		Type: &cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace))
+	clusterKind := source.Kind(
+		mgr.GetCache(),
+		&cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: v1.SchemeGroupVersion.String()}})
+	err = c.Watch(clusterKind, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace))
 	if err != nil {
 		return err
 	}
@@ -188,12 +202,13 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			logger.Debugf("ceph cluster %q has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver", cluster.Name)
 			return reconcile.Result{}, nil
 		}
+
 		holderEnabled := !csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()
 		// Do we have a multus cluster or csi host network disabled?
 		// If so deploy the plugin holder with the fsid attached
 		if holderEnabled {
 			// Load cluster info for later use in updating the ceph-csi configmap
-			clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace)
+			clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cluster.Namespace, &cephClusters.Items[i].Spec)
 			if err != nil {
 				// This avoids a requeue with exponential backoff and allows the controller to reconcile
 				// more quickly when the cluster is ready.
@@ -204,11 +219,10 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				}
 				return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 			}
-
+			clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
 			logger.Debugf("cluster %q is running on multus or CSI_ENABLE_HOST_NETWORK is false, deploying the ceph-csi plugin holder", cluster.Name)
 
 			r.clustersWithHolder = append(r.clustersWithHolder, ClusterDetail{cluster: &cephClusters.Items[i], clusterInfo: clusterInfo})
-
 		} else {
 			logger.Debugf("not a multus cluster %q or CSI_ENABLE_HOST_NETWORK is true, not deploying the ceph-csi plugin holder", request.NamespacedName)
 		}

@@ -36,11 +36,9 @@ func TestConfigureLivenessProbe(t *testing.T) {
 		cephv1.KeyRgw,
 	}
 
-	store := cephv1.ObjectStoreSpec{}
 	fs := cephv1.CephFilesystem{}
 	healthCheck := cephv1.CephClusterHealthCheckSpec{}
 	livenessProbes := map[cephv1.KeyType]*cephv1.ProbeSpec{
-		"rgw": store.HealthCheck.LivenessProbe,
 		"mds": fs.Spec.MetadataServer.LivenessProbe,
 		"mon": healthCheck.LivenessProbe["mon"],
 		"osd": healthCheck.LivenessProbe["osd"],

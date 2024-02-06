@@ -53,6 +53,11 @@ func (kms *KeyManagementServiceSpec) IsIBMKeyProtectKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == "ibmkeyprotect"
 }
 
+// IsKMIPKMS return whether KMIP KMS is configured
+func (kms *KeyManagementServiceSpec) IsKMIPKMS() bool {
+	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == "kmip"
+}
+
 // IsTLSEnabled return KMS TLS details are configured
 func (kms *KeyManagementServiceSpec) IsTLSEnabled() bool {
 	for _, tlsOption := range VaultTLSConnectionDetails {

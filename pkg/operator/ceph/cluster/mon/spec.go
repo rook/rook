@@ -56,15 +56,15 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 			labels["pvc_size"] = size.String()
 		}
 		if monConfig.Zone != "" {
-			labels["stretch-zone"] = monConfig.Zone
+			labels["zone"] = monConfig.Zone
 		}
 	}
 
 	return labels
 }
 
-func (c *Cluster) stretchFailureDomainName() string {
-	label := StretchFailureDomainLabel(c.spec)
+func (c *Cluster) getFailureDomainName() string {
+	label := GetFailureDomainLabel(c.spec)
 	index := strings.Index(label, "/")
 	if index == -1 {
 		return label
@@ -72,8 +72,13 @@ func (c *Cluster) stretchFailureDomainName() string {
 	return label[index+1:]
 }
 
-func StretchFailureDomainLabel(spec cephv1.ClusterSpec) string {
-	if spec.Mon.StretchCluster.FailureDomainLabel != "" {
+func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
+
+	if spec.IsStretchCluster() && spec.Mon.StretchCluster.FailureDomainLabel != "" {
+		return spec.Mon.StretchCluster.FailureDomainLabel
+	}
+
+	if spec.ZonesRequired() && spec.Mon.FailureDomainLabel != "" {
 		return spec.Mon.StretchCluster.FailureDomainLabel
 	}
 	// The default topology label is for a zone
@@ -181,8 +186,8 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		RestartPolicy: corev1.RestartPolicyAlways,
 		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
 		// the base volumes at this point.
-		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName),
-		HostNetwork:       c.spec.Network.IsHost(),
+		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
+		HostNetwork:       monConfig.UseHostNetwork,
 		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
 	}
 
@@ -209,16 +214,22 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 	cephv1.GetMonAnnotations(c.spec.Annotations).ApplyToObjectMeta(&pod.ObjectMeta)
 	cephv1.GetMonLabels(c.spec.Labels).ApplyToObjectMeta(&pod.ObjectMeta)
 
-	if c.spec.Network.IsHost() {
+	if monConfig.UseHostNetwork {
 		pod.Spec.DNSPolicy = corev1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.IsMultus() {
-		if err := k8sutil.ApplyMultus(c.spec.Network, &pod.ObjectMeta); err != nil {
+		cluster := cephv1.CephCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: c.Namespace,
+			},
+			Spec: c.spec,
+		}
+		if err := k8sutil.ApplyMultus(cluster.GetNamespace(), &cluster.Spec.Network, &pod.ObjectMeta); err != nil {
 			return nil, err
 		}
 	}
 
-	if c.spec.IsStretchCluster() {
-		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", StretchFailureDomainLabel(c.spec), monConfig.Zone))
+	if c.spec.ZonesRequired() {
+		nodeAffinity, err := k8sutil.GenerateNodeAffinity(fmt.Sprintf("%s=%s", GetFailureDomainLabel(c.spec), monConfig.Zone))
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to generate mon %q node affinity", monConfig.DaemonName)
 		}
@@ -238,9 +249,11 @@ func (c *Cluster) makeChownInitContainer(monConfig *monConfig) corev1.Container 
 	return controller.ChownCephDataDirsInitContainer(
 		*monConfig.DataPathMap,
 		c.spec.CephVersion.Image,
-		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		cephv1.GetMonResources(c.spec.Resources),
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
@@ -258,25 +271,17 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) corev1.Container 
 			"--mkfs",
 		),
 		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		SecurityContext: controller.PodSecurityContext(),
 		// filesystem creation does not require ports to be exposed
-		Env:       controller.DaemonEnvVars(c.spec.CephVersion.Image),
+		Env:       controller.DaemonEnvVars(&c.spec),
 		Resources: cephv1.GetMonResources(c.spec.Resources),
 	}
 }
 
 func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container {
 	podIPEnvVar := "ROOK_POD_IP"
-	publicAddr := monConfig.PublicIP
-
-	// Handle the non-default port for host networking. If host networking is not being used,
-	// the service created elsewhere will handle the non-default port redirection to the default port inside the container.
-	if c.spec.Network.IsHost() && monConfig.Port != DefaultMsgr1Port {
-		logger.Warningf("Starting mon %s with host networking on a non-default port %d. The mon must be failed over before enabling msgr2.",
-			monConfig.DaemonName, monConfig.Port)
-		publicAddr = fmt.Sprintf("%s:%d", publicAddr, monConfig.Port)
-	}
 
 	container := corev1.Container{
 		Name: "mon",
@@ -288,7 +293,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 			"--foreground",
 			// If the mon is already in the monmap, when the port is left off of --public-addr,
 			// it will still advertise on the previous port b/c monmap is saved to mon database.
-			config.NewFlag("public-addr", publicAddr),
+			config.NewFlag("public-addr", monConfig.PublicIP),
 			// Set '--setuser-match-path' so that existing directory owned by root won't affect the daemon startup.
 			// For existing data store owned by root, the daemon will continue to run as root
 			//
@@ -298,7 +303,8 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 			config.NewFlag("setuser-match-path", path.Join(monConfig.DataPathMap.ContainerDataDir, "store.db")),
 		),
 		Image:           c.spec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName),
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    controller.DaemonVolumeMounts(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		SecurityContext: controller.PodSecurityContext(),
 		Ports: []corev1.ContainerPort{
 			{
@@ -308,7 +314,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 			},
 		},
 		Env: append(
-			controller.DaemonEnvVars(c.spec.CephVersion.Image),
+			controller.DaemonEnvVars(&c.spec),
 			k8sutil.PodIPEnvVar(podIPEnvVar),
 		),
 		Resources:     cephv1.GetMonResources(c.spec.Resources),
@@ -317,17 +323,17 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		WorkingDir:    config.VarLogCephDir,
 	}
 
-	if !c.spec.RequireMsgr2() {
+	if monConfig.Port != DefaultMsgr2Port {
 		// Add messenger 1 port
 		container.Ports = append(container.Ports, corev1.ContainerPort{
 			Name:          "tcp-msgr1",
-			ContainerPort: DefaultMsgr1Port,
+			ContainerPort: monConfig.Port,
 			Protocol:      corev1.ProtocolTCP,
 		})
 	}
 
 	if monConfig.Zone != "" {
-		desiredLocation := fmt.Sprintf("%s=%s", c.stretchFailureDomainName(), monConfig.Zone)
+		desiredLocation := fmt.Sprintf("%s=%s", c.getFailureDomainName(), monConfig.Zone)
 		container.Args = append(container.Args, []string{"--set-crush-location", desiredLocation}...)
 		if monConfig.Zone == c.getArbiterZone() {
 			// remember the arbiter mon to be set later in the reconcile after the OSDs are configured
@@ -339,7 +345,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	container = config.ConfigureLivenessProbe(container, c.spec.HealthCheck.LivenessProbe[cephv1.KeyMon])
 
 	// If host networking is enabled, we don't need a bind addr that is different from the public addr
-	if !c.spec.Network.IsHost() {
+	if !monConfig.UseHostNetwork {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
 		container.Args = append(container.Args,

@@ -348,23 +348,14 @@ type OSDOkToStopStats struct {
 // maxReturned=0 is the same as maxReturned=1.
 func OSDOkToStop(context *clusterd.Context, clusterInfo *ClusterInfo, osdID, maxReturned int) ([]int, error) {
 	args := []string{"osd", "ok-to-stop", strconv.Itoa(osdID)}
-	returnsList := false // does the ceph call return a list of OSD IDs?
-	if clusterInfo.CephVersion.IsAtLeastPacific() {
-		returnsList = true
-		// NOTE: if the number of OSD IDs given in the CLI arg query is Q and --max=N is given, if
-		// N < Q, Ceph treats the query as though max=Q instead, always returning at least Q OSDs.
-		args = append(args, fmt.Sprintf("--max=%d", maxReturned))
-	}
+	// NOTE: if the number of OSD IDs given in the CLI arg query is Q and --max=N is given, if
+	// N < Q, Ceph treats the query as though max=Q instead, always returning at least Q OSDs.
+	args = append(args, fmt.Sprintf("--max=%d", maxReturned))
 
 	buf, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
 		// is not ok to stop (or command error)
 		return []int{}, errors.Wrapf(err, "OSD %d is not ok to stop", osdID)
-	}
-
-	if !returnsList {
-		// If does not return list, just return a slice including only the OSD ID queried
-		return []int{osdID}, nil
 	}
 
 	var stats OSDOkToStopStats

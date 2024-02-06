@@ -34,14 +34,17 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 // generate a standard mon config from a mon id w/ default port and IP 2.4.6.{1,2,3,...}
@@ -104,7 +107,7 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 		ClusterInfo: nil,
 		context:     context,
 		Namespace:   namespace,
-		rookVersion: "myversion",
+		rookImage:   "myversion",
 		spec: cephv1.ClusterSpec{
 			Mon: cephv1.MonSpec{
 				Count:                3,
@@ -118,16 +121,17 @@ func newCluster(context *clusterd.Context, namespace string, allowMultiplePerNod
 		mapping: &opcontroller.Mapping{
 			Schedule: map[string]*opcontroller.MonScheduleInfo{},
 		},
-		ownerInfo: ownerInfo,
+		ownerInfo:      ownerInfo,
+		monsToFailover: sets.New[string](),
 	}
 }
 
 // setCommonMonProperties is a convenience helper for setting common test properties
-func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookVersion string) {
+func setCommonMonProperties(c *Cluster, currentMons int, mon cephv1.MonSpec, rookImage string) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(currentMons)
 	c.spec.Mon.Count = mon.Count
 	c.spec.Mon.AllowMultiplePerNode = mon.AllowMultiplePerNode
-	c.rookVersion = rookVersion
+	c.rookImage = rookImage
 }
 
 func TestResourceName(t *testing.T) {
@@ -186,7 +190,7 @@ func TestStartMonPods(t *testing.T) {
 	}
 
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
 
 	// test annotations
@@ -197,7 +201,7 @@ func TestStartMonPods(t *testing.T) {
 	validateStart(t, c)
 
 	// starting again should be a no-op
-	_, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
 
 	validateStart(t, c)
@@ -211,9 +215,9 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true))
+	assert.NoError(t, info.IsInitialized())
 
 	validateStart(t, c)
 
@@ -221,9 +225,9 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true))
+	assert.NoError(t, info.IsInitialized())
 
 	validateStart(t, c)
 }
@@ -239,9 +243,9 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true))
+	assert.NoError(t, info.IsInitialized())
 
 	validateStart(t, c)
 
@@ -251,9 +255,9 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.ClusterInfo, c.rookVersion, cephver.Octopus, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
 	assert.NoError(t, err)
-	assert.True(t, info.IsInitialized(true), info)
+	assert.NoError(t, info.IsInitialized(), info)
 
 	validateStart(t, c)
 }
@@ -473,7 +477,7 @@ func TestConfigureArbiter(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{
 		Mon: cephv1.MonSpec{
 			StretchCluster: &cephv1.StretchClusterSpec{
-				Zones: []cephv1.StretchClusterZoneSpec{
+				Zones: []cephv1.MonZoneSpec{
 					{Name: "a", Arbiter: true},
 					{Name: "b"},
 					{Name: "c"},
@@ -526,22 +530,20 @@ func TestConfigureArbiter(t *testing.T) {
 	})
 }
 
-func TestFindAvailableZoneForStretchedMon(t *testing.T) {
+func TestFindAvailableZoneMon(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{
 		Mon: cephv1.MonSpec{
-			StretchCluster: &cephv1.StretchClusterSpec{
-				Zones: []cephv1.StretchClusterZoneSpec{
-					{Name: "a", Arbiter: true},
-					{Name: "b"},
-					{Name: "c"},
-				},
+			Zones: []cephv1.MonZoneSpec{
+				{Name: "a"},
+				{Name: "b"},
+				{Name: "c"},
 			},
 		},
 	}}
 
 	// No mons are assigned to a zone yet
 	existingMons := []*monConfig{}
-	availableZone, err := c.findAvailableZoneIfStretched(existingMons)
+	availableZone, err := c.findAvailableZone(existingMons)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", availableZone)
 
@@ -551,7 +553,7 @@ func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 		{ResourceName: "y", Zone: "b"},
 	}
 	c.spec.Mon.Count = 3
-	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	availableZone, err = c.findAvailableZone(existingMons)
 	assert.NoError(t, err)
 	assert.Equal(t, "c", availableZone)
 
@@ -562,7 +564,47 @@ func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 		{ResourceName: "z", Zone: "c"},
 	}
 	c.spec.Mon.Count = 3
-	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	availableZone, err = c.findAvailableZone(existingMons)
+	assert.Error(t, err)
+	assert.Equal(t, "", availableZone)
+}
+func TestFindAvailableZoneForStretchedMon(t *testing.T) {
+	c := &Cluster{spec: cephv1.ClusterSpec{
+		Mon: cephv1.MonSpec{
+			StretchCluster: &cephv1.StretchClusterSpec{
+				Zones: []cephv1.MonZoneSpec{
+					{Name: "a", Arbiter: true},
+					{Name: "b"},
+					{Name: "c"},
+				},
+			},
+		},
+	}}
+
+	// No mons are assigned to a zone yet
+	existingMons := []*monConfig{}
+	availableZone, err := c.findAvailableZone(existingMons)
+	assert.NoError(t, err)
+	assert.NotEqual(t, "", availableZone)
+
+	// With 3 mons, we have one available zone
+	existingMons = []*monConfig{
+		{ResourceName: "x", Zone: "a"},
+		{ResourceName: "y", Zone: "b"},
+	}
+	c.spec.Mon.Count = 3
+	availableZone, err = c.findAvailableZone(existingMons)
+	assert.NoError(t, err)
+	assert.Equal(t, "c", availableZone)
+
+	// With 3 mons and no available zones
+	existingMons = []*monConfig{
+		{ResourceName: "x", Zone: "a"},
+		{ResourceName: "y", Zone: "b"},
+		{ResourceName: "z", Zone: "c"},
+	}
+	c.spec.Mon.Count = 3
+	availableZone, err = c.findAvailableZone(existingMons)
 	assert.Error(t, err)
 	assert.Equal(t, "", availableZone)
 
@@ -575,7 +617,7 @@ func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 		{ResourceName: "q", Zone: "c"},
 	}
 	c.spec.Mon.Count = 5
-	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	availableZone, err = c.findAvailableZone(existingMons)
 	assert.Error(t, err)
 	assert.Equal(t, "", availableZone)
 
@@ -586,7 +628,7 @@ func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 		{ResourceName: "y", Zone: "b"},
 		{ResourceName: "z", Zone: "c"},
 	}
-	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	availableZone, err = c.findAvailableZone(existingMons)
 	assert.NoError(t, err)
 	assert.Equal(t, "c", availableZone)
 
@@ -597,11 +639,52 @@ func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 		{ResourceName: "y", Zone: "c"},
 		{ResourceName: "z", Zone: "c"},
 	}
-	availableZone, err = c.findAvailableZoneIfStretched(existingMons)
+	availableZone, err = c.findAvailableZone(existingMons)
 	assert.NoError(t, err)
 	assert.Equal(t, "a", availableZone)
 }
 
+func TestMonVolumeClaimTemplate(t *testing.T) {
+	generalSC := "generalSC"
+	zoneSC := "zoneSC"
+	defaultTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &generalSC}}
+	zoneTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &zoneSC}}
+	type fields struct {
+		spec cephv1.ClusterSpec
+	}
+	type args struct {
+		mon *monConfig
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		args   args
+		want   *v1.PersistentVolumeClaim
+	}{
+		{"no template", fields{cephv1.ClusterSpec{}}, args{&monConfig{Zone: "z1"}}, nil},
+		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate},
+		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+			VolumeClaimTemplate: defaultTemplate,
+			Zones:               []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}},
+			args{&monConfig{Zone: "z1"}},
+			defaultTemplate},
+		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
+			VolumeClaimTemplate: defaultTemplate,
+			Zones:               []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}},
+			args{&monConfig{Zone: "z1"}},
+			zoneTemplate},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &Cluster{
+				spec: tt.fields.spec,
+			}
+			if got := c.monVolumeClaimTemplate(tt.args.mon); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("Cluster.monVolumeClaimTemplate() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
 func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 	generalSC := "generalSC"
 	zoneSC := "zoneSC"
@@ -623,12 +706,12 @@ func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate},
 		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
 			VolumeClaimTemplate: defaultTemplate,
-			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}}},
+			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}}},
 			args{&monConfig{Zone: "z1"}},
 			defaultTemplate},
 		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
 			VolumeClaimTemplate: defaultTemplate,
-			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.StretchClusterZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}}},
+			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}}},
 			args{&monConfig{Zone: "z1"}},
 			zoneTemplate},
 	}
@@ -665,7 +748,7 @@ func TestArbiterPlacement(t *testing.T) {
 	c := &Cluster{spec: cephv1.ClusterSpec{
 		Mon: cephv1.MonSpec{
 			StretchCluster: &cephv1.StretchClusterSpec{
-				Zones: []cephv1.StretchClusterZoneSpec{
+				Zones: []cephv1.MonZoneSpec{
 					{Name: "a", Arbiter: true},
 					{Name: "b"},
 					{Name: "c"},
@@ -701,7 +784,7 @@ func TestCheckIfArbiterReady(t *testing.T) {
 		spec: cephv1.ClusterSpec{
 			Mon: cephv1.MonSpec{
 				StretchCluster: &cephv1.StretchClusterSpec{
-					Zones: []cephv1.StretchClusterZoneSpec{
+					Zones: []cephv1.MonZoneSpec{
 						{Name: "a", Arbiter: true},
 						{Name: "b"},
 						{Name: "c"},
@@ -768,4 +851,108 @@ func TestCheckIfArbiterReady(t *testing.T) {
 	ready, err = c.readyToConfigureArbiter(false)
 	assert.False(t, ready)
 	assert.Error(t, err)
+}
+
+func TestSkipReconcile(t *testing.T) {
+	c := New(context.TODO(), &clusterd.Context{Clientset: test.New(t, 1), ConfigDir: t.TempDir()}, "ns", cephv1.ClusterSpec{}, cephclient.NewMinimumOwnerInfoWithOwnerRef())
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+	c.ClusterInfo.Namespace = "ns"
+
+	monDeployment := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon-a",
+			Namespace: c.ClusterInfo.Namespace,
+			Labels: map[string]string{
+				k8sutil.AppAttr: AppName,
+				config.MonType:  "a",
+			},
+		}}
+
+	deployment, err := c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Create(c.ClusterInfo.Context, monDeployment, metav1.CreateOptions{})
+	assert.NoError(t, err)
+
+	result, err := controller.GetDaemonsToSkipReconcile(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, config.MonType, AppName)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, result.Len())
+
+	deployment, err = c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Get(c.ClusterInfo.Context, deployment.Name, metav1.GetOptions{})
+	assert.NoError(t, err)
+
+	deployment.Labels[cephv1.SkipReconcileLabelKey] = ""
+	_, err = c.context.Clientset.AppsV1().Deployments(c.ClusterInfo.Namespace).Update(c.ClusterInfo.Context, deployment, metav1.UpdateOptions{})
+	assert.NoError(t, err)
+
+	result, err = controller.GetDaemonsToSkipReconcile(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, config.MonType, AppName)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, result.Len())
+}
+
+func TestHasMonPathChanged(t *testing.T) {
+	monDeployment := &apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-mon-a",
+			Namespace: "test",
+			Labels: map[string]string{
+				"pvc_name": "test-pvc",
+			},
+		}}
+
+	pvcTemplate := &v1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-claim",
+		},
+	}
+	t.Run("mon path changed from pv to hostpath", func(t *testing.T) {
+		assert.True(t, hasMonPathChanged(monDeployment, nil))
+	})
+
+	t.Run("mon path not changed from pv to hostpath", func(t *testing.T) {
+		assert.False(t, hasMonPathChanged(monDeployment, pvcTemplate))
+	})
+	t.Run("mon path changed from hostPath to pvc", func(t *testing.T) {
+		delete(monDeployment.Labels, "pvc_name")
+		assert.True(t, hasMonPathChanged(monDeployment, pvcTemplate))
+	})
+
+	t.Run("mon path not changed from hostPath to pvc", func(t *testing.T) {
+		delete(monDeployment.Labels, "pvc_name")
+		assert.False(t, hasMonPathChanged(monDeployment, nil))
+	})
+}
+
+func TestIsMonIPUpdateRequiredForHostNetwork(t *testing.T) {
+	t.Run("both cluster and mon are set to use host network", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{HostNetwork: true}
+		monUsingHostNetwork := true
+		assert.False(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("both cluster and mon are not set for host network", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{}
+		monUsingHostNetwork := false
+		assert.False(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+	t.Run("cluster is set for host networking but mon pod is not", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{HostNetwork: true}
+		monUsingHostNetwork := false
+		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("mon is using host networking but cluster is updated to not use host network ", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{}
+		monUsingHostNetwork := true
+		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("mon is using host networking and cluster is set host network via NetworkProviderHost ", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{Provider: cephv1.NetworkProviderHost}
+		monUsingHostNetwork := true
+		assert.False(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
+
+	t.Run("mon is not using host networking but cluster is updated to use host network via NetworkProviderHost ", func(t *testing.T) {
+		hostNetwork := &cephv1.NetworkSpec{Provider: cephv1.NetworkProviderHost}
+		monUsingHostNetwork := false
+		assert.True(t, isMonIPUpdateRequiredForHostNetwork("a", monUsingHostNetwork, hostNetwork))
+	})
 }

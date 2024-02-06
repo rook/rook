@@ -46,6 +46,8 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "peer-map")
 
+var peerPoolTempFile = "peerPool"
+
 type PeerIDMapping struct {
 	ClusterIDMapping map[string]string
 	RBDPoolIDMapping []map[string]string
@@ -351,12 +353,31 @@ func decodePeerToken(token string) (*cephclient.PeerToken, error) {
 }
 
 func getPeerPoolDetails(ctx *clusterd.Context, args ...string) (cephclient.CephStoragePoolDetails, error) {
-	peerPoolDetails, err := ctx.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, "ceph", args...)
+	poolDetailsTempFile, err := os.CreateTemp("", peerPoolTempFile)
+	if err != nil {
+		return cephclient.CephStoragePoolDetails{}, errors.Wrap(err, "failed to generate temporary file")
+	}
+
+	defer func() {
+		err := os.Remove(poolDetailsTempFile.Name())
+		if err != nil {
+			logger.Errorf("failed to remove file %q. %v", poolDetailsTempFile.Name(), err)
+		}
+	}()
+
+	args = append(args, "--out-file", poolDetailsTempFile.Name())
+
+	_, err = ctx.Executor.ExecuteCommandWithTimeout(exec.CephCommandsTimeout, "ceph", args...)
 	if err != nil {
 		return cephclient.CephStoragePoolDetails{}, errors.Wrap(err, "failed to get pool details from peer cluster")
 	}
 
-	return cephclient.ParsePoolDetails([]byte(peerPoolDetails))
+	data, err := os.ReadFile(poolDetailsTempFile.Name())
+	if err != nil {
+		return cephclient.CephStoragePoolDetails{}, errors.Wrapf(err, "failed to read from the temporary json output file %q", poolDetailsTempFile.Name())
+	}
+
+	return cephclient.ParsePoolDetails(data)
 }
 
 func getMapKV(input map[string]string) (string, string) {

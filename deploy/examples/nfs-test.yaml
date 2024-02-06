@@ -11,6 +11,7 @@ spec:
   server:
     active: 1
     logLevel: NIV_DEBUG
+  security: {}
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool

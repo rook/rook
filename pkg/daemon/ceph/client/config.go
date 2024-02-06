@@ -19,7 +19,6 @@ package client
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"path"
@@ -247,28 +246,28 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 // PopulateMonHostMembers extracts a list of just the monitor names, which will populate the "mon initial members"
 // and "mon hosts" global config field
 func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
-	monMembers := make([]string, len(clusterInfo.Monitors))
-	monHosts := make([]string, len(clusterInfo.Monitors))
+	var monMembers []string
+	var monHosts []string
 
-	i := 0
 	for _, monitor := range clusterInfo.Monitors {
-		monMembers[i] = monitor.Name
+		if monitor.OutOfQuorum {
+			logger.Warningf("skipping adding mon %q to config file, detected out of quorum", monitor.Name)
+			continue
+		}
+		monMembers = append(monMembers, monitor.Name)
 		monIP := cephutil.GetIPFromEndpoint(monitor.Endpoint)
-		if clusterInfo.RequireMsgr2 {
-			monHosts[i] = fmt.Sprintf("[v2:%s:%d]", monIP, Msgr2port)
+		// Detect the current port if the mon already exists
+		// so the same msgr1 port can be preserved if needed (6789 or 6790)
+		currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
+
+		if currentMonPort == Msgr2port {
+			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
+			monHosts = append(monHosts, "[v2:"+msgr2Endpoint+"]")
 		} else {
-			// Detect the current port if the mon already exists
-			// so the same msgr1 port can be preserved if needed (6789 or 6790)
-			currentMonPort := cephutil.GetPortFromEndpoint(monitor.Endpoint)
-			// Ensure we're setting a msgr1 port, rather than duplicating msgr2
-			if currentMonPort == Msgr2port {
-				currentMonPort = Msgr1port
-			}
 			msgr2Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(Msgr2port)))
 			msgr1Endpoint := net.JoinHostPort(monIP, strconv.Itoa(int(currentMonPort)))
-			monHosts[i] = "[v2:" + msgr2Endpoint + ",v1:" + msgr1Endpoint + "]"
+			monHosts = append(monHosts, "[v2:"+msgr2Endpoint+",v1:"+msgr1Endpoint+"]")
 		}
-		i++
 	}
 
 	return monMembers, monHosts
@@ -287,15 +286,15 @@ func WriteCephConfig(context *clusterd.Context, clusterInfo *ClusterInfo) error 
 	if err != nil {
 		return errors.Wrap(err, "failed to write connection config")
 	}
-	src, err := ioutil.ReadFile(filepath.Clean(confFilePath))
+	src, err := os.ReadFile(filepath.Clean(confFilePath))
 	if err != nil {
 		return errors.Wrap(err, "failed to copy connection config to /etc/ceph. failed to read the connection config")
 	}
-	err = ioutil.WriteFile(DefaultConfigFilePath(), src, 0444)
+	err = os.WriteFile(DefaultConfigFilePath(), src, 0600)
 	if err != nil {
 		return errors.Wrapf(err, "failed to copy connection config to /etc/ceph. failed to write %q", DefaultConfigFilePath())
 	}
-	dst, err := ioutil.ReadFile(DefaultConfigFilePath())
+	dst, err := os.ReadFile(DefaultConfigFilePath())
 	if err == nil {
 		logger.Debugf("config file @ %s:\n%s", DefaultConfigFilePath(), dst)
 	} else {

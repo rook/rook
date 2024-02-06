@@ -173,7 +173,8 @@ func (r *ReconcileClusterDisruption) reconcile(request reconcile.Request) (recon
 	}
 
 	activeNodeDrains := len(nodeDrainFailureDomains) > 0
-	return r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, osdDownFailureDomains, activeNodeDrains)
+	pgHealthyRegex := cephCluster.Spec.DisruptionManagement.PGHealthyRegex
+	return r.reconcilePDBsForOSDs(clusterInfo, request, pdbStateMap, poolFailureDomain, allFailureDomains, osdDownFailureDomains, activeNodeDrains, pgHealthyRegex)
 }
 
 // ClusterMap maintains the association between namespace and clusername
@@ -232,7 +233,7 @@ func (c *ClusterMap) GetCluster(namespace string) (*cephv1.CephCluster, bool) {
 	return cluster, true
 }
 
-// GetClusterNamespaces returns the internal clustermap for iteration purporses
+// GetClusterNamespaces returns the internal clustermap for iteration purposes
 func (c *ClusterMap) GetClusterNamespaces() []string {
 	defer c.mux.Unlock()
 	c.mux.Lock()

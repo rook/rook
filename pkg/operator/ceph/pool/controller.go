@@ -25,6 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util/exec"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -110,7 +111,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephBlockPool CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephBlockPool{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephBlockPool{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
@@ -123,7 +124,8 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 
 	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
-	err = c.Watch(&source.Kind{Type: &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}}, handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges())
+	cmSource := source.Kind(mgr.GetCache(), &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}})
+	err = c.Watch(cmSource, handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges())
 	if err != nil {
 		return err
 	}
@@ -161,7 +163,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrap(err, "failed to get CephBlockPool")
 	}
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephBlockPool.ObjectMeta.Generation
 
@@ -202,12 +204,11 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, &cephCluster.Spec)
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo = clusterInfo
-	r.clusterInfo.NetworkSpec = cephCluster.Spec.Network
 
 	// Initialize the channel for this pool
 	// This allows us to track multiple CephBlockPool in the same namespace
@@ -246,7 +247,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 
 		// disable RBD stats collection if cephBlockPool was deleted
-		if err := configureRBDStats(r.context, clusterInfo); err != nil {
+		if err := configureRBDStats(r.context, clusterInfo, cephBlockPool.Name); err != nil {
 			logger.Errorf("failed to disable stats collection for pool(s). %v", err)
 		}
 
@@ -291,7 +292,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	}
 
 	// enable/disable RBD stats collection based on cephBlockPool spec
-	if err := configureRBDStats(r.context, clusterInfo); err != nil {
+	if err := configureRBDStats(r.context, clusterInfo, ""); err != nil {
 		return reconcile.Result{}, *cephBlockPool, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
 
@@ -322,7 +323,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		// Add bootstrap peer if any
 		logger.Debug("reconciling ceph bootstrap peers import")
-		reconcileResponse, err = r.reconcileAddBoostrapPeer(cephBlockPool, request.NamespacedName)
+		reconcileResponse, err = r.reconcileAddBootstrapPeer(cephBlockPool, request.NamespacedName)
 		if err != nil {
 			return reconcileResponse, *cephBlockPool, errors.Wrap(err, "failed to add ceph rbd mirror peer")
 		}
@@ -385,13 +386,16 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
-	logger.Infof("initializing pool %q", p.Name)
-	args := []string{"pool", "init", p.Name}
-	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).Run()
-	if err != nil {
-		return errors.Wrapf(err, "failed to initialize pool %q. %s", p.Name, string(output))
+	if appName != poolApplicationNameRBD {
+		return nil
 	}
-	logger.Infof("successfully initialized pool %q", p.Name)
+	logger.Infof("initializing pool %q for RBD use", p.Name)
+	args := []string{"pool", "init", p.Name}
+	output, err := cephclient.NewRBDCommand(context, clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to initialize pool %q for RBD use. %s", p.Name, string(output))
+	}
+	logger.Infof("successfully initialized pool %q for RBD use", p.Name)
 
 	return nil
 }
@@ -416,11 +420,35 @@ func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	return nil
 }
 
-func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
+// remove removes any element from a list
+func remove(list []string, s string) []string {
+	for i, v := range list {
+		if v == s {
+			list = append(list[:i], list[i+1:]...)
+		}
+	}
+
+	return list
+}
+
+// Remove duplicate entries from slice
+func removeDuplicates(slice []string) []string {
+	inResult := make(map[string]bool)
+	var result []string
+	for _, str := range slice {
+		if _, ok := inResult[str]; !ok {
+			inResult[str] = true
+			result = append(result, str)
+		}
+	}
+	return result
+}
+
+func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deletedPool string) error {
 	logger.Debug("configuring RBD per-image IO statistics collection")
 	namespaceListOpt := client.InNamespace(clusterInfo.Namespace)
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
-	var enableStatsForPools []string
+	var enableStatsForCephBlockPools []string
 	err := clusterContext.Client.List(clusterInfo.Context, cephBlockPoolList, namespaceListOpt)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve list of CephBlockPool")
@@ -428,15 +456,28 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	for _, cephBlockPool := range cephBlockPoolList.Items {
 		if cephBlockPool.GetDeletionTimestamp() == nil && cephBlockPool.Spec.EnableRBDStats {
 			// add to list of CephBlockPool with enableRBDStats set to true and not marked for deletion
-			enableStatsForPools = append(enableStatsForPools, cephBlockPool.ToNamedPoolSpec().Name)
+			enableStatsForCephBlockPools = append(enableStatsForCephBlockPools, cephBlockPool.ToNamedPoolSpec().Name)
 		}
 	}
-	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
+	enableStatsForCephBlockPools = remove(enableStatsForCephBlockPools, deletedPool)
 	monStore := config.GetMonStore(clusterContext, clusterInfo)
+	// Check for existing rbd stats pools
+	existingRBDStatsPools, e := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	if e != nil {
+		return errors.Wrapf(e, "failed to get rbd_stats_pools")
+	}
+
+	existingRBDStatsPoolsList := strings.Split(existingRBDStatsPools, ",")
+	enableStatsForPools := append(enableStatsForCephBlockPools, existingRBDStatsPoolsList...)
+	enableStatsForPools = removeDuplicates(enableStatsForPools)
+
+	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
+
 	if len(enableStatsForPools) == 0 {
-		err = monStore.Delete("mgr.", "mgr/prometheus/rbd_stats_pools")
+		err = monStore.Delete("mgr", "mgr/prometheus/rbd_stats_pools")
 	} else {
-		err = monStore.Set("mgr.", "mgr/prometheus/rbd_stats_pools", strings.Join(enableStatsForPools, ","))
+		// appending existing rbd stats pools if any
+		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", strings.Trim(strings.Join(enableStatsForPools, ","), ","))
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")

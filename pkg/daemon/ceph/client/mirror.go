@@ -20,7 +20,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 
@@ -51,13 +50,13 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 
 	// Token file
 	tokenFilePattern := fmt.Sprintf("rbd-mirror-token-%s", poolName)
-	tokenFilePath, err := ioutil.TempFile("/tmp", tokenFilePattern)
+	tokenFilePath, err := os.CreateTemp("/tmp", tokenFilePattern)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create temporary token file for pool %q", poolName)
 	}
 
 	// Write token into a file
-	err = ioutil.WriteFile(tokenFilePath.Name(), token, 0400)
+	err = os.WriteFile(tokenFilePath.Name(), token, 0400)
 	if err != nil {
 		return errors.Wrapf(err, "failed to write token to file %q", tokenFilePath.Name())
 	}
@@ -330,7 +329,9 @@ func ListSnapshotSchedulesRecursively(context *clusterd.Context, clusterInfo *Cl
 	return snapshotSchedulesRecursive, nil
 }
 
-/* CreateRBDMirrorBootstrapPeerWithoutPool creates a bootstrap peer for the current cluster
+/*
+	CreateRBDMirrorBootstrapPeerWithoutPool creates a bootstrap peer for the current cluster
+
 It creates the cephx user for the remote cluster to use with all the necessary details
 This function is handy on scenarios where no pools have been created yet but replication communication is required (connecting peers)
 It essentially sits above CreateRBDMirrorBootstrapPeer()
@@ -338,20 +339,20 @@ and is a cluster-wide option in the scenario where all the pools will be mirrore
 
 So the scenario looks like:
 
-	1) Create the cephx ID on the source cluster
+ 1. Create the cephx ID on the source cluster
 
-	2) Enable a source pool for mirroring - at any time, we just don't know when
-	rbd --cluster site-a mirror pool enable image-pool image
+ 2. Enable a source pool for mirroring - at any time, we just don't know when
+    rbd --cluster site-a mirror pool enable image-pool image
 
-	3) Copy the key details over to the other cluster (non-ceph workflow)
+ 3. Copy the key details over to the other cluster (non-ceph workflow)
 
-	4) Enable destination pool for mirroring
-	rbd --cluster site-b mirror pool enable image-pool image
+ 4. Enable destination pool for mirroring
+    rbd --cluster site-b mirror pool enable image-pool image
 
-	5) Add the peer details to the destination pool
+ 5. Add the peer details to the destination pool
 
-	6) Repeat the steps flipping source and destination to enable
-	bi-directional mirroring
+ 6. Repeat the steps flipping source and destination to enable
+    bi-directional mirroring
 */
 func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterInfo *ClusterInfo) ([]byte, error) {
 	fullClientName := getQualifiedUser(rbdMirrorPeerKeyringID)
@@ -362,7 +363,7 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 	}
 	logger.Infof("successfully created rbd-mirror bootstrap peer token for cluster %q", clusterInfo.NamespacedName().Name)
 
-	mons := sets.NewString()
+	mons := sets.New[string]()
 	for _, mon := range clusterInfo.Monitors {
 		mons.Insert(mon.Endpoint)
 	}
@@ -371,7 +372,7 @@ func CreateRBDMirrorBootstrapPeerWithoutPool(context *clusterd.Context, clusterI
 		ClusterFSID: clusterInfo.FSID,
 		ClientID:    rbdMirrorPeerKeyringID,
 		Key:         key,
-		MonHost:     strings.Join(mons.List(), ","),
+		MonHost:     strings.Join(sets.List(mons), ","),
 		Namespace:   clusterInfo.Namespace,
 	}
 

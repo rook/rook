@@ -18,12 +18,13 @@ package peermap
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
-
-	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -237,6 +238,23 @@ var fakeMultiPeerCephBlockPool = cephv1.CephBlockPool{
 	},
 }
 
+func saveMockDataInTempFile(data, filePattern string) error {
+	matches, _ := filepath.Glob(fmt.Sprintf("/tmp/%s*", filePattern))
+	for _, m := range matches {
+		file, err := os.OpenFile(m, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return fmt.Errorf("failed to open file %q. %v", m, err)
+		}
+
+		defer file.Close()
+		_, err = file.WriteString(data)
+		if err != nil {
+			return fmt.Errorf("failed to write data to the file %q. %v", m, err)
+		}
+	}
+	return nil
+}
+
 var mockExecutor = &exectest.MockExecutor{
 	MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
@@ -255,22 +273,46 @@ var mockExecutor = &exectest.MockExecutor{
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[5], "peer1") {
 			if args[3] == "mirrorPool1" {
+				err := saveMockDataInTempFile(`{"pool_id": 2}`, peerPoolTempFile)
+				if err != nil {
+					return "", err
+				}
 				return `{"pool_id": 2}`, nil
 			} else if args[3] == "mirrorPool2" {
+				err := saveMockDataInTempFile(`{"pool_id": 3}`, peerPoolTempFile)
+				if err != nil {
+					return "", err
+				}
 				return `{"pool_id": 3}`, nil
 			}
 		}
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[5], "peer2") {
 			if args[3] == "mirrorPool1" {
+				err := saveMockDataInTempFile(`{"pool_id": 3}`, peerPoolTempFile)
+				if err != nil {
+					return "", err
+				}
 				return `{"pool_id": 3}`, nil
 			} else if args[3] == "mirrorPool2" {
+				err := saveMockDataInTempFile(`{"pool_id": 4}`, peerPoolTempFile)
+				if err != nil {
+					return "", err
+				}
 				return `{"pool_id": 4}`, nil
 			}
 		}
 		if args[0] == "osd" && args[1] == "pool" && args[2] == "get" && strings.HasSuffix(args[5], "peer3") {
 			if args[3] == "mirrorPool1" {
+				err := saveMockDataInTempFile(`{"pool_id": 4}`, peerPoolTempFile)
+				if err != nil {
+					return "", err
+				}
 				return `{"pool_id": 4}`, nil
 			} else if args[3] == "mirrorPool2" {
+				err := saveMockDataInTempFile(`{"pool_id": 5}`, peerPoolTempFile)
+				if err != nil {
+					return "", err
+				}
 				return `{"pool_id": 5}`, nil
 			}
 		}
@@ -363,10 +405,8 @@ func TestDecodePeerToken(t *testing.T) {
 }
 
 func TestCreateOrUpdateConfig(t *testing.T) {
-	os.Setenv("POD_NAME", "rook-ceph-operator")
-	defer os.Setenv("POD_NAME", "")
-	os.Setenv("POD_NAMESPACE", ns)
-	defer os.Setenv("POD_NAMESPACE", "")
+	t.Setenv("POD_NAME", "rook-ceph-operator")
+	t.Setenv("POD_NAMESPACE", ns)
 
 	scheme := scheme.Scheme
 	err := cephv1.AddToScheme(scheme)

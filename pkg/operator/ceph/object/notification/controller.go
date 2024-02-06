@@ -19,6 +19,7 @@ package notification
 
 import (
 	"context"
+	"os"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -68,6 +69,11 @@ type ReconcileNotifications struct {
 // Add creates a new CephBucketNotification controller and a new ObjectBucketClaim Controller and adds it to the Manager.
 // The Manager will set fields on the Controller and start it when the Manager is started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	if os.Getenv(object.DisableOBCEnvVar) == "true" {
+		logger.Info("skip running Object Bucket Notification controller")
+		return nil
+	}
+
 	if err := addNotificationReconciler(mgr, &ReconcileNotifications{
 		client:           mgr.GetClient(),
 		context:          context,
@@ -94,7 +100,7 @@ func addNotificationReconciler(mgr manager.Manager, r reconcile.Reconciler) erro
 	logger.Info("successfully started")
 
 	// Watch for changes on the OBC CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephBucketNotification{}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephBucketNotification{}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
@@ -209,17 +215,7 @@ func (r *ReconcileNotifications) reconcile(request reconcile.Request) (reconcile
 }
 
 func getCephObjectStoreName(ob bktv1alpha1.ObjectBucket) (types.NamespacedName, error) {
-	// parse the following string: <prefix>-rgw-<store>.<namespace>.svc
-	// to ge the object store name and namespace
-	logger.Debugf("BucketHost of %q is %q",
-		types.NamespacedName{Name: ob.Name, Namespace: ob.Namespace}.String(),
-		ob.Spec.Connection.Endpoint.BucketHost,
-	)
-	objectStoreName, err := object.ParseDomainName(ob.Spec.Connection.Endpoint.BucketHost)
-	if err != nil {
-		return types.NamespacedName{}, errors.Wrapf(err, "malformed BucketHost %q", ob.Spec.Endpoint.BucketHost)
-	}
-	return objectStoreName, nil
+	return bucket.GetObjectStoreNameFromBucket(&ob)
 }
 
 // verify that object store is configured correctly for OB, CephBucketNotification and CephBucketTopic
@@ -245,7 +241,7 @@ func getReadyCluster(client client.Client, opManagerContext context.Context, con
 		logger.Debug("Ceph cluster not yet present.")
 		return nil, nil, nil
 	}
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(&context, opManagerContext, cephCluster.Namespace)
+	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(&context, opManagerContext, cephCluster.Namespace, &cephCluster.Spec)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to populate cluster info")
 	}

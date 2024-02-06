@@ -50,6 +50,7 @@ func TestPodSpec(t *testing.T) {
 			CephVersion: cephv1.CephVersionSpec{
 				Image: "quay.io/ceph/ceph:v15",
 			},
+			DataDirHostPath: "/var/lib/rook",
 		},
 	}
 
@@ -75,7 +76,7 @@ func TestPodSpec(t *testing.T) {
 		TypeMeta: controllerTypeMeta,
 	}
 	clusterInfo := &cephclient.ClusterInfo{
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	s := scheme.Scheme
 	object := []runtime.Object{rbdMirror}
@@ -87,9 +88,9 @@ func TestPodSpec(t *testing.T) {
 	d, err := r.makeDeployment(&daemonConf, rbdMirror)
 	assert.NoError(t, err)
 	assert.Equal(t, "rook-ceph-rbd-mirror-a", d.Name)
-	assert.Equal(t, 4, len(d.Spec.Template.Spec.Volumes))
+	assert.Equal(t, 5, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes[0].Projected.Sources))
-	assert.Equal(t, 4, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
+	assert.Equal(t, 5, len(d.Spec.Template.Spec.Containers[0].VolumeMounts))
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,

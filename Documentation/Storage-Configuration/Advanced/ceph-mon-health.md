@@ -36,7 +36,7 @@ Rook allows an even number of mons for higher durability. See the [disaster reco
 
 The number of mons to create in a cluster depends on your tolerance for losing a node. If you have 1 mon zero nodes can be lost
 to maintain quorum. With 3 mons one node can be lost, and with 5 mons two nodes can be lost. Because the Rook operator will automatically
-start a new new monitor if one dies, you typically only need three mons. The more mons you have, the more overhead there will be to make
+start a new monitor if one dies, you typically only need three mons. The more mons you have, the more overhead there will be to make
 a change to the cluster, which could become a performance issue in a large cluster.
 
 ## Mitigating Monitor Failure
@@ -115,3 +115,10 @@ $ ceph -s
     osd: 3 osds: 3 up (since 10m), 3 in (since 10m)
 [...]
 ```
+
+## Automatic Monitor Failover
+
+Rook will automatically fail over the mons when the following settings are updated in the CephCluster CR:
+- `spec.network.hostNetwork`: When enabled or disabled, Rook fails over all monitors, configuring them to enable or disable host networking.
+- `spec.network.Provider` : When updated from being empty to "host", Rook fails over all monitors, configuring them to enable or disable host networking.
+- `spec.network.multiClusterService`: When enabled or disabled, Rook fails over all monitors, configuring them to start (or stop) using service IPs compatible with the multi-cluster service.

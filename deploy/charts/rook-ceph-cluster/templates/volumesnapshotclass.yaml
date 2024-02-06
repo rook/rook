@@ -1,13 +1,10 @@
+{{- $root := . -}}
 {{- $filesystemvsc := .Values.cephFileSystemVolumeSnapshotClass -}}
 {{- $blockpoolvsc := .Values.cephBlockPoolsVolumeSnapshotClass -}}
 
 ---
 {{- if default false $filesystemvsc.enabled }}
-{{- if .Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
 apiVersion: snapshot.storage.k8s.io/v1
-{{- else  }}
-apiVersion: snapshot.storage.k8s.io/v1beta1
-{{- end }}
 kind: VolumeSnapshotClass
 metadata:
   name: {{ $filesystemvsc.name }}
@@ -20,7 +17,11 @@ metadata:
 {{- if $filesystemvsc.annotations }}
 {{ toYaml $filesystemvsc.annotations | indent 4 }}
 {{- end }}
-driver: {{ .Values.operatorNamespace }}.cephfs.csi.ceph.com
+{{- if $root.Values.csiDriverNamePrefix }}
+driver: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
+{{- else }}
+driver: {{ $root.Values.operatorNamespace }}.cephfs.csi.ceph.com
+{{- end }}
 parameters:
   clusterID: {{ .Release.Namespace }}
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
@@ -33,11 +34,7 @@ deletionPolicy: {{ default "Delete" $filesystemvsc.deletionPolicy }}
 
 ---
 {{- if default false $blockpoolvsc.enabled }}
-{{- if .Capabilities.APIVersions.Has "snapshot.storage.k8s.io/v1" }}
 apiVersion: snapshot.storage.k8s.io/v1
-{{- else  }}
-apiVersion: snapshot.storage.k8s.io/v1beta1
-{{- end }}
 kind: VolumeSnapshotClass
 metadata:
   name: {{ $blockpoolvsc.name }}
@@ -50,7 +47,11 @@ metadata:
 {{- if $blockpoolvsc.annotations }}
 {{ toYaml $blockpoolvsc.annotations | indent 4 }}
 {{- end }}
-driver: {{ .Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- if $root.Values.csiDriverNamePrefix }}
+driver: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
+driver: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
 parameters:
   clusterID: {{ .Release.Namespace }}
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner

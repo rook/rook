@@ -59,19 +59,18 @@ type HelmSuite struct {
 func (h *HelmSuite) SetupSuite() {
 	namespace := "helm-ns"
 	h.settings = &installer.TestCephSettings{
-		Namespace:                 namespace,
-		OperatorNamespace:         namespace,
-		StorageClassName:          "",
-		UseHelm:                   true,
-		UsePVC:                    false,
-		Mons:                      1,
-		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
-		EnableDiscovery:           true,
-		ChangeHostName:            true,
-		ConnectionsEncrypted:      true,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.PacificVersion,
+		Namespace:            namespace,
+		OperatorNamespace:    namespace,
+		StorageClassName:     "",
+		UseHelm:              true,
+		UsePVC:               false,
+		Mons:                 1,
+		SkipOSDCreation:      false,
+		EnableDiscovery:      true,
+		ChangeHostName:       true,
+		ConnectionsEncrypted: true,
+		RookVersion:          installer.LocalBuildTag,
+		CephVersion:          installer.QuincyVersion,
 	}
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
@@ -88,18 +87,18 @@ func (h *HelmSuite) AfterTest(suiteName, testName string) {
 
 // Test to make sure all rook components are installed and Running
 func (h *HelmSuite) TestARookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
-	checkIfRookClusterHasHealthyIngress(h.Suite, h.k8shelper, h.settings.Namespace)
+	checkIfRookClusterIsInstalled(&h.Suite, h.k8shelper, h.settings.Namespace, h.settings.Namespace, 1)
+	checkIfRookClusterHasHealthyIngress(&h.Suite, h.k8shelper, h.settings.Namespace)
 }
 
 // Test BlockCreation on Rook that was installed via Helm
 func (h *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
-	runBlockCSITestLite(h.helper, h.k8shelper, h.Suite, h.settings)
+	runBlockCSITestLite(h.helper, h.k8shelper, &h.Suite, h.settings)
 }
 
 // Test File System Creation on Rook that was installed via helm
 func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
-	runFileE2ETestLite(h.helper, h.k8shelper, h.Suite, h.settings, "testfs")
+	runFileE2ETestLite(h.helper, h.k8shelper, &h.Suite, h.settings, "testfs")
 }
 
 // Test Object StoreCreation on Rook that was installed via helm

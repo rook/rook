@@ -1,11 +1,11 @@
- quay.io/ceph/ceph:v17.2.1
- quay.io/cephcsi/cephcsi:v3.6.2
- quay.io/csiaddons/k8s-sidecar:v0.4.0
- quay.io/csiaddons/volumereplication-operator:v0.3.0
- registry.k8s.io/sig-storage/csi-attacher:v3.4.0
- registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1
- registry.k8s.io/sig-storage/csi-provisioner:v3.1.0
- registry.k8s.io/sig-storage/csi-resizer:v1.4.0
- registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1
- registry.k8s.io/sig-storage/nfsplugin:v4.0.0
+ gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20230130-v0.1.0-24-gc0cf995
+ quay.io/ceph/ceph:v18.2.1
+ quay.io/ceph/cosi:v0.1.1
+ quay.io/cephcsi/cephcsi:v3.10.1
+ quay.io/csiaddons/k8s-sidecar:v0.8.0
+ registry.k8s.io/sig-storage/csi-attacher:v4.4.2
+ registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1
+ registry.k8s.io/sig-storage/csi-provisioner:v3.6.3
+ registry.k8s.io/sig-storage/csi-resizer:v1.9.2
+ registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2
  rook/ceph:master

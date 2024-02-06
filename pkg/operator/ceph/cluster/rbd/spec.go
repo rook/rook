@@ -17,8 +17,6 @@ limitations under the License.
 package rbd
 
 import (
-	"fmt"
-
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
@@ -42,7 +40,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 				r.makeMirroringDaemonContainer(daemonConfig, rbdMirror),
 			},
 			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+			Volumes:           controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 			HostNetwork:       r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName: rbdMirror.Spec.PriorityClassName,
 		},
@@ -52,7 +50,12 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	if r.cephClusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.Spec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(fmt.Sprintf("ceph-client.rbd-mirror.%s", daemonConfig.DaemonID), r.clusterInfo.Namespace, *r.cephClusterSpec))
+
+		// The rbd mirror daemon logs to multiple logs, so we need a more generous log rotation filter for files:
+		// ceph-client.rbd-mirror.a.log
+		// <CLUSTER_FSID>-client.rbd-mirror-peer.log
+		logRotationFilter := "*-client.rbd-mirror*"
+		podSpec.Spec.Containers = append(podSpec.Spec.Containers, *controller.LogCollectorContainer(logRotationFilter, r.clusterInfo.Namespace, *r.cephClusterSpec))
 	}
 
 	// Replace default unreachable node toleration
@@ -63,7 +66,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	if r.cephClusterSpec.Network.IsHost() {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if r.cephClusterSpec.Network.IsMultus() {
-		if err := k8sutil.ApplyMultus(r.cephClusterSpec.Network, &podSpec.ObjectMeta); err != nil {
+		if err := k8sutil.ApplyMultus(r.clusterInfo.Namespace, &r.cephClusterSpec.Network, &podSpec.ObjectMeta); err != nil {
 			return nil, err
 		}
 	}
@@ -97,9 +100,11 @@ func (r *ReconcileCephRBDMirror) makeChownInitContainer(daemonConfig *daemonConf
 	return controller.ChownCephDataDirsInitContainer(
 		*daemonConfig.DataPathMap,
 		r.cephClusterSpec.CephVersion.Image,
-		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
+		controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
+		controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 		rbdMirror.Spec.Resources,
 		controller.PodSecurityContext(),
+		"",
 	)
 }
 
@@ -115,8 +120,9 @@ func (r *ReconcileCephRBDMirror) makeMirroringDaemonContainer(daemonConfig *daem
 			"--name="+fullDaemonName(daemonConfig.DaemonID),
 		),
 		Image:           r.cephClusterSpec.CephVersion.Image,
-		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName),
-		Env:             controller.DaemonEnvVars(r.cephClusterSpec.CephVersion.Image),
+		ImagePullPolicy: controller.GetContainerImagePullPolicy(r.cephClusterSpec.CephVersion.ImagePullPolicy),
+		VolumeMounts:    controller.DaemonVolumeMounts(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
+		Env:             controller.DaemonEnvVars(r.cephClusterSpec),
 		Resources:       rbdMirror.Spec.Resources,
 		SecurityContext: controller.PodSecurityContext(),
 		WorkingDir:      config.VarLogCephDir,

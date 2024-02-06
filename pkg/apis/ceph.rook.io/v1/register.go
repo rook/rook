@@ -87,6 +87,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&CephFilesystemSubVolumeGroupList{},
 		&CephBlockPoolRadosNamespace{},
 		&CephBlockPoolRadosNamespaceList{},
+		&CephCOSIDriver{},
+		&CephCOSIDriverList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	scheme.AddKnownTypes(bktv1alpha1.SchemeGroupVersion,

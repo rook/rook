@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: multus-validation-test-client-{{ .NodeType }}-{{ .ClientType }}-{{ .ClientID }}
+  labels:
+    app: multus-validation-test-client
+    nodeType: "{{ .NodeType }}"
+    clientType: "{{ .ClientType }}"
+    clientID: "{{ .ClientID }}"
+    app.kubernetes.io/name: "client"
+    app.kubernetes.io/instance: "client-{{ .NodeType }}-{{ .ClientType }}-{{ .ClientID }}"
+    app.kubernetes.io/component: "client"
+    app.kubernetes.io/part-of: "multus-validation-test"
+    app.kubernetes.io/managed-by: "rook-cli"
+spec:
+  selector:
+    matchLabels:
+      app: multus-validation-test-client
+      nodeType: "{{ .NodeType }}"
+      clientType: "{{ .ClientType }}"
+      clientID: "{{ .ClientID }}"
+  template:
+    metadata:
+      labels:
+        app: multus-validation-test-client
+        nodeType: "{{ .NodeType }}"
+        clientType: "{{ .ClientType }}"
+        clientID: "{{ .ClientID }}"
+      annotations:
+        k8s.v1.cni.cncf.io/networks: "{{ .NetworksAnnotationValue }}"
+    spec:
+      nodeSelector:
+      {{- range $k, $v := .Placement.NodeSelector }}
+        {{ $k }}: {{ $v }}
+      {{- end }}
+      tolerations:
+      {{- range $idx, $toleration := .Placement.Tolerations }}
+        - {{ $toleration.ToJSON }}
+      {{- end }}
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        {{ $NginxImage := .NginxImage }} # base context not available in range below
+        {{ range $name, $address := .NetworkNamesAndAddresses }}
+        - name: readiness-check-web-server-{{ $name }}-addr
+          # use nginx image because it's already used for the web server pod and has a non-root user
+          image: "{{ $NginxImage }}"
+          command:
+            - sleep
+            - infinity
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+          # A readiness probe makes validation testing easier than investigate container logs.
+          # Additionally, readiness probe failures don't result in CrashLoopBackoff -- ideal here,
+          # where ever-longer back-offs would cause tests to run for much longer than necessary.
+          readinessProbe:
+            # Low failure threshold and high success threshold. Intended to be very sensitive to
+            # failures. If probe fails with any regularity, Ceph OSDs likely won't be stable.
+            failureThreshold: 1
+            successThreshold: 12
+            periodSeconds: 5
+            # Assumption: a network with a latency more than 4 seconds for this validation test's
+            # simple client-server response likely won't support acceptable performance for any
+            # production Ceph cluster.
+            timeoutSeconds: 4
+            # TODO: exec:curl works but httpGet fails. Why? need custom header?
+            exec:
+              command:
+                - "curl"
+                - "--insecure"
+                - "{{ $address }}:8080"
+        {{ end }}

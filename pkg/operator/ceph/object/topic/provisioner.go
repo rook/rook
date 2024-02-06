@@ -43,7 +43,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/object"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -69,8 +68,6 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", objectStoreName)
 	}
 
-	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
-	objContext.CephClusterSpec = *p.clusterSpec
 	accessKey, secretKey, err := object.GetAdminOPSUserCredentials(objContext, &objStore.Spec)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get Ceph RGW admin ops user credentials")
@@ -146,7 +143,7 @@ func createSNSClient(p provisioner, objectStoreName types.NamespacedName) (*sns.
 	return snsClient, nil
 }
 
-func createTopicAttributes(topic *cephv1.CephBucketTopic, cephVersion version.CephVersion) map[string]*string {
+func createTopicAttributes(topic *cephv1.CephBucketTopic) map[string]*string {
 	attr := make(map[string]*string)
 	nsName := types.NamespacedName{Name: topic.Name, Namespace: topic.Namespace}
 
@@ -168,12 +165,8 @@ func createTopicAttributes(topic *cephv1.CephBucketTopic, cephVersion version.Ce
 		attr["push-endpoint"] = &topic.Spec.Endpoint.HTTP.URI
 		verifySSL = strconv.FormatBool(!topic.Spec.Endpoint.HTTP.DisableVerifySSL)
 		attr["verify-ssl"] = &verifySSL
-		if cephVersion.IsAtLeast(version.Quincy) {
-			cloudEvents := strconv.FormatBool(topic.Spec.Endpoint.HTTP.SendCloudEvents)
-			attr["cloudevents"] = &cloudEvents
-		} else if topic.Spec.Endpoint.HTTP.SendCloudEvents {
-			logger.Warning("HTTP CloudEvents endpoint supported for Ceph Quincy (v17) or newer")
-		}
+		cloudEvents := strconv.FormatBool(topic.Spec.Endpoint.HTTP.SendCloudEvents)
+		attr["cloudevents"] = &cloudEvents
 	}
 	if topic.Spec.Endpoint.Kafka != nil {
 		logger.Infof("creating CephBucketTopic %q with endpoint %q", nsName, topic.Spec.Endpoint.Kafka.URI)
@@ -200,7 +193,7 @@ func createTopic(p provisioner, topic *cephv1.CephBucketTopic) (*string, error) 
 	}
 	topicOutput, err := snsClient.CreateTopic(&sns.CreateTopicInput{
 		Name:       &topic.Name,
-		Attributes: createTopicAttributes(topic, p.clusterInfo.CephVersion),
+		Attributes: createTopicAttributes(topic),
 	})
 
 	if err != nil {

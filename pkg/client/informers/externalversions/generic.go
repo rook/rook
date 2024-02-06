@@ -61,6 +61,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephBucketNotifications().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephbuckettopics"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephBucketTopics().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("cephcosidrivers"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephCOSIDrivers().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephclients"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1().CephClients().Informer()}, nil
 	case v1.SchemeGroupVersion.WithResource("cephclusters"):

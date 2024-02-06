@@ -3,7 +3,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: csi-metrics
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
   labels:
     team: rook
 spec:
@@ -15,9 +15,5 @@ spec:
       app: csi-metrics
   endpoints:
     - port: csi-http-metrics
-      path: /metrics
-      interval: 5s
-    # comment csi-grpc-metrics realated information if csi grpc metrics is not enabled
-    - port: csi-grpc-metrics
       path: /metrics
       interval: 5s

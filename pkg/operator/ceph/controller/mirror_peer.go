@@ -36,11 +36,11 @@ import (
 
 const (
 	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the prefix of the secret name
-	poolMirrorBoostrapPeerSecretName = "pool-peer-token"
+	poolMirrorBootstrapPeerSecretName = "pool-peer-token"
 	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the prefix of the secret name
-	fsMirrorBoostrapPeerSecretName = "fs-peer-token"
+	fsMirrorBootstrapPeerSecretName = "fs-peer-token"
 	//nolint:gosec // // since this is not leaking any hardcoded credentials, it's just the prefix of the secret name
-	clusterMirrorBoostrapPeerSecretName = "cluster-peer-token"
+	clusterMirrorBootstrapPeerSecretName = "cluster-peer-token"
 	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the prefix of the secret name
 	RBDMirrorBootstrapPeerSecretName = "rbdMirrorBootstrapPeerSecretName"
 	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the prefix of the secret name
@@ -50,20 +50,20 @@ const (
 func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.ClusterInfo, object client.Object, ownerInfo *k8sutil.OwnerInfo) (reconcile.Result, error) {
 	var err error
 	var ns, name, daemonType string
-	var boostrapToken []byte
+	var bootstrapToken []byte
 	switch objectType := object.(type) {
 	case *cephv1.CephBlockPool:
 		ns = objectType.Namespace
 		name = objectType.Name
 		daemonType = "rbd"
 		// Create rbd mirror bootstrap peer token
-		boostrapToken, err = cephclient.CreateRBDMirrorBootstrapPeer(ctx, clusterInfo, name)
+		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeer(ctx, clusterInfo, name)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
 		}
 
 		// Add additional information to the peer token
-		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, boostrapToken)
+		bootstrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, bootstrapToken)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrap(err, "failed to add extra information to rbd-mirror bootstrap peer")
 		}
@@ -72,13 +72,13 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		ns = objectType.Namespace
 		daemonType = "cluster-rbd"
 		// Create rbd mirror bootstrap peer token
-		boostrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo)
+		bootstrapToken, err = cephclient.CreateRBDMirrorBootstrapPeerWithoutPool(ctx, clusterInfo)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
 		}
 
 		// Add additional information to the peer token
-		boostrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, boostrapToken)
+		bootstrapToken, err = expandBootstrapPeerToken(ctx, clusterInfo, bootstrapToken)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrap(err, "failed to add extra information to rbd-mirror bootstrap peer")
 		}
@@ -87,7 +87,7 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 		ns = objectType.Namespace
 		name = objectType.Name
 		daemonType = "cephfs"
-		boostrapToken, err = cephclient.CreateFSMirrorBootstrapPeer(ctx, clusterInfo, name)
+		bootstrapToken, err = cephclient.CreateFSMirrorBootstrapPeer(ctx, clusterInfo, name)
 		if err != nil {
 			return ImmediateRetryResult, errors.Wrapf(err, "failed to create %s-mirror bootstrap peer", daemonType)
 		}
@@ -97,7 +97,7 @@ func CreateBootstrapPeerSecret(ctx *clusterd.Context, clusterInfo *cephclient.Cl
 	}
 
 	// Generate and create a Kubernetes Secret with this token
-	s := GenerateBootstrapPeerSecret(object, boostrapToken)
+	s := GenerateBootstrapPeerSecret(object, bootstrapToken)
 
 	// set ownerref to the Secret
 	err = ownerInfo.SetControllerReference(s)
@@ -136,7 +136,7 @@ func GenerateBootstrapPeerSecret(object client.Object, token []byte) *v1.Secret 
 
 	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      buildBoostrapPeerSecretName(object),
+			Name:      buildBootstrapPeerSecretName(object),
 			Namespace: entityNamespace,
 		},
 		Data: map[string][]byte{
@@ -149,14 +149,14 @@ func GenerateBootstrapPeerSecret(object client.Object, token []byte) *v1.Secret 
 	return s
 }
 
-func buildBoostrapPeerSecretName(object client.Object) string {
+func buildBootstrapPeerSecretName(object client.Object) string {
 	switch objectType := object.(type) {
 	case *cephv1.CephFilesystem:
-		return fmt.Sprintf("%s-%s", fsMirrorBoostrapPeerSecretName, objectType.Name)
+		return fmt.Sprintf("%s-%s", fsMirrorBootstrapPeerSecretName, objectType.Name)
 	case *cephv1.CephBlockPool:
-		return fmt.Sprintf("%s-%s", poolMirrorBoostrapPeerSecretName, objectType.Name)
+		return fmt.Sprintf("%s-%s", poolMirrorBootstrapPeerSecretName, objectType.Name)
 	case *cephv1.CephCluster:
-		return fmt.Sprintf("%s-%s", clusterMirrorBoostrapPeerSecretName, objectType.Name)
+		return fmt.Sprintf("%s-%s", clusterMirrorBootstrapPeerSecretName, objectType.Name)
 	}
 
 	return ""
@@ -167,9 +167,9 @@ func GenerateStatusInfo(object client.Object) map[string]string {
 
 	switch object.(type) {
 	case *cephv1.CephFilesystem:
-		m[FSMirrorBootstrapPeerSecretName] = buildBoostrapPeerSecretName(object)
+		m[FSMirrorBootstrapPeerSecretName] = buildBootstrapPeerSecretName(object)
 	case *cephv1.CephBlockPool:
-		m[RBDMirrorBootstrapPeerSecretName] = buildBoostrapPeerSecretName(object)
+		m[RBDMirrorBootstrapPeerSecretName] = buildBootstrapPeerSecretName(object)
 	}
 
 	return m

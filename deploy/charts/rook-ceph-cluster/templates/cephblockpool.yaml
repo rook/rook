@@ -5,6 +5,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: {{ $blockpool.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
 {{ toYaml $blockpool.spec | indent 2 }}
 ---
@@ -15,20 +16,31 @@ metadata:
   name: {{ $blockpool.storageClass.name }}
   annotations:
     storageclass.kubernetes.io/is-default-class: "{{ if default false $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+{{- if $root.Values.csiDriverNamePrefix }}
+provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
+{{- else }}
 provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
+{{- end }}
 parameters:
   pool: {{ $blockpool.name }}
   clusterID: {{ $root.Release.Namespace }}
 {{ with $blockpool.storageClass.parameters }}
-{{ toYaml . | indent 2 }}
+{{ tpl (toYaml .) $ | indent 2 }}
 {{ end }}
 reclaimPolicy: {{ default "Delete" $blockpool.storageClass.reclaimPolicy }}
 allowVolumeExpansion: {{ default "true" $blockpool.storageClass.allowVolumeExpansion }}
+volumeBindingMode: {{ default "Immediate" $blockpool.storageClass.volumeBindingMode }}
 {{- if $blockpool.storageClass.mountOptions }}
 mountOptions:
   {{- range $blockpool.storageClass.mountOptions }}
   - {{ . }}
   {{- end }}
 {{- end }}
+{{ if $blockpool.storageClass.allowedTopologies }}
+allowedTopologies:
+{{ with $blockpool.storageClass.allowedTopologies }}
+{{ toYaml . | indent 2 }}
+{{ end }}
+{{ end }}
 {{ end }}
 {{ end }}

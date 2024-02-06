@@ -1,0 +1,27 @@
+name: Security scanning
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+
+permissions:
+  contents: read
+
+jobs:
+  security:
+    if: github.repository == 'rook/rook'
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: run Snyk to check for code vulnerabilities
+        uses: snyk/actions/golang@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+          GOFLAGS: "-buildvcs=false"

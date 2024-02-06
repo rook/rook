@@ -21,7 +21,8 @@ priority:
 allowedCapabilities: ["MKNOD"]
 allowHostIPC: true
 readOnlyRootFilesystem: false
-requiredDropCapabilities: []
+# drop all default privileges
+requiredDropCapabilities: ["All"]
 defaultAddCapabilities: []
 runAsUser:
   type: RunAsAny
@@ -61,7 +62,7 @@ allowHostNetwork: true
 # This need to be set to true as we use HostPath
 allowHostDirVolumePlugin: true
 priority:
-# SYS_ADMIN is needed for rbd to execture rbd map command
+# SYS_ADMIN is needed for rbd to execute rbd map command
 allowedCapabilities: ["SYS_ADMIN"]
 # Needed as we run liveness container on daemonset pods
 allowHostPorts: true
@@ -110,6 +111,9 @@ data:
   # The logging level for the operator: ERROR | WARNING | INFO | DEBUG
   ROOK_LOG_LEVEL: "INFO"
 
+  # Allow using loop devices for osds in test clusters.
+  ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
+
   # Enable the CSI driver.
   # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
   ROOK_CSI_ENABLE_CEPHFS: "true"
@@ -117,19 +121,29 @@ data:
   ROOK_CSI_ENABLE_RBD: "true"
   # Enable the CSI NFS driver. To start another version of the CSI driver, see image properties below.
   ROOK_CSI_ENABLE_NFS: "false"
-  ROOK_CSI_ENABLE_GRPC_METRICS: "false"
 
   # Set to true to enable Ceph CSI pvc encryption support.
   CSI_ENABLE_ENCRYPTION: "false"
+
+  # set to true to enable adding volume metadata on the CephFS subvolume and RBD images.
+  # CSI_ENABLE_METADATA: "true"
+
+  # cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful in cases
+  # like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster.
+  # CSI_CLUSTER_NAME: "my-prod-cluster"
 
   # Set to true to enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance.
   # CSI_ENABLE_HOST_NETWORK: "true"
 
-  # Set logging level for csi containers.
+  # Set logging level for cephCSI containers maintained by the cephCSI.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
+
+  # Set logging level for Kubernetes-csi sidecar containers.
+  # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
+  # CSI_SIDECAR_LOG_LEVEL: "0"
 
   # Set replicas for csi provisioner deployment.
   CSI_PROVISIONER_REPLICAS: "2"
@@ -144,6 +158,9 @@ data:
   # set to false to disable deployment of snapshotter container in CephFS provisioner pod.
   CSI_ENABLE_CEPHFS_SNAPSHOTTER: "true"
 
+  # set to false to disable deployment of snapshotter container in NFS provisioner pod.
+  CSI_ENABLE_NFS_SNAPSHOTTER: "true"
+
   # set to false to disable deployment of snapshotter container in RBD provisioner pod.
   CSI_ENABLE_RBD_SNAPSHOTTER: "true"
 
@@ -154,15 +171,15 @@ data:
 
   # (Optional) policy for modifying a volume's ownership or permissions when the RBD PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  CSI_RBD_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+  CSI_RBD_FSGROUPPOLICY: "File"
 
   # (Optional) policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  CSI_CEPHFS_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+  CSI_CEPHFS_FSGROUPPOLICY: "File"
 
   # (Optional) policy for modifying a volume's ownership or permissions when the NFS PVC is being mounted.
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
-  CSI_NFS_FSGROUPPOLICY: "ReadWriteOnceWithFSType"
+  CSI_NFS_FSGROUPPOLICY: "File"
 
   # (Optional) Allow starting unsupported ceph-csi image
   ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
@@ -173,13 +190,12 @@ data:
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
-  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.6.2"
-  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.5.1"
-  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.4.0"
-  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v3.1.0"
-  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v6.0.1"
-  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v3.4.0"
-  # ROOK_CSI_NFS_IMAGE: "registry.k8s.io/sig-storage/nfsplugin:v4.0.0"
+  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.10.1"
+  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1"
+  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.9.2"
+  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v3.6.3"
+  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2"
+  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.4.2"
 
   # (Optional) set user created priorityclassName for csi plugin pods.
   CSI_PLUGIN_PRIORITY_CLASSNAME: "system-node-critical"
@@ -190,9 +206,15 @@ data:
   # CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY: "OnDelete"
+  # A maxUnavailable parameter of CSI cephFS plugin daemonset update strategy.
+  # Default value is 1.
+  # CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: "1"
   # CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
   # CSI_RBD_PLUGIN_UPDATE_STRATEGY: "OnDelete"
+  # A maxUnavailable parameter of CSI RBD plugin daemonset update strategy.
+  # Default value is 1.
+  # CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE: "1"
 
   # CSI NFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate.
   # Default value is RollingUpdate.
@@ -207,6 +229,36 @@ data:
   # ROOK_CSI_RBD_POD_LABELS: "key1=value1,key2=value2"
   # Labels to add to the CSI NFS Deployments and DaemonSets Pods.
   # ROOK_CSI_NFS_POD_LABELS: "key1=value1,key2=value2"
+
+  # (Optional) CephCSI CephFS plugin Volumes
+  # CSI_CEPHFS_PLUGIN_VOLUME: |
+  #  - name: lib-modules
+  #    hostPath:
+  #      path: /run/current-system/kernel-modules/lib/modules/
+  #  - name: host-nix
+  #    hostPath:
+  #      path: /nix
+
+  # (Optional) CephCSI CephFS plugin Volume mounts
+  # CSI_CEPHFS_PLUGIN_VOLUME_MOUNT: |
+  #  - name: host-nix
+  #    mountPath: /nix
+  #    readOnly: true
+
+  # (Optional) CephCSI RBD plugin Volumes
+  # CSI_RBD_PLUGIN_VOLUME: |
+  #  - name: lib-modules
+  #    hostPath:
+  #      path: /run/current-system/kernel-modules/lib/modules/
+  #  - name: host-nix
+  #    hostPath:
+  #      path: /nix
+
+  # (Optional) CephCSI RBD plugin Volume mounts
+  # CSI_RBD_PLUGIN_VOLUME_MOUNT: |
+  #  - name: host-nix
+  #    mountPath: /nix
+  #    readOnly: true
 
   # (Optional) CephCSI provisioner NodeAffinity(applied to both CephFS and RBD provisioner).
   # CSI_PROVISIONER_NODE_AFFINITY: "role=storage-node; storage=rook, ceph"
@@ -449,7 +501,6 @@ data:
   #        memory: 256Mi
   #        cpu: 100m
 
-
   # (Optional) CEPH CSI NFS provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
   # CSI_NFS_PROVISIONER_RESOURCE: |
@@ -469,6 +520,14 @@ data:
   #      limits:
   #        memory: 1Gi
   #        cpu: 500m
+  #  - name : csi-attacher
+  #    resource:
+  #      requests:
+  #        memory: 128Mi
+  #        cpu: 100m
+  #      limits:
+  #        memory: 256Mi
+  #        cpu: 200m
   # (Optional) CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
   # CSI_NFS_PLUGIN_RESOURCE: |
@@ -489,13 +548,17 @@ data:
   #        memory: 1Gi
   #        cpu: 500m
 
-  # Configure CSI Ceph FS grpc and liveness metrics port
-  # CSI_CEPHFS_GRPC_METRICS_PORT: "9091"
+  # Configure CSI CephFS liveness metrics port
+  # Set to true to enable Ceph CSI liveness container.
+  CSI_ENABLE_LIVENESS: "false"
   # CSI_CEPHFS_LIVENESS_METRICS_PORT: "9081"
-  # Configure CSI RBD grpc and liveness metrics port
-  # CSI_RBD_GRPC_METRICS_PORT: "9090"
+  # Configure CSI RBD liveness metrics port
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
   # CSIADDONS_PORT: "9070"
+
+  # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options
+  # Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR
+  # CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=secure"
 
   # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
@@ -503,18 +566,93 @@ data:
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
   # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
-  # Enable the volume replication controller
-  # Before enabling, ensure the Volume Replication CRDs are created.
-  # See https://rook.io/docs/rook/latest/ceph-csi-drivers.html#rbd-mirroring
-  CSI_ENABLE_VOLUME_REPLICATION: "false"
   # The timeout value (in seconds) of Ceph commands. It should be >= 1. If this variable is not set or is an invalid value, it's default to 15.
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: "15"
-  # CSI_VOLUME_REPLICATION_IMAGE: "quay.io/csiaddons/volumereplication-operator:v0.3.0"
   # Enable the csi addons sidecar.
   CSI_ENABLE_CSIADDONS: "false"
-  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.4.0"
+  # Enable watch for faster recovery from rbd rwo node loss
+  ROOK_WATCH_FOR_NODE_FAILURE: "true"
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.8.0"
   # The GCSI RPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
+
+  # Enable topology based provisioning.
+  CSI_ENABLE_TOPOLOGY: "false"
+  # Domain labels define which node labels to use as domains
+  # for CSI nodeplugins to advertise their domains
+  # NOTE: the value here serves as an example and needs to be
+  # updated with node labels that define domains of interest
+  # CSI_TOPOLOGY_DOMAIN_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
+
+  # Enable read affinity for RBD volumes. Recommended to
+  # set to true if running kernel 5.8 or newer.
+  CSI_ENABLE_READ_AFFINITY: "false"
+  # CRUSH location labels define which node labels to use
+  # as CRUSH location. This should correspond to the values set in
+  # the CRUSH map.
+  # Defaults to all the labels mentioned in
+  # https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/#osd-topology
+  # CSI_CRUSH_LOCATION_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
+
+  # Whether to skip any attach operation altogether for CephCSI PVCs.
+  # See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
+  # If set to false it skips the volume attachments and makes the creation of pods using the CephCSI PVC fast.
+  # **WARNING** It's highly discouraged to use this for RWO volumes. for RBD PVC it can cause data corruption,
+  # csi-addons operations like Reclaimspace and PVC Keyrotation will also not be supported if set to false
+  # since we'll have no VolumeAttachments to determine which node the PVC is mounted on.
+  # Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details.
+  CSI_CEPHFS_ATTACH_REQUIRED: "true"
+  CSI_RBD_ATTACH_REQUIRED: "true"
+  CSI_NFS_ATTACH_REQUIRED: "true"
+
+  # (Optional) Duration in seconds that non-leader candidates will wait to force acquire leadership. Default to 137 seconds.
+  # CSI_LEADER_ELECTION_LEASE_DURATION: "137s"
+
+  # (Optional) Deadline in seconds that the acting leader will retry refreshing leadership before giving up. Defaults to 107 seconds.
+  # CSI_LEADER_ELECTION_RENEW_DEADLINE: "107s"
+
+  # (Optional) Retry period in seconds the LeaderElector clients should wait between tries of actions. Defaults to 26 seconds.
+  # CSI_LEADER_ELECTION_RETRY_PERIOD: "26s"
+
+  # csi driver name prefix for cephfs, rbd and nfs. if not specified, default
+  # will be the namespace name where rook-ceph operator is deployed.
+  # search for `# csi-provisioner-name` in the storageclass and
+  # volumesnashotclass and update the name accordingly.
+  # CSI_DRIVER_NAME_PREFIX: "rook-ceph"
+
+  # Rook Discover toleration. Will tolerate all taints with all keys.
+  # (Optional) Rook Discover tolerations list. Put here list of taints you want to tolerate in YAML format.
+  # DISCOVER_TOLERATIONS: |
+  #   - effect: NoSchedule
+  #     key: node-role.kubernetes.io/control-plane
+  #     operator: Exists
+  #   - effect: NoExecute
+  #     key: node-role.kubernetes.io/etcd
+  #     operator: Exists
+  # (Optional) Rook Discover priority class name to set on the pod(s)
+  # DISCOVER_PRIORITY_CLASS_NAME: "<PriorityClassName>"
+  # (Optional) Discover Agent NodeAffinity.
+  # DISCOVER_AGENT_NODE_AFFINITY: |
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #       - matchExpressions:
+  #         - key: myKey
+  #           operator: DoesNotExist
+  # (Optional) Discover Agent Pod Labels.
+  # DISCOVER_AGENT_POD_LABELS: "key1=value1,key2=value2"
+  # Disable automatic orchestration when new devices are discovered
+  ROOK_DISABLE_DEVICE_HOTPLUG: "false"
+  # The duration between discovering devices in the rook-discover daemonset.
+  ROOK_DISCOVER_DEVICES_INTERVAL: "60m"
+  # DISCOVER_DAEMON_RESOURCES: |
+  #   - name: DISCOVER_DAEMON_RESOURCES
+  #     resources:
+  #       limits:
+  #         cpu: 1500m
+  #         memory: 512Mi
+  #       requests:
+  #         cpu: 200m
+  #         memory: 128Mi
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT
@@ -542,6 +680,11 @@ spec:
       labels:
         app: rook-ceph-operator
     spec:
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 5
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
@@ -556,52 +699,15 @@ spec:
               name: rook-config
             - mountPath: /etc/ceph
               name: default-config-dir
-            - mountPath: /etc/webhook
-              name: webhook-cert
-          ports:
-            - containerPort: 9443
-              name: https-webhook
-              protocol: TCP
           env:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
-            # Rook Discover toleration. Will tolerate all taints with all keys.
-            # Choose between NoSchedule, PreferNoSchedule and NoExecute:
-            # - name: DISCOVER_TOLERATION
-            #   value: "NoSchedule"
-            # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
-            # - name: DISCOVER_TOLERATION_KEY
-            #  value: "<KeyOfTheTaintToTolerate>"
-            # (Optional) Rook Discover priority class name to set on the pod(s)
-            # - name: DISCOVER_PRIORITY_CLASS_NAME
-            #   value: "<PriorityClassName>"
-            # (Optional) Discover Agent NodeAffinity.
-            # - name: DISCOVER_AGENT_NODE_AFFINITY
-            #   value: "role=storage-node; storage=rook, ceph"
-            # (Optional) Discover Agent Pod Labels.
-            # - name: DISCOVER_AGENT_POD_LABELS
-            #   value: "key1=value1,key2=value2"
 
-            # The duration between discovering devices in the rook-discover daemonset.
-            - name: ROOK_DISCOVER_DEVICES_INTERVAL
-              value: "60m"
             # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
             # Set this to true if SELinux is enabled (e.g. OpenShift) to workaround the anyuid issues.
             # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
             - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
               value: "true"
-            # In some situations SELinux relabelling breaks (times out) on large filesystems, and doesn't work with cephfs ReadWriteMany volumes (last relabel wins).
-            # Disable it here if you have similar issues.
-            # For more details see https://github.com/rook/rook/issues/2417
-            - name: ROOK_ENABLE_SELINUX_RELABELING
-              value: "true"
-            # In large volumes it will take some time to chown all the files. Disable it here if you have performance issues.
-            # For more details see https://github.com/rook/rook/issues/2254
-            - name: ROOK_ENABLE_FSGROUP
-              value: "true"
-            # Disable automatic orchestration when new devices are discovered
-            - name: ROOK_DISABLE_DEVICE_HOTPLUG
-              value: "false"
             # Provide customised regex as the values using comma. For eg. regex for rbd based volume, value will be like "(?i)rbd[0-9]+".
             # In case of more than one regex, use comma to separate between them.
             # Default regex will be "(?i)dm-[0-9]+,(?i)rbd[0-9]+,(?i)nbd[0-9]+"
@@ -613,6 +719,16 @@ spec:
             # Whether to start machineDisruptionBudget and machineLabel controller to watch for the osd pods and MDBs.
             - name: ROOK_ENABLE_MACHINE_DISRUPTION_BUDGET
               value: "false"
+
+            # - name: DISCOVER_DAEMON_RESOURCES
+            #   value: |
+            #     resources:
+            #       limits:
+            #         cpu: 500m
+            #         memory: 512Mi
+            #       requests:
+            #         cpu: 100m
+            #         memory: 128Mi
 
             # Time to wait until the node controller will move Rook pods to other
             # nodes after detecting an unreachable node.
@@ -661,7 +777,5 @@ spec:
         - name: rook-config
           emptyDir: {}
         - name: default-config-dir
-          emptyDir: {}
-        - name: webhook-cert
           emptyDir: {}
 # OLM: END OPERATOR DEPLOYMENT

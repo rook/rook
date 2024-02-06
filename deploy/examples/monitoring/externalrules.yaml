@@ -6,7 +6,7 @@ metadata:
     prometheus: rook-prometheus
     role: alert-rules
   name: prometheus-ceph-rules
-  namespace: rook-ceph
+  namespace: rook-ceph # namespace:cluster
 spec:
   groups:
     - name: persistent-volume-alert.rules

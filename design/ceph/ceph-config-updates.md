@@ -5,12 +5,12 @@
 
 Starting with Ceph Mimic, Ceph is able to store the vast majority of config options for all daemons
 in the Ceph mons' key-value store. This ability to centrally manage 99% of its configuration
-is Ceph's preferred way of managing config. This conveniently allows Ceph to fit better into the
-containerized application space than before.
+is Ceph's preferred way of managing configuration and option settings. This allows Ceph to fit
+more cleanly into the containerized application space than before.
 
-However, for it's own backwards compatibility, Ceph options set in the config file or via command
-line flags will override the centrally-configured settings. To make the most of this functionality
-within Ceph, it will be necessary to limit the configuration options specified by Rook in either
+However, for backwards compatibility, Ceph options set in the config file or via command
+line arguments override the centrally-configured settings. To make the most of this functionality
+within Ceph, it is necessary to limit the configuration options specified by Rook in either
 config files or on the command line to a minimum.
 
 
@@ -135,7 +135,8 @@ spec:
       debug_osd: 10
    # ...
 ```
-**Note on the above:** all values under config are reported to Ceph as strings, but the yaml should
+!!! Note
+    All values under config are reported to Ceph as strings, but the yaml should
 support integer values as well if at all possible
 
 As stated in the example yaml, above, the 'config' section adds or overrides values in the Ceph

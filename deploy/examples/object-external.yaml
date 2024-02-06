@@ -16,7 +16,4 @@ spec:
     port: 80
     externalRgwEndpoints:
       - ip: 192.168.39.182
-  healthCheck:
-    bucket:
-      disabled: false
-      interval: 60s
+        # hostname: example.com

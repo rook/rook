@@ -5,6 +5,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
   name: {{ $objectstore.name }}
+  namespace: {{ $root.Release.Namespace }} # namespace:cluster
 spec:
 {{ toYaml $objectstore.spec | indent 2 }}
 ---
@@ -13,8 +14,9 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $objectstore.storageClass.name }}
-provisioner: {{ $root.Values.operatorNamespace }}.ceph.rook.io/bucket
+provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
 reclaimPolicy: {{ default "Delete" $objectstore.storageClass.reclaimPolicy }}
+volumeBindingMode: {{ default "Immediate" $objectstore.storageClass.volumeBindingMode }}
 parameters:
   objectStoreName: {{ $objectstore.name }}
   objectStoreNamespace: {{ $root.Release.Namespace }}

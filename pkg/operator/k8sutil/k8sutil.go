@@ -173,18 +173,6 @@ func addRookVersionLabel(labels map[string]string) {
 	labels[RookVersionLabelKey] = value
 }
 
-// RookVersionLabelMatchesCurrent returns true if the Rook version on the resource label matches the
-// current Rook version running. It returns false if the label does not match. It returns an error
-// if the label does not exist.
-func RookVersionLabelMatchesCurrent(labels map[string]string) (bool, error) {
-	v, ok := labels[RookVersionLabelKey]
-	if !ok {
-		return false, fmt.Errorf("failed to find Rook version label %q", RookVersionLabelKey)
-	}
-	expectedVersion := validateLabelValue(rookversion.Version)
-	return (v == expectedVersion), nil
-}
-
 // validateLabelValue replaces any invalid characters
 // in the input string with a replacement character,
 // and enforces other limitations for k8s label values.
@@ -214,4 +202,79 @@ func UsePDBV1Beta1Version(Clientset kubernetes.Interface) (bool, error) {
 	// minimum k8s version required for v1 PodDisruptionBudget is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 PodDisruptionBudget.
 	minVersionForPDBV1 := "1.21.0"
 	return k8sVersion.LessThan(version.MustParseSemantic(minVersionForPDBV1)), nil
+}
+
+// ToValidDNSLabel converts a given string to a valid DNS-1035 spec label. The DNS-1035 spec
+// follows the regex '[a-z]([-a-z0-9]*[a-z0-9])?' and is at most 63 chars long. DNS-1035 is used
+// over DNS-1123 because it is more strict. Kubernetes docs are not always clear when a DNS_LABEL is
+// supposed to be 1035 or 1123 compliant, so we use the more strict version for ease of use.
+//   - Any input symbol that is not valid is converted to a dash ('-').
+//   - Multiple resultant dashes in a row are compressed to a single dash.
+//   - If the starting character is a number, a 'd' is prepended to preserve the number.
+//   - Any non-alphanumeric starting or ending characters are removed.
+//   - If the resultant string is longer than the maximum-allowed 63 characters], characters are
+//     removed from the middle and replaced with a double dash ('--') to reduce the string to 63
+//     characters.
+func ToValidDNSLabel(input string) string {
+	maxl := validation.DNS1035LabelMaxLength
+
+	if input == "" {
+		return ""
+	}
+
+	outbuf := make([]byte, len(input)+1)
+	j := 0 // position in output buffer
+	last := byte('-')
+	for _, c := range []byte(input) {
+		switch {
+		case c >= 'a' && c <= 'z':
+			outbuf[j] = c
+		case c >= '0' && c <= '9':
+			// if the first char is a number, add a 'd' (for decimal) in front
+			if j == 0 {
+				outbuf[j] = 'd' // for decimal
+				j++
+			}
+			outbuf[j] = c
+		case c >= 'A' && c <= 'Z':
+			// convert to lower case
+			outbuf[j] = c - 'A' + 'a' // convert to lower case
+		default:
+			if last == '-' {
+				// don't write two dashes in a row
+				continue
+			}
+			outbuf[j] = byte('-')
+		}
+		last = outbuf[j]
+		j++
+	}
+
+	// set the length of the output buffer to the number of chars we copied to it so there aren't
+	// \0x00 chars at the end
+	outbuf = outbuf[:j]
+
+	// trim any leading or trailing dashes
+	out := strings.Trim(string(outbuf), "-")
+
+	// if string is longer than max length, cut content from the middle to get it to length
+	if len(out) > maxl {
+		out = cutMiddle(out, maxl)
+	}
+
+	return out
+}
+
+// don't use this function for anything less than toSize=4 chars long
+func cutMiddle(input string, toSize int) string {
+	if len(input) <= toSize {
+		return input
+	}
+
+	lenLeft := toSize / 2               // truncation rounds down the left side
+	lenRight := toSize/2 + (toSize % 2) // modulo rounds up the right side
+
+	buf := []byte(input)
+
+	return string(buf[:lenLeft-1]) + "--" + string(buf[len(input)-lenRight+1:])
 }

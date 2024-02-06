@@ -151,6 +151,107 @@ func TestCheckHealth(t *testing.T) {
 	}
 }
 
+func TestRemoveExtraMon(t *testing.T) {
+	endpoint := "1.2.3.4:6789"
+	c := &Cluster{mapping: &opcontroller.Mapping{}}
+	c.ClusterInfo = &cephclient.ClusterInfo{Monitors: map[string]*cephclient.MonInfo{
+		"a": {Name: "a", Endpoint: endpoint},
+		"b": {Name: "b", Endpoint: endpoint},
+		"c": {Name: "c", Endpoint: endpoint},
+		"d": {Name: "d", Endpoint: endpoint},
+	}}
+	c.mapping.Schedule = map[string]*opcontroller.MonScheduleInfo{
+		"a": {Name: "node1"},
+		"b": {Name: "node2"},
+		"c": {Name: "node3"},
+		"d": {Name: "node1"},
+	}
+	// Remove mon an extra mon on the same node
+	removedMon := c.determineExtraMonToRemove()
+	if removedMon != "a" && removedMon != "d" {
+		assert.Fail(t, fmt.Sprintf("removed mon %q instead of a or d", removedMon))
+	}
+
+	// Remove an arbitrary mon that are all on different nodes
+	c.mapping.Schedule["d"].Name = "node4"
+	removedMon = c.determineExtraMonToRemove()
+	assert.NotEqual(t, "", removedMon)
+
+	// Don't remove any extra mon from a proper stretch cluster
+	c.spec.Mon.StretchCluster = &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{
+		{Name: "x", Arbiter: true},
+		{Name: "y"},
+		{Name: "z"},
+	}}
+	c.ClusterInfo.Monitors["e"] = &cephclient.MonInfo{Name: "e", Endpoint: endpoint}
+	c.mapping.Schedule["a"].Zone = "x"
+	c.mapping.Schedule["b"].Zone = "y"
+	c.mapping.Schedule["c"].Zone = "y"
+	c.mapping.Schedule["d"].Zone = "z"
+	c.mapping.Schedule["e"] = &opcontroller.MonScheduleInfo{Name: "node5", Zone: "z"}
+	removedMon = c.determineExtraMonToRemove()
+	assert.Equal(t, "", removedMon)
+
+	// Remove an extra mon from the arbiter zone
+	c.mapping.Schedule["d"].Zone = "x"
+	removedMon = c.determineExtraMonToRemove()
+	if removedMon != "a" && removedMon != "d" {
+		assert.Fail(t, "removed mon %q instead of a or d from the arbiter zone", removedMon)
+	}
+
+	// Remove an extra mon from a non-arbiter zone
+	c.mapping.Schedule["d"].Zone = "y"
+	removedMon = c.determineExtraMonToRemove()
+	if removedMon != "b" && removedMon != "c" && removedMon != "d" {
+		assert.Fail(t, fmt.Sprintf("removed mon %q instead of b, c, or d from the non-arbiter zone", removedMon))
+	}
+}
+
+func TestTrackMonsOutOfQuorum(t *testing.T) {
+	endpoint := "1.2.3.4:6789"
+	clientset := test.New(t, 1)
+	tempDir, err := os.MkdirTemp("", "")
+	assert.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := &Cluster{
+		mapping:   &opcontroller.Mapping{},
+		context:   &clusterd.Context{Clientset: clientset, ConfigDir: tempDir},
+		ownerInfo: ownerInfo,
+		Namespace: "ns"}
+	c.ClusterInfo = &cephclient.ClusterInfo{Monitors: map[string]*cephclient.MonInfo{
+		"a": {Name: "a", Endpoint: endpoint},
+		"b": {Name: "b", Endpoint: endpoint},
+		"c": {Name: "c", Endpoint: endpoint},
+	}}
+	// No change since all mons are in quorum
+	updated, err := c.trackMonInOrOutOfQuorum("a", true)
+	assert.False(t, updated)
+	assert.NoError(t, err)
+
+	// initialize the configmap
+	err = c.persistExpectedMonDaemons()
+	assert.NoError(t, err)
+
+	// Track mon.a as out of quorum
+	updated, err = c.trackMonInOrOutOfQuorum("a", false)
+	assert.True(t, updated)
+	assert.NoError(t, err)
+
+	cm, err := clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "a", cm.Data[opcontroller.OutOfQuorumKey])
+
+	// Put mon.a back in quorum
+	updated, err = c.trackMonInOrOutOfQuorum("a", true)
+	assert.True(t, updated)
+	assert.NoError(t, err)
+
+	cm, err = clientset.CoreV1().ConfigMaps(c.Namespace).Get(context.TODO(), EndpointConfigMapName, metav1.GetOptions{})
+	assert.NoError(t, err)
+	assert.Equal(t, "", cm.Data[opcontroller.OutOfQuorumKey])
+}
+
 func TestSkipMonFailover(t *testing.T) {
 	c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
@@ -163,7 +264,7 @@ func TestSkipMonFailover(t *testing.T) {
 	t.Run("don't skip failover for non-arbiter", func(t *testing.T) {
 		c.spec.Mon.Count = 5
 		c.spec.Mon.StretchCluster = &cephv1.StretchClusterSpec{
-			Zones: []cephv1.StretchClusterZoneSpec{
+			Zones: []cephv1.MonZoneSpec{
 				{Name: "a"},
 				{Name: "b"},
 				{Name: "c", Arbiter: true},
@@ -509,8 +610,7 @@ func TestUpdateMonTimeout(t *testing.T) {
 		assert.Equal(t, time.Minute*10, MonOutTimeout)
 	})
 	t.Run("using env var mon timeout", func(t *testing.T) {
-		os.Setenv("ROOK_MON_OUT_TIMEOUT", "10s")
-		defer os.Unsetenv("ROOK_MON_OUT_TIMEOUT")
+		t.Setenv("ROOK_MON_OUT_TIMEOUT", "10s")
 		m := &Cluster{}
 		updateMonTimeout(m)
 		assert.Equal(t, time.Second*10, MonOutTimeout)
@@ -530,8 +630,7 @@ func TestUpdateMonInterval(t *testing.T) {
 		assert.Equal(t, time.Second*45, HealthCheckInterval)
 	})
 	t.Run("using env var mon timeout", func(t *testing.T) {
-		os.Setenv("ROOK_MON_HEALTHCHECK_INTERVAL", "10s")
-		defer os.Unsetenv("ROOK_MON_HEALTHCHECK_INTERVAL")
+		t.Setenv("ROOK_MON_HEALTHCHECK_INTERVAL", "10s")
 		m := &Cluster{}
 		h := &HealthChecker{m, HealthCheckInterval}
 		updateMonInterval(m, h)

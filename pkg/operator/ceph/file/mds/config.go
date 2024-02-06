@@ -78,9 +78,7 @@ func (c *Cluster) setDefaultFlagsMonConfigStore(mdsID string) error {
 	}
 
 	// Set mds_join_fs flag to force mds daemon to join a specific fs
-	if c.clusterInfo.CephVersion.IsAtLeastOctopus() {
-		configOptions["mds_join_fs"] = c.fs.Name
-	}
+	configOptions["mds_join_fs"] = c.fs.Name
 
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)

@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,8 +30,8 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -51,6 +52,9 @@ const (
 	AccessKeyName         = "access-key"
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
+	rgwRadosPoolPgNum     = "8"
+	cosiUserName          = "cosi"
+	cosiUserCaps          = "buckets=*;users=*"
 )
 
 var (
@@ -61,11 +65,13 @@ var (
 		"rgw.log",
 		"rgw.buckets.index",
 		"rgw.buckets.non-ec",
+		"rgw.otp",
 	}
 	dataPoolName = "rgw.buckets.data"
 
 	// An user with system privileges for dashboard service
-	DashboardUser = "dashboard-admin"
+	DashboardUser                = "dashboard-admin"
+	rgwPgNumRemovedQuincyVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}
 )
 
 type idType struct {
@@ -74,8 +80,9 @@ type idType struct {
 
 type zoneGroupType struct {
 	MasterZoneID string     `json:"master_zone"`
-	IsMaster     string     `json:"is_master"`
+	IsMaster     bool       `json:"is_master"`
 	Zones        []zoneType `json:"zones"`
+	Endpoints    []string   `json:"endpoints"`
 }
 
 type zoneType struct {
@@ -106,56 +113,57 @@ func deleteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreSpec) error
 
 func removeObjectStoreFromMultisite(objContext *Context, spec cephv1.ObjectStoreSpec) error {
 	// get list of endpoints not including the endpoint of the object-store for the zone
-	zoneEndpointsList, err := getZoneEndpoints(objContext, objContext.Endpoint)
+	zoneEndpointsList, isEndpointAlreadyExists, err := getZoneEndpoints(objContext, objContext.Endpoint)
 	if err != nil {
 		return err
 	}
 
-	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
-	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
-	zoneEndpoints := strings.Join(zoneEndpointsList, ",")
-	endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+	// The endpoint is present in zone, hence remove it
+	if isEndpointAlreadyExists {
+		realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
+		zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+		zoneEndpoints := strings.Join(zoneEndpointsList, ",")
+		endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 
-	zoneIsMaster, err := checkZoneIsMaster(objContext)
-	if err != nil {
-		return errors.Wrap(err, "failed to find out zone in Master")
-	}
-
-	zoneGroupIsMaster := false
-	if zoneIsMaster {
-		_, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+		zoneIsMaster, err := CheckZoneIsMaster(objContext)
 		if err != nil {
+			return errors.Wrapf(err, "failed to determine if zone %q is master", objContext.Zone)
+		}
 
-			if kerrors.IsNotFound(err) {
-				return err
+		zoneGroupIsMaster := false
+		if zoneIsMaster {
+			_, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "modify", realmArg, zoneGroupArg, endpointArg)
+			if err != nil {
+				if kerrors.IsNotFound(err) {
+					return err
+				}
+				return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone group %q", objContext.Name, objContext.ZoneGroup)
 			}
-			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone group %q", objContext.Name, objContext.ZoneGroup)
-		}
-		logger.Debugf("endpoint %q was removed from zone group %q. the remaining endpoints in the zone group are %q", objContext.Endpoint, objContext.ZoneGroup, zoneEndpoints)
+			logger.Debugf("endpoint %q was removed from zone group %q. the remaining endpoints in the zone group are %q", objContext.Endpoint, objContext.ZoneGroup, zoneEndpoints)
 
-		// check if zone group is master only if zone is master for creating the system user
-		zoneGroupIsMaster, err = checkZoneGroupIsMaster(objContext)
+			// check if zone group is master only if zone is master for creating the system user
+			zoneGroupIsMaster, err = checkZoneGroupIsMaster(objContext)
+			if err != nil {
+				return errors.Wrapf(err, "failed to find out whether zone group %q is the master zone group", objContext.ZoneGroup)
+			}
+		}
+
+		_, err = runAdminCommand(objContext, false, "zone", "modify", endpointArg)
 		if err != nil {
-			return errors.Wrapf(err, "failed to find out whether zone group %q in is the master zone group", objContext.ZoneGroup)
+			return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone %q", objContext.Name, spec.Zone.Name)
+		}
+		logger.Debugf("endpoint %q was removed from zone %q. the remaining endpoints in the zone are %q", objContext.Endpoint, objContext.Zone, zoneEndpoints)
+
+		if zoneIsMaster && zoneGroupIsMaster && zoneEndpoints == "" {
+			logger.Warningf("WARNING: No other zone in realm %q can commit to the period or pull the realm until you create another object-store in zone %q", objContext.Realm, objContext.Zone)
+		}
+
+		// this will notify other zones of changes if there are multi-zones
+		if err := commitConfigChanges(objContext); err != nil {
+			nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+			return errors.Wrapf(err, "failed to commit config changes after removing CephObjectStore %q from multi-site", nsName)
 		}
 	}
-
-	_, err = runAdminCommand(objContext, false, "zone", "modify", endpointArg)
-	if err != nil {
-		return errors.Wrapf(err, "failed to remove object store %q endpoint from rgw zone %q", objContext.Name, spec.Zone.Name)
-	}
-	logger.Debugf("endpoint %q was removed from zone %q. the remaining endpoints in the zone are %q", objContext.Endpoint, objContext.Zone, zoneEndpoints)
-
-	if zoneIsMaster && zoneGroupIsMaster && zoneEndpoints == "" {
-		logger.Infof("WARNING: No other zone in realm %q can commit to the period or pull the realm until you create another object-store in zone %q", objContext.Realm, objContext.Zone)
-	}
-
-	// this will notify other zones of changes if there are multi-zones
-	if err := commitConfigChanges(objContext); err != nil {
-		nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
-		return errors.Wrapf(err, "failed to commit config changes after removing CephObjectStore %q from multi-site", nsName)
-	}
-
 	return nil
 }
 
@@ -181,7 +189,11 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 	}
 
 	if !spec.PreservePoolsOnDelete {
-		err = deletePools(objContext, spec, lastStore)
+		if EmptyPool(spec.DataPool) && EmptyPool(spec.MetadataPool) {
+			logger.Info("skipping removal of pools since not specified in the object store")
+			return nil
+		}
+		err = DeletePools(objContext, lastStore, objContext.Name)
 		if err != nil {
 			return errors.Wrap(err, "failed to delete object store pools")
 		}
@@ -196,13 +208,12 @@ func deleteSingleSiteRealmAndPools(objContext *Context, spec cephv1.ObjectStoreS
 func getMultisiteForObjectStore(ctx context.Context, clusterdContext *clusterd.Context, spec *cephv1.ObjectStoreSpec, namespace, name string) (string, string, string, error) {
 
 	if spec.IsExternal() {
-		// Currently external cluster with zones/zonegroup/realm are not supported, will be
-		// fixed by https://github.com/rook/rook/issues/6342. So if user does not create
-		// zone/zonegroup, RGW internally creates zone/zonegroup named as `default`, hence
-		// Rook can set this value in the object context fields.
+		// In https://github.com/rook/rook/issues/6342, it was determined that
+		// a multisite context isn't needed for external mode CephObjectStores.
+		// The context is only needed for managing an object store, which isn't
+		// happening in external mode.
 		return "", "default", "default", nil
 	}
-
 	if spec.IsMultisite() {
 		zone, err := clusterdContext.RookClientset.CephV1().CephObjectZones(namespace).Get(ctx, spec.Zone.Name, metav1.GetOptions{})
 		if err != nil {
@@ -225,7 +236,7 @@ func getMultisiteForObjectStore(ctx context.Context, clusterdContext *clusterd.C
 	return name, name, name, nil
 }
 
-func checkZoneIsMaster(objContext *Context) (bool, error) {
+func CheckZoneIsMaster(objContext *Context) (bool, error) {
 	logger.Debugf("checking if zone %v is the master zone", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
@@ -290,20 +301,14 @@ func checkZoneGroupIsMaster(objContext *Context) (bool, error) {
 		return false, errors.Wrap(err, "failed to parse master zone id")
 	}
 
-	zoneGroupIsMaster, err := strconv.ParseBool(zoneGroupJson.IsMaster)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to parse is_master from zone group json into bool")
-	}
-
-	return zoneGroupIsMaster, nil
+	return zoneGroupJson.IsMaster, nil
 }
 
 func DecodeSecret(secret *v1.Secret, keyName string) (string, error) {
 	realmKey, ok := secret.Data[keyName]
 
 	if !ok {
-		return "", errors.New(fmt.Sprintf("failed to find key %q in secret %q data. ", keyName, secret.Name) +
-			"user likely created or modified the secret manually and should add the missing key back into the secret")
+		return "", fmt.Errorf("failed to find key %q in secret %q data. user likely created or modified the secret manually and should add the missing key back into the secret", keyName, secret.Name)
 	}
 
 	return string(realmKey), nil
@@ -348,20 +353,21 @@ func GetRealmKeyArgs(ctx context.Context, clusterdContext *clusterd.Context, rea
 	return GetRealmKeyArgsFromSecret(secret, realmNsName)
 }
 
-func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, error) {
+func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, bool, error) {
 	logger.Debugf("getting current endpoints for zone %v", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+	isEndpointAlreadyExists := false
 
 	zoneGroupOutput, err := RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		// This handles the case where the pod we use to exec command (act as a proxy) is not found/ready yet
 		// The caller can nicely handle the error and not overflow the op logs with misleading error messages
-		return []string{}, errorOrIsNotFound(err, "failed to get rgw zone group %q", objContext.Name)
+		return []string{}, isEndpointAlreadyExists, errorOrIsNotFound(err, "failed to get rgw zone group %q", objContext.Name)
 	}
 	zoneGroupJson, err := DecodeZoneGroupConfig(zoneGroupOutput)
 	if err != nil {
-		return []string{}, errors.Wrap(err, "failed to parse zones list")
+		return []string{}, isEndpointAlreadyExists, errors.Wrap(err, "failed to parse zones list")
 	}
 
 	zoneEndpointsList := []string{}
@@ -371,13 +377,54 @@ func getZoneEndpoints(objContext *Context, serviceEndpoint string) ([]string, er
 				// in case object-store operator code is rereconciled, zone modify could get run again with serviceEndpoint added again
 				if endpoint != serviceEndpoint {
 					zoneEndpointsList = append(zoneEndpointsList, endpoint)
+				} else {
+					isEndpointAlreadyExists = true
 				}
 			}
 			break
 		}
 	}
 
-	return zoneEndpointsList, nil
+	return zoneEndpointsList, isEndpointAlreadyExists, nil
+}
+
+func createMultisiteConfigurations(objContext *Context, configType, configTypeArg string, args ...string) error {
+	args = append([]string{configType}, args...)
+	args = append(args, configTypeArg)
+	// get the multisite config before creating
+	configTypeArgs := []string{configType, "get", configTypeArg}
+	if configType == "zonegroup" {
+		configTypeArgs = append(configTypeArgs, fmt.Sprintf("--rgw-realm=%s", objContext.Realm))
+	}
+	output, getConfigErr := RunAdminCommandNoMultisite(objContext, true, configTypeArgs...)
+	if getConfigErr == nil {
+		return nil
+	}
+
+	if kerrors.IsNotFound(getConfigErr) {
+		// the pod used to exec command (act as a proxy) is not found/ready yet
+		// caller can nicely handle error and not overflow logs with misleading error messages
+		return getConfigErr
+	}
+
+	code, err := exec.ExtractExitCode(getConfigErr)
+	if err != nil {
+		return errorOrIsNotFound(getConfigErr, "'radosgw-admin %q get' failed with code %q, for reason %q, error: (%v)", configType, strconv.Itoa(code), output, string(kerrors.ReasonForError(err)))
+	}
+	// ENOENT means "No such file or directory"
+	if code != int(syscall.ENOENT) {
+		code := strconv.Itoa(code)
+		return errors.Wrapf(getConfigErr, "'radosgw-admin %q get' failed with code %q, for reason %q", configType, code, output)
+	}
+
+	// create the object if it doesn't exist yet
+	output, err = RunAdminCommandNoMultisite(objContext, false, args...)
+	if err != nil {
+		return errorOrIsNotFound(err, "failed to create ceph %q %q, for reason %q", configType, configTypeArg, output)
+	}
+	logger.Debugf("created %q %q", configType, configTypeArg)
+
+	return nil
 }
 
 func createMultisite(objContext *Context, endpointArg string) error {
@@ -385,50 +432,21 @@ func createMultisite(objContext *Context, endpointArg string) error {
 
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	// create the realm if it doesn't exist yet
-	output, err := RunAdminCommandNoMultisite(objContext, true, "realm", "get", realmArg)
+	err := createMultisiteConfigurations(objContext, "realm", realmArg, "create")
 	if err != nil {
-		// ENOENT means "No such file or directory"
-		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
-			output, err = RunAdminCommandNoMultisite(objContext, false, "realm", "create", realmArg)
-			if err != nil {
-				return errorOrIsNotFound(err, "failed to create ceph realm %q, for reason %q", objContext.ZoneGroup, output)
-			}
-			logger.Debugf("created realm %q", objContext.Realm)
-		} else {
-			return errorOrIsNotFound(err, "'radosgw-admin realm get' failed with code %d, for reason %q. %v", strconv.Itoa(code), output, string(kerrors.ReasonForError(err)))
-		}
+		return err
 	}
 
-	// create the zonegroup if it doesn't exist yet
-	output, err = RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
+	err = createMultisiteConfigurations(objContext, "zonegroup", zoneGroupArg, "create", "--master", realmArg, endpointArg)
 	if err != nil {
-		// ENOENT means "No such file or directory"
-		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
-			output, err = RunAdminCommandNoMultisite(objContext, false, "zonegroup", "create", "--master", realmArg, zoneGroupArg, endpointArg)
-			if err != nil {
-				return errorOrIsNotFound(err, "failed to create ceph zone group %q, for reason %q", objContext.ZoneGroup, output)
-			}
-			logger.Debugf("created zone group %q", objContext.ZoneGroup)
-		} else {
-			return errorOrIsNotFound(err, "'radosgw-admin zonegroup get' failed with code %d, for reason %q", strconv.Itoa(code), output)
-		}
+		return err
 	}
 
-	// create the zone if it doesn't exist yet
-	output, err = runAdminCommand(objContext, true, "zone", "get")
+	err = createMultisiteConfigurations(objContext, "zone", zoneArg, "create", "--master", endpointArg, realmArg, zoneGroupArg)
 	if err != nil {
-		// ENOENT means "No such file or directory"
-		if code, err := exec.ExtractExitCode(err); err == nil && code == int(syscall.ENOENT) {
-			output, err = runAdminCommand(objContext, false, "zone", "create", "--master", endpointArg)
-			if err != nil {
-				return errorOrIsNotFound(err, "failed to create ceph zone %q, for reason %q", objContext.Zone, output)
-			}
-			logger.Debugf("created zone %q", objContext.Zone)
-		} else {
-			return errorOrIsNotFound(err, "'radosgw-admin zone get' failed with code %d, for reason %q", strconv.Itoa(code), output)
-		}
+		return err
 	}
 
 	if err := commitConfigChanges(objContext); err != nil {
@@ -441,13 +459,13 @@ func createMultisite(objContext *Context, endpointArg string) error {
 	return nil
 }
 
-func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace string) error {
+func JoinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace string) error {
 	logger.Debugf("joining zone %v", objContext.Zone)
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", objContext.Zone)
 
-	zoneIsMaster, err := checkZoneIsMaster(objContext)
+	zoneIsMaster, err := CheckZoneIsMaster(objContext)
 	if err != nil {
 		return err
 	}
@@ -480,7 +498,7 @@ func joinMultisite(objContext *Context, endpointArg, zoneEndpoints, namespace st
 
 	logger.Infof("added object store %q to realm %q, zonegroup %q, zone %q", objContext.Name, objContext.Realm, objContext.ZoneGroup, objContext.Zone)
 
-	// create system user for realm for master zone in master zonegorup for multisite scenario
+	// create system user for realm for master zone in master zonegroup for multisite scenario
 	if zoneIsMaster && zoneGroupIsMaster {
 		err = createSystemUser(objContext, namespace)
 		if err != nil {
@@ -525,30 +543,40 @@ func createSystemUser(objContext *Context, namespace string) error {
 	return nil
 }
 
-func setMultisite(objContext *Context, store *cephv1.CephObjectStore, serviceIP string) error {
+func setMultisite(objContext *Context, store *cephv1.CephObjectStore, zone *cephv1.CephObjectZone) error {
 	logger.Debugf("setting multisite configuration for object-store %v", store.Name)
-	serviceEndpoint := fmt.Sprintf("http://%s:%d", serviceIP, store.Spec.Gateway.Port)
-	if store.Spec.Gateway.SecurePort != 0 {
-		serviceEndpoint = fmt.Sprintf("https://%s:%d", serviceIP, store.Spec.Gateway.SecurePort)
-	}
 
 	if store.Spec.IsMultisite() {
-		zoneEndpointsList, err := getZoneEndpoints(objContext, serviceEndpoint)
-		if err != nil {
-			return err
-		}
-		zoneEndpointsList = append(zoneEndpointsList, serviceEndpoint)
+		if zone != nil && len(zone.Spec.CustomEndpoints) == 0 {
+			// get list of endpoints not including the endpoint of the object-store for the zone
+			zoneEndpointsList, isEndpointAlreadyExists, err := getZoneEndpoints(objContext, objContext.Endpoint)
+			if err != nil {
+				return err
+			}
 
-		zoneEndpoints := strings.Join(zoneEndpointsList, ",")
-		logger.Debugf("Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
-		endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+			// There is no need to update the Zone endpoints when:
+			//  - the zone does not have the endpoint and the synchronization is disabled on the objectstore
+			//  - the zone already have the endpoint and the synchronization is enabled
+			if isEndpointAlreadyExists == store.Spec.Gateway.DisableMultisiteSyncTraffic {
+				if !isEndpointAlreadyExists {
+					zoneEndpointsList = append(zoneEndpointsList, objContext.Endpoint)
+				}
 
-		err = joinMultisite(objContext, endpointArg, zoneEndpoints, store.Namespace)
-		if err != nil {
-			return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
+				zoneEndpoints := strings.Join(zoneEndpointsList, ",")
+				logger.Debugf("Endpoints for zone %q are: %q", objContext.Zone, zoneEndpoints)
+				endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
+
+				err = JoinMultisite(objContext, endpointArg, zoneEndpoints, store.Namespace)
+				if err != nil {
+					return errors.Wrapf(err, "failed join ceph multisite in zone %q", objContext.Zone)
+				}
+			}
 		}
 	} else {
-		endpointArg := fmt.Sprintf("--endpoints=%s", serviceEndpoint)
+		var endpointArg string
+		if !store.Spec.Gateway.DisableMultisiteSyncTraffic {
+			endpointArg = fmt.Sprintf("--endpoints=%s", objContext.Endpoint)
+		}
 		err := createMultisite(objContext, endpointArg)
 		if err != nil {
 			return errorOrIsNotFound(err, "failed create ceph multisite for object-store %q", objContext.Name)
@@ -625,12 +653,7 @@ func getObjectStores(context *Context) ([]string, error) {
 	return r.Realms, nil
 }
 
-func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) error {
-	if emptyPool(spec.DataPool) && emptyPool(spec.MetadataPool) {
-		logger.Info("skipping removal of pools since not specified in the object store")
-		return nil
-	}
-
+func DeletePools(ctx *Context, lastStore bool, poolPrefix string) error {
 	pools := append(metadataPools, dataPoolName)
 	if lastStore {
 		pools = append(pools, rootPool)
@@ -639,7 +662,7 @@ func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) erro
 	if configurePoolsConcurrently() {
 		waitGroup, _ := errgroup.WithContext(ctx.clusterInfo.Context)
 		for _, pool := range pools {
-			name := poolName(ctx.Name, pool)
+			name := poolName(poolPrefix, pool)
 			waitGroup.Go(func() error {
 				if err := cephclient.DeletePool(ctx.Context, ctx.clusterInfo, name); err != nil {
 					return errors.Wrapf(err, "failed to delete pool %q. ", name)
@@ -656,7 +679,7 @@ func deletePools(ctx *Context, spec cephv1.ObjectStoreSpec, lastStore bool) erro
 
 	} else {
 		for _, pool := range pools {
-			name := poolName(ctx.Name, pool)
+			name := poolName(poolPrefix, pool)
 			if err := cephclient.DeletePool(ctx.Context, ctx.clusterInfo, name); err != nil {
 				logger.Warningf("failed to delete pool %q. %v", name, err)
 			}
@@ -701,13 +724,13 @@ func missingPools(context *Context) ([]string, error) {
 	if err != nil {
 		return []string{}, errors.Wrapf(err, "failed to determine if pools are missing. failed to list pools")
 	}
-	existingPools := sets.NewString()
+	existingPools := sets.New[string]()
 	for _, summary := range existingPoolSummaries {
 		existingPools.Insert(summary.Name)
 	}
 
 	missingPools := []string{}
-	for _, objPool := range allObjectPools(context.Name) {
+	for _, objPool := range allObjectPools(context.Zone) {
 		if !existingPools.Has(objPool) {
 			missingPools = append(missingPools, objPool)
 		}
@@ -717,7 +740,7 @@ func missingPools(context *Context) ([]string, error) {
 }
 
 func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
-	if emptyPool(dataPool) && emptyPool(metadataPool) {
+	if EmptyPool(dataPool) && EmptyPool(metadataPool) {
 		logger.Info("no pools specified for the CR, checking for their existence...")
 		missingPools, err := missingPools(context)
 		if err != nil {
@@ -729,7 +752,13 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	}
 
 	// get the default PG count for rgw metadata pools
-	metadataPoolPGs, err := config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
+	var err error
+	var metadataPoolPGs string
+	if rgwRadosPGNumIsNew(context.clusterInfo.CephVersion) {
+		metadataPoolPGs = rgwRadosPoolPgNum
+	} else {
+		metadataPoolPGs, err = config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
+	}
 	if err != nil {
 		logger.Warningf("failed to adjust the PG count for rgw metadata pools. using the general default. %v", err)
 		metadataPoolPGs = cephclient.DefaultPGCount
@@ -744,6 +773,12 @@ func CreatePools(context *Context, clusterSpec *cephv1.ClusterSpec, metadataPool
 	}
 
 	return nil
+}
+
+// Check if this is a recent release of ceph where the legacy rgw_rados_pool_pg_num_min
+// is no longer available.
+func rgwRadosPGNumIsNew(cephVer cephver.CephVersion) bool {
+	return cephVer.IsAtLeast(rgwPgNumRemovedQuincyVersion)
 }
 
 // configurePoolsConcurrently checks if operator pod resources are set or not
@@ -799,12 +834,12 @@ func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv
 	return nil
 }
 
-func poolName(storeName, poolName string) string {
+func poolName(poolPrefix, poolName string) string {
 	if strings.HasPrefix(poolName, ".") {
 		return poolName
 	}
 	// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
-	return fmt.Sprintf("%s.%s", storeName, poolName)
+	return fmt.Sprintf("%s.%s", poolPrefix, poolName)
 }
 
 // GetObjectBucketProvisioner returns the bucket provisioner name appended with operator namespace if OBC is watching on it
@@ -875,11 +910,9 @@ func getDashboardUser(context *Context) (ObjectUser, error) {
 		SystemUser:  true,
 	}
 
-	if !context.CephClusterSpec.External.Enable {
-		// Retrieve RGW Dashboard credentials if some are already set
-		if err := retrieveDashboardAPICredentials(context, &user); err != nil {
-			return user, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
-		}
+	// Retrieve RGW Dashboard credentials if some are already set
+	if err := retrieveDashboardAPICredentials(context, &user); err != nil {
+		return user, errors.Wrapf(err, "failed to retrieve RGW Dashboard credentials for %q user", DashboardUser)
 	}
 
 	return user, nil
@@ -918,31 +951,24 @@ func enableRGWDashboard(context *Context) error {
 	var accessArgs, secretArgs []string
 	var secretFile *os.File
 
-	// for latest Ceph versions
-	if mgr.FileBasedPasswordSupported(context.clusterInfo) {
-		accessFile, err := util.CreateTempFile(*u.AccessKey)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a temporary dashboard access-key file")
-		}
-
-		accessArgs = []string{"dashboard", "set-rgw-api-access-key", "-i", accessFile.Name()}
-		defer func() {
-			if err := os.Remove(accessFile.Name()); err != nil {
-				logger.Errorf("failed to clean up dashboard access-key file. %v", err)
-			}
-		}()
-
-		secretFile, err = util.CreateTempFile(*u.SecretKey)
-		if err != nil {
-			return errors.Wrap(err, "failed to create a temporary dashboard secret-key file")
-		}
-
-		secretArgs = []string{"dashboard", "set-rgw-api-secret-key", "-i", secretFile.Name()}
-	} else {
-		// for older Ceph versions
-		accessArgs = []string{"dashboard", "set-rgw-api-access-key", *u.AccessKey}
-		secretArgs = []string{"dashboard", "set-rgw-api-secret-key", *u.SecretKey}
+	accessFile, err := util.CreateTempFile(*u.AccessKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a temporary dashboard access-key file")
 	}
+
+	accessArgs = []string{"dashboard", "set-rgw-api-access-key", "-i", accessFile.Name()}
+	defer func() {
+		if err := os.Remove(accessFile.Name()); err != nil {
+			logger.Errorf("failed to clean up dashboard access-key file. %v", err)
+		}
+	}()
+
+	secretFile, err = util.CreateTempFile(*u.SecretKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to create a temporary dashboard secret-key file")
+	}
+
+	secretArgs = []string{"dashboard", "set-rgw-api-secret-key", "-i", secretFile.Name()}
 
 	cephCmd := cephclient.NewCephCommand(context.Context, context.clusterInfo, accessArgs)
 	_, err = cephCmd.Run()
@@ -960,10 +986,8 @@ func enableRGWDashboard(context *Context) error {
 		if err != nil {
 			logger.Errorf("failed to set user %q secretkey. %v", DashboardUser, err)
 		}
-		if mgr.FileBasedPasswordSupported(context.clusterInfo) {
-			if err := os.Remove(secretFile.Name()); err != nil {
-				logger.Errorf("failed to clean up dashboard secret-key file. %v", err)
-			}
+		if err := os.Remove(secretFile.Name()); err != nil {
+			logger.Errorf("failed to clean up dashboard secret-key file. %v", err)
 		}
 
 		logger.Info("done setting the dashboard api secret key")
@@ -1009,4 +1033,62 @@ func errorOrIsNotFound(err error, msg string, args ...string) error {
 		return err
 	}
 	return errors.Wrapf(err, msg, args)
+}
+
+// ShouldUpdateZoneEndpointList checks whether zone endpoint list need to be updated or not
+func ShouldUpdateZoneEndpointList(zones []zoneType, desiredEndpointList []string, zoneName string) (bool, error) {
+	if zoneName == "" {
+		return false, errors.Errorf("zone name can't be empty")
+	}
+
+	zoneExists, endpoints := findZoneEndpoints(zoneName, zones)
+	if !zoneExists {
+		return false, nil
+	}
+
+	return !listsAreEqual(desiredEndpointList, endpoints), nil
+}
+
+func findZoneEndpoints(targetZone string, zones []zoneType) (bool, []string) {
+	for _, z := range zones {
+		if z.Name == targetZone {
+			return true, z.Endpoints
+		}
+	}
+	return false, []string{}
+}
+
+func listsAreEqual(a, b []string) bool {
+	as := make([]string, len(a))
+	bs := make([]string, len(b))
+	copy(as, a)
+	copy(bs, b)
+	sort.Strings(as)
+	sort.Strings(bs)
+
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i < len(a); i++ {
+		if as[i] != bs[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func CheckIfZonePresentInZoneGroup(objContext *Context) (bool, error) {
+	output, err := runAdminCommand(objContext, true, "zonegroup", "get")
+	if err != nil {
+		return false, err
+	}
+	zoneGroupJson, err := DecodeZoneGroupConfig(output)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
+	}
+	zoneExists, _ := findZoneEndpoints(objContext.Zone, zoneGroupJson.Zones)
+	if zoneExists {
+		return true, nil
+	}
+	return false, nil
 }

@@ -31,7 +31,7 @@ ifneq ($(TAG_WITH_SUFFIX),true)
 override VERSION := $(shell echo "$(VERSION)" | sed -e 's/-alpha.0//' -e 's/-beta.0//' -e 's/-rc.0//')
 endif
 
-DOCS_PREFIX := docs/rook
+DOCS_PREFIX ?= docs/rook
 
 ifeq ($(shell echo $(BRANCH_NAME)),master)
 DOCS_VERSION := latest
@@ -39,21 +39,13 @@ else
 DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+)$$/v\1.\2/g")
 endif
 
-ifeq ($(shell echo $(BRANCH_NAME)),$(shell git branch -r | grep 'origin/release-' | sort  | tail -n 1 | cut -d'/' -f2))
+ifeq ($(shell echo $(BRANCH_NAME)),$(shell $(ROOT_DIR)/build/release/latest_release_branch.sh))
 DOCS_VERSION_ALIAS := latest-release
 else
 DOCS_VERSION_ALIAS :=
 endif
 
-DOCS_DIR ?= $(ROOT_DIR)/Documentation
-DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
-DOCS_VERSION_DIR := $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
-
-ifdef GIT_API_TOKEN
-DOCS_GIT_REPO := https://$(GIT_API_TOKEN)@github.com/rook/rook.github.io.git
-else
-DOCS_GIT_REPO := git@github.com:rook/rook.github.io.git
-endif
+DOCS_GIT_REPO ?= git@github.com:rook/rook.github.io.git
 
 ifeq ($(origin BRANCH_NAME), undefined)
 BRANCH_NAME := $(shell git branch | grep \* | cut -d ' ' -f2)
@@ -145,7 +137,7 @@ publish.docs:
 	if test "$$GITHUB_ACTIONS" = "true"; then git config --unset 'http.https://github.com/.extraheader'; fi
 	git fetch -u docs gh-pages
 	# Switch to root of repo and then run the build and deploy of the documentation
-	cd $(ROOT_DIR) && mike deploy --remote docs --push --rebase --branch gh-pages --update-aliases --prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
+	cd $(ROOT_DIR) && mike deploy --remote docs --push --branch gh-pages --update-aliases --deploy-prefix $(DOCS_PREFIX) $(DOCS_VERSION) $(DOCS_VERSION_ALIAS)
 
 # ====================================================================================
 # helm
@@ -176,22 +168,22 @@ promote.output:
 # 1: registry 2: image, 3: arch
 define repo.targets
 build.image.$(1).$(2).$(3):
-	docker tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
+	$(DOCKERCMD) tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
 	@# Save image as _output/images/linux_<arch>/<image>.tar.gz (no builds for darwin or windows)
 	mkdir -p $(OUTPUT_DIR)/images/linux_$(3)
-	docker save $(BUILD_REGISTRY)/$(2)-$(3) | gzip -c > $(OUTPUT_DIR)/images/linux_$(3)/$(2).tar.gz
+	$(DOCKERCMD) save $(BUILD_REGISTRY)/$(2)-$(3) | gzip -c > $(OUTPUT_DIR)/images/linux_$(3)/$(2).tar.gz
 build.all.images: build.image.$(1).$(2).$(3)
-publish.image.$(1).$(2).$(3): ; @docker push $(1)/$(2)-$(3):$(VERSION)
+publish.image.$(1).$(2).$(3): ; @$(DOCKERCMD) push $(1)/$(2)-$(3):$(VERSION)
 publish.all.images: publish.image.$(1).$(2).$(3)
 # tag the master image, but do not tag the release image with a generic channel tag
 promote.image.$(1).$(2).$(3):
-	docker pull $(1)/$(2)-$(3):$(VERSION)
-	docker tag $(1)/$(2)-$(3):$(VERSION) $(1)/$(2)-$(3):$(CHANNEL)
-	[ "$(CHANNEL)" = "release" ] || docker push $(1)/$(2)-$(3):$(CHANNEL)
+	$(DOCKERCMD) pull $(1)/$(2)-$(3):$(VERSION)
+	$(DOCKERCMD) tag $(1)/$(2)-$(3):$(VERSION) $(1)/$(2)-$(3):$(CHANNEL)
+	[ "$(CHANNEL)" = "release" ] || $(DOCKERCMD) push $(1)/$(2)-$(3):$(CHANNEL)
 promote.all.images: promote.image.$(1).$(2).$(3)
 clean.image.$(1).$(2).$(3):
-	[ -z "$$$$(docker images -q $(1)/$(2)-$(3):$(VERSION))" ] || docker rmi $(1)/$(2)-$(3):$(VERSION)
-	[ -z "$$$$(docker images -q $(1)/$(2)-$(3):$(CHANNEL))" ] || docker rmi $(1)/$(2)-$(3):$(CHANNEL)
+	[ -z "$$$$($(DOCKERCMD) images -q $(1)/$(2)-$(3):$(VERSION))" ] || $(DOCKERCMD) rmi $(1)/$(2)-$(3):$(VERSION)
+	[ -z "$$$$($(DOCKERCMD) images -q $(1)/$(2)-$(3):$(CHANNEL))" ] || $(DOCKERCMD) rmi $(1)/$(2)-$(3):$(CHANNEL)
 clean.all.images: clean.image.$(1).$(2).$(3)
 endef
 $(foreach r,$(REGISTRIES), $(foreach i,$(IMAGES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(i),$(a))))))
@@ -224,7 +216,7 @@ help:
 	@echo ''
 	@echo 'Options:'
 	@echo '    VERSION      Sets the release version.'
-	@echo '    BRANCH_NAME  Name of the branch we're releasing from.'
+	@echo '    BRANCH_NAME  Name of the branch we are releasing from.'
 	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
 	@echo '                 or release. Default is not set.'
 	@echo '    PLATFORMS    The supported platforms to build when running.'

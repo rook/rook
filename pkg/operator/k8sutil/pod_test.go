@@ -18,7 +18,6 @@ package k8sutil
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -96,7 +95,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	expectedURToleration := newToleration(5, "node.kubernetes.io/unreachable")
 
 	// Change the UR toleration in the pod using env var and the tested function
-	os.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "5")
+	t.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "5")
 	AddUnreachableNodeToleration(&podSpec)
 
 	assert.Equal(t, 1, len(podSpec.Tolerations))
@@ -108,7 +107,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	expectedURToleration = newToleration(6, "node.kubernetes.io/unreachable")
 
 	// Change the UR toleration in the pod using env var and the tested function
-	os.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "6")
+	t.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "6")
 	AddUnreachableNodeToleration(&podSpec)
 
 	assert.Equal(t, 1, len(podSpec.Tolerations))
@@ -125,7 +124,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	expectedURToleration = newToleration(7, "node.kubernetes.io/unreachable")
 
 	// Change the Unreachable node toleration
-	os.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "7")
+	t.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "7")
 	AddUnreachableNodeToleration(&podSpec)
 
 	assert.Equal(t, 2, len(podSpec.Tolerations))
@@ -139,7 +138,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	expectedURToleration = newToleration(8, "node.kubernetes.io/unreachable")
 
 	// Change the Unreachable node toleration
-	os.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "8")
+	t.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "8")
 	AddUnreachableNodeToleration(&podSpec)
 
 	assert.Equal(t, 3, len(podSpec.Tolerations))
@@ -153,7 +152,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	expectedURToleration = newToleration(9, "node.kubernetes.io/unreachable")
 
 	// Change the Unreachable node toleration
-	os.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "9")
+	t.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "9")
 	AddUnreachableNodeToleration(&podSpec)
 
 	assert.Equal(t, 2, len(podSpec.Tolerations))
@@ -166,7 +165,7 @@ func TestAddUnreachableNodeToleration(t *testing.T) {
 	expectedURToleration = newToleration(5, "node.kubernetes.io/unreachable")
 
 	// Change the Unreachable node toleration using wrong format
-	os.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "9s")
+	t.Setenv("ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS", "9s")
 	AddUnreachableNodeToleration(&podSpec)
 
 	assert.Equal(t, 1, len(podSpec.Tolerations))

@@ -39,7 +39,7 @@ We can add Conditions simply in the Custom Resource struct as:
 	  
 	   type ClusterStatus struct{
 		FinalCondition ConditionType	  `json:"finalcondition,omitempty"`
-		Message	       string		  `json:"message,omitmepty"`
+		Message	       string		  `json:"message,omitempty"`
 		Condition      []RookConditions   `json:"conditions,omitempty"`
 		CephStatus     *CephStatus        `json:"ceph,omitempty"`
 	   }

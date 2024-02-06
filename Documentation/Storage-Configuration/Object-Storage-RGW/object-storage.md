@@ -48,10 +48,6 @@ spec:
     port: 80
     # securePort: 443
     instances: 1
-  healthCheck:
-    bucket:
-      disabled: false
-      interval: 60s
 ```
 
 After the `CephObjectStore` is created, the Rook operator will then create all the pools and other resources necessary to start the service. This may take a minute to complete.
@@ -70,7 +66,20 @@ kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 
 ### Connect to an External Object Store
 
-Rook can connect to existing RGW gateways to work in conjunction with the external mode of the `CephCluster` CRD.
+Rook can connect to existing RGW gateways to work in conjunction with the external mode of the `CephCluster` CRD. First, create a `rgw-admin-ops-user` user in the Ceph cluster with the necessary caps:
+
+```console
+radosgw-admin user create --uid=rgw-admin-ops-user --display-name="RGW Admin Ops User" --caps="buckets=*;users=*;usage=read;metadata=read;zone=read" --rgw-realm=<realm-name> --rgw-zonegroup=<zonegroup-name> --rgw-zone=<zone-name>
+```
+
+The `rgw-admin-ops-user` user is required by the Rook operator to manage buckets and users via the admin ops and s3 api. The multisite configuration needs to be specified only if the admin sets up multisite for RGW.
+
+Then create a secret with the user credentials:
+
+```console
+kubectl -n rook-ceph create secret generic --type="kubernetes.io/rook" rgw-admin-ops-user --from-literal=accessKey=<access key of the user> --from-literal=secretKey=<secret key of the user>
+```
+
 If you have an external `CephCluster` CR, you can instruct Rook to consume external gateways with the following:
 
 ```yaml
@@ -84,25 +93,19 @@ spec:
     port: 8080
     externalRgwEndpoints:
       - ip: 192.168.39.182
-  healthCheck:
-    bucket:
-      enabled: true
-      interval: 60s
+        # hostname: example.com
 ```
 
-You can use the existing `object-external.yaml` file.
-When ready the ceph-object-controller will output a message in the Operator log similar to this one:
+Use the existing `object-external.yaml` file. Even though multiple endpoints can be specified, it is recommend to use only one endpoint. This endpoint is randomly added to `configmap` of OBC and secret of the `cephobjectstoreuser`. Rook never guarantees the randomly picked endpoint is a working one or not.
+If there are multiple endpoints, please add load balancer in front of them and use the load balancer endpoint in the `externalRgwEndpoints` list.
+
+When ready, the message in the `cephobjectstore` status similar to this one:
 
 ```console
-ceph-object-controller: ceph object store gateway service >running at 10.100.28.138:8080
-```
+kubectl -n rook-ceph get cephobjectstore external-store
+NAME                                 PHASE
+external-store                       Ready
 
-You can now get and access the store via:
-
-```console
-$ kubectl -n rook-ceph get svc -l app=rook-ceph-rgw
-NAME                     TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE
-rook-ceph-rgw-my-store   ClusterIP   10.100.28.138   <none>        8080/TCP   6h59m
 ```
 
 Any pod from your cluster can now access this endpoint:
@@ -112,16 +115,10 @@ $ curl 10.100.28.138:8080
 <?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
 ```
 
-It is also possible to use the internally registered DNS name:
-
-```console
-$ curl rook-ceph-rgw-my-store.rook-ceph:8080
-<?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
-```
-
-The DNS name is created  with the following schema `rook-ceph-rgw-$STORE_NAME.$NAMESPACE`.
-
 ## Create a Bucket
+
+!!! info
+    This document is a guide for creating bucket with an Object Bucket Claim (OBC). To create a bucket with the experimental COSI Driver, see the [COSI documentation](cosi.md).
 
 Now that the object store is configured, next we need to create a bucket where a client can read and write objects. A bucket can be created by defining a storage class, similar to the pattern used by block and file storage.
 First, define the storage class that will allow object clients to create a bucket.
@@ -147,7 +144,7 @@ kubectl create -f storageclass-bucket-delete.yaml
 ```
 
 Based on this storage class, an object client can now request a bucket by creating an Object Bucket Claim (OBC).
-When the OBC is created, the Rook-Ceph bucket provisioner will create a new bucket. Notice that the OBC
+When the OBC is created, the Rook bucket provisioner will create a new bucket. Notice that the OBC
 references the storage class that was created above.
 Save the following as `object-bucket-claim-delete.yaml` (the example is named as such due to the `Delete` reclaim policy):
 
@@ -222,9 +219,13 @@ below in the section [creating a user](#create-a-user) if you are not creating t
 
 ### Configure s5cmd
 
-To test the `CephObjectStore`, set the object store credentials in the toolbox pod for the `s5cmd` tool.
+To test the `CephObjectStore`, set the object store credentials in the toolbox pod that contains the `s5cmd` tool.
+
+!!! important
+    The default toolbox.yaml does not contain the s5cmd. The toolbox must be started with the rook operator image (toolbox-operator-image), which does contain s5cmd.
 
 ```console
+kubectl create -f deploy/examples/toolbox-operator-image.yaml
 mkdir ~/.aws
 cat > ~/.aws/credentials << EOF
 [default]
@@ -248,6 +249,12 @@ Download and verify the file from the bucket
 s5cmd --endpoint-url http://$AWS_HOST:$PORT cp s3://$BUCKET_NAME/rookObj /tmp/rookObj-download
 cat /tmp/rookObj-download
 ```
+
+## Monitoring health
+
+Rook configures health probes on the deployment created for CephObjectStore gateways. Refer to
+[the CRD document](../../CRDs/Object-Storage/ceph-object-store-crd.md#health-settings) for
+information about configuring the probes and monitoring the deployment status.
 
 ## Access External to the Cluster
 
@@ -364,6 +371,6 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpa
 
 Multisite is a feature of Ceph that allows object stores to replicate its data over multiple Ceph clusters.
 
-Multisite also allows object stores to be independent and isloated from other object stores in a cluster.
+Multisite also allows object stores to be independent and isolated from other object stores in a cluster.
 
 For more information on multisite please read the [ceph multisite overview](ceph-object-multisite.md) for how to run it.

@@ -2,17 +2,17 @@
 title: Ceph CSI Drivers
 ---
 
-There are three CSI drivers integrated with Rook that will enable different scenarios:
+There are three CSI drivers integrated with Rook that are used in different scenarios:
 
 * RBD: This block storage driver is optimized for RWO pod access where only one pod may access the
   storage. [More information](../Block-Storage-RBD/block-storage.md).
 * CephFS: This file storage driver allows for RWX with one or more pods accessing the same storage.
   [More information](../Shared-Filesystem-CephFS/filesystem-storage.md).
-* NFS (experimental): This file storage driver allows creating NFS exports that can be mounted to
-  pods, or the exports can be mounted directly via an NFS client from inside or outside the
-  Kubernetes cluster. [More information](../../CRDs/ceph-nfs-crd.md#ceph-csi-nfs-provisioner-and-nfs-csi-driver).
+* NFS (experimental): This file storage driver allows creating NFS exports that can be mounted on
+  pods, or directly via an NFS client from inside or outside the
+  Kubernetes cluster. [More information](../NFS/nfs-csi-driver.md)
 
-The Ceph Filesysetem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically with
+The Ceph Filesystem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically by
 the Rook operator. The NFS driver is disabled by default. All drivers will be started in the same
 namespace as the operator when the first CephCluster CR is created.
 
@@ -23,22 +23,81 @@ for more information.
 
 ## Static Provisioning
 
-Both drivers also support the creation of static PV and static PVC from existing RBD image/CephFS volume. Refer to [static PVC](https://github.com/ceph/ceph-csi/blob/devel/docs/static-pvc.md) for more information.
+The RBD and CephFS drivers support the creation of static PVs and static PVCs from
+an existing RBD image or CephFS volume/subvolume. Refer
+to the [static PVC](https://github.com/ceph/ceph-csi/blob/devel/docs/static-pvc.md) documentation for more information.
 
 ## Configure CSI Drivers in non-default namespace
 
-If you've deployed the Rook operator in a namespace other than "rook-ceph",
+If you've deployed the Rook operator in a namespace other than `rook-ceph`,
 change the prefix in the provisioner to match the namespace you used. For
-example, if the Rook operator is running in the namespace "my-namespace" the
-provisioner value should be "my-namespace.rbd.csi.ceph.com". The same provisioner
-name needs to be set in both the storageclass and snapshotclass.
+example, if the Rook operator is running in the namespace `my-namespace` the
+provisioner value should be `my-namespace.rbd.csi.ceph.com`. The same provisioner
+name must be set in both the storageclass and snapshotclass.
+
+To find the provisioner name in the example storageclasses and
+volumesnapshotclass, search for: `# csi-provisioner-name`
+
+### Configure custom Driver name prefix for CSI Drivers
+
+To use a custom prefix for the CSI drivers instead of the namespace prefix, set
+the `CSI_DRIVER_NAME_PREFIX` environment variable in the operator configmap.
+For instance, to use the prefix `my-prefix` for the CSI drivers, set
+the following in the operator configmap:
+
+```console
+kubectl patch cm rook-ceph-operator-config -n rook-ceph -p $'data:\n "CSI_DRIVER_NAME_PREFIX": "my-prefix"'
+```
+
+Once the configmap is updated, the CSI drivers will be deployed with the
+`my-prefix` prefix. The same prefix must be set in both the storageclass and
+snapshotclass. For example, to use the prefix `my-prefix` for the
+CSI drivers, update the provisioner in the storageclass:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-block-sc
+provisioner: my-prefix.rbd.csi.ceph.com
+...
+```
+
+The same prefix must be set in the volumesnapshotclass as well:
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: rook-ceph-block-vsc
+driver: my-prefix.rbd.csi.ceph.com
+...
+```
+
+When the prefix is set, the driver names will be:
+
+* RBD: `my-prefix.rbd.csi.ceph.com`
+* CephFS: `my-prefix.cephfs.csi.ceph.com`
+* NFS: `my-prefix.nfs.csi.ceph.com`
+
+!!! note
+    Please be careful when setting the `CSI_DRIVER_NAME_PREFIX`
+    environment variable. It should be done only in fresh deployments because
+    changing the prefix in an existing cluster will result in unexpected behavior.
+
+To find the provisioner name in the example storageclasses and
+volumesnapshotclass, search for: `# csi-provisioner-name`
 
 ## Liveness Sidecar
 
-All CSI pods are deployed with a sidecar container that provides a prometheus metric for tracking if the CSI plugin is alive and running.
-These metrics are meant to be collected by prometheus but can be accesses through a GET request to a specific node ip.
-for example `curl -X get http://[pod ip]:[liveness-port][liveness-path]  2>/dev/null | grep csi`
-the expected output should be
+All CSI pods are deployed with a sidecar container that provides a Prometheus
+metric for tracking whether the CSI plugin is alive and running.
+These metrics are meant to be scraped (collected) by Prometheus but can also be
+accessed through a GET request to a specific node as follows:
+
+`curl -X get http://[pod ip]:[liveness-port][liveness-path]  2>/dev/null | grep csi`
+
+For example:
 
 ```console
 $ curl -X GET http://10.109.65.142:9080/metrics 2>/dev/null | grep csi
@@ -47,56 +106,42 @@ $ curl -X GET http://10.109.65.142:9080/metrics 2>/dev/null | grep csi
 csi_liveness 1
 ```
 
-Check the [monitoring doc](../Monitoring/ceph-monitoring.md) to see how to integrate CSI
-liveness and grpc metrics into ceph monitoring.
+Check the [monitoring documentation](../Monitoring/ceph-monitoring.md) to see how to integrate CSI
+liveness and GRPC metrics into Ceph monitoring.
 
 ## Dynamically Expand Volume
 
-### Prerequisite
-
-* For filesystem resize to be supported for your Kubernetes cluster, the
-  kubernetes version running in your cluster should be >= v1.15 and for block
-  volume resize support the Kubernetes version should be >= v1.16. Also,
-  `ExpandCSIVolumes` feature gate has to be enabled for the volume resize
-  functionality to work.
+### Prerequisites
 
 To expand the PVC the controlling StorageClass must have `allowVolumeExpansion`
 set to `true`. `csi.storage.k8s.io/controller-expand-secret-name` and
-`csi.storage.k8s.io/controller-expand-secret-namespace` values set in
-storageclass. Now expand the PVC by editing the PVC
+`csi.storage.k8s.io/controller-expand-secret-namespace` values set in the
+storageclass. Now expand the PVC by editing the PVC's
 `pvc.spec.resource.requests.storage` to a higher values than the current size.
-Once PVC is expanded on backend and same is reflected size is reflected on
-application mountpoint, the status capacity `pvc.status.capacity.storage` of
-PVC will be updated to new size.
+Once the PVC is expanded on the back end and the new size is reflected on
+the application mountpoint, the status capacity `pvc.status.capacity.storage` of
+the PVC will be updated to the new size.
 
 ## RBD Mirroring
 
-To support RBD Mirroring, the [Volume Replication Operator](https://github.com/csi-addons/volume-replication-operator/blob/main/README.md) will be started in the RBD provisioner pod.
-The Volume Replication Operator is a kubernetes operator that provides common and reusable APIs for storage disaster recovery. It is based on [csi-addons/spec](https://github.com/csi-addons/spec) specification and can be used by any storage provider.
-It follows the controller pattern and provides extended APIs for storage disaster recovery. The extended APIs are provided via Custom Resource Definitions (CRDs).
+To support RBD Mirroring,
+the [CSI-Addons sidecar](https://github.com/csi-addons/kubernetes-csi-addons#readme)
+will be started in the RBD provisioner pod. CSI-Addons support the `VolumeReplication`
+operation. The volume replication controller provides common and reusable APIs for
+storage disaster recovery. It is based on the [csi-addons](https://github.com/csi-addons/spec) specification.
+It follows the controller pattern and provides extended APIs for storage disaster recovery.
+The extended APIs are provided via Custom Resource Definitions (CRDs).
 
-### Prerequisites
+### Enable CSIAddons Sidecar
 
-Kubernetes version 1.21 or greater is required.
-
-### Enable volume replication
-
-1. Install the volume replication CRDs:
-
-    ```console
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
-    ```
-
-2. Enable the volume replication controller:
-    * For Helm deployments see the [`csi.volumeReplication.enabled` setting](../../Helm-Charts/operator-chart.md#configuration).
-    * For non-Helm deployments set `CSI_ENABLE_VOLUME_REPLICATION: "true"` in operator.yaml
+To enable the CSIAddons sidecar and deploy the controller, follow the
+steps [below](#csi-addons-controller)
 
 ## Ephemeral volume support
 
 The generic ephemeral volume feature adds support for specifying PVCs in the
-`volumes` field to indicate a user would like to create a Volume as part of the pod spec.
-This feature requires the GenericEphemeralVolume feature gate to be enabled.
+`volumes` field to create a Volume as part of the pod spec.
+This feature requires the `GenericEphemeralVolume` feature gate to be enabled.
 
 For example:
 
@@ -116,28 +161,30 @@ apiVersion: v1
                 storage: 1Gi
 ```
 
-A volume claim template is defined inside the pod spec which refers to a volume
-provisioned and used by the pod with its lifecycle. The volumes are provisioned
-when pod get spawned and destroyed at time of pod delete.
+A volume claim template is defined inside the pod spec, and defines a volume to be
+provisioned and used by the pod within its lifecycle. Volumes are provisioned
+when a pod is spawned and destroyed when the pod is deleted.
 
-Refer to [ephemeral-doc](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) for more info.
-Also, See the example manifests for an [RBD ephemeral volume](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/pod-ephemeral.yaml) and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/pod-ephemeral.yaml).
+Refer to the [ephemeral-doc](https://kubernetes.io/docs/concepts/storage/ephemeral-volumes/#generic-ephemeral-volumes) for more info.
+See example manifests for an [RBD ephemeral volume](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/pod-ephemeral.yaml)
+and a [CephFS ephemeral volume](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/pod-ephemeral.yaml).
 
 ## CSI-Addons Controller
 
-The CSI-Addons Controller handles the requests from users to initiate an operation. Users create a CR that the controller inspects, and forwards a request to one or more CSI-Addons side-cars for execution.
+The CSI-Addons Controller handles requests from users. Users create a CR
+that the controller inspects and forwards to one or more CSI-Addons sidecars for execution.
 
 ### Deploying the controller
 
-Users can deploy the controller by running the following commands:
+Deploy the controller by running the following commands:
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/crds.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.4.0/deploy/controller/setup-controller.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/crds.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/rbac.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/setup-controller.yaml
 ```
 
-This creates the required crds and configure permissions.
+This creates the required CRDs and configures permissions.
 
 ### Enable the CSI-Addons Sidecar
 
@@ -145,49 +192,49 @@ To use the features provided by the CSI-Addons, the `csi-addons`
 containers need to be deployed in the RBD provisioner and nodeplugin pods,
 which are not enabled by default.
 
-Execute the following command in the cluster to enable the CSI-Addons
-sidecar:
+Execute the following to enable the CSI-Addons sidecars:
 
 * Update the `rook-ceph-operator-config` configmap and patch the
- following configurations
+ following configuration:
 
 ```console
 kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
 ```
 
-* After enabling `CSI_ENABLE_CSIADDONS` in the configmap, a new sidecar container with name `csi-addons`
- should now start automatically in the RBD CSI provisioner and nodeplugin pods.
+* After enabling `CSI_ENABLE_CSIADDONS` in the configmap, a new sidecar container named `csi-addons`
+will start automatically in the RBD CSI provisioner and nodeplugin pods.
 
-!!! note
-    Make sure the version of ceph-csi used is `v3.5.0+`.
-
-### CSI-ADDONS Operation
+### CSI-Addons Operations
 
 CSI-Addons supports the following operations:
 
 * Reclaim Space
-  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#reclaimspacejob)
-  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#reclaimspacecronjob)
-  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacejob)
+  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacecronjob)
+  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+  * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-namespace)
 * Network Fencing
-  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.3.0/docs/networkfence.md)
+  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/networkfence.md)
+* Volume Replication
+  * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplicationclass.md)
+  * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplication.md)
 
 ## Enable RBD Encryption Support
 
-Ceph-CSI supports encrypting individual RBD PersistentVolumeClaim with LUKS encryption. More details can be found
+Ceph-CSI supports encrypting individual RBD PersistentVolumeClaims with LUKS. More details can be found
 [here](https://github.com/ceph/ceph-csi/blob/v3.6.0/docs/deploy-rbd.md#encryption-for-rbd-volumes)
-with full list of supported encryption configurations. A sample configmap can be found
+including a full list of supported encryption configurations. A sample configmap can be found
 [here](https://github.com/ceph/ceph-csi/blob/v3.6.0/examples/kms/vault/kms-config.yaml).
 
 !!! note
-    Rook also supports OSD encryption (see `encryptedDevice` option [here](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings)).
+    Rook also supports OSD-level encryption (see `encryptedDevice` option [here](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings)).
 
-Using both RBD PVC encryption and OSD encryption together will lead to double encryption and may reduce read/write performance.
+Using both RBD PVC encryption and OSD encryption at the same time will lead to double encryption and may reduce read/write performance.
 
-Unlike OSD encryption, existing ceph clusters can also enable Ceph-CSI RBD PVC encryption support and multiple kinds of encryption
-KMS can be used on the same ceph cluster using different storageclasses.
+Existing Ceph clusters can also enable Ceph-CSI RBD PVC encryption support and multiple kinds of encryption
+KMS can be used on the same Ceph cluster using different storageclasses.
 
-Following steps demonstrate how to enable support for encryption:
+The following steps demonstrate how to enable support for encryption:
 
 * Create the `rook-ceph-csi-kms-config` configmap with required encryption configuration in
 the same namespace where the Rook operator is deployed. An example is shown below:
@@ -215,8 +262,8 @@ data:
 kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_ENCRYPTION": "true"'
 ```
 
-* Create necessary resources (secrets, configmaps etc) as required by the encryption type.
-In this case, create `storage-encryption-secret` secret in the namespace of pvc as shown:
+* Create the resources (secrets, configmaps etc) required by the encryption type.
+In this case, create `storage-encryption-secret` secret in the namespace of the PVC as follows:
 
 ```yaml
 apiVersion: v1
@@ -244,3 +291,36 @@ parameters:
 ```
 
 * PVCs created using the new storageclass will be encrypted.
+
+## Enable Read affinity for RBD and CephFS volumes
+
+Ceph CSI supports mapping RBD volumes with KRBD options and mounting
+CephFS volumes with ceph mount options to allow
+serving reads from an OSD closest to the client, according to
+OSD locations defined in the CRUSH map and topology labels on nodes.
+
+Refer to the [krbd-options document](https://docs.ceph.com/en/latest/man/8/rbd/#kernel-rbd-krbd-options)
+for more details.
+
+Execute the following step to enable read affinity for a specific ceph cluster:
+
+* Patch the ceph cluster CR to enable read affinity:
+
+```console
+kubectl patch cephclusters.ceph.rook.io <cluster-name> -n rook-ceph -p '{"spec":{"csi":{"readAffinity":{"enabled": true}}}}'
+```
+
+```yaml
+  csi:
+    readAffinity:
+      enabled: true
+```
+
+* Add topology labels to the Kubernetes nodes. The same labels may be used as mentioned in the
+[OSD topology](../../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) topic.
+
+Ceph CSI will extract the CRUSH location from the topology labels found on the node
+and pass it though krbd options during mapping RBD volumes.
+
+!!! note
+    This requires Linux kernel version 5.8 or higher.

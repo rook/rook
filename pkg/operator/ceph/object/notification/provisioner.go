@@ -72,8 +72,6 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get object context for CephObjectStore %v", p.objectStoreName)
 	}
-	// CephClusterSpec is needed for GetAdminOPSUserCredentials()
-	objContext.CephClusterSpec = *p.clusterSpec
 
 	adminOpsCtx, err := object.NewMultisiteAdminOpsContext(objContext, &objStore.Spec)
 	if err != nil {
@@ -85,13 +83,17 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 		return nil, errors.Wrapf(err, "failed to get owner credentials for %q", p.owner)
 	}
 	tlsCert := make([]byte, 0)
+	insecureTLS := false
 	if objStore.Spec.IsTLSEnabled() {
-		tlsCert, _, err = object.GetTlsCaCert(objContext, &objStore.Spec)
+		tlsCert, insecureTLS, err = object.GetTlsCaCert(objContext, &objStore.Spec)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to fetch TLS certificate for the object store")
 		}
 	}
 
+	if insecureTLS {
+		return object.NewInsecureS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG))
+	}
 	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG), tlsCert)
 }
 

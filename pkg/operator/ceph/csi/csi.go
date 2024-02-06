@@ -17,13 +17,14 @@ limitations under the License.
 package csi
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 )
@@ -79,14 +80,14 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ALLOW_UNSUPPORTED_VERSION'")
 	}
 
-	if EnableCSIGRPCMetrics, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ENABLE_GRPC_METRICS", "false")); err != nil {
-		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_GRPC_METRICS'")
-	}
-	CSIParam.EnableCSIGRPCMetrics = fmt.Sprintf("%t", EnableCSIGRPCMetrics)
-
 	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true")); err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
 	}
+
+	if CSIParam.EnableReadAffinity, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_READ_AFFINITY", "false")); err != nil {
+		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_READ_AFFINITY'")
+	}
+	CSIParam.CrushLocationLabels = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CRUSH_LOCATION_LABELS", topology.GetDefaultTopologyLabels())
 
 	// If not set or set to anything but "false", the kernel client will be enabled
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_FORCE_CEPHFS_KERNEL_CLIENT", "true"), "false") {
@@ -108,19 +109,10 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	}
 	CSIParam.GRPCTimeout = time.Duration(timeoutSeconds) * time.Second
 
-	// parse GRPC and Liveness ports
-	CSIParam.CephFSGRPCMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_CEPHFS_GRPC_METRICS_PORT", DefaultCephFSGRPCMerticsPort)
-	if err != nil {
-		return errors.Wrap(err, "error getting CSI CephFS GRPC metrics port.")
-	}
+	// parse Liveness port
 	CSIParam.CephFSLivenessMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_CEPHFS_LIVENESS_METRICS_PORT", DefaultCephFSLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI CephFS liveness metrics port.")
-	}
-
-	CSIParam.RBDGRPCMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_RBD_GRPC_METRICS_PORT", DefaultRBDGRPCMerticsPort)
-	if err != nil {
-		return errors.Wrap(err, "error getting CSI RBD GRPC metrics port.")
 	}
 	CSIParam.CSIAddonsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSIADDONS_PORT", DefaultCSIAddonsPort)
 	if err != nil {
@@ -131,6 +123,11 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")
 	}
 
+	CSIParam.EnableLiveness, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_LIVENESS", "false"))
+	if err != nil {
+		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_LIVENESS'")
+	}
+
 	// default value `system-node-critical` is the highest available priority
 	CSIParam.PluginPriorityClassName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
 
@@ -138,47 +135,63 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	// critical pods in cluster but less priority than plugin pods
 	CSIParam.ProvisionerPriorityClassName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_PROVISIONER_PRIORITY_CLASSNAME", "")
 
+	CSIParam.EnableOMAPGenerator = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_OMAP_GENERATOR", "false"), "true") {
 		CSIParam.EnableOMAPGenerator = true
 	}
 
-	// SA token projection is stable only from kubernetes version 1.20.
-	if ver.Major == KubeMinMajor && ver.Minor >= KubeMinVerForOIDCTokenProjection {
-		CSIParam.EnableOIDCTokenProjection = true
+	// CSIDriver SeLinuxMount option is only available from kubernetes version 1.25.
+	if ver.Major == kubeMinMajor && ver.Minor >= kubeMinVerForCSIDriverSeLinuxMount {
+		CSIParam.EnableCSIDriverSeLinuxMount = true
 	}
 
-	// if k8s >= v1.17 enable RBD and CephFS snapshotter by default
-	if ver.Major == KubeMinMajor && ver.Minor >= kubeMinVerForSnapshot {
-		CSIParam.EnableRBDSnapshotter = true
-		CSIParam.EnableCephFSSnapshotter = true
-	}
-
+	CSIParam.EnableRBDSnapshotter = true
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableRBDSnapshotter = false
 	}
 
+	CSIParam.EnableCephFSSnapshotter = true
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CEPHFS_SNAPSHOTTER", "true"), "false") {
 		CSIParam.EnableCephFSSnapshotter = false
 	}
 
-	CSIParam.EnableVolumeReplicationSideCar = false
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_REPLICATION", "false"), "true") {
-		CSIParam.EnableVolumeReplicationSideCar = true
+	CSIParam.EnableNFSSnapshotter = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_NFS_SNAPSHOTTER", "true"), "false") {
+		CSIParam.EnableNFSSnapshotter = false
 	}
 
 	CSIParam.EnableCSIAddonsSideCar = false
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", "false"), "true") {
+	_, err = r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(r.opManagerContext, "csiaddonsnode.csiaddons.openshift.io", metav1.GetOptions{})
+	if err == nil {
+		CSIParam.EnableCSIAddonsSideCar = true
+	}
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", ""), "false") {
+		CSIParam.EnableCSIAddonsSideCar = false
+	}
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_CSIADDONS", ""), "true") {
 		CSIParam.EnableCSIAddonsSideCar = true
 	}
 
+	CSIParam.EnableCSITopology = false
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_TOPOLOGY", "false"), "true") {
+		CSIParam.EnableCSITopology = true
+	}
+
+	CSIParam.EnableCSIEncryption = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_ENCRYPTION", "false"), "true") {
 		CSIParam.EnableCSIEncryption = true
+	}
+
+	CSIParam.CSIEnableMetadata = false
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_METADATA", "false"), "true") {
+		CSIParam.CSIEnableMetadata = true
 	}
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.CephFSPluginUpdateStrategy = onDelete
 	} else {
 		CSIParam.CephFSPluginUpdateStrategy = rollingUpdate
+		CSIParam.CephFSPluginUpdateStrategyMaxUnavailable = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE", "1")
 	}
 
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
@@ -187,19 +200,21 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.NFSPluginUpdateStrategy = rollingUpdate
 	}
 
+	// Default values are based on Kubernetes official documentation.
+	// https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/#daemonset-update-strategy
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_PLUGIN_UPDATE_STRATEGY", rollingUpdate), onDelete) {
 		CSIParam.RBDPluginUpdateStrategy = onDelete
 	} else {
 		CSIParam.RBDPluginUpdateStrategy = rollingUpdate
+		CSIParam.RBDPluginUpdateStrategyMaxUnavailable = k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_PLUGIN_UPDATE_STRATEGY_MAX_UNAVAILABLE", "1")
 	}
 
+	CSIParam.EnablePluginSelinuxHostMount = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT", "false"), "true") {
 		CSIParam.EnablePluginSelinuxHostMount = true
 	}
 
 	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
-
-	CSIParam.ResizerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 
 	logLevel := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LOG_LEVEL", "")
 	CSIParam.LogLevel = defaultLogLevel
@@ -209,6 +224,50 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 			logger.Errorf("failed to parse CSI_LOG_LEVEL. Defaulting to %d. %v", defaultLogLevel, err)
 		} else {
 			CSIParam.LogLevel = uint8(l)
+		}
+	}
+
+	sidecarLogLevel := k8sutil.GetValue(r.opConfig.Parameters, "CSI_SIDECAR_LOG_LEVEL", "")
+	CSIParam.SidecarLogLevel = defaultSidecarLogLevel
+	if sidecarLogLevel != "" {
+		l, err := strconv.ParseUint(sidecarLogLevel, 10, 8)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_SIDECAR_LOG_LEVEL. Defaulting to %d. %v", defaultSidecarLogLevel, err)
+		} else {
+			CSIParam.SidecarLogLevel = uint8(l)
+		}
+	}
+
+	leaderElectionLeaseDuration := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LEADER_ELECTION_LEASE_DURATION", "")
+	CSIParam.LeaderElectionLeaseDuration = defaultLeaderElectionLeaseDuration
+	if leaderElectionLeaseDuration != "" {
+		d, err := time.ParseDuration(leaderElectionLeaseDuration)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LEADER_ELECTION_LEASE_DURATION. Defaulting to %s. %v", defaultLeaderElectionLeaseDuration, err)
+		} else {
+			CSIParam.LeaderElectionLeaseDuration = d
+		}
+	}
+
+	leaderElectionRenewDeadline := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LEADER_ELECTION_RENEW_DEADLINE", "")
+	CSIParam.LeaderElectionRenewDeadline = defaultLeaderElectionRenewDeadline
+	if leaderElectionRenewDeadline != "" {
+		d, err := time.ParseDuration(leaderElectionRenewDeadline)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LEADER_ELECTION_RENEW_DEADLINE. Defaulting to %s. %v", defaultLeaderElectionRenewDeadline, err)
+		} else {
+			CSIParam.LeaderElectionRenewDeadline = d
+		}
+	}
+
+	leaderElectionRetryPeriod := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LEADER_ELECTION_RETRY_PERIOD", "")
+	CSIParam.LeaderElectionRetryPeriod = defaultLeaderElectionRetryPeriod
+	if leaderElectionRetryPeriod != "" {
+		d, err := time.ParseDuration(leaderElectionRetryPeriod)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_LEADER_ELECTION_RETRY_PERIOD. Defaulting to %s. %v", defaultLeaderElectionRetryPeriod, err)
+		} else {
+			CSIParam.LeaderElectionRetryPeriod = d
 		}
 	}
 
@@ -230,21 +289,39 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		logger.Errorf("failed to get nodes. Defaulting the number of replicas of provisioner pods to %d. %v", CSIParam.ProvisionerReplicas, err)
 	}
 
-	CSIParam.CSIPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
-	CSIParam.NFSPluginImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_IMAGE", DefaultNFSPluginImage)
-	CSIParam.RegistrarImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
-	CSIParam.ProvisionerImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
-	CSIParam.AttacherImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)
-	CSIParam.SnapshotterImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
+	CSIParam.CSIPluginImage = getImage(r.opConfig.Parameters, "ROOK_CSI_CEPH_IMAGE", DefaultCSIPluginImage)
+	CSIParam.RegistrarImage = getImage(r.opConfig.Parameters, "ROOK_CSI_REGISTRAR_IMAGE", DefaultRegistrarImage)
+	CSIParam.ProvisionerImage = getImage(r.opConfig.Parameters, "ROOK_CSI_PROVISIONER_IMAGE", DefaultProvisionerImage)
+	CSIParam.AttacherImage = getImage(r.opConfig.Parameters, "ROOK_CSI_ATTACHER_IMAGE", DefaultAttacherImage)
+	CSIParam.SnapshotterImage = getImage(r.opConfig.Parameters, "ROOK_CSI_SNAPSHOTTER_IMAGE", DefaultSnapshotterImage)
+	CSIParam.ResizerImage = getImage(r.opConfig.Parameters, "ROOK_CSI_RESIZER_IMAGE", DefaultResizerImage)
 	CSIParam.KubeletDirPath = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
-	CSIParam.VolumeReplicationImage = k8sutil.GetValue(r.opConfig.Parameters, "CSI_VOLUME_REPLICATION_IMAGE", DefaultVolumeReplicationImage)
-	CSIParam.CSIAddonsImage = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
+	CSIParam.CSIAddonsImage = getImage(r.opConfig.Parameters, "ROOK_CSIADDONS_IMAGE", DefaultCSIAddonsImage)
+	CSIParam.CSIDomainLabels = k8sutil.GetValue(r.opConfig.Parameters, "CSI_TOPOLOGY_DOMAIN_LABELS", "")
 	csiCephFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_CEPHFS_POD_LABELS", "")
 	CSIParam.CSICephFSPodLabels = k8sutil.ParseStringToLabels(csiCephFSPodLabels)
 	csiNFSPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_NFS_POD_LABELS", "")
 	CSIParam.CSINFSPodLabels = k8sutil.ParseStringToLabels(csiNFSPodLabels)
 	csiRBDPodLabels := k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_RBD_POD_LABELS", "")
 	CSIParam.CSIRBDPodLabels = k8sutil.ParseStringToLabels(csiRBDPodLabels)
+	CSIParam.CSIClusterName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CLUSTER_NAME", "")
+	CSIParam.ImagePullPolicy = k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_IMAGE_PULL_POLICY", DefaultCSIImagePullPolicy)
+	CSIParam.CephFSKernelMountOptions = k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_KERNEL_MOUNT_OPTIONS", "")
+
+	CSIParam.CephFSAttachRequired = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.CephFSAttachRequired = false
+	}
+	CSIParam.RBDAttachRequired = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.RBDAttachRequired = false
+	}
+	CSIParam.NFSAttachRequired = true
+	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_ATTACH_REQUIRED", "true"), "false") {
+		CSIParam.NFSAttachRequired = false
+	}
+
+	CSIParam.DriverNamePrefix = k8sutil.GetValue(r.opConfig.Parameters, "CSI_DRIVER_NAME_PREFIX", r.opConfig.OperatorNamespace)
 
 	return nil
 }

@@ -69,14 +69,9 @@ func MgrEnableModule(context *clusterd.Context, clusterInfo *ClusterInfo, name s
 	retryCount := 5
 	var err error
 	for i := 0; i < retryCount; i++ {
-		/* In Pacific the balancer is now on by default in upmap mode.
-		In earlier versions, the balancer was included in the ``always_on_modules`` list, but needed to be
-		turned on explicitly using the ``ceph balancer on`` command. */
-		if name == "balancer" && clusterInfo.CephVersion.IsAtLeastPacific() {
-			logger.Debug("balancer module is already 'on' on pacific, doing nothing", name)
+		if name == "balancer" {
+			logger.Debug("balancer module is always 'on', doing nothing", name)
 			return nil
-		} else if name == "balancer" {
-			err = enableDisableBalancerModule(context, clusterInfo, "on")
 		} else {
 			err = enableModule(context, clusterInfo, name, force, "enable")
 		}

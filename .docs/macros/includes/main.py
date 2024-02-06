@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 from pygit2 import Repository
 import re
@@ -12,7 +12,6 @@ subst = "\\1/%s/"
 
 
 def define_env(env):
-
     repo = Repository(".")
     if repo is not None:
         target = repo.head.shorthand

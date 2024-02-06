@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -42,16 +43,16 @@ type ClusterInfo struct {
 	CephVersion   cephver.CephVersion
 	Namespace     string
 	OwnerInfo     *k8sutil.OwnerInfo
-	RequireMsgr2  bool
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name              string
 	OsdUpgradeTimeout time.Duration
 	NetworkSpec       cephv1.NetworkSpec
+	CSIDriverSpec     cephv1.CSIDriverSpec
 	// A context to cancel the context it is used to determine whether the reconcile loop should
 	// exist (if the context has been cancelled). This cannot be in main clusterd context since this
 	// is a pointer passed through the entire life cycle or the operator. If the context is
-	// cancelled it will immedialy be re-created, thus existing reconciles loops will not be
+	// cancelled it will immediately be re-created, thus existing reconciles loops will not be
 	// cancelled.
 	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
 	// re-hydrated when a context is cancelled.
@@ -62,6 +63,8 @@ type ClusterInfo struct {
 type MonInfo struct {
 	Name     string `json:"name"`
 	Endpoint string `json:"endpoint"`
+	// Whether detected out of quorum by rook. May be different from actual ceph quorum.
+	OutOfQuorum bool `json:"outOfQuorum"`
 }
 
 // CephCred represents the Ceph cluster username and key used by the operator.
@@ -112,42 +115,30 @@ func AdminTestClusterInfo(namespace string) *ClusterInfo {
 // in. This method exists less out of necessity than the desire to be explicit about the lifecycle
 // of the ClusterInfo struct during startup, specifically that it is expected to exist after the
 // Rook operator has started up or connected to the first components of the Ceph cluster.
-func (c *ClusterInfo) IsInitialized(logError bool) bool {
-	var isInitialized bool
-
+func (c *ClusterInfo) IsInitialized() error {
 	if c == nil {
-		if logError {
-			logger.Error("clusterInfo is nil")
-		}
-	} else if c.FSID == "" {
-		if logError {
-			logger.Error("cluster fsid is empty")
-		}
-	} else if c.MonitorSecret == "" {
-		if logError {
-			logger.Error("monitor secret is empty")
-		}
-	} else if c.CephCred.Username == "" {
-		if logError {
-			logger.Error("ceph username is empty")
-		}
-	} else if c.CephCred.Secret == "" {
-		if logError {
-			logger.Error("ceph secret is empty")
-		}
-	} else if c.Context == nil {
-		if logError {
-			logger.Error("nil context")
-		}
-	} else if c.Context.Err() != nil {
-		if logError {
-			logger.Errorf("%v", c.Context.Err())
-		}
-	} else {
-		isInitialized = true
+		return errors.New("clusterInfo is nil")
+	}
+	if c.FSID == "" {
+		return errors.New("cluster fsid is empty")
+	}
+	if c.MonitorSecret == "" {
+		return errors.New("monitor secret is empty")
+	}
+	if c.CephCred.Username == "" {
+		return errors.New("ceph username is empty")
+	}
+	if c.CephCred.Secret == "" {
+		return errors.New("ceph secret is empty")
+	}
+	if c.Context == nil {
+		return errors.New("context is nil")
+	}
+	if c.Context.Err() != nil {
+		return c.Context.Err()
 	}
 
-	return isInitialized
+	return nil
 }
 
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.

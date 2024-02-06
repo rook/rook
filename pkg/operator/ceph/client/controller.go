@@ -98,16 +98,21 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephClient CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephClient{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephClient{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
 
 	// Watch secrets
-	err = c.Watch(&source.Kind{Type: &v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &cephv1.CephClient{},
-	}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephClient{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+	secretSource := source.Kind(
+		mgr.GetCache(),
+		&v1.Secret{TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: v1.SchemeGroupVersion.String()}})
+	ownerRequest := handler.EnqueueRequestForOwner(
+		mgr.GetScheme(),
+		mgr.GetRESTMapper(),
+		&cephv1.CephClient{},
+	)
+	err = c.Watch(secretSource, ownerRequest, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephClient{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 	if err != nil {
 		return err
 	}
@@ -138,7 +143,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to get cephClient")
 	}
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephClient.ObjectMeta.Generation
 
@@ -154,7 +159,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
-	_, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
+	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
 		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
 		// We skip the deletePool() function since everything is gone already
@@ -176,7 +181,7 @@ func (r *ReconcileCephClient) reconcile(request reconcile.Request) (reconcile.Re
 	}
 
 	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, &cephCluster.Spec)
 	if err != nil {
 		return reconcile.Result{}, *cephClient, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -257,6 +262,12 @@ func (r *ReconcileCephClient) createOrUpdateClient(cephClient *cephv1.CephClient
 		},
 		StringData: map[string]string{
 			cephClient.Name: key,
+			// CSI requires userID and userKey for RBD
+			"userID":  cephClient.Name,
+			"userKey": key,
+			// CSI requires adminID and adminKey for CephFS
+			"adminID":  cephClient.Name,
+			"adminKey": key,
 		},
 		Type: k8sutil.RookType,
 	}

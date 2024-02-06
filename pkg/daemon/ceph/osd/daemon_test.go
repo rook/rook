@@ -16,6 +16,7 @@ limitations under the License.
 package osd
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -172,7 +173,121 @@ USEC_INITIALIZED=1128667
 	 `
 )
 
+func TestGetOsdUUID(t *testing.T) {
+	fileContainSignatureOnly, err := os.Create("fileContainSignatureOnly")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileContainSignatureOnly.Close()
+	defer os.Remove("fileContainSignatureOnly")
+
+	_, err = fileContainSignatureOnly.Write([]byte(bluestoreSignature + "\n"))
+	if err != nil {
+		t.Fatal("failed to write test file")
+	}
+
+	fileContainSignatureAndUUID, err := os.Create("fileContainSignatureAndUUID")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileContainSignatureAndUUID.Close()
+	defer os.Remove("fileContainSignatureAndUUID")
+
+	_, err = fileContainSignatureAndUUID.Write([]byte(bluestoreSignature + "\n" + "c6416047-1e71-412a-9b61-ca398b815e50\n"))
+	if err != nil {
+		t.Fatal("failed to write test file")
+	}
+
+	fileNotContainBluestore, err := os.Create("fileNotContainBluestore")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileNotContainBluestore.Close()
+	defer os.Remove("fileNotContainBluestore")
+
+	_, err = fileNotContainBluestore.Write([]byte("invalid signature\n"))
+	if err != nil {
+		t.Fatal("failed to write test file")
+	}
+
+	fileNotReadable, err := os.Create("fileNotReadable")
+	if err != nil {
+		t.Fatal("failed to create test file")
+	}
+	defer fileNotReadable.Close()
+	defer os.Remove("fileNotReadable")
+
+	err = os.Chmod("fileNotReadable", 0)
+	if err != nil {
+		t.Fatal("failed to set permission of test file")
+	}
+
+	cases := []struct {
+		device   *sys.LocalDisk
+		uuid     string
+		hasError bool
+	}{
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileContainSignatureOnly",
+			},
+			uuid:     "",
+			hasError: true,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileContainSignatureAndUUID",
+			},
+			uuid:     "c6416047-1e71-412a-9b61-ca398b815e50",
+			hasError: false,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileNotContainBluestore",
+			},
+			uuid:     "",
+			hasError: false,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileNotReadable",
+			},
+			uuid:     "",
+			hasError: true,
+		},
+		{
+			device: &sys.LocalDisk{
+				Name:     "sda",
+				RealPath: "fileNotExist",
+			},
+			uuid:     "",
+			hasError: true,
+		},
+	}
+
+	for _, c := range cases {
+		uuid, err := getOsdUUID(c.device)
+
+		assert.Equal(t, c.uuid, uuid, c.device.RealPath)
+
+		if c.hasError {
+			assert.Error(t, err, c.device.RealPath)
+		} else {
+			assert.NoError(t, err, c.device.RealPath, err)
+		}
+
+	}
+}
+
 func TestAvailableDevices(t *testing.T) {
+	getOsdUUID = func(device *sys.LocalDisk) (string, error) {
+		return "", nil
+	}
+
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
@@ -231,6 +346,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 					}
 
 					return cvInventoryOutputAvailable, nil
+				} else if args[0] == "lvm" && args[1] == "list" {
+					return `{}`, nil
 				}
 
 			} else if command == "stdbuf" {
@@ -260,10 +377,12 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "rda", RealPath: "/dev/rda"},
 		{Name: "rdb", RealPath: "/dev/rdb"},
 		{Name: "sdt1", RealPath: "/dev/sdt1", Type: sys.PartType},
-		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"}, // has filesystem
+		{Name: "sdv1", RealPath: "/dev/sdv1", Type: sys.PartType, Filesystem: "ext2"},                       // has filesystem
+		{Name: "dm-0", RealPath: "/dev/mapper/vg1-lv1", DevLinks: "/dev/mapper/vg1-lv1", Type: sys.LVMType}, // `useAllDevices` and  `device{,Path}Filter` don't pick up logical volumes
+		{Name: "loop0", RealPath: "/dev/loop0", Type: sys.LoopType},
 	}
 
-	version := cephver.Octopus
+	version := cephver.Quincy
 
 	// select all devices, including nvme01 for metadata
 	pvcBackedOSD := false
@@ -289,9 +408,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.NotContains(t, mapping.Entries, "sdb")  // sdb is in use (has a partition)
 	assert.NotContains(t, mapping.Entries, "sdc")  // sdc is too small
 	assert.NotContains(t, mapping.Entries, "sdv1") // sdv1 has a filesystem
-
-	// Do not skip partition anymore
-	agent.clusterInfo.CephVersion = cephver.Octopus
+	assert.NotContains(t, mapping.Entries, "dm-0")
 
 	// select no devices both using and not using a filter
 	agent.metadataDevice = ""
@@ -312,12 +429,25 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
+	// select a logical volume by deviceFilter
+	agent.devices = []DesiredDevice{{Name: "dm-0", IsFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
 	// select an exact device
 	agent.devices = []DesiredDevice{{Name: "sdd"}}
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+
+	// select an exact logical volume
+	agent.devices = []DesiredDevice{{Name: "/dev/mapper/vg1-lv1"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["dm-0"].Data)
 
 	// select all devices except those that have a prefix of "s"
 	agent.devices = []DesiredDevice{{Name: "^[^s]", IsFilter: true}}
@@ -335,6 +465,12 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
+
+	// select a logical volume by devicePathFilter
+	agent.devices = []DesiredDevice{{Name: "dm-0", IsDevicePathFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the devices that have udev persistent names by devicePathFilter
 	agent.devices = []DesiredDevice{{Name: "^/dev/disk/by-path/.*-scsi-.*", IsDevicePathFilter: true}}
@@ -378,6 +514,67 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries), mapping)
+
+	// device has an OSD, but don't detect bluestore signature by lsblk.
+	// so try to detect signature by Rook
+	getOsdUUID = func(device *sys.LocalDisk) (string, error) {
+		return "c6416047-1e71-412a-9b61-ca398b815e50", nil
+	}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries), mapping)
+	getOsdUUID = func(device *sys.LocalDisk) (string, error) {
+		return "", nil
+	}
+
+	// loop device
+	os.Setenv("CEPH_VOLUME_ALLOW_LOOP_DEVICES", "true")
+	defer os.Unsetenv("CEPH_VOLUME_ALLOW_LOOP_DEVICES")
+	context.Devices = []*sys.LocalDisk{
+		{Name: "loop0", RealPath: "/dev/loop0", Type: sys.LoopType},
+		{Name: "loop1", RealPath: "/dev/loop1", Type: sys.LoopType},
+		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealPath: "/dev/sda"},
+	}
+
+	// loop device: Ceph version is too old
+	agent.pvcBacked = false
+	agent.devices = []DesiredDevice{{Name: "loop0"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
+	// loop device: specify a loop device
+	agent.clusterInfo.CephVersion = cephver.CephVersion{
+		Major: 17,
+		Minor: 2,
+		Extra: 4,
+	}
+	agent.pvcBacked = false
+	agent.devices = []DesiredDevice{{Name: "loop0"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["loop0"].Data)
+
+	// loop device: useAllDevices
+	agent.devices = []DesiredDevice{{Name: "all"}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, -1, mapping.Entries["sda"].Data)
+
+	// loop device: deviceFilter
+	agent.devices = []DesiredDevice{{Name: "loop0", IsFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
+	// loop device: devicePathFilter
+	agent.devices = []DesiredDevice{{Name: "^/dev/loop.$", IsDevicePathFilter: true}}
+	mapping, err = getAvailableDevices(context, agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+	agent.clusterInfo.CephVersion = cephver.Quincy
 }
 
 func TestGetVolumeGroupName(t *testing.T) {

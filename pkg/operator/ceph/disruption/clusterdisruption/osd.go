@@ -316,6 +316,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	allFailureDomains,
 	osdDownFailureDomains []string,
 	activeNodeDrains bool,
+	pgHealhtyRegex string,
 ) (reconcile.Result, error) {
 	var osdDown bool
 	var drainingFailureDomain string
@@ -324,7 +325,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		drainingFailureDomain = osdDownFailureDomains[0]
 	}
 
-	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(r.context.ClusterdContext, clusterInfo)
+	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(r.context.ClusterdContext, clusterInfo, pgHealhtyRegex)
 	if err != nil {
 		// If the error contains that message, this means the cluster is not up and running
 		// No monitors are present and thus no ceph configuration has been created
@@ -337,24 +338,9 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	}
 
 	switch {
-	// osd is down but pgs are active+clean
-	case osdDown && pgClean:
-		lastDrainTimeStamp, err := getLastDrainTimeStamp(pdbStateMap, drainingFailureDomainDurationKey)
-		if err != nil {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to get last drain timestamp from the configmap %q", pdbStateMap.Name)
-		}
-		timeSinceOSDDown := time.Since(lastDrainTimeStamp)
-		if timeSinceOSDDown > 30*time.Second {
-			logger.Infof("osd is down in failure domain %q is down for the last %.2f minutes, but pgs are active+clean", drainingFailureDomain, timeSinceOSDDown.Minutes())
-			resetPDBConfig(pdbStateMap)
-		} else {
-			logger.Infof("osd is down in the failure domain %q, but pgs are active+clean. Requeuing in case pg status is not updated yet...", drainingFailureDomain)
-			return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, nil
-		}
-
-	// osd is down and pgs are not healthy
-	case osdDown && !pgClean:
-		logger.Infof("osd is down in failure domain %q and pgs are not active+clean. pg health: %q", drainingFailureDomain, pgHealthMsg)
+	// osd is down
+	case osdDown:
+		logger.Infof("osd is down in failure domain %q. pg health: %q", drainingFailureDomain, pgHealthMsg)
 		currentlyDrainingFD, ok := pdbStateMap.Data[drainingFailureDomainKey]
 		if !ok || drainingFailureDomain != currentlyDrainingFD {
 			pdbStateMap.Data[drainingFailureDomainKey] = drainingFailureDomain
@@ -382,7 +368,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		}
 	}
 
-	if pdbStateMap.Data[drainingFailureDomainKey] != "" && !pgClean {
+	if pdbStateMap.Data[drainingFailureDomainKey] != "" {
 		// delete default OSD pdb and create blocking OSD pdbs
 		err := r.handleActiveDrains(allFailureDomains, pdbStateMap.Data[drainingFailureDomainKey], failureDomainType, clusterInfo.Namespace, pgClean)
 		if err != nil {
@@ -400,6 +386,9 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 
 	err = r.client.Update(clusterInfo.Context, pdbStateMap)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return reconcile.Result{}, nil
+		}
 		return reconcile.Result{}, errors.Wrapf(err, "failed to update configMap %q in cluster %q", pdbStateMapName, request)
 	}
 
@@ -525,9 +514,9 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 		return nil, nil, nil, errors.Wrap(err, "failed to list osd deployments")
 	}
 
-	allFailureDomains := sets.NewString()
-	nodeDrainFailureDomains := sets.NewString()
-	osdDownFailureDomains := sets.NewString()
+	allFailureDomains := sets.New[string]()
+	nodeDrainFailureDomains := sets.New[string]()
+	osdDownFailureDomains := sets.New[string]()
 
 	for _, deployment := range osdDeploymentList.Items {
 		labels := deployment.Spec.Template.ObjectMeta.GetLabels()
@@ -552,7 +541,9 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 					nodeDrainFailureDomains.Insert(failureDomainName)
 				}
 			} else {
-				logger.Infof("osd %q is down but no node drain is detected", deployment.Name)
+				if !strings.HasSuffix(deployment.Name, "-debug") {
+					logger.Infof("osd %q is down but no node drain is detected", deployment.Name)
+				}
 			}
 		}
 
@@ -560,7 +551,7 @@ func (r *ReconcileClusterDisruption) getOSDFailureDomains(clusterInfo *cephclien
 			allFailureDomains.Insert(failureDomainName)
 		}
 	}
-	return allFailureDomains.List(), nodeDrainFailureDomains.List(), osdDownFailureDomains.List(), nil
+	return sets.List(allFailureDomains), sets.List(nodeDrainFailureDomains), sets.List(osdDownFailureDomains), nil
 }
 
 func (r *ReconcileClusterDisruption) hasPGHealthCheckTimedout(pdbStateMap *corev1.ConfigMap) bool {
@@ -638,22 +629,6 @@ func getNode(ctx context.Context, c client.Client, nodeName string) (*corev1.Nod
 
 func getPDBName(failureDomainType, failureDomainName string) string {
 	return k8sutil.TruncateNodeName(fmt.Sprintf("%s-%s-%s", osdPDBAppName, failureDomainType, "%s"), failureDomainName)
-}
-
-func getLastDrainTimeStamp(pdbStateMap *corev1.ConfigMap, key string) (time.Time, error) {
-	var err error
-	var lastDrainTimeStamp time.Time
-	lastDrainTimeStampString, ok := pdbStateMap.Data[key]
-	if !ok || len(lastDrainTimeStampString) == 0 {
-		return time.Now(), nil
-	} else {
-		lastDrainTimeStamp, err = time.Parse(time.RFC3339, pdbStateMap.Data[key])
-		if err != nil {
-			return time.Time{}, errors.Wrapf(err, "failed to parse timestamp %q", pdbStateMap.Data[key])
-		}
-	}
-
-	return lastDrainTimeStamp, nil
 }
 
 func (r *ReconcileClusterDisruption) getAllowedDisruptions(pdbName, namespace string) (int32, error) {

@@ -23,7 +23,6 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
@@ -33,8 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func TestOSDHealthCheck(t *testing.T) {
@@ -139,48 +136,4 @@ func TestNewOSDHealthMonitor(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestDeviceClasses(t *testing.T) {
-	clusterInfo := client.AdminTestClusterInfo("fake")
-	clusterInfo.SetName("rook-ceph")
-
-	var execCount = 0
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
-		},
-	}
-	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
-		execCount++
-		if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
-			// Mock executor for OSD crush class list command, returning ssd as available device class
-			return `["ssd"]`, nil
-		}
-		return "", nil
-	}
-
-	cephCluster := &cephv1.CephCluster{}
-	// Objects to track in the fake client.
-	object := []runtime.Object{
-		cephCluster,
-	}
-	s := scheme.Scheme
-	// Create a fake client to mock API calls.
-	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
-
-	context := &clusterd.Context{
-		Executor: executor,
-		Client:   cl,
-	}
-
-	// Initializing an OSD monitoring
-	osdMon := NewOSDHealthMonitor(context, clusterInfo, true, cephv1.CephClusterHealthCheckSpec{})
-
-	// Run OSD monitoring routine
-	err := osdMon.checkDeviceClasses()
-	assert.Nil(t, err)
-	// checkDeviceClasses has 1 mocked cmd for fetching the device classes
-	assert.Equal(t, 1, execCount)
 }

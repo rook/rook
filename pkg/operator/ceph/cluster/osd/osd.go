@@ -21,32 +21,37 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-
-	"github.com/coreos/pkg/capnslog"
-	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
+
+	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/client-go/kubernetes"
 )
 
 var (
-	logger                                           = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
-	cephVolumeRawEncryptionModeMinOctopusCephVersion = cephver.CephVersion{Major: 15, Minor: 2, Extra: 5}
+	logger                   = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+	waitForHealthyPGInterval = 10 * time.Second
+	waitForHealthyPGTimeout  = 15 * time.Minute
 )
 
 const (
@@ -66,6 +71,8 @@ const (
 	bluestorePVCMetadata           = "metadata"
 	bluestorePVCWal                = "wal"
 	bluestorePVCData               = "data"
+	deviceClass                    = "device-class"
+	osdStore                       = "osd-store"
 )
 
 // Cluster keeps track of the OSDs
@@ -77,6 +84,7 @@ type Cluster struct {
 	ValidStorage cephv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	kv           *k8sutil.ConfigMapKVStore
 	deviceSets   []deviceSet
+	replaceOSD   *OSDReplaceInfo
 }
 
 // New creates an instance of the OSD manager
@@ -109,6 +117,9 @@ type OSDInfo struct {
 	// Ensure the OSD daemon has affinity with the same topology from the OSD prepare pod
 	TopologyAffinity string `json:"topologyAffinity"`
 	Encrypted        bool   `json:"encrypted"`
+	ExportService    bool   `json:"exportService"`
+	NodeName         string `json:"nodeName"`
+	PVCName          string `json:"pvcName"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -190,16 +201,28 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
+	// identify OSDs that need migration to a new backend store
+	err := c.replaceOSDForNewStore()
+	if err != nil {
+		return errors.Wrapf(err, "failed to replace an OSD that needs migration to new backend store in namespace %q", namespace)
+	}
+
+	osdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
+	if err != nil {
+		logger.Warningf("failed to get osds to skip reconcile. %v", err)
+	}
+
 	// prepare for updating existing OSDs
 	updateQueue, deployments, err := c.getOSDUpdateInfo(errs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get information about currently-running OSD Deployments in namespace %q", namespace)
 	}
-	logger.Debugf("%d of %d OSD Deployments need updated", updateQueue.Len(), deployments.Len())
-	updateConfig := c.newUpdateConfig(config, updateQueue, deployments)
+
+	logger.Debugf("%d of %d OSD Deployments need update", updateQueue.Len(), deployments.Len())
+	updateConfig := c.newUpdateConfig(config, updateQueue, deployments, osdsToSkipReconcile)
 
 	// prepare for creating new OSDs
-	statusConfigMaps := sets.NewString()
+	statusConfigMaps := sets.New[string]()
 
 	logger.Info("start provisioning the OSDs on PVCs, if needed")
 	pvcConfigMaps, err := c.startProvisioningOverPVCs(config, errs)
@@ -235,11 +258,47 @@ func (c *Cluster) Start() error {
 	// The following block is used to apply any command(s) required by an upgrade
 	c.applyUpgradeOSDFunctionality()
 
+	err = c.reconcileKeyRotationCronJob()
+	if err != nil {
+		return errors.Wrapf(err, "failed to reconcile key rotation cron jobs")
+	}
+
+	err = c.updateCephStorageStatus()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update ceph storage status")
+	}
+
+	if c.spec.Storage.Store.UpdateStore == OSDStoreUpdateConfirmation {
+		if c.replaceOSD != nil {
+			delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
+			err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
+			if err != nil {
+				return errors.Wrapf(err, "failed to delete the %q configmap", OSDReplaceConfigName)
+			}
+		}
+
+		// wait for the pgs to be healthy before attempting to migrate the next OSD
+		_, err := c.waitForHealthyPGs()
+		if err != nil {
+			return errors.Wrapf(err, "failed to wait for pgs to be healhty")
+		}
+
+		// reconcile if migration of one or more OSD is pending.
+		osdsToReplace, err := c.getOSDWithNonMatchingStore()
+		if err != nil {
+			return errors.Wrapf(err, "failed to check if any OSD migration is pending")
+		}
+
+		if len(osdsToReplace) != 0 {
+			return errors.New("reconcile operator to replace OSDs that are pending migration")
+		}
+	}
+
 	logger.Infof("finished running OSDs in namespace %q", namespace)
 	return nil
 }
 
-func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
+func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.Set[string], error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
 	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
@@ -247,7 +306,7 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.String, error) {
 		return nil, errors.Wrap(err, "failed to query existing OSD deployments")
 	}
 
-	result := sets.NewString()
+	result := sets.New[string]()
 	for _, deployment := range deployments.Items {
 		if pvcID, ok := deployment.Labels[OSDOverPVCLabelKey]; ok {
 			result.Insert(pvcID)
@@ -466,6 +525,9 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	isPVC := false
 
 	for _, envVar := range d.Spec.Template.Spec.Containers[0].Env {
+		if envVar.Name == "ROOK_NODE_NAME" {
+			osd.NodeName = envVar.Value
+		}
 		if envVar.Name == "ROOK_OSD_UUID" {
 			osd.UUID = envVar.Value
 		}
@@ -524,15 +586,7 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	}
 
 	locationFound := false
-	for _, a := range container.Args {
-		locationPrefix := "--crush-location="
-		if strings.HasPrefix(a, locationPrefix) {
-			locationFound = true
-			// Extract the same CRUSH location as originally determined by the OSD prepare pod
-			// by cutting off the prefix: --crush-location=
-			osd.Location = a[len(locationPrefix):]
-		}
-	}
+	osd.Location, locationFound = getOSDLocationFromArgs(container.Args)
 
 	if !locationFound {
 		location, _, err := getLocationFromPod(c.clusterInfo.Context, c.context.Clientset, d, cephclient.GetCrushRootFromSpec(&c.spec))
@@ -545,6 +599,12 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 
 	if osd.UUID == "" || osd.BlockPath == "" {
 		return OSDInfo{}, errors.Errorf("failed to get required osdInfo. %+v", osd)
+	}
+
+	osd.Store = d.Labels[osdStore]
+
+	if isPVC {
+		osd.PVCName = d.Labels[OSDOverPVCLabelKey]
 	}
 
 	return osd, nil
@@ -640,15 +700,16 @@ func getTopologyFromNode(ctx context.Context, clientset kubernetes.Interface, d 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get the node for topology affinity")
 	}
-	_, topologyAffinity := ExtractOSDTopologyFromLabels(node.Labels)
+	_, topologyAffinity := topology.ExtractOSDTopologyFromLabels(node.Labels)
 	logger.Infof("found osd %d topology affinity at %q", osd.ID, topologyAffinity)
 	return topologyAffinity, nil
 }
 
 // GetLocationWithNode gets the topology information about the node. The return values are:
-//  location: The CRUSH properties for the OSD to apply
-//  topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
-//		topology as the OSD prepare job.
+//
+//	 location: The CRUSH properties for the OSD to apply
+//	 topologyAffinity: The label to be applied to the OSD daemon to guarantee it will start in the same
+//			topology as the OSD prepare job.
 func GetLocationWithNode(ctx context.Context, clientset kubernetes.Interface, nodeName string, crushRoot, crushHostname string) (string, string, error) {
 	node, err := getNode(ctx, clientset, nodeName)
 	if err != nil {
@@ -699,7 +760,7 @@ func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName strin
 }
 
 func updateLocationWithNodeLabels(location *[]string, nodeLabels map[string]string) string {
-	topology, topologyAffinity := ExtractOSDTopologyFromLabels(nodeLabels)
+	topology, topologyAffinity := topology.ExtractOSDTopologyFromLabels(nodeLabels)
 
 	keys := make([]string, 0, len(topology))
 	for k := range topology {
@@ -747,4 +808,135 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 			}
 		}
 	}
+}
+
+// replaceOSDForNewStore deletes an existing OSD deployment that does not not match the expected OSD backend store provided in the storage spec
+func (c *Cluster) replaceOSDForNewStore() error {
+	if c.spec.Storage.Store.UpdateStore != OSDStoreUpdateConfirmation {
+		logger.Debugf("no OSD migration to a new backend store is requested")
+		return nil
+	}
+
+	osdToReplace, err := c.getOSDReplaceInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get OSD replace info")
+	}
+
+	if osdToReplace == nil {
+		logger.Info("no osd to replace")
+		return nil
+	}
+
+	logger.Infof("starting migration of the OSD.%d", osdToReplace.ID)
+
+	// Delete the OSD deployment
+	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdToReplace.ID)
+	logger.Infof("removing the OSD deployment %q", deploymentName)
+	if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, deploymentName); err != nil {
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("osd deployment %q not found. Ignoring since object must be deleted.", deploymentName)
+			} else {
+				return errors.Wrapf(err, "failed to delete OSD deployment %q.", deploymentName)
+			}
+		}
+	}
+
+	c.replaceOSD = osdToReplace
+
+	return osdToReplace.saveAsConfig(c.context, c.clusterInfo)
+}
+
+func (c *Cluster) waitForHealthyPGs() (bool, error) {
+	waitFunc := func() (done bool, err error) {
+		pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo, c.spec.DisruptionManagement.PGHealthyRegex)
+		if err != nil {
+			return false, errors.Wrap(err, "failed to check pg are healthy")
+		}
+		if pgClean {
+			return true, nil
+		}
+		logger.Infof("waiting for PGs to be healthy. PG status: %q", pgHealthMsg)
+		return false, nil
+	}
+
+	err := util.RetryWithTimeout(waitFunc, waitForHealthyPGInterval, waitForHealthyPGTimeout, "pgs to be healthy")
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (c *Cluster) updateCephStorageStatus() error {
+	cephCluster := cephv1.CephCluster{}
+	cephClusterStorage := cephv1.CephStorage{}
+
+	deviceClasses, err := cephclient.GetDeviceClasses(c.context, c.clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get osd device classes")
+	}
+
+	for _, deviceClass := range deviceClasses {
+		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: deviceClass})
+	}
+
+	osdStore, err := c.getOSDStoreStatus()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get osd store status")
+	}
+
+	cephClusterStorage.OSD = *osdStore
+
+	err = c.context.Client.Get(c.clusterInfo.Context, c.clusterInfo.NamespacedName(), &cephCluster)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
+			return nil
+		}
+		return errors.Wrapf(err, "failed to retrieve ceph cluster %q to update ceph Storage", c.clusterInfo.NamespacedName().Name)
+	}
+	if !reflect.DeepEqual(cephCluster.Status.CephStorage, cephClusterStorage) {
+		cephCluster.Status.CephStorage = &cephClusterStorage
+		if err := reporting.UpdateStatus(c.context.Client, &cephCluster); err != nil {
+			return errors.Wrapf(err, "failed to update cluster %q Storage.", c.clusterInfo.NamespacedName().Name)
+		}
+	}
+
+	return nil
+}
+
+func (c *Cluster) getOSDStoreStatus() (*cephv1.OSDStatus, error) {
+	label := fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)
+	osdDeployments, err := k8sutil.GetDeployments(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, label)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to get osd deployments")
+	}
+
+	storeType := map[string]int{}
+	for i := range osdDeployments.Items {
+		if osdStore, ok := osdDeployments.Items[i].Labels[osdStore]; ok {
+			storeType[osdStore]++
+		}
+	}
+
+	return &cephv1.OSDStatus{
+		StoreType: storeType,
+	}, nil
+}
+
+func getOSDLocationFromArgs(args []string) (string, bool) {
+	for _, a := range args {
+		locationPrefix := "--crush-location="
+		if strings.HasPrefix(a, locationPrefix) {
+			// Extract the same CRUSH location as originally determined by the OSD prepare pod
+			// by cutting off the prefix: --crush-location=
+			return a[len(locationPrefix):], true
+		}
+	}
+
+	return "", false
 }

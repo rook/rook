@@ -34,7 +34,13 @@ Once the Prometheus operator is in the `Running` state, proceed to the next sect
 
 ## Prometheus Instances
 
-With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
+With the Prometheus operator running, we can create service monitors that will watch the Rook cluster.
+
+There are two sources for metrics collection:
+
+- Prometheus manager module: It is responsible for exposing all metrics other than ceph daemons performance counters.
+- Ceph exporter: It is responsible for exposing only ceph daemons performance counters as prometheus metrics.
+
 From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
@@ -46,6 +52,7 @@ Create the service monitor as well as the Prometheus server pod and service:
 
 ```console
 kubectl create -f service-monitor.yaml
+kubectl create -f exporter-service-monitor.yaml
 kubectl create -f prometheus.yaml
 kubectl create -f prometheus-service.yaml
 ```
@@ -55,6 +62,27 @@ Ensure that the Prometheus server pod gets created and advances to the `Running`
 ```console
 kubectl -n rook-ceph get pod prometheus-rook-prometheus-0
 ```
+
+### Dashboard config
+
+Configure the Prometheus endpoint so the dashboard can retrieve metrics from Prometheus with two settings:
+- `prometheusEndpoint`: The url of the Prometheus instance
+- `prometheusEndpointSSLVerify`: Whether SSL should be verified if the Prometheus server is using https
+
+The following command can be used to get the Prometheus url:
+
+```console
+echo "http://$(kubectl -n rook-ceph -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
+```
+
+Following is an example to configure the Prometheus endpoint in the CephCluster CR.
+
+    ```YAML
+    spec:
+      dashboard:
+        prometheusEndpoint: http://192.168.61.204:30900
+        prometheusEndpointSSLVerify: true
+    ```
 
 !!! note
     It is not recommended to consume storage from the Ceph cluster for Prometheus.
@@ -194,9 +222,9 @@ The dashboards have been created by [@galexrt](https://github.com/galexrt). For 
 
 The following Grafana dashboards are available:
 
-* [Ceph - Cluster](https://grafana.com/dashboards/2842)
-* [Ceph - OSD (Single)](https://grafana.com/dashboards/5336)
-* [Ceph - Pools](https://grafana.com/dashboards/5342)
+- [Ceph - Cluster](https://grafana.com/grafana/dashboards/2842)
+- [Ceph - OSD (Single)](https://grafana.com/grafana/dashboards/5336)
+- [Ceph - Pools](https://grafana.com/grafana/dashboards/5342)
 
 ## Updates and Upgrades
 
@@ -233,14 +261,14 @@ After this you only need to create the service monitor as stated above.
 
 ### CSI Liveness
 
-To integrate CSI liveness and grpc into ceph monitoring we will need to deploy
+To integrate CSI liveness into ceph monitoring we will need to deploy
 a service and service monitor.
 
 ```console
 kubectl create -f csi-metrics-service-monitor.yaml
 ```
 
-This will create the service monitor to have promethues monitor CSI
+This will create the service monitor to have prometheus monitor CSI
 
 ### Collecting RBD per-image IO statistics
 
@@ -290,6 +318,9 @@ spec:
      serverAddress: http://rook-prometheus.rook-ceph.svc:9090
      metricName: collecting_ceph_rgw_put
      query: |
-       sum(rate(ceph_rgw_put[2m])) # promethues query used for autoscaling
+       sum(rate(ceph_rgw_put[2m])) # prometheus query used for autoscaling
      threshold: "90"
 ```
+
+!!! warning
+    During reconciliation of a `CephObjectStore`, the Rook Operator will reset the replica count for RGW which was set by horizontal pod scaler. The horizontal pod autoscaler will change the again once it re-evaluates the rule. This can result in a performance hiccup of several seconds after a reconciliation. This is briefly discussed (here)[https://github.com/rook/rook/issues/10001]

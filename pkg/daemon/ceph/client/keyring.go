@@ -19,7 +19,6 @@ package client
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -92,7 +91,7 @@ func writeKeyring(keyring, keyringPath string) error {
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0700); err != nil {
 		return errors.Wrapf(err, "failed to create keyring directory for %s", keyringPath)
 	}
-	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0600); err != nil {
+	if err := os.WriteFile(keyringPath, []byte(keyring), 0600); err != nil {
 		return errors.Wrapf(err, "failed to write monitor keyring to %s", keyringPath)
 	}
 	return nil

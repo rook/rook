@@ -77,7 +77,7 @@ func fullDaemonName(daemonID string) string {
 	return fmt.Sprintf("client.rbd-mirror.%s", daemonID)
 }
 
-func (r *ReconcileCephRBDMirror) reconcileAddBoostrapPeer(cephRBDMirror *cephv1.CephRBDMirror, namespacedName types.NamespacedName) (reconcile.Result, error) {
+func (r *ReconcileCephRBDMirror) reconcileAddBootstrapPeer(cephRBDMirror *cephv1.CephRBDMirror, namespacedName types.NamespacedName) (reconcile.Result, error) {
 	// List all the peers secret, we can have more than one peer we might want to configure
 	// For each, get the Kubernetes Secret and import the "peer token" so that we can configure the mirroring
 

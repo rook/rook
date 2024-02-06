@@ -18,7 +18,6 @@ package osd
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/pkg/errors"
@@ -26,7 +25,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 )
@@ -102,23 +100,6 @@ func (m *OSDHealthMonitor) checkOSDHealth() {
 	if err != nil {
 		logger.Debugf("failed to check OSD Dump. %v", err)
 	}
-	err = m.checkDeviceClasses()
-	if err != nil {
-		logger.Debugf("failed to check device classes. %v", err)
-	}
-}
-
-func (m *OSDHealthMonitor) checkDeviceClasses() error {
-	devices, err := client.GetDeviceClasses(m.context, m.clusterInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to get osd device classes")
-	}
-
-	if len(devices) > 0 {
-		m.updateCephStatus(devices)
-	}
-
-	return nil
 }
 
 func (m *OSDHealthMonitor) checkOSDDump() error {
@@ -189,30 +170,4 @@ func (m *OSDHealthMonitor) removeOSDDeploymentIfSafeToDestroy(outOSDid int) erro
 		}
 	}
 	return nil
-}
-
-// updateCephStorage updates the CR with deviceclass details
-func (m *OSDHealthMonitor) updateCephStatus(devices []string) {
-	cephCluster := cephv1.CephCluster{}
-	cephClusterStorage := cephv1.CephStorage{}
-
-	for _, device := range devices {
-		cephClusterStorage.DeviceClasses = append(cephClusterStorage.DeviceClasses, cephv1.DeviceClasses{Name: device})
-	}
-	err := m.context.Client.Get(m.clusterInfo.Context, m.clusterInfo.NamespacedName(), &cephCluster)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("CephCluster resource not found. Ignoring since object must be deleted.")
-			return
-		}
-		logger.Errorf("failed to retrieve ceph cluster %q to update ceph Storage. %v", m.clusterInfo.NamespacedName().Name, err)
-		return
-	}
-	if !reflect.DeepEqual(cephCluster.Status.CephStorage, cephClusterStorage) {
-		cephCluster.Status.CephStorage = &cephClusterStorage
-		if err := reporting.UpdateStatus(m.context.Client, &cephCluster); err != nil {
-			logger.Errorf("failed to update cluster %q Storage. %v", m.clusterInfo.NamespacedName().Name, err)
-			return
-		}
-	}
 }

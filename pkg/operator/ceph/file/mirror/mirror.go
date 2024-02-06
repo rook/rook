@@ -86,8 +86,8 @@ func (r *ReconcileFilesystemMirror) start(filesystemMirror *cephv1.CephFilesyste
 		if err := updateDeploymentAndWait(r.context, r.clusterInfo, d, config.FilesystemMirrorType, AppName, r.cephClusterSpec.SkipUpgradeChecks, false); err != nil {
 			// fail could be an issue updating label selector (immutable), so try del and recreate
 			logger.Debugf("updateDeploymentAndWait failed for filesystem-mirror %q. Attempting del-and-recreate. %v", d.Name, err)
-			err = r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Delete(r.opManagerContext, filesystemMirror.Name, metav1.DeleteOptions{})
-			if err != nil {
+			err = r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Delete(r.opManagerContext, d.Name, metav1.DeleteOptions{})
+			if err != nil && !kerrors.IsNotFound(err) {
 				return errors.Wrapf(err, "failed to delete filesystem-mirror deployment %q during del-and-recreate update attempt", d.Name)
 			}
 			if _, err := r.context.Clientset.AppsV1().Deployments(filesystemMirror.Namespace).Create(r.opManagerContext, d, metav1.CreateOptions{}); err != nil {

@@ -33,12 +33,22 @@ type MockExecutor struct {
 	MockExecuteCommandWithOutput         func(command string, arg ...string) (string, error)
 	MockExecuteCommandWithCombinedOutput func(command string, arg ...string) (string, error)
 	MockExecuteCommandWithTimeout        func(timeout time.Duration, command string, arg ...string) (string, error)
+	MockExecuteCommandWithStdin          func(timeout time.Duration, command string, stdin *string, arg ...string) error
 }
 
 // ExecuteCommand mocks ExecuteCommand
 func (e *MockExecutor) ExecuteCommand(command string, arg ...string) error {
 	if e.MockExecuteCommand != nil {
 		return e.MockExecuteCommand(command, arg...)
+	}
+
+	return nil
+}
+
+// ExecuteCommandWithStdin starts a process, provides stdin and wait for its completion with timeout.
+func (e *MockExecutor) ExecuteCommandWithStdin(timeout time.Duration, command string, stdin *string, arg ...string) error {
+	if e.MockExecuteCommand != nil {
+		return e.MockExecuteCommandWithStdin(timeout, command, stdin, arg...)
 	}
 
 	return nil
@@ -89,11 +99,13 @@ func (e *MockExecutor) ExecuteCommandWithCombinedOutput(command string, arg ...s
 //
 // In order for this to work in a `*_test.go` file, you MUST import TestMockExecHelperProcess
 // exactly as shown below:
-//   import exectest "github.com/rook/rook/pkg/util/exec/test"
-//   // import TestMockExecHelperProcess
-//   func TestMockExecHelperProcess(t *testing.T) {
-//   	exectest.TestMockExecHelperProcess(t)
-//   }
+//
+//	import exectest "github.com/rook/rook/pkg/util/exec/test"
+//	// import TestMockExecHelperProcess
+//	func TestMockExecHelperProcess(t *testing.T) {
+//		exectest.TestMockExecHelperProcess(t)
+//	}
+//
 // Inspired by: https://github.com/golang/go/blob/master/src/os/exec/exec_test.go
 func MockExecCommandReturns(t *testing.T, stdout, stderr string, retcode int) error {
 	cmd := exec.Command(os.Args[0], "-test.run=TestMockExecHelperProcess") //nolint:gosec //Rook controls the input to the exec arguments
@@ -123,4 +135,8 @@ func TestMockExecHelperProcess(t *testing.T) {
 		panic(err)
 	}
 	os.Exit(rc)
+}
+
+func FakeTimeoutError(text string) error {
+	return fmt.Errorf("exec timeout waiting for %s", text)
 }

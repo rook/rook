@@ -1,0 +1,44 @@
+# scc for the Rook and Ceph daemons
+# for creating cluster in openshift
+{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+kind: SecurityContextConstraints
+apiVersion: security.openshift.io/v1
+metadata:
+  name: rook-cluster-{{ .Release.Namespace }}
+allowPrivilegedContainer: true
+allowHostDirVolumePlugin: true
+allowHostPID: false
+# set to true if running rook with host networking enabled
+allowHostNetwork: false
+# set to true if running rook with the provider as host
+allowHostPorts: false
+priority:
+allowedCapabilities: ["MKNOD"]
+allowHostIPC: true
+readOnlyRootFilesystem: false
+# drop all default privileges
+requiredDropCapabilities: ["All"]
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - hostPath
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # A user needs to be added for each rook service account.
+  - system:serviceaccount:{{ .Release.Namespace }}:default
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-mgr
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-osd
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-rgw
+{{- end }}

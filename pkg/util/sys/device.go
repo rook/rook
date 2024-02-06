@@ -44,7 +44,9 @@ const (
 	MultiPath = "mpath"
 	// LinearType is a linear type
 	LinearType = "linear"
-	sgdiskCmd  = "sgdisk"
+	// LoopType is a loop device type
+	LoopType  = "loop"
+	sgdiskCmd = "sgdisk"
 	// CephLVPrefix is the prefix of a LV owned by ceph-volume
 	CephLVPrefix = "ceph--"
 	// DeviceMapperPrefix is the prefix of a LV from the device mapper interface
@@ -297,9 +299,6 @@ func CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked
 		return false, "", fmt.Errorf("failed to determine if the device was LV. %v", err)
 	}
 	if isLV {
-		if !pvcBacked {
-			return false, "LV is not supported for non-PVC backed device", nil
-		}
 		checker = isLVAvailable
 	}
 

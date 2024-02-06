@@ -19,6 +19,7 @@ package object
 import (
 	"context"
 	"testing"
+	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
@@ -40,6 +41,10 @@ import (
 func TestStartRGW(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 3)
+
+	// Store the configuration options applied to gateways through the MockExecutor
+	appliedRgwConfigurations := make(map[string]string)
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
@@ -47,13 +52,22 @@ func TestStartRGW(t *testing.T) {
 			}
 			return `{"id":"test-id"}`, nil
 		},
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			// Answer to `ceph config set ...`
+			if args[0] == "config" && args[1] == "set" {
+				config_option := args[3]
+				value := args[4]
+				appliedRgwConfigurations[config_option] = value
+			}
+			return "", nil
+		},
 	}
 
 	configDir := t.TempDir()
 	info := clienttest.CreateTestClusterInfo(1)
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
 	store := simpleStore()
-	store.Spec.Gateway.Instances = 1
+
 	version := "v1.1.0"
 	data := config.NewStatelessDaemonDataPathMap(config.RgwType, "my-fs", "rook-ceph", "/var/lib/rook/")
 
@@ -65,10 +79,42 @@ func TestStartRGW(t *testing.T) {
 	// start a basic cluster
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, version, &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
-	err := c.startRGWPods(store.Name, store.Name, store.Name)
-	assert.Nil(t, err)
 
-	validateStart(ctx, t, c, clientset)
+	t.Run("Deployment is created", func(t *testing.T) {
+		store.Spec.Gateway.Instances = 1
+		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		assert.Nil(t, err)
+
+		validateStart(ctx, t, c, clientset)
+	})
+
+	t.Run("Multisite sync traffic disabled", func(t *testing.T) {
+		store.ObjectMeta.Name = "client-rgw-sync-disabled"
+		store.Spec.Gateway.DisableMultisiteSyncTraffic = true
+
+		// Purge store of configurations applied to gateways
+		appliedRgwConfigurations = make(map[string]string)
+
+		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		assert.Nil(t, err)
+
+		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
+		assert.Equal(t, appliedRgwConfigurations["rgw_run_sync_thread"], "false")
+	})
+
+	t.Run("Multisite sync traffic enabled", func(t *testing.T) {
+		store.ObjectMeta.Name = "client-rgw-sync-enabled"
+		store.Spec.Gateway.DisableMultisiteSyncTraffic = false
+
+		// Purge store of configurations applied to gateways
+		appliedRgwConfigurations = make(map[string]string)
+
+		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		assert.Nil(t, err)
+
+		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
+		assert.Equal(t, appliedRgwConfigurations["rgw_run_sync_thread"], "true")
+	})
 }
 
 func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientset *fclient.Clientset) {
@@ -143,22 +189,26 @@ func TestGenerateSecretName(t *testing.T) {
 }
 
 func TestEmptyPoolSpec(t *testing.T) {
-	assert.True(t, emptyPool(cephv1.PoolSpec{}))
+	assert.True(t, EmptyPool(cephv1.PoolSpec{}))
 
 	p := cephv1.PoolSpec{FailureDomain: "foo"}
-	assert.False(t, emptyPool(p))
+	assert.False(t, EmptyPool(p))
 
 	p = cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1}}
-	assert.False(t, emptyPool(p))
+	assert.False(t, EmptyPool(p))
 
 	p = cephv1.PoolSpec{ErasureCoded: cephv1.ErasureCodedSpec{CodingChunks: 1}}
-	assert.False(t, emptyPool(p))
+	assert.False(t, EmptyPool(p))
 }
 
 func TestBuildDomainNameAndEndpoint(t *testing.T) {
-	name := "my-store"
-	ns := "rook-ceph"
-	dns := BuildDomainName(name, ns)
+	s := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-store",
+			Namespace: "rook-ceph",
+		},
+	}
+	dns := GetDomainName(s)
 	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph.svc", dns)
 
 	// non-secure endpoint
@@ -182,17 +232,17 @@ func TestGetTlsCaCert(t *testing.T) {
 	objectStore := simpleStore()
 
 	t.Run("no gateway cert ref", func(t *testing.T) {
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.NoError(t, err)
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 	})
 
 	t.Run("gateway cert ref but secret no found", func(t *testing.T) {
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.Error(t, err)
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 	})
 
@@ -207,10 +257,10 @@ func TestGetTlsCaCert(t *testing.T) {
 		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to get TLS certificate from secret, unknown secret type \"Yolo\"")
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
@@ -227,10 +277,10 @@ func TestGetTlsCaCert(t *testing.T) {
 		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.Error(t, err)
 		assert.EqualError(t, err, "failed to get TLS certificate from secret, token is \"Opaque\" but key \"cert\" does not exist")
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.Nil(t, tlsCert)
 		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)
@@ -256,9 +306,9 @@ BvjQDN6didwQ
 		_, err := objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
 		assert.NoError(t, err)
 		objectStore.Spec.Gateway.SSLCertificateRef = "my-secret"
-		tlsCert, insesure, err := GetTlsCaCert(objContext, &objectStore.Spec)
+		tlsCert, insecure, err := GetTlsCaCert(objContext, &objectStore.Spec)
 		assert.NoError(t, err)
-		assert.False(t, insesure)
+		assert.False(t, insecure)
 		assert.NotNil(t, tlsCert)
 		err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Delete(context.TODO(), s.Name, metav1.DeleteOptions{})
 		assert.NoError(t, err)

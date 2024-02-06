@@ -19,19 +19,18 @@ package clusterdisruption
 import (
 	"fmt"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/pkg/errors"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
-
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*cephv1.CephObjectStoreList, *cephv1.CephFilesystemList, string, int, error) {
@@ -85,11 +84,11 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 	}
 
 	//start with max as the min
-	minfailureDomainIndex := len(osd.CRUSHMapLevelsOrdered) - 1
+	minfailureDomainIndex := len(topology.CRUSHMapLevelsOrdered) - 1
 	matched := false
 
 	for _, pool := range poolList {
-		for index, failureDomain := range osd.CRUSHMapLevelsOrdered {
+		for index, failureDomain := range topology.CRUSHMapLevelsOrdered {
 			if index == minfailureDomainIndex {
 				// index is higher-than/equal-to the min
 				break
@@ -105,7 +104,7 @@ func getMinimumFailureDomain(poolList []cephv1.PoolSpec) string {
 		logger.Debugf("could not match failure domain. defaulting to %q", cephv1.DefaultFailureDomain)
 		return cephv1.DefaultFailureDomain
 	}
-	return osd.CRUSHMapLevelsOrdered[minfailureDomainIndex]
+	return topology.CRUSHMapLevelsOrdered[minfailureDomainIndex]
 }
 
 // Setting naive minAvailable for RGW at: n - 1

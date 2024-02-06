@@ -25,7 +25,7 @@ One of the solutions, to achieve the same, is [RBD mirroring](https://docs.ceph.
 
 !!! note
     This document sheds light on rbd mirroring and how to set it up using rook.
-    For steps on failover or failback scenarios
+    See also the topic on [Failover and Failback](rbd-async-disaster-recovery-failover-failback.md)
 
 ## Create RBD Pools
 
@@ -42,7 +42,7 @@ Execute the following steps on each peer cluster to create mirror
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: mirroredpool
+  name: mirrored-pool
   namespace: rook-ceph
 spec:
   replicated:
@@ -79,22 +79,22 @@ The following steps enable bootstrapping peers to discover and
 * For Bootstrapping a peer cluster its bootstrap secret is required. To determine the name of the secret that contains the bootstrap secret execute the following command on the remote cluster (cluster-2)
 
 ```console
-[cluster-2]$ kubectl get cephblockpool.ceph.rook.io/mirroredpool -n rook-ceph -ojsonpath='{.status.info.rbdMirrorBootstrapPeerSecretName}'
+[cluster-2]$ kubectl get cephblockpool.ceph.rook.io/mirrored-pool -n rook-ceph -ojsonpath='{.status.info.rbdMirrorBootstrapPeerSecretName}'
 ```
 
-Here, `pool-peer-token-mirroredpool` is the desired bootstrap secret name.
+Here, `pool-peer-token-mirrored-pool` is the desired bootstrap secret name.
 
-* The secret pool-peer-token-mirroredpool contains all the information related to the token and needs to be injected to the peer, to fetch the decoded secret:
+* The secret pool-peer-token-mirrored-pool contains all the information related to the token and needs to be injected to the peer, to fetch the decoded secret:
 
 ```console
-[cluster-2]$ kubectl get secret -n rook-ceph pool-peer-token-mirroredpool -o jsonpath='{.data.token}'|base64 -d
+[cluster-2]$ kubectl get secret -n rook-ceph pool-peer-token-mirrored-pool -o jsonpath='{.data.token}'|base64 -d
 eyJmc2lkIjoiNGQ1YmNiNDAtNDY3YS00OWVkLThjMGEtOWVhOGJkNDY2OTE3IiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDZ3hmZGdxN013R0JBQWZzcUtCaGpZVjJUZDRxVzJYQm5kemc9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMzkuMzY6MzMwMCx2MToxOTIuMTY4LjM5LjM2OjY3ODldIn0=
 ```
 
 * With this Decoded value, create a secret on the primary site (cluster-1):
 
 ```console
-[cluster-1]$ kubectl -n rook-ceph create secret generic rbd-primary-site-secret --from-literal=token=eyJmc2lkIjoiNGQ1YmNiNDAtNDY3YS00OWVkLThjMGEtOWVhOGJkNDY2OTE3IiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDZ3hmZGdxN013R0JBQWZzcUtCaGpZVjJUZDRxVzJYQm5kemc9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMzkuMzY6MzMwMCx2MToxOTIuMTY4LjM5LjM2OjY3ODldIn0= --from-literal=pool=mirroredpool
+[cluster-1]$ kubectl -n rook-ceph create secret generic rbd-primary-site-secret --from-literal=token=eyJmc2lkIjoiNGQ1YmNiNDAtNDY3YS00OWVkLThjMGEtOWVhOGJkNDY2OTE3IiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFDZ3hmZGdxN013R0JBQWZzcUtCaGpZVjJUZDRxVzJYQm5kemc9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMzkuMzY6MzMwMCx2MToxOTIuMTY4LjM5LjM2OjY3ODldIn0= --from-literal=pool=mirrored-pool
 ```
 
 * This completes the bootstrap process for cluster-1 to be peered with cluster-2.
@@ -119,7 +119,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephRBDMirror
 metadata:
   name: my-rbd-mirror
-  namespace: openshift-storage
+  namespace: rook-ceph
 spec:
   # the number of rbd-mirror daemons to deploy
   count: 1
@@ -141,7 +141,7 @@ rook-ceph-rbd-mirror-a-6985b47c8c-dpv4k  1/1  Running  0  10s
 * Verify that daemon health is OK
 
 ```console
-kubectl get cephblockpools.ceph.rook.io mirroredpool -n rook-ceph -o jsonpath='{.status.mirroringStatus.summary}'
+kubectl get cephblockpools.ceph.rook.io mirrored-pool -n rook-ceph -o jsonpath='{.status.mirroringStatus.summary}'
 {"daemon_health":"OK","health":"OK","image_health":"OK","states":{"replaying":1}}
 ```
 
@@ -155,7 +155,7 @@ Each pool can have its own peer. To add the peer information, patch the already 
 to update the CephBlockPool CRD.
 
 ```console
-[cluster-1]$ kubectl -n rook-ceph patch cephblockpool mirroredpool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["rbd-primary-site-secret"]}}}}'
+[cluster-1]$ kubectl -n rook-ceph patch cephblockpool mirrored-pool --type merge -p '{"spec":{"mirroring":{"peers": {"secretNames": ["rbd-primary-site-secret"]}}}}'
 ```
 
 ## Create VolumeReplication CRDs
@@ -165,13 +165,13 @@ APIs for storage disaster recovery. The extended APIs are provided via Custom
 Resource Definition(CRD). Create the VolumeReplication CRDs on all the peer clusters.
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/volume-replication-operator/v0.3.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/config/crd/bases/replication.storage.openshift.io_volumereplicationclasses.yaml
+kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.5.0/config/crd/bases/replication.storage.openshift.io_volumereplications.yaml
 ```
 
 ## Enable CSI Replication Sidecars
 
-To achieve RBD Mirroring, `csi-omap-generator` and `volume-replication`
+To achieve RBD Mirroring, `csi-omap-generator` and `csi-addons`
  containers need to be deployed in the RBD provisioner pods, which are not enabled by default.
 
 * **Omap Generator**: Omap generator is a sidecar container that when
@@ -182,13 +182,13 @@ To achieve RBD Mirroring, `csi-omap-generator` and `volume-replication`
 
 * **Volume Replication Operator**: Volume Replication Operator is a
  kubernetes operator that provides common and reusable APIs for
- storage disaster recovery.
+ storage disaster recovery. The volume replication operation is
+ supported by the [CSIAddons](https://github.com/csi-addons/kubernetes-csi-addons#readme)
  It is based on [csi-addons/spec](https://github.com/csi-addons/spec)
  specification and can be used by any storage provider.
- For more details, refer to [volume replication operator](https://github.com/csi-addons/volume-replication-operator).
 
 Execute the following steps on each peer cluster to enable the
- OMap generator and Volume Replication sidecars:
+ OMap generator and CSIADDONS sidecars:
 
 * Edit the `rook-ceph-operator-config` configmap and add the
  following configurations
@@ -202,7 +202,7 @@ Add the following properties if not present:
 ```yaml
 data:
   CSI_ENABLE_OMAP_GENERATOR: "true"
-  CSI_ENABLE_VOLUME_REPLICATION: "true"
+  CSI_ENABLE_CSIADDONS: "true"
 ```
 
 * After updating the configmap with those settings, two new sidecars
@@ -219,10 +219,6 @@ the storage admin information required for the volume replication operator.
 
 * **VolumeReplication**: *VolumeReplication* is a namespaced resource that contains references to storage object to be replicated and VolumeReplicationClass
 corresponding to the driver providing replication.
-
-!!! info
-    For more information, please refer to the
-    [volume-replication-operator](https://github.com/csi-addons/volume-replication-operator).
 
 ## Enable mirroring on a PVC
 
@@ -344,7 +340,7 @@ Here, we take a backup of PVC and PV object on one site, so that they can be res
 * Create storageclass on the secondary cluster
 
 ```console
-[cluster-2]$ kubectl create -f examples/rbd/storageclass.yaml
+[cluster-2]$ kubectl create -f deploy/examples/csi/rbd/storageclass.yaml
 ```
 
 * Create VolumeReplicationClass on the secondary cluster

@@ -2,9 +2,6 @@
 title: Object Bucket Notifications
 ---
 
-!!! info
-    This feature is **experimental**
-
 Rook supports the creation of bucket notifications via two custom resources:
 
 * a `CephBucketNotification` is a custom resource the defines: topic, events and filters of a bucket notification, and is described by a Custom Resource Definition (CRD) shown below. Bucket notifications are associated with a bucket by setting labels on the Object Bucket claim (OBC).
@@ -39,7 +36,7 @@ If the notification fail with an error, cannot be delivered or times out, it wil
 ### CephBucketTopic Custom Resource
 
 ```yaml
-apiVersion: objectbucket.io/v1alpha1
+apiVersion: ceph.rook.io/v1
 kind: CephBucketTopic
 metadata:
   name: my-topic [1]
@@ -82,13 +79,13 @@ spec:
 1. `http` (optional) hold the spec for an HTTP endpoint. The format of the URI would be: `http[s]://<fqdn>[:<port>][/<resource>]`
     * port defaults to: 80/443 for HTTP/S accordingly
 1. `disableVerifySSL` indicates whether the RGW is going to verify the SSL certificate of the HTTP server in case HTTPS is used ("false" by default)
+1. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). Supported for Ceph Quincy (v17) or newer ("false" by default)
 1. `amqp` (optional) hold the spec for an AMQP endpoint. The format of the URI would be: `amqp[s]://[<user>:<password>@]<fqdn>[:<port>][/<vhost>]`
     * port defaults to: 5672/5671 for AMQP/S accordingly
     * user/password defaults to: guest/guest
     * user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
     * vhost defaults to: “/”
 1. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the AMQP server in case AMQPS is used ("false" by default)
-1. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). Supported for Ceph Quincy (v17) or newer ("false" by default)
 1. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
     * “none”: message is considered “delivered” if sent to broker
     * “broker”: message is considered “delivered” if acked by broker (default)

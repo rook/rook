@@ -3,6 +3,7 @@ apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
   name: {{ default .Release.Namespace .Values.clusterName }}
+  namespace: {{ .Release.Namespace }} # namespace:cluster
 spec:
 {{- if .Values.monitoring }}
   monitoring:
@@ -13,6 +14,9 @@ spec:
 {{- end }}
 {{- if .Values.monitoring.externalMgrPrometheusPort }}
     externalMgrPrometheusPort: {{ toYaml .Values.monitoring.externalMgrPrometheusPort }}
+{{- end }}
+{{- if .Values.monitoring.interval }}
+    interval: {{ .Values.monitoring.interval }}
 {{- end }}
 {{- end }}
 

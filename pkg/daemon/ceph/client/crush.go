@@ -19,7 +19,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -108,7 +108,7 @@ func GetCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo) (CrushMap,
 
 // GetCompiledCrushMap fetches the Ceph compiled version of the CRUSH map
 func GetCompiledCrushMap(context *clusterd.Context, clusterInfo *ClusterInfo) (string, error) {
-	compiledCrushMapFile, err := ioutil.TempFile("", "")
+	compiledCrushMapFile, err := os.CreateTemp("", "")
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate temporarily file")
 	}

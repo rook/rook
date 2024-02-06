@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -30,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -50,9 +50,6 @@ import (
 const (
 	controllerName = "ceph-nfs-controller"
 )
-
-// Version of Ceph where NFS default pool name changes to ".nfs"
-var cephNFSChangeVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 7}
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
@@ -112,17 +109,20 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephNFS CRD object
-	err = c.Watch(&source.Kind{Type: &cephv1.CephNFS{TypeMeta: controllerTypeMeta}}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephNFS{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
 	if err != nil {
 		return err
 	}
 
 	// Watch all other resources
 	for _, t := range objectsToWatch {
-		err = c.Watch(&source.Kind{Type: t}, &handler.EnqueueRequestForOwner{
-			IsController: true,
-			OwnerType:    &cephv1.CephNFS{},
-		}, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephNFS{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		ownerRequest := handler.EnqueueRequestForOwner(
+			mgr.GetScheme(),
+			mgr.GetRESTMapper(),
+			&cephv1.CephNFS{},
+		)
+		err = c.Watch(source.Kind(mgr.GetCache(), t), ownerRequest,
+			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephNFS{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
 		if err != nil {
 			return err
 		}
@@ -155,7 +155,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to get cephNFS")
 	}
 	// update observedGeneration local variable with current generation value,
-	// because generation can be changed before reconile got completed
+	// because generation can be changed before reconcile got completed
 	// CR status will be updated at end of reconcile, so to reflect the reconcile has finished
 	observedGeneration := cephNFS.ObjectMeta.Generation
 
@@ -168,6 +168,12 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// The CR was just created, initializing status fields
 	if cephNFS.Status == nil {
 		updateStatus(k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, k8sutil.EmptyStatus)
+	}
+
+	if err := cephNFS.Spec.Security.Validate(); err != nil {
+		return reconcile.Result{Requeue: true, RequeueAfter: 15 * time.Second}, *cephNFS,
+			errors.Wrapf(err, "failed to validate security spec for CephNFS %q",
+				types.NamespacedName{Namespace: cephNFS.Namespace, Name: cephNFS.Name})
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -196,7 +202,7 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Populate clusterInfo
 	// Always populate it during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace)
+	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.cephClusterSpec)
 	if err != nil {
 		return reconcile.Result{}, *cephNFS, errors.Wrap(err, "failed to populate cluster info")
 	}
@@ -251,34 +257,16 @@ func (r *ReconcileCephNFS) reconcile(request reconcile.Request) (reconcile.Resul
 	// If the version of the Ceph monitor differs from the CephCluster CR image version we assume
 	// the cluster is being upgraded. So the controller will just wait for the upgrade to finish and
 	// then versions should match. Obviously using the cmd reporter job adds up to the deployment time
-	if !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
+	// Skip waiting for upgrades to finish in case of external cluster.
+	if !cephCluster.Spec.External.Enable && !reflect.DeepEqual(*runningCephVersion, *desiredCephVersion) {
 		// Upgrade is in progress, let's wait for the mons to be done
 		return opcontroller.WaitForRequeueIfCephClusterIsUpgrading, *cephNFS,
 			opcontroller.ErrorCephUpgradingRequeue(desiredCephVersion, runningCephVersion)
 	}
 	r.clusterInfo.CephVersion = *runningCephVersion
 
-	// Octopus: Customization is allowed, so don't change the pool and namespace
-	// Pacific before 16.2.7: No customization, default pool name is nfs-ganesha
-	// Pacific after 16.2.7: No customization, default pool name is .nfs
-	// This code is changes the pool and namespace to the correct values if the version is Pacific.
-	// If the version precedes Pacific it doesn't change it at all and the values used are what the user provided in the spec.
-	if r.clusterInfo.CephVersion.IsAtLeastPacific() {
-		if r.clusterInfo.CephVersion.IsAtLeast(cephNFSChangeVersion) {
-			cephNFS.Spec.RADOS.Pool = postNFSChangeDefaultPoolName
-		} else {
-			cephNFS.Spec.RADOS.Pool = preNFSChangeDefaultPoolName
-		}
-		cephNFS.Spec.RADOS.Namespace = cephNFS.Name
-	} else {
-		// This handles the case where the user has not provided a pool name and the cluster version
-		// is Octopus. We need to do this since the pool name is optional in the API due to the
-		// changes in Pacific defaulting to the ".nfs" pool.
-		// We default to the new name so that nothing will break on upgrades
-		if cephNFS.Spec.RADOS.Pool == "" {
-			cephNFS.Spec.RADOS.Pool = postNFSChangeDefaultPoolName
-		}
-	}
+	cephNFS.Spec.RADOS.Pool = nfsDefaultPoolName
+	cephNFS.Spec.RADOS.Namespace = cephNFS.Name
 
 	// validate the store settings
 	if err := validateGanesha(r.context, r.clusterInfo, cephNFS); err != nil {

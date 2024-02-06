@@ -29,6 +29,7 @@ import (
 const (
 	adminKeyringResourceName          = "rook-ceph-admin"
 	crashCollectorKeyringResourceName = "rook-ceph-crash-collector"
+	exporterKeyringResourceName       = "rook-ceph-exporter"
 
 	adminKeyringTemplate = `
 [client.admin]

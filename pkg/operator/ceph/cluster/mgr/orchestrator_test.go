@@ -59,7 +59,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 
 	clusterInfo := &cephclient.ClusterInfo{
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 		Context:     context.TODO(),
 	}
 	context := &clusterd.Context{Executor: executor}
@@ -86,9 +86,8 @@ func TestOrchestratorModules(t *testing.T) {
 	assert.True(t, rookModuleEnabled)
 	assert.True(t, rookBackendSet)
 
-	c.clusterInfo.CephVersion = cephver.Pacific
+	c.clusterInfo.CephVersion = cephver.Reef
 	err = c.setRookOrchestratorBackend()
-	// No error because there is no CLI change(in Nautilus arg[0] was "orchestrator" but since Octopus it is "orch")
 	assert.NoError(t, err)
 	executor.MockExecuteCommandWithTimeout = func(timeout time.Duration, command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)

@@ -22,35 +22,43 @@ spec:
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
       containers:
+        {{ if .CephFSAttachRequired }}
         - name: csi-attacher
           image: {{ .AttacherImage }}
           args:
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--csi-address=$(ADDRESS)"
             - "--leader-election=true"
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+        {{ end }}
         {{ if .EnableCephFSSnapshotter }}
         - name: csi-snapshotter
           image:  {{ .SnapshotterImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -59,15 +67,19 @@ spec:
           image: {{ .ResizerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
-            - "--leader-election"
+            - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--handle-volume-inuse-error=false"
+            - "--feature-gates=RecoverVolumeExpansionFailure=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -75,16 +87,21 @@ spec:
           image: {{ .ProvisionerImage }}
           args:
             - "--csi-address=$(ADDRESS)"
-            - "--v={{ .LogLevel }}"
+            - "--v={{ .SidecarLogLevel }}"
             - "--timeout={{ .GRPCTimeout }}"
             - "--retry-interval-start=500ms"
             - "--leader-election=true"
             - "--leader-election-namespace={{ .Namespace }}"
+            - "--feature-gates=HonorPVReclaimPolicy=true"
+            - "--prevent-volume-mode-conversion=true"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -98,10 +115,16 @@ spec:
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--pidlimit=-1"
-            - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
-            - "--metricspath=/metrics"
-            - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            {{ if .CSIEnableMetadata }}
+            - "--setmetadata={{ .CSIEnableMetadata }}"
+            {{ end }}
+            {{ if .CSIClusterName }}
+            - "--clustername={{ .CSIClusterName }}"
+            {{ end }}
+            {{ if .EnableCSIAddonsSideCar }}
+            - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:
@@ -117,7 +140,11 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi-provisioner.sock
-          imagePullPolicy: "IfNotPresent"
+            {{ if .EnableCSIAddonsSideCar }}
+            - name: CSIADDONS_ENDPOINT
+              value: unix:///csi/csi-addons.sock
+            {{ end }}
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -137,6 +164,49 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+        {{ if .EnableCSIAddonsSideCar }}
+        - name: csi-addons
+          image: {{ .CSIAddonsImage }}
+          args :
+            - "--node-id=$(NODE_ID)"
+            - "--v={{ .LogLevel }}"
+            - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
+            - "--controller-port={{ .CSIAddonsPort }}"
+            - "--pod=$(POD_NAME)"
+            - "--namespace=$(POD_NAMESPACE)"
+            - "--pod-uid=$(POD_UID)"
+            - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
+            - "--leader-election-namespace={{ .Namespace }}"
+            - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
+            - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
+            - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+          ports:
+            - containerPort: {{ .CSIAddonsPort }}
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: CSIADDONS_ENDPOINT
+              value: unix:///csi/csi-addons.sock
+          imagePullPolicy: {{ .ImagePullPolicy }}
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /csi
+        {{ end }}
+        {{ if .EnableLiveness }}
         - name: liveness-prometheus
           image: {{ .CSIPluginImage }}
           args:
@@ -156,7 +226,8 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
+        {{ end }}
       volumes:
         - name: socket-dir
           emptyDir: {

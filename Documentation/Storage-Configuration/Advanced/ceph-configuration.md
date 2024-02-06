@@ -23,6 +23,14 @@ to also change `ROOK_OPERATOR_NAMESPACE` to create a new Rook Operator for each 
 forget to set `ROOK_CURRENT_NAMESPACE_ONLY`), or you can leave it at the same value for every
 Ceph cluster if you only wish to have one Operator manage all Ceph clusters.
 
+If the operator namespace is different from the cluster namespace, the operator namespace must be
+created before running the steps below. The cluster namespace does not need to be created first,
+as it will be created by `common.yaml` in the script below.
+
+```console
+kubectl create namespace $ROOK_OPERATOR_NAMESPACE
+```
+
 This will help you manage namespaces more easily, but you should still make sure the resources are
 configured to your liking.
 
@@ -37,7 +45,6 @@ sed -i.bak \
     -e "s/\(.*\):.*# namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE # namespace:cluster/g" \
     -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:operator/\1:$ROOK_OPERATOR_NAMESPACE:\2 # serviceaccount:namespace:operator/g" \
     -e "s/\(.*serviceaccount\):.*:\(.*\) # serviceaccount:namespace:cluster/\1:$ROOK_CLUSTER_NAMESPACE:\2 # serviceaccount:namespace:cluster/g" \
-    -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:operator/\1: $ROOK_OPERATOR_NAMESPACE.\2 # driver:namespace:operator/g" \
     -e "s/\(.*\): [-_A-Za-z0-9]*\.\(.*\) # driver:namespace:cluster/\1: $ROOK_CLUSTER_NAMESPACE.\2 # driver:namespace:cluster/g" \
   common.yaml operator.yaml cluster.yaml # add other files or change these as desired for your config
 
@@ -45,14 +52,29 @@ sed -i.bak \
 kubectl apply -f common.yaml -f operator.yaml -f cluster.yaml # add other files as desired for yourconfig
 ```
 
+Also see the CSI driver
+[documentation](../Ceph-CSI/ceph-csi-drivers.md#Configure-CSI-Drivers-in-non-default-namespace)
+to update the csi provisioner names in the storageclass and volumesnapshotclass.
+
 ## Deploying a second cluster
 
-If you wish to create a new CephCluster in a different namespace than `rook-ceph` while using a single operator to manage both clusters execute the following:
+If you wish to create a new CephCluster in a separate namespace, you can easily do so
+by modifying the `ROOK_OPERATOR_NAMESPACE` and `SECOND_ROOK_CLUSTER_NAMESPACE` values in the
+below instructions. The default configuration in `common-second-cluster.yaml` is already
+set up to utilize `rook-ceph` for the operator and `rook-ceph-secondary` for the cluster.
+There's no need to run the `sed` command if you prefer to use these default values.
 
 ```console
 cd deploy/examples
+export ROOK_OPERATOR_NAMESPACE="rook-ceph"
+export SECOND_ROOK_CLUSTER_NAMESPACE="rook-ceph-secondary"
 
-NAMESPACE=rook-ceph-secondary envsubst < common-second-cluster.yaml | kubectl create -f -
+sed -i.bak \
+    -e "s/\(.*\):.*# namespace:operator/\1: $ROOK_OPERATOR_NAMESPACE # namespace:operator/g" \
+    -e "s/\(.*\):.*# namespace:cluster/\1: $SECOND_ROOK_CLUSTER_NAMESPACE # namespace:cluster/g" \
+  common-second-cluster.yaml
+
+kubectl create -f common-second-cluster.yaml
 ```
 
 This will create all the necessary RBACs as well as the new namespace. The script assumes that `common.yaml` was already created.
@@ -159,26 +181,20 @@ a common practice for those looking to target certain workloads onto faster
 
 !!! note
     Since Ceph Nautilus (v14.x), you can use the Ceph MGR `pg_autoscaler`
-    module to auto scale the PGs as needed. If you want to enable this feature,
-    please refer to [Default PG and PGP counts](ceph-configuration.md#default-pg-and-pgp-counts).
+    module to auto scale the PGs as needed. It is highly advisable to configure
+    default pg_num value on per-pool basis, If you want to enable this feature,
+    please refer to [Default PG and PGP
+    counts](configuration.md#default-pg-and-pgp-counts).
 
 The general rules for deciding how many PGs your pool(s) should contain is:
 
-* Less than 5 OSDs set pg_num to 128
-* Between 5 and 10 OSDs set pg_num to 512
-* Between 10 and 50 OSDs set pg_num to 1024
+* Fewer than 5 OSDs set `pg_num` to 128
+* Between 5 and 10 OSDs set `pg_num` to 512
+* Between 10 and 50 OSDs set `pg_num` to 1024
 
 If you have more than 50 OSDs, you need to understand the tradeoffs and how to
 calculate the pg_num value by yourself. For calculating pg_num yourself please
-make use of [the pgcalc tool](http://ceph.com/pgcalc/).
-
-If you're already using a pool it is generally safe to [increase its PG
-count](#setting-pg-count) on-the-fly. Decreasing the PG count is not
-recommended on a pool that is in use. The safest way to decrease the PG count
-is to back-up the data, [delete the pool](#deleting-a-pool), and [recreate
-it](#creating-a-pool).  With backups you can try a few potentially unsafe
-tricks for live pools, documented
-[here](http://cephnotes.ksperis.com/blog/2015/04/15/ceph-pool-migration).
+make use of [the pgcalc tool](https://old.ceph.com/pgcalc/).
 
 ### Setting PG Count
 
@@ -193,16 +209,18 @@ ceph osd pool set rbd pg_num 512
 ## Custom `ceph.conf` Settings
 
 !!! warning
-    The advised method for controlling Ceph configuration is to manually use the Ceph CLI
-    or the Ceph dashboard because this offers the most flexibility. It is highly recommended that this
-    only be used when absolutely necessary and that the `config` be reset to an empty string if/when the
-    configurations are no longer necessary. Configurations in the config file will make the Ceph cluster
-    less configurable from the CLI and dashboard and may make future tuning or debugging difficult.
+    The advised method for controlling Ceph configuration is to use the [`cephConfig:` structure](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config)
+    in the `CephCluster` CRD.
+
+    It is highly recommended that this only be used when absolutely necessary and that the `config` be
+    reset to an empty string if/when the configurations are no longer necessary. Configurations in the
+    config file will make the Ceph cluster less configurable from the CLI and dashboard and may make
+    future tuning or debugging difficult.
 
 Setting configs via Ceph's CLI requires that at least one mon be available for the configs to be
-set, and setting configs via dashboard requires at least one mgr to be available. Ceph may also have
-a small number of very advanced settings that aren't able to be modified easily via CLI or
-dashboard. In order to set configurations before monitors are available or to set problematic
+set, and setting configs via dashboard requires at least one mgr to be available. Ceph also has
+a number of very advanced settings that cannot be modified easily via the CLI or
+dashboard. In order to set configurations before monitors are available or to set advanced
 configuration settings, the `rook-config-override` ConfigMap exists, and the `config` field can be
 set with the contents of a `ceph.conf` file. The contents will be propagated to all mon, mgr, OSD,
 MDS, and RGW daemons as an `/etc/ceph/ceph.conf` file.
@@ -303,7 +321,7 @@ After the CSI pods are restarted, the new settings should be in effect.
 
 ### Example CSI `ceph.conf` Settings
 
-In this [Example](https://github.com/rook/rook/tree/master/deploy/csi-ceph-conf-override.yaml) we
+In this [Example](https://github.com/rook/rook/tree/master/deploy/examples/csi-ceph-conf-override.yaml) we
 will set the `rbd_validate_pool` to `false` to skip rbd pool validation.
 
 !!! warning
@@ -360,8 +378,8 @@ is for an OSD to become a Primary using the Primary Affinity setting.  This is
 similar to the OSD weight setting, except it only affects reads on the storage
 device, not capacity or writes.
 
-In this example we will make sure `osd.0` is only selected as Primary if all
-other OSDs holding replica data are unavailable:
+In this example we will ensure that `osd.0` is only selected as Primary if all
+other OSDs holding data replicas are unavailable:
 
 ```console
 ceph osd primary-affinity osd.0 0
@@ -369,15 +387,22 @@ ceph osd primary-affinity osd.0 0
 
 ## OSD Dedicated Network
 
+!!! tip
+    This documentation is left for historical purposes. It is still valid, but Rook offers native
+    support for this feature via the
+    [CephCluster network configuration](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-public-and-cluster-networks).
+
 It is possible to configure ceph to leverage a dedicated network for the OSDs to
-communicate across. A useful overview is the [CEPH Networks](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref/#ceph-networks)
+communicate across. A useful overview is the [Ceph Networks](http://docs.ceph.com/docs/master/rados/configuration/network-config-ref/#ceph-networks)
 section of the Ceph documentation. If you declare a cluster network, OSDs will
-route heartbeat, object replication and recovery traffic over the cluster
-network. This may improve performance compared to using a single network.
+route heartbeat, object replication, and recovery traffic over the cluster
+network. This may improve performance compared to using a single network,
+especially when slower network technologies are used. The tradeoff is
+additional expense and subtle failure modes.
 
 Two changes are necessary to the configuration to enable this capability:
 
-### Use hostNetwork in the rook ceph cluster configuration
+### Use hostNetwork in the cluster configuration
 
 Enable the `hostNetwork` setting in the [Ceph Cluster CRD configuration](../../CRDs/Cluster/ceph-cluster-crd.md#samples).
 For example,
@@ -408,7 +433,7 @@ apiVersion: v1
 data:
   config: |
     [global]
-    public network =  10.0.7.0/24
+    public network = 10.0.7.0/24
     cluster network = 10.0.10.0/24
     public addr = ""
     cluster addr = ""
@@ -464,7 +489,7 @@ ceph osd tree
 
 ### To scale OSDs Vertically
 
-Run the following script to auto-grow the size of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
+Run the following script to auto-grow the size of OSDs on a PVC-based Rook cluster whenever the OSDs have reached the storage near-full threshold.
 
 ```console
 tests/scripts/auto-grow-storage.sh size  --max maxSize --growth-rate percent
@@ -480,7 +505,7 @@ For example, if you need to increase the size of OSD by 30% and max disk size is
 
 ### To scale OSDs Horizontally
 
-Run the following script to auto-grow the number of OSDs on a PVC-based Rook-Ceph cluster whenever the OSDs have reached the storage near-full threshold.
+Run the following script to auto-grow the number of OSDs on a PVC-based Rook cluster whenever the OSDs have reached the storage near-full threshold.
 
 ```console
 tests/scripts/auto-grow-storage.sh count --max maxCount --count rate

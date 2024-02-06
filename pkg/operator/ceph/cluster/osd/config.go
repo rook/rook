@@ -46,19 +46,19 @@ func encryptionKeyPath() string {
 	return path.Join(opconfig.EtcCephDir, encryptionKeyFileName)
 }
 
-func encryptionDMName(pvcName, blockType string) string {
+func EncryptionDMName(pvcName, blockType string) string {
 	return fmt.Sprintf("%s-%s", pvcName, blockType)
 }
 
-func encryptionDMPath(pvcName, blockType string) string {
-	return path.Join("/dev/mapper", encryptionDMName(pvcName, blockType))
+func EncryptionDMPath(pvcName, blockType string) string {
+	return path.Join("/dev/mapper", EncryptionDMName(pvcName, blockType))
 }
 
 func encryptionBlockDestinationCopy(mountPath, blockType string) string {
 	return path.Join(mountPath, blockType) + "-tmp"
 }
 
-func generateDmCryptKey() (string, error) {
+func GenerateDmCryptKey() (string, error) {
 	key, err := mgr.GenerateRandomBytes(dmCryptKeySize)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to generate random bytes")

@@ -2,12 +2,13 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: rook-ceph-operator
+  namespace: {{ .Release.Namespace }} # namespace:operator
   labels:
     operator: rook
     storage-backend: ceph
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}
   selector:
     matchLabels:
       app: rook-ceph-operator
@@ -26,22 +27,25 @@ spec:
 {{- if .Values.priorityClassName }}
       priorityClassName: {{ .Values.priorityClassName }}
 {{- end }}
+      tolerations:
+        - effect: NoExecute
+          key: node.kubernetes.io/unreachable
+          operator: Exists
+          tolerationSeconds: 5
+{{- if .Values.tolerations }}
+{{ toYaml .Values.tolerations | indent 8 }}
+{{- end }}
       containers:
       - name: rook-ceph-operator
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["ceph", "operator"]
-        securityContext:
-          runAsNonRoot: true
-          runAsUser: 2016
-          runAsGroup: 2016
+        securityContext: {{- .Values.containerSecurityContext | toYaml | nindent 10 }}
         volumeMounts:
         - mountPath: /var/lib/rook
           name: rook-config
         - mountPath: /etc/ceph
           name: default-config-dir
-        - mountPath: /etc/webhook
-          name: webhook-cert
         env:
         - name: ROOK_CURRENT_NAMESPACE_ONLY
           value: {{ .Values.currentNamespaceOnly | quote }}
@@ -70,18 +74,22 @@ spec:
         - name: DISCOVER_AGENT_POD_LABELS
           value: {{ .Values.discover.podLabels }}
 {{- end }}
+{{- if .Values.discover.resources }}
+        - name: DISCOVER_DAEMON_RESOURCES
+          value: {{ .Values.discover.resources }}
 {{- end }}
+{{- end }}
+{{- if .Capabilities.APIVersions.Has "security.openshift.io/v1" }}
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "true"
+{{- else }}
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"
-        - name: ROOK_ENABLE_SELINUX_RELABELING
-          value: "{{ .Values.enableSelinuxRelabeling }}"
+{{- end }}
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
-        - name: ROOK_ENABLE_DISCOVERY_DAEMON
-          value: "{{ .Values.enableDiscoveryDaemon }}"
-        - name: ROOK_DISABLE_ADMISSION_CONTROLLER
-          value: "{{ .Values.disableAdmissionController }}"
-
+        - name: ROOK_DISCOVER_DEVICES_INTERVAL
+          value: "{{ .Values.discoveryDaemonInterval }}"
         - name: NODE_NAME
           valueFrom:
             fieldRef:
@@ -105,10 +113,6 @@ spec:
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
 {{- end }}
-{{- if .Values.tolerations }}
-      tolerations:
-{{ toYaml .Values.tolerations | indent 8 }}
-{{- end }}
 {{- if .Values.rbacEnable }}
       serviceAccountName: rook-ceph-system
 {{- end }}
@@ -116,6 +120,4 @@ spec:
       - name: rook-config
         emptyDir: {}
       - name: default-config-dir
-        emptyDir: {}
-      - name: webhook-cert
         emptyDir: {}

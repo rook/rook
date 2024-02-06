@@ -36,6 +36,17 @@ import (
 
 const unknownKind = "<UnknownObjectKind>"
 
+// Based on code from https://github.com/kubernetes/apimachinery/blob/master/pkg/api/meta/conditions.go
+
+// A statusConditionGetter allows getting a pointer to an object's conditions.
+type statusConditionGetter interface {
+	client.Object
+
+	// GetStatusConditions returns a pointer to the object's conditions compatible with
+	// SetStatusCondition and FindStatusCondition.
+	GetStatusConditions() *[]cephv1.Condition
+}
+
 // an object of a given type that has a nil reference is not the same as obj==nil (untyped nil)
 // (e.g., var cluster cephv1.CephCluster = nil ), so we must also check for nil via reflection
 func objIsNil(obj client.Object) bool {
@@ -164,7 +175,7 @@ func ReportReconcileResult(
 // 2. as a condition on the object (added to the object's conditions list given)
 // 3. as the returned error which should be included in the FailedReconcile message
 func ReportDeletionBlockedDueToDependents(
-	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, obj cephv1.StatusConditionGetter, deps *dependents.DependentList,
+	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, obj statusConditionGetter, deps *dependents.DependentList,
 ) error {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	nsName := types.NamespacedName{
@@ -201,7 +212,7 @@ func ReportDeletionBlockedDueToDependents(
 // 2. as an event on the object (via the given event recorder)
 // 3. as a condition on the object (added to the object's conditions list given)
 func ReportDeletionNotBlockedDueToDependents(
-	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj cephv1.StatusConditionGetter,
+	ctx context.Context, logger *capnslog.PackageLogger, client client.Client, recorder record.EventRecorder, obj statusConditionGetter,
 ) {
 	kind := obj.GetObjectKind().GroupVersionKind().Kind
 	nsName := types.NamespacedName{

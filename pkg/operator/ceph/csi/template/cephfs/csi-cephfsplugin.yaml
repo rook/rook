@@ -9,6 +9,10 @@ spec:
       app: csi-cephfsplugin
   updateStrategy:
     type: {{ .CephFSPluginUpdateStrategy }}
+    {{ if eq .CephFSPluginUpdateStrategy "RollingUpdate" }}
+    rollingUpdate:
+      maxUnavailable: {{ .CephFSPluginUpdateStrategyMaxUnavailable }}
+    {{ end }}
   template:
     metadata:
       labels:
@@ -33,7 +37,10 @@ spec:
           # created by privileged CSI driver container.
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           image: {{ .RegistrarImage }}
+          imagePullPolicy: {{ .ImagePullPolicy }}
           args:
             - "--v={{ .LogLevel }}"
             - "--csi-address=/csi/csi.sock"
@@ -53,6 +60,7 @@ spec:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
+              drop: ["ALL"]
             allowPrivilegeEscalation: true
           image: {{ .CSIPluginImage }}
           args:
@@ -63,10 +71,10 @@ spec:
             - "--nodeserver=true"
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--pidlimit=-1"
-            - "--metricsport={{ .CephFSGRPCMetricsPort }}"
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
-            - "--metricspath=/metrics"
-            - "--enablegrpcmetrics={{ .EnableCSIGRPCMetrics }}"
+            {{ if .CephFSKernelMountOptions }}
+            - "--kernelmountoptions={{ .CephFSKernelMountOptions }}"
+            {{ end }}
           env:
             - name: POD_IP
               valueFrom:
@@ -82,10 +90,12 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_ENDPOINT
               value: unix:///csi/csi.sock
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
+            - name: ceph-csi-mountinfo
+              mountPath: /csi/mountinfo
             - name: csi-plugins-dir
               mountPath: "{{ .KubeletDirPath }}/plugins"
               mountPropagation: "Bidirectional"
@@ -115,9 +125,12 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+        {{ if .EnableLiveness }}
         - name: liveness-prometheus
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           image: {{ .CSIPluginImage }}
           args:
             - "--type=liveness"
@@ -136,8 +149,13 @@ spec:
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
-          imagePullPolicy: "IfNotPresent"
+          imagePullPolicy: {{ .ImagePullPolicy }}
+        {{ end }}
       volumes:
+        - name: ceph-csi-mountinfo
+          hostPath:
+            path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/mountinfo"
+            type: DirectoryOrCreate
         - name: plugin-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}cephfs.csi.ceph.com/"

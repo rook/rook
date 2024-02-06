@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -100,28 +101,30 @@ func TestCephNFSController(t *testing.T) {
 				}
 				panic(fmt.Sprintf("unhandled command %s %v", command, args))
 			},
-			MockExecuteCommand: func(command string, args ...string) error {
-				logger.Infof("mock execute: %s %v", command, args)
-				if command == "rados" {
-					assert.Equal(t, "stat", args[6])
-					assert.Contains(t, []string{"conf-nfs.my-nfs", "conf-nfs.nfs2"}, args[7])
-					return nil
-				}
-				panic(fmt.Sprintf("unhandled command %s %v", command, args))
-			},
-			MockExecuteCommandWithEnv: func(env []string, command string, args ...string) error {
+			MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
 				logger.Infof("mock execute: %s %v", command, args)
 				if command == "ganesha-rados-grace" {
 					if args[4] == "add" {
-						assert.Len(t, env, 1)
-						return nil
+						return "", nil
 					}
 					if args[4] == "remove" {
-						assert.Len(t, env, 1)
-						return nil
+						return "", nil
 					}
 				}
-				panic(fmt.Sprintf("unhandled command %s %v with env %v", command, args, env))
+				if command == "rados" {
+					subc := args[4]
+					switch subc {
+					case "stat", "lock", "unlock":
+						return "", nil
+					}
+					assert.Condition(t, func() bool {
+						return stringInSlice("conf-nfs.my-nfs", args) ||
+							stringInSlice("conf-nfs.nfs2", args) ||
+							stringInSlice("kerberos", args)
+					})
+					return "", nil
+				}
+				panic(fmt.Sprintf("unhandled command %s %v", command, args))
 			},
 		}
 	}
@@ -215,7 +218,7 @@ func TestCephNFSController(t *testing.T) {
 	}
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
-		return &version.Octopus, &version.Octopus, nil
+		return &version.Quincy, &version.Quincy, nil
 	}
 
 	t.Run("error - no ceph cluster", func(t *testing.T) {
@@ -236,6 +239,29 @@ func TestCephNFSController(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
+	})
+
+	t.Run("error - security spec invalid", func(t *testing.T) {
+		t.Run("security.sssd empty should error", func(t *testing.T) {
+			cCtx := newContext(baseExecutor())
+			nfs := baseCephNFS()
+			nfs.Spec.Security = &cephv1.NFSSecuritySpec{
+				SSSD: &cephv1.SSSDSpec{},
+			}
+			cl := newControllerClient(nfs, cephClusterNotReady())
+			r := newReconcile(cCtx, cl)
+			fakeRecorder := record.NewFakeRecorder(5)
+			r.recorder = fakeRecorder
+
+			res, err := r.Reconcile(ctx, req)
+			assert.NoError(t, err)
+			assert.True(t, res.Requeue)
+
+			assert.Len(t, fakeRecorder.Events, 1)
+			event := <-fakeRecorder.Events
+			assert.Contains(t, event, // verify the security spec calls the Validate() method
+				"System Security Services Daemon (SSSD) is enabled, but no runtime option is specified")
+		})
 	})
 
 	assertCephNFSReady := func(t *testing.T, r *ReconcileCephNFS, names ...string) {
@@ -478,14 +504,18 @@ func TestGetGaneshaConfigObject(t *testing.T) {
 			Namespace: namespace,
 		},
 	}
-	nodeid := "a"
 	expectedName := "conf-nfs.my-nfs"
 
-	res := getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 16}, nodeid)
-	logger.Infof("Config Object for Pacific is %s", res)
+	res := getGaneshaConfigObject(cephNFS)
+	logger.Infof("Config Object is %s", res)
 	assert.Equal(t, expectedName, res)
+}
 
-	res = getGaneshaConfigObject(cephNFS, version.CephVersion{Major: 15, Minor: 2, Extra: 1}, nodeid)
-	logger.Infof("Config Object for Octopus is %s", res)
-	assert.Equal(t, expectedName, res)
+func stringInSlice(str string, slice []string) bool {
+	for _, s := range slice {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

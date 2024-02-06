@@ -92,7 +92,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 
 	spec := cephv1.ClusterSpec{}
 	var status *OrchestrationStatus
-	awaitingStatusConfigMaps := sets.NewString()
+	awaitingStatusConfigMaps := sets.New[string]()
 
 	var c *Cluster
 	var createConfig *createConfig
@@ -101,7 +101,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 		// none of this code should ever add or remove deployments from the existence list
 		assert.Equal(t, 3, deployments.Len())
 		// Simulate environment where provision jobs were created for node0, node2, pvc1, and pvc2
-		awaitingStatusConfigMaps = sets.NewString()
+		awaitingStatusConfigMaps = sets.New[string]()
 		awaitingStatusConfigMaps.Insert(
 			statusNameNode0, statusNameNode2,
 			statusNamePVC1, statusNamePVC2)
@@ -310,7 +310,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -321,7 +321,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 	var errs *provisionErrors
 	var c *Cluster
 	var config *provisionConfig
-	var awaitingStatusConfigMaps sets.String
+	var awaitingStatusConfigMaps sets.Set[string]
 	var err error
 	doSetup := func() {
 		errs = newProvisionErrors()
@@ -447,7 +447,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Octopus,
+		CephVersion: cephver.Quincy,
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -459,7 +459,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	var errs *provisionErrors
 	var c *Cluster
 	var config *provisionConfig
-	var prepareJobsRun sets.String
+	var prepareJobsRun sets.Set[string]
 	var err error
 	var cms *corev1.ConfigMapList
 	doSetup := func() {
@@ -517,7 +517,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		assert.Zero(t, errs.len())
 		assert.ElementsMatch(t,
 			[]string{statusNameNode0, statusNameNode1, statusNameNode2},
-			prepareJobsRun.List(),
+			sets.List(prepareJobsRun),
 		)
 		// all result configmaps should have been created
 		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
@@ -536,7 +536,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		assert.Zero(t, errs.len())
 		assert.ElementsMatch(t,
 			[]string{statusNameNode0, statusNameNode1, statusNameNode2},
-			prepareJobsRun.List(),
+			sets.List(prepareJobsRun),
 		)
 	})
 
@@ -563,7 +563,7 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		assert.Zero(t, errs.len())
 		assert.ElementsMatch(t,
 			[]string{statusNameNode0, statusNameNode2},
-			prepareJobsRun.List(),
+			sets.List(prepareJobsRun),
 		)
 	})
 
@@ -629,13 +629,13 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 		assert.Equal(t, 1, errs.len())
 		assert.ElementsMatch(t,
 			[]string{statusNameNode0},
-			prepareJobsRun.List(),
+			sets.List(prepareJobsRun),
 		)
 		// with a fresh clientset, only the one results ConfigMap should exist
 		cms, err = clientset.CoreV1().ConfigMaps(namespace).List(context.TODO(), metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Len(t, cms.Items, 1)
-		assert.Equal(t, prepareJobsRun.List()[0], cms.Items[0].Name)
+		assert.Equal(t, sets.List(prepareJobsRun)[0], cms.Items[0].Name)
 	})
 }
 
@@ -647,7 +647,7 @@ func newDummyPVC(name, namespace string, capacity string, storageClassName strin
 			Namespace: namespace,
 		},
 		Spec: corev1.PersistentVolumeClaimSpec{
-			Resources: corev1.ResourceRequirements{
+			Resources: corev1.VolumeResourceRequirements{
 				Requests: corev1.ResourceList{
 					corev1.ResourceName(corev1.ResourceStorage): apiresource.MustParse(capacity),
 				},

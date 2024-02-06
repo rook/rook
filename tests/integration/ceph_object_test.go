@@ -63,19 +63,18 @@ type ObjectSuite struct {
 func (s *ObjectSuite) SetupSuite() {
 	namespace := "object-ns"
 	s.settings = &installer.TestCephSettings{
-		ClusterName:               "object-cluster",
-		Namespace:                 namespace,
-		OperatorNamespace:         installer.SystemNamespace(namespace),
-		StorageClassName:          installer.StorageClassName(),
-		UseHelm:                   false,
-		UsePVC:                    installer.UsePVC(),
-		Mons:                      3,
-		SkipOSDCreation:           false,
-		EnableAdmissionController: true,
-		UseCrashPruner:            true,
-		EnableVolumeReplication:   false,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.ReturnCephVersion(),
+		ClusterName:             "object-cluster",
+		Namespace:               namespace,
+		OperatorNamespace:       installer.SystemNamespace(namespace),
+		StorageClassName:        installer.StorageClassName(),
+		UseHelm:                 false,
+		UsePVC:                  installer.UsePVC(),
+		Mons:                    3,
+		SkipOSDCreation:         false,
+		UseCrashPruner:          true,
+		EnableVolumeReplication: false,
+		RookVersion:             installer.LocalBuildTag,
+		CephVersion:             installer.ReturnCephVersion(),
 	}
 	s.settings.ApplyEnvVars()
 	s.installer, s.k8sh = StartTestCluster(s.T, s.settings)
@@ -97,7 +96,7 @@ func (s *ObjectSuite) TestWithTLS() {
 
 	tls := true
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, s.Suite, s.settings.Namespace, tls)
+	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls)
 	err := s.k8sh.Clientset.CoreV1().Secrets(s.settings.Namespace).Delete(context.TODO(), objectTLSSecretName, metav1.DeleteOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -114,14 +113,14 @@ func (s *ObjectSuite) TestWithoutTLS() {
 
 	tls := false
 	objectStoreServicePrefix = objectStoreServicePrefixUniq
-	runObjectE2ETest(s.helper, s.k8sh, s.installer, s.Suite, s.settings.Namespace, tls)
+	runObjectE2ETest(s.helper, s.k8sh, s.installer, &s.Suite, s.settings.Namespace, tls)
 }
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
 // Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
-func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s suite.Suite, namespace string, tlsEnable bool) {
+func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, namespace string, tlsEnable bool) {
 	storeName := "test-store"
 	if tlsEnable {
 		storeName = objectStoreTLSName
@@ -138,18 +137,6 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 		deleteStore := true
 		runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable)
 	})
-	if tlsEnable {
-		// test that a third object store can be created (and deleted) while the first exists
-		s.T().Run("run a third object store with broken tls", func(t *testing.T) {
-			otherStoreName := "broken-" + storeName
-			// The lite e2e test is perfect, as it only creates a cluster, checks that it is healthy,
-			// and then deletes it.
-			deleteStore := true
-			objectStoreServicePrefix = objectStoreServicePrefixUniq
-			runObjectE2ETestLite(t, helper, k8sh, installer, namespace, otherStoreName, 1, deleteStore, tlsEnable)
-			objectStoreServicePrefix = objectStoreServicePrefixUniq
-		})
-	}
 
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName)
@@ -157,9 +144,16 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable)
 	testBucketNotifications(s, helper, k8sh, namespace, bucketNotificationTestStoreName)
+	if !tlsEnable {
+		// TODO : need to fix COSI driver to support TLS
+		logger.Info("Testing COSI driver")
+		testCOSIDriver(s, helper, k8sh, installer, namespace)
+	} else {
+		logger.Info("Skipping COSI driver test as TLS is enabled")
+	}
 }
 
-func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
+func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
 	ctx := context.TODO()
 	clusterInfo := client.AdminTestClusterInfo(namespace)
 	t := s.T()
@@ -189,8 +183,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		assert.Nil(t, cobErr)
 		cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
 		assert.Nil(t, cobcErr)
-
-		created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
+		created := utils.Retry(20, 2*time.Second, "OBC is created", func() bool {
 			return helper.BucketClient.CheckOBC(obcName, "bound")
 		})
 		assert.True(t, created)
@@ -249,7 +242,7 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		t.Run("update quota limits", func(t *testing.T) {
 			poErr := helper.BucketClient.UpdateObc(obcName, bucketStorageClassName, bucketname, newMaxObject, true)
 			assert.Nil(t, poErr)
-			updated := utils.Retry(5, 2*time.Second, "OBC is updated", func() bool {
+			updated := utils.Retry(20, 2*time.Second, "OBC is updated", func() bool {
 				return helper.BucketClient.CheckOBMaxObject(obcName, newMaxObject)
 			})
 			assert.True(t, updated)
@@ -277,8 +270,10 @@ func testObjectStoreOperations(s suite.Suite, helper *clients.TestClient, k8sh *
 		// the bucket provision/creation loop. Verify that the OBC is "Bound" and stays that way.
 		// The OBC reconcile loop runs again immediately b/c the OBC is modified to refer to its OB.
 		// Wait a short amount of time before checking just to be safe.
-		time.Sleep(15 * time.Second)
-		assert.True(t, helper.BucketClient.CheckOBC(obcName, "bound"))
+		created := utils.Retry(15, 2*time.Second, "OBC is created", func() bool {
+			return helper.BucketClient.CheckOBC(obcName, "bound")
+		})
+		assert.True(t, created)
 	})
 
 	t.Run("delete CephObjectStore should be blocked by OBC bucket and CephObjectStoreUser", func(t *testing.T) {

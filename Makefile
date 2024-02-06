@@ -32,7 +32,7 @@ all: build
 
 # Controller-gen version
 # f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs
-CONTROLLER_GEN_VERSION=f284e2e8098cb0193c2b0c7c1c651ae75496539b
+CONTROLLER_GEN_VERSION=v0.11.3
 
 # Set GOBIN
 ifeq (,$(shell go env GOBIN))
@@ -42,7 +42,7 @@ GOBIN=$(shell go env GOBIN)
 endif
 
 # set the shell to bash in case some environments use sh
-SHELL := /bin/bash
+SHELL := /usr/bin/env bash
 
 # Can be used or additional go build flags
 BUILDFLAGS ?=
@@ -118,6 +118,12 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
+# Change how CRDs are generated for CSVs
+ifneq ($(REAL_HOST_PLATFORM),darwin_arm64)
+build.common: export NO_OB_OBC_VOL_GEN=true
+build.common: export MAX_DESC_LEN=0
+endif
+build.common: export SKIP_GEN_CRD_DOCS=true
 build.common: build.version helm.build mod.check crds gen-rbac
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
@@ -178,28 +184,61 @@ prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
 # Change how CRDs are generated for CSVs
-csv-ceph: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
-csv-ceph: export NO_OB_OBC_VOL_GEN=true
-csv-ceph: csv-clean crds ## Generate a CSV file for OLM.
+csv: export MAX_DESC_LEN=0 # sets the description length to 0 since CSV cannot be bigger than 1MB
+csv: export NO_OB_OBC_VOL_GEN=true
+csv: csv-clean crds ## Generate a CSV file for OLM.
 	$(MAKE) -C images/ceph csv
 
 csv-clean: ## Remove existing OLM files.
 	@$(MAKE) -C images/ceph csv-clean
 
+docs: helm-docs
+	@build/deploy/generate-deploy-examples.sh
+
 crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
+	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
+	@build/crds/validate-csv-crd-list.sh
 
 gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
+	HELM=$(HELM) ./build/rbac/gen-psp.sh
+
+helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm charts
+	$(HELM_DOCS) -c deploy/charts/rook-ceph \
+		-o ../../../Documentation/Helm-Charts/operator-chart.md \
+		-t ../../../Documentation/Helm-Charts/operator-chart.gotmpl.md \
+		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
+	$(HELM_DOCS) -c deploy/charts/rook-ceph-cluster \
+		-o ../../../Documentation/Helm-Charts/ceph-cluster-chart.md \
+		-t ../../../Documentation/Helm-Charts/ceph-cluster-chart.gotmpl.md \
+		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
+
+check-helm-docs:
+	@$(MAKE) helm-docs
+	@git diff --exit-code || { \
+	echo "Please run 'make helm-docs' locally, commit the updated docs, and push the change. See https://rook.io/docs/rook/latest/Contributing/documentation/#making-docs" ; \
+	exit 2 ; \
+	};
+check-docs:
+	@$(MAKE) docs
+	@git diff --exit-code || { \
+	echo "Please run 'make docs' locally, commit the updated docs, and push the change." ; \
+	exit 2 ; \
+	};
+
 
 docs-preview: ## Preview the documentation through mkdocs
 	mkdocs serve
 
 docs-build:  ## Build the documentation to the `site/` directory
 	mkdocs build --strict
+
+generate-docs-crds: ## Build the documentation for CRD
+	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
 
 .PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune

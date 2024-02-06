@@ -73,16 +73,16 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 	s.poolName = "multi-cluster-pool1"
 	coreNamespace := "multi-core"
 	s.settings = &installer.TestCephSettings{
-		ClusterName:               "multi-cluster",
-		Namespace:                 coreNamespace,
-		OperatorNamespace:         installer.SystemNamespace(coreNamespace),
-		StorageClassName:          "manual",
-		UsePVC:                    installer.UsePVC(),
-		Mons:                      1,
-		MultipleMgrs:              true,
-		EnableAdmissionController: true,
-		RookVersion:               installer.LocalBuildTag,
-		CephVersion:               installer.PacificVersion,
+		ClusterName:       "multi-cluster",
+		Namespace:         coreNamespace,
+		OperatorNamespace: installer.SystemNamespace(coreNamespace),
+		StorageClassName:  "manual",
+		UsePVC:            installer.UsePVC(),
+		Mons:              1,
+		MultipleMgrs:      true,
+		RookVersion:       installer.LocalBuildTag,
+		CephVersion:       installer.QuincyVersion,
+		RequireMsgr2:      true,
 	}
 	s.settings.ApplyEnvVars()
 	externalSettings := &installer.TestCephSettings{
@@ -91,6 +91,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		Namespace:         "multi-external",
 		OperatorNamespace: s.settings.OperatorNamespace,
 		RookVersion:       s.settings.RookVersion,
+		CephVersion:       installer.QuincyVersion,
 	}
 	externalSettings.ApplyEnvVars()
 	s.externalManifests = installer.NewCephManifests(externalSettings)
@@ -136,13 +137,13 @@ func (s *MultiClusterDeploySuite) TearDownSuite() {
 func (s *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
 	// Check if Rook cluster 1 is deployed successfully
 	client.RunAllCephCommandsInToolboxPod = s.coreToolbox
-	checkIfRookClusterIsInstalled(s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 1)
-	checkIfRookClusterIsHealthy(s.Suite, s.testClient, s.settings.Namespace)
+	checkIfRookClusterIsInstalled(&s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 1)
+	checkIfRookClusterIsHealthy(&s.Suite, s.testClient, s.settings.Namespace)
 
 	// Check if Rook external cluster is deployed successfully
 	// Checking health status is enough to validate the connection
 	client.RunAllCephCommandsInToolboxPod = s.externalToolbox
-	checkIfRookClusterIsHealthy(s.Suite, s.testClient, s.externalManifests.Settings().Namespace)
+	checkIfRookClusterIsHealthy(&s.Suite, s.testClient, s.externalManifests.Settings().Namespace)
 }
 
 // Setup is wrapper for setting up multiple rook clusters.

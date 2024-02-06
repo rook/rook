@@ -1,6 +1,7 @@
 #################################################################################################################
 # Create a filesystem with settings with replication enabled for a production environment.
 # A minimum of 3 OSDs on different nodes are required in this example.
+# If one mds daemon per node is too restrictive, see the podAntiAffinity below.
 #  kubectl create -f filesystem.yaml
 #################################################################################################################
 
@@ -72,6 +73,12 @@ spec:
                   operator: In
                   values:
                     - rook-ceph-mds
+            ## Add this if you want to allow mds daemons for different filesystems to run on one
+            ## node. The value in "values" must match .metadata.name.
+            #    - key: rook_file_system
+            #          operator: In
+            #          values:
+            #            - myfs
             # topologyKey: kubernetes.io/hostname will place MDS across different hosts
             topologyKey: kubernetes.io/hostname
         preferredDuringSchedulingIgnoredDuringExecution:
@@ -111,6 +118,7 @@ spec:
     # enabled: true
     # list of Kubernetes Secrets containing the peer token
     # for more details see: https://docs.ceph.com/en/latest/dev/cephfs-mirroring/#bootstrap-peers
+    # Add the secret name if it already exists else specify the empty list here.
     # peers:
       #secretNames:
         #- secondary-cluster-peer
@@ -119,9 +127,32 @@ spec:
     # snapshotSchedules:
     #   - path: /
     #     interval: 24h # daily snapshots
-    #     startTime: 11:55
+        # The startTime should be mentioned in the format YYYY-MM-DDTHH:MM:SS
+        # If startTime is not specified, then by default the start time is considered as midnight UTC.
+        # see usage here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#usage
+        # startTime: 2022-07-15T11:55:00
     # manage retention policies
     # see syntax duration here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-retention-policies
     # snapshotRetention:
     #   - path: /
     #     duration: "h 24"
+---
+# create default csi subvolume group
+apiVersion: ceph.rook.io/v1
+kind: CephFilesystemSubVolumeGroup
+metadata:
+  name: myfs-csi # lets keep the svg crd name same as `filesystem name + csi` for the default csi svg
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The name of the subvolume group. If not set, the default is the name of the subvolumeGroup CR.
+  name: csi
+  # filesystemName is the metadata name of the CephFilesystem CR where the subvolume group will be created
+  filesystemName: myfs
+  # reference https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups
+  # only one out of (export, distributed, random) can be set at a time
+  # by default pinning is set with value: distributed=1
+  # for disabling default values set (distributed=0)
+  pinning:
+    distributed: 1            # distributed=<0, 1> (disabled=0)
+    # export:                 # export=<0-256> (disabled=-1)
+    # random:                 # random=[0.0, 1.0](disabled=0.0)

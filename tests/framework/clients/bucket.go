@@ -74,9 +74,10 @@ func (b *BucketOperation) UpdateObcNotificationRemove(obcName string, storageCla
 // CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,
 // and returns false if any of these resources are not in the "check" state.
 // Check state values:
-//   "created", all must exist,
-//   "bound", all must exist and OBC in Bound phase
-//   "deleted", all must be missing.
+//
+//	"created", all must exist,
+//	"bound", all must exist and OBC in Bound phase
+//	"deleted", all must be missing.
 func (b *BucketOperation) CheckOBC(obcName, check string) bool {
 	resources := []string{"obc", "secret", "configmap"}
 	shouldBeBound := (check == "bound")

@@ -26,7 +26,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-func (r *ReconcileCephBlockPool) reconcileAddBoostrapPeer(pool *cephv1.CephBlockPool,
+func (r *ReconcileCephBlockPool) reconcileAddBootstrapPeer(pool *cephv1.CephBlockPool,
 	namespacedName types.NamespacedName) (reconcile.Result, error) {
 
 	if pool.Spec.Mirroring.Peers == nil {

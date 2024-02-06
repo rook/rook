@@ -69,6 +69,38 @@ spec:
   dashboard behind a proxy already served using SSL) by setting the `ssl` option
   to be false.
 
+## Visualization of 'Physical Disks' section in the dashboard
+
+Information about physical disks is available only in [Rook host clusters](../../CRDs/Cluster/host-cluster.md).
+
+The Rook manager module is required by the dashboard to obtain the information about physical disks, but it is disabled by default. Before it is enabled, the dashboard 'Physical Disks' section will show an error message.
+
+To prepare the Rook manager module to be used in the dashboard, modify your Ceph Cluster CRD:
+
+```yaml
+  mgr:
+    modules:
+      - name: rook
+        enabled: true
+```
+
+And apply the changes:
+
+```console
+$ kubectl apply -f cluster.yaml
+```
+
+Once the Rook manager module is enabled as the orchestrator backend, there are two settings required for showing disk information:
+
+* `ROOK_ENABLE_DISCOVERY_DAEMON`: Set to `true` to provide the dashboard the information about physical disks. The default is `false`.
+* `ROOK_DISCOVER_DEVICES_INTERVAL`: The interval for changes to be refreshed in the set of physical disks in the cluster. The default is `60` minutes.
+
+Modify the operator.yaml, and apply the changes:
+
+```console
+$ kubectl apply -f operator.yaml
+```
+
 ## Viewing the Dashboard External to the Cluster
 
 Commonly you will want to view the dashboard from outside the cluster. For example, on a development machine with the
@@ -101,6 +133,7 @@ spec:
   selector:
     app: rook-ceph-mgr
     rook_cluster: rook-ceph
+    mgr_role: active
   sessionAffinity: None
   type: NodePort
 ```
@@ -161,8 +194,8 @@ If you have a cluster with an [nginx Ingress Controller](https://kubernetes.gith
 and a Certificate Manager (e.g. [cert-manager](https://cert-manager.readthedocs.io/)) then you can create an
 Ingress like the one below. This example achieves four things:
 
-1. Exposes the dashboard on the Internet (using an reverse proxy)
-2. Issues an valid TLS Certificate for the specified domain name (using [ACME](https://en.wikipedia.org/wiki/Automated_Certificate_Management_Environment))
+1. Exposes the dashboard on the Internet (using a reverse proxy)
+2. Issues a valid TLS Certificate for the specified domain name (using [ACME](https://en.wikipedia.org/wiki/Automated_Certificate_Management_Environment))
 3. Tells the reverse proxy that the dashboard itself uses HTTPS
 4. Tells the reverse proxy that the dashboard itself does not have a valid certificate (it is self-signed)
 
@@ -173,12 +206,12 @@ metadata:
   name: rook-ceph-mgr-dashboard
   namespace: rook-ceph
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     kubernetes.io/tls-acme: "true"
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     nginx.ingress.kubernetes.io/server-snippet: |
       proxy_ssl_verify off;
 spec:
+  ingressClassName: "nginx"
   tls:
    - hosts:
      - rook-ceph.example.com

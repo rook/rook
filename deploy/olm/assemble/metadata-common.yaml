@@ -173,6 +173,11 @@ spec:
         version: v1
         displayName: Ceph BlockPool Rados Namespace
         description: Represents a Ceph BlockPool Rados Namespace.
+      - kind: CephCOSIDriver
+        name: cephcosidrivers.ceph.rook.io
+        version: v1
+        displayName: Ceph COSI Driver
+        description: Represents a Ceph COSI Driver.
   displayName: Rook-Ceph
   description: |
 
@@ -238,7 +243,7 @@ metadata:
   annotations:
     tectonic-visibility: ocs
     repository: https://github.com/rook/rook
-    containerImage: rook/ceph:v1.2.2
+    containerImage: "{{.RookOperatorImage}}"
     alm-examples: |-
       [
         {
@@ -250,7 +255,7 @@ metadata:
           },
           "spec": {
             "cephVersion": {
-              "image": "quay.io/ceph/ceph:v17.2.1"
+              "image": "quay.io/ceph/ceph:v17.2.6"
             },
             "dataDirHostPath": "/var/lib/rook",
             "mon": {

@@ -42,11 +42,11 @@ func IsClusterHealthy(testClient *TestClient, namespace string) (bool, error) {
 	}
 
 	// verify there are OSDs and they are all up/in
-	totalOSDs := status.OsdMap.OsdMap.NumOsd
+	totalOSDs := status.OsdMap.NumOsd
 	if totalOSDs == 0 {
 		return false, fmt.Errorf("no OSDs: %+v", status)
 	}
-	if status.OsdMap.OsdMap.NumInOsd != totalOSDs || status.OsdMap.OsdMap.NumUpOsd != totalOSDs {
+	if status.OsdMap.NumInOsd != totalOSDs || status.OsdMap.NumUpOsd != totalOSDs {
 		return false, fmt.Errorf("not all OSDs are up/in: %+v", status)
 	}
 
