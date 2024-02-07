@@ -38,6 +38,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	apituntime "k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
@@ -387,9 +388,40 @@ func (c *ClusterController) requestClusterDelete(cluster *cephv1.CephCluster) (r
 			nsName, existing.namespacedName.Name)
 		return reconcile.Result{}, nil // do not requeue the delete
 	}
+	_, err := c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(c.OpManagerCtx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
+	if err == nil {
+		logger.Info("removing networkFence if matching cephCluster UID found")
+		networkFenceList := &addonsv1alpha1.NetworkFenceList{}
+		labelSelector := labels.SelectorFromSet(map[string]string{
+			networkFenceLabel: string(cluster.GetUID()),
+		})
+
+		opts := []client.DeleteAllOfOption{
+			client.MatchingLabels{
+				networkFenceLabel: string(cluster.GetUID()),
+			},
+			client.GracePeriodSeconds(0),
+		}
+		err = c.client.DeleteAllOf(c.OpManagerCtx, &addonsv1alpha1.NetworkFence{}, opts...)
+		if err != nil && !kerrors.IsNotFound(err) {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to delete networkFence with label %s", networkFenceLabel)
+		}
+
+		err = c.client.List(c.OpManagerCtx, networkFenceList, &client.MatchingLabelsSelector{Selector: labelSelector})
+		if err != nil && !kerrors.IsNotFound(err) {
+			return reconcile.Result{}, errors.Wrap(err, "failed to list networkFence")
+		}
+		if len(networkFenceList.Items) > 0 {
+			for i := range networkFenceList.Items {
+				err = opcontroller.RemoveFinalizerWithName(c.OpManagerCtx, c.client, &networkFenceList.Items[i], "csiaddons.openshift.io/network-fence")
+				if err != nil {
+					return reconcile.Result{}, errors.Wrap(err, "failed to remove finalizer")
+				}
+			}
+		}
+	}
 
 	logger.Infof("cleaning up CephCluster %q", nsName)
-
 	if cluster, ok := c.clusterMap[cluster.Namespace]; ok {
 		// We used to stop the bucket controller here but when we get a DELETE event for the CephCluster
 		// we will reload the CRD manager anyway so the bucket controller go routine will be stopped
