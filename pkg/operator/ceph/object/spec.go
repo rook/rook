@@ -337,6 +337,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, errors.Wrap(err, "failed to generate default readiness probe")
 	}
 
+	clientID := strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")
+	daemonID := fmt.Sprintf("%s.$(POD_UID)", clientID)
+
 	container := v1.Container{
 		Name:            "rgw",
 		Image:           c.clusterSpec.CephVersion.Image,
@@ -345,8 +348,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			"radosgw",
 		},
 		Args: append(
-			controller.DaemonFlags(c.clusterInfo, c.clusterSpec,
-				strings.TrimPrefix(generateCephXUser(rgwConfig.ResourceName), "client.")),
+			controller.DaemonFlags(c.clusterInfo, c.clusterSpec, daemonID),
 			"--foreground",
 			cephconfig.NewFlag("rgw frontends", fmt.Sprintf("%s %s", rgwFrontendName, c.portString())),
 			cephconfig.NewFlag("host", controller.ContainerEnvVarReference(k8sutil.PodNameEnvVar)),
@@ -359,7 +361,9 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 			controller.DaemonVolumeMounts(c.DataPathMap, rgwConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			c.mimeTypesVolumeMount(),
 		),
-		Env:             controller.DaemonEnvVars(c.clusterSpec),
+		Env: append(controller.DaemonEnvVars(c.clusterSpec),
+			v1.EnvVar{Name: "POD_UID", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.uid"}}},
+		),
 		Resources:       c.store.Spec.Gateway.Resources,
 		StartupProbe:    startupProbe,
 		LivenessProbe:   noLivenessProbe(),
