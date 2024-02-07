@@ -155,7 +155,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	}
 
 	CSIParam.EnableCSIAddonsSideCar = false
-	_, err = r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(r.opManagerContext, "csiaddonsnode.csiaddons.openshift.io", metav1.GetOptions{})
+	_, err = r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(r.opManagerContext, "csiaddonsnodes.csiaddons.openshift.io", metav1.GetOptions{})
 	if err == nil {
 		CSIParam.EnableCSIAddonsSideCar = true
 	}
