@@ -254,6 +254,13 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		}
 		if swift.UrlPrefix != nil {
 			configOptions["rgw_swift_url_prefix"] = *swift.UrlPrefix
+
+			if configOptions["rgw_swift_url_prefix"] == "/" {
+				logger.Warning("Forcefully disabled S3 as the swift prefix is given as a slash /. Ignoring any S3 options (including Enabled=true)!")
+				// this will later on disable the s3 api using the rgw_enable_apis setting
+				s3disabled = true
+			}
+
 		}
 		if swift.VersioningEnabled != nil {
 			configOptions["rgw_swift_versioning_enabled"] = fmt.Sprintf("%t", *swift.VersioningEnabled)
@@ -266,6 +273,8 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		// work, `swift_auth` is required to access swift without keystone
 		// – not sure about the additional APIs
 		// https://docs.ceph.com/en/quincy/radosgw/config-ref/#confval-rgw_enable_apis
+		// see also https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings on disabling s3
+		// when using '/' as prefix
 
 		// Swift was enabled so far already by default, so perhaps better
 		// not change that if someone relies on it.
