@@ -201,11 +201,15 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		configOptions["rgw_keystone_accepted_roles"] = strings.Join(ks.AcceptedRoles, ",")
 		if ks.ImplicitTenants != "" {
 
-			// only two values are valid here (swift and s3)
+			// only four values are valid here (swift, s3, true and false)
+			//
 			// https://docs.ceph.com/en/latest/radosgw/keystone/#integrating-with-openstack-keystone
-			if strings.ToLower(string(ks.ImplicitTenants)) != "swift" && strings.ToLower(string(ks.ImplicitTenants)) != "s3" {
+			if strings.ToLower(string(ks.ImplicitTenants)) != "true" &&
+				strings.ToLower(string(ks.ImplicitTenants)) != "false" &&
+				strings.ToLower(string(ks.ImplicitTenants)) != "swift" &&
+				strings.ToLower(string(ks.ImplicitTenants)) != "s3" {
 
-				errString := fmt.Sprintf("ImplicitTenantSetting can only be either swift or s3, not %s", string(ks.ImplicitTenants))
+				errString := fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %s", string(ks.ImplicitTenants))
 				logger.Errorf(errString)
 				return errors.New(errString)
 
