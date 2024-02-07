@@ -32,6 +32,21 @@ spec:
       dataChunks: 2
       codingChunks: 1
   preservePoolsOnDelete: true
+  auth:
+  #  keystone:
+  #    acceptedRoles:
+  #      - admin
+  #      - member
+  #      - service
+  #    implicitTenants: "swift"
+  #    revocationInterval: 1200
+  #    serviceUserSecretName: usersecret
+  #   tokenCacheSize: 1000
+  #    url: https://keystone.example-namespace.svc/
+  protocols:
+    swift:
+      accountInUrl: true
+      urlPrefix: /swift
   gateway:
     # sslCertificateRef:
     # caBundleRef:
@@ -88,6 +103,23 @@ When the `zone` section is set pools with the object stores name will not be cre
   the namespace must be added to this list of allowed namespaces, or specify "*" to allow all namespaces.
   This is useful for applications that need object store credentials to be created in their own namespace,
   where neither OBCs nor COSI is being used to create buckets. The default is empty.
+
+## Auth Settings
+
+The `auth`-section allows the configuration of authentication providers.
+
+Currently only OpenStack Keystone is supported.
+
+### Keystone Settings
+
+The `keystone`-section allows to configure the Keystone instance to use.
+
+* `acceptedRoles`: The OpenStack Keystone [roles](https://docs.openstack.org/keystone/latest/admin/cli-manage-projects-users-and-roles.html#roles-and-role-assignments) accepted by RGW when authenticating against Keystone.
+* `implicitTenants`: Indicates whether to use implicit tenants. This can be `true`, `false`, `swift` and `s3`. For more details see the Ceph RadosGW documentation on [multitenancy](https://docs.ceph.com/en/latest/radosgw/multitenancy/).
+* `revocationInterval`: 
+* `serviceUserSecretName`: the name of the user secret containing the credentials for the admin user to use by rgw when communicating with Keystone. See [Object Store with Keystone and Swift](../../Storage-Configuration/Object-Storage-RGW/ceph-object-swift.md) for more details on what the secret must contain. 
+* `tokenCacheSize`: specifies the maximum number of entries in each Keystone token cache.
+* `url`: The url of the Keystone API endpoint to use.
 
 ## Gateway Settings
 

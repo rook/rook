@@ -9,3 +9,4 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 ## Features
 
 - Kubernetes versions **v1.24** through **v1.29** are supported.
+- Support for keystone authentication for s3 and swift (see [#9088](https://github.com/rook/rook/issues/9088)).
