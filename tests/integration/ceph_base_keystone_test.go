@@ -1060,7 +1060,7 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://"+RgwServiceName(storeName)+"."+namespace+".svc/swift/v1",
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", ""+rgwServiceUri(storeName, namespace)+"/swift/v1",
 		)
 
 	})
@@ -1069,7 +1069,7 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://"+RgwServiceName(storeName)+"."+namespace+".svc/swift/v1",
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", ""+rgwServiceUri(storeName, namespace)+"/swift/v1",
 		)
 
 	})
@@ -1091,6 +1091,10 @@ func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName st
 		})
 
 	}
+}
+
+func rgwServiceUri(storeName string, namespace string) string {
+	return "http://" + RgwServiceName(storeName) + "." + namespace + ".svc"
 }
 
 func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
@@ -1131,7 +1135,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	t.Run("List bucket with S3", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3api list-buckets | jq '.Buckets | .[].Name' -r | grep "+testContainerName,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3api list-buckets | jq '.Buckets | .[].Name' -r | grep "+testContainerName,
 		)
 
 	})
@@ -1147,7 +1151,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 ls s3://"+testContainerName+"| grep testfile2",
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 ls s3://"+testContainerName+"| grep testfile2",
 		)
 
 	})
@@ -1161,7 +1165,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 cp /tmp/testfile s3://"+testContainerName+"/testfile",
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 cp /tmp/testfile s3://"+testContainerName+"/testfile",
 		)
 
 	})
@@ -1169,7 +1173,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	t.Run("save testfile object from container to local disk", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 cp s3://"+testContainerName+"/testfile /tmp/testfile.saved")
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 cp s3://"+testContainerName+"/testfile /tmp/testfile.saved")
 	})
 
 	t.Run("check testfile", func(t *testing.T) {
@@ -1181,7 +1185,10 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	t.Run("delete object in container", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "aws --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3 rm s3://"+testContainerName+"/testfile2")
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 rm s3://"+testContainerName+"/testfile")
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 rm s3://"+testContainerName+"/testfile2")
 	})
 
 	t.Run("delete container (admin-user)", func(t *testing.T) {
