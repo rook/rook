@@ -505,7 +505,7 @@ spec:
         - admin
         - member
         - service
-      implicitTenants: "swift"
+      implicitTenants: "true"
       revocationInterval: 1200
       serviceUserSecretName: usersecret
       tokenCacheSize: 1000
