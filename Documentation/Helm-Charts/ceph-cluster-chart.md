@@ -84,7 +84,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `toolbox.enabled` | Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md) | `false` |
 | `toolbox.image` | Toolbox image, defaults to the image used by the Ceph cluster | `nil` |
 | `toolbox.priorityClassName` | Set the priority class for the toolbox if desired | `nil` |
-| `toolbox.resources` | Toolbox resources | `{"limits":{"cpu":"500m","memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}}` |
+| `toolbox.resources` | Toolbox resources | `{"limits":{"memory":"1Gi"},"requests":{"cpu":"100m","memory":"128Mi"}}` |
 | `toolbox.tolerations` | Toolbox tolerations | `[]` |
 
 ### **Ceph Cluster Spec**

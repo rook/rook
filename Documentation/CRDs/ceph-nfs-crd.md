@@ -42,7 +42,6 @@ spec:
 
     resources:
       limits:
-        cpu: "3"
         memory: "8Gi"
       requests:
         cpu: "3"

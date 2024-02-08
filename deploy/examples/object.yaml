@@ -94,7 +94,6 @@ spec:
     resources:
     # The requests and limits set here, allow the object store gateway Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:
-    #    cpu: "500m"
     #    memory: "1024Mi"
     #  requests:
     #    cpu: "500m"

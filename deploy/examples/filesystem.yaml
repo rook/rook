@@ -103,7 +103,6 @@ spec:
     # resources:
     # The requests and limits set here, allow the filesystem MDS Pod(s) to use half of one CPU core and 1 gigabyte of memory
     #  limits:
-    #    cpu: "500m"
     #    memory: "1024Mi"
     #  requests:
     #    cpu: "500m"
@@ -115,27 +114,27 @@ spec:
       disabled: false
   # Filesystem mirroring settings
   # mirroring:
-    # enabled: true
-    # list of Kubernetes Secrets containing the peer token
-    # for more details see: https://docs.ceph.com/en/latest/dev/cephfs-mirroring/#bootstrap-peers
-    # Add the secret name if it already exists else specify the empty list here.
-    # peers:
-      #secretNames:
-        #- secondary-cluster-peer
-    # specify the schedule(s) on which snapshots should be taken
-    # see the official syntax here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-schedules
-    # snapshotSchedules:
-    #   - path: /
-    #     interval: 24h # daily snapshots
-        # The startTime should be mentioned in the format YYYY-MM-DDTHH:MM:SS
-        # If startTime is not specified, then by default the start time is considered as midnight UTC.
-        # see usage here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#usage
-        # startTime: 2022-07-15T11:55:00
-    # manage retention policies
-    # see syntax duration here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-retention-policies
-    # snapshotRetention:
-    #   - path: /
-    #     duration: "h 24"
+  #   enabled: true
+  #   # list of Kubernetes Secrets containing the peer token
+  #   # for more details see: https://docs.ceph.com/en/latest/dev/cephfs-mirroring/#bootstrap-peers
+  #   # Add the secret name if it already exists else specify the empty list here.
+  #   peers:
+  #     secretNames:
+  #     - secondary-cluster-peer
+  #   # specify the schedule(s) on which snapshots should be taken
+  #   # see the official syntax here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-schedules
+  #   snapshotSchedules:
+  #     - path: /
+  #       interval: 24h # daily snapshots
+  #   # The startTime should be mentioned in the format YYYY-MM-DDTHH:MM:SS
+  #   # If startTime is not specified, then by default the start time is considered as midnight UTC.
+  #   # see usage here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#usage
+  #   # startTime: 2022-07-15T11:55:00
+  #   # manage retention policies
+  #   # see syntax duration here https://docs.ceph.com/en/latest/cephfs/snap-schedule/#add-and-remove-retention-policies
+  #   snapshotRetention:
+  #     - path: /
+  #       duration: "h 24"
 ---
 # create default csi subvolume group
 apiVersion: ceph.rook.io/v1
@@ -153,6 +152,6 @@ spec:
   # by default pinning is set with value: distributed=1
   # for disabling default values set (distributed=0)
   pinning:
-    distributed: 1            # distributed=<0, 1> (disabled=0)
+    distributed: 1 # distributed=<0, 1> (disabled=0)
     # export:                 # export=<0-256> (disabled=-1)
     # random:                 # random=[0.0, 1.0](disabled=0.0)

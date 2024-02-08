@@ -226,7 +226,6 @@ spec:
         resources:
         # These are the OSD daemon limits. For OSD prepare limits, see the separate section below for "prepareosd" resources
         #   limits:
-        #     cpu: "500m"
         #     memory: "4Gi"
         #   requests:
         #     cpu: "500m"
@@ -250,10 +249,7 @@ spec:
     onlyApplyOSDPlacement: false
   resources:
   #  prepareosd:
-  #    limits:
-  #      cpu: "200m"
-  #      memory: "200Mi"
-  #   requests:
+  #    requests:
   #      cpu: "200m"
   #      memory: "200Mi"
   priorityClassNames:

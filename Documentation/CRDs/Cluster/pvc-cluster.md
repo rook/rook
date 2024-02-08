@@ -85,7 +85,6 @@ spec:
       portable: false
       resources:
         limits:
-          cpu: "500m"
           memory: "4Gi"
         requests:
           cpu: "500m"
