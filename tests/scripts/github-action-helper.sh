@@ -280,6 +280,9 @@ function deploy_cluster() {
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_device" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+  elif [ "$1" = "osd_with_metadata_partition_device" ]; then
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name ${BLOCK}2
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice ${BLOCK}1
   elif [ "$1" = "encryption" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then

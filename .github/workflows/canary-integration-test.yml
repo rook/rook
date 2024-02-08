@@ -391,6 +391,51 @@ jobs:
         with:
           name: canary
 
+  osd-with-metadata-partition-device:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+
+      - name: validate-yaml
+        run: tests/scripts/github-action-helper.sh validate_yaml
+
+      - name: use local disk as OSD metadata partition
+        run: |
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
+
+      - name: deploy cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_partition_device
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+      - name: check-ownerreferences
+        run: tests/scripts/github-action-helper.sh check_ownerreferences
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: canary
+
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
