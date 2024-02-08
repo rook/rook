@@ -722,11 +722,16 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 	for md, conf := range metadataDevices {
 
 		mdArgs := batchArgs
+		osdsPerDevice := 1
 		if _, ok := conf["osdsperdevice"]; ok {
 			mdArgs = append(mdArgs, []string{
 				osdsPerDeviceFlag,
 				conf["osdsperdevice"],
 			}...)
+			v, _ := strconv.Atoi(conf["osdsperdevice"])
+			if v > 1 {
+				osdsPerDevice = v
+			}
 		}
 		if _, ok := conf["deviceclass"]; ok {
 			mdArgs = append(mdArgs, []string{
@@ -779,7 +784,7 @@ func (a *OsdAgent) initializeDevicesLVMMode(context *clusterd.Context, devices *
 			return errors.Wrap(err, "failed to unmarshal ceph-volume report json")
 		}
 
-		if len(strings.Split(conf["devices"], " ")) != len(cvReports) {
+		if len(strings.Split(conf["devices"], " "))*osdsPerDevice != len(cvReports) {
 			return errors.Errorf("failed to create enough required devices, required: %s, actual: %v", cvOut, cvReports)
 		}
 
