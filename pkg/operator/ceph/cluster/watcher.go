@@ -533,9 +533,6 @@ func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.Persis
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fenceResourceName(node.Name, driver),
 			Namespace: cluster.Namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				*metav1.NewControllerRef(cluster, cephv1.SchemeGroupVersion.WithKind("CephCluster")),
-			},
 		},
 		Spec: addonsv1alpha1.NetworkFenceSpec{
 			Driver:     pv.Spec.CSI.Driver,
