@@ -514,6 +514,9 @@ spec:
     swift:
       accountInUrl: true
       urlPrefix: /swift
+    s3:
+      enabled: true
+      authUseKeystone: true
   {{ end }}
   gateway:
     resources: null
