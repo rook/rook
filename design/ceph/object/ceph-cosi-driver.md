@@ -66,7 +66,6 @@ spec:
   #    cpu: "100m"
   #    memory: "128Mi"
   #  limits:
-  #    cpu: "100m"
   #    memory: "128Mi"
 ```
 
