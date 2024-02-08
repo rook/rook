@@ -47,7 +47,6 @@ spec:
     # Resource requests and limits to apply to NFS server pods
     resources:
       # limits:
-      #   cpu: "3"
       #   memory: "8Gi"
       # requests:
       #   cpu: "3"
@@ -101,7 +100,6 @@ spec:
     #     # debugLevel: 6
     #     resources:
     #       limits:
-    #         cpu: "2"
     #         memory: "1Gi"
     #       requests:
     #         cpu: "2"

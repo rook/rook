@@ -40,7 +40,6 @@ toolbox:
   # -- Toolbox resources
   resources:
     limits:
-      cpu: "500m"
       memory: "1Gi"
     requests:
       cpu: "100m"
@@ -281,21 +280,18 @@ cephClusterSpec:
   resources:
     mgr:
       limits:
-        cpu: "1000m"
         memory: "1Gi"
       requests:
         cpu: "500m"
         memory: "512Mi"
     mon:
       limits:
-        cpu: "2000m"
         memory: "2Gi"
       requests:
         cpu: "1000m"
         memory: "1Gi"
     osd:
       limits:
-        cpu: "2000m"
         memory: "4Gi"
       requests:
         cpu: "1000m"
@@ -314,35 +310,30 @@ cephClusterSpec:
         memory: "50Mi"
     mgr-sidecar:
       limits:
-        cpu: "500m"
         memory: "100Mi"
       requests:
         cpu: "100m"
         memory: "40Mi"
     crashcollector:
       limits:
-        cpu: "500m"
         memory: "60Mi"
       requests:
         cpu: "100m"
         memory: "60Mi"
     logcollector:
       limits:
-        cpu: "500m"
         memory: "1Gi"
       requests:
         cpu: "100m"
         memory: "100Mi"
     cleanup:
       limits:
-        cpu: "500m"
         memory: "1Gi"
       requests:
         cpu: "500m"
         memory: "100Mi"
     exporter:
       limits:
-        cpu: "250m"
         memory: "128Mi"
       requests:
         cpu: "50m"
@@ -522,7 +513,6 @@ cephFileSystems:
         activeStandby: true
         resources:
           limits:
-            cpu: "2000m"
             memory: "4Gi"
           requests:
             cpu: "1000m"
@@ -596,7 +586,6 @@ cephObjectStores:
         port: 80
         resources:
           limits:
-            cpu: "2000m"
             memory: "2Gi"
           requests:
             cpu: "1000m"

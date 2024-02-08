@@ -112,7 +112,6 @@ spec:
     # one CPU core and 1 gigabyte of memory
     resources:
     #  limits:
-    #    cpu: "3"
     #    memory: "8Gi"
     #  requests:
     #    cpu: "3"
@@ -142,7 +141,6 @@ spec:
           #   cpu: "2"
           #   memory: "1024Mi"
           # limits:
-          #   cpu: "2"
           #   memory: "1024Mi"
 
     kerberos:
