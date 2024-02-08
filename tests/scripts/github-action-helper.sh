@@ -19,7 +19,27 @@ set -xeEo pipefail
 #############
 # VARIABLES #
 #############
-: "${BLOCK:=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}' | head -1)}"
+
+function find_extra_block_dev() {
+  # shellcheck disable=SC2005 # redirect doesn't work with sudo, so use echo
+  echo "$(sudo lsblk)" >/dev/stderr # print lsblk output to stderr for debugging in case of future errors
+  # relevant lsblk --pairs example: (MOUNTPOINT identifies boot partition)(PKNAME is Parent dev ID)
+  # NAME="sda15" SIZE="106M" TYPE="part" MOUNTPOINT="/boot/efi" PKNAME="sda"
+  # NAME="sdb"   SIZE="75G"  TYPE="disk" MOUNTPOINT=""          PKNAME=""
+  # NAME="sdb1"  SIZE="75G"  TYPE="part" MOUNTPOINT="/mnt"      PKNAME="sdb"
+  boot_dev="$(sudo lsblk --noheading --list --output MOUNTPOINT,PKNAME | grep boot | awk '{print $2}')"
+  echo "  == find_extra_block_dev(): boot_dev='$boot_dev'" >/dev/stderr # debug in case of future errors
+  # --nodeps ignores partitions
+  extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | grep -v loop | grep -v "$boot_dev" | head -1)"
+  echo "  == find_extra_block_dev(): extra_dev='$extra_dev'" >/dev/stderr # debug in case of future errors
+  echo "$extra_dev" # output of function
+}
+
+: "${BLOCK:=$(find_extra_block_dev)}"
+# by definition, in this file, BLOCK should only contain the "sdX" portion of the block device name
+# some external scripts export BLOCK as the full "/dev/sdX" path, which this script must handle
+BLOCK="$(basename $BLOCK)"
+
 NETWORK_ERROR="connection reset by peer"
 SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
 INTERNAL_ERROR="INTERNAL_ERROR"
@@ -57,7 +77,7 @@ function prepare_loop_devices() {
 }
 
 function use_local_disk() {
-  BLOCK_DATA_PART=${BLOCK}1
+  BLOCK_DATA_PART="/dev/${BLOCK}1"
   sudo apt purge snapd -y
   sudo dmsetup version || true
   sudo swapoff --all --verbose
@@ -67,9 +87,9 @@ function use_local_disk() {
     sudo wipefs --all --force "$BLOCK_DATA_PART"
   else
     # it's the hosted runner!
-    sudo sgdisk --zap-all -- "${BLOCK}"
-    sudo dd if=/dev/zero of="${BLOCK}" bs=1M count=10 oflag=direct,dsync
-    sudo parted -s "${BLOCK}" mklabel gpt
+    sudo sgdisk --zap-all -- "/dev/${BLOCK}"
+    sudo dd if=/dev/zero of="/dev/${BLOCK}" bs=1M count=10 oflag=direct,dsync
+    sudo parted -s "/dev/${BLOCK}" mklabel gpt
   fi
   sudo lsblk
 }
@@ -81,7 +101,7 @@ function use_local_disk_for_integration_test() {
   sudo umount /mnt
   sudo sed -i.bak '/\/mnt/d' /etc/fstab
   # search for the device since it keeps changing between sda and sdb
-  PARTITION="${BLOCK}1"
+  PARTITION="/dev/${BLOCK}1"
   sudo wipefs --all --force "$PARTITION"
   sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
   sudo lsblk --bytes
@@ -90,8 +110,7 @@ function use_local_disk_for_integration_test() {
   # for more details see: https://github.com/rook/rook/issues/7405
   echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
   # for below, see: https://access.redhat.com/solutions/1465913
-  block_base="$(basename "${BLOCK}")"
-  echo "ACTION==\"add|change\", KERNEL==\"${block_base}\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
+  echo "ACTION==\"add|change\", KERNEL==\"${BLOCK}\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
   # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
   # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
   # during OSD provisioning.
@@ -99,31 +118,31 @@ function use_local_disk_for_integration_test() {
   sudo udevadm trigger || true
   time sudo udevadm settle || true
   sudo partprobe || true
-  sudo lsblk --noheadings --pairs "${BLOCK}" || true
-  sudo sgdisk --print "${BLOCK}" || true
-  sudo udevadm info --query=property "${BLOCK}" || true
+  sudo lsblk --noheadings --pairs "/dev/${BLOCK}" || true
+  sudo sgdisk --print "/dev/${BLOCK}" || true
+  sudo udevadm info --query=property "/dev/${BLOCK}" || true
   sudo lsblk --noheadings --pairs "${PARTITION}" || true
   journalctl -o short-precise --dmesg | tail -40 || true
   cat /etc/fstab || true
 }
 
 function create_partitions_for_osds() {
-  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --osd-count 2
+  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --osd-count 2
   sudo lsblk
 }
 
 function create_bluestore_partitions_and_pvcs() {
-  BLOCK_PART="$BLOCK"2
-  DB_PART="$BLOCK"1
-  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.db --osd-count 1
+  BLOCK_PART="/dev/$BLOCK"2
+  DB_PART="/dev/$BLOCK"1
+  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --bluestore-type block.db --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
 }
 
 function create_bluestore_partitions_and_pvcs_for_wal() {
-  BLOCK_PART="$BLOCK"3
-  DB_PART="$BLOCK"1
-  WAL_PART="$BLOCK"2
-  tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --bluestore-type block.wal --osd-count 1
+  BLOCK_PART="/dev/$BLOCK"3
+  DB_PART="/dev/$BLOCK"1
+  WAL_PART="/dev/$BLOCK"2
+  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --bluestore-type block.wal --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
 }
 
@@ -396,7 +415,8 @@ function create_LV_on_disk() {
 }
 
 function deploy_first_rook_cluster() {
-  BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}' | head -1)
+  BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+  export BLOCK
   create_cluster_prerequisites
   cd deploy/examples/
 
@@ -409,7 +429,8 @@ function deploy_first_rook_cluster() {
 }
 
 function deploy_second_rook_cluster() {
-  BLOCK=$(sudo lsblk --paths | awk '/14G/ || /64G/ || /75G/ {print $1}' | head -1)
+  BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+  export BLOCK
   cd deploy/examples/
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
