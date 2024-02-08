@@ -667,7 +667,6 @@ spec:
     - name: "172.17.4.201"
       resources:
         limits:
-          cpu: "2"
           memory: "4096Mi"
         requests:
           cpu: "2"

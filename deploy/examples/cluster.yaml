@@ -214,7 +214,6 @@ spec:
   #The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
   #   mgr:
   #     limits:
-  #       cpu: "500m"
   #       memory: "1024Mi"
   #     requests:
   #       cpu: "500m"

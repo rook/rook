@@ -92,28 +92,24 @@ spec:
           cpu: "500m"
           memory: "512Mi"
       limits:
-        cpu: "500m"
         memory: "512Mi"
     mgr:
       requests:
           cpu: "500m"
           memory: "512Mi"
       limits:
-        cpu: "500m"
         memory: "512Mi"
     mon:
       requests:
           cpu: "500m"
           memory: "512Mi"
       limits:
-        cpu: "500m"
         memory: "512Mi"
     osd:
       requests:
           cpu: "500m"
           memory: "512Mi"
       limits:
-        cpu: "500m"
         memory: "512Mi"
   storage:
     useAllNodes: true
@@ -142,6 +138,4 @@ spec:
         requests:
           memory: "512Mi"
           cpu: "1"
-        limits:
-          cpu: "2"
 ```
