@@ -992,6 +992,8 @@ func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, 
 		logger.Warningf("failed to execute command in openstack cli: %s: %s", commandLine, output)
 	}
 
+	logger.Infof("%s", output)
+
 	if expectNoError {
 
 		assert.NoError(t, err)
