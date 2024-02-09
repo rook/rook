@@ -377,7 +377,6 @@ spec:
   resources:
   - name: osd
     limits:
-      cpu: "500m"
       memory: "1024Mi"
     requests:
       cpu: "500m"

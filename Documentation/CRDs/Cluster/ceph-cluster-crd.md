@@ -32,8 +32,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
   Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v17` will be updated each time a new Quincy build is released.
   Using the `v17` tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
     * `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently `quincy` and `reef` are supported. Future versions such as `squid` (v19) would require this to be set to `true`. Should be set to `false` in production.
-  `imagePullPolicy`: The image pull policy for the ceph daemon pods. Possible values are `Always`, `IfNotPresent`, and `Never`.
-  The default is `IfNotPresent`.
+    * `imagePullPolicy`: The image pull policy for the ceph daemon pods. Possible values are `Always`, `IfNotPresent`, and `Never`. The default is `IfNotPresent`.
 * `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted. Following paths and any of their subpaths **must not be used**: `/etc/ceph`, `/rook` or `/var/log/ceph`.
     * **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
@@ -478,7 +477,7 @@ See the table in [OSD Configuration Settings](#osd-configuration-settings) to kn
 
 The following storage selection settings are specific to Ceph and do not apply to other backends. All variables are key-value pairs represented as strings.
 
-* `metadataDevice`: Name of a device or lvm to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph. Notably, `ceph-volume` will not use a device of the same device class (HDD, SSD, NVMe) as OSD devices for metadata, resulting in this failure.
+* `metadataDevice`: Name of a device, [partition](#limitations-of-metadata-device) or lvm to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data. Provisioning will fail if the user specifies a `metadataDevice` but that device is not used as a metadata device by Ceph. Notably, `ceph-volume` will not use a device of the same device class (HDD, SSD, NVMe) as OSD devices for metadata, resulting in this failure.
 * `databaseSizeMB`:  The size in MB of a bluestore database. Include quotes around the size.
 * `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
 * `deviceClass`: The [CRUSH device class](https://ceph.io/community/new-luminous-crush-device-classes/) to use for this selection of storage devices. (By default, if a device's class has not already been set, OSDs will automatically set a device's class to either `hdd`, `ssd`, or `nvme`  based on the hardware properties exposed by the Linux kernel.) These storage classes can then be used to select the devices backing a storage pool by specifying them as the value of [the pool spec's `deviceClass` field](../Block-Storage/ceph-block-pool-crd.md#spec).
@@ -497,6 +496,10 @@ Allowed configurations are:
 | lvm               | `metadataDevice` must be `""`, `osdsPerDevice` must be `1`, and `encryptedDevice` must be `false` | `metadata.name` must not be `metadata` or `wal` and `encrypted` must be `false` |
 | crypt             |                                                                                                   |                                                                                 |
 | mpath             |                                                                                                   |                                                                                 |
+
+#### Limitations of metadata device
+- If `metadataDevice` is specified in the global OSD configuration or in the node level OSD configuration, the metadata device will be shared between all OSDs on the same node. In other words, OSDs will be initialized by `lvm batch`. In this case, we can't use partition device.
+- If `metadataDevice` is specified in the device local configuration, we can use partition as metadata device. In other words, OSDs are initialized by `lvm prepare`.
 
 ### Annotations and Labels
 
@@ -668,7 +671,6 @@ spec:
     - name: "172.17.4.201"
       resources:
         limits:
-          cpu: "2"
           memory: "4096Mi"
         requests:
           cpu: "2"

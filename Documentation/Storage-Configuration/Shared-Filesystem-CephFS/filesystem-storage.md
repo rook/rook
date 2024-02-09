@@ -168,7 +168,6 @@ spec:
         imagePullPolicy: Always
         resources:
           limits:
-            cpu: 100m
             memory: 100Mi
         env:
         # Configuration reference: https://docs.docker.com/registry/configuration/

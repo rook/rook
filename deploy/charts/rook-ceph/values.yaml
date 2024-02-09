@@ -23,7 +23,6 @@ crds:
 # -- Pod resource requests & limits
 resources:
   limits:
-    cpu: 1500m
     memory: 512Mi
   requests:
     cpu: 200m
@@ -218,7 +217,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-resizer
       resource:
         requests:
@@ -226,7 +224,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-attacher
       resource:
         requests:
@@ -234,7 +231,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-snapshotter
       resource:
         requests:
@@ -242,15 +238,12 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-rbdplugin
       resource:
         requests:
           memory: 512Mi
-          cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
     - name : csi-omap-generator
       resource:
         requests:
@@ -258,7 +251,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
     - name : liveness-prometheus
       resource:
         requests:
@@ -266,7 +258,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
 
   # -- CEPH CSI RBD plugin resource requirement list
   # @default -- see values.yaml
@@ -278,7 +269,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
     - name : csi-rbdplugin
       resource:
         requests:
@@ -286,7 +276,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
     - name : liveness-prometheus
       resource:
         requests:
@@ -294,7 +283,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
 
   # -- CEPH CSI CephFS provisioner resource requirement list
   # @default -- see values.yaml
@@ -306,7 +294,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-resizer
       resource:
         requests:
@@ -314,7 +301,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-attacher
       resource:
         requests:
@@ -322,7 +308,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-snapshotter
       resource:
         requests:
@@ -330,7 +315,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-cephfsplugin
       resource:
         requests:
@@ -338,7 +322,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
     - name : liveness-prometheus
       resource:
         requests:
@@ -346,7 +329,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
 
   # -- CEPH CSI CephFS plugin resource requirement list
   # @default -- see values.yaml
@@ -358,7 +340,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
     - name : csi-cephfsplugin
       resource:
         requests:
@@ -366,7 +347,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
     - name : liveness-prometheus
       resource:
         requests:
@@ -374,7 +354,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
 
   # -- CEPH CSI NFS provisioner resource requirement list
   # @default -- see values.yaml
@@ -386,7 +365,6 @@ csi:
           cpu: 100m
         limits:
           memory: 256Mi
-          cpu: 200m
     - name : csi-nfsplugin
       resource:
         requests:
@@ -394,7 +372,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
     - name : csi-attacher
       resource:
         requests:
@@ -402,7 +379,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
 
   # -- CEPH CSI NFS plugin resource requirement list
   # @default -- see values.yaml
@@ -414,7 +390,6 @@ csi:
           cpu: 50m
         limits:
           memory: 256Mi
-          cpu: 100m
     - name : csi-nfsplugin
       resource:
         requests:
@@ -422,7 +397,6 @@ csi:
           cpu: 250m
         limits:
           memory: 1Gi
-          cpu: 500m
 
   # Set provisionerTolerations and provisionerNodeAffinity for provisioner pod.
   # The CSI provisioner would be best to start on the same nodes as other ceph daemons.
@@ -629,7 +603,6 @@ discover:
   # -- Add resources to discover daemon pods
   resources:
   #   - limits:
-  #       cpu: 500m
   #       memory: 512Mi
   #   - requests:
   #       cpu: 100m
