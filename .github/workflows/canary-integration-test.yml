@@ -13,11 +13,12 @@ on:
     paths-ignore:
       - "Documentation/**"
       - "design/**"
-  workflow_dispatch:
+  workflow_call:
     inputs:
       ceph-image:
         description: 'Ceph image for creating Ceph cluster'
         default: 'quay.io/ceph/ceph:v18'
+        type: string
 
 defaults:
   run:
@@ -1359,7 +1360,6 @@ jobs:
           fetch-depth: 0
 
       - name: consider debugging
-
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1386,7 +1386,6 @@ jobs:
           fetch-depth: 0
 
       - name: consider debugging
-
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1419,7 +1418,6 @@ jobs:
           fetch-depth: 0
 
       - name: consider debugging
-
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
@@ -1501,7 +1499,6 @@ jobs:
           fetch-depth: 0
 
       - name: consider debugging
-
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
