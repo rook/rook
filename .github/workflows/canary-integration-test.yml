@@ -18,6 +18,11 @@ on:
       ceph-image:
         description: 'Ceph image for creating Ceph cluster'
         default: 'quay.io/ceph/ceph:v18'
+  workflow_call:
+    inputs:
+      ceph-image:
+        description: 'Ceph image for creating Ceph cluster'
+        default: 'quay.io/ceph/ceph:v18'
 
 defaults:
   run:
