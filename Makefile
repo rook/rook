@@ -32,7 +32,7 @@ all: build
 
 # Controller-gen version
 # f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs
-CONTROLLER_GEN_VERSION=v0.11.3
+CONTROLLER_GEN_VERSION=v0.14.0
 
 # Set GOBIN
 ifeq (,$(shell go env GOBIN))

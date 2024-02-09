@@ -48,7 +48,11 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
+<<<<<<< HEAD
 GO_SUPPORTED_VERSIONS ?= 1.21|1.20
+=======
+GO_SUPPORTED_VERSIONS ?= 1.21|1.22
+>>>>>>> 43e0c1cdb (build: add support for go 1.22)
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
