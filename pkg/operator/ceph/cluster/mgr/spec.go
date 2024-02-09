@@ -74,7 +74,19 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 	if c.spec.Mgr.Count > 1 {
 		podSpec.Spec.Containers = append(podSpec.Spec.Containers, c.makeMgrSidecarContainer(mgrConfig))
 		matchLabels := controller.AppLabels(AppName, c.clusterInfo.Namespace)
-		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes, mon.CephSecretVolume())
+		// append ceph secret volume and some empty volumes needed by the mgr sidecar
+		podSpec.Spec.Volumes = append(podSpec.Spec.Volumes,
+			v1.Volume{
+				Name: "rook-config",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				}},
+			v1.Volume{
+				Name: "default-config-dir",
+				VolumeSource: v1.VolumeSource{
+					EmptyDir: &v1.EmptyDirVolumeSource{},
+				}},
+			mon.CephSecretVolume())
 
 		// Stretch the mgrs across hosts by default, or across a bigger failure domain for when zones are required like in case of stretched cluster
 		topologyKey := v1.LabelHostname
@@ -225,6 +237,18 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		{Name: "ROOK_CEPH_VERSION", Value: "ceph version " + c.clusterInfo.CephVersion.String()},
 	}
 
+	volumeMounts := []v1.VolumeMount{
+		{
+			MountPath: "/var/lib/rook",
+			Name:      "rook-config",
+		},
+		{
+			MountPath: "/etc/ceph",
+			Name:      "default-config-dir",
+		},
+	}
+	volumeMounts = append(volumeMounts, mon.CephSecretVolumeMount())
+
 	return v1.Container{
 		Args:            []string{"ceph", "mgr", "watch-active"},
 		Name:            "watch-active",
@@ -232,8 +256,8 @@ func (c *Cluster) makeMgrSidecarContainer(mgrConfig *mgrConfig) v1.Container {
 		ImagePullPolicy: controller.GetContainerImagePullPolicy(c.spec.CephVersion.ImagePullPolicy),
 		Env:             envVars,
 		Resources:       cephv1.GetMgrSidecarResources(c.spec.Resources),
-		SecurityContext: controller.PrivilegedContext(true),
-		VolumeMounts:    []v1.VolumeMount{mon.CephSecretVolumeMount()},
+		SecurityContext: controller.PodSecurityContext(),
+		VolumeMounts:    volumeMounts,
 	}
 }
 
