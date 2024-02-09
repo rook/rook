@@ -20,6 +20,17 @@ all: build
 # ====================================================================================
 # Build Options
 
+# Controller-gen version
+# f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs
+CONTROLLER_GEN_VERSION=v0.14.0
+
+# Set GOBIN
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
 # set the shell to bash in case some environments use sh
 SHELL := /bin/bash
 

@@ -1,0 +1,93 @@
+name: Builds
+on:
+  pull_request:
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  macos-build:
+    runs-on: macos-12
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.6.2
+
+      - name: build rook
+        run: |
+          GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
+
+      - name: validate build
+        run: tests/scripts/validate_modified_files.sh build
+
+      - name: run codegen
+        run: GOPATH=$(go env GOPATH) make codegen
+
+      - name: validate codegen
+        run: tests/scripts/validate_modified_files.sh codegen
+
+      - name: run mod check
+        run: GOPATH=$(go env GOPATH) make -j $(nproc) mod.check
+
+      - name: validate modcheck
+        run: tests/scripts/validate_modified_files.sh modcheck
+
+      - name: run crds-gen
+        run: GOPATH=$(go env GOPATH) make crds
+
+      - name: validate crds-gen
+        run: tests/scripts/validate_modified_files.sh crd
+
+      - name: run gen-rbac
+        run: GOPATH=$(go env GOPATH) make gen-rbac
+
+      - name: validate gen-rbac
+        run: tests/scripts/validate_modified_files.sh gen-rbac
+
+  linux-build-all:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.21","1.22"]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: setup golang ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@master
+        with:
+          platforms: all
+
+      - name: build.all rook with go ${{ matrix.go-version }}
+        run: |
+          tests/scripts/github-action-helper.sh build_rook_all
