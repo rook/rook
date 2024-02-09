@@ -397,12 +397,12 @@ jobs:
 
   # run default canary suite
   canary-tests:
-    uses: ./.github/workflows/canary-integration-test.yml@main
+    uses: ./.github/workflows/canary-integration-test.yml
     secrets: inherit
 
   # run canary suite with relevant ceph devel versions
   canary-tests-devel:
-    uses: ./.github/workflows/canary-integration-test.yml@main
+    uses: ./.github/workflows/canary-integration-test.yml
     strategy:
       matrix:
         ceph-image-tag:

@@ -1,28 +1,17 @@
 name: Canary integration tests
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - master
-      - release-*
-  pull_request:
-    branches:
-      - master
-      - release-*
-    paths-ignore:
-      - "Documentation/**"
-      - "design/**"
-  workflow_dispatch:
-    inputs:
-      ceph-image:
-        description: 'Ceph image for creating Ceph cluster'
-        default: 'quay.io/ceph/ceph:v18'
   workflow_call:
     inputs:
       ceph-image:
         description: 'Ceph image for creating Ceph cluster'
         default: 'quay.io/ceph/ceph:v18'
+    secrets:
+      USE_TMATE:
+        required: true
+      IBM_KP_SERVICE_INSTANCE_ID:
+        required: true
+      IBM_KP_SERVICE_API_KEY:
+        required: true
 
 defaults:
   run:
@@ -37,7 +26,6 @@ concurrency:
 jobs:
   canary:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -284,7 +272,6 @@ jobs:
 
   raw-disk:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -352,7 +339,6 @@ jobs:
 
   two-osds-in-device:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -398,7 +384,6 @@ jobs:
 
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -451,7 +436,6 @@ jobs:
 
   encryption:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -498,7 +482,6 @@ jobs:
 
   lvm:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -550,7 +533,6 @@ jobs:
 
   pvc:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -623,7 +605,6 @@ jobs:
 
   pvc-db:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -672,7 +653,6 @@ jobs:
 
   pvc-db-wal:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -724,7 +704,6 @@ jobs:
 
   encryption-pvc:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -789,7 +768,6 @@ jobs:
 
   encryption-pvc-db:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -840,7 +818,6 @@ jobs:
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -901,7 +878,6 @@ jobs:
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -984,7 +960,6 @@ jobs:
 
   encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1047,7 +1022,6 @@ jobs:
 
   lvm-pvc:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1101,7 +1075,6 @@ jobs:
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1356,7 +1329,6 @@ jobs:
 
   rgw-multisite-testing:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1384,7 +1356,6 @@ jobs:
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -1416,7 +1387,6 @@ jobs:
 
   multus-cluster-network:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1498,7 +1468,6 @@ jobs:
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
         uses: actions/checkout@v4
