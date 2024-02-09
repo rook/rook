@@ -370,23 +370,17 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.Clu
 
 // Create the pool
 func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, p *cephv1.NamedPoolSpec) error {
-	// Set the application name to rbd by default, but override for special pools
-	appName := poolApplicationNameRBD
-	if p.Name == "device_health_metrics" {
-		appName = "mgr_devicehealth"
-	} else if p.Name == ".mgr" {
-		appName = "mgr"
-	} else if p.Name == ".nfs" {
-		appName = "nfs"
+	// Set the application name to rbd by default, but override later for special pools
+	if p.Application == "" {
+		p.Application = poolApplicationNameRBD
 	}
-
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, clusterInfo.Namespace)
-	if err := cephclient.CreatePool(context, clusterInfo, clusterSpec, *p, appName); err != nil {
+	if err := cephclient.CreatePool(context, clusterInfo, clusterSpec, *p); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", p.Name)
 	}
 
-	if appName != poolApplicationNameRBD {
+	if p.Application != poolApplicationNameRBD {
 		return nil
 	}
 	logger.Infof("initializing pool %q for RBD use", p.Name)

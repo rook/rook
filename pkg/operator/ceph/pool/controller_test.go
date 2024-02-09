@@ -64,11 +64,7 @@ func TestCreatePool(t *testing.T) {
 					}
 					assert.Equal(t, "enable", args[3])
 					if args[5] != "rbd" {
-						if args[4] == "device_health_metrics" {
-							enabledMetricsApp = true
-							assert.Equal(t, "device_health_metrics", args[4])
-							assert.Equal(t, "mgr_devicehealth", args[5])
-						} else if args[4] == ".mgr" {
+						if args[4] == ".mgr" {
 							enabledMgrApp = true
 							assert.Equal(t, ".mgr", args[4])
 							assert.Equal(t, "mgr", args[5])
@@ -95,13 +91,6 @@ func TestCreatePool(t *testing.T) {
 		err := createPool(context, clusterInfo, clusterSpec, p)
 		assert.Nil(t, err)
 		assert.False(t, enabledMetricsApp)
-	})
-
-	t.Run("built-in metrics pool", func(t *testing.T) {
-		p.Name = "device_health_metrics"
-		err := createPool(context, clusterInfo, clusterSpec, p)
-		assert.Nil(t, err)
-		assert.True(t, enabledMetricsApp)
 	})
 
 	t.Run("built-in mgr pool", func(t *testing.T) {
@@ -131,11 +120,6 @@ func TestCephPoolName(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "metapool"}, Spec: cephv1.NamedBlockPoolSpec{Name: "metapool"}}
 		name := p.ToNamedPoolSpec().Name
 		assert.Equal(t, "metapool", name)
-	})
-	t.Run("override device metrics", func(t *testing.T) {
-		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "device-metrics"}, Spec: cephv1.NamedBlockPoolSpec{Name: "device_health_metrics"}}
-		name := p.ToNamedPoolSpec().Name
-		assert.Equal(t, "device_health_metrics", name)
 	})
 	t.Run("override mgr", func(t *testing.T) {
 		p := cephv1.CephBlockPool{ObjectMeta: metav1.ObjectMeta{Name: "default-mgr"}, Spec: cephv1.NamedBlockPoolSpec{Name: ".mgr"}}

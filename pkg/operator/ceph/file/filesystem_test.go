@@ -259,6 +259,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return "{}", nil
 			} else if reflect.DeepEqual(args[0:5], []string{"osd", "crush", "rule", "create-replicated", fsName + "-data1"}) {
 				return "", nil
+			} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "application"}) {
+				return "", nil
 			} else if reflect.DeepEqual(args[0:4], []string{"osd", "pool", "create", fsName + "-data1"}) {
 				*createDataPoolCount++
 				return "", nil

@@ -757,6 +757,10 @@ type PoolSpec struct {
 	// +optional
 	// +nullable
 	Quotas QuotaSpec `json:"quotas,omitempty"`
+
+	// The application name to set on the pool. Only expected to be set for rgw pools.
+	// +optional
+	Application string `json:"application"`
 }
 
 // NamedBlockPoolSpec allows a block pool to be created with a non-default name.
@@ -764,7 +768,7 @@ type PoolSpec struct {
 // allowed pool names that can be specified.
 type NamedBlockPoolSpec struct {
 	// The desired name of the pool if different from the CephBlockPool CR name.
-	// +kubebuilder:validation:Enum=device_health_metrics;.nfs;.mgr
+	// +kubebuilder:validation:Enum=.rgw.root;.nfs;.mgr
 	// +optional
 	Name string `json:"name,omitempty"`
 	// The core pool configuration
