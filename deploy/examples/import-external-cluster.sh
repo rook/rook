@@ -66,11 +66,17 @@ function checkEnvVars() {
     echo "Providing both ROOK_EXTERNAL_ADMIN_SECRET and ROOK_EXTERNAL_USER_SECRET is not supported, choose one only."
     exit 1
   fi
+  if [ -n "$KUBECONTEXT" ]; then
+    echo "Using $KUBECONTEXT as the context value for kubectl commands"
+    KUBECTL="kubectl --context=$KUBECONTEXT"
+  else
+    KUBECTL="kubectl"
+  fi
 }
 
 function createClusterNamespace() {
-  if ! kubectl get namespace "$NAMESPACE" &>/dev/null; then
-    kubectl \
+  if ! $KUBECTL get namespace "$NAMESPACE" &>/dev/null; then
+    $KUBECTL \
       create \
       namespace \
       "$NAMESPACE"
@@ -80,8 +86,8 @@ function createClusterNamespace() {
 }
 
 function createRadosNamespaceCR() {
-  if ! kubectl -n "$NAMESPACE" get CephBlockPoolRadosNamespace $RADOS_NAMESPACE &>/dev/null; then
-    cat <<eof | kubectl create -f -
+  if ! $KUBECTL -n "$NAMESPACE" get CephBlockPoolRadosNamespace $RADOS_NAMESPACE &>/dev/null; then
+    cat <<eof | $KUBECTL create -f -
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPoolRadosNamespace
 metadata:
@@ -97,8 +103,8 @@ eof
 }
 
 function createSubvolumeGroupCR() {
-  if ! kubectl -n "$NAMESPACE" get CephFilesystemSubVolumeGroup $SUBVOLUME_GROUP &>/dev/null; then
-    cat <<eof | kubectl create -f -
+  if ! $KUBECTL -n "$NAMESPACE" get CephFilesystemSubVolumeGroup $SUBVOLUME_GROUP &>/dev/null; then
+    cat <<eof | $KUBECTL create -f -
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephFilesystemSubVolumeGroup
@@ -117,19 +123,19 @@ eof
 function importClusterID() {
   if [ -n "$RADOS_NAMESPACE" ]; then
     createRadosNamespaceCR
-    timeout 20 sh -c "until [ $(kubectl -n "$NAMESPACE" get CephBlockPoolRadosNamespace/"$RADOS_NAMESPACE" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
-    CLUSTER_ID_RBD=$(kubectl -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE" -o jsonpath='{.status.info.clusterID}')
+    timeout 20 sh -c "until [ $($KUBECTL -n "$NAMESPACE" get CephBlockPoolRadosNamespace/"$RADOS_NAMESPACE" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
+    CLUSTER_ID_RBD=$($KUBECTL -n "$NAMESPACE" get cephblockpoolradosnamespace.ceph.rook.io/"$RADOS_NAMESPACE" -o jsonpath='{.status.info.clusterID}')
   fi
   if [ -n "$SUBVOLUME_GROUP" ]; then
     createSubvolumeGroupCR
-    timeout 20 sh -c "until [ $(kubectl -n "$NAMESPACE" get CephFilesystemSubVolumeGroup/"$SUBVOLUME_GROUP" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
-    CLUSTER_ID_CEPHFS=$(kubectl -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP" -o jsonpath='{.status.info.clusterID}')
+    timeout 20 sh -c "until [ $($KUBECTL -n "$NAMESPACE" get CephFilesystemSubVolumeGroup/"$SUBVOLUME_GROUP" -o jsonpath='{.status.phase}' | grep -c "Ready") -eq 1 ]; do echo "waiting for radosNamespace to get created" && sleep 1; done"
+    CLUSTER_ID_CEPHFS=$($KUBECTL -n "$NAMESPACE" get cephfilesystemsubvolumegroup.ceph.rook.io/"$SUBVOLUME_GROUP" -o jsonpath='{.status.info.clusterID}')
   fi
 }
 
 function importSecret() {
-  if ! kubectl -n "$NAMESPACE" get secret "$MON_SECRET_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get secret "$MON_SECRET_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       secret \
       generic \
@@ -147,8 +153,8 @@ function importSecret() {
 }
 
 function importConfigMap() {
-  if ! kubectl -n "$NAMESPACE" get configmap "$MON_ENDPOINT_CONFIGMAP_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get configmap "$MON_ENDPOINT_CONFIGMAP_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       configmap \
       "$MON_ENDPOINT_CONFIGMAP_NAME" \
@@ -161,8 +167,8 @@ function importConfigMap() {
 }
 
 function importCsiRBDNodeSecret() {
-  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_RBD_NODE_SECRET_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get secret "rook-$CSI_RBD_NODE_SECRET_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       secret \
       generic \
@@ -176,8 +182,8 @@ function importCsiRBDNodeSecret() {
 }
 
 function importCsiRBDProvisionerSecret() {
-  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get secret "rook-$CSI_RBD_PROVISIONER_SECRET_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       secret \
       generic \
@@ -191,8 +197,8 @@ function importCsiRBDProvisionerSecret() {
 }
 
 function importCsiCephFSNodeSecret() {
-  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_NODE_SECRET_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_NODE_SECRET_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       secret \
       generic \
@@ -206,8 +212,8 @@ function importCsiCephFSNodeSecret() {
 }
 
 function importCsiCephFSProvisionerSecret() {
-  if ! kubectl -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get secret "rook-$CSI_CEPHFS_PROVISIONER_SECRET_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       secret \
       generic \
@@ -221,8 +227,8 @@ function importCsiCephFSProvisionerSecret() {
 }
 
 function importRGWAdminOpsUser() {
-  if ! kubectl -n "$NAMESPACE" get secret "$RGW_ADMIN_OPS_USER_SECRET_NAME" &>/dev/null; then
-    kubectl -n "$NAMESPACE" \
+  if ! $KUBECTL -n "$NAMESPACE" get secret "$RGW_ADMIN_OPS_USER_SECRET_NAME" &>/dev/null; then
+    $KUBECTL -n "$NAMESPACE" \
       create \
       secret \
       generic \
@@ -236,8 +242,8 @@ function importRGWAdminOpsUser() {
 }
 
 function createECRBDStorageClass() {
-  if ! kubectl -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME &>/dev/null; then
-    cat <<eof | kubectl create -f -
+  if ! $KUBECTL -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME &>/dev/null; then
+    cat <<eof | $KUBECTL create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -265,8 +271,8 @@ eof
 }
 
 function createRBDStorageClass() {
-  if ! kubectl -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME &>/dev/null; then
-    cat <<eof | kubectl create -f -
+  if ! $KUBECTL -n "$NAMESPACE" get storageclass $RBD_STORAGE_CLASS_NAME &>/dev/null; then
+    cat <<eof | $KUBECTL create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -293,8 +299,8 @@ eof
 }
 
 function createCephFSStorageClass() {
-  if ! kubectl -n "$NAMESPACE" get storageclass $CEPHFS_STORAGE_CLASS_NAME &>/dev/null; then
-    cat <<eof | kubectl create -f -
+  if ! $KUBECTL -n "$NAMESPACE" get storageclass $CEPHFS_STORAGE_CLASS_NAME &>/dev/null; then
+    cat <<eof | $KUBECTL create -f -
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
