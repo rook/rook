@@ -1120,7 +1120,7 @@ func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelpe
 	t.Run("create AWS config file", func(t *testing.T) {
 		testInOpenStackClient(t, k8sh, namespace,
 			testProjectName, "alice", true,
-			"bash", "-c", "mkdir -p .aws && openstack ec2 credentials create -fjson | jq -r '\"[default]\\naws_access_key_id = \" + .access + \"\\naws_secret_access_key = \" + .secret + \"\\n\"' | tee .aws/credentials",
+			"bash", "-c", "mkdir -p .aws && openstack ec2 credentials create -fjson | jq -r '\"[default]\\naws_access_key_id = \" + .access + \"\\naws_secret_access_key = \" + .secret + \"\\n\"' | tee .aws/credentials && printf '[default]\nregion = idontcare' > .aws/config",
 		)
 	})
 
