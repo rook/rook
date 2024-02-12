@@ -726,9 +726,9 @@ func HostPathRequiresPrivileged() bool {
 // PodSecurityContext detects if the pod needs privileges to run
 func PodSecurityContext() *v1.SecurityContext {
 	privileged := HostPathRequiresPrivileged()
-
 	return &v1.SecurityContext{
-		Privileged: &privileged,
+		Privileged:               &privileged,
+		AllowPrivilegeEscalation: &privileged,
 	}
 }
 
