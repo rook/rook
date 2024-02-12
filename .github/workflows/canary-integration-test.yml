@@ -1,23 +1,11 @@
-name: Canary integration tests
+name: Reusable canary integration tests
 on:
-  push:
-    tags:
-      - v*
-    branches:
-      - master
-      - release-*
-  pull_request:
-    branches:
-      - master
-      - release-*
-    paths-ignore:
-      - "Documentation/**"
-      - "design/**"
+  # ONLY on.workflow_call ; call this from other files if needed
   workflow_call:
     inputs:
-      ceph-image:
-        description: 'Ceph image for creating Ceph cluster'
-        default: 'quay.io/ceph/ceph:v18'
+      ceph_images:
+        description: 'JSON list of Ceph images for creating Ceph cluster'
+        default: '["quay.io/ceph/ceph:v18"]'
         type: string
 
 defaults:
@@ -25,15 +13,13 @@ defaults:
     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
-# cancel the in-progress workflow when PR is refreshed.
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
-  cancel-in-progress: true
-
 jobs:
   canary:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -49,7 +35,7 @@ jobs:
         uses: ./.github/workflows/canary-test-config
 
       - name: set Ceph version in CephCluster manifest
-        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ matrix.ceph-image }}"
 
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
@@ -276,11 +262,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   raw-disk:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -344,11 +333,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   two-osds-in-device:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -390,11 +382,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   osd-with-metadata-partition-device:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -435,11 +430,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   osd-with-metadata-device:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -488,11 +486,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -535,11 +536,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   lvm:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -587,11 +591,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -660,11 +667,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: pvc
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   pvc-db:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -709,11 +719,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: pvc-db
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   pvc-db-wal:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -761,11 +774,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: pvc-db-wal
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -826,11 +842,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: encryption-pvc
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-db:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -877,11 +896,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: encryption-pvc-db
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-db-wal:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -938,11 +960,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: encryption-pvc-db-wal
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-kms-vault-token-auth:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1021,11 +1046,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: encryption-pvc-kms-vault-token-auth
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
-  encryption-pvc-kms-vault-k8s-auth:
+  encryption-pvc-kms-vault-k:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1084,11 +1112,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: encryption-pvc-kms-vault-k8s-auth
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   lvm-pvc:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1138,11 +1169,14 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: lvm-pvc
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   multi-cluster-mirroring:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1393,11 +1427,15 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: multi-cluster-mirroring
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          additional-namespace: rook-ceph-secondary
 
   rgw-multisite-testing:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1415,16 +1453,18 @@ jobs:
       - name: run RGW multisite test
         uses: ./.github/workflows/rgw-multisite-test
 
-      - name: upload test result
-        uses: actions/upload-artifact@v4
+      - name: collect common logs
         if: always()
+        uses: ./.github/workflows/collect-logs
         with:
-          name: rgw-multisite-testing
-          path: test
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -1445,17 +1485,14 @@ jobs:
           ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
           ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: upload test result
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: encryption-pvc-kms-ibm-kp
-          path: test
+          artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   multus-cluster-network:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1532,11 +1569,15 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: canary-multus
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
+          additional-namespace: kube-system
 
   csi-hostnetwork-disabled:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -1584,4 +1625,4 @@ jobs:
         if: always()
         uses: ./.github/workflows/collect-logs
         with:
-          name: csi-hostnetwork-disabled
+          name: ${{ github.job }}-${{ matrix.ceph-image }}

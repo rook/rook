@@ -73,9 +73,3 @@ runs:
         not_committed_msg="there are no changes to commit for RGW configuration period for CephObjectStore"
         tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_primary_object_zone}" 600
         tests/scripts/github-action-helper.sh wait_for_operator_log_message "${not_committed_msg} ${ns_name_secondary_object_zone}" 600
-
-    - name: collect common logs
-      if: always()
-      shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: |
-        tests/scripts/collect-logs.sh
