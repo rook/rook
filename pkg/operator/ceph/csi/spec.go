@@ -65,7 +65,6 @@ type Param struct {
 	ImagePullPolicy                          string
 	CSIClusterName                           string
 	CSIDomainLabels                          string
-	CrushLocationLabels                      string
 	GRPCTimeout                              time.Duration
 	CSIEnableMetadata                        bool
 	EnablePluginSelinuxHostMount             bool
@@ -80,7 +79,6 @@ type Param struct {
 	EnableCSIEncryption                      bool
 	EnableCSITopology                        bool
 	EnableLiveness                           bool
-	EnableReadAffinity                       bool
 	CephFSAttachRequired                     bool
 	RBDAttachRequired                        bool
 	NFSAttachRequired                        bool
@@ -138,7 +136,7 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.10.1"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.10.2"
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v3.6.3"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.4.2"

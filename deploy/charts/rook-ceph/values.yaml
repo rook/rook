@@ -469,7 +469,7 @@ csi:
 
   cephcsi:
     # -- Ceph CSI image
-    # @default -- `quay.io/cephcsi/cephcsi:v3.10.1`
+    # @default -- `quay.io/cephcsi/cephcsi:v3.10.2`
     image:
 
   registrar:
@@ -530,17 +530,6 @@ csi:
     # - kubernetes.io/hostname
     # - topology.kubernetes.io/zone
     # - topology.rook.io/rack
-
-  readAffinity:
-    # -- Enable read affinity for RBD volumes. Recommended to
-    # set to true if running kernel 5.8 or newer.
-    # @default -- `false`
-    enabled: false
-    # -- Define which node labels to use
-    # as CRUSH location. This should correspond to the values set
-    # in the CRUSH map.
-    # @default -- labels listed [here](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology)
-    crushLocationLabels:
 
   # -- Whether to skip any attach operation altogether for CephFS PVCs. See more details
   # [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).

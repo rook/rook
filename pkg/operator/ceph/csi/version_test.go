@@ -30,6 +30,7 @@ var (
 	testReleaseV391  = CephCSIVersion{3, 9, 1}
 	testreleasev310  = CephCSIVersion{3, 10, 0}
 	testReleaseV3101 = CephCSIVersion{3, 10, 1}
+	testReleaseV3102 = CephCSIVersion{3, 10, 2}
 
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
@@ -58,6 +59,10 @@ func TestIsAtLeast(t *testing.T) {
 
 	// Test for 3.10.1
 	ret = testReleaseV3101.isAtLeast(&testReleaseV3101)
+	assert.Equal(t, true, ret)
+
+	// Test for 3.10.2
+	ret = testReleaseV3102.isAtLeast(&testReleaseV3102)
 	assert.Equal(t, true, ret)
 
 }

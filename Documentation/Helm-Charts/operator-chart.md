@@ -59,7 +59,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.cephFSKernelMountOptions` | Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options. Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR | `nil` |
 | `csi.cephFSPluginUpdateStrategy` | CSI CephFS plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.cephFSPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI cephFS plugin daemonset update strategy. | `1` |
-| `csi.cephcsi.image` | Ceph CSI image | `quay.io/cephcsi/cephcsi:v3.10.1` |
+| `csi.cephcsi.image` | Ceph CSI image | `quay.io/cephcsi/cephcsi:v3.10.2` |
 | `csi.cephfsLivenessMetricsPort` | CSI CephFS driver metrics port | `9081` |
 | `csi.cephfsPodLabels` | Labels to add to the CSI CephFS Deployments and DaemonSets Pods | `nil` |
 | `csi.clusterName` | Cluster name identifier to set as metadata on the CephFS subvolume and RBD images. This will be useful in cases like for example, when two container orchestrator clusters (Kubernetes/OCP) are using a single ceph cluster | `nil` |
@@ -115,8 +115,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.rbdPluginUpdateStrategy` | CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.rbdPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI RBD plugin daemonset update strategy. | `1` |
 | `csi.rbdPodLabels` | Labels to add to the CSI RBD Deployments and DaemonSets Pods | `nil` |
-| `csi.readAffinity.crushLocationLabels` | Define which node labels to use as CRUSH location. This should correspond to the values set in the CRUSH map. | labels listed [here](../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) |
-| `csi.readAffinity.enabled` | Enable read affinity for RBD volumes. Recommended to set to true if running kernel 5.8 or newer. | `false` |
 | `csi.registrar.image` | Kubernetes CSI registrar image | `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1` |
 | `csi.resizer.image` | Kubernetes CSI resizer image | `registry.k8s.io/sig-storage/csi-resizer:v1.9.2` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |

@@ -2,6 +2,7 @@ name: Daily nightly jobs
 on:
   schedule:
     - cron: "0 0 * * *" # every day at midnight
+  workflow_dispatch: {}
 
 defaults:
   run:
@@ -394,64 +395,18 @@ jobs:
           name: ceph-upgrade-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  rgw-multisite-test-with-ceph-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
+  # run default canary suite
+  canary-tests:
+    uses: ./.github/workflows/canary-integration-test.yml
+    secrets: inherit
+
+  # run canary suite with relevant ceph devel versions
+  canary-tests-devel:
+    uses: ./.github/workflows/canary-integration-test.yml
     strategy:
       matrix:
         ceph-image-tag:
           ["latest-main-devel", "latest-quincy-devel", "latest-reef-devel"]
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: run RGW multisite test
-        uses: ./.github/workflows/rgw-multisite-test
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          ceph-image: quay.io/ceph/daemon-base:${{ matrix.ceph-image-tag }}
-
-      - name: upload test result
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: rgw-multisite-testing-ceph-${{ matrix.ceph-image-tag }}
-          path: test
-
-  encryption-pvc-kms-ibm-kp:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: run encryption KMS IBM Key Protect
-        uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
-        if: "env.IBM_KP_SERVICE_INSTANCE_ID != '' && env.IBM_KP_SERVICE_API_KEY != ''"
-        env:
-          IBM_KP_SERVICE_INSTANCE_ID: ${{ secrets.IBM_INSTANCE_ID }}
-          IBM_KP_SERVICE_API_KEY: ${{ secrets.IBM_SERVICE_API_KEY }}
-        with:
-          ibm-instance-id: ${{ secrets.IBM_INSTANCE_ID }}
-          ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: upload test result
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: encryption-pvc-kms-ibm-kp
-          path: test
+    with:
+      ceph-image: quay.io/ceph/daemon-base:${{ matrix.ceph-image-tag }}
+    secrets: inherit

@@ -127,7 +127,16 @@ export RGW_POOL_PREFIX=default
 
 1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
 
-2. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
+1. The import script in the next step uses the current kubeconfig context by
+   default. If you want to specify the kubernetes cluster to use without
+   changing the current context, you can specify the cluster name by setting
+   the KUBECONTEXT environment variable.
+
+   ```console
+   export KUBECONTEXT=hub-cluster
+   ```
+
+1. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
 
    !!! note
        If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove

@@ -190,7 +190,7 @@ data:
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
-  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.10.1"
+  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.10.2"
   # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1"
   # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.9.2"
   # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v3.6.3"
@@ -559,16 +559,6 @@ data:
   # NOTE: the value here serves as an example and needs to be
   # updated with node labels that define domains of interest
   # CSI_TOPOLOGY_DOMAIN_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
-
-  # Enable read affinity for RBD volumes. Recommended to
-  # set to true if running kernel 5.8 or newer.
-  CSI_ENABLE_READ_AFFINITY: "false"
-  # CRUSH location labels define which node labels to use
-  # as CRUSH location. This should correspond to the values set in
-  # the CRUSH map.
-  # Defaults to all the labels mentioned in
-  # https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/#osd-topology
-  # CSI_CRUSH_LOCATION_LABELS: "kubernetes.io/hostname,topology.kubernetes.io/zone,topology.rook.io/rack"
 
   # Whether to skip any attach operation altogether for CephCSI PVCs.
   # See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object).
