@@ -12,7 +12,7 @@ This guide will walk through the basic setup of a Ceph cluster and enable K8s ap
 
 ## Kubernetes Version
 
-Kubernetes versions **v1.23** through **v1.29** are supported.
+Kubernetes versions **v1.24** through **v1.29** are supported.
 
 ## CPU Architecture
 
