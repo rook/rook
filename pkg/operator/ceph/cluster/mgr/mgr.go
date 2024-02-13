@@ -42,19 +42,18 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
-	AppName                = "rook-ceph-mgr"
-	serviceAccountName     = "rook-ceph-mgr"
-	PrometheusModuleName   = "prometheus"
-	crashModuleName        = "crash"
-	PgautoscalerModuleName = "pg_autoscaler"
-	balancerModuleName     = "balancer"
-	balancerModuleMode     = "upmap"
-	mgrRoleLabelName       = "mgr_role"
-	activeMgrStatus        = "active"
-	standbyMgrStatus       = "standby"
-	monitoringPath         = "/etc/ceph-monitoring/"
-	serviceMonitorFile     = "service-monitor.yaml"
-	serviceMonitorPort     = "http-metrics"
+	AppName              = "rook-ceph-mgr"
+	serviceAccountName   = "rook-ceph-mgr"
+	PrometheusModuleName = "prometheus"
+	crashModuleName      = "crash"
+	balancerModuleName   = "balancer"
+	balancerModuleMode   = "upmap"
+	mgrRoleLabelName     = "mgr_role"
+	activeMgrStatus      = "active"
+	standbyMgrStatus     = "standby"
+	monitoringPath       = "/etc/ceph-monitoring/"
+	serviceMonitorFile   = "service-monitor.yaml"
+	serviceMonitorPort   = "http-metrics"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 	// DefaultMetricsPort prometheus exporter port
@@ -494,12 +493,6 @@ func (c *Cluster) configureMgrModules() error {
 
 			// Configure special settings for individual modules that are enabled
 			switch module.Name {
-			case PgautoscalerModuleName:
-				monStore := config.GetMonStore(c.context, c.clusterInfo)
-				err := monStore.Set("global", "mon_pg_warn_min_per_osd", "0")
-				if err != nil {
-					return errors.Wrap(err, "failed to set minimal number PGs per (in) osd before we warn the admin to")
-				}
 			case rookModuleName:
 				startModuleConfiguration("orchestrator modules", c.configureOrchestratorModules)
 			}
@@ -517,7 +510,7 @@ func (c *Cluster) configureMgrModules() error {
 func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool) {
 	minVersions := map[string]cephver.CephVersion{
 		// Put the modules here, example:
-		// pgautoscalerModuleName: {Major: 15},
+		// "moduleName": {Major: 15},
 	}
 	if ver, ok := minVersions[name]; ok {
 		// Check if the required min version is met

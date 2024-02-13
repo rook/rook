@@ -140,9 +140,6 @@ spec:
             storage: 10Gi
   mgr:
     count: 1
-    modules:
-      - name: pg_autoscaler
-        enabled: true
   dashboard:
     enabled: true
     ssl: false
