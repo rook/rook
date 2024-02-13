@@ -32,7 +32,7 @@ function find_extra_block_dev() {
   # --nodeps ignores partitions
   extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | grep -v loop | grep -v "$boot_dev" | head -1)"
   echo "  == find_extra_block_dev(): extra_dev='$extra_dev'" >/dev/stderr # debug in case of future errors
-  echo "$extra_dev" # output of function
+  echo "$extra_dev"                                                       # output of function
 }
 
 : "${BLOCK:=$(find_extra_block_dev)}"
@@ -705,8 +705,8 @@ function test_csi_nfs_workload {
 }
 
 function install_minikube_with_none_driver() {
-  CRICTL_VERSION="v1.28.0"
-  MINIKUBE_VERSION="v1.31.2"
+  CRICTL_VERSION="v1.29.0"
+  MINIKUBE_VERSION="v1.32.0"
 
   sudo apt update
   sudo apt install -y conntrack socat
@@ -714,16 +714,16 @@ function install_minikube_with_none_driver() {
   sudo dpkg -i minikube_latest_amd64.deb
   rm -f minikube_latest_amd64.deb
 
-  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.4/cri-dockerd_0.3.4.3-0.ubuntu-focal_amd64.deb
-  sudo dpkg -i cri-dockerd_0.3.4.3-0.ubuntu-focal_amd64.deb
-  rm -f cri-dockerd_0.3.4.3-0.ubuntu-focal_amd64.deb
+  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.9/cri-dockerd_0.3.9.3-0.ubuntu-focal_amd64.deb
+  sudo dpkg -i cri-dockerd_0.3.9.3-0.ubuntu-focal_amd64.deb
+  rm -f cri-dockerd_0.3.9.3-0.ubuntu-focal_amd64.deb
 
   wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz
   sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
   rm -f crictl-$CRICTL_VERSION-linux-amd64.tar.gz
   sudo sysctl fs.protected_regular=0
 
-  CNI_PLUGIN_VERSION="v1.3.0"
+  CNI_PLUGIN_VERSION="v1.4.0"
   CNI_PLUGIN_TAR="cni-plugins-linux-amd64-$CNI_PLUGIN_VERSION.tgz" # change arch if not on amd64
   CNI_PLUGIN_INSTALL_DIR="/opt/cni/bin"
 
