@@ -42,6 +42,36 @@ func TestNetworkCephSpecLegacy(t *testing.T) {
 	assert.Equal(t, expected, net)
 }
 
+func TestValidateNetworkSpec(t *testing.T) {
+	net := NetworkSpec{
+		HostNetwork: true,
+		Provider:    NetworkProviderDefault,
+	}
+	err := ValidateNetworkSpec("", net)
+	assert.NoError(t, err)
+
+	net = NetworkSpec{
+		HostNetwork: true,
+		Provider:    NetworkProviderHost,
+	}
+	err = ValidateNetworkSpec("", net)
+	assert.Error(t, err)
+
+	net = NetworkSpec{
+		HostNetwork: false,
+		Provider:    NetworkProviderDefault,
+	}
+	err = ValidateNetworkSpec("", net)
+	assert.NoError(t, err)
+
+	net = NetworkSpec{
+		HostNetwork: false,
+		Provider:    NetworkProviderHost,
+	}
+	err = ValidateNetworkSpec("", net)
+	assert.NoError(t, err)
+}
+
 func TestNetworkCephIsHostLegacy(t *testing.T) {
 	net := NetworkSpec{HostNetwork: true}
 

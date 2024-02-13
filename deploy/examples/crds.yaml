@@ -2280,6 +2280,8 @@ spec:
                   x-kubernetes-validations:
                     - message: at least one network selector must be specified when using multus
                       rule: '!has(self.provider) || (self.provider != ''multus'' || (self.provider == ''multus'' && size(self.selectors) > 0))'
+                    - message: the legacy hostNetwork setting can only be set if the network.provider is set to the empty string
+                      rule: '!has(self.hostNetwork) || self.hostNetwork == false || !has(self.provider) || self.provider == ""'
                 placement:
                   additionalProperties:
                     description: Placement is the placement for an object
