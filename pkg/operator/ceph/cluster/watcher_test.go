@@ -353,11 +353,11 @@ func TestHandleNodeFailure(t *testing.T) {
 	assert.NoError(t, err)
 
 	networkFenceRbd := &addonsv1alpha1.NetworkFence{}
-	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, rbdDriver), Namespace: cephCluster.Namespace}, networkFenceRbd)
+	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, rbdDriver, ns)}, networkFenceRbd)
 	assert.NoError(t, err)
 
 	networkFenceCephFs := &addonsv1alpha1.NetworkFence{}
-	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, cephfsDriver), Namespace: cephCluster.Namespace}, networkFenceCephFs)
+	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, cephfsDriver, ns)}, networkFenceCephFs)
 	assert.NoError(t, err)
 
 	networkFences := &addonsv1alpha1.NetworkFenceList{}
@@ -367,12 +367,10 @@ func TestHandleNodeFailure(t *testing.T) {
 
 	for _, fence := range networkFences.Items {
 		// Check if the resource is in the desired namespace
-		if fence.Namespace == cephCluster.Namespace {
-			if strings.Contains(fence.Name, rbdDriver) {
-				rbdCount++
-			} else if strings.Contains(fence.Name, cephfsDriver) {
-				cephFsCount++
-			}
+		if strings.Contains(fence.Name, rbdDriver) {
+			rbdCount++
+		} else if strings.Contains(fence.Name, cephfsDriver) {
+			cephFsCount++
 		}
 	}
 
@@ -431,10 +429,10 @@ func TestHandleNodeFailure(t *testing.T) {
 	err = c.handleNodeFailure(ctx, cephCluster, node)
 	assert.NoError(t, err)
 
-	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, rbdDriver), Namespace: cephCluster.Namespace}, networkFenceRbd)
+	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, rbdDriver, ns), Namespace: cephCluster.Namespace}, networkFenceRbd)
 	assert.Error(t, err, kerrors.IsNotFound(err))
 
-	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, cephfsDriver), Namespace: cephCluster.Namespace}, networkFenceCephFs)
+	err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, cephfsDriver, ns), Namespace: cephCluster.Namespace}, networkFenceCephFs)
 	assert.Error(t, err, kerrors.IsNotFound(err))
 
 }
@@ -487,8 +485,8 @@ func TestConcatenateWatcherIp(t *testing.T) {
 }
 
 func TestFenceResourceName(t *testing.T) {
-	FenceName := fenceResourceName("fakenode", "rbd")
-	assert.Equal(t, FenceName, "fakenode-rbd")
+	FenceName := fenceResourceName("fakenode", "rbd", "rook-ceph")
+	assert.Equal(t, FenceName, "fakenode-rbd-rook-ceph")
 }
 
 func TestOnDeviceCMUpdate(t *testing.T) {

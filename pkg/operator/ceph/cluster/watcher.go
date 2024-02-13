@@ -51,7 +51,10 @@ type clientCluster struct {
 	context   *clusterd.Context
 }
 
-var nodesCheckedForReconcile = sets.New[string]()
+var (
+	nodesCheckedForReconcile = sets.New[string]()
+	networkFenceLabel        = "cephClusterUID"
+)
 
 // drivers that supports fencing, used in naming networkFence object
 const (
@@ -511,8 +514,8 @@ func concatenateWatcherIp(address string) string {
 	return watcherIP
 }
 
-func fenceResourceName(nodeName, driver string) string {
-	return fmt.Sprintf("%s-%s", nodeName, driver)
+func fenceResourceName(nodeName, driver, namespace string) string {
+	return fmt.Sprintf("%s-%s-%s", nodeName, driver, namespace)
 }
 
 func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.PersistentVolume, node *corev1.Node, cluster *cephv1.CephCluster, cidr []string, driver string) error {
@@ -531,8 +534,10 @@ func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.Persis
 
 	networkFence := &addonsv1alpha1.NetworkFence{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      fenceResourceName(node.Name, driver),
-			Namespace: cluster.Namespace,
+			Name: fenceResourceName(node.Name, driver, cluster.Namespace),
+			Labels: map[string]string{
+				networkFenceLabel: string(cluster.GetUID()),
+			},
 		},
 		Spec: addonsv1alpha1.NetworkFenceSpec{
 			Driver:     pv.Spec.CSI.Driver,
@@ -560,7 +565,7 @@ func (c *clientCluster) createNetworkFence(ctx context.Context, pv corev1.Persis
 
 func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node corev1.Node, cluster *cephv1.CephCluster, driver string) error {
 	networkFence := &addonsv1alpha1.NetworkFence{}
-	err := c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver), Namespace: cluster.Namespace}, networkFence)
+	err := c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver, cluster.Namespace)}, networkFence)
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	} else if errors.IsNotFound(err) {
@@ -577,7 +582,7 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 	}
 
 	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
-		err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver), Namespace: cluster.Namespace}, networkFence)
+		err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver, cluster.Namespace)}, networkFence)
 		if err != nil && !errors.IsNotFound(err) {
 			return false, err
 		}
