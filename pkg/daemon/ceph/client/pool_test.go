@@ -249,6 +249,8 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 func TestUpdateFailureDomain(t *testing.T) {
 	var newCrushRule string
 	currentFailureDomain := "rack"
+	currentDeviceClass := "default"
+	testCrushRuleName := "test_rule"
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -256,7 +258,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 		if args[1] == "pool" {
 			if args[2] == "get" {
 				assert.Equal(t, "mypool", args[3])
-				return `{"crush_rule": "test_rule"}`, nil
+				return fmt.Sprintf(`{"crush_rule": "%s"}`, testCrushRuleName), nil
 			}
 			if args[2] == "set" {
 				assert.Equal(t, "mypool", args[3])
@@ -267,7 +269,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 		}
 		if args[1] == "crush" {
 			if args[2] == "rule" && args[3] == "dump" {
-				return fmt.Sprintf(`{"steps": [{"foo":"bar"},{"type":"%s"}]}`, currentFailureDomain), nil
+				return fmt.Sprintf(`{"steps": [{"item_name":"%s"},{"type":"%s"}]}`, currentDeviceClass, currentFailureDomain), nil
 			}
 			newCrushRule = "foo"
 			return "", nil
@@ -296,6 +298,7 @@ func TestUpdateFailureDomain(t *testing.T) {
 				Replicated:    cephv1.ReplicatedSpec{Size: 3},
 			},
 		}
+		testCrushRuleName = "mypool_rack"
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
 		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
