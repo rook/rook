@@ -438,8 +438,13 @@ func (c *clientCluster) fenceCephFSVolume(
 		return fmt.Errorf("failed to list watchers for cephfs pool/subvoumeName %s/%s. %v", cephFSPV.Spec.CSI.VolumeAttributes["pool"], cephFSPV.Spec.CSI.VolumeAttributes["subvolumeName"], err)
 	}
 	ips, err := cephFSMDSClientMarshal(buf, cephFSPV)
-	if err != nil || ips == nil {
+	if err != nil {
 		return fmt.Errorf("failed to unmarshal cephfs mds  output. %v", err)
+	}
+
+	if len(ips) == 0 {
+		logger.Infof("no active mds clients found for cephfs volume %q", cephFSPV.Name)
+		return nil
 	}
 
 	err = c.createNetworkFence(ctx, cephFSPV, node, cluster, ips, cephfsDriver)
