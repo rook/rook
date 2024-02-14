@@ -1076,6 +1076,25 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 }
 
 func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string, deleteStore bool, testContainerName string) {
+
+	t.Run("Delete swift endpoints in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"bash", "-c", "openstack endpoint list -f json | jq '.[] | select(.\"Service Name\" == \"swift\") | .ID' -r | xargs openstack endpoint delete",
+		)
+
+	})
+
+	t.Run("Delete service swift in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "service", "delete", "swift",
+		)
+
+	})
+
 	if deleteStore {
 
 		t.Run("delete object store", func(t *testing.T) {
@@ -1091,6 +1110,44 @@ func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName st
 		})
 
 	}
+
+	for _, value := range testuserdata {
+
+		if value["username"] == "admin" {
+			continue
+		}
+
+		// if value["role"] != "" {
+
+		// 	t.Run("assign test user "+value["username"]+" to project "+value["project"]+" in keystone", func(t *testing.T) {
+
+		// 		testInOpenStackClient(t, k8sh, namespace,
+		// 			"admin", "admin", true,
+		// 			"openstack", "role", "add", "--user", value["username"], "--project", value["project"], value["role"],
+		// 		)
+
+		// 	})
+
+		// }
+
+		t.Run("delete test user "+value["username"]+" in keystone", func(t *testing.T) {
+			testInOpenStackClient(t, k8sh, namespace,
+				"admin", "admin", true,
+				"openstack", "user", "delete", value["username"],
+			)
+		})
+
+	}
+
+	t.Run("delete test project in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "project", "delete", testProjectName,
+		)
+
+	})
+
 }
 
 func rgwServiceUri(storeName string, namespace string) string {
