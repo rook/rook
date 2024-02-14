@@ -1345,6 +1345,8 @@ class RadosJSON:
 
     def validate_rados_namespace(self):
         rbd_pool_name = self._arg_parser.rbd_data_pool_name
+        if self._arg_parser.rbd_metadata_ec_pool_name:
+            rbd_pool_name = self._arg_parser.rbd_metadata_ec_pool_name
         rados_namespace = self._arg_parser.rados_namespace
         if rados_namespace == "":
             return
