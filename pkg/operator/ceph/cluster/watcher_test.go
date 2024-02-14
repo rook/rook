@@ -179,7 +179,7 @@ func TestHandleNodeFailure(t *testing.T) {
 		case command == "ceph" && args[0] == "status":
 			return `{"entity":[{"addr": [{"addr": "10.244.0.12:0", "nonce":3247243972}]}], "client_metadata":{"root":"/"}}`, nil
 		case command == "ceph" && args[0] == "tell":
-			return `[{"entity":{"addr":{"addr":"10.244.0.12:0","nonce":3247243972}}, "client_metadata":{"root":"/"}}]`, nil
+			return `[{"entity":{"addr":{"addr":"10.244.0.12:0","nonce":3247243972}}, "client_metadata":{"root":"/volumes/csi/csi-vol-58469d41-f6c0-4720-b23a-0a0826b842ca"}}]`, nil
 
 		}
 		return "", errors.Errorf("unexpected rbd/ceph command %q", args)
@@ -250,6 +250,7 @@ func TestHandleNodeFailure(t *testing.T) {
 					VolumeHandle: "0001-0009-rook-ceph-0000000000000002-24862838-240d-4215-9183-abfc0e9e4001",
 					VolumeAttributes: map[string]string{
 						"fsName":        "myfs",
+						"subvolumePath": "/volumes/csi/csi-vol-58469d41-f6c0-4720-b23a-0a0826b842ca",
 						"subvolumeName": "csi-vol-58469d41-f6c0-4720-b23a-0a0826b842ca",
 					},
 				},
