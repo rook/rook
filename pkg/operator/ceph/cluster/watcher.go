@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"strings"
 	"time"
@@ -54,6 +55,7 @@ type clientCluster struct {
 var (
 	nodesCheckedForReconcile = sets.New[string]()
 	networkFenceLabel        = "cephClusterUID"
+	errActiveClientNotFound  = stderrors.New("active client not found")
 )
 
 // drivers that supports fencing, used in naming networkFence object
@@ -243,6 +245,10 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 				if err == nil {
 					break
 				}
+				// continue to fence next rbd volume if active client not found
+				if stderrors.Is(err, errActiveClientNotFound) {
+					continue
+				}
 
 				if i == len(rbdPVList)-1 {
 					return pkgerror.Wrapf(err, "failed to fence rbd volumes")
@@ -275,6 +281,10 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 				break
 			}
 
+			// continue to fence next rbd volume if active client not found
+			if stderrors.Is(err, errActiveClientNotFound) {
+				continue
+			}
 			if i == len(cephFSPVList)-1 {
 				return pkgerror.Wrapf(err, "failed to fence cephFS volumes")
 			}
@@ -401,11 +411,13 @@ func (c *clientCluster) fenceRbdImage(
 	if err != nil {
 		return pkgerror.Wrapf(err, "failed to unmarshal rbd status output")
 	}
-	if len(ips) != 0 {
-		err = c.createNetworkFence(ctx, rbdPV, node, cluster, ips, rbdDriver)
-		if err != nil {
-			return pkgerror.Wrapf(err, "failed to create network fence for node %q", node.Name)
-		}
+	if len(ips) == 0 {
+		logger.Infof("no active rbd clients found for rbd volume %q", rbdPV.Name)
+		return errActiveClientNotFound
+	}
+	err = c.createNetworkFence(ctx, rbdPV, node, cluster, ips, rbdDriver)
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to create network fence for node %q", node.Name)
 	}
 
 	return nil
@@ -444,7 +456,7 @@ func (c *clientCluster) fenceCephFSVolume(
 
 	if len(ips) == 0 {
 		logger.Infof("no active mds clients found for cephfs volume %q", cephFSPV.Name)
-		return nil
+		return errActiveClientNotFound
 	}
 
 	err = c.createNetworkFence(ctx, cephFSPV, node, cluster, ips, cephfsDriver)
