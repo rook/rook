@@ -18,8 +18,9 @@ package integration
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
 	"testing"
+
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -137,6 +138,12 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 
 func (h *KeystoneAuthSuite) TearDownSuite() {
 	CleanUpKeystoneInTestCluster(h.k8shelper, h.settings.Namespace)
+
+	// remove user secret
+	if _, err := h.k8shelper.KubectlWithTimeout(30, "delete", "-n", h.settings.Namespace, "secret", "usersecret"); err != nil {
+		logger.Warningf("Could not remove user secret: %s", err)
+	}
+
 	h.installer.UninstallRook()
 }
 
@@ -162,6 +169,16 @@ func (h *KeystoneAuthSuite) TestWithSwiftAndKeystone() {
 	runSwiftE2ETest(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
 	cleanUpTLSks(h)
 
+}
+
+func (h *KeystoneAuthSuite) TestWithS3AndKeystone() {
+	deleteStore := true
+	tls := false
+	swiftAndKeystone := true
+
+	objectStoreServicePrefix = objectStoreServicePrefixUniq
+	runS3E2ETest(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, swiftAndKeystone)
+	cleanUpTLSks(h)
 }
 
 func cleanUpTLSks(h *KeystoneAuthSuite) {
