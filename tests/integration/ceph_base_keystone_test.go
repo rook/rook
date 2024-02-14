@@ -85,7 +85,7 @@ func InstallKeystoneInTestCluster(shelper *utils.K8sHelper, namespace string) er
 
 	// install cert-manager using helm
 	// the helm installer uses the rook repository and cannot be used as is
-	// therefor parts of the installer are adapted here
+	// therefore parts of the installer are adapted here
 
 	// use helm path from environment (the same is used by the helm installer)
 	helmPath := os.Getenv("TEST_HELM_PATH")
@@ -254,7 +254,7 @@ spec:
       - command:
         - sleep
         - "7200"
-        image: registry.gitlab.com/yaook/images/debugbox/openstackclient:devel
+        image: nixery.dev/shell/awscli2/openstackclient/jq/busybox
         env:
         - name: REQUESTS_CA_BUNDLE
           value: /etc/ssl/keystone/ca.crt
@@ -1060,7 +1060,7 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "internal", ""+rgwServiceUri(storeName, namespace)+"/swift/v1",
 		)
 
 	})
@@ -1069,13 +1069,32 @@ func prepareE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHel
 
 		testInOpenStackClient(t, k8sh, namespace,
 			"admin", "admin", true,
-			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", "http://rook-ceph-rgw-default.keystoneauth-ns.svc/swift/v1",
+			"openstack", "endpoint", "create", "--region", "default", "--enable", "swift", "admin", ""+rgwServiceUri(storeName, namespace)+"/swift/v1",
 		)
 
 	})
 }
 
 func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName string, deleteStore bool, testContainerName string) {
+
+	t.Run("Delete swift endpoints in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"bash", "-c", "openstack endpoint list -f json | jq '.[] | select(.\"Service Name\" == \"swift\") | .ID' -r | xargs openstack endpoint delete",
+		)
+
+	})
+
+	t.Run("Delete service swift in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "service", "delete", "swift",
+		)
+
+	})
+
 	if deleteStore {
 
 		t.Run("delete object store", func(t *testing.T) {
@@ -1083,12 +1102,141 @@ func cleanupE2ETest(t *testing.T, k8sh *utils.K8sHelper, namespace, storeName st
 			deleteObjectStore(t, k8sh, namespace, storeName)
 			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
 
-			// remove user secret
-			if _, err := k8sh.KubectlWithTimeout(30, "delete", "-n", namespace, "secret", "usersecret"); err != nil {
-				logger.Warningf("Could not remove user secret: %s", err)
-			}
-
 		})
 
 	}
+
+	for _, value := range testuserdata {
+
+		if value["username"] == "admin" {
+			continue
+		}
+
+		t.Run("delete test user "+value["username"]+" in keystone", func(t *testing.T) {
+			testInOpenStackClient(t, k8sh, namespace,
+				"admin", "admin", true,
+				"openstack", "user", "delete", value["username"],
+			)
+		})
+
+	}
+
+	t.Run("delete test project in keystone", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			"admin", "admin", true,
+			"openstack", "project", "delete", testProjectName,
+		)
+
+	})
+
+}
+
+func rgwServiceUri(storeName string, namespace string) string {
+	return "http://" + RgwServiceName(storeName) + "." + namespace + ".svc"
+}
+
+func runS3E2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
+	andDeleting := ""
+	if deleteStore {
+		andDeleting = "and deleting"
+	}
+	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
+
+	testContainerName := "test-container"
+
+	prepareE2ETest(t, helper, k8sh, installer, namespace, storeName, replicaSize, deleteStore, enableTLS, swiftAndKeystone, testContainerName)
+
+	t.Run("create container (with user being a member)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"openstack", "container", "create", testContainerName,
+		)
+
+	})
+
+	t.Run("create AWS config file", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "mkdir -p .aws && openstack ec2 credentials create -fjson | jq -r '\"[default]\\naws_access_key_id = \" + .access + \"\\naws_secret_access_key = \" + .secret + \"\\n\"' | tee .aws/credentials && printf '[default]\nregion = idontcare' > .aws/config",
+		)
+	})
+
+	t.Run("List bucket with S3 with aws debug", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --debug --endpoint-url=http://"+RgwServiceName(storeName)+"."+namespace+".svc s3api list-buckets",
+		)
+
+	})
+
+	t.Run("List bucket with S3", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3api list-buckets | jq '.Buckets | .[].Name' -r | grep "+testContainerName,
+		)
+
+	})
+
+	t.Run("List file with S3 created by OS", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "touch testfile2")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"openstack", "object", "create", ""+testContainerName+"", "testfile2")
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 ls s3://"+testContainerName+"| grep testfile2",
+		)
+
+	})
+
+	t.Run("Upload test file using S3", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "echo test-content > /tmp/testfile",
+		)
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 cp /tmp/testfile s3://"+testContainerName+"/testfile",
+		)
+
+	})
+
+	t.Run("save testfile object from container to local disk", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 cp s3://"+testContainerName+"/testfile /tmp/testfile.saved")
+	})
+
+	t.Run("check testfile", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "diff /tmp/testfile /tmp/testfile.saved")
+	})
+
+	t.Run("delete object in container", func(t *testing.T) {
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 rm s3://"+testContainerName+"/testfile")
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"bash", "-c", "aws --endpoint-url="+rgwServiceUri(storeName, namespace)+" s3 rm s3://"+testContainerName+"/testfile2")
+	})
+
+	t.Run("delete container (admin-user)", func(t *testing.T) {
+
+		testInOpenStackClient(t, k8sh, namespace,
+			testProjectName, "alice", true,
+			"openstack", "container", "delete", testContainerName,
+		)
+	})
+
+	cleanupE2ETest(t, k8sh, namespace, storeName, deleteStore, testContainerName)
 }
