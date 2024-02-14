@@ -419,7 +419,7 @@ func (c *clientCluster) fenceCephFSVolume(
 
 	status, err := cephclient.StatusWithUser(c.context, clusterInfo)
 	if err != nil {
-		return fmt.Errorf("failed to get ceph status for check active mds. %v", err)
+		return pkgerror.Wrapf(err, "failed to get ceph status for check active mds")
 	}
 
 	var activeMDS string
@@ -439,7 +439,7 @@ func (c *clientCluster) fenceCephFSVolume(
 	}
 	ips, err := cephFSMDSClientMarshal(buf, cephFSPV)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshal cephfs mds  output. %v", err)
+		return pkgerror.Wrapf(err, "failed to unmarshal cephfs mds output")
 	}
 
 	if len(ips) == 0 {
@@ -449,7 +449,7 @@ func (c *clientCluster) fenceCephFSVolume(
 
 	err = c.createNetworkFence(ctx, cephFSPV, node, cluster, ips, cephfsDriver)
 	if err != nil {
-		return fmt.Errorf("failed to create network fence for node %q. %v", node.Name, err)
+		return pkgerror.Wrapf(err, "failed to create network fence for node %q", node.Name)
 	}
 
 	return nil
