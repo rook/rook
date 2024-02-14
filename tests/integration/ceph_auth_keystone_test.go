@@ -116,6 +116,12 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 
 func (h *KeystoneAuthSuite) TearDownSuite() {
 	CleanUpKeystoneInTestCluster(h.k8shelper, h.settings.Namespace)
+
+	// remove user secret
+	if _, err := h.k8shelper.KubectlWithTimeout(30, "delete", "-n", h.settings.Namespace, "secret", "usersecret"); err != nil {
+		logger.Warningf("Could not remove user secret: %s", err)
+	}
+
 	h.installer.UninstallRook()
 }
 
