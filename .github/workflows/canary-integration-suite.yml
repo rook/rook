@@ -1,0 +1,32 @@
+name: Canary integration tests
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+      - release-*
+  pull_request:
+    branches:
+      - master
+      - release-*
+    paths-ignore:
+      - "Documentation/**"
+      - "design/**"
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  canary-tests:
+    uses: ./.github/workflows/canary-integration-test.yml
+    with:
+      ceph_images: '["quay.io/ceph/ceph:v18"]'
+    secrets: inherit

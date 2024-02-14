@@ -5,17 +5,37 @@ inputs:
   name:
     description: Name to use for the workflow
     required: true
+  additional-namespace:
+    description: Additional namespace to collect
+    required: false
 
 runs:
   using: "composite"
   steps:
+    - name: sanitize input name
+      id: sanitize
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        raw="${{ inputs.name }}"
+        no_colon="${raw//:/-}"
+        no_slash="${no_colon////-}"
+        # echo to $GITHUB_OUTPUT doesn't work in composite steps:
+        # https://github.com/actions/runner/issues/2009#issuecomment-1793565031
+        echo "ARTIFACT_NAME=${no_slash}" >> $GITHUB_ENV
+
     - name: collect common logs
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        tests/scripts/collect-logs.sh ${{ inputs.name }}
+        export ADDITIONAL_NAMESPACE="${{ inputs.additional-namespace }}"
+        tests/scripts/collect-logs.sh
+
+    - name: log artifact name
+      shell: bash --noprofile --norc -eo pipefail {0}
+      run: |
+        echo ${{ env.ARTIFACT_NAME }}
 
     - name: Upload canary test result
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ inputs.name }}
+        name: ${{ env.ARTIFACT_NAME }}
         path: test

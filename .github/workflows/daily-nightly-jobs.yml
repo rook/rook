@@ -395,18 +395,8 @@ jobs:
           name: ceph-upgrade-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  # run default canary suite
   canary-tests:
     uses: ./.github/workflows/canary-integration-test.yml
-    secrets: inherit
-
-  # run canary suite with relevant ceph devel versions
-  canary-tests-devel:
-    uses: ./.github/workflows/canary-integration-test.yml
-    strategy:
-      matrix:
-        ceph-image-tag:
-          ["latest-main-devel", "latest-quincy-devel", "latest-reef-devel"]
     with:
-      ceph-image: quay.io/ceph/daemon-base:${{ matrix.ceph-image-tag }}
+      ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-quincy-devel", "quay.io/ceph/daemon-base:latest-reef-devel"]'
     secrets: inherit

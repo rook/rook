@@ -7,6 +7,9 @@ inputs:
   ibm-service-api-key:
     description: IBM_KP_SERVICE_API_KEY from the calling workflow
     required: true
+  artifact-name:
+    description: the name of the artifact where logs will be stored
+    required: true
 
 runs:
   using: "composite"
@@ -75,7 +78,7 @@ runs:
       if: always()
       uses: ./.github/workflows/collect-logs
       with:
-        name: encryption-pvc-kms-ibm-kp
+        name: ${{ inputs.artifact-name }}
 
     - name: teardown cluster so that keys are removed from the KMS
       shell: bash --noprofile --norc -eo pipefail -x {0}
