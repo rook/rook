@@ -120,7 +120,7 @@ var (
 	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
 
-	//driver names
+	// driver names
 	CephFSDriverName string
 	NFSDriverName    string
 	RBDDriverName    string
@@ -174,6 +174,8 @@ var (
 	NFSProvisionerDepTemplatePath string
 	//go:embed template/nfs/csi-nfsplugin-holder.yaml
 	NFSPluginHolderTemplatePath string
+
+	holderEnabled bool
 )
 
 const (
@@ -278,6 +280,10 @@ const (
 
 func CSIEnabled() bool {
 	return EnableRBD || EnableCephFS || EnableNFS
+}
+
+func IsHolderEnabled() bool {
+	return holderEnabled
 }
 
 func validateCSIParam() error {
@@ -411,7 +417,7 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		})
 	}
 
-	holderEnabled := !CSIParam.EnableCSIHostNetwork
+	holderEnabled = !CSIParam.EnableCSIHostNetwork
 
 	for i := range r.clustersWithHolder {
 		if r.clustersWithHolder[i].cluster.Spec.Network.IsMultus() {
@@ -769,7 +775,6 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 		CSIParam.CSIPluginImage,
 		corev1.PullPolicy(CSIParam.ImagePullPolicy),
 	)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to set up ceph CSI version job")
 	}
@@ -910,6 +915,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 			},
 		},
 	}
+
 	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, c.cluster.Namespace)
 	if driver.name == RBDDriverShortName {
 		clusterConfigEntry.RBD.NetNamespaceFilePath = netNamespaceFilePath
@@ -920,6 +926,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 	if driver.name == NFSDriverShortName {
 		clusterConfigEntry.NFS.NetNamespaceFilePath = netNamespaceFilePath
 	}
+
 	// Save the path of the network namespace file for ceph-csi to use
 	err = SaveClusterConfig(r.context.Clientset, c.cluster.Namespace, c.clusterInfo, clusterConfigEntry)
 	if err != nil {

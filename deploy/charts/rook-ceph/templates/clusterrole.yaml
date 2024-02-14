@@ -20,7 +20,7 @@ rules:
     verbs: ["create"]
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["networkfences"]
-    verbs: ["create", "get", "update", "delete", "watch", "list"]
+    verbs: ["create", "get", "update", "delete", "watch", "list", "deletecollection"]
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["get"]

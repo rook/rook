@@ -19,7 +19,7 @@ runs:
     - name: Setup Minikube
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: |
-        tests/scripts/github-action-helper.sh install_minikube_with_none_driver v1.29.0
+        tests/scripts/github-action-helper.sh install_minikube_with_none_driver v1.29.1
 
     - name: install deps
       shell: bash --noprofile --norc -eo pipefail -x {0}

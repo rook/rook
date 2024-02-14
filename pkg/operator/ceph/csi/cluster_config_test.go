@@ -18,11 +18,13 @@ package csi
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
 	"github.com/stretchr/testify/assert"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
@@ -84,6 +86,16 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			Monitors: []string{"10.1.1.1:5000", "10.1.1.2:5000", "10.1.1.3:5000"},
 			CephFS: cephcsi.CephFS{
 				SubvolumeGroup: "my-group",
+			},
+		},
+	}
+	csiClusterConfigEntry4 := CSIClusterConfigEntry{
+		Namespace: "rook-ceph-4",
+		ClusterInfo: cephcsi.ClusterInfo{
+			Monitors: []string{"10.1.1.1:5000"},
+			ReadAffinity: cephcsi.ReadAffinity{
+				Enabled:             true,
+				CrushLocationLabels: strings.Split(topology.GetDefaultTopologyLabels(), ","),
 			},
 		},
 	}
@@ -376,6 +388,14 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.NoError(t, err)
 		compareJSON(t, `[{"clusterID":"rook-ceph-1","monitors":["1.2.3.4:5000"],"rbd":{"netNamespaceFilePath":"/var/run/netns/rook-ceph-1","radosNamespace":"rook-ceph-1"},"namespace":"rook-ceph-1"}]`, s)
 	})
+
+	t.Run("test crush location labels are set", func(t *testing.T) {
+		s, err = updateCsiClusterConfig("[]", "rook-ceph-4", &csiClusterConfigEntry4)
+		assert.NoError(t, err)
+		compareJSON(t, `[{"clusterID":"rook-ceph-4","monitors":["10.1.1.1:5000"],"readAffinity": {"enabled": true, "crushLocationLabels":["kubernetes.io/hostname",
+		"topology.kubernetes.io/region","topology.kubernetes.io/zone","topology.rook.io/chassis","topology.rook.io/rack","topology.rook.io/row","topology.rook.io/pdu",
+		"topology.rook.io/pod","topology.rook.io/room","topology.rook.io/datacenter"]},"namespace":"rook-ceph-4"}]`, s)
+	})
 }
 
 func contains(src, dest []string) bool {
@@ -606,4 +626,233 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 			assert.Equal(t, expectedString, got)
 		})
 	}
+}
+
+func TestUpdateNetNamespaceFilePath(t *testing.T) {
+	type args struct {
+		clusterConfig csiClusterConfig
+		clusterKey    string
+		holderEnabled bool
+	}
+
+	tests := []struct {
+		name string
+		args args
+		want csiClusterConfig
+	}{
+		{
+			name: "empty",
+			args: args{
+				clusterKey:    "rook-ceph",
+				holderEnabled: false,
+				clusterConfig: []CSIClusterConfigEntry{},
+			},
+			want: []CSIClusterConfigEntry{},
+		},
+		{
+			name: "holder enabled",
+			args: args{
+				clusterKey:    "rook-ceph",
+				holderEnabled: true,
+				clusterConfig: []CSIClusterConfigEntry{
+					{
+						Namespace: "rook-ceph",
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "rook-ceph",
+							Monitors:  []string{"1.1.1.1"},
+							CephFS: cephcsi.CephFS{
+								NetNamespaceFilePath: "cephfs.net.ns",
+							},
+							RBD: cephcsi.RBD{
+								NetNamespaceFilePath: "rbd.net.ns",
+							},
+							NFS: cephcsi.NFS{
+								NetNamespaceFilePath: "nfs.net.ns",
+							},
+						},
+					},
+					{
+						Namespace: "rook-ceph",
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "cluster-1",
+							Monitors:  []string{"1.1.1.1"},
+							CephFS: cephcsi.CephFS{
+								SubvolumeGroup: "csi",
+							},
+						},
+					},
+				},
+			},
+			want: []CSIClusterConfigEntry{
+				{
+					Namespace: "rook-ceph",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+						CephFS: cephcsi.CephFS{
+							NetNamespaceFilePath: "cephfs.net.ns",
+						},
+						RBD: cephcsi.RBD{
+							NetNamespaceFilePath: "rbd.net.ns",
+						},
+						NFS: cephcsi.NFS{
+							NetNamespaceFilePath: "nfs.net.ns",
+						},
+					},
+				},
+				{
+					Namespace: "rook-ceph",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "cluster-1",
+						Monitors:  []string{"1.1.1.1"},
+						CephFS: cephcsi.CephFS{
+							SubvolumeGroup:       "csi",
+							NetNamespaceFilePath: "cephfs.net.ns",
+						},
+						RBD: cephcsi.RBD{
+							NetNamespaceFilePath: "rbd.net.ns",
+						},
+						NFS: cephcsi.NFS{
+							NetNamespaceFilePath: "nfs.net.ns",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "holder disabled",
+			args: args{
+				clusterKey:    "rook-ceph",
+				holderEnabled: false,
+				clusterConfig: []CSIClusterConfigEntry{
+					{
+						Namespace: "rook-ceph",
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "rook-ceph",
+							Monitors:  []string{"1.1.1.1"},
+							CephFS: cephcsi.CephFS{
+								NetNamespaceFilePath: "cephfs.net.ns",
+							},
+							RBD: cephcsi.RBD{
+								NetNamespaceFilePath: "rbd.net.ns",
+							},
+							NFS: cephcsi.NFS{
+								NetNamespaceFilePath: "nfs.net.ns",
+							},
+						},
+					},
+					{
+						Namespace: "rook-ceph",
+						ClusterInfo: cephcsi.ClusterInfo{
+							ClusterID: "cluster-1",
+							Monitors:  []string{"1.1.1.1"},
+							RBD: cephcsi.RBD{
+								RadosNamespace: "group-1",
+							},
+						},
+					},
+				},
+			},
+			want: []CSIClusterConfigEntry{
+				{
+					Namespace: "rook-ceph",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "rook-ceph",
+						Monitors:  []string{"1.1.1.1"},
+						CephFS: cephcsi.CephFS{
+							NetNamespaceFilePath: "",
+						},
+						RBD: cephcsi.RBD{
+							NetNamespaceFilePath: "",
+						},
+						NFS: cephcsi.NFS{
+							NetNamespaceFilePath: "",
+						},
+					},
+				},
+				{
+					Namespace: "rook-ceph",
+					ClusterInfo: cephcsi.ClusterInfo{
+						ClusterID: "cluster-1",
+						Monitors:  []string{"1.1.1.1"},
+						CephFS: cephcsi.CephFS{
+							NetNamespaceFilePath: "",
+						},
+						RBD: cephcsi.RBD{
+							NetNamespaceFilePath: "",
+							RadosNamespace:       "group-1",
+						},
+						NFS: cephcsi.NFS{
+							NetNamespaceFilePath: "",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	cephfsNsFilePath := "cephfs.net.ns"
+	rbdNsFilePath := "rbd.net.ns"
+	nfsNsFilePath := "nfs.net.ns"
+
+	csiConfigMap := csiClusterConfig{
+		{
+			Namespace: "rook-ceph",
+			ClusterInfo: cephcsi.ClusterInfo{
+				ClusterID: "rook-ceph",
+				CephFS: cephcsi.CephFS{
+					NetNamespaceFilePath: cephfsNsFilePath,
+				},
+				RBD: cephcsi.RBD{
+					NetNamespaceFilePath: rbdNsFilePath,
+				},
+				NFS: cephcsi.NFS{
+					NetNamespaceFilePath: nfsNsFilePath,
+				},
+			},
+		},
+		{
+			Namespace: "rook-ceph",
+			ClusterInfo: cephcsi.ClusterInfo{
+				ClusterID: "svg",
+			},
+		},
+		{
+			Namespace: "default",
+			ClusterInfo: cephcsi.ClusterInfo{
+				ClusterID: "rook-ceph",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			holderEnabled = tt.args.holderEnabled
+			updateNetNamespaceFilePath("rook-ceph", tt.args.clusterConfig)
+			assert.True(t, reflect.DeepEqual(tt.args.clusterConfig, tt.want))
+		})
+	}
+
+	t.Run("Holder enabled and disabled later", func(t *testing.T) {
+		holderEnabled = true
+		updateNetNamespaceFilePath("rook-ceph", csiConfigMap)
+		for _, c := range csiConfigMap {
+			if c.Namespace == "rook-ceph" {
+				assert.Equal(t, cephfsNsFilePath, c.CephFS.NetNamespaceFilePath)
+				assert.Equal(t, rbdNsFilePath, c.RBD.NetNamespaceFilePath)
+				assert.Equal(t, nfsNsFilePath, c.NFS.NetNamespaceFilePath)
+			}
+		}
+
+		holderEnabled = false
+		updateNetNamespaceFilePath("rook-ceph", csiConfigMap)
+		for _, c := range csiConfigMap {
+			if c.Namespace == "rook-ceph" {
+				assert.Equal(t, "", c.CephFS.NetNamespaceFilePath)
+				assert.Equal(t, "", c.RBD.NetNamespaceFilePath)
+				assert.Equal(t, "", c.NFS.NetNamespaceFilePath)
+
+			}
+		}
+	})
 }
