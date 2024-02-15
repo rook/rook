@@ -10300,6 +10300,18 @@ QuotaSpec
 <p>The quota settings</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>application</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The application name to set on the pool. Only expected to be set for rgw pools.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.PriorityClassNamesSpec">PriorityClassNamesSpec

@@ -10,7 +10,6 @@ metadata:
 spec:
   # The required pool name with underscores cannot be specified as a K8s resource name, thus we override
   # the pool name created in Ceph with this name property.
-  # The ".mgr" pool is called "device_health_metrics" in Ceph versions v16.x.y and below.
   name: .mgr
   failureDomain: host
   replicated:

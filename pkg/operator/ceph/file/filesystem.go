@@ -33,6 +33,7 @@ const (
 	defaultCSISubvolumeGroup = "csi"
 	dataPoolSuffix           = "data"
 	metaDataPoolSuffix       = "metadata"
+	cephfsApplication        = "cephfs"
 )
 
 // Filesystem represents an instance of a Ceph filesystem (CephFS)
@@ -171,7 +172,8 @@ func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *
 		Name:     generateMetaDataPoolName(f),
 		PoolSpec: spec.MetadataPool,
 	}
-	err := cephclient.CreatePool(context, clusterInfo, clusterSpec, metadataPool, "")
+	metadataPool.Application = cephfsApplication
+	err := cephclient.CreatePool(context, clusterInfo, clusterSpec, metadataPool)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPool.Name)
 	}
@@ -179,7 +181,8 @@ func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, dataPool := range spec.DataPools {
 		dataPool.Name = dataPoolNames[i]
-		err := cephclient.CreatePool(context, clusterInfo, clusterSpec, dataPool, "")
+		dataPool.Application = cephfsApplication
+		err := cephclient.CreatePool(context, clusterInfo, clusterSpec, dataPool)
 		if err != nil {
 			return errors.Wrapf(err, "failed to update datapool  %q", dataPool.Name)
 		}
@@ -237,12 +240,13 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		reversedPoolMap[value] = key
 	}
 
+	spec.MetadataPool.Application = cephfsApplication
 	metadataPool := cephv1.NamedPoolSpec{
 		Name:     generateMetaDataPoolName(f),
 		PoolSpec: spec.MetadataPool,
 	}
 	if _, poolFound := reversedPoolMap[metadataPool.Name]; !poolFound {
-		err = cephclient.CreatePool(context, clusterInfo, clusterSpec, metadataPool, "")
+		err = cephclient.CreatePool(context, clusterInfo, clusterSpec, metadataPool)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create metadata pool %q", metadataPool.Name)
 		}
@@ -251,8 +255,9 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 	dataPoolNames := generateDataPoolNames(f, spec)
 	for i, dataPool := range spec.DataPools {
 		dataPool.Name = dataPoolNames[i]
+		dataPool.Application = cephfsApplication
 		if _, poolFound := reversedPoolMap[dataPool.Name]; !poolFound {
-			err = cephclient.CreatePool(context, clusterInfo, clusterSpec, dataPool, "")
+			err = cephclient.CreatePool(context, clusterInfo, clusterSpec, dataPool)
 			if err != nil {
 				return errors.Wrapf(err, "failed to create data pool %q", dataPool.Name)
 			}

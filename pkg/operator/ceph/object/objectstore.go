@@ -55,6 +55,7 @@ const (
 	rgwRadosPoolPgNum     = "8"
 	cosiUserName          = "cosi"
 	cosiUserCaps          = "buckets=*;users=*"
+	rgwApplication        = "rgw"
 )
 
 var (
@@ -817,11 +818,12 @@ func createSimilarPools(ctx *Context, pools []string, clusterSpec *cephv1.Cluste
 
 func createRGWPool(ctx *Context, clusterSpec *cephv1.ClusterSpec, poolSpec cephv1.PoolSpec, pgCount, requestedName string) error {
 	// create the pool if it doesn't exist yet
+	poolSpec.Application = rgwApplication
 	pool := cephv1.NamedPoolSpec{
 		Name:     poolName(ctx.Name, requestedName),
 		PoolSpec: poolSpec,
 	}
-	if err := cephclient.CreatePoolWithPGs(ctx.Context, ctx.clusterInfo, clusterSpec, pool, AppName, pgCount); err != nil {
+	if err := cephclient.CreatePoolWithPGs(ctx.Context, ctx.clusterInfo, clusterSpec, pool, pgCount); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", pool.Name)
 	}
 	// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count

@@ -178,16 +178,25 @@ func ParsePoolDetails(in []byte) (CephStoragePoolDetails, error) {
 	return poolDetails, nil
 }
 
-func CreatePool(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName string) error {
-	return CreatePoolWithPGs(context, clusterInfo, clusterSpec, pool, appName, DefaultPGCount)
+func CreatePool(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
+	return CreatePoolWithPGs(context, clusterInfo, clusterSpec, pool, DefaultPGCount)
 }
 
-func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, appName, pgCount string) error {
+func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount string) error {
 	if pool.Name == "" {
 		return errors.New("pool name must be specified")
 	}
+	// Override the application name for built-in pools
+	if pool.Name == ".mgr" {
+		pool.Application = "mgr"
+	} else if pool.Name == ".nfs" {
+		pool.Application = "nfs"
+	} else if pool.Name == ".rgw.root" {
+		pool.Application = "rgw"
+	}
+
 	if pool.IsReplicated() {
-		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, pgCount, appName)
+		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, pgCount)
 	}
 
 	if !pool.IsErasureCoded() {
@@ -208,7 +217,6 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 		ecProfileName,
 		pool,
 		pgCount,
-		appName,
 		true /* enableECOverwrite */)
 }
 
@@ -280,7 +288,7 @@ func givePoolAppTag(context *clusterd.Context, clusterInfo *ClusterInfo, poolNam
 	return nil
 }
 
-func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec, appName string) error {
+func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	if len(pool.Parameters) == 0 {
 		pool.Parameters = make(map[string]string)
 	}
@@ -302,10 +310,10 @@ func setCommonPoolProperties(context *clusterd.Context, clusterInfo *ClusterInfo
 	}
 
 	// ensure that the newly created pool gets an application tag
-	if appName != "" {
-		err := givePoolAppTag(context, clusterInfo, pool.Name, appName)
+	if pool.Application != "" {
+		err := givePoolAppTag(context, clusterInfo, pool.Name, pool.Application)
 		if err != nil {
-			return errors.Wrapf(err, "failed to tag pool %q for application %q", pool.Name, appName)
+			return errors.Wrapf(err, "failed to tag pool %q for application %q", pool.Name, pool.Application)
 		}
 	}
 
@@ -388,7 +396,7 @@ func GetErasureCodeProfileForPool(baseName string) string {
 	return fmt.Sprintf("%s_ecprofile", baseName)
 }
 
-func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount, appName string, enableECOverwrite bool) error {
+func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecProfileName string, pool cephv1.NamedPoolSpec, pgCount string, enableECOverwrite bool) error {
 	args := []string{"osd", "pool", "create", pool.Name, pgCount, "erasure", ecProfileName}
 	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
@@ -401,7 +409,7 @@ func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecP
 		}
 	}
 
-	if err = setCommonPoolProperties(context, clusterInfo, pool, appName); err != nil {
+	if err = setCommonPoolProperties(context, clusterInfo, pool); err != nil {
 		return err
 	}
 
@@ -409,7 +417,7 @@ func createECPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, ecP
 	return nil
 }
 
-func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount, appName string) error {
+func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount string) error {
 	// If it's a replicated pool, ensure the failure domain is desired
 	checkFailureDomain := false
 
@@ -465,7 +473,7 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 	}
 
 	// update the common pool properties
-	if err := setCommonPoolProperties(context, clusterInfo, pool, appName); err != nil {
+	if err := setCommonPoolProperties(context, clusterInfo, pool); err != nil {
 		return err
 	}
 

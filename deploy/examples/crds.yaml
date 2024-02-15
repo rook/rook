@@ -109,6 +109,9 @@ spec:
             spec:
               description: NamedBlockPoolSpec allows a block pool to be created with a non-default name.
               properties:
+                application:
+                  description: The application name to set on the pool. Only expected to be set for rgw pools.
+                  type: string
                 compressionMode:
                   description: 'DEPRECATED: use Parameters instead, e.g.'
                   enum:
@@ -190,7 +193,7 @@ spec:
                 name:
                   description: The desired name of the pool if different from the CephBlockPool CR name.
                   enum:
-                    - device_health_metrics
+                    - .rgw.root
                     - .nfs
                     - .mgr
                   type: string
@@ -6768,6 +6771,9 @@ spec:
                   items:
                     description: NamedPoolSpec represents the named ceph pool spec
                     properties:
+                      application:
+                        description: The application name to set on the pool. Only expected to be set for rgw pools.
+                        type: string
                       compressionMode:
                         description: 'DEPRECATED: use Parameters instead, e.g.'
                         enum:
@@ -6936,6 +6942,9 @@ spec:
                   description: The metadata pool settings
                   nullable: true
                   properties:
+                    application:
+                      description: The application name to set on the pool. Only expected to be set for rgw pools.
+                      type: string
                     compressionMode:
                       description: 'DEPRECATED: use Parameters instead, e.g.'
                       enum:
@@ -10691,6 +10700,9 @@ spec:
                   description: The data pool settings
                   nullable: true
                   properties:
+                    application:
+                      description: The application name to set on the pool. Only expected to be set for rgw pools.
+                      type: string
                     compressionMode:
                       description: 'DEPRECATED: use Parameters instead, e.g.'
                       enum:
@@ -11814,6 +11826,9 @@ spec:
                   description: The metadata pool settings
                   nullable: true
                   properties:
+                    application:
+                      description: The application name to set on the pool. Only expected to be set for rgw pools.
+                      type: string
                     compressionMode:
                       description: 'DEPRECATED: use Parameters instead, e.g.'
                       enum:
@@ -12456,6 +12471,9 @@ spec:
                   description: The data pool settings
                   nullable: true
                   properties:
+                    application:
+                      description: The application name to set on the pool. Only expected to be set for rgw pools.
+                      type: string
                     compressionMode:
                       description: 'DEPRECATED: use Parameters instead, e.g.'
                       enum:
@@ -12619,6 +12637,9 @@ spec:
                   description: The metadata pool settings
                   nullable: true
                   properties:
+                    application:
+                      description: The application name to set on the pool. Only expected to be set for rgw pools.
+                      type: string
                     compressionMode:
                       description: 'DEPRECATED: use Parameters instead, e.g.'
                       enum:
