@@ -129,7 +129,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	monConfig := testGenMonConfig("a")
 
 	// configured with default storage request
-	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
+	c.spec.Mon.VolumeClaimTemplate = &cephv1.VolumeClaimTemplate{}
 	pvc, err := c.makeDeploymentPVC(monConfig, false)
 	assert.NoError(t, err)
 	defaultReq, err := resource.ParseQuantity(cephMonDefaultStorageRequest)
@@ -139,7 +139,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	// limit is preserved
 	req, err := resource.ParseQuantity("22Gi")
 	assert.NoError(t, err)
-	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{
+	c.spec.Mon.VolumeClaimTemplate = &cephv1.VolumeClaimTemplate{
 		Spec: v1.PersistentVolumeClaimSpec{
 			Resources: v1.VolumeResourceRequirements{
 				Limits: v1.ResourceList{v1.ResourceStorage: req},
@@ -153,7 +153,7 @@ func TestDeploymentPVCSpec(t *testing.T) {
 	// request is preserved
 	req, err = resource.ParseQuantity("23Gi")
 	assert.NoError(t, err)
-	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{
+	c.spec.Mon.VolumeClaimTemplate = &cephv1.VolumeClaimTemplate{
 		Spec: v1.PersistentVolumeClaimSpec{
 			Resources: v1.VolumeResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceStorage: req},
