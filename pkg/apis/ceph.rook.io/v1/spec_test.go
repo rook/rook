@@ -111,7 +111,7 @@ func newString(val string) *string {
 	return &val
 }
 
-func TestObjectStoreSpecMarhsalSwiftAndKeystone(t *testing.T) {
+func TestObjectStoreSpecMarshalSwiftAndKeystone(t *testing.T) {
 	// Assert that the new ObjectStoreSpec fields specified in <design/ceph/object/swift-and-keystone-integration.md> are correctly parsed
 	specYaml := []byte(`
 auth:
