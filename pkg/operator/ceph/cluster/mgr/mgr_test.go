@@ -333,24 +333,6 @@ func TestConfigureModules(t *testing.T) {
 	assert.Equal(t, 0, modulesDisabled)
 	assert.Equal(t, "mymodule", lastModuleConfigured)
 
-	// one module that has a min version that is not met
-	c.spec.Mgr.Modules = []cephv1.Module{
-		{Name: "pg_autoscaler", Enabled: true},
-	}
-
-	// one module that has a min version that is met
-	c.spec.Mgr.Modules = []cephv1.Module{
-		{Name: "pg_autoscaler", Enabled: true},
-	}
-	c.clusterInfo.CephVersion = cephver.CephVersion{Major: 15}
-	modulesEnabled = 0
-	assert.NoError(t, c.configureMgrModules())
-	assert.Equal(t, 1, modulesEnabled)
-	assert.Equal(t, 0, modulesDisabled)
-	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
-	assert.Equal(t, 1, len(configSettings))
-	assert.Equal(t, "0", configSettings["mon_pg_warn_min_per_osd"])
-
 	// disable the module
 	modulesEnabled = 0
 	lastModuleConfigured = ""
@@ -359,7 +341,7 @@ func TestConfigureModules(t *testing.T) {
 	assert.NoError(t, c.configureMgrModules())
 	assert.Equal(t, 0, modulesEnabled)
 	assert.Equal(t, 1, modulesDisabled)
-	assert.Equal(t, "pg_autoscaler", lastModuleConfigured)
+	assert.Equal(t, "mymodule", lastModuleConfigured)
 	assert.Equal(t, 0, len(configSettings))
 }
 

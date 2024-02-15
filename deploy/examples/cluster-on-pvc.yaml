@@ -38,10 +38,8 @@ spec:
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
   mgr:
-    count: 1
-    modules:
-      - name: pg_autoscaler
-        enabled: true
+    count: 2
+    allowMultiplePerNode: false
   dashboard:
     enabled: true
     ssl: true
