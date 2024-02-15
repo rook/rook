@@ -1,0 +1,66 @@
+name: Integration test CephKeystoneAuthSuite
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+    paths-ignore:
+      - "Documentation/**"
+      - "design/**"
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  TestCephKeystoneAuthSuite:
+    if: ${{ github.event_name == 'pull_request' && github.ref != 'refs/heads/master' && !contains(github.event.pull_request.labels.*.name, 'skip-ci') }}
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: false
+      matrix:
+        kubernetes-versions: ["v1.25.16", "v1.28.4"]
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup latest cluster resources
+        uses: ./.github/workflows/integration-test-config-latest-k8s
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          kubernetes-version: ${{ matrix.kubernetes-versions }}
+
+      - name: TestCephKeystoneAuthSuite
+        run: |
+          tests/scripts/github-action-helper.sh collect_udev_logs_in_background
+          tests/scripts/helm.sh up
+          export DEVICE_FILTER=$(lsblk|awk '/14G/ || /64G/ {print $1}'| head -1)
+          SKIP_CLEANUP_POLICY=false go test -v -timeout 3600s -failfast -run CephKeystoneAuthSuite github.com/rook/rook/tests/integration
+
+      - name: collect common logs
+        if: always()
+        run: |
+          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
+          export CLUSTER_NAMESPACE="keystoneauth-ns"
+          export OPERATOR_NAMESPACE="keystoneauth-ns-system"
+          tests/scripts/collect-logs.sh
+
+      - name: Artifact
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ceph-keystone-auth-suite-artifact-${{ matrix.kubernetes-versions }}
+          path: /home/runner/work/rook/rook/tests/integration/_output/tests/

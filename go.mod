@@ -23,6 +23,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.71.2
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.71.2
 	github.com/rook/rook/pkg/apis v0.0.0-20231204200402-5287527732f7
+	github.com/sethvargo/go-password v0.2.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.8.4

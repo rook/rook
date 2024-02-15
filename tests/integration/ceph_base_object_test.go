@@ -66,25 +66,26 @@ var (
 )
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool) {
+func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
 	andDeleting := ""
 	if deleteStore {
 		andDeleting = "and deleting"
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
-	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS)
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
 	if deleteStore {
 		t.Run("delete object store", func(t *testing.T) {
 			deleteObjectStore(t, k8sh, namespace, storeName)
 			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
 		})
+		// remove user secret
 	}
 }
 
 // create a CephObjectStore and wait for it to report ready status
-func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool) {
+func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool, swiftAndKeystone bool) {
 	logger.Infof("Create Object Store %q with replica count %d", storeName, replicaSize)
 	rgwServiceName := "rook-ceph-rgw-" + storeName
 	if tlsEnable {
@@ -93,7 +94,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		})
 	}
 	t.Run("create CephObjectStore", func(t *testing.T) {
-		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable)
+		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable, swiftAndKeystone)
 		assert.Nil(t, err)
 	})
 
