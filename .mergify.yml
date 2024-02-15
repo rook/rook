@@ -296,6 +296,64 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
+  # release-1.14 branch
+  - name: automerge backport release-1.14
+    conditions:
+      - author=mergify[bot]
+      - base=release-1.14
+      - label!=do-not-merge
+      - "status-success=DCO"
+      - "check-success=linux-build-all (1.21)"
+      - "check-success=unittests"
+      - "check-success=golangci-lint"
+      - "check-success=codegen"
+      - "check-success=codespell"
+      - "check-success=lint"
+      - "check-success=modcheck"
+      - "check-success=Shellcheck"
+      - "check-success=yaml-linter"
+      - "check-success=lint-test"
+      - "check-success=gen-rbac"
+      - "check-success=crds-gen"
+      - "check-success=docs-check"
+      - "check-success=pylint"
+      - "check-success=canary (quay.io/ceph/ceph:v18)"
+      - "check-success=raw-disk (quay.io/ceph/ceph:v18)"
+      - "check-success=two-osds-in-device (quay.io/ceph/ceph:v18)"
+      - "check-success=osd-with-metadata-partition-device (quay.io/ceph/ceph:v18)"
+      - "check-success=osd-with-metadata-device (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption (quay.io/ceph/ceph:v18)"
+      - "check-success=lvm (quay.io/ceph/ceph:v18)"
+      - "check-success=pvc (quay.io/ceph/ceph:v18)"
+      - "check-success=pvc-db (quay.io/ceph/ceph:v18)"
+      - "check-success=pvc-db-wal (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption-pvc (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption-pvc-db (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption-pvc-db-wal (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption-pvc-kms-vault-token-auth (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption-pvc-kms-vault-k8s-auth (quay.io/ceph/ceph:v18)"
+      - "check-success=lvm-pvc (quay.io/ceph/ceph:v18)"
+      # - "check-success=multi-cluster-mirroring (quay.io/ceph/ceph:v18)"
+      - "check-success=rgw-multisite-testing (quay.io/ceph/ceph:v18)"
+      # - "check-success=encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v18)"
+      - "check-success=multus-cluster-network (quay.io/ceph/ceph:v18)"
+      - "check-success=csi-hostnetwork-disabled (quay.io/ceph/ceph:v18)"
+      - "check-success=TestCephSmokeSuite (v1.23.17)"
+      - "check-success=TestCephSmokeSuite (v1.29.0)"
+      - "check-success=TestCephHelmSuite (v1.23.17)"
+      - "check-success=TestCephHelmSuite (v1.29.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.29.0)"
+      - "check-success=TestCephObjectSuite (v1.29.0)"
+      - "check-success=TestCephUpgradeSuite (v1.23.17)"
+      - "check-success=TestCephUpgradeSuite (v1.29.0)"
+      - "check-success=TestHelmUpgradeSuite (v1.23.17)"
+      - "check-success=TestHelmUpgradeSuite (v1.29.0)"
+    actions:
+      merge:
+        method: merge
+      dismiss_reviews: {}
+      delete_head_branch: {}
+
   # release-1.8 branch
   - actions:
       backport:

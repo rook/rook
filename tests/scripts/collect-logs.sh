@@ -5,7 +5,7 @@ set -x
 # User parameters
 : "${CLUSTER_NAMESPACE:="rook-ceph"}"
 : "${OPERATOR_NAMESPACE:="$CLUSTER_NAMESPACE"}"
-: "${KUBE_SYSTEM_NAMESPACE:="kube-system"}"
+: "${ADDITIONAL_NAMESPACE:=""}"
 : "${LOG_DIR:="test"}"
 
 LOG_DIR="${LOG_DIR%/}" # remove trailing slash if necessary
@@ -22,13 +22,8 @@ if [[ "$OPERATOR_NAMESPACE" != "$CLUSTER_NAMESPACE" ]]; then
   NAMESPACES+=("$OPERATOR_NAMESPACE")
 fi
 
-if [ "$1" == "multi-cluster-mirroring" ]; then
-  NAMESPACES+=("rook-ceph-secondary")
-fi
-
-# Add kube-system namespace for multus test only as we need to debug network in multus test
-if [ "$1" == "canary-multus" ]; then
-  NAMESPACES+=("$KUBE_SYSTEM_NAMESPACE")
+if [[ -n "${ADDITIONAL_NAMESPACE}" ]]; then
+  NAMESPACES+=("${ADDITIONAL_NAMESPACE}")
 fi
 
 for NAMESPACE in "${NAMESPACES[@]}"; do
