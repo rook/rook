@@ -396,6 +396,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   canary-tests:
+    if: github.repository == 'rook/rook'
     uses: ./.github/workflows/canary-integration-test.yml
     with:
       ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-quincy-devel", "quay.io/ceph/daemon-base:latest-reef-devel"]'
