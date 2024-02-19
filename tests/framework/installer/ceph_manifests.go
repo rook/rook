@@ -243,13 +243,6 @@ spec:
 `
 	}
 
-	if m.settings.ConnectionsEncrypted {
-		clusterSpec += `
-  csi:
-    cephfs:
-      kernelMountOptions: ms_mode=secure
-  `
-	}
 	return clusterSpec + `
   priorityClassNames:
     mon: system-node-critical

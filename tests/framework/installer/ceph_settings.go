@@ -92,6 +92,9 @@ func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `CSI_ENABLE_VOLUME_REPLICATION: "false"`, fmt.Sprintf(`CSI_ENABLE_VOLUME_REPLICATION: "%t"`, s.EnableVolumeReplication))
 	manifest = strings.ReplaceAll(manifest, `ROOK_CSI_ENABLE_NFS: "false"`, fmt.Sprintf(`ROOK_CSI_ENABLE_NFS: "%t"`, s.TestNFSCSI))
 	manifest = strings.ReplaceAll(manifest, `ROOK_DISABLE_ADMISSION_CONTROLLER: "true"`, `ROOK_DISABLE_ADMISSION_CONTROLLER: "false"`)
+	if s.ConnectionsEncrypted {
+		manifest = strings.ReplaceAll(manifest, `# CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=secure"`, `CSI_CEPHFS_KERNEL_MOUNT_OPTIONS: "ms_mode=secure"`)
+	}
 	return manifest
 }
 

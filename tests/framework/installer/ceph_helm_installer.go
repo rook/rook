@@ -63,6 +63,7 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"csiRBDPluginResource":         nil,
 		"csiCephFSProvisionerResource": nil,
 		"csiCephFSPluginResource":      nil,
+		"csicephFSKernelMountOptions":  "ms_mode=secure",
 	}
 
 	// create the operator namespace before the admission controller is created
