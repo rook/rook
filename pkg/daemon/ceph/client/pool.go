@@ -510,18 +510,23 @@ func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 		return nil
 	}
 
-	if currentFailureDomain != pool.FailureDomain {
-		logger.Infof("creating a new crush rule for changed failure domain on crush rule %q", details.CrushRule)
-	}
-	if currentDeviceClass != pool.DeviceClass {
-		logger.Infof("creating a new crush rule for changed deviceClass on crush rule %q", details.CrushRule)
-	}
-
 	// Use a crush rule name that is unique to the desired failure domain
 	crushRuleName := fmt.Sprintf("%s_%s", pool.Name, pool.FailureDomain)
 	if pool.DeviceClass != "" {
 		crushRuleName = fmt.Sprintf("%s_%s_%s", pool.Name, pool.FailureDomain, pool.DeviceClass)
 	}
+	if crushRuleName == details.CrushRule {
+		logger.Debugf("crush rule already set to %q for pool %q (failureDomain=%s, deviceClass=%s)", crushRuleName, pool.Name, currentFailureDomain, currentDeviceClass)
+		return nil
+	}
+
+	if currentFailureDomain != pool.FailureDomain {
+		logger.Infof("creating a new crush rule for changed failure domain (%q-->%q) on crush rule %q", currentFailureDomain, pool.FailureDomain, details.CrushRule)
+	}
+	if currentDeviceClass != pool.DeviceClass {
+		logger.Infof("creating a new crush rule for changed deviceClass (%q-->%q) on crush rule %q", currentDeviceClass, pool.DeviceClass, details.CrushRule)
+	}
+
 	logger.Infof("updating pool %q failure domain from %q to %q with new crush rule %q", pool.Name, currentFailureDomain, pool.FailureDomain, crushRuleName)
 	logger.Infof("crush rule %q will no longer be used by pool %q", details.CrushRule, pool.Name)
 
