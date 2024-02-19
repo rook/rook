@@ -6,9 +6,9 @@ replace github.com/rook/rook/pkg/apis => ./pkg/apis
 
 require (
 	github.com/IBM/keyprotect-go-client v0.12.2
-	github.com/aws/aws-sdk-go v1.50.15
+	github.com/aws/aws-sdk-go v1.50.20
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/go-ceph v0.25.0
+	github.com/ceph/go-ceph v0.26.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
 	github.com/csi-addons/kubernetes-csi-addons v0.8.0
 	github.com/gemalto/kmip-go v0.0.10
@@ -16,7 +16,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.12.0
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.5.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.6.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20231011182615-5f4b25ceede1
 	github.com/pkg/errors v0.9.1
@@ -32,14 +32,14 @@ require (
 	golang.org/x/sync v0.6.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.29.1
-	k8s.io/apiextensions-apiserver v0.29.1
-	k8s.io/apimachinery v0.29.1
-	k8s.io/cli-runtime v0.29.1
-	k8s.io/client-go v0.29.1
-	k8s.io/cloud-provider v0.29.1
+	k8s.io/api v0.29.2
+	k8s.io/apiextensions-apiserver v0.29.2
+	k8s.io/apimachinery v0.29.2
+	k8s.io/cli-runtime v0.29.2
+	k8s.io/client-go v0.29.2
+	k8s.io/cloud-provider v0.29.2
 	k8s.io/utils v0.0.0-20231127182322-b307cd553661
-	sigs.k8s.io/controller-runtime v0.17.1
+	sigs.k8s.io/controller-runtime v0.17.2
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -134,7 +134,7 @@ require (
 	gopkg.in/evanphx/json-patch.v5 v5.7.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/component-base v0.29.1 // indirect
+	k8s.io/component-base v0.29.2 // indirect
 	k8s.io/klog/v2 v2.110.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231129212854-f0671cc7e66a // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
