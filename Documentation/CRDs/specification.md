@@ -8389,6 +8389,8 @@ PoolSpec
 <td></td>
 </tr><tr><td><p>&#34;host&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;host-strict&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;multus&#34;</p></td>
 <td></td>
 </tr></tbody>

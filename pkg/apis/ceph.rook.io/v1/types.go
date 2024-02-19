@@ -2391,13 +2391,14 @@ type NetworkSpec struct {
 }
 
 // NetworkProviderType defines valid network providers for Rook.
-// +kubebuilder:validation:Enum="";host;multus
+// +kubebuilder:validation:Enum="";host;host-strict;multus
 type NetworkProviderType string
 
 const (
-	NetworkProviderDefault = NetworkProviderType("")
-	NetworkProviderHost    = NetworkProviderType("host")
-	NetworkProviderMultus  = NetworkProviderType("multus")
+	NetworkProviderDefault    = NetworkProviderType("")
+	NetworkProviderHost       = NetworkProviderType("host")
+	NetworkProviderHostStrict = NetworkProviderType("host-strict")
+	NetworkProviderMultus     = NetworkProviderType("multus")
 )
 
 // CephNetworkType should be "public" or "cluster".
