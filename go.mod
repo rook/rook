@@ -6,9 +6,9 @@ replace github.com/rook/rook/pkg/apis => ./pkg/apis
 
 require (
 	github.com/IBM/keyprotect-go-client v0.12.2
-	github.com/aws/aws-sdk-go v1.50.15
+	github.com/aws/aws-sdk-go v1.50.20
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/go-ceph v0.25.0
+	github.com/ceph/go-ceph v0.26.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
 	github.com/csi-addons/kubernetes-csi-addons v0.8.0
 	github.com/gemalto/kmip-go v0.0.10
@@ -16,7 +16,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.12.0
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.5.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.6.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20231011182615-5f4b25ceede1
 	github.com/pkg/errors v0.9.1
