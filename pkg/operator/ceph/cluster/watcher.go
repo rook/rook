@@ -598,14 +598,14 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 		return err
 	}
 
-	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 60*time.Second, true, func(ctx context.Context) (bool, error) {
+	err = wait.PollUntilContextTimeout(ctx, 2*time.Second, 120*time.Second, true, func(ctx context.Context) (bool, error) {
 		err = c.client.Get(ctx, types.NamespacedName{Name: fenceResourceName(node.Name, driver, cluster.Namespace)}, networkFence)
 		if err != nil && !errors.IsNotFound(err) {
 			return false, err
 		}
 
-		if networkFence.Spec.FenceState != addonsv1alpha1.Unfenced {
-			logger.Infof("waiting for network fence CR %s to get in %s state before deletion", networkFence.Name, addonsv1alpha1.Unfenced)
+		if addonsv1alpha1.FenceState(networkFence.Status.Message) != addonsv1alpha1.FenceState(addonsv1alpha1.UnFenceOperationSuccessfulMessage) {
+			logger.Infof("waiting for network fence CR %q status to get result %q", networkFence.Name, addonsv1alpha1.FenceState(addonsv1alpha1.UnFenceOperationSuccessfulMessage))
 			return false, err
 		}
 

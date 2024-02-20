@@ -427,6 +427,14 @@ func TestHandleNodeFailure(t *testing.T) {
 	// When out-of-service taint is removed
 	node.Spec.Taints = []corev1.Taint{}
 
+	networkFenceCephFs.Status.Message = addonsv1alpha1.UnFenceOperationSuccessfulMessage
+	err = c.client.Update(ctx, networkFenceCephFs)
+	assert.NoError(t, err)
+
+	networkFenceRbd.Status.Message = addonsv1alpha1.UnFenceOperationSuccessfulMessage
+	err = c.client.Update(ctx, networkFenceRbd)
+	assert.NoError(t, err)
+
 	err = c.handleNodeFailure(ctx, cephCluster, node)
 	assert.NoError(t, err)
 
