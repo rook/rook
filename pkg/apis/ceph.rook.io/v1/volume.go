@@ -50,9 +50,11 @@ func (src *ConfigFileVolumeSource) ToKubernetesVolumeSource() *corev1.VolumeSour
 }
 
 func (t *VolumeClaimTemplate) ToPVC() *corev1.PersistentVolumeClaim {
-	ret := &corev1.PersistentVolumeClaim{
+	if t == nil {
+		return nil
+	}
+	return &corev1.PersistentVolumeClaim{
 		ObjectMeta: *t.ObjectMeta.DeepCopy(),
 		Spec:       *t.Spec.DeepCopy(),
 	}
-	return ret
 }

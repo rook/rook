@@ -12096,8 +12096,8 @@ Kubernetes meta/v1.LabelSelector
 <td>
 <code>resources</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumeresourcerequirements-v1-core">
-Kubernetes core/v1.VolumeResourceRequirements
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
 </a>
 </em>
 </td>
@@ -12205,29 +12205,6 @@ specified.
 in any namespaces.
 (Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
 (Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>volumeAttributesClassName</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim.
-If specified, the CSI driver will create or update the volume with the attributes defined
-in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName,
-it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass
-will be applied to the claim but it&rsquo;s not allowed to reset this field to empty string once it is set.
-If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass
-will be set by the persistentvolume controller if it exists.
-If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be
-set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
-exists.
-More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass">https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass</a>
-(Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.</p>
 </td>
 </tr>
 </table>

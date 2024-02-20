@@ -1494,12 +1494,12 @@ spec:
                                         description: 'resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                         properties:
                                           claims:
-                                            description: Claims lists the names of resources, defined in spec.
+                                            description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable. It can only be set for containers."
                                             items:
                                               description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                                               properties:
                                                 name:
-                                                  description: Name must match the name of one entry in pod.spec.
+                                                  description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
                                                   type: string
                                               required:
                                                 - name
@@ -1561,12 +1561,6 @@ spec:
                                       storageClassName:
                                         description: 'storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                                         type: string
-<<<<<<< HEAD
-=======
-                                      volumeAttributesClassName:
-                                        description: 'volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it''s not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.'
-                                        type: string
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       volumeMode:
                                         description: volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
                                         type: string
@@ -1574,75 +1568,6 @@ spec:
                                         description: volumeName is the binding reference to the PersistentVolume backing this claim.
                                         type: string
                                     type: object
-<<<<<<< HEAD
-                                  status:
-                                    description: status represents the current information/status of a persistent volume claim. Read-only.
-                                    properties:
-                                      accessModes:
-                                        description: accessModes contains the actual access modes the volume backing the PVC has.
-                                        items:
-                                          type: string
-                                        type: array
-                                      allocatedResourceStatuses:
-                                        additionalProperties:
-                                          description: When a controller receives persistentvolume claim update with ClaimResourceStatus for a resource tha
-                                          type: string
-                                        description: allocatedResourceStatuses stores status of resource being resized for the given PVC.
-                                        type: object
-                                        x-kubernetes-map-type: granular
-                                      allocatedResources:
-                                        additionalProperties:
-                                          anyOf:
-                                            - type: integer
-                                            - type: string
-                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
-                                        description: allocatedResources tracks the resources allocated to a PVC including its capacity.
-                                        type: object
-                                      capacity:
-                                        additionalProperties:
-                                          anyOf:
-                                            - type: integer
-                                            - type: string
-                                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                          x-kubernetes-int-or-string: true
-                                        description: capacity represents the actual resources of the underlying volume.
-                                        type: object
-                                      conditions:
-                                        description: conditions is the current Condition of persistent volume claim.
-                                        items:
-                                          description: PersistentVolumeClaimCondition contains details about state of pvc
-                                          properties:
-                                            lastProbeTime:
-                                              description: lastProbeTime is the time we probed the condition.
-                                              format: date-time
-                                              type: string
-                                            lastTransitionTime:
-                                              description: lastTransitionTime is the time the condition transitioned from one status to another.
-                                              format: date-time
-                                              type: string
-                                            message:
-                                              description: message is the human-readable message indicating details about last transition.
-                                              type: string
-                                            reason:
-                                              description: 'reason is a unique, this should be a short, machine understandable string that gives the reason for '
-                                              type: string
-                                            status:
-                                              type: string
-                                            type:
-                                              description: PersistentVolumeClaimConditionType is a valid value of PersistentVolumeClaimCondition.Type
-                                              type: string
-                                          required:
-                                            - status
-                                            - type
-                                          type: object
-                                        type: array
-                                      phase:
-                                        description: phase represents the current phase of PersistentVolumeClaim.
-                                        type: string
-                                    type: object
-=======
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                 type: object
                                 x-kubernetes-preserve-unknown-fields: true
                             type: object
@@ -1720,12 +1645,12 @@ spec:
                               description: 'resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                               properties:
                                 claims:
-                                  description: Claims lists the names of resources, defined in spec.
+                                  description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable. It can only be set for containers."
                                   items:
                                     description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                                     properties:
                                       name:
-                                        description: Name must match the name of one entry in pod.spec.
+                                        description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
                                         type: string
                                     required:
                                       - name
@@ -1787,12 +1712,6 @@ spec:
                             storageClassName:
                               description: 'storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                               type: string
-<<<<<<< HEAD
-=======
-                            volumeAttributesClassName:
-                              description: 'volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it''s not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.'
-                              type: string
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                             volumeMode:
                               description: volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
                               type: string
@@ -1800,75 +1719,6 @@ spec:
                               description: volumeName is the binding reference to the PersistentVolume backing this claim.
                               type: string
                           type: object
-<<<<<<< HEAD
-                        status:
-                          description: status represents the current information/status of a persistent volume claim. Read-only.
-                          properties:
-                            accessModes:
-                              description: accessModes contains the actual access modes the volume backing the PVC has.
-                              items:
-                                type: string
-                              type: array
-                            allocatedResourceStatuses:
-                              additionalProperties:
-                                description: When a controller receives persistentvolume claim update with ClaimResourceStatus for a resource tha
-                                type: string
-                              description: allocatedResourceStatuses stores status of resource being resized for the given PVC.
-                              type: object
-                              x-kubernetes-map-type: granular
-                            allocatedResources:
-                              additionalProperties:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              description: allocatedResources tracks the resources allocated to a PVC including its capacity.
-                              type: object
-                            capacity:
-                              additionalProperties:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              description: capacity represents the actual resources of the underlying volume.
-                              type: object
-                            conditions:
-                              description: conditions is the current Condition of persistent volume claim.
-                              items:
-                                description: PersistentVolumeClaimCondition contains details about state of pvc
-                                properties:
-                                  lastProbeTime:
-                                    description: lastProbeTime is the time we probed the condition.
-                                    format: date-time
-                                    type: string
-                                  lastTransitionTime:
-                                    description: lastTransitionTime is the time the condition transitioned from one status to another.
-                                    format: date-time
-                                    type: string
-                                  message:
-                                    description: message is the human-readable message indicating details about last transition.
-                                    type: string
-                                  reason:
-                                    description: 'reason is a unique, this should be a short, machine understandable string that gives the reason for '
-                                    type: string
-                                  status:
-                                    type: string
-                                  type:
-                                    description: PersistentVolumeClaimConditionType is a valid value of PersistentVolumeClaimCondition.Type
-                                    type: string
-                                required:
-                                  - status
-                                  - type
-                                type: object
-                              type: array
-                            phase:
-                              description: phase represents the current phase of PersistentVolumeClaim.
-                              type: string
-                          type: object
-=======
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                       type: object
                       x-kubernetes-preserve-unknown-fields: true
                     zones:
@@ -1953,12 +1803,12 @@ spec:
                                     description: 'resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                     properties:
                                       claims:
-                                        description: Claims lists the names of resources, defined in spec.
+                                        description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable. It can only be set for containers."
                                         items:
                                           description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                                           properties:
                                             name:
-                                              description: Name must match the name of one entry in pod.spec.
+                                              description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
                                               type: string
                                           required:
                                             - name
@@ -2020,12 +1870,6 @@ spec:
                                   storageClassName:
                                     description: 'storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                                     type: string
-<<<<<<< HEAD
-=======
-                                  volumeAttributesClassName:
-                                    description: 'volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it''s not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.'
-                                    type: string
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   volumeMode:
                                     description: volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
                                     type: string
@@ -2033,75 +1877,6 @@ spec:
                                     description: volumeName is the binding reference to the PersistentVolume backing this claim.
                                     type: string
                                 type: object
-<<<<<<< HEAD
-                              status:
-                                description: status represents the current information/status of a persistent volume claim. Read-only.
-                                properties:
-                                  accessModes:
-                                    description: accessModes contains the actual access modes the volume backing the PVC has.
-                                    items:
-                                      type: string
-                                    type: array
-                                  allocatedResourceStatuses:
-                                    additionalProperties:
-                                      description: When a controller receives persistentvolume claim update with ClaimResourceStatus for a resource tha
-                                      type: string
-                                    description: allocatedResourceStatuses stores status of resource being resized for the given PVC.
-                                    type: object
-                                    x-kubernetes-map-type: granular
-                                  allocatedResources:
-                                    additionalProperties:
-                                      anyOf:
-                                        - type: integer
-                                        - type: string
-                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                      x-kubernetes-int-or-string: true
-                                    description: allocatedResources tracks the resources allocated to a PVC including its capacity.
-                                    type: object
-                                  capacity:
-                                    additionalProperties:
-                                      anyOf:
-                                        - type: integer
-                                        - type: string
-                                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                      x-kubernetes-int-or-string: true
-                                    description: capacity represents the actual resources of the underlying volume.
-                                    type: object
-                                  conditions:
-                                    description: conditions is the current Condition of persistent volume claim.
-                                    items:
-                                      description: PersistentVolumeClaimCondition contains details about state of pvc
-                                      properties:
-                                        lastProbeTime:
-                                          description: lastProbeTime is the time we probed the condition.
-                                          format: date-time
-                                          type: string
-                                        lastTransitionTime:
-                                          description: lastTransitionTime is the time the condition transitioned from one status to another.
-                                          format: date-time
-                                          type: string
-                                        message:
-                                          description: message is the human-readable message indicating details about last transition.
-                                          type: string
-                                        reason:
-                                          description: 'reason is a unique, this should be a short, machine understandable string that gives the reason for '
-                                          type: string
-                                        status:
-                                          type: string
-                                        type:
-                                          description: PersistentVolumeClaimConditionType is a valid value of PersistentVolumeClaimCondition.Type
-                                          type: string
-                                      required:
-                                        - status
-                                        - type
-                                      type: object
-                                    type: array
-                                  phase:
-                                    description: phase represents the current phase of PersistentVolumeClaim.
-                                    type: string
-                                type: object
-=======
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                             type: object
                             x-kubernetes-preserve-unknown-fields: true
                         type: object
@@ -2404,19 +2179,6 @@ spec:
                                           type: object
                                       type: object
                                       x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                    matchLabelKeys:
-                                      items:
-                                        type: string
-                                      type: array
-                                      x-kubernetes-list-type: atomic
-                                    mismatchLabelKeys:
-                                      items:
-                                        type: string
-                                      type: array
-                                      x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -2485,19 +2247,6 @@ spec:
                                       type: object
                                   type: object
                                   x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                matchLabelKeys:
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: atomic
-                                mismatchLabelKeys:
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -2564,19 +2313,6 @@ spec:
                                           type: object
                                       type: object
                                       x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                    matchLabelKeys:
-                                      items:
-                                        type: string
-                                      type: array
-                                      x-kubernetes-list-type: atomic
-                                    mismatchLabelKeys:
-                                      items:
-                                        type: string
-                                      type: array
-                                      x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                     namespaceSelector:
                                       properties:
                                         matchExpressions:
@@ -2645,19 +2381,6 @@ spec:
                                       type: object
                                   type: object
                                   x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                matchLabelKeys:
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: atomic
-                                mismatchLabelKeys:
-                                  items:
-                                    type: string
-                                  type: array
-                                  x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                 namespaceSelector:
                                   properties:
                                     matchExpressions:
@@ -3042,12 +2765,12 @@ spec:
                                       description: 'resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                       properties:
                                         claims:
-                                          description: Claims lists the names of resources, defined in spec.
+                                          description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable. It can only be set for containers."
                                           items:
                                             description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                                             properties:
                                               name:
-                                                description: Name must match the name of one entry in pod.spec.
+                                                description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
                                                 type: string
                                             required:
                                               - name
@@ -3109,12 +2832,6 @@ spec:
                                     storageClassName:
                                       description: 'storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                                       type: string
-<<<<<<< HEAD
-=======
-                                    volumeAttributesClassName:
-                                      description: 'volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it''s not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.'
-                                      type: string
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                     volumeMode:
                                       description: volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
                                       type: string
@@ -3122,75 +2839,6 @@ spec:
                                       description: volumeName is the binding reference to the PersistentVolume backing this claim.
                                       type: string
                                   type: object
-<<<<<<< HEAD
-                                status:
-                                  description: status represents the current information/status of a persistent volume claim. Read-only.
-                                  properties:
-                                    accessModes:
-                                      description: accessModes contains the actual access modes the volume backing the PVC has.
-                                      items:
-                                        type: string
-                                      type: array
-                                    allocatedResourceStatuses:
-                                      additionalProperties:
-                                        description: When a controller receives persistentvolume claim update with ClaimResourceStatus for a resource tha
-                                        type: string
-                                      description: allocatedResourceStatuses stores status of resource being resized for the given PVC.
-                                      type: object
-                                      x-kubernetes-map-type: granular
-                                    allocatedResources:
-                                      additionalProperties:
-                                        anyOf:
-                                          - type: integer
-                                          - type: string
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      description: allocatedResources tracks the resources allocated to a PVC including its capacity.
-                                      type: object
-                                    capacity:
-                                      additionalProperties:
-                                        anyOf:
-                                          - type: integer
-                                          - type: string
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      description: capacity represents the actual resources of the underlying volume.
-                                      type: object
-                                    conditions:
-                                      description: conditions is the current Condition of persistent volume claim.
-                                      items:
-                                        description: PersistentVolumeClaimCondition contains details about state of pvc
-                                        properties:
-                                          lastProbeTime:
-                                            description: lastProbeTime is the time we probed the condition.
-                                            format: date-time
-                                            type: string
-                                          lastTransitionTime:
-                                            description: lastTransitionTime is the time the condition transitioned from one status to another.
-                                            format: date-time
-                                            type: string
-                                          message:
-                                            description: message is the human-readable message indicating details about last transition.
-                                            type: string
-                                          reason:
-                                            description: 'reason is a unique, this should be a short, machine understandable string that gives the reason for '
-                                            type: string
-                                          status:
-                                            type: string
-                                          type:
-                                            description: PersistentVolumeClaimConditionType is a valid value of PersistentVolumeClaimCondition.Type
-                                            type: string
-                                        required:
-                                          - status
-                                          - type
-                                        type: object
-                                      type: array
-                                    phase:
-                                      description: phase represents the current phase of PersistentVolumeClaim.
-                                      type: string
-                                  type: object
-=======
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               type: object
                             type: array
                         type: object
@@ -3347,19 +2995,6 @@ spec:
                                                   type: object
                                               type: object
                                               x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                            matchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
-                                            mismatchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                             namespaceSelector:
                                               properties:
                                                 matchExpressions:
@@ -3428,19 +3063,6 @@ spec:
                                               type: object
                                           type: object
                                           x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                        matchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
-                                        mismatchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                         namespaceSelector:
                                           properties:
                                             matchExpressions:
@@ -3507,19 +3129,6 @@ spec:
                                                   type: object
                                               type: object
                                               x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                            matchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
-                                            mismatchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                             namespaceSelector:
                                               properties:
                                                 matchExpressions:
@@ -3588,19 +3197,6 @@ spec:
                                               type: object
                                           type: object
                                           x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                        matchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
-                                        mismatchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                         namespaceSelector:
                                           properties:
                                             matchExpressions:
@@ -3837,19 +3433,6 @@ spec:
                                                   type: object
                                               type: object
                                               x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                            matchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
-                                            mismatchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                             namespaceSelector:
                                               properties:
                                                 matchExpressions:
@@ -3918,19 +3501,6 @@ spec:
                                               type: object
                                           type: object
                                           x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                        matchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
-                                        mismatchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                         namespaceSelector:
                                           properties:
                                             matchExpressions:
@@ -3997,19 +3567,6 @@ spec:
                                                   type: object
                                               type: object
                                               x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                            matchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
-                                            mismatchLabelKeys:
-                                              items:
-                                                type: string
-                                              type: array
-                                              x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                             namespaceSelector:
                                               properties:
                                                 matchExpressions:
@@ -4078,19 +3635,6 @@ spec:
                                               type: object
                                           type: object
                                           x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                        matchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
-                                        mismatchLabelKeys:
-                                          items:
-                                            type: string
-                                          type: array
-                                          x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                         namespaceSelector:
                                           properties:
                                             matchExpressions:
@@ -4318,12 +3862,12 @@ spec:
                                       description: 'resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                       properties:
                                         claims:
-                                          description: Claims lists the names of resources, defined in spec.
+                                          description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable. It can only be set for containers."
                                           items:
                                             description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                                             properties:
                                               name:
-                                                description: Name must match the name of one entry in pod.spec.
+                                                description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
                                                 type: string
                                             required:
                                               - name
@@ -4385,12 +3929,6 @@ spec:
                                     storageClassName:
                                       description: 'storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                                       type: string
-<<<<<<< HEAD
-=======
-                                    volumeAttributesClassName:
-                                      description: 'volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it''s not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.'
-                                      type: string
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                     volumeMode:
                                       description: volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
                                       type: string
@@ -4398,75 +3936,6 @@ spec:
                                       description: volumeName is the binding reference to the PersistentVolume backing this claim.
                                       type: string
                                   type: object
-<<<<<<< HEAD
-                                status:
-                                  description: status represents the current information/status of a persistent volume claim. Read-only.
-                                  properties:
-                                    accessModes:
-                                      description: accessModes contains the actual access modes the volume backing the PVC has.
-                                      items:
-                                        type: string
-                                      type: array
-                                    allocatedResourceStatuses:
-                                      additionalProperties:
-                                        description: When a controller receives persistentvolume claim update with ClaimResourceStatus for a resource tha
-                                        type: string
-                                      description: allocatedResourceStatuses stores status of resource being resized for the given PVC.
-                                      type: object
-                                      x-kubernetes-map-type: granular
-                                    allocatedResources:
-                                      additionalProperties:
-                                        anyOf:
-                                          - type: integer
-                                          - type: string
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      description: allocatedResources tracks the resources allocated to a PVC including its capacity.
-                                      type: object
-                                    capacity:
-                                      additionalProperties:
-                                        anyOf:
-                                          - type: integer
-                                          - type: string
-                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                        x-kubernetes-int-or-string: true
-                                      description: capacity represents the actual resources of the underlying volume.
-                                      type: object
-                                    conditions:
-                                      description: conditions is the current Condition of persistent volume claim.
-                                      items:
-                                        description: PersistentVolumeClaimCondition contains details about state of pvc
-                                        properties:
-                                          lastProbeTime:
-                                            description: lastProbeTime is the time we probed the condition.
-                                            format: date-time
-                                            type: string
-                                          lastTransitionTime:
-                                            description: lastTransitionTime is the time the condition transitioned from one status to another.
-                                            format: date-time
-                                            type: string
-                                          message:
-                                            description: message is the human-readable message indicating details about last transition.
-                                            type: string
-                                          reason:
-                                            description: 'reason is a unique, this should be a short, machine understandable string that gives the reason for '
-                                            type: string
-                                          status:
-                                            type: string
-                                          type:
-                                            description: PersistentVolumeClaimConditionType is a valid value of PersistentVolumeClaimCondition.Type
-                                            type: string
-                                        required:
-                                          - status
-                                          - type
-                                        type: object
-                                      type: array
-                                    phase:
-                                      description: phase represents the current phase of PersistentVolumeClaim.
-                                      type: string
-                                  type: object
-=======
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               type: object
                             type: array
                         required:
@@ -4568,12 +4037,12 @@ spec:
                                 description: 'resources represents the minimum resources the volume should have. If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements that are lower than previous value but must still be higher than capacity recorded in the status field of the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources'
                                 properties:
                                   claims:
-                                    description: Claims lists the names of resources, defined in spec.
+                                    description: "Claims lists the names of resources, defined in spec.resourceClaims, that are used by this container. \n This is an alpha field and requires enabling the DynamicResourceAllocation feature gate. \n This field is immutable. It can only be set for containers."
                                     items:
                                       description: ResourceClaim references one entry in PodSpec.ResourceClaims.
                                       properties:
                                         name:
-                                          description: Name must match the name of one entry in pod.spec.
+                                          description: Name must match the name of one entry in pod.spec.resourceClaims of the Pod where this field is used. It makes that resource available inside a container.
                                           type: string
                                       required:
                                         - name
@@ -4635,12 +4104,6 @@ spec:
                               storageClassName:
                                 description: 'storageClassName is the name of the StorageClass required by the claim. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1'
                                 type: string
-<<<<<<< HEAD
-=======
-                              volumeAttributesClassName:
-                                description: 'volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim. If specified, the CSI driver will create or update the volume with the attributes defined in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName, it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass will be applied to the claim but it''s not allowed to reset this field to empty string once it is set. If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass will be set by the persistentvolume controller if it exists. If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource exists. More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.'
-                                type: string
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               volumeMode:
                                 description: volumeMode defines what type of volume is required by the claim. Value of Filesystem is implied when not included in claim spec.
                                 type: string
@@ -4648,75 +4111,6 @@ spec:
                                 description: volumeName is the binding reference to the PersistentVolume backing this claim.
                                 type: string
                             type: object
-<<<<<<< HEAD
-                          status:
-                            description: status represents the current information/status of a persistent volume claim. Read-only.
-                            properties:
-                              accessModes:
-                                description: accessModes contains the actual access modes the volume backing the PVC has.
-                                items:
-                                  type: string
-                                type: array
-                              allocatedResourceStatuses:
-                                additionalProperties:
-                                  description: When a controller receives persistentvolume claim update with ClaimResourceStatus for a resource tha
-                                  type: string
-                                description: allocatedResourceStatuses stores status of resource being resized for the given PVC.
-                                type: object
-                                x-kubernetes-map-type: granular
-                              allocatedResources:
-                                additionalProperties:
-                                  anyOf:
-                                    - type: integer
-                                    - type: string
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
-                                description: allocatedResources tracks the resources allocated to a PVC including its capacity.
-                                type: object
-                              capacity:
-                                additionalProperties:
-                                  anyOf:
-                                    - type: integer
-                                    - type: string
-                                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                  x-kubernetes-int-or-string: true
-                                description: capacity represents the actual resources of the underlying volume.
-                                type: object
-                              conditions:
-                                description: conditions is the current Condition of persistent volume claim.
-                                items:
-                                  description: PersistentVolumeClaimCondition contains details about state of pvc
-                                  properties:
-                                    lastProbeTime:
-                                      description: lastProbeTime is the time we probed the condition.
-                                      format: date-time
-                                      type: string
-                                    lastTransitionTime:
-                                      description: lastTransitionTime is the time the condition transitioned from one status to another.
-                                      format: date-time
-                                      type: string
-                                    message:
-                                      description: message is the human-readable message indicating details about last transition.
-                                      type: string
-                                    reason:
-                                      description: 'reason is a unique, this should be a short, machine understandable string that gives the reason for '
-                                      type: string
-                                    status:
-                                      type: string
-                                    type:
-                                      description: PersistentVolumeClaimConditionType is a valid value of PersistentVolumeClaimCondition.Type
-                                      type: string
-                                  required:
-                                    - status
-                                    - type
-                                  type: object
-                                type: array
-                              phase:
-                                description: phase represents the current phase of PersistentVolumeClaim.
-                                type: string
-                            type: object
-=======
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                         type: object
                       type: array
                   type: object
@@ -5063,19 +4457,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -5144,19 +4525,6 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                              matchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
-                              mismatchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               namespaceSelector:
                                 properties:
                                   matchExpressions:
@@ -5223,19 +4591,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -5304,19 +4659,6 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                              matchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
-                              mismatchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               namespaceSelector:
                                 properties:
                                   matchExpressions:
@@ -5642,19 +4984,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -5723,19 +5052,6 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                              matchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
-                              mismatchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               namespaceSelector:
                                 properties:
                                   matchExpressions:
@@ -5802,19 +5118,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -5883,19 +5186,6 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                              matchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
-                              mismatchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               namespaceSelector:
                                 properties:
                                   matchExpressions:
@@ -6720,19 +6010,6 @@ spec:
                                             type: object
                                         type: object
                                         x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                      matchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                      mismatchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       namespaceSelector:
                                         properties:
                                           matchExpressions:
@@ -6801,19 +6078,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -6880,19 +6144,6 @@ spec:
                                             type: object
                                         type: object
                                         x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                      matchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                      mismatchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       namespaceSelector:
                                         properties:
                                           matchExpressions:
@@ -6961,19 +6212,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -7711,46 +6949,6 @@ spec:
                                     sources:
                                       items:
                                         properties:
-<<<<<<< HEAD
-=======
-                                          clusterTrustBundle:
-                                            properties:
-                                              labelSelector:
-                                                properties:
-                                                  matchExpressions:
-                                                    items:
-                                                      properties:
-                                                        key:
-                                                          type: string
-                                                        operator:
-                                                          type: string
-                                                        values:
-                                                          items:
-                                                            type: string
-                                                          type: array
-                                                      required:
-                                                        - key
-                                                        - operator
-                                                      type: object
-                                                    type: array
-                                                  matchLabels:
-                                                    additionalProperties:
-                                                      type: string
-                                                    type: object
-                                                type: object
-                                                x-kubernetes-map-type: atomic
-                                              name:
-                                                type: string
-                                              optional:
-                                                type: boolean
-                                              path:
-                                                type: string
-                                              signerName:
-                                                type: string
-                                            required:
-                                              - path
-                                            type: object
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                           configMap:
                                             properties:
                                               items:
@@ -7951,46 +7149,6 @@ spec:
                                     sources:
                                       items:
                                         properties:
-<<<<<<< HEAD
-=======
-                                          clusterTrustBundle:
-                                            properties:
-                                              labelSelector:
-                                                properties:
-                                                  matchExpressions:
-                                                    items:
-                                                      properties:
-                                                        key:
-                                                          type: string
-                                                        operator:
-                                                          type: string
-                                                        values:
-                                                          items:
-                                                            type: string
-                                                          type: array
-                                                      required:
-                                                        - key
-                                                        - operator
-                                                      type: object
-                                                    type: array
-                                                  matchLabels:
-                                                    additionalProperties:
-                                                      type: string
-                                                    type: object
-                                                type: object
-                                                x-kubernetes-map-type: atomic
-                                              name:
-                                                type: string
-                                              optional:
-                                                type: boolean
-                                              path:
-                                                type: string
-                                              signerName:
-                                                type: string
-                                            required:
-                                              - path
-                                            type: object
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                           configMap:
                                             properties:
                                               items:
@@ -8207,46 +7365,6 @@ spec:
                                           sources:
                                             items:
                                               properties:
-<<<<<<< HEAD
-=======
-                                                clusterTrustBundle:
-                                                  properties:
-                                                    labelSelector:
-                                                      properties:
-                                                        matchExpressions:
-                                                          items:
-                                                            properties:
-                                                              key:
-                                                                type: string
-                                                              operator:
-                                                                type: string
-                                                              values:
-                                                                items:
-                                                                  type: string
-                                                                type: array
-                                                            required:
-                                                              - key
-                                                              - operator
-                                                            type: object
-                                                          type: array
-                                                        matchLabels:
-                                                          additionalProperties:
-                                                            type: string
-                                                          type: object
-                                                      type: object
-                                                      x-kubernetes-map-type: atomic
-                                                    name:
-                                                      type: string
-                                                    optional:
-                                                      type: boolean
-                                                    path:
-                                                      type: string
-                                                    signerName:
-                                                      type: string
-                                                  required:
-                                                    - path
-                                                  type: object
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                                 configMap:
                                                   properties:
                                                     items:
@@ -8494,46 +7612,6 @@ spec:
                                         sources:
                                           items:
                                             properties:
-<<<<<<< HEAD
-=======
-                                              clusterTrustBundle:
-                                                properties:
-                                                  labelSelector:
-                                                    properties:
-                                                      matchExpressions:
-                                                        items:
-                                                          properties:
-                                                            key:
-                                                              type: string
-                                                            operator:
-                                                              type: string
-                                                            values:
-                                                              items:
-                                                                type: string
-                                                              type: array
-                                                          required:
-                                                            - key
-                                                            - operator
-                                                          type: object
-                                                        type: array
-                                                      matchLabels:
-                                                        additionalProperties:
-                                                          type: string
-                                                        type: object
-                                                    type: object
-                                                    x-kubernetes-map-type: atomic
-                                                  name:
-                                                    type: string
-                                                  optional:
-                                                    type: boolean
-                                                  path:
-                                                    type: string
-                                                  signerName:
-                                                    type: string
-                                                required:
-                                                  - path
-                                                type: object
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                               configMap:
                                                 properties:
                                                   items:
@@ -8931,19 +8009,6 @@ spec:
                                             type: object
                                         type: object
                                         x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                      matchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                      mismatchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       namespaceSelector:
                                         properties:
                                           matchExpressions:
@@ -9012,19 +8077,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -9091,19 +8143,6 @@ spec:
                                             type: object
                                         type: object
                                         x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                      matchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                      mismatchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       namespaceSelector:
                                         properties:
                                           matchExpressions:
@@ -9172,19 +8211,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -9849,19 +8875,6 @@ spec:
                                             type: object
                                         type: object
                                         x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                      matchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                      mismatchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       namespaceSelector:
                                         properties:
                                           matchExpressions:
@@ -9930,19 +8943,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -10009,19 +9009,6 @@ spec:
                                             type: object
                                         type: object
                                         x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                      matchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
-                                      mismatchLabelKeys:
-                                        items:
-                                          type: string
-                                        type: array
-                                        x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                       namespaceSelector:
                                         properties:
                                           matchExpressions:
@@ -10090,19 +9077,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -11712,19 +10686,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -11793,19 +10754,6 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                              matchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
-                              mismatchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               namespaceSelector:
                                 properties:
                                   matchExpressions:
@@ -11872,19 +10820,6 @@ spec:
                                         type: object
                                     type: object
                                     x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                                  matchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
-                                  mismatchLabelKeys:
-                                    items:
-                                      type: string
-                                    type: array
-                                    x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                                   namespaceSelector:
                                     properties:
                                       matchExpressions:
@@ -11953,19 +10888,6 @@ spec:
                                     type: object
                                 type: object
                                 x-kubernetes-map-type: atomic
-<<<<<<< HEAD
-=======
-                              matchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
-                              mismatchLabelKeys:
-                                items:
-                                  type: string
-                                type: array
-                                x-kubernetes-list-type: atomic
->>>>>>> bd7477ec6 (manifest: reduce CRD size by removing some descriptions)
                               namespaceSelector:
                                 properties:
                                   matchExpressions:
