@@ -977,7 +977,7 @@ func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeCla
 			if zone.Name == mon.Zone {
 				if zone.VolumeClaimTemplate != nil {
 					// Found an override for the volume claim template in the zone
-					return zone.VolumeClaimTemplate
+					return zone.VolumeClaimTemplate.ToPVC()
 				}
 				break
 			}
@@ -985,7 +985,7 @@ func (c *Cluster) monVolumeClaimTemplate(mon *monConfig) *v1.PersistentVolumeCla
 	}
 
 	// Return the default template since one wasn't found in the zone or zone was not specified
-	return c.spec.Mon.VolumeClaimTemplate
+	return c.spec.Mon.VolumeClaimTemplate.ToPVC()
 }
 
 func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) error {
@@ -1338,7 +1338,7 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 	p.ApplyToPodSpec(&d.Spec.Template.Spec)
 	if deploymentExists {
 		// skip update if mon path has changed
-		if hasMonPathChanged(existingDeployment, c.spec.Mon.VolumeClaimTemplate) {
+		if hasMonPathChanged(existingDeployment, c.spec.Mon.VolumeClaimTemplate.ToPVC()) {
 			c.monsToFailover.Insert(m.DaemonName)
 			return nil
 		}

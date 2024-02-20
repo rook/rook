@@ -121,7 +121,7 @@ func TestCheckHealth(t *testing.T) {
 	// Check that their PVCs are not garbage collected after we create fake PVCs
 	badMon := "c"
 	goodMons := []string{"a", "g", "h"}
-	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
+	c.spec.Mon.VolumeClaimTemplate = &cephv1.VolumeClaimTemplate{}
 	for _, name := range append(goodMons, badMon) {
 		m := &monConfig{ResourceName: "rook-ceph-mon-" + name, DaemonName: name}
 		pvc, err := c.makeDeploymentPVC(m, true)
