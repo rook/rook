@@ -43,7 +43,7 @@ func (c *Cluster) reconcileMonPDB() error {
 		return nil
 	}
 
-	op, err := c.createOrUpdateMonPDB(1)
+	op, err := c.createOrUpdateMonPDB(c.getMaxUnavailableMonPodCount())
 	if err != nil {
 		return errors.Wrapf(err, "failed to reconcile mon pdb on op %q", op)
 	}
@@ -108,10 +108,18 @@ func (c *Cluster) allowMonDrain(request types.NamespacedName) error {
 		return nil
 	}
 	logger.Info("allow voluntary mon drain after failover")
-	// change MaxUnavailable mon PDB to 1
-	_, err := c.createOrUpdateMonPDB(1)
+	_, err := c.createOrUpdateMonPDB(c.getMaxUnavailableMonPodCount())
 	if err != nil {
 		return errors.Wrapf(err, "failed to update MaxUnavailable for mon PDB %q", request.Name)
 	}
 	return nil
+}
+
+func (c *Cluster) getMaxUnavailableMonPodCount() int32 {
+	if c.spec.Mon.Count >= 5 {
+		logger.Debug("setting the mon pdb max unavailable count to 2 in case there are 5 or more mons")
+		return 2
+	}
+
+	return 1
 }
