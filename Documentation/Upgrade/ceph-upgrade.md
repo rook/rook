@@ -39,19 +39,6 @@ to Rook v1.13.
 !!! warning
     Ceph v17.2.2 has a blocking issue when running with Rook. Use v17.2.3 or newer when possible.
 
-### Quincy Consideration
-
-In Ceph Quincy (v17), the `device_health_metrics` pool was renamed to `.mgr`. Ceph will perform this
-migration automatically. The pool rename will be automatically handled by Rook if the configuration
-of the `device_health_metrics` pool is not customized via CephBlockPool.
-
-If the configuration of the `device_health_metrics` pool is customized via CephBlockPool, two extra
-steps are required after the Ceph upgrade is complete. Once upgrade is complete:
-
-1. Create a new CephBlockPool to configure the `.mgr` built-in pool. For an example, see
-   [builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
-2. Delete the old CephBlockPool that represents the `device_health_metrics` pool.
-
 ### CephNFS User Consideration
 
 Ceph Quincy v17.2.1 has a potentially breaking regression with CephNFS. See the NFS documentation's

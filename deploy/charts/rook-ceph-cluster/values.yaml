@@ -136,10 +136,10 @@ cephClusterSpec:
     count: 2
     allowMultiplePerNode: false
     modules:
-      # Several modules should not need to be included in this list. The "dashboard" and "monitoring" modules
-      # are already enabled by other settings in the cluster CR.
-      - name: pg_autoscaler
-        enabled: true
+      # List of modules to optionally enable or disable.
+      # Note the "dashboard" and "monitoring" modules are already configured by other settings in the cluster CR.
+      # - name: rook
+      #   enabled: true
 
   # enable the ceph dashboard for viewing cluster status
   dashboard:

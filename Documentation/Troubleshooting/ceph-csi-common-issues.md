@@ -110,7 +110,7 @@ to exist in the toolbox:
 
 ```console
 $ ceph osd lspools
-1 device_health_metrics
+1 .mgr
 2 replicapool
 ```
 
@@ -132,7 +132,7 @@ Now verify the `pool` mentioned in the `storageclass.yaml` exists, such as the e
 
 ```console
 ceph osd lspools
-1 device_health_metrics
+1 .mgr
 2 replicapool
 3 myfs-metadata0
 4 myfs-data0

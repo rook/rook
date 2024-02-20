@@ -163,9 +163,6 @@ spec:
   mgr:
     count: ` + strconv.Itoa(mgrCount) + `
     allowMultiplePerNode: true
-    modules:
-    - name: pg_autoscaler
-      enabled: true
   dashboard:
     enabled: true
   network:

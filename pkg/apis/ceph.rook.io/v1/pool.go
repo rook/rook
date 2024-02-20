@@ -42,7 +42,7 @@ func (p *ReplicatedSpec) IsTargetRatioEnabled() bool {
 
 // ValidateCephBlockPool validates specifically a CephBlockPool's spec (not just any NamedPoolSpec)
 func ValidateCephBlockPool(p *CephBlockPool) error {
-	if p.Spec.Name == "device_health_metrics" || p.Spec.Name == ".mgr" || p.Spec.Name == ".nfs" {
+	if p.Spec.Name == ".rgw.root" || p.Spec.Name == ".mgr" || p.Spec.Name == ".nfs" {
 		if p.Spec.IsErasureCoded() {
 			return errors.Errorf("invalid CephBlockPool spec: ceph built-in pool %q cannot be erasure coded", p.Name)
 		}

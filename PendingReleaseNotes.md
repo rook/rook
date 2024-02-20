@@ -4,6 +4,7 @@
 
 - The removal of `CSI_ENABLE_READ_AFFINITY` option and its replacement with per-cluster
 read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https://github.com/rook/rook/pull/13665)
+- Allow setting the Ceph `application` on a pool
 
 ## Features
 

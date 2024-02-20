@@ -204,8 +204,10 @@ stretched) then you will have 2 replicas per datacenter where each replica ends 
 * `name`: The name of Ceph pools is based on the `metadata.name` of the CephBlockPool CR. Some built-in Ceph pools
   require names that are incompatible with K8s resource names. These special pools can be configured
   by setting this `name` to override the name of the Ceph pool that is created instead of using the `metadata.name` for the pool.
-  Only the following pool names are supported: `device_health_metrics`, `.nfs`, and `.mgr`. See the example
+  Only the following pool names are supported: `.nfs`, `.mgr`, and `.rgw.root`. See the example
   [builtin mgr pool](https://github.com/rook/rook/blob/master/deploy/examples/pool-builtin-mgr.yaml).
+* `application`: The type of application set on the pool. By default, Ceph pools for CephBlockPools will be `rbd`,
+  CephObjectStore pools will be `rgw`, and CephFilesystem pools will be `cephfs`.
 
 * `parameters`: Sets any [parameters](https://docs.ceph.com/docs/master/rados/operations/pools/#set-pool-values) listed to the given pool
     * `target_size_ratio:` gives a hint (%) to Ceph in terms of expected consumption of the total cluster capacity of a given pool, for more info see the [ceph documentation](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#specifying-expected-pool-size)
