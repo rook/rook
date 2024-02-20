@@ -102,7 +102,7 @@ func TestReconcileMonPDB(t *testing.T) {
 					},
 				},
 			},
-			expectedMaxUnAvailable: 1,
+			expectedMaxUnAvailable: 2,
 			errorExpected:          false,
 		},
 	}
