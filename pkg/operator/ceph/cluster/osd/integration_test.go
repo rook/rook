@@ -470,7 +470,7 @@ func testOSDIntegration(t *testing.T) {
 			Name:                 "new",
 			Count:                3,
 			Portable:             true,
-			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
+			VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{},
 		}
 		cephCluster.Spec.Storage.StorageClassDeviceSets = append(cephCluster.Spec.Storage.StorageClassDeviceSets, newSCDS)
 
@@ -487,7 +487,7 @@ func testOSDIntegration(t *testing.T) {
 		assert.Len(t, deploymentsCreated, 0)
 		assert.Len(t, deploymentsUpdated, 34)
 
-		cephCluster.Spec.Storage.StorageClassDeviceSets[2].VolumeClaimTemplates = []corev1.PersistentVolumeClaim{
+		cephCluster.Spec.Storage.StorageClassDeviceSets[2].VolumeClaimTemplates = []cephv1.VolumeClaimTemplate{
 			newDummyPVC("data", namespace, "100Gi", "ec2"),
 			newDummyPVC("metadata", namespace, "10Gi", "uncle-rogers-secret-stuff"),
 		}
@@ -631,7 +631,7 @@ func newDummyStorageClassDeviceSet(
 		Name:     name,
 		Count:    count,
 		Portable: portable,
-		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+		VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{
 			newDummyPVC("data", namespace, "10Gi", storageClassName),
 		},
 	}

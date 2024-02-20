@@ -23,7 +23,7 @@ set -o pipefail
 SCRIPT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd -P)
 CONTROLLER_GEN_BIN_PATH=$1
 YQ_BIN_PATH=$2
-: "${MAX_DESC_LEN:=100}"
+: "${MAX_DESC_LEN:=-1}"
 # allowDangerousTypes is used to accept float64
 CRD_OPTIONS="crd:maxDescLen=$MAX_DESC_LEN,generateEmbeddedObjectMeta=true,allowDangerousTypes=true"
 
@@ -113,4 +113,22 @@ done < <(find "$OLM_CATALOG_DIR" -type f -name '*.yaml' | sort)
 echo "---" >>"$CEPH_CRDS_FILE_PATH" # yq doesn't output the first doc separator
 $YQ_BIN_PATH eval-all '.' "${CRD_FILES[@]}" >>"$CEPH_CRDS_FILE_PATH"
 
+# Remove long, repeat descriptions in CRDs, especially for things that are well-known K8s types
+# Use this to manually inspect descriptions to see where there are repetitions of long ones:
+#   cat deploy/examples/crds.yaml | grep description | sed 's/^[[:space:]]*//g' | sort > desc.yml
+
+# remove descriptions from all placement configs
+$YQ_BIN_PATH --inplace eval 'del(.. | .placement? | .. | .description?)' "$CEPH_CRDS_FILE_PATH"
+$YQ_BIN_PATH --inplace eval 'del(.. | .preparePlacement? | .. | .description?)' "$CEPH_CRDS_FILE_PATH"
+
+$YQ_BIN_PATH --inplace eval 'del(.. | .terminationGracePeriodSeconds? | .description?)' "$CEPH_CRDS_FILE_PATH"
+
+# volume source usage is a well-known k8s type
+$YQ_BIN_PATH --inplace eval 'del(.. | .volumeSource? | .. | .description?)' "$CEPH_CRDS_FILE_PATH"
+
+# yq turns 'creationTimestamp: null' into 'creationTimestamp: {}' in CRDs
+# this field is also unnecessary, so just remove it
+$YQ_BIN_PATH --inplace eval 'del(.. | .creationTimestamp?)' "$CEPH_CRDS_FILE_PATH"
+
+# generate helm resources after pruning
 build_helm_resources

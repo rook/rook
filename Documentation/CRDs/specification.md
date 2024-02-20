@@ -7963,8 +7963,8 @@ StretchClusterSpec
 <td>
 <code>volumeClaimTemplate</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaim-v1-core">
-Kubernetes core/v1.PersistentVolumeClaim
+<a href="#ceph.rook.io/v1.VolumeClaimTemplate">
+VolumeClaimTemplate
 </a>
 </em>
 </td>
@@ -8019,8 +8019,8 @@ bool
 <td>
 <code>volumeClaimTemplate</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaim-v1-core">
-Kubernetes core/v1.PersistentVolumeClaim
+<a href="#ceph.rook.io/v1.VolumeClaimTemplate">
+VolumeClaimTemplate
 </a>
 </em>
 </td>
@@ -11165,8 +11165,8 @@ string
 <td>
 <code>volumeClaimTemplates</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaim-v1-core">
-[]Kubernetes core/v1.PersistentVolumeClaim
+<a href="#ceph.rook.io/v1.VolumeClaimTemplate">
+[]VolumeClaimTemplate
 </a>
 </em>
 </td>
@@ -11699,8 +11699,8 @@ map[string]string
 <td>
 <code>volumeClaimTemplates</code><br/>
 <em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaim-v1-core">
-[]Kubernetes core/v1.PersistentVolumeClaim
+<a href="#ceph.rook.io/v1.VolumeClaimTemplate">
+[]VolumeClaimTemplate
 </a>
 </em>
 </td>
@@ -12022,6 +12022,227 @@ KafkaEndpointSpec
 <td>
 <em>(Optional)</em>
 <p>Spec of Kafka endpoint</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.VolumeClaimTemplate">VolumeClaimTemplate
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonSpec">MonSpec</a>, <a href="#ceph.rook.io/v1.MonZoneSpec">MonZoneSpec</a>, <a href="#ceph.rook.io/v1.Selection">Selection</a>, <a href="#ceph.rook.io/v1.StorageClassDeviceSet">StorageClassDeviceSet</a>)
+</p>
+<div>
+<p>VolumeClaimTemplate is a simplified version of K8s corev1&rsquo;s PVC. It has no type meta or status.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Standard object&rsquo;s metadata.
+More info: <a href="https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata">https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata</a></p>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeclaimspec-v1-core">
+Kubernetes core/v1.PersistentVolumeClaimSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>spec defines the desired characteristics of a volume requested by a pod author.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims">https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims</a></p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>accessModes</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumeaccessmode-v1-core">
+[]Kubernetes core/v1.PersistentVolumeAccessMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>accessModes contains the desired access modes the volume should have.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1">https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>selector</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#labelselector-v1-meta">
+Kubernetes meta/v1.LabelSelector
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>selector is a label query over volumes to consider for binding.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>resources</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#volumeresourcerequirements-v1-core">
+Kubernetes core/v1.VolumeResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>resources represents the minimum resources the volume should have.
+If RecoverVolumeExpansionFailure feature is enabled users are allowed to specify resource requirements
+that are lower than previous value but must still be higher than capacity recorded in the
+status field of the claim.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources">https://kubernetes.io/docs/concepts/storage/persistent-volumes#resources</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>volumeName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>volumeName is the binding reference to the PersistentVolume backing this claim.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>storageClassName is the name of the StorageClass required by the claim.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1">https://kubernetes.io/docs/concepts/storage/persistent-volumes#class-1</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>volumeMode</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#persistentvolumemode-v1-core">
+Kubernetes core/v1.PersistentVolumeMode
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>volumeMode defines what type of volume is required by the claim.
+Value of Filesystem is implied when not included in claim spec.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataSource</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#typedlocalobjectreference-v1-core">
+Kubernetes core/v1.TypedLocalObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>dataSource field can be used to specify either:
+* An existing VolumeSnapshot object (snapshot.storage.k8s.io/VolumeSnapshot)
+* An existing PVC (PersistentVolumeClaim)
+If the provisioner or an external controller can support the specified data source,
+it will create a new volume based on the contents of the specified data source.
+When the AnyVolumeDataSource feature gate is enabled, dataSource contents will be copied to dataSourceRef,
+and dataSourceRef contents will be copied to dataSource when dataSourceRef.namespace is not specified.
+If the namespace is specified, then dataSourceRef will not be copied to dataSource.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataSourceRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#typedobjectreference-v1-core">
+Kubernetes core/v1.TypedObjectReference
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>dataSourceRef specifies the object from which to populate the volume with data, if a non-empty
+volume is desired. This may be any object from a non-empty API group (non
+core object) or a PersistentVolumeClaim object.
+When this field is specified, volume binding will only succeed if the type of
+the specified object matches some installed volume populator or dynamic
+provisioner.
+This field will replace the functionality of the dataSource field and as such
+if both fields are non-empty, they must have the same value. For backwards
+compatibility, when namespace isn&rsquo;t specified in dataSourceRef,
+both fields (dataSource and dataSourceRef) will be set to the same
+value automatically if one of them is empty and the other is non-empty.
+When namespace is specified in dataSourceRef,
+dataSource isn&rsquo;t set to the same value and must be empty.
+There are three important differences between dataSource and dataSourceRef:
+* While dataSource only allows two specific types of objects, dataSourceRef
+allows any non-core object, as well as PersistentVolumeClaim objects.
+* While dataSource ignores disallowed values (dropping them), dataSourceRef
+preserves all values, and generates an error if a disallowed value is
+specified.
+* While dataSource only allows local objects, dataSourceRef allows objects
+in any namespaces.
+(Beta) Using this field requires the AnyVolumeDataSource feature gate to be enabled.
+(Alpha) Using the namespace field of dataSourceRef requires the CrossNamespaceVolumeDataSource feature gate to be enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>volumeAttributesClassName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>volumeAttributesClassName may be used to set the VolumeAttributesClass used by this claim.
+If specified, the CSI driver will create or update the volume with the attributes defined
+in the corresponding VolumeAttributesClass. This has a different purpose than storageClassName,
+it can be changed after the claim is created. An empty string value means that no VolumeAttributesClass
+will be applied to the claim but it&rsquo;s not allowed to reset this field to empty string once it is set.
+If unspecified and the PersistentVolumeClaim is unbound, the default VolumeAttributesClass
+will be set by the persistentvolume controller if it exists.
+If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be
+set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
+exists.
+More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass">https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass</a>
+(Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.</p>
+</td>
+</tr>
+</table>
 </td>
 </tr>
 </tbody>

@@ -598,7 +598,20 @@ type MonSpec struct {
 	// VolumeClaimTemplate is the PVC definition
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeClaimTemplate *VolumeClaimTemplate `json:"volumeClaimTemplate,omitempty"`
+}
+
+// VolumeClaimTemplate is a simplified version of K8s corev1's PVC. It has no type meta or status.
+type VolumeClaimTemplate struct {
+	// Standard object's metadata.
+	// More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#metadata
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty" protobuf:"bytes,1,opt,name=metadata"`
+
+	// spec defines the desired characteristics of a volume requested by a pod author.
+	// More info: https://kubernetes.io/docs/concepts/storage/persistent-volumes#persistentvolumeclaims
+	// +optional
+	Spec v1.PersistentVolumeClaimSpec `json:"spec,omitempty" protobuf:"bytes,2,opt,name=spec"`
 }
 
 // StretchClusterSpec represents the specification of a stretched Ceph Cluster
@@ -626,7 +639,7 @@ type MonZoneSpec struct {
 	// VolumeClaimTemplate is the PVC template
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
-	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate,omitempty"`
+	VolumeClaimTemplate *VolumeClaimTemplate `json:"volumeClaimTemplate,omitempty"`
 }
 
 // MgrSpec represents options to configure a ceph mgr
@@ -2814,7 +2827,7 @@ type Selection struct {
 	Devices []Device `json:"devices,omitempty"`
 	// PersistentVolumeClaims to use as storage
 	// +optional
-	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
+	VolumeClaimTemplates []VolumeClaimTemplate `json:"volumeClaimTemplates,omitempty"`
 }
 
 // PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD
@@ -2883,7 +2896,7 @@ type StorageClassDeviceSet struct {
 	// +optional
 	Config map[string]string `json:"config,omitempty"`
 	// VolumeClaimTemplates is a list of PVC templates for the underlying storage devices
-	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates"`
+	VolumeClaimTemplates []VolumeClaimTemplate `json:"volumeClaimTemplates"`
 	// Portable represents OSD portability across the hosts
 	// +optional
 	Portable bool `json:"portable,omitempty"`
