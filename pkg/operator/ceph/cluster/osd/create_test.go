@@ -352,7 +352,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 					{
 						Name:  "set1",
 						Count: 0,
-						VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+						VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{
 							newDummyPVC("data", namespace, "10Gi", "gp2"),
 						},
 					},
@@ -377,7 +377,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 					{
 						Name:  "set1",
 						Count: 2,
-						VolumeClaimTemplates: []corev1.PersistentVolumeClaim{
+						VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{
 							newDummyPVC("data", namespace, "10Gi", "gp2"),
 						},
 					},
@@ -413,7 +413,7 @@ func Test_startProvisioningOverPVCs(t *testing.T) {
 					{
 						Name:                 "set1",
 						Count:                2,
-						VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
+						VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{},
 					},
 				},
 			},
@@ -639,9 +639,9 @@ func Test_startProvisioningOverNodes(t *testing.T) {
 	})
 }
 
-func newDummyPVC(name, namespace string, capacity string, storageClassName string) corev1.PersistentVolumeClaim {
+func newDummyPVC(name, namespace string, capacity string, storageClassName string) cephv1.VolumeClaimTemplate {
 	volMode := corev1.PersistentVolumeBlock
-	return corev1.PersistentVolumeClaim{
+	return cephv1.VolumeClaimTemplate{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

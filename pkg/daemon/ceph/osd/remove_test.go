@@ -74,7 +74,7 @@ func TestRemovePVCs(t *testing.T) {
 			Name:                 "mydata",
 			Count:                2,
 			Portable:             true,
-			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("data")},
+			VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{testVolumeClaim("data")},
 			SchedulerName:        "custom-scheduler",
 		}
 		err := createTestPVCs(context, clusterInfo, deviceSet)
@@ -114,7 +114,7 @@ func TestRemovePVCs(t *testing.T) {
 			Name:                 "mydata",
 			Count:                2,
 			Portable:             true,
-			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("data"), testVolumeClaim("metadata"), testVolumeClaim("wal")},
+			VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{testVolumeClaim("data"), testVolumeClaim("metadata"), testVolumeClaim("wal")},
 			SchedulerName:        "custom-scheduler",
 		}
 		err := createTestPVCs(context, clusterInfo, deviceSet)
@@ -153,9 +153,9 @@ func createTestPVCs(clusterdContext *clusterd.Context, clusterInfo *client.Clust
 	return cluster.PrepareStorageClassDeviceSets()
 }
 
-func testVolumeClaim(name string) corev1.PersistentVolumeClaim {
+func testVolumeClaim(name string) cephv1.VolumeClaimTemplate {
 	storageClass := "mysource"
-	claim := corev1.PersistentVolumeClaim{Spec: corev1.PersistentVolumeClaimSpec{
+	claim := cephv1.VolumeClaimTemplate{Spec: corev1.PersistentVolumeClaimSpec{
 		StorageClassName: &storageClass,
 	}}
 	claim.Name = name

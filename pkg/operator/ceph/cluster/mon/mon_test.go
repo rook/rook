@@ -166,7 +166,7 @@ func TestStartMonDeployment(t *testing.T) {
 	// Start mon b on any node in a zone since there is a volumeClaimTemplate
 	m = &monConfig{ResourceName: "rook-ceph-mon-b", DaemonName: "b", Port: 3300, PublicIP: "1.2.3.5", DataPathMap: &config.DataPathMap{}}
 	schedule = &opcontroller.MonScheduleInfo{Hostname: "host-b", Zone: "zoneb"}
-	c.spec.Mon.VolumeClaimTemplate = &v1.PersistentVolumeClaim{}
+	c.spec.Mon.VolumeClaimTemplate = &cephv1.VolumeClaimTemplate{}
 	err = c.startMon(m, schedule)
 	assert.NoError(t, err)
 	deployment, err = c.context.Clientset.AppsV1().Deployments(c.Namespace).Get(c.ClusterInfo.Context, m.ResourceName, metav1.GetOptions{})
@@ -647,8 +647,8 @@ func TestFindAvailableZoneForStretchedMon(t *testing.T) {
 func TestMonVolumeClaimTemplate(t *testing.T) {
 	generalSC := "generalSC"
 	zoneSC := "zoneSC"
-	defaultTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &generalSC}}
-	zoneTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &zoneSC}}
+	defaultTemplate := &cephv1.VolumeClaimTemplate{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &generalSC}}
+	zoneTemplate := &cephv1.VolumeClaimTemplate{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &zoneSC}}
 	type fields struct {
 		spec cephv1.ClusterSpec
 	}
@@ -662,17 +662,17 @@ func TestMonVolumeClaimTemplate(t *testing.T) {
 		want   *v1.PersistentVolumeClaim
 	}{
 		{"no template", fields{cephv1.ClusterSpec{}}, args{&monConfig{Zone: "z1"}}, nil},
-		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate},
+		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate.ToPVC()},
 		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
 			VolumeClaimTemplate: defaultTemplate,
 			Zones:               []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}},
 			args{&monConfig{Zone: "z1"}},
-			defaultTemplate},
+			defaultTemplate.ToPVC()},
 		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
 			VolumeClaimTemplate: defaultTemplate,
 			Zones:               []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}},
 			args{&monConfig{Zone: "z1"}},
-			zoneTemplate},
+			zoneTemplate.ToPVC()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -688,8 +688,8 @@ func TestMonVolumeClaimTemplate(t *testing.T) {
 func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 	generalSC := "generalSC"
 	zoneSC := "zoneSC"
-	defaultTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &generalSC}}
-	zoneTemplate := &v1.PersistentVolumeClaim{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &zoneSC}}
+	defaultTemplate := &cephv1.VolumeClaimTemplate{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &generalSC}}
+	zoneTemplate := &cephv1.VolumeClaimTemplate{Spec: v1.PersistentVolumeClaimSpec{StorageClassName: &zoneSC}}
 	type fields struct {
 		spec cephv1.ClusterSpec
 	}
@@ -703,17 +703,17 @@ func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 		want   *v1.PersistentVolumeClaim
 	}{
 		{"no template", fields{cephv1.ClusterSpec{}}, args{&monConfig{Zone: "z1"}}, nil},
-		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate},
+		{"default template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{VolumeClaimTemplate: defaultTemplate}}}, args{&monConfig{Zone: "z1"}}, defaultTemplate.ToPVC()},
 		{"default template with 3 zones", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
 			VolumeClaimTemplate: defaultTemplate,
 			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1"}, {Name: "z2"}, {Name: "z3"}}}}}},
 			args{&monConfig{Zone: "z1"}},
-			defaultTemplate},
+			defaultTemplate.ToPVC()},
 		{"overridden template", fields{cephv1.ClusterSpec{Mon: cephv1.MonSpec{
 			VolumeClaimTemplate: defaultTemplate,
 			StretchCluster:      &cephv1.StretchClusterSpec{Zones: []cephv1.MonZoneSpec{{Name: "z1", VolumeClaimTemplate: zoneTemplate}, {Name: "z2"}, {Name: "z3"}}}}}},
 			args{&monConfig{Zone: "z1"}},
-			zoneTemplate},
+			zoneTemplate.ToPVC()},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

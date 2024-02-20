@@ -51,7 +51,7 @@ func testPrepareDeviceSets(t *testing.T, setTemplateName bool) {
 		Name:                 "mydata",
 		Count:                1,
 		Portable:             true,
-		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{claim},
+		VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{claim},
 		SchedulerName:        "custom-scheduler",
 	}
 	spec := cephv1.ClusterSpec{
@@ -104,7 +104,7 @@ func TestPrepareDeviceSetWithHolesInPVCs(t *testing.T) {
 		Name:                 "mydata",
 		Count:                1,
 		Portable:             true,
-		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("data"), testVolumeClaim("metadata"), testVolumeClaim("wal")},
+		VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{testVolumeClaim("data"), testVolumeClaim("metadata"), testVolumeClaim("wal")},
 		SchedulerName:        "custom-scheduler",
 	}
 	spec := cephv1.ClusterSpec{
@@ -231,9 +231,9 @@ func assertPVCExists(t *testing.T, clientset kubernetes.Interface, namespace, na
 	assert.NotNil(t, pvc)
 }
 
-func testVolumeClaim(name string) corev1.PersistentVolumeClaim {
+func testVolumeClaim(name string) cephv1.VolumeClaimTemplate {
 	storageClass := "mysource"
-	claim := corev1.PersistentVolumeClaim{Spec: corev1.PersistentVolumeClaimSpec{
+	claim := cephv1.VolumeClaimTemplate{Spec: corev1.PersistentVolumeClaimSpec{
 		StorageClassName: &storageClass,
 	}}
 	claim.Name = name
@@ -249,7 +249,7 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 	deviceSet := cephv1.StorageClassDeviceSet{
 		Name:                 "datawithcrushparams1",
 		Count:                1,
-		VolumeClaimTemplates: []corev1.PersistentVolumeClaim{testVolumeClaim("testwithcrushparams1")},
+		VolumeClaimTemplates: []cephv1.VolumeClaimTemplate{testVolumeClaim("testwithcrushparams1")},
 		SchedulerName:        "custom-scheduler",
 	}
 	deviceSet.VolumeClaimTemplates[0].Annotations = map[string]string{
