@@ -12,8 +12,10 @@ See the [GitHub project boards](https://github.com/rook/rook/projects) for the m
 
 The following high level features are targeted for Rook v1.14 (April 2024). For more detailed project tracking see the [v1.14 board](https://github.com/rook/rook/projects/31).
 
+* Support for Ceph Squid (v19)
 * Allow setting the application name on a CephBlockPool [#13744](https://github.com/rook/rook/pull/13744)
 * Pool sharing for multiple object stores [#11411](https://github.com/rook/rook/issues/11411)
+* DNS subdomain style access to RGW buckets [#4780](https://github.com/rook/rook/issues/4780)
 * Replace a single OSD when a metadataDevice is configured with multiple OSDs [#13240](https://github.com/rook/rook/issues/13240)
 * Create a default service account for all Ceph daemons [#13362](https://github.com/rook/rook/pull/13362)
 * Enable the rook orchestrator mgr module by default for improved dashboard integration [#13760](https://github.com/rook/rook/issues/13760)
