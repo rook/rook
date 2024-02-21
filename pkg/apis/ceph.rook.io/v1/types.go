@@ -1184,7 +1184,7 @@ type MetadataServerSpec struct {
 	// +optional
 	Labels Labels `json:"labels,omitempty"`
 
-	// The resource requirements for the rgw pods
+	// The resource requirements for the mds pods
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
 	// +optional

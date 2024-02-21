@@ -6498,7 +6498,7 @@ spec:
                       description: PriorityClassName sets priority classes on components
                       type: string
                     resources:
-                      description: The resource requirements for the rgw pods
+                      description: The resource requirements for the mds pods
                       nullable: true
                       properties:
                         claims:
