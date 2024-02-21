@@ -604,8 +604,8 @@ func (c *clientCluster) unfenceAndDeleteNetworkFence(ctx context.Context, node c
 			return false, err
 		}
 
-		if networkFence.Spec.FenceState != addonsv1alpha1.Unfenced {
-			logger.Infof("waiting for network fence CR %s to get in %s state before deletion", networkFence.Name, addonsv1alpha1.Unfenced)
+		if networkFence.Status.Message != addonsv1alpha1.UnFenceOperationSuccessfulMessage {
+			logger.Infof("waiting for network fence CR %q status to get result %q", networkFence.Name, addonsv1alpha1.UnFenceOperationSuccessfulMessage)
 			return false, err
 		}
 
