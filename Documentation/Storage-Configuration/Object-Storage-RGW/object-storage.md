@@ -490,6 +490,49 @@ kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpa
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpath='{.data.SecretKey}' | base64 --decode
 ```
 
+### Creating subusers for Swift access
+
+The access to the Swift API is granted by creating a subuser of an RGW user.
+While commonly the access is granted via projects mapped from Keystone, explicit
+creation of subusers is supported by adding the section `spec.subUsers`:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: my-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  subUsers:
+  - name: swift 
+    access: full
+```
+
+Possible values for `access` are: possible values are: `read`, `write`,
+`readwrite`, `full`. These values take their meanings from the possible values
+of the `--access-level` option of `radosgw-admin subuser create`, as documented
+in the [radosgw admin guide](https://docs.ceph.com/en/octopus/radosgw/admin/#create-a-subuser).
+
+Like for the S3 access keys for the users, the swift keys created for the
+sub-users will be automatically injected into Secret objects. The credentials
+for the subusers are mapped to separate secrets, in the case of the example the
+following secret will be created:
+```yaml
+apiVersion:
+kind: Secret
+metadata:
+  name: rook-ceph-object-subuser-my-store-my-user-swift 
+  namespace: rook-ceph
+data:
+  SWIFT_USER: my-user:swift                             
+  SWIFT_SECRET_KEY: $KEY                                
+  SWIFT_AUTH_ENDPOINT: https://rgw.example:6000/auth    
+```
+
+For more information see the
+[design document](https://github.com/rook/rook/blob/459604a3bd383ded82d62463b963f19869331216/design/ceph/object/swift-and-keystone-integration.md#swift-integration).
+
 ## Object Multisite
 
 Multisite is a feature of Ceph that allows object stores to replicate its data over multiple Ceph clusters.
