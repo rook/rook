@@ -48,3 +48,13 @@ func (src *ConfigFileVolumeSource) ToKubernetesVolumeSource() *corev1.VolumeSour
 
 	return dst
 }
+
+func (t *VolumeClaimTemplate) ToPVC() *corev1.PersistentVolumeClaim {
+	if t == nil {
+		return nil
+	}
+	return &corev1.PersistentVolumeClaim{
+		ObjectMeta: *t.ObjectMeta.DeepCopy(),
+		Spec:       *t.Spec.DeepCopy(),
+	}
+}

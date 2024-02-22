@@ -155,7 +155,7 @@ func (c *Cluster) createDeviceSetPVCsForIndex(newDeviceSet cephv1.StorageClassDe
 		}
 		typesFound.Insert(pvcTemplate.Name)
 
-		pvc, err := c.createDeviceSetPVC(existingPVCs, newDeviceSet.Name, pvcTemplate, setIndex)
+		pvc, err := c.createDeviceSetPVC(existingPVCs, newDeviceSet.Name, *pvcTemplate.ToPVC(), setIndex)
 		if err != nil {
 			errs.addError("failed to provision PVC for device set %q index %d. %v", newDeviceSet.Name, setIndex, err)
 			continue
