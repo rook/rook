@@ -7470,7 +7470,7 @@ Kubernetes core/v1.ResourceRequirements
 </td>
 <td>
 <em>(Optional)</em>
-<p>The resource requirements for the rgw pods</p>
+<p>The resource requirements for the mds pods</p>
 </td>
 </tr>
 <tr>
