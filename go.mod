@@ -2,7 +2,15 @@ module github.com/rook/rook
 
 go 1.21
 
-replace github.com/rook/rook/pkg/apis => ./pkg/apis
+replace (
+	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
+	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
+
+	// TODO: remove this replace once https://github.com/libopenstorage/secrets/pull/83 is merged
+	github.com/libopenstorage/secrets => github.com/rook/secrets v0.0.0-20240315053144-3195f6906937
+	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
+	github.com/rook/rook/pkg/apis => ./pkg/apis
+)
 
 require (
 	github.com/IBM/keyprotect-go-client v0.12.2
@@ -43,6 +51,19 @@ require (
 	sigs.k8s.io/controller-runtime v0.17.2
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/yaml v1.4.0
+)
+
+require (
+	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.9.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.5.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/internal v1.5.1 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets v0.12.0 // indirect
+	github.com/Azure/azure-sdk-for-go/sdk/keyvault/internal v0.7.1 // indirect
+	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.1 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.0 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
+	github.com/portworx/sched-ops v1.20.4-rc1 // indirect
 )
 
 require (
@@ -149,8 +170,7 @@ exclude (
 	github.com/elazarl/goproxy v0.0.0-20170405201442-c4fc26588b6e
 	github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a
-	// portworx dependencies are a mess, and we don't use portworx code, so skip it
-	github.com/portworx/sched-ops v1.20.4-rc1
+	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
 	k8s.io/client-go v1.4.0
