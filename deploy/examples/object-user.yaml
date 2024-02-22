@@ -1,5 +1,5 @@
 #################################################################################################################
-# Create an object store user for access to the s3 endpoint.
+# Create an object store user for access to the s3/swift endpoint.
 #  kubectl create -f object-user.yaml
 #################################################################################################################
 
@@ -23,6 +23,10 @@ spec:
   #   metadata: "*"
   #   usage: "*"
   #   zone: "*"
+  # Create subusers for swift access to the object store
+  # subUsers:
+  # - name: swift
+  #   access: full # Possible values are: read, write, readwrite, full
   # If the CephObjectStoreUser is created in a namespace other than the Rook cluster namespace,
   # specify the namespace where the cluster and object store are found.
   # "allowUsersInNamespaces" must include this namespace to enable this feature.
