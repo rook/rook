@@ -277,7 +277,7 @@ func generateCephSubuserSecret(userConfig *admin.User, endpoint, namespace, stor
 	secrets := map[string]string{
 		"SWIFT_USER":          subuser.User,
 		"SWIFT_SECRET_KEY":    subuser.SecretKey,
-		"SWIFT_AUTH_ENDPOINT": "TODO", // TODO
+		"SWIFT_AUTH_ENDPOINT": endpoint + "/swift/v1",
 	}
 	splitSubUserName := strings.SplitN(subuser.User, ":", 2)
 	secret := &corev1.Secret{
