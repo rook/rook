@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/cmd/rook/userfacing"
 	"github.com/rook/rook/cmd/rook/util"
 	"github.com/rook/rook/cmd/rook/version"
+	_ "go.uber.org/automaxprocs"
 )
 
 func main() {
