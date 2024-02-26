@@ -310,7 +310,7 @@ func ValidateCephVersionsBetweenLocalAndExternalClusters(localVersion, externalV
 
 	// Local version must never be higher than the external one
 	if IsSuperior(localVersion, externalVersion) {
-		return errors.Errorf("local cluster ceph version is higher %q than the external cluster %q, this must never happen", externalVersion.String(), localVersion.String())
+		return errors.Errorf("local cluster ceph version %q is higher than the external cluster version %q, this must never happen", localVersion.String(), externalVersion.String())
 	}
 
 	// External cluster was updated to a minor version higher, consider updating too!
