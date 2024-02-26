@@ -60,6 +60,9 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--upgrade`: (optional) Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) and client.healthchecker ceph users with new permissions needed for the new cluster version and older permission will still be applied.
 * `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 * `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
+*  `--topology-pools`: (optional) comma-separated list of topology-constrained rbd pools
+*  `--topology-failure-domain-label`: (optional) k8s cluster failure domain label (example: zone,rack,host,etc) for the topology-pools that are matching the ceph domain
+*  `--topology-failure-domain-values`: (optional) comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the topology-pools list
 
 ### Multi-tenancy
 
@@ -82,6 +85,17 @@ See the [Multisite doc](https://docs.ceph.com/en/quincy/radosgw/multisite/#confi
 
 ```console
 python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --format bash --rgw-endpoint <rgw_endpoint> --rgw-realm-name <rgw_realm_name>> --rgw-zonegroup-name <rgw_zonegroup_name> --rgw-zone-name <rgw_zone_name>>
+```
+
+### Topology Based Provisioning
+
+Enable Topology Based Provisioning for RBD pools by passing `--topology-pools`, `--topology-failure-domain-label` and `--topology-failure-domain-values` flags.
+A new storageclass will be created by the import script named `ceph-rbd-topology` with `volumeBindingMode: WaitForFirstConsumer`
+and will configure topologyConstrainedPools according the input provided.
+Later use the storageclass to create a volume in the pool matching the topology of the pod scheduling.
+
+```console
+python3 create-external-cluster-resources.py --rbd-data-pool-name pool_name --topology-pools p,q,r --topology-failure-domain-label labelName --topology-failure-domain-values x,y,z --format bash
 ```
 
 ### Upgrade Example
