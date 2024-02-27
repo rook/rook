@@ -190,7 +190,7 @@ jobs:
 
       - name: validate-rgw-endpoint
         run: |
-          rgw_endpoint=$(kubectl get service -n rook-ceph |  awk '/rgw/ {print $3":80"}')
+          rgw_endpoint=$(kubectl get service -n rook-ceph -l rgw=store-a |  awk '/rgw/ {print $3":80"}')
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # pass the valid rgw-endpoint of same ceph cluster
           timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
@@ -264,7 +264,7 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
-  raw-disk:
+  raw-disk-with-object:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
@@ -310,7 +310,13 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        run: |
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
+      - name: wait for object stores to be ready
+        run: |
+          tests/scripts/validate_cluster.sh rgw store-a
+          tests/scripts/validate_cluster.sh rgw store-b
 
       - name: test toolbox-operator-image pod
         run: |
@@ -1018,7 +1024,7 @@ jobs:
       - name: wait for ceph to be ready
         run: |
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-          tests/scripts/validate_cluster.sh rgw
+          tests/scripts/validate_cluster.sh rgw my-store
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
 
@@ -1039,7 +1045,7 @@ jobs:
           echo "wait for rgw pod to be deleted"
           kubectl wait --for=delete pod -l app=rook-ceph-rgw -n rook-ceph --timeout=100s
           kubectl create -f tests/manifests/test-object.yaml
-          tests/scripts/validate_cluster.sh rgw
+          tests/scripts/validate_cluster.sh rgw my-store
           tests/scripts/deploy-validate-vault.sh validate_rgw
 
       - name: collect common logs

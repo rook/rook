@@ -301,7 +301,9 @@ function deploy_cluster() {
 
   # create the cluster resources
   kubectl create -f cluster-test.yaml
-  kubectl create -f object-test.yaml
+  kubectl create -f object-shared-pools-test.yaml
+  kubectl create -f object-a.yaml
+  kubectl create -f object-b.yaml
   kubectl create -f pool-test.yaml
   kubectl create -f filesystem-test.yaml
   sed -i "/resources:/,/ # priorityClassName:/d" rbdmirror.yaml

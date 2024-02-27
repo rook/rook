@@ -268,20 +268,19 @@ func (r *ReconcileObjectZone) createorUpdateCephZone(zone *cephv1.CephObjectZone
 		return reconcile.Result{}, nil
 	}
 
-	if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
-		logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
-
-		zoneIsMaster := false
-		if zoneGroupJson.MasterZoneID == "" {
-			zoneIsMaster = true
-		}
-
-		err = r.createPoolsAndZone(objContext, zone, realmName, zoneIsMaster)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
-	} else {
+	if code, ok := exec.ExitStatus(err); ok && code != int(syscall.ENOENT) {
 		return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zone get failed with code %d for reason %q", code, output)
+	}
+	logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
+
+	zoneIsMaster := false
+	if zoneGroupJson.MasterZoneID == "" {
+		zoneIsMaster = true
+	}
+
+	err = r.createPoolsAndZone(objContext, zone, realmName, zoneIsMaster)
+	if err != nil {
+		return reconcile.Result{}, err
 	}
 
 	return reconcile.Result{}, nil
@@ -294,7 +293,7 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
 
-	err := object.CreatePools(objContext, r.clusterSpec, zone.Spec.MetadataPool, zone.Spec.DataPool)
+	err := object.ConfigurePools(objContext, r.clusterSpec, zone.Spec.MetadataPool, zone.Spec.DataPool, zone.Spec.SharedPools)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create pools for zone %v", zone.Name)
 	}
@@ -320,6 +319,12 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 		return errors.Wrapf(err, "failed to create ceph zone %q for reason %q", zone.Name, output)
 	}
 	logger.Debugf("created ceph zone %q", zone.Name)
+
+	// Configure the zone for RADOS namespaces
+	err = object.ConfigureSharedPoolsForZone(objContext, zone.Spec.SharedPools)
+	if err != nil {
+		return errors.Wrapf(err, "failed to configure rados namespaces for zone")
+	}
 
 	return nil
 }
