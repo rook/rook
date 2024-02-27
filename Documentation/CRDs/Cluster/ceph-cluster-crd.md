@@ -220,8 +220,9 @@ Configure the network that will be enabled for the cluster and services.
       See the kernel requirements above for encryption.
 
 !!! caution
-    Changing networking configuration after a Ceph cluster has been deployed is NOT
-    supported and will result in a non-functioning cluster.
+    Changing networking configuration after a Ceph cluster has been deployed is only supported for
+    the network encryption settings. Changing other network settings is *NOT* supported and will
+    likely result in a non-functioning cluster.
 
 #### Provider
 
