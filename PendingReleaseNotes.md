@@ -11,3 +11,4 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 ## Features
 
 - Kubernetes versions **v1.24** through **v1.29** are supported.
+- Support creating swift sub-users through Kubernetes CRs (see [#9088](https://github.com/rook/rook/issues/9088)).

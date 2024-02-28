@@ -92,3 +92,29 @@ storage:
 
 	assert.Equal(t, expectedSpec, clusterSpec)
 }
+
+func TestObjectStoreUserSpecMarhsalSubuser(t *testing.T) {
+	// Assert that the new ObjectStoreUserSpec fields specified in <design/ceph/object/swift-and-keystone-integration.md> parse
+	specYaml := []byte(`
+subUsers:
+- name: swift
+  access: full
+`)
+	rawJSON, err := yaml.ToJSON(specYaml)
+	assert.Nil(t, err)
+	fmt.Printf("rawJSON: %s\n", string(rawJSON))
+
+	// unmarshal the JSON into a strongly typed storage spec object
+	var objectStoreUserSpec ObjectStoreUserSpec
+	err = json.Unmarshal(rawJSON, &objectStoreUserSpec)
+	assert.Nil(t, err)
+
+	// the unmarshalled storage spec should equal the expected spec below
+	expectedSpec := ObjectStoreUserSpec{
+		Subusers: []SubuserSpec{
+			{Name: "swift", Access: "full"},
+		},
+	}
+
+	assert.Equal(t, expectedSpec, objectStoreUserSpec)
+}

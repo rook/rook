@@ -20,14 +20,17 @@ package objectuser
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -585,6 +588,278 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Info:   "read, write",
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
+		userConfig = generateUserConfig(objectUser)
+		r.userConfig = &userConfig
+		err = r.createOrUpdateCephUser(objectUser)
+		assert.NoError(t, err)
+	})
+}
+
+func TestCreateorUpdateSubusers(t *testing.T) {
+	// Set DEBUG logging
+	capnslog.SetGlobalLogLevel(capnslog.DEBUG)
+
+	objectUser := &cephv1.CephObjectStoreUser{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "",
+			Namespace: namespace,
+		},
+		Spec: cephv1.ObjectStoreUserSpec{
+			Store: store,
+		},
+		TypeMeta: metav1.TypeMeta{
+			Kind: "CephObjectStoreUser",
+		},
+	}
+
+	users := make(map[string]*admin.User)
+	mockClient := &cephobject.MockClient{
+		MockDo: func(req *http.Request) (*http.Response, error) {
+			fmt.Printf("REQUEST %s %s\n", req.Method, req.URL)
+
+			if req.URL.Path != "rook-ceph-rgw-my-store.mycluster.svc/admin/user" {
+				return nil, fmt.Errorf("unexpected url path %q", req.URL.Path)
+			}
+
+			values, err := url.ParseQuery(req.URL.RawQuery)
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid query")
+			}
+
+			if values.Get("format") != "json" {
+				return nil, fmt.Errorf("unexpected format %q", values.Get("format"))
+			}
+
+			if req.Method == http.MethodGet {
+				user, ok := users[values.Get("uid")]
+				if !ok {
+					return &http.Response{
+						StatusCode: 404,
+						Body:       io.NopCloser(bytes.NewReader([]byte(`{"Code":"NoSuchUser","RequestId":"tx0000000000000000005a9-00608957a2-10496-my-store","HostId":"10496-my-store-my-store"}`))),
+					}, nil
+				}
+				resp, err := json.Marshal(user)
+				fmt.Printf("GET RESPONSE: %s\n", resp)
+				if err != nil {
+					return nil, err
+				}
+
+				return &http.Response{
+					StatusCode: 201,
+					Body:       io.NopCloser(bytes.NewReader(resp)),
+				}, nil
+			}
+
+			if req.Method == http.MethodPost {
+				user, ok := users[values.Get("uid")]
+				if values.Has("subuser") {
+					if !ok {
+						return nil, fmt.Errorf("trying to modify a subuser for non-existent user %q", values.Get("uid"))
+					}
+
+					for i, subuser := range user.Subusers {
+						if subuser.Name == values.Get("subuser") {
+							user.Subusers[i].Access = admin.SubuserAccess(values.Get("access"))
+							return &http.Response{
+								StatusCode: 200,
+								Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
+							}, nil
+						}
+					}
+
+					return nil, fmt.Errorf("trying to modify non-existent subuser %q", values.Get("subuser"))
+				}
+
+				if !ok {
+					return nil, fmt.Errorf("trying to modify existing user %q", values.Get("uid"))
+				}
+
+				u := users[values.Get("uid")]
+
+				if values.Has("max-buckets") {
+					var maxBuckets int
+					fmt.Scanf(values.Get("max-buckets"), "%d", &maxBuckets)
+					u.MaxBuckets = &maxBuckets
+				}
+
+				if values.Has("display-name") {
+					u.DisplayName = values.Get("DisplayName")
+				}
+
+				resp, err := json.Marshal(u)
+				if err != nil {
+					return nil, err
+				}
+
+				return &http.Response{
+					StatusCode: 201,
+					Body:       io.NopCloser(bytes.NewReader(resp)),
+				}, nil
+			}
+
+			if req.Method == http.MethodDelete {
+				user, ok := users[values.Get("uid")]
+				if values.Has("subuser") {
+					if !ok {
+						return nil, fmt.Errorf("trying to create a subuser for non-existent user %q", values.Get("uid"))
+					}
+
+					newSubusers := make([]admin.SubuserSpec, 0)
+					deleted := false
+					for _, subuser := range user.Subusers {
+						if subuser.Name == values.Get("subuser") {
+							deleted = true
+						} else {
+							newSubusers = append(newSubusers, subuser)
+						}
+					}
+
+					if !deleted {
+						return nil, fmt.Errorf("trying to delete non-existent subuser %q", values.Get("subuser"))
+					}
+
+					user.Subusers = newSubusers
+
+					return &http.Response{
+						StatusCode: 201,
+						Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
+					}, nil
+				}
+
+				if !ok {
+					return nil, fmt.Errorf("trying to delete non-existent user %q", values.Get("uid"))
+				}
+				delete(users, values.Get("uid"))
+				return &http.Response{
+					StatusCode: 200,
+					Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
+				}, nil
+			}
+			if req.Method == http.MethodPut {
+				user, ok := users[values.Get("uid")]
+				if values.Has("subuser") {
+					if !ok {
+						return nil, fmt.Errorf("trying to create a subuser for non-existent user %q", values.Get("uid"))
+					}
+
+					for _, subuser := range user.Subusers {
+						if subuser.Name == values.Get("subuser") {
+							return nil, fmt.Errorf("trying to create existing subuser %q", values.Get("subuser"))
+						}
+					}
+
+					user.Subusers = append(user.Subusers, admin.SubuserSpec{
+						Name:   values.Get("subuser"),
+						Access: admin.SubuserAccess(values.Get("access")), // TODO: map this to the reply values
+					})
+
+					return &http.Response{
+						StatusCode: 201,
+						Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
+					}, nil
+				}
+
+				if values.Has("quota") {
+					return &http.Response{
+						StatusCode: 200,
+						Body:       io.NopCloser(bytes.NewReader([]byte("{}"))),
+					}, nil
+				}
+
+				if ok {
+					return nil, fmt.Errorf("trying to create existing user %q", values.Get("uid"))
+				}
+
+				maxBuckets := -1
+				if values.Has("max-buckets") {
+					fmt.Scanf(values.Get("max-buckets"), "%d", &maxBuckets)
+				}
+
+				u := &admin.User{
+					ID: values.Get("uid"),
+					Keys: []admin.UserKeySpec{
+						{User: values.Get("uid"), AccessKey: "access_key", SecretKey: "secret_key"},
+					},
+					MaxBuckets:  &maxBuckets,
+					DisplayName: values.Get("display-name"),
+				}
+				users[values.Get("uid")] = u
+
+				resp, err := json.Marshal(u)
+				if err != nil {
+					return nil, err
+				}
+
+				return &http.Response{
+					StatusCode: 201,
+					Body:       io.NopCloser(bytes.NewReader(resp)),
+				}, nil
+			}
+			return nil, fmt.Errorf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, req.URL.Path)
+		},
+	}
+
+	adminClient, err := admin.New("rook-ceph-rgw-my-store.mycluster.svc", "53S6B9S809NUP19IJ2K3", "1bXPegzsGClvoGAiJdHQD1uOW2sQBLAZM9j9VtXR", mockClient)
+	assert.NoError(t, err)
+	userConfig := generateUserConfig(objectUser)
+
+	r := &ReconcileObjectStoreUser{
+		objContext: &cephobject.AdminOpsContext{
+			AdminOpsClient: adminClient,
+		},
+		userConfig:       &userConfig,
+		opManagerContext: context.TODO(),
+	}
+
+	t.Run("user without any Quotas or Capabilities", func(t *testing.T) {
+		objectUser.Name = name
+		userConfig = generateUserConfig(objectUser)
+		r.userConfig = &userConfig
+		err = r.createOrUpdateCephUser(objectUser)
+		assert.NoError(t, err)
+	})
+
+	t.Run("add a subuser", func(t *testing.T) {
+		objectUser.Spec.Subusers = []cephv1.SubuserSpec{
+			{
+				Name:   "swift",
+				Access: cephv1.AccessSpecRead,
+			},
+		}
+		userConfig = generateUserConfig(objectUser)
+		r.userConfig = &userConfig
+		err = r.createOrUpdateCephUser(objectUser)
+		assert.NoError(t, err)
+	})
+
+	t.Run("modify a subuser", func(t *testing.T) {
+		objectUser.Spec.Subusers = []cephv1.SubuserSpec{
+			{
+				Name:   "swift",
+				Access: cephv1.AccessSpecWrite,
+			},
+		}
+		userConfig = generateUserConfig(objectUser)
+		r.userConfig = &userConfig
+		err = r.createOrUpdateCephUser(objectUser)
+		assert.NoError(t, err)
+	})
+
+	t.Run("replace the subuser", func(t *testing.T) {
+		objectUser.Spec.Subusers = []cephv1.SubuserSpec{
+			{
+				Name:   "swift-wo",
+				Access: cephv1.AccessSpecWrite,
+			},
+		}
+		userConfig = generateUserConfig(objectUser)
+		r.userConfig = &userConfig
+		err = r.createOrUpdateCephUser(objectUser)
+		assert.NoError(t, err)
+	})
+
+	t.Run("remove all subusers", func(t *testing.T) {
+		objectUser.Spec.Subusers = []cephv1.SubuserSpec{}
 		userConfig = generateUserConfig(objectUser)
 		r.userConfig = &userConfig
 		err = r.createOrUpdateCephUser(objectUser)
