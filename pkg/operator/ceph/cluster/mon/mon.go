@@ -189,7 +189,8 @@ func (c *Cluster) Start(clusterInfo *cephclient.ClusterInfo, rookImage string, c
 	c.spec = spec
 
 	// fail if we were instructed to deploy more than one mon on the same machine with host networking
-	if c.spec.Network.IsHost() && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
+	isHost, _ := c.spec.Network.IsHost()
+	if isHost && c.spec.Mon.AllowMultiplePerNode && c.spec.Mon.Count > 1 {
 		return nil, errors.Errorf("refusing to deploy %d monitors on the same host with host networking and allowMultiplePerNode is %t. only one monitor per node is allowed", c.spec.Mon.Count, c.spec.Mon.AllowMultiplePerNode)
 	}
 
@@ -598,12 +599,13 @@ func (c *Cluster) newMonConfig(monID int, zone string) *monConfig {
 		defaultPort = DefaultMsgr2Port
 	}
 
+	useHost, _ := c.spec.Network.IsHost()
 	return &monConfig{
 		ResourceName:   resourceName(daemonName),
 		DaemonName:     daemonName,
 		Port:           defaultPort,
 		Zone:           zone,
-		UseHostNetwork: c.spec.Network.IsHost(),
+		UseHostNetwork: useHost,
 		DataPathMap: config.NewStatefulDaemonDataPathMap(
 			c.spec.DataDirHostPath, dataDirRelativeHostPath(daemonName), config.MonType, daemonName, c.Namespace),
 	}
@@ -929,7 +931,8 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			// placement is not being made. otherwise, the node choice will map
 			// directly to a node selector on the monitor pod.
 			var schedule *controller.MonScheduleInfo
-			if c.spec.Network.IsHost() || c.monVolumeClaimTemplate(mon) == nil {
+			isHost, _ := c.spec.Network.IsHost()
+			if isHost || c.monVolumeClaimTemplate(mon) == nil {
 				logger.Infof("mon %s assigned to node %s", mon.DaemonName, nodeChoice.Name)
 				schedule, err = getNodeInfoFromNode(*nodeChoice)
 				if err != nil {
@@ -1423,7 +1426,7 @@ func (c *Cluster) startMon(m *monConfig, schedule *controller.MonScheduleInfo) e
 }
 
 func isMonIPUpdateRequiredForHostNetwork(mon string, isMonUsingHostNetwork bool, network *cephv1.NetworkSpec) bool {
-	isHostNetworkEnabledInSpec := network.IsHost()
+	isHostNetworkEnabledInSpec, _ := network.IsHost()
 	if isHostNetworkEnabledInSpec && !isMonUsingHostNetwork {
 		logger.Infof("host network is enabled for the cluster but mon %q is not running on host IP address", mon)
 		return true
@@ -1562,7 +1565,8 @@ func monFoundInQuorum(name string, monQuorumStatusResp cephclient.MonStatusRespo
 }
 
 func requiredDuringScheduling(spec *cephv1.ClusterSpec) bool {
-	return spec.Network.IsHost() || !spec.Mon.AllowMultiplePerNode
+	isHost, _ := spec.Network.IsHost()
+	return isHost || !spec.Mon.AllowMultiplePerNode
 }
 
 func (c *Cluster) acquireOrchestrationLock() {

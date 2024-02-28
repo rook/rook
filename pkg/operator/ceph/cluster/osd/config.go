@@ -35,7 +35,7 @@ func osdOnSDNFlag(network cephv1.NetworkSpec) []string {
 	var args []string
 	// OSD fails to find the right IP to bind to when running on SDN
 	// for more details: https://github.com/rook/rook/issues/3140
-	if !network.IsHost() {
+	if isHost, _ := network.IsHost(); !isHost {
 		args = append(args, "--ms-learn-addr-from-peer=false")
 	}
 

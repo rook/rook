@@ -46,7 +46,12 @@ func (n *CephNFS) IsHostNetwork(c *ClusterSpec) bool {
 	if n.Spec.Server.HostNetwork != nil {
 		return *n.Spec.Server.HostNetwork
 	}
-	return c.Network.IsHost()
+	ret, err := c.Network.IsHost()
+	if err != nil {
+		ret = false
+	}
+
+	return ret
 }
 
 func (sec *NFSSecuritySpec) Validate() error {

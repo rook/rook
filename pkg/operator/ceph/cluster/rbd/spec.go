@@ -27,6 +27,7 @@ import (
 )
 
 func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdMirror *cephv1.CephRBDMirror) (*apps.Deployment, error) {
+	isHost, _ := r.cephClusterSpec.Network.IsHost()
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   daemonConfig.ResourceName,
@@ -41,7 +42,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			},
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
-			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
+			HostNetwork:        isHost,
 			PriorityClassName:  rbdMirror.Spec.PriorityClassName,
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
@@ -64,7 +65,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	rbdMirror.Spec.Annotations.ApplyToObjectMeta(&podSpec.ObjectMeta)
 	rbdMirror.Spec.Labels.ApplyToObjectMeta(&podSpec.ObjectMeta)
 
-	if r.cephClusterSpec.Network.IsHost() {
+	if isHost, _ := r.cephClusterSpec.Network.IsHost(); isHost {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if r.cephClusterSpec.Network.IsMultus() {
 		if err := k8sutil.ApplyMultus(r.clusterInfo.Namespace, &r.cephClusterSpec.Network, &podSpec.ObjectMeta); err != nil {

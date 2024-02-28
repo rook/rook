@@ -56,7 +56,11 @@ func (s *ObjectStoreSpec) IsHostNetwork(c *ClusterSpec) bool {
 	if s.Gateway.HostNetwork != nil {
 		return *s.Gateway.HostNetwork
 	}
-	return c.Network.IsHost()
+	ret, err := c.Network.IsHost()
+	if err != nil {
+		ret = false
+	}
+	return ret
 }
 
 func (s *ObjectRealmSpec) IsPullRealm() bool {

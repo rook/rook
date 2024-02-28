@@ -142,6 +142,7 @@ func (c *Cluster) getKeyRotationPodTemplateSpec(osdProps osdProperties, osd OSDI
 		return nil, errors.Wrap(err, "failed to generate key rotation container")
 	}
 
+	isHost, _ := c.spec.Network.IsHost()
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: keyRotationCronJobAppName,
@@ -158,12 +159,12 @@ func (c *Cluster) getKeyRotationPodTemplateSpec(osdProps osdProperties, osd OSDI
 			},
 			RestartPolicy:     restart,
 			Volumes:           volumes,
-			HostNetwork:       c.spec.Network.IsHost(),
+			HostNetwork:       isHost,
 			PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 			SchedulerName:     osdProps.schedulerName,
 		},
 	}
-	if c.spec.Network.IsHost() {
+	if useHost, _ := c.spec.Network.IsHost(); useHost {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.IsMultus() {
 		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.spec.Network, &podTemplateSpec.ObjectMeta); err != nil {

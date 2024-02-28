@@ -50,7 +50,8 @@ func ApplyCephNetworkSettings(
 ) error {
 	netSpec := clusterSpec.Network
 
-	if !netSpec.IsHost() && !netSpec.IsMultus() {
+	isHost, _ := netSpec.IsHost()
+	if !isHost && !netSpec.IsMultus() {
 		// do not apply specs when using k8s pod network, and for safety, only apply net specs for
 		// nets where it is definitely safe to do so (e.g., multus, hostnet)
 		logger.Infof("not applying network settings for cluster %q ceph networks", clusterInfo.Namespace)

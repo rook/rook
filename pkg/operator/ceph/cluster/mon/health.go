@@ -676,7 +676,8 @@ func (c *Cluster) failoverMon(name string) error {
 		return errors.Wrap(err, "failed to place new mon on a node")
 	}
 
-	if c.spec.Network.IsHost() {
+	isHost, _ := c.spec.Network.IsHost()
+	if isHost {
 		schedule, ok := c.mapping.Schedule[m.DaemonName]
 		if !ok {
 			return errors.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)

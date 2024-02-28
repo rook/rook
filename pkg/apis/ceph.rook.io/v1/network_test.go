@@ -72,10 +72,45 @@ func TestValidateNetworkSpec(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestNetworkCephIsHostLegacy(t *testing.T) {
-	net := NetworkSpec{HostNetwork: true}
+// test the NetworkSpec.IsHost method with different network providers
+// Also test it in  combination with the legacy
+// "HostNetwork  setting.
+func TestNetworkCephIsHost(t *testing.T) {
+	net := NetworkSpec{HostNetwork: false}
 
-	assert.True(t, net.IsHost())
+	net.Provider = NetworkProviderHost
+	ret, err := net.IsHost()
+	assert.Error(t, err)
+	assert.True(t, ret)
+
+	net.Provider = NetworkProviderDefault
+	net.HostNetwork = true
+	ret, err = net.IsHost()
+	assert.NoError(t, err)
+	assert.True(t, ret)
+
+	net.HostNetwork = false
+	ret, err = net.IsHost()
+	assert.NoError(t, err)
+	assert.False(t, ret)
+
+	net.Provider = NetworkProviderMultus
+	net.HostNetwork = false
+	ret, err = net.IsHost()
+	assert.NoError(t, err)
+	assert.False(t, ret)
+
+	net.HostNetwork = true
+	ret, err = net.IsHost()
+	assert.Error(t, err)
+	assert.False(t, ret)
+
+	// test with  nonempty but invalid provider
+	net.Provider = "foo"
+	ret, err = net.IsHost()
+	assert.Error(t, err)
+	assert.False(t, ret)
+
 }
 
 func TestNetworkSpec(t *testing.T) {

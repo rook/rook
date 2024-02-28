@@ -706,7 +706,9 @@ func TestMakeRGWPodSpec(t *testing.T) {
 			if tt.isSet {
 				assert.Equal(t, *c.store.Spec.Gateway.HostNetwork, podTemplateSpec.Spec.HostNetwork)
 			} else {
-				assert.Equal(t, c.clusterSpec.Network.IsHost(), podTemplateSpec.Spec.HostNetwork)
+				isHost, err := c.clusterSpec.Network.IsHost()
+				assert.NoError(t, err)
+				assert.Equal(t, isHost, podTemplateSpec.Spec.HostNetwork)
 			}
 		})
 	}
