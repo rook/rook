@@ -96,6 +96,9 @@ csi:
   # -- Enable Ceph CSI PVC encryption support
   enableCSIEncryption: false
 
+  # -- Enable volume group snapshot feature. This feature is
+  # enabled by default as long as the necessary CRDs are available in the cluster.
+  enableVolumeGroupSnapshot: true
   # -- PriorityClassName to be set on csi driver plugin pods
   pluginPriorityClassName: system-node-critical
 

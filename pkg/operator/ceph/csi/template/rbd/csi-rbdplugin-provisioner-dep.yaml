@@ -102,6 +102,9 @@ spec:
             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
+            {{ if .VolumeGroupSnapshotSupported }}
+            - "--enable-volume-group-snapshots={{ .EnableVolumeGroupSnapshot }}"
+            {{ end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
