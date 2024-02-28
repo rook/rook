@@ -179,7 +179,7 @@ function growOSD(){
 function creatingPrerequisites(){
    echo "creating Prerequisites deployments - Prometheus Operator and Prometheus Instances"
    # creating Prometheus operator
-   kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.40.0/bundle.yaml
+   kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
    # waiting for Prometheus operator to get ready
    timeout 30 sh -c "until [ $(kubectl get pod -l app.kubernetes.'io/name'=prometheus-operator -o json | jq -r '.items[0].status.phase') = Running ]; do echo 'waiting for prometheus-operator to get created' && sleep 1; done"
    # creating a service monitor that will watch the Rook cluster and collect metrics regularly
