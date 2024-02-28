@@ -116,11 +116,12 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 				Containers: []corev1.Container{
 					getCrashDaemonContainer(cephCluster, *cephVersion),
 				},
-				Tolerations:       tolerations,
-				RestartPolicy:     corev1.RestartPolicyAlways,
-				HostNetwork:       cephCluster.Spec.Network.IsHost(),
-				Volumes:           volumes,
-				PriorityClassName: cephv1.GetCrashCollectorPriorityClassName(cephCluster.Spec.PriorityClassNames),
+				Tolerations:        tolerations,
+				RestartPolicy:      corev1.RestartPolicyAlways,
+				HostNetwork:        cephCluster.Spec.Network.IsHost(),
+				Volumes:            volumes,
+				PriorityClassName:  cephv1.GetCrashCollectorPriorityClassName(cephCluster.Spec.PriorityClassNames),
+				ServiceAccountName: k8sutil.DefaultServiceAccount,
 			},
 		}
 

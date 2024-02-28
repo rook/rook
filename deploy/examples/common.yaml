@@ -1154,6 +1154,18 @@ metadata:
 # imagePullSecrets:
 #   - name: my-registry-secret
 ---
+# Service account for other components
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: rook-ceph # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+# imagePullSecrets:
+#   - name: my-registry-secret
+---
 # Service account for Ceph mgrs
 apiVersion: v1
 kind: ServiceAccount

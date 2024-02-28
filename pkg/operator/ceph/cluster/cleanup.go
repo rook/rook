@@ -158,9 +158,10 @@ func (c *ClusterController) cleanUpJobTemplateSpec(cluster *cephv1.CephCluster, 
 			Containers: []v1.Container{
 				c.cleanUpJobContainer(cluster, monSecret, clusterFSID),
 			},
-			Volumes:           volumes,
-			RestartPolicy:     v1.RestartPolicyOnFailure,
-			PriorityClassName: cephv1.GetCleanupPriorityClassName(cluster.Spec.PriorityClassNames),
+			Volumes:            volumes,
+			RestartPolicy:      v1.RestartPolicyOnFailure,
+			PriorityClassName:  cephv1.GetCleanupPriorityClassName(cluster.Spec.PriorityClassNames),
+			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
 

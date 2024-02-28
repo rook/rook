@@ -99,6 +99,7 @@ func replaceNamespaces(name, manifest, operatorNamespace, clusterNamespace strin
 
 	// SCC namespaces for operator and Ceph daemons
 	manifest = strings.ReplaceAll(manifest, "rook-ceph:rook-ceph-system # serviceaccount:namespace:operator", operatorNamespace+":rook-ceph-system")
+	manifest = strings.ReplaceAll(manifest, "rook-ceph:rook-ceph-default # serviceaccount:namespace:cluster", clusterNamespace+":rook-ceph-default")
 	manifest = strings.ReplaceAll(manifest, "rook-ceph:rook-ceph-mgr # serviceaccount:namespace:cluster", clusterNamespace+":rook-ceph-mgr")
 	manifest = strings.ReplaceAll(manifest, "rook-ceph:rook-ceph-osd # serviceaccount:namespace:cluster", clusterNamespace+":rook-ceph-osd")
 	manifest = strings.ReplaceAll(manifest, "rook-ceph:rook-ceph-rgw # serviceaccount:namespace:cluster", clusterNamespace+":rook-ceph-rgw")

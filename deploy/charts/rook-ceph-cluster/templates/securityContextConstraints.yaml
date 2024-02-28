@@ -41,4 +41,5 @@ users:
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-mgr
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-osd
   - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-rgw
+  - system:serviceaccount:{{ .Release.Namespace }}:rook-ceph-default
 {{- end }}

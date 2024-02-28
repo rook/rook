@@ -61,10 +61,11 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 			Containers: []v1.Container{
 				mdsContainer,
 			},
-			RestartPolicy:     v1.RestartPolicyAlways,
-			Volumes:           controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName, c.clusterSpec.DataDirHostPath),
-			HostNetwork:       c.clusterSpec.Network.IsHost(),
-			PriorityClassName: c.fs.Spec.MetadataServer.PriorityClassName,
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName, c.clusterSpec.DataDirHostPath),
+			HostNetwork:        c.clusterSpec.Network.IsHost(),
+			PriorityClassName:  c.fs.Spec.MetadataServer.PriorityClassName,
+			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
 

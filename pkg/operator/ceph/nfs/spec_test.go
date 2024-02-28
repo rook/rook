@@ -26,6 +26,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -145,6 +146,7 @@ func TestDeploymentSpec(t *testing.T) {
 			},
 		)
 		assert.Equal(t, "my-priority-class", d.Spec.Template.Spec.PriorityClassName)
+		assert.Equal(t, k8sutil.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 	})
 
 	t.Run("with sssd sidecar", func(t *testing.T) {

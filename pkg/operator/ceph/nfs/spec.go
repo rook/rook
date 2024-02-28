@@ -148,7 +148,8 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		// for kerberos, nfs-ganesha uses the hostname via getaddrinfo() and uses that when
 		// connecting to the krb server. give all ganesha servers the same hostname so they can all
 		// use the same krb credentials to auth
-		Hostname: fmt.Sprintf("%s-%s", nfs.Namespace, nfs.Name),
+		Hostname:           fmt.Sprintf("%s-%s", nfs.Namespace, nfs.Name),
+		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 	// Replace default unreachable node toleration
 	k8sutil.AddUnreachableNodeToleration(&podSpec)
