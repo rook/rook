@@ -273,12 +273,12 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		if len(nodes.Items) == 1 {
 			CSIParam.ProvisionerReplicas = 1
 		} else {
-			replicas := k8sutil.GetValue(r.opConfig.Parameters, "CSI_PROVISIONER_REPLICAS", "2")
-			r, err := strconv.ParseInt(replicas, 10, 32)
+			replicaStr := k8sutil.GetValue(r.opConfig.Parameters, "CSI_PROVISIONER_REPLICAS", "2")
+			replicas, err := strconv.ParseInt(replicaStr, 10, 32)
 			if err != nil {
 				logger.Errorf("failed to parse CSI_PROVISIONER_REPLICAS. Defaulting to %d. %v", defaultProvisionerReplicas, err)
 			} else {
-				CSIParam.ProvisionerReplicas = int32(r)
+				CSIParam.ProvisionerReplicas = int32(replicas)
 			}
 		}
 	} else {
