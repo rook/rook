@@ -27,14 +27,18 @@ import (
 const (
 	// snapshotterVersion from which the snapshotcontroller and CRD will be
 	// installed
-	snapshotterVersion = "v5.0.1"
+	snapshotterVersion = "v7.0.1"
 	repoURL            = "https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter"
 	rbacPath           = "deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml"
 	controllerPath     = "deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml"
-	// snapshot  CRD path
+	// snapshot CRD path
 	snapshotClassCRDPath          = "client/config/crd/snapshot.storage.k8s.io_volumesnapshotclasses.yaml"
 	volumeSnapshotContentsCRDPath = "client/config/crd/snapshot.storage.k8s.io_volumesnapshotcontents.yaml"
 	volumeSnapshotCRDPath         = "client/config/crd/snapshot.storage.k8s.io_volumesnapshots.yaml"
+	// volumegroupsnapshot CRD path
+	volumeGroupSnapshotClassCRDPath    = "client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshotclasses.yaml"
+	volumeGroupSnapshotContentsCRDPath = "client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshotcontents.yaml"
+	volumeGroupSnapshotCRDPath         = "client/config/crd/groupsnapshot.storage.k8s.io_volumegroupsnapshots.yaml"
 )
 
 // CheckSnapshotISReadyToUse checks snapshot is ready to use
@@ -143,6 +147,24 @@ func (k8sh *K8sHelper) snapshotCRD(action string) error {
 	if err != nil {
 		return err
 	}
+	vgsClassCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeGroupSnapshotClassCRDPath)
+	_, err = k8sh.Kubectl(args(vgsClassCRD)...)
+	if err != nil {
+		return err
+	}
+
+	vgsContentsCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeGroupSnapshotContentsCRDPath)
+	_, err = k8sh.Kubectl(args(vgsContentsCRD)...)
+	if err != nil {
+		return err
+	}
+
+	vgsCRD := fmt.Sprintf("%s/%s/%s", repoURL, snapshotterVersion, volumeGroupSnapshotCRDPath)
+	_, err = k8sh.Kubectl(args(vgsCRD)...)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
