@@ -82,7 +82,7 @@ func TestStartRGW(t *testing.T) {
 
 	t.Run("Deployment is created", func(t *testing.T) {
 		store.Spec.Gateway.Instances = 1
-		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
 		assert.Nil(t, err)
 
 		validateStart(ctx, t, c, clientset)
@@ -95,7 +95,7 @@ func TestStartRGW(t *testing.T) {
 		// Purge store of configurations applied to gateways
 		appliedRgwConfigurations = make(map[string]string)
 
-		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
 		assert.Nil(t, err)
 
 		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
@@ -109,7 +109,7 @@ func TestStartRGW(t *testing.T) {
 		// Purge store of configurations applied to gateways
 		appliedRgwConfigurations = make(map[string]string)
 
-		err := c.startRGWPods(store.Name, store.Name, store.Name)
+		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
 		assert.Nil(t, err)
 
 		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
@@ -157,7 +157,7 @@ func TestCreateObjectStore(t *testing.T) {
 	r := &ReconcileCephObjectStore{client: cl, scheme: s}
 	ownerInfo := client.NewMinimumOwnerInfoWithOwnerRef()
 	c := &clusterConfig{context, info, store, "1.2.3.4", &cephv1.ClusterSpec{}, ownerInfo, data, r.client}
-	err := c.createOrUpdateStore(store.Name, store.Name, store.Name)
+	err := c.createOrUpdateStore(store.Name, store.Name, store.Name, nil)
 	assert.Nil(t, err)
 }
 
