@@ -12,9 +12,5 @@ spec:
       port: 8080
       protocol: TCP
       targetPort: {{ .CephFSLivenessMetricsPort }}
-    - name: csi-grpc-metrics
-      port: 8081
-      protocol: TCP
-      targetPort: {{ .CephFSGRPCMetricsPort }}
   selector:
     contains: csi-cephfsplugin-metrics
