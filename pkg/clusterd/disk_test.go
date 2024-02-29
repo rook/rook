@@ -67,4 +67,9 @@ func TestIgnoreDevice(t *testing.T) {
 	for dev, expected := range cases {
 		assert.Equal(t, expected, ignoreDevice(dev), dev)
 	}
+
+       for dev, expected := range cases {
+		assert.Equal(t, expected, ignoreDevice(dev), dev)
+	}
+	 
 }
