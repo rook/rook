@@ -18,11 +18,19 @@ Rook is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF
 ## Quick Start Guide
 
 Starting Ceph in your cluster is as simple as a few `kubectl` commands.
+<<<<<<< HEAD
 See our [Quickstart](https://github.com/rook/rook/tree/master/Documentation/Getting-Started/quickstart.md) guide to get started with the Ceph operator!
 
 ## Designs
 
 [Ceph](https://docs.ceph.com/en/latest/) is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. See the [Ceph overview](https://github.com/rook/rook/tree/master/Documentation/Getting-Started/storage-architecture.md).
+=======
+See our [Quickstart](Getting-Started/quickstart.md) guide to get started with the Ceph operator!
+
+## Designs
+
+[Ceph](https://docs.ceph.com/en/latest/) is a highly scalable distributed storage solution for block storage, object storage, and shared filesystems with years of production deployments. See the [Ceph overview](Getting-Started/storage-architecture.md).
+>>>>>>> ebc812c4e (doc: fix broken links)
 
 For detailed design documentation, see also the [design docs](https://github.com/rook/rook/tree/master/design).
 
