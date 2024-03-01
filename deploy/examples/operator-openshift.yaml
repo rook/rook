@@ -552,6 +552,10 @@ data:
   # The GCSI RPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 
+  # set to false to disable volume group snapshot feature. This feature is
+  # enabled by default as long as the necessary CRDs are available in the cluster.
+  CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: "true"
+
   # Enable topology based provisioning.
   CSI_ENABLE_TOPOLOGY: "false"
   # Domain labels define which node labels to use as domains

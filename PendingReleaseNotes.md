@@ -12,3 +12,4 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 
 - Kubernetes versions **v1.24** through **v1.29** are supported.
 - Ceph daemon pods using the `default` service account now use a new `rook-ceph-default` service account.
+- The feature support for VolumeSnapshotGroup has been added to the RBD and CephFS CSI driver.

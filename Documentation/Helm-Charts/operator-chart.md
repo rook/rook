@@ -91,6 +91,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.enablePluginSelinuxHostMount` | Enable Host mount for `/etc/selinux` directory for Ceph CSI nodeplugins | `false` |
 | `csi.enableRBDSnapshotter` | Enable Snapshotter in RBD provisioner pod | `true` |
 | `csi.enableRbdDriver` | Enable Ceph CSI RBD driver | `true` |
+| `csi.enableVolumeGroupSnapshot` | Enable volume group snapshot feature. This feature is enabled by default as long as the necessary CRDs are available in the cluster. | `true` |
 | `csi.forceCephFSKernelClient` | Enable Ceph Kernel clients on kernel < 4.17. If your kernel does not support quotas for CephFS you may want to disable this setting. However, this will cause an issue during upgrades with the FUSE client. See the [upgrade guide](https://rook.io/docs/rook/v1.2/ceph-upgrade.html) | `true` |
 | `csi.grpcTimeoutInSeconds` | Set GRPC timeout for csi containers (in seconds). It should be >= 120. If this value is not set or is invalid, it defaults to 150 | `150` |
 | `csi.imagePullPolicy` | Image pull policy | `"IfNotPresent"` |
