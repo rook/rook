@@ -6,3 +6,15 @@ nav:
     - Troubleshooting
     - Upgrade
     - Contributing
+    - Getting Started:
+          - Rook: intro.md
+          - Glossary: Getting-Started/glossary
+          - Prerequisites:
+                - Prerequisites: Getting-Started/Prerequisites/prerequisites.md
+                - Authenticated Container Registries: Getting-Started/Prerequisites/authenticated-registry
+          - Quick Start: Getting-Started/quickstart
+          - Storage Architecture: Getting-Started/storage-architecture
+          - Example Configurations: Getting-Started/example-configurations
+          - OpenShift: Getting-Started/ceph-openshift
+          - Cleanup: Getting-Started/ceph-teardown
+          - Release: Getting-Started/release-cycle
