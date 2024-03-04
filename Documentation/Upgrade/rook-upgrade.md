@@ -256,3 +256,12 @@ This cluster is finished:
 At this point, the Rook operator should be running version `rook/ceph:v1.13.0`.
 
 Verify the CephCluster health using the [health verification doc](health-verification.md).
+
+### **6. Disable CSI holder pods**
+CSI "holder" pods are frequently reported objects of confusion and struggle in Rook. Because of
+this, they are being deprecated and will be removed in Rook v1.16.
+
+If there are any CephClusters that use the non-default network setting `network.provider: "multus"`,
+or if the operator config `CSI_ENABLE_HOST_NETWORK` is set to `"false"`, perform migration steps to
+remove holder pods by setting `CSI_REMOVE_HOLDER_PODS: "true"` after following this migration guide:
+[Modifying CSI Networking](./../CRDs/Cluster/network-providers.md#modifying-csi-networking)

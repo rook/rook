@@ -85,6 +85,10 @@ csi:
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance
   enableCSIHostNetwork: true
+  # -- Deprecation note: Rook uses "holder" pods to allow CSI to connect to the multus public network
+  # without needing hosts to the network. Holder pods are being deprecated. See issue for details:
+  # https://github.com/rook/rook/issues/13055. New Rook deployments should set this to "true".
+  disableHolderPods: true
   # -- Enable Snapshotter in CephFS provisioner pod
   enableCephfsSnapshotter: true
   # -- Enable Snapshotter in NFS provisioner pod
