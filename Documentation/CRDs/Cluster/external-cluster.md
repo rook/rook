@@ -103,6 +103,24 @@ python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name repl
     An existing non-restricted user cannot be converted to a restricted user by upgrading.
     The upgrade flag should only be used to append new permissions to users. It shouldn't be used for changing a csi user already applied permissions. For example, you shouldn't change the pool(s) a user has access to.
 
+### Admin privileges
+
+If in case the cluster needs the admin keyring to configure, update the admin key `rook-ceph-mon` secret with client.admin keyring
+
+!!! note
+    Sharing the admin key with the external cluster is not generally recommended
+
+1. Get the `client.admin` keyring from the ceph cluster
+    ```console
+    ceph auth get client.admin
+    ```
+
+2. Update two values in the `rook-ceph-mon` secret:
+    - `ceph-username`: Set to `client.admin`
+    - `ceph-secret`: Set the client.admin keyring
+
+After restarting the rook operator (and the toolbox if in use), rook will configure ceph with admin privileges.
+
 ### 2. Copy the bash output
 
 Example Output:
