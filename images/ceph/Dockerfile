@@ -20,7 +20,7 @@ ARG S5CMD_VERSION
 ARG S5CMD_ARCH
 
 # install 'ip' tool for Multus
-RUN dnf install -y --setopt=install_weak_deps=False iproute && dnf clean all
+RUN dnf install -y --repo baseos --setopt=install_weak_deps=False iproute && dnf clean all
 
 # Install the s5cmd package to interact with s3 gateway
 RUN curl --fail -sSL -o /s5cmd.tar.gz https://github.com/peak/s5cmd/releases/download/v${S5CMD_VERSION}/s5cmd_${S5CMD_VERSION}_${S5CMD_ARCH}.tar.gz && \
