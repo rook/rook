@@ -699,14 +699,6 @@ class RadosJSON:
         q_leader_details = q_leader_matching_list[0]
         # get the address vector of the quorum-leader
         q_leader_addrvec = q_leader_details.get("public_addrs", {}).get("addrvec", [])
-        # if the quorum-leader has only one address in the address-vector
-        # and it is of type 'v2' (ie; with <IP>:3300),
-        # raise an exception to make user aware that
-        # they have to enable 'v1' (ie; with <IP>:6789) type as well
-        if len(q_leader_addrvec) == 1 and q_leader_addrvec[0]["type"] == "v2":
-            raise ExecutionFailureException(
-                "Only 'v2' address type is enabled, user should also enable 'v1' type as well"
-            )
         ip_addr = str(q_leader_details["public_addr"].split("/")[0])
 
         if self._arg_parser.v2_port_enable:
