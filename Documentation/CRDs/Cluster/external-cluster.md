@@ -191,17 +191,26 @@ If not installing with Helm, here are the steps to install with manifests.
 
 ### Connect to an External Object Store
 
-Create the object store resources:
-
-1. Create the [external object store CR](https://github.com/rook/rook/blob/master/deploy/examples/object-external.yaml) to configure connection to external gateways.
-2. Create an [Object store user](https://github.com/rook/rook/blob/master/deploy/examples/object-user.yaml) for credentials to access the S3 endpoint.
-3. Create a [bucket storage class](https://github.com/rook/rook/blob/master/deploy/examples/storageclass-bucket-delete.yaml) where a client can request creating buckets.
-4. Create the [Object Bucket Claim](https://github.com/rook/rook/blob/master/deploy/examples/object-bucket-claim-delete.yaml), which will create an individual bucket for reading and writing objects.
+Create the [external object store CR](https://github.com/rook/rook/blob/master/deploy/examples/object-external.yaml) to configure connection to external gateways.
 
 ```console
     cd deploy/examples
     kubectl create -f object-external.yaml
+```
+
+Consume the S3 Storage, in two different ways:
+
+1. Create an [Object store user](https://github.com/rook/rook/blob/master/deploy/examples/object-user.yaml) for credentials to access the S3 endpoint.
+
+```console
+    cd deploy/examples
     kubectl create -f object-user.yaml
+```
+
+2. Create a [bucket storage class](https://github.com/rook/rook/blob/master/deploy/examples/storageclass-bucket-delete.yaml) where a client can request creating buckets and then create the [Object Bucket Claim](https://github.com/rook/rook/blob/master/deploy/examples/object-bucket-claim-delete.yaml), which will create an individual bucket for reading and writing objects.
+
+```console
+    cd deploy/examples
     kubectl create -f storageclass-bucket-delete.yaml
     kubectl create -f object-bucket-claim-delete.yaml
 ```
