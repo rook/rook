@@ -112,65 +112,43 @@ func (c *clusterConfig) generateKeyring(rgwConfig *rgwConfig) (string, error) {
 
 func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[string]string, error) {
 
+	requiredKeys := []string{"OS_PROJECT_DOMAIN_NAME",
+		"OS_USER_DOMAIN_NAME",
+		"OS_PROJECT_DOMAIN_NAME",
+		"OS_USER_DOMAIN_NAME",
+		"OS_PROJECT_NAME",
+		"OS_USERNAME",
+		"OS_PASSWORD"}
+
 	data := make(map[string]string)
 	for key, value := range secret.Data {
-
-		logger.Debugf("keystone secret %s => %s", key, value)
 		data[key] = string(value[:])
-
 	}
 
-	authType, ok := data["OS_AUTH_TYPE"]
-	if ok {
-		if authType != "password" {
-			return nil, errors.New(fmt.Sprintf("OS_AUTHTYPE %s is not supported. Only OS_AUTH_TYPE password is supported!", authType))
+	for _, key := range requiredKeys {
+		if value, ok := data[key]; !ok || value == "" {
+			return nil, errors.New(fmt.Sprintf("Missing or empty %s", key))
 		}
 	}
 
-	apiVersion, ok := data["OS_IDENTITY_API_VERSION"]
-	if ok {
-		if apiVersion != "3" {
-			return nil, errors.New(fmt.Sprintf("OS_IDENTITY_API_VERSION %s is not supported! Only OS_IDENTITY_API_VERSION 3 is supported!", apiVersion))
-		}
+	if authType, ok := data["OS_AUTH_TYPE"]; ok && authType != "password" {
+		return nil, errors.New(fmt.Sprintf("OS_AUTHTYPE %s is not supported. Only OS_AUTH_TYPE password is supported!", authType))
 	}
 
-	projectDomain, ok := data["OS_PROJECT_DOMAIN_NAME"]
-	if !ok {
-		return nil, errors.New("Missing OS_PROJECT_DOMAIN_NAME")
+	if apiVersion, ok := data["OS_IDENTITY_API_VERSION"]; ok && apiVersion != "3" {
+		return nil, errors.New(fmt.Sprintf("OS_IDENTITY_API_VERSION %s is not supported! Only OS_IDENTITY_API_VERSION 3 is supported!", apiVersion))
 	}
 
-	userDomain, ok := data["OS_USER_DOMAIN_NAME"]
-	if !ok {
-		return nil, errors.New("Missing OS_USER_DOMAIN_NAME")
-	}
-
-	if projectDomain != userDomain {
+	if data["OS_PROJECT_DOMAIN_NAME"] != data["OS_USER_DOMAIN_NAME"] {
 		return nil, errors.New("The user domain name does not match the project domain name.")
 	}
 
-	project, ok := data["OS_PROJECT_NAME"]
-	if !ok {
-		return nil, errors.New("No OS_PROJECT_NAME set.")
-	}
+	cfg["rgw_keystone_api_version"] = data["OS_IDENTITY_API_VERSION"]
+	cfg["rgw_keystone_admin_domain"] = data["OS_PROJECT_DOMAIN_NAME"]
+	cfg["rgw_keystone_admin_project"] = data["OS_PROJECT_NAME"]
+	cfg["rgw_keystone_admin_user"] = data["OS_USERNAME"]
+	cfg["rgw_keystone_admin_password"] = data["OS_PASSWORD"]
 
-	username, ok := data["OS_USERNAME"]
-	if !ok {
-		return nil, errors.New("No OS_USERNAME set.")
-	}
-
-	password, ok := data["OS_PASSWORD"]
-	if !ok {
-		return nil, errors.New("No OS_PASSWORD set.")
-	}
-
-	// keystone api version 3 should be used today
-	cfg["rgw_keystone_api_version"] = "3"
-	cfg["rgw_keystone_admin_domain"] = userDomain
-	cfg["rgw_keystone_admin_project"] = project
-	cfg["rgw_keystone_admin_user"] = username
-	cfg["rgw_keystone_admin_password"] = password
-
-	// authenticate s3 via keystone
 	cfg["rgw_s3_auth_use_keystone"] = "true"
 
 	return cfg, nil
