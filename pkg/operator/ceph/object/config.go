@@ -171,48 +171,9 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	configOptions["rgw_zone"] = rgwConfig.Zone
 	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
 
-	if ks := rgwConfig.Auth.Keystone; ks != nil {
-
-		logger.Info("Configuring authentication with keystone")
-
-		configOptions["rgw_keystone_url"] = ks.Url
-		configOptions["rgw_keystone_accepted_roles"] = strings.Join(ks.AcceptedRoles, ",")
-		if ks.ImplicitTenants != "" {
-
-			// only four values are valid here (swift, s3, true and false)
-			//
-			// https://docs.ceph.com/en/latest/radosgw/keystone/#integrating-with-openstack-keystone
-			if strings.ToLower(string(ks.ImplicitTenants)) != "true" &&
-				strings.ToLower(string(ks.ImplicitTenants)) != "false" &&
-				strings.ToLower(string(ks.ImplicitTenants)) != "swift" &&
-				strings.ToLower(string(ks.ImplicitTenants)) != "s3" {
-
-				errString := fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %s", string(ks.ImplicitTenants))
-				logger.Errorf(errString)
-				return errors.New(errString)
-
-			}
-
-			configOptions["rgw_keystone_implicit_tenants"] = string(ks.ImplicitTenants)
-
-		}
-		if ks.TokenCacheSize != nil {
-			configOptions["rgw_keystone_token_cache_size"] = fmt.Sprintf("%d", *ks.TokenCacheSize)
-		}
-		if rgwConfig.KeystoneSecret == nil {
-			logger.Error("Cannot find keystone secret!")
-			return errors.New("Cannot find keystone secret")
-		}
-
-		var err error
-		configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
-		if err != nil {
-			logger.Infof("error mapping keystone secret %s to config: %s", rgwConfig.KeystoneSecret.Name, err)
-			return err
-		}
-
-	} else {
-		logger.Info("Authentication with keystone is disabled")
+	configOptions, err := configureKeystoneAuthentication(rgwConfig, configOptions)
+	if err != nil {
+		return err
 	}
 
 	s3disabled := false
@@ -270,6 +231,56 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	}
 
 	return nil
+}
+
+func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
+
+	if keystone := rgwConfig.Auth.Keystone; keystone != nil {
+
+		logger.Info("Configuring authentication with keystone")
+
+		configOptions["rgw_keystone_url"] = keystone.Url
+		configOptions["rgw_keystone_accepted_roles"] = strings.Join(keystone.AcceptedRoles, ",")
+		if keystone.ImplicitTenants != "" {
+
+			// only four values are valid here (swift, s3, true and false)
+			//
+			// https://docs.ceph.com/en/latest/radosgw/keystone/#integrating-with-openstack-keystone
+			if strings.ToLower(string(keystone.ImplicitTenants)) != "true" &&
+				strings.ToLower(string(keystone.ImplicitTenants)) != "false" &&
+				strings.ToLower(string(keystone.ImplicitTenants)) != "swift" &&
+				strings.ToLower(string(keystone.ImplicitTenants)) != "s3" {
+
+				errString := fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %s", string(keystone.ImplicitTenants))
+				logger.Errorf(errString)
+				return nil, errors.New(errString)
+
+			}
+
+			configOptions["rgw_keystone_implicit_tenants"] = string(keystone.ImplicitTenants)
+
+		}
+
+		if keystone.TokenCacheSize != nil {
+			configOptions["rgw_keystone_token_cache_size"] = fmt.Sprintf("%d", *keystone.TokenCacheSize)
+		}
+
+		if rgwConfig.KeystoneSecret == nil {
+			logger.Error("Cannot find keystone secret!")
+			return nil, errors.New("Cannot find keystone secret")
+		}
+
+		var err error
+		configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
+		if err != nil {
+			logger.Infof("error mapping keystone secret %s to config: %s", rgwConfig.KeystoneSecret.Name, err)
+			return nil, err
+		}
+
+	} else {
+		logger.Info("Authentication with keystone is disabled")
+	}
+	return configOptions, nil
 }
 
 func (c *clusterConfig) deleteFlagsMonConfigStore(rgwName string) error {
