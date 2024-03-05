@@ -31,7 +31,9 @@ YQv3_VERSION = 3.4.1
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 MANIFESTS_DIR=../../deploy/examples
 
-TEMP := $(shell mktemp -d)
+ifeq ($(BUILD_CONTEXT_DIR),)
+BUILD_CONTEXT_DIR := $(shell mktemp -d)
+endif
 
 # Note: as of version 1.3 of operator-sdk, the url format changed to:
 # ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
@@ -68,33 +70,36 @@ export OPERATOR_SDK YQv3
 
 do.build:
 	@echo === container build $(CEPH_IMAGE)
-	@cp Dockerfile $(TEMP)
-	@cp toolbox.sh $(TEMP)
-	@cp set-ceph-debug-level $(TEMP)
-	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
-	@cp -r $(MANIFESTS_DIR)/monitoring $(TEMP)/ceph-monitoring
-	@mkdir -p $(TEMP)/rook-external/test-data
-	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(TEMP)/rook-external/
-	@cp ../../tests/ceph-status-out $(TEMP)/rook-external/test-data/
+	@mkdir -p $(BUILD_CONTEXT_DIR)
+	@cp Dockerfile $(BUILD_CONTEXT_DIR)
+	@cp toolbox.sh $(BUILD_CONTEXT_DIR)
+	@cp set-ceph-debug-level $(BUILD_CONTEXT_DIR)
+	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(BUILD_CONTEXT_DIR)
+	@cp -r $(MANIFESTS_DIR)/monitoring $(BUILD_CONTEXT_DIR)/ceph-monitoring
+	@mkdir -p $(BUILD_CONTEXT_DIR)/rook-external/test-data
+	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(BUILD_CONTEXT_DIR)/rook-external/
+	@cp ../../tests/ceph-status-out $(BUILD_CONTEXT_DIR)/rook-external/test-data/
 
 ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) csv
-	@cp -r ../../build/csv $(TEMP)/ceph-csv-templates
-	@rm $(TEMP)/ceph-csv-templates/csv-gen.sh
+	@cp -r ../../build/csv $(BUILD_CONTEXT_DIR)/ceph-csv-templates
+	@rm $(BUILD_CONTEXT_DIR)/ceph-csv-templates/csv-gen.sh
 	@$(MAKE) csv-clean
 
 else
-	mkdir $(TEMP)/ceph-csv-templates
+	mkdir $(BUILD_CONTEXT_DIR)/ceph-csv-templates
 endif
-	@cd $(TEMP) && $(SED_IN_PLACE) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
+	@cd $(BUILD_CONTEXT_DIR) && $(SED_IN_PLACE) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@if [ -z "$(BUILD_CONTAINER_IMAGE)" ]; then\
 		$(DOCKERCMD) build $(BUILD_ARGS) \
 		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
 		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
 		-t $(CEPH_IMAGE) \
-		$(TEMP);\
+		$(BUILD_CONTEXT_DIR);\
 	fi
-	@rm -fr $(TEMP)
+	@if [ -z "$(SAVE_BUILD_CONTEXT_DIR)" ]; then\
+		rm -fr $(BUILD_CONTEXT_DIR);\
+	fi
 
 # call this before building multiple arches in parallel to prevent parallel build processes from
 # conflicting

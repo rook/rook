@@ -186,9 +186,10 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		RestartPolicy: corev1.RestartPolicyAlways,
 		// we decide later whether to use a PVC volume or host volumes for mons, so only populate
 		// the base volumes at this point.
-		Volumes:           controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
-		HostNetwork:       monConfig.UseHostNetwork,
-		PriorityClassName: cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		Volumes:            controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
+		HostNetwork:        monConfig.UseHostNetwork,
+		PriorityClassName:  cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 
 	// If the log collector is enabled we add the side-car container

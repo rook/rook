@@ -224,6 +224,18 @@ metadata:
   name: rook-ceph-mgr
   namespace: rook-ceph-secondary # namespace:cluster
 ---
+# Service account for other components
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: rook-ceph-secondary # namespace:cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+# imagePullSecrets:
+#   - name: my-registry-secret
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:

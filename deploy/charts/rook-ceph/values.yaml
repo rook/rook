@@ -96,6 +96,9 @@ csi:
   # -- Enable Ceph CSI PVC encryption support
   enableCSIEncryption: false
 
+  # -- Enable volume group snapshot feature. This feature is
+  # enabled by default as long as the necessary CRDs are available in the cluster.
+  enableVolumeGroupSnapshot: true
   # -- PriorityClassName to be set on csi driver plugin pods
   pluginPriorityClassName: system-node-critical
 
@@ -474,27 +477,27 @@ csi:
 
   registrar:
     # -- Kubernetes CSI registrar image
-    # @default -- `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1`
+    # @default -- `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.0`
     image:
 
   provisioner:
     # -- Kubernetes CSI provisioner image
-    # @default -- `registry.k8s.io/sig-storage/csi-provisioner:v3.6.3`
+    # @default -- `registry.k8s.io/sig-storage/csi-provisioner:v4.0.0`
     image:
 
   snapshotter:
     # -- Kubernetes CSI snapshotter image
-    # @default -- `registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2`
+    # @default -- `registry.k8s.io/sig-storage/csi-snapshotter:v7.0.1`
     image:
 
   attacher:
     # -- Kubernetes CSI Attacher image
-    # @default -- `registry.k8s.io/sig-storage/csi-attacher:v4.4.2`
+    # @default -- `registry.k8s.io/sig-storage/csi-attacher:v4.5.0`
     image:
 
   resizer:
     # -- Kubernetes CSI resizer image
-    # @default -- `registry.k8s.io/sig-storage/csi-resizer:v1.9.2`
+    # @default -- `registry.k8s.io/sig-storage/csi-resizer:v1.10.0`
     image:
 
   # -- Image pull policy

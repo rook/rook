@@ -3,9 +3,7 @@ title: Authenticated Container Registries
 ---
 
 If you want to use an image from authenticated docker registry (e.g. for image cache/mirror), you'll need to
-add an `imagePullSecret` to all relevant service accounts. This way all pods created by the operator (for service account:
-`rook-ceph-system`) or all new pods in the namespace (for service account: `default`) will have the `imagePullSecret` added
-to their spec.
+add an `imagePullSecret` to all relevant service accounts. See the next section for the required service accounts.
 
 The whole process is described in the [official kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account).
 
@@ -29,25 +27,22 @@ imagePullSecrets:
 The service accounts are:
 
 * `rook-ceph-system` (namespace: `rook-ceph`): Will affect all pods created by the rook operator in the `rook-ceph` namespace.
-* `default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
+* `rook-ceph-default` (namespace: `rook-ceph`): Will affect most pods in the `rook-ceph` namespace.
 * `rook-ceph-mgr` (namespace: `rook-ceph`): Will affect the MGR pods in the `rook-ceph` namespace.
 * `rook-ceph-osd` (namespace: `rook-ceph`): Will affect the OSD pods in the `rook-ceph` namespace.
 * `rook-ceph-rgw` (namespace: `rook-ceph`): Will affect the RGW pods in the `rook-ceph` namespace.
 
-You can do it either via e.g. `kubectl -n <namespace> edit serviceaccount default` or by modifying the [`operator.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml)
-and [`cluster.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml) before deploying them.
-
 Since it's the same procedure for all service accounts, here is just one example:
 
 ```console
-kubectl -n rook-ceph edit serviceaccount default
+kubectl -n rook-ceph edit serviceaccount rook-ceph-default
 ```
 
 ```yaml hl_lines="9-10"
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: default
+  name: rook-ceph-default
   namespace: rook-ceph
 secrets:
 - name: default-token-12345

@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
-
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
@@ -104,6 +103,7 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.NotNil(t, d)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
+	assert.Equal(t, k8sutil.DefaultServiceAccount, d.Spec.Template.Spec.ServiceAccountName)
 
 	// Deployment should have Ceph labels
 	test.AssertLabelsContainCephRequirements(t, d.ObjectMeta.Labels,

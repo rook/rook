@@ -300,7 +300,8 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 		Containers: []v1.Container{
 			*cmdReporterContainer,
 		},
-		RestartPolicy: v1.RestartPolicyOnFailure,
+		RestartPolicy:      v1.RestartPolicyOnFailure,
+		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 	copyBinsVol, _ := copyBinariesVolAndMount()
 	podSpec.Volumes = []v1.Volume{copyBinsVol}

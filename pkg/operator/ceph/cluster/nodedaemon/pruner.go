@@ -107,9 +107,10 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 			Containers: []corev1.Container{
 				getCrashPruneContainer(cephCluster, *cephVersion),
 			},
-			RestartPolicy: corev1.RestartPolicyNever,
-			HostNetwork:   cephCluster.Spec.Network.IsHost(),
-			Volumes:       volumes,
+			RestartPolicy:      corev1.RestartPolicyNever,
+			HostNetwork:        cephCluster.Spec.Network.IsHost(),
+			Volumes:            volumes,
+			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
 

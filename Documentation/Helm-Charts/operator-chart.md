@@ -53,7 +53,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `containerSecurityContext` | Set the container security context for the operator | `{"capabilities":{"drop":["ALL"]},"runAsGroup":2016,"runAsNonRoot":true,"runAsUser":2016}` |
 | `crds.enabled` | Whether the helm chart should create and update the CRDs. If false, the CRDs must be managed independently with deploy/examples/crds.yaml. **WARNING** Only set during first deployment. If later disabled the cluster may be DESTROYED. If the CRDs are deleted in this case, see [the disaster recovery guide](https://rook.io/docs/rook/latest/Troubleshooting/disaster-recovery/#restoring-crds-after-deletion) to restore them. | `true` |
 | `csi.allowUnsupportedVersion` | Allow starting an unsupported ceph-csi image | `false` |
-| `csi.attacher.image` | Kubernetes CSI Attacher image | `registry.k8s.io/sig-storage/csi-attacher:v4.4.2` |
+| `csi.attacher.image` | Kubernetes CSI Attacher image | `registry.k8s.io/sig-storage/csi-attacher:v4.5.0` |
 | `csi.cephFSAttachRequired` | Whether to skip any attach operation altogether for CephFS PVCs. See more details [here](https://kubernetes-csi.github.io/docs/skip-attach.html#skip-attach-with-csi-driver-object). If cephFSAttachRequired is set to false it skips the volume attachments and makes the creation of pods using the CephFS PVC fast. **WARNING** It's highly discouraged to use this for CephFS RWO volumes. Refer to this [issue](https://github.com/kubernetes/kubernetes/issues/103305) for more details. | `true` |
 | `csi.cephFSFSGroupPolicy` | Policy for modifying a volume's ownership or permissions when the CephFS PVC is being mounted. supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html | `"File"` |
 | `csi.cephFSKernelMountOptions` | Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options. Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR | `nil` |
@@ -91,6 +91,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.enablePluginSelinuxHostMount` | Enable Host mount for `/etc/selinux` directory for Ceph CSI nodeplugins | `false` |
 | `csi.enableRBDSnapshotter` | Enable Snapshotter in RBD provisioner pod | `true` |
 | `csi.enableRbdDriver` | Enable Ceph CSI RBD driver | `true` |
+| `csi.enableVolumeGroupSnapshot` | Enable volume group snapshot feature. This feature is enabled by default as long as the necessary CRDs are available in the cluster. | `true` |
 | `csi.forceCephFSKernelClient` | Enable Ceph Kernel clients on kernel < 4.17. If your kernel does not support quotas for CephFS you may want to disable this setting. However, this will cause an issue during upgrades with the FUSE client. See the [upgrade guide](https://rook.io/docs/rook/v1.2/ceph-upgrade.html) | `true` |
 | `csi.grpcTimeoutInSeconds` | Set GRPC timeout for csi containers (in seconds). It should be >= 120. If this value is not set or is invalid, it defaults to 150 | `150` |
 | `csi.imagePullPolicy` | Image pull policy | `"IfNotPresent"` |
@@ -104,7 +105,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.pluginNodeAffinity` | The node labels for affinity of the CephCSI RBD plugin DaemonSet [^1] | `nil` |
 | `csi.pluginPriorityClassName` | PriorityClassName to be set on csi driver plugin pods | `"system-node-critical"` |
 | `csi.pluginTolerations` | Array of tolerations in YAML format which will be added to CephCSI plugin DaemonSet | `nil` |
-| `csi.provisioner.image` | Kubernetes CSI provisioner image | `registry.k8s.io/sig-storage/csi-provisioner:v3.6.3` |
+| `csi.provisioner.image` | Kubernetes CSI provisioner image | `registry.k8s.io/sig-storage/csi-provisioner:v4.0.0` |
 | `csi.provisionerNodeAffinity` | The node labels for affinity of the CSI provisioner deployment [^1] | `nil` |
 | `csi.provisionerPriorityClassName` | PriorityClassName to be set on csi driver provisioner pods | `"system-cluster-critical"` |
 | `csi.provisionerReplicas` | Set replicas for csi provisioner deployment | `2` |
@@ -115,14 +116,14 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.rbdPluginUpdateStrategy` | CSI RBD plugin daemonset update strategy, supported values are OnDelete and RollingUpdate | `RollingUpdate` |
 | `csi.rbdPluginUpdateStrategyMaxUnavailable` | A maxUnavailable parameter of CSI RBD plugin daemonset update strategy. | `1` |
 | `csi.rbdPodLabels` | Labels to add to the CSI RBD Deployments and DaemonSets Pods | `nil` |
-| `csi.registrar.image` | Kubernetes CSI registrar image | `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1` |
-| `csi.resizer.image` | Kubernetes CSI resizer image | `registry.k8s.io/sig-storage/csi-resizer:v1.9.2` |
+| `csi.registrar.image` | Kubernetes CSI registrar image | `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.0` |
+| `csi.resizer.image` | Kubernetes CSI resizer image | `registry.k8s.io/sig-storage/csi-resizer:v1.10.0` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
 | `csi.serviceMonitor.interval` | Service monitor scrape interval | `"5s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |
 | `csi.serviceMonitor.namespace` | Use a different namespace for the ServiceMonitor | `nil` |
 | `csi.sidecarLogLevel` | Set logging level for Kubernetes-csi sidecar containers. Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity. | `0` |
-| `csi.snapshotter.image` | Kubernetes CSI snapshotter image | `registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2` |
+| `csi.snapshotter.image` | Kubernetes CSI snapshotter image | `registry.k8s.io/sig-storage/csi-snapshotter:v7.0.1` |
 | `csi.topology.domainLabels` | domainLabels define which node labels to use as domains for CSI nodeplugins to advertise their domains | `nil` |
 | `csi.topology.enabled` | Enable topology based provisioning | `false` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |

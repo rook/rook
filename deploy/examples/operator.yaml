@@ -85,6 +85,9 @@ data:
   # set to false to disable deployment of snapshotter container in RBD provisioner pod.
   CSI_ENABLE_RBD_SNAPSHOTTER: "true"
 
+  # set to false to disable volume group snapshot feature. This feature is
+  # enabled by default as long as the necessary CRDs are available in the cluster.
+  CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: "true"
   # Enable cephfs kernel driver instead of ceph-fuse.
   # If you disable the kernel client, your application may be disrupted during upgrade.
   # See the upgrade guide: https://rook.io/docs/rook/latest/ceph-upgrade.html
@@ -113,11 +116,11 @@ data:
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
   # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.10.2"
-  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.9.1"
-  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.9.2"
-  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v3.6.3"
-  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v6.3.2"
-  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.4.2"
+  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.0"
+  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.10.0"
+  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v4.0.0"
+  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v7.0.1"
+  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.5.0"
 
   # To indicate the image pull policy to be applied to all the containers in the csi driver pods.
   # ROOK_CSI_IMAGE_PULL_POLICY: "IfNotPresent"
