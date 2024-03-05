@@ -32,7 +32,7 @@ spec:
       dataChunks: 2
       codingChunks: 1
   preservePoolsOnDelete: true
-  auth:
+  #auth:
   #  keystone:
   #    acceptedRoles:
   #      - admin
@@ -43,10 +43,10 @@ spec:
   #    serviceUserSecretName: usersecret
   #   tokenCacheSize: 1000
   #    url: https://keystone.example-namespace.svc/
-  protocols:
-    swift:
-      accountInUrl: true
-      urlPrefix: /swift
+  #protocols:
+  #  swift:
+  #    accountInUrl: true
+  #    urlPrefix: /swift
   gateway:
     # sslCertificateRef:
     # caBundleRef:
