@@ -440,7 +440,7 @@ cephBlockPools:
       replicated:
         size: 3
       # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
-      # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
+      # For reference: https://docs.ceph.com/docs/latest/mgr/prometheus/#rbd-io-statistics
       # enableRBDStats: true
     storageClass:
       enabled: true
@@ -460,16 +460,16 @@ cephBlockPools:
       parameters:
         # (optional) mapOptions is a comma-separated list of map options.
         # For krbd options refer
-        # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+        # https://docs.ceph.com/docs/latest/man/8/rbd/#kernel-rbd-krbd-options
         # For nbd options refer
-        # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+        # https://docs.ceph.com/docs/latest/man/8/rbd-nbd/#options
         # mapOptions: lock_on_read,queue_depth=1024
 
         # (optional) unmapOptions is a comma-separated list of unmap options.
         # For krbd options refer
-        # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+        # https://docs.ceph.com/docs/latest/man/8/rbd/#kernel-rbd-krbd-options
         # For nbd options refer
-        # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+        # https://docs.ceph.com/docs/latest/man/8/rbd-nbd/#options
         # unmapOptions: force
 
         # RBD image format. Defaults to "2".
@@ -637,16 +637,16 @@ cephObjectStores:
 #      clusterID: rook-ceph # namespace:cluster
 #      # (optional) mapOptions is a comma-separated list of map options.
 #      # For krbd options refer
-#      # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+#      # https://docs.ceph.com/docs/latest/man/8/rbd/#kernel-rbd-krbd-options
 #      # For nbd options refer
-#      # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+#      # https://docs.ceph.com/docs/latest/man/8/rbd-nbd/#options
 #      # mapOptions: lock_on_read,queue_depth=1024
 #
 #      # (optional) unmapOptions is a comma-separated list of unmap options.
 #      # For krbd options refer
-#      # https://docs.ceph.com/docs/master/man/8/rbd/#kernel-rbd-krbd-options
+#      # https://docs.ceph.com/docs/latest/man/8/rbd/#kernel-rbd-krbd-options
 #      # For nbd options refer
-#      # https://docs.ceph.com/docs/master/man/8/rbd-nbd/#options
+#      # https://docs.ceph.com/docs/latest/man/8/rbd-nbd/#options
 #      # unmapOptions: force
 #
 #      # RBD image format. Defaults to "2".
