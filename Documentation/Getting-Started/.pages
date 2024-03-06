@@ -1,5 +1,5 @@
 nav:
-    - Rook: ../intro
+    - intro.md
     - glossary.md
     - Prerequisites
     - quickstart.md

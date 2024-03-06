@@ -72,7 +72,7 @@ plugins:
       #js_files: []
   - redirects:
       redirect_maps:
-        README.md: intro.md
+        README.md: Getting-Started/intro.md
   - mike:
       # these fields are all optional; the defaults are as below...
       version_selector: true # set to false to leave out the version selector
