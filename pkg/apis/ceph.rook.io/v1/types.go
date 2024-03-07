@@ -1442,12 +1442,10 @@ type ObjectStoreSpec struct {
 
 	// The protocol specification
 	// +optional
-	// +nullable
 	Protocols ProtocolSpec `json:"protocols,omitempty"`
 
 	// The authentication configuration
 	// +optional
-	// +nullable
 	Auth AuthSpec `json:"auth,omitempty"`
 
 	// The multisite info
@@ -1614,19 +1612,35 @@ type ProtocolSpec struct {
 
 // S3Spec represents Ceph Object Store specification for the S3 API
 type S3Spec struct {
-	Enabled         *bool `json:"enabled,omitempty"`
+	// Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
+	// +nullable
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Whether to use Keystone for authentication. This option maps directly to the rgw_s3_auth_use_keystone option. Enabling it allows generating S3 credentials via an OpenStack API call, see the docs. If not given, the defaults of the corresponding RGW option apply.
+	// +nullable
+	// +optional
 	AuthUseKeystone *bool `json:"authUseKeystone,omitempty"`
 }
 
 // SwiftSpec represents Ceph Object Store specification for the Swift API
 type SwiftSpec struct {
-	AccountInUrl      *bool   `json:"accountInUrl,omitempty"`
-	UrlPrefix         *string `json:"urlPrefix,omitempty"`
-	VersioningEnabled *bool   `json:"versioningEnabled,omitempty"`
+	// Whether or not the Swift account name should be included in the Swift API URL. If set to false (the default), then the Swift API will listen on a URL formed like http://host:port/<rgw_swift_url_prefix>/v1. If set to true, the Swift API URL will be http://host:port/<rgw_swift_url_prefix>/v1/AUTH_<account_name>. You must set this option to true (and update the Keystone service catalog) if you want radosgw to support publicly-readable containers and temporary URLs.
+	// +nullable
+	// +optional
+	AccountInUrl *bool `json:"accountInUrl,omitempty"`
+	// The URL prefix for the Swift API, to distinguish it from the S3 API endpoint. The default is swift, which makes the Swift API available at the URL http://host:port/swift/v1 (or http://host:port/swift/v1/AUTH_%(tenant_id)s if rgw swift account in url is enabled).
+	// +nullable
+	// +optional
+	UrlPrefix *string `json:"urlPrefix,omitempty"`
+	// Enables the Object Versioning of OpenStack Object Storage API. This allows clients to put the X-Versions-Location attribute on containers that should be versioned.
+	// +nullable
+	// +optional
+	VersioningEnabled *bool `json:"versioningEnabled,omitempty"`
 }
 
 // AuthSpec represents the authentication protocol configuration of a Ceph Object Store Gateway
 type AuthSpec struct {
+	// The spec for Keystone
 	// +optional
 	// +nullable
 	Keystone *KeystoneSpec `json:"keystone,omitempty"`
@@ -1634,12 +1648,23 @@ type AuthSpec struct {
 
 // KeystoneSpec represents the Keystone authentication configuration of a Ceph Object Store Gateway
 type KeystoneSpec struct {
-	Url                   string                `json:"url"`
-	ServiceUserSecretName string                `json:"serviceUserSecretName"`
-	AcceptedRoles         []string              `json:"acceptedRoles"`
-	ImplicitTenants       ImplicitTenantSetting `json:"implicitTenants,omitempty"`
-	TokenCacheSize        *int                  `json:"tokenCacheSize,omitempty"`
-	RevocationInterval    *int                  `json:"revocationInterval,omitempty"`
+	// The URL for the Keystone server.
+	Url string `json:"url"`
+	// The name of the secret containing the credentials for the service user account used by RGW. It has to be in the same namespace as the object store resource.
+	ServiceUserSecretName string `json:"serviceUserSecretName"`
+	// The roles requires to serve requests.
+	AcceptedRoles []string `json:"acceptedRoles"`
+	// Create new users in their own tenants of the same name. Possible values are true, false, swift and s3. The latter have the effect of splitting the identity space such that only the indicated protocol will use implicit tenants.
+	// +optional
+	ImplicitTenants ImplicitTenantSetting `json:"implicitTenants,omitempty"`
+	// The maximum number of entries in each Keystone token cache.
+	// +optional
+	// +nullable
+	TokenCacheSize *int `json:"tokenCacheSize,omitempty"`
+	// The number of seconds between token revocation checks.
+	// +optional
+	// +nullable
+	RevocationInterval *int `json:"revocationInterval,omitempty"`
 }
 
 type ImplicitTenantSetting string
