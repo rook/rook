@@ -143,9 +143,6 @@ gateway:
       # hostname: example.com
 ```
 
-This will create a service with the endpoint `192.168.39.182` on port `80`, pointing to the Ceph object external gateway.
-All the other settings from the gateway section will be ignored, except for `securePort`.
-
 ## Zone Settings
 
 The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-zone-crd.md).
