@@ -34,6 +34,11 @@ jobs:
         with:
           version: v3.6.2
 
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
       - name: build rook
         run: |
           # Install kubectl binary as required for generating csv
@@ -93,6 +98,11 @@ jobs:
         uses: docker/setup-qemu-action@master
         with:
           platforms: all
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: build.all rook with go ${{ matrix.go-version }}
         run: |

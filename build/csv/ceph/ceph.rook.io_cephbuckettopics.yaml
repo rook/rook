@@ -1,0 +1,127 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: cephbuckettopics.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephBucketTopic
+    listKind: CephBucketTopicList
+    plural: cephbuckettopics
+    singular: cephbuckettopic
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              endpoint:
+                properties:
+                  amqp:
+                    properties:
+                      ackLevel:
+                        default: broker
+                        enum:
+                        - none
+                        - broker
+                        - routeable
+                        type: string
+                      disableVerifySSL:
+                        type: boolean
+                      exchange:
+                        minLength: 1
+                        type: string
+                      uri:
+                        minLength: 1
+                        type: string
+                    required:
+                    - exchange
+                    - uri
+                    type: object
+                  http:
+                    properties:
+                      disableVerifySSL:
+                        type: boolean
+                      sendCloudEvents:
+                        type: boolean
+                      uri:
+                        minLength: 1
+                        type: string
+                    required:
+                    - uri
+                    type: object
+                  kafka:
+                    properties:
+                      ackLevel:
+                        default: broker
+                        enum:
+                        - none
+                        - broker
+                        type: string
+                      disableVerifySSL:
+                        type: boolean
+                      uri:
+                        minLength: 1
+                        type: string
+                      useSSL:
+                        type: boolean
+                    required:
+                    - uri
+                    type: object
+                type: object
+              objectStoreName:
+                minLength: 1
+                type: string
+              objectStoreNamespace:
+                minLength: 1
+                type: string
+              opaqueData:
+                type: string
+              persistent:
+                type: boolean
+            required:
+            - endpoint
+            - objectStoreName
+            - objectStoreNamespace
+            type: object
+          status:
+            properties:
+              ARN:
+                nullable: true
+                type: string
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                type: string
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null

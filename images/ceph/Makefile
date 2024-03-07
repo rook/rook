@@ -84,8 +84,6 @@ ifeq ($(INCLUDE_CSV_TEMPLATES),true)
 	@$(MAKE) csv
 	@cp -r ../../build/csv $(BUILD_CONTEXT_DIR)/ceph-csv-templates
 	@rm $(BUILD_CONTEXT_DIR)/ceph-csv-templates/csv-gen.sh
-	@$(MAKE) csv-clean
-
 else
 	mkdir $(BUILD_CONTEXT_DIR)/ceph-csv-templates
 endif
@@ -125,6 +123,7 @@ csv: $(OPERATOR_SDK) $(YQv3)
 	@../../build/csv/csv-gen.sh
 	@# #adding 2>/dev/null since CI doesn't seems to be creating bundle.Dockerfile file
 	@rm bundle.Dockerfile 2> /dev/null || true
+	@git restore $(MANIFESTS_DIR)/crds.yaml ../../deploy/charts/rook-ceph/templates/resources.yaml
 
 csv-clean: ## Remove existing OLM files.
 	@rm -fr ../../build/csv/ceph/${go env GOARCH}

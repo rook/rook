@@ -1,0 +1,304 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.11.3
+  creationTimestamp: null
+  name: cephblockpools.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: CephBlockPool
+    listKind: CephBlockPoolList
+    plural: cephblockpools
+    singular: cephblockpool
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    name: v1
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            type: string
+          kind:
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              application:
+                type: string
+              compressionMode:
+                enum:
+                - none
+                - passive
+                - aggressive
+                - force
+                - ""
+                nullable: true
+                type: string
+              crushRoot:
+                nullable: true
+                type: string
+              deviceClass:
+                nullable: true
+                type: string
+              enableRBDStats:
+                type: boolean
+              erasureCoded:
+                properties:
+                  algorithm:
+                    type: string
+                  codingChunks:
+                    minimum: 0
+                    type: integer
+                  dataChunks:
+                    minimum: 0
+                    type: integer
+                required:
+                - codingChunks
+                - dataChunks
+                type: object
+              failureDomain:
+                type: string
+              mirroring:
+                properties:
+                  enabled:
+                    type: boolean
+                  mode:
+                    type: string
+                  peers:
+                    nullable: true
+                    properties:
+                      secretNames:
+                        items:
+                          type: string
+                        type: array
+                    type: object
+                  snapshotSchedules:
+                    items:
+                      properties:
+                        interval:
+                          type: string
+                        path:
+                          type: string
+                        startTime:
+                          type: string
+                      type: object
+                    type: array
+                type: object
+              name:
+                enum:
+                - .rgw.root
+                - .nfs
+                - .mgr
+                type: string
+              parameters:
+                additionalProperties:
+                  type: string
+                nullable: true
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+              quotas:
+                nullable: true
+                properties:
+                  maxBytes:
+                    format: int64
+                    type: integer
+                  maxObjects:
+                    format: int64
+                    type: integer
+                  maxSize:
+                    pattern: ^[0-9]+[\.]?[0-9]*([KMGTPE]i|[kMGTPE])?$
+                    type: string
+                type: object
+              replicated:
+                properties:
+                  hybridStorage:
+                    nullable: true
+                    properties:
+                      primaryDeviceClass:
+                        minLength: 1
+                        type: string
+                      secondaryDeviceClass:
+                        minLength: 1
+                        type: string
+                    required:
+                    - primaryDeviceClass
+                    - secondaryDeviceClass
+                    type: object
+                  replicasPerFailureDomain:
+                    minimum: 1
+                    type: integer
+                  requireSafeReplicaSize:
+                    type: boolean
+                  size:
+                    minimum: 0
+                    type: integer
+                  subFailureDomain:
+                    type: string
+                  targetSizeRatio:
+                    type: number
+                required:
+                - size
+                type: object
+              statusCheck:
+                properties:
+                  mirror:
+                    nullable: true
+                    properties:
+                      disabled:
+                        type: boolean
+                      interval:
+                        type: string
+                      timeout:
+                        type: string
+                    type: object
+                type: object
+                x-kubernetes-preserve-unknown-fields: true
+            type: object
+          status:
+            properties:
+              conditions:
+                items:
+                  properties:
+                    lastHeartbeatTime:
+                      format: date-time
+                      type: string
+                    lastTransitionTime:
+                      format: date-time
+                      type: string
+                    message:
+                      type: string
+                    reason:
+                      type: string
+                    status:
+                      type: string
+                    type:
+                      type: string
+                  type: object
+                type: array
+              info:
+                additionalProperties:
+                  type: string
+                nullable: true
+                type: object
+              mirroringInfo:
+                properties:
+                  details:
+                    type: string
+                  lastChanged:
+                    type: string
+                  lastChecked:
+                    type: string
+                  mode:
+                    type: string
+                  peers:
+                    items:
+                      properties:
+                        client_name:
+                          type: string
+                        direction:
+                          type: string
+                        mirror_uuid:
+                          type: string
+                        site_name:
+                          type: string
+                        uuid:
+                          type: string
+                      type: object
+                    type: array
+                  site_name:
+                    type: string
+                type: object
+              mirroringStatus:
+                properties:
+                  details:
+                    type: string
+                  lastChanged:
+                    type: string
+                  lastChecked:
+                    type: string
+                  summary:
+                    properties:
+                      daemon_health:
+                        type: string
+                      health:
+                        type: string
+                      image_health:
+                        type: string
+                      states:
+                        nullable: true
+                        properties:
+                          error:
+                            type: integer
+                          replaying:
+                            type: integer
+                          starting_replay:
+                            type: integer
+                          stopped:
+                            type: integer
+                          stopping_replay:
+                            type: integer
+                          syncing:
+                            type: integer
+                          unknown:
+                            type: integer
+                        type: object
+                    type: object
+                type: object
+              observedGeneration:
+                format: int64
+                type: integer
+              phase:
+                type: string
+              snapshotScheduleStatus:
+                properties:
+                  details:
+                    type: string
+                  lastChanged:
+                    type: string
+                  lastChecked:
+                    type: string
+                  snapshotSchedules:
+                    items:
+                      properties:
+                        image:
+                          type: string
+                        items:
+                          items:
+                            properties:
+                              interval:
+                                type: string
+                              start_time:
+                                type: string
+                            type: object
+                          type: array
+                        namespace:
+                          type: string
+                        pool:
+                          type: string
+                      type: object
+                    nullable: true
+                    type: array
+                type: object
+            type: object
+            x-kubernetes-preserve-unknown-fields: true
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: null
+  storedVersions: null
