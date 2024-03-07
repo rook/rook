@@ -277,7 +277,7 @@ func generateCephSubuserSecret(userConfig *admin.User, endpoint, namespace, stor
 	secrets := map[string]string{
 		"SWIFT_USER":          subuser.User,
 		"SWIFT_SECRET_KEY":    subuser.SecretKey,
-		"SWIFT_AUTH_ENDPOINT": endpoint + "/swift/v1",
+		"SWIFT_AUTH_ENDPOINT": endpoint,
 	}
 	splitSubUserName := strings.SplitN(subuser.User, ":", 2)
 	secret := &corev1.Secret{
@@ -298,7 +298,26 @@ func generateCephSubuserSecret(userConfig *admin.User, endpoint, namespace, stor
 	return secret
 }
 
-func ReconcileCephUserSecrets(ctx context.Context, k8sclient client.Client, scheme *runtime.Scheme, ownerRef metav1.Object, userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) (reconcile.Result, error) {
+func swiftEndpoint(endpoint string, swiftUrlPrefix *string, swiftAccountInUrl *bool) string {
+	swiftApiVersion := "v1"
+
+	swiftEndpoint := endpoint
+
+	if swiftUrlPrefix == nil {
+		swiftEndpoint += "/swift"
+	} else {
+		swiftEndpoint += "/" + swifswiftUrlPrefix
+	}
+
+	swiftEndpoint += "/" + swiftApiVersion
+
+	if swiftAccountInUrl == true {
+		swiftEndpoint += "/AUTH_%(tenant_id)s"
+	}
+	return swiftEndpoint
+}
+
+func ReconcileCephUserSecrets(ctx context.Context, k8sclient client.Client, scheme *runtime.Scheme, ownerRef metav1.Object, userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string, swiftUrlPrefix *string, swiftAccountInUrl *bool) (reconcile.Result, error) {
 	// Generate Kubernetes Secret
 	secret := generateCephUserSecret(userConfig, endpoint, namespace, storeName, tlsSecretName)
 
@@ -314,9 +333,11 @@ func ReconcileCephUserSecrets(ctx context.Context, k8sclient client.Client, sche
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
 	}
 
+	swiftEndpoint := swiftEndpoint(endpoint, swiftUrlPrefix, swiftAccountInUrl)
+
 	for _, key := range userConfig.SwiftKeys {
 		key := key // To avoid memory aliasing. Won't be necessary in Go 1.22 anymore
-		secret = generateCephSubuserSecret(userConfig, endpoint, namespace, storeName, &key)
+		secret = generateCephSubuserSecret(userConfig, swiftEndpoint, namespace, storeName, &key)
 
 		err = controllerutil.SetControllerReference(ownerRef, secret, scheme)
 		if err != nil {

@@ -89,6 +89,25 @@ func updateStatus(ctx context.Context, observedGeneration int64, client client.C
 	logger.Debugf("object store %q status updated to %q", namespacedName.String(), status)
 }
 
+func buildSwiftUrl(swiftUrlPrefix *string, swiftAccountInUrl *bool) string {
+	swiftApiVersion := "v1"
+
+	swiftUrl := ""
+
+	if swiftUrlPrefix == nil {
+		swiftUrl += "/swift"
+	} else {
+		swiftUrl += "/" + *swiftUrlPrefix
+	}
+
+	swiftUrl += "/" + swiftApiVersion
+
+	if swiftAccountInUrl != nil && *swiftAccountInUrl == true {
+		swiftUrl += "/AUTH_%(tenant_id)s"
+	}
+	return swiftUrl
+}
+
 func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string {
 	m := make(map[string]string)
 
@@ -99,6 +118,10 @@ func buildStatusInfo(cephObjectStore *cephv1.CephObjectStore) map[string]string 
 		m["endpoint"] = BuildDNSEndpoint(GetStableDomainName(cephObjectStore), cephObjectStore.Spec.Gateway.SecurePort, true)
 	} else {
 		m["endpoint"] = BuildDNSEndpoint(GetStableDomainName(cephObjectStore), cephObjectStore.Spec.Gateway.Port, false)
+	}
+
+	if cephObjectStore.Spec.Protocols.Swift != nil {
+		m["swiftUrl"] = buildSwiftUrl(cephObjectStore.Spec.Protocols.Swift.UrlPrefix, cephObjectStore.Spec.Protocols.Swift.AccountInUrl)
 	}
 
 	return m
