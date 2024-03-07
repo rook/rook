@@ -1826,7 +1826,6 @@ type ObjectUserQuotaSpec struct {
 	MaxObjects *int64 `json:"maxObjects,omitempty"`
 }
 
-// CephObjectRealm represents a Ceph Object Store Gateway Realm
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
