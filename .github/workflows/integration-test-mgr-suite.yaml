@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.29.1"]
+        kubernetes-versions: ["v1.29.2"]
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -35,7 +35,6 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
-
 
       - name: setup cluster resources
         uses: ./.github/workflows/integration-test-config-latest-k8s
