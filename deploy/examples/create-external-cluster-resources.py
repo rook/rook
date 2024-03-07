@@ -484,13 +484,13 @@ class RadosJSON:
             "--topology-failure-domain-label",
             default="",
             required=False,
-            help="k8s cluster failure domain label (example: zone,rack,host,etc) for the topology-pools that are matching the ceph domain",
+            help="k8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain",
         )
         output_group.add_argument(
             "--topology-failure-domain-values",
             default="",
             required=False,
-            help="comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the topology-pools list",
+            help="comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list",
         )
 
         upgrade_group = argP.add_argument_group("upgrade")
@@ -1518,7 +1518,7 @@ class RadosJSON:
                 return "-1"
         return ""
 
-    def convert_comma_seprated_to_array(self, value):
+    def convert_comma_separated_to_array(self, value):
         return value.split(",")
 
     def raise_exception_if_any_topology_flag_is_missing(self):
@@ -1663,16 +1663,16 @@ class RadosJSON:
             and self._arg_parser.topology_failure_domain_values != ""
         ):
             self.validate_topology_values(
-                self.convert_comma_seprated_to_array(self.out_map["TOPOLOGY_POOLS"]),
-                self.convert_comma_seprated_to_array(
+                self.convert_comma_separated_to_array(self.out_map["TOPOLOGY_POOLS"]),
+                self.convert_comma_separated_to_array(
                     self.out_map["TOPOLOGY_FAILURE_DOMAIN_VALUES"]
                 ),
             )
             self.validate_topology_rbd_pools(
-                self.convert_comma_seprated_to_array(self.out_map["TOPOLOGY_POOLS"])
+                self.convert_comma_separated_to_array(self.out_map["TOPOLOGY_POOLS"])
             )
             self.init_topology_rbd_pools(
-                self.convert_comma_seprated_to_array(self.out_map["TOPOLOGY_POOLS"])
+                self.convert_comma_separated_to_array(self.out_map["TOPOLOGY_POOLS"])
             )
         else:
             self.raise_exception_if_any_topology_flag_is_missing()
@@ -1928,12 +1928,10 @@ class RadosJSON:
                         "topologyFailureDomainLabel": self.out_map[
                             "TOPOLOGY_FAILURE_DOMAIN_LABEL"
                         ],
-                        "topologyFailureDomainValues": self.convert_comma_seprated_to_array(
-                            self.out_map["TOPOLOGY_FAILURE_DOMAIN_VALUES"]
-                        ),
-                        "topologyPools": self.convert_comma_seprated_to_array(
-                            self.out_map["TOPOLOGY_POOLS"]
-                        ),
+                        "topologyFailureDomainValues": self.out_map[
+                            "TOPOLOGY_FAILURE_DOMAIN_VALUES"
+                        ],
+                        "topologyPools": self.out_map["TOPOLOGY_POOLS"],
                         "pool": self.out_map["RBD_POOL_NAME"],
                         "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",

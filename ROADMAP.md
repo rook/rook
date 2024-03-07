@@ -24,6 +24,7 @@ The following high level features are targeted for Rook v1.14 (April 2024). For 
 * Separate CSI image repository and tag for all images in the helm chart [#13585](https://github.com/rook/rook/issues/13585)
 * Ceph-CSI [v3.11](https://github.com/ceph/ceph-csi/issues?q=is%3Aopen+is%3Aissue+milestone%3Arelease-v3.11.0)
 * Add build support for Go 1.22 [#13738](https://github.com/rook/rook/pull/13738)
+* Add topology based provisioning for external clusters [#13821](https://github.com/rook/rook/pull/13821)
 
 ## Kubectl Plugin
 

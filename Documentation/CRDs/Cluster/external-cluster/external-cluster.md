@@ -60,9 +60,9 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--upgrade`: (optional) Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) and client.healthchecker ceph users with new permissions needed for the new cluster version and older permission will still be applied.
 * `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 * `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
-*  `--topology-pools`: (optional) comma-separated list of topology-constrained rbd pools
-*  `--topology-failure-domain-label`: (optional) k8s cluster failure domain label (example: zone,rack,host,etc) for the topology-pools that are matching the ceph domain
-*  `--topology-failure-domain-values`: (optional) comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the topology-pools list
+*  `--topology-pools`: (optional) Comma-separated list of topology-constrained rbd pools
+*  `--topology-failure-domain-label`: (optional) K8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain
+*  `--topology-failure-domain-values`: (optional) Comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list
 
 ### Multi-tenancy
 
@@ -90,13 +90,11 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 ### Topology Based Provisioning
 
 Enable Topology Based Provisioning for RBD pools by passing `--topology-pools`, `--topology-failure-domain-label` and `--topology-failure-domain-values` flags.
-A new storageclass will be created by the import script named `ceph-rbd-topology` with `volumeBindingMode: WaitForFirstConsumer`
-and will configure topologyConstrainedPools according the input provided.
-Later use the storageclass to create a volume in the pool matching the topology of the pod scheduling.
+A new storageclass named `ceph-rbd-topology` will be created by the import script with `volumeBindingMode: WaitForFirstConsumer`.
+The storageclass is used to create a volume in the pool matching the topology where a pod is scheduled.
 
-```console
-python3 create-external-cluster-resources.py --rbd-data-pool-name pool_name --topology-pools p,q,r --topology-failure-domain-label labelName --topology-failure-domain-values x,y,z --format bash
-```
+For more details, see the [Topology-Based Provisioning](topology-for-external-mode.md)
+
 
 ### Upgrade Example
 
@@ -248,7 +246,7 @@ Consume the S3 Storage, in two different ways:
 ```
 
 !!! hint
-    For more details see the [Object Store topic](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#connect-to-an-external-object-store)
+    For more details see the [Object Store topic](../../../Storage-Configuration/Object-Storage-RGW/object-storage.md#connect-to-an-external-object-store)
 
 ### Connect to v2 mon port
 
