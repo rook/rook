@@ -127,14 +127,21 @@ func MonEndpoints(mons map[string]*cephclient.MonInfo, requireMsgr2 bool) []stri
 // the cluster-to-mon mapping required to configure ceph csi.
 func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *CsiClusterConfigEntry) (string, error) {
 	var (
-		cc     csiClusterConfig
-		centry CsiClusterConfigEntry
-		found  bool
+		cc                                   csiClusterConfig
+		centry                               CsiClusterConfigEntry
+		found                                bool
+		kernelMountOptions, fuseMountOptions string
 	)
 
 	cc, err := parseCsiClusterConfig(curr)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse current csi cluster config")
+	}
+
+	// set mount options here to avoid doing nil checks multiple times.
+	if newCsiClusterConfigEntry != nil && newCsiClusterConfigEntry.CephFS != nil {
+		kernelMountOptions = newCsiClusterConfigEntry.CephFS.KernelMountOptions
+		fuseMountOptions = newCsiClusterConfigEntry.CephFS.FuseMountOptions
 	}
 
 	// Regardless of which controllers call updateCsiClusterConfig(), the values will be preserved since
@@ -147,6 +154,12 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			// update default clusterID's entry
 			if clusterKey == centry.Namespace {
 				centry.Monitors = newCsiClusterConfigEntry.Monitors
+				centry.ReadAffinity = newCsiClusterConfigEntry.ReadAffinity
+				if centry.CephFS == nil {
+					centry.CephFS = &CsiCephFSSpec{}
+				}
+				centry.CephFS.KernelMountOptions = kernelMountOptions
+				centry.CephFS.FuseMountOptions = fuseMountOptions
 				cc[i] = centry
 			}
 		}
@@ -160,14 +173,27 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 				break
 			}
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
+			// update subvolumegroup and cephfs netNamespaceFilePath only when either is specified
+			// while always updating kernel and fuse mount options.
 			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
 				centry.CephFS = newCsiClusterConfigEntry.CephFS
+			} else {
+				if centry.CephFS == nil {
+					centry.CephFS = &CsiCephFSSpec{}
+				}
+				centry.CephFS.KernelMountOptions = kernelMountOptions
+				centry.CephFS.FuseMountOptions = fuseMountOptions
 			}
+			// update nfs netNamespaceFilePath only when specified.
 			if newCsiClusterConfigEntry.NFS != nil && newCsiClusterConfigEntry.NFS.NetNamespaceFilePath != "" {
 				centry.NFS = newCsiClusterConfigEntry.NFS
 			}
+			// update radosNamespace and rbd netNamespaceFilePath only when either is specified.
 			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.RBD.NetNamespaceFilePath != "") {
 				centry.RBD = newCsiClusterConfigEntry.RBD
+			}
+			if newCsiClusterConfigEntry.ReadAffinity != nil && len(newCsiClusterConfigEntry.ReadAffinity.CrushLocationLabels) != 0 {
+				centry.ReadAffinity = newCsiClusterConfigEntry.ReadAffinity
 			}
 			// This maintains backward compatibility for existing clusters, from now on the
 			// preferred way is to use RBD.RadosNamespace
@@ -186,15 +212,19 @@ func updateCsiClusterConfig(curr, clusterKey string, newCsiClusterConfigEntry *C
 			centry.ClusterID = clusterKey
 			centry.Namespace = newCsiClusterConfigEntry.Namespace
 			centry.Monitors = newCsiClusterConfigEntry.Monitors
-			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
+			if newCsiClusterConfigEntry.RBD != nil && (newCsiClusterConfigEntry.RBD.RadosNamespace != "" || newCsiClusterConfigEntry.RBD.NetNamespaceFilePath != "") {
 				centry.RBD = newCsiClusterConfigEntry.RBD
 			}
 			// Add a condition not to fill with empty values
-			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "") {
+			if newCsiClusterConfigEntry.CephFS != nil && (newCsiClusterConfigEntry.CephFS.SubvolumeGroup != "" || newCsiClusterConfigEntry.CephFS.NetNamespaceFilePath != "" ||
+				newCsiClusterConfigEntry.CephFS.KernelMountOptions != "" || newCsiClusterConfigEntry.CephFS.FuseMountOptions != "") {
 				centry.CephFS = newCsiClusterConfigEntry.CephFS
 			}
 			if newCsiClusterConfigEntry.NFS != nil && newCsiClusterConfigEntry.NFS.NetNamespaceFilePath != "" {
 				centry.NFS = newCsiClusterConfigEntry.NFS
+			}
+			if newCsiClusterConfigEntry.ReadAffinity != nil && len(newCsiClusterConfigEntry.ReadAffinity.CrushLocationLabels) != 0 {
+				centry.ReadAffinity = newCsiClusterConfigEntry.ReadAffinity
 			}
 			cc = append(cc, centry)
 		}
@@ -247,6 +277,19 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, 
 		return nil
 	}
 	logger.Debugf("using %q for csi configmap namespace", csiNamespace)
+
+	if newCsiClusterConfigEntry != nil {
+		// set CSIDriverOptions
+		newCsiClusterConfigEntry.ReadAffinity = &cephv1.ReadAffinitySpec{
+			Enabled:             clusterInfo.CSIDriverSpec.ReadAffinity.Enabled,
+			CrushLocationLabels: clusterInfo.CSIDriverSpec.ReadAffinity.CrushLocationLabels,
+		}
+		if newCsiClusterConfigEntry.CephFS == nil {
+			newCsiClusterConfigEntry.CephFS = &CsiCephFSSpec{}
+		}
+		newCsiClusterConfigEntry.CephFS.KernelMountOptions = clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions
+		newCsiClusterConfigEntry.CephFS.FuseMountOptions = clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions
+	}
 
 	configMutex.Lock()
 	defer configMutex.Unlock()

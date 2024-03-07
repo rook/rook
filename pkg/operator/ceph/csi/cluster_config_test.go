@@ -38,6 +38,14 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 			RadosNamespace:       "rook-ceph-1",
 		},
 	}
+	csiClusterConfigEntryMountOptions := CsiClusterConfigEntry{
+		Namespace: "rook-ceph-1",
+		Monitors:  []string{"1.2.3.4:5000"},
+		CephFS: &CsiCephFSSpec{
+			KernelMountOptions: "ms_mode=crc",
+			FuseMountOptions:   "debug",
+		},
+	}
 	csiClusterConfigEntry2 := CsiClusterConfigEntry{
 		Namespace: "rook-ceph-2",
 		Monitors:  []string{"20.1.1.1:5000", "20.1.1.2:5000", "20.1.1.3:5000"},
@@ -70,6 +78,28 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Contains(t, cc[0].Monitors, "1.2.3.4:5000")
 		assert.Contains(t, cc[0].Monitors, "10.11.12.13:5000")
 		assert.Equal(t, 2, len(cc[0].Monitors))
+	})
+
+	t.Run("add mount options to the current cluster", func(t *testing.T) {
+		configWithMountOptions, err := updateCsiClusterConfig(s, "rook-ceph-1", &csiClusterConfigEntryMountOptions)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(configWithMountOptions)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cc))
+		assert.Equal(t, "rook-ceph-1", cc[0].ClusterID)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.KernelMountOptions, cc[0].CephFS.KernelMountOptions)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.FuseMountOptions, cc[0].CephFS.FuseMountOptions)
+	})
+
+	t.Run("add mount options to the current cluster", func(t *testing.T) {
+		configWithMountOptions, err := updateCsiClusterConfig(s, "rook-ceph-1", &csiClusterConfigEntryMountOptions)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(configWithMountOptions)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, len(cc))
+		assert.Equal(t, "rook-ceph-1", cc[0].ClusterID)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.KernelMountOptions, cc[0].CephFS.KernelMountOptions)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.FuseMountOptions, cc[0].CephFS.FuseMountOptions)
 	})
 
 	t.Run("add a 2nd cluster with 3 mons", func(t *testing.T) {
@@ -125,6 +155,32 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 		assert.Equal(t, "10.1.1.1:5000", cc[2].Monitors[0])
 		assert.Equal(t, 3, len(cc[2].Monitors))
 		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
+
+	})
+
+	t.Run("update mount options in presence of subvolumegroup", func(t *testing.T) {
+		sMntOptionUpdate, err := updateCsiClusterConfig(s, "baba", &csiClusterConfigEntryMountOptions)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(sMntOptionUpdate)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(cc))
+		assert.Equal(t, "baba", cc[2].ClusterID)
+		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.KernelMountOptions, cc[2].CephFS.KernelMountOptions)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.FuseMountOptions, cc[2].CephFS.FuseMountOptions)
+
+	})
+
+	t.Run("update mount options in presence of subvolumegroup", func(t *testing.T) {
+		sMntOptionUpdate, err := updateCsiClusterConfig(s, "baba", &csiClusterConfigEntryMountOptions)
+		assert.NoError(t, err)
+		cc, err := parseCsiClusterConfig(sMntOptionUpdate)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, len(cc))
+		assert.Equal(t, "baba", cc[2].ClusterID)
+		assert.Equal(t, "my-group", cc[2].CephFS.SubvolumeGroup)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.KernelMountOptions, cc[2].CephFS.KernelMountOptions)
+		assert.Equal(t, csiClusterConfigEntryMountOptions.CephFS.FuseMountOptions, cc[2].CephFS.FuseMountOptions)
 
 	})
 
