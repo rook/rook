@@ -341,18 +341,25 @@ func GetStableDomainName(s *cephv1.CephObjectStore) string {
 }
 
 func getDomainName(s *cephv1.CephObjectStore, returnRandomDomainIfMultiple bool) string {
+	endpoints := []string{}
 	if s.Spec.IsExternal() {
 		// if the store is external, pick a random endpoint to use. if the endpoint is down, this
 		// reconcile may fail, but a future reconcile will eventually pick a different endpoint to try
-		endpoints := s.Spec.Gateway.ExternalRgwEndpoints
-		idx := 0
-		if returnRandomDomainIfMultiple {
-			idx = rand.Intn(len(endpoints)) //nolint:gosec // G404: cryptographically weak RNG is fine here
+		for _, e := range s.Spec.Gateway.ExternalRgwEndpoints {
+			endpoints = append(endpoints, e.String())
 		}
-		return endpoints[idx].String()
+	} else if s.Spec.Hosting != nil && len(s.Spec.Hosting.DNSNames) > 0 {
+		// if the store is internal and has DNS names, pick a random DNS name to use
+		endpoints = s.Spec.Hosting.DNSNames
+	} else {
+		return domainNameOfService(s)
 	}
 
-	return domainNameOfService(s)
+	idx := 0
+	if returnRandomDomainIfMultiple {
+		idx = rand.Intn(len(endpoints)) //nolint:gosec // G404: cryptographically weak RNG is fine here
+	}
+	return endpoints[idx]
 }
 
 func domainNameOfService(s *cephv1.CephObjectStore) string {

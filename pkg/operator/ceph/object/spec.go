@@ -20,6 +20,7 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 	"text/template"
@@ -37,6 +38,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -417,6 +419,14 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	if s3Enabled || kmsEnabled {
 		vaultVolMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
 		container.VolumeMounts = append(container.VolumeMounts, vaultVolMount)
+	}
+
+	hostingOptions, err := c.addDNSNamesToRGWServer()
+	if err != nil {
+		return v1.Container{}, err
+	}
+	if hostingOptions != "" {
+		container.Args = append(container.Args, hostingOptions)
 	}
 	return container, nil
 }
@@ -911,4 +921,90 @@ func renderProbe(cfg rgwProbeConfig) (string, error) {
 	}
 
 	return writer.String(), nil
+}
+
+func (c *clusterConfig) addDNSNamesToRGWServer() (string, error) {
+	if (c.store.Spec.Hosting == nil) || len(c.store.Spec.Hosting.DNSNames) <= 0 {
+		return "", nil
+	}
+	if !c.clusterInfo.CephVersion.IsAtLeastReef() {
+		return "", errors.New("rgw dns names are supported from ceph v18 onwards")
+	}
+
+	// add default RGW service name to dns names
+	dnsNames := c.store.Spec.Hosting.DNSNames
+	dnsNames = append(dnsNames, domainNameOfService(c.store))
+
+	// add custom endpoints from zone spec if exists
+	if c.store.Spec.Zone.Name != "" {
+		zone, err := c.context.RookClientset.CephV1().CephObjectZones(c.store.Namespace).Get(c.clusterInfo.Context, c.store.Spec.Zone.Name, metav1.GetOptions{})
+		if err != nil {
+			return "", err
+		}
+		dnsNames = append(dnsNames, zone.Spec.CustomEndpoints...)
+	}
+
+	// validate dns names
+	var hostNames []string
+	for _, dnsName := range dnsNames {
+		hostName, err := GetHostnameFromEndpoint(dnsName)
+		if err != nil {
+			return "", errors.Wrap(err,
+				"failed to interpret endpoint from one of the following sources: CephObjectStore.spec.hosting.dnsNames, CephObjectZone.spec.customEndpoints")
+		}
+		hostNames = append(hostNames, hostName)
+	}
+
+	// remove duplicate host names
+	checkDuplicate := make(map[string]bool)
+	removeDuplicateHostNames := []string{}
+	for _, hostName := range hostNames {
+		if _, ok := checkDuplicate[hostName]; !ok {
+			checkDuplicate[hostName] = true
+			removeDuplicateHostNames = append(removeDuplicateHostNames, hostName)
+		}
+	}
+
+	return cephconfig.NewFlag("rgw dns name", strings.Join(removeDuplicateHostNames, ",")), nil
+}
+
+func GetHostnameFromEndpoint(endpoint string) (string, error) {
+	if len(endpoint) == 0 {
+		return "", fmt.Errorf("endpoint cannot be empty string")
+	}
+
+	// if endpoint doesn't end in '/', Ceph adds it
+	// Rook can do this also to get more accurate error results from this function
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint = endpoint + "/"
+	}
+
+	// url.Parse() requires a protocol to parse the host name correctly
+	if !strings.Contains(endpoint, "://") {
+		endpoint = "http://" + endpoint
+	}
+
+	// "net/url".Parse() assumes that a URL is a "path" with optional things surrounding it.
+	// For Ceph RGWs, we assume an endpoint is a "hostname" with optional things surrounding it.
+	// Because of this difference in fundamental assumption, Rook needs to adjust some endpoints
+	// used as input to url.Parse() to allow the function to extract a hostname reliably. Also,
+	// Rook needs to look at several parts of the url.Parse() output to identify more failure scenarios
+	parsedURL, err := url.Parse(endpoint)
+	if err != nil {
+		return "", err
+	}
+
+	// error in this case: url.Parse("https://http://hostname") parses without error with `Host = "http:"`
+	// also catches issue where user adds colon but no port number after
+	if strings.HasSuffix(parsedURL.Host, ":") {
+		return "", fmt.Errorf("host %q parsed from endpoint %q has invalid colon (:) placement", parsedURL.Host, endpoint)
+	}
+
+	hostname := parsedURL.Hostname()
+	dnsErrs := validation.IsDNS1123Subdomain(parsedURL.Hostname())
+	if len(dnsErrs) > 0 {
+		return "", fmt.Errorf("hostname %q parsed from endpoint %q is not a valid DNS-1123 subdomain: %v", hostname, endpoint, strings.Join(dnsErrs, ", "))
+	}
+
+	return hostname, nil
 }
