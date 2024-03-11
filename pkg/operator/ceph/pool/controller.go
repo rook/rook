@@ -340,6 +340,11 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		// If not mirrored there is no Status Info field to fulfil
 	} else {
+		// disable mirroring
+		err := r.disableMirroring(cephBlockPool)
+		if err != nil {
+			return reconcile.Result{}, *cephBlockPool, errors.Wrapf(err, "failed to disable mirroring on pool %q", cephBlockPool.Name)
+		}
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
 		updateStatus(r.opManagerContext, r.client, request.NamespacedName, cephv1.ConditionReady, nil, observedGeneration)
@@ -496,4 +501,44 @@ func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPool *cephv1.Ce
 		// Remove ceph block pool from the map
 		delete(r.blockPoolContexts, channelKey)
 	}
+}
+
+func (r *ReconcileCephBlockPool) disableMirroring(pool *cephv1.CephBlockPool) error {
+	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, pool.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool.Name)
+	}
+
+	if mirrorInfo.Mode == "image" {
+		mirroredPools, err := cephclient.GetMirroredPoolImages(r.context, r.clusterInfo, pool.Name)
+		if err != nil {
+			return errors.Wrapf(err, "failed to list mirrored images for pool %q", pool.Name)
+		}
+
+		if len(*mirroredPools.Images) > 0 {
+			msg := fmt.Sprintf("there are images in the pool %q. Please manually disable mirroring for each image", pool.Name)
+			logger.Errorf(msg)
+			return errors.New(msg)
+		}
+	}
+
+	// Remove storage cluster peers
+	for _, peer := range mirrorInfo.Peers {
+		if peer.UUID != "" {
+			err := cephclient.RemoveClusterPeer(r.context, r.clusterInfo, pool.Name, peer.UUID)
+			if err != nil {
+				return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q", peer.UUID, pool.Name)
+			}
+			logger.Infof("successfully removed peer site %q for the pool %q", peer.UUID, pool.Name)
+		}
+	}
+
+	// Disable mirroring on pool
+	err = cephclient.DisablePoolMirroring(r.context, r.clusterInfo, pool.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to disable mirroring for pool %q", pool.Name)
+	}
+	logger.Infof("successfully disabled mirroring on the pool %q", pool.Name)
+
+	return nil
 }
