@@ -32,7 +32,6 @@ RUN curl --fail -sSL -o /s5cmd.tar.gz https://github.com/peak/s5cmd/releases/dow
 COPY rook toolbox.sh set-ceph-debug-level /usr/local/bin/
 COPY ceph-monitoring /etc/ceph-monitoring
 COPY rook-external /etc/rook-external/
-COPY ceph-csv-templates /etc/ceph-csv-templates
 RUN useradd rook -u 2016 # 2016 is the UID of the rook user and also the year of the first commit in the project
 USER 2016
 ENTRYPOINT ["/usr/local/bin/rook"]

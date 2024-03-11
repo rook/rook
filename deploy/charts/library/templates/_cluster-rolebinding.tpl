@@ -32,21 +32,6 @@ subjects:
     name: rook-ceph-osd
     namespace: {{ .Release.Namespace }} # namespace:cluster
 ---
-# Allow the rgw pods in this namespace to work with configmaps
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-rgw
-  namespace: {{ .Release.Namespace }} # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-rgw
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-rgw
-    namespace: {{ .Release.Namespace }} # namespace:cluster
----
 # Allow the ceph mgr to access resources scoped to the CephCluster namespace necessary for mgr modules
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

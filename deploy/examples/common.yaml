@@ -902,22 +902,6 @@ rules:
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "update", "delete", "list"]
 ---
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-rgw
-  namespace: rook-ceph # namespace:cluster
-rules:
-  # Placeholder role so the rgw service account will
-  # be generated in the csv. Remove this role and role binding
-  # when fixing https://github.com/rook/rook/issues/10141.
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
----
 # Allow the operator to manage resources in its own namespace
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -1110,21 +1094,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-purge-osd
-    namespace: rook-ceph # namespace:cluster
----
-# Allow the rgw pods in this namespace to work with configmaps
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-rgw
-  namespace: rook-ceph # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-rgw
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-rgw
     namespace: rook-ceph # namespace:cluster
 ---
 # Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace

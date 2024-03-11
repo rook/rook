@@ -39,24 +39,6 @@ endif
 # ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
 # (see: https://sdk.operatorframework.io/docs/installation/)
 S5CMD_ARCH = Linux-64bit
-ifeq ($(REAL_HOST_PLATFORM),linux_amd64)
-OPERATOR_SDK_PLATFORM = x86_64-linux-gnu
-INCLUDE_CSV_TEMPLATES = true
-endif
-ifeq ($(REAL_HOST_PLATFORM),linux_arm64)
-OPERATOR_SDK_PLATFORM = aarch64-linux-gnu
-INCLUDE_CSV_TEMPLATES = true
-S5CMD_ARCH = Linux-arm64
-endif
-ifeq ($(REAL_HOST_PLATFORM),darwin_amd64)
-OPERATOR_SDK_PLATFORM = x86_64-apple-darwin
-INCLUDE_CSV_TEMPLATES = true
-endif
-ifneq ($(INCLUDE_CSV_TEMPLATES),true)
-$(info )
-$(info NOT INCLUDING OLM/CSV TEMPLATES!)
-$(info )
-endif
 
 # s5cmd's version
 S5CMD_VERSION = 2.2.1
@@ -79,16 +61,6 @@ do.build:
 	@mkdir -p $(BUILD_CONTEXT_DIR)/rook-external/test-data
 	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(BUILD_CONTEXT_DIR)/rook-external/
 	@cp ../../tests/ceph-status-out $(BUILD_CONTEXT_DIR)/rook-external/test-data/
-
-ifeq ($(INCLUDE_CSV_TEMPLATES),true)
-	@$(MAKE) csv
-	@cp -r ../../build/csv $(BUILD_CONTEXT_DIR)/ceph-csv-templates
-	@rm $(BUILD_CONTEXT_DIR)/ceph-csv-templates/csv-gen.sh
-	@$(MAKE) csv-clean
-
-else
-	mkdir $(BUILD_CONTEXT_DIR)/ceph-csv-templates
-endif
 	@cd $(BUILD_CONTEXT_DIR) && $(SED_IN_PLACE) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@if [ -z "$(BUILD_CONTAINER_IMAGE)" ]; then\
 		$(DOCKERCMD) build $(BUILD_ARGS) \
@@ -118,18 +90,6 @@ $(OPERATOR_SDK):
 		https://github.com/operator-framework/operator-sdk/releases/download/$(OPERATOR_SDK_VERSION)/operator-sdk_$(REAL_HOST_PLATFORM)
 	@chmod +x $(OPERATOR_SDK)
 	@$(OPERATOR_SDK) version
-
-csv: $(OPERATOR_SDK) $(YQv3)
-	@echo generate csv with latest operator-sdk
-	@mkdir -p ../../build/csv/ceph
-	@../../build/csv/csv-gen.sh
-	@# #adding 2>/dev/null since CI doesn't seems to be creating bundle.Dockerfile file
-	@rm bundle.Dockerfile 2> /dev/null || true
-
-csv-clean: ## Remove existing OLM files.
-	@rm -fr ../../build/csv/ceph/${go env GOARCH}
-	@rm -f ../../build/csv/rook-ceph.clusterserviceversion.yaml
-	@git restore $(MANIFESTS_DIR)/crds.yaml ../../deploy/charts/rook-ceph/templates/resources.yaml
 
 # reading from a file and outputting to the same file can have undefined results, so use this intermediate
 IMAGE_TMP="/tmp/rook-ceph-image-list"
