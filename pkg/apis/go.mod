@@ -21,11 +21,19 @@ require (
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
+<<<<<<< HEAD
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect
+=======
+	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
+	github.com/go-logr/logr v1.4.1 // indirect
+	github.com/go-openapi/jsonpointer v0.20.3 // indirect
+	github.com/go-openapi/jsonreference v0.20.5 // indirect
+	github.com/go-openapi/swag v0.22.10 // indirect
+>>>>>>> 4836ede41 (build: update go dep go-jose)
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/gnostic-models v0.6.8 // indirect

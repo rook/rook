@@ -61,8 +61,13 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gemalto/flume v0.13.1 // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
+<<<<<<< HEAD
 	github.com/go-jose/go-jose/v3 v3.0.1 // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
+=======
+	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
+	github.com/go-logr/logr v1.4.1 // indirect
+>>>>>>> 4836ede41 (build: update go dep go-jose)
 	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
