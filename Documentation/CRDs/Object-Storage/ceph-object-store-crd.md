@@ -64,6 +64,10 @@ spec:
     #    memory: "1024Mi"
   #zone:
     #name: zone-a
+  #hosting:
+  #  dnsName:
+  #    - "mystore.example.com"
+  #    - "mystore.example.org"
 ```
 
 ## Object Store Settings
@@ -148,6 +152,12 @@ gateway:
 The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-zone-crd.md).
 
 * `name`: the name of the ceph-object-zone the object store will be in.
+
+## Hosting Settings
+
+The hosting settings allow you to host buckets in the object store on a custom DNS name, enabling virtual-hosted-style access to buckets similar to AWS S3 (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html).
+
+* `dnsNames`: a list of DNS names to host buckets on. These names need to valid according RFC-1123. Otherwise it will fail. Each endpoint requires wildcard support like [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards). Do not include the wildcard itself in the list of hostnames (e.g., use "mystore.example.com" instead of "*.mystore.example.com"). Add all the hostnames like openshift routes otherwise access will be denied, but if the hostname does not support wild card then virtual host style won't work those hostname. By default cephobjectstore service endpoint and custom endpoints from cephobjectzone is included. The feature is supported only for Ceph v18 and later versions.
 
 ## Runtime settings
 

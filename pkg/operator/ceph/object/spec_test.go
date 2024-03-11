@@ -23,6 +23,7 @@ import (
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
@@ -875,4 +876,161 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(true)))
 	})
+}
+
+func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
+	setupTest := func(zoneName string, cephvers cephver.CephVersion, dnsNames, customEndpoints []string) *clusterConfig {
+		store := simpleStore()
+		info := clienttest.CreateTestClusterInfo(1)
+		data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+		ctx := &clusterd.Context{RookClientset: rookclient.NewSimpleClientset()}
+		info.CephVersion = cephvers
+		store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			DNSNames: dnsNames,
+		}
+		if zoneName != "" {
+			store.Spec.Zone.Name = zoneName
+			zone := &cephv1.CephObjectZone{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      zoneName,
+					Namespace: store.Namespace,
+				},
+				Spec: cephv1.ObjectZoneSpec{},
+			}
+			if len(customEndpoints) > 0 {
+				zone.Spec.CustomEndpoints = customEndpoints
+			}
+			_, err := ctx.RookClientset.CephV1().CephObjectZones(store.Namespace).Create(context.TODO(), zone, metav1.CreateOptions{})
+			assert.NoError(t, err)
+		}
+		return &clusterConfig{
+			clusterInfo: info,
+			store:       store,
+			context:     ctx,
+			rookVersion: "rook/rook:myversion",
+			clusterSpec: &cephv1.ClusterSpec{
+				CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v18"},
+			},
+			DataPathMap: data,
+		}
+	}
+	tests := []struct {
+		name            string
+		dnsNames        []string
+		expectedDNSArg  string
+		cephvers        cephver.CephVersion
+		zoneName        string
+		CustomEndpoints []string
+		wantErr         bool
+	}{
+		{"no dns names ceph v18", []string{}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"no dns names with zone ceph v18", []string{}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{}, false},
+		{"no dns names with zone and custom endpoints ceph v18", []string{}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
+		{"one dns name ceph v18", []string{"my.dns.name"}, "--rgw-dns-name=my.dns.name,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"multiple dns names ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"duplicate dns names ceph v18", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"invalid dns name ceph v18", []string{"!my.invalid-dns.com"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"mixed invalid and valid dns names ceph v18", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"dns name with zone without custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{}, false},
+		{"dns name with zone with custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc,my.custom.endpoint1,my.custom.endpoint2", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
+		{"dns name with zone with custom invalid endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint:80", "http://!my.invalid-custom.endpoint:80"}, true},
+		{"dns name with zone with mixed invalid and valid dnsnames/custom endpoint ceph v18", []string{"my.dns.name", "!my.dns.name"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80:80"}, true},
+		{"no dns names ceph v17", []string{}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"one dns name ceph v17", []string{"my.dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"multiple dns names ceph v17", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"duplicate dns names ceph v17", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"invalid dns name ceph v17", []string{"!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"mixed invalid and valid dns names ceph v17", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"no dns names ceph v19", []string{}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"no dns names with zone ceph v19", []string{}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{}, false},
+		{"no dns names with zone and custom endpoints ceph v19", []string{}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
+		{"one dns name ceph v19", []string{"my.dns.name"}, "--rgw-dns-name=my.dns.name,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"multiple dns names ceph v19", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"duplicate dns names ceph v19", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"invalid dns name ceph v19", []string{"!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"mixed invalid and valid dns names ceph v19", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"dns name with zone without custom endpoints ceph v19", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{}, false},
+		{"dns name with zone with custom endpoints ceph v19", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc,my.custom.endpoint1,my.custom.endpoint2", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
+		{"dns name with zone with custom invalid endpoints ceph v19", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint:80", "http://!my.custom.invalid-endpoint:80"}, true},
+		{"dns with zone with mixed invalid and valid dnsnames/custom endpoint ceph v19", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://!my.custom.invalid-endpoint:80"}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := setupTest(tt.zoneName, tt.cephvers, tt.dnsNames, tt.CustomEndpoints)
+			res, err := c.addDNSNamesToRGWServer()
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expectedDNSArg, res)
+
+		})
+	}
+}
+
+func TestGetHostnameFromEndpoint(t *testing.T) {
+	tests := []struct {
+		name     string
+		endpoint string
+		expected string
+		wantErr  bool
+	}{
+		{"empty endpoint", "", "", true},
+		{"http endpoint", "http://my.custom.endpoint1:80", "my.custom.endpoint1", false},
+		{"https endpoint", "https://my.custom.endpoint1:80", "my.custom.endpoint1", false},
+		{"http endpoint without port", "http://my.custom.endpoint1", "my.custom.endpoint1", false},
+		{"https endpoint without port", "https://my.custom.endpoint1", "my.custom.endpoint1", false},
+		{"multiple portocol endpoint case 1", "http://https://my.custom.endpoint1:80", "", true},
+		{"multiple portocol endpoint case 2", "https://http://my.custom.endpoint1:80", "", true},
+		{"ftp endpoint", "ftp://my.custom.endpoint1:80", "my.custom.endpoint1", false},
+		{"custom protocol endpoint", "custom://my.custom.endpoint1:80", "my.custom.endpoint1", false},
+		{"custom protocol endpoint without port", "custom://my.custom.endpoint1", "my.custom.endpoint1", false},
+		{"invalid endpoint", "http://!my.custom.endpoint1:80", "", true},
+		{"invalid endpoint multiple ports", "http://my.custom.endpoint1:80:80", "", true},
+		{"invalid http endpoint with upper case", "http://MY.CUSTOM.ENDPOINT1:80", "", true},
+		{"invalid http endpoint with upper case without port", "http://MY.CUSTOM.ENDPOINT1", "", true},
+		{"invalid https endpoint with upper case", "https://MY.CUSTOM.ENDPOINT1:80", "", true},
+		{"invalid https endpoint with upper case without port", "https://MY.CUSTOM.ENDPOINT1", "", true},
+		{"invalid http endpoint with camel case", "http://myCustomEndpoint1:80", "", true},
+		{"invalid http endpoint with camel case without port", "http://myCustomEndpoint1", "", true},
+		{"invalid https endpoint with camel case", "https://myCustomEndpoint1:80", "", true},
+		{"invalid https endpoint with camel case without port", "https://myCustomEndpoint1", "", true},
+		{"endpoint without protocol", "my.custom.endpoint1:80", "my.custom.endpoint1", false},
+		{"endpoint without protocol without port", "my.custom.endpoint1", "my.custom.endpoint1", false},
+		{"invalid endpoint without protocol with upper case", "MY.CUSTOM.ENDPOINT1:80", "", true},
+		{"invalid endpoint without protocol with upper case without port", "MY.CUSTOM.ENDPOINT1", "", true},
+		{"invalid endpoint without protocol with camel case", "myCustomEndpoint1:80", "", true},
+		{"invalid endpoint without protocol with camel case without port", "myCustomEndpoint1", "", true},
+		{"invalid endpoint without protocol ending :", "my.custom.endpoint1:", "", true},
+		{"invalid endpoint without protocol and multiple ports", "my.custom.endpoint1:80:80", "", true},
+		{"http endpoint containing ip address", "http://1.1.1.1:80", "1.1.1.1", false},
+		{"http endpoint containing ip address without port", "http://1.1.1.1", "1.1.1.1", false},
+		{"https endpoint containing ip address", "https://1.1.1.1:80", "1.1.1.1", false},
+		{"https endpoint containing ip address without port", "https://1.1.1.1:80", "1.1.1.1", false},
+		{"invalid endpoint ending ://", "my.custom.endpoint1://", "", true},
+		{"invalid endpoint ending : without port", "http://my.custom.endpoint1:", "", true},
+		{"http endpoint with user and password", "http://user:password@mycustomendpoint1:80", "mycustomendpoint1", false},
+		{"http endpoint with user and password without port", "http://user:password@mycustomendpoint1", "mycustomendpoint1", false},
+		{"https endpoint with user and password", "https://user:password@mycustomendpoint1:80", "mycustomendpoint1", false},
+		{"https endpoint with user and password without port", "https://user:password@mycustomendpoint1", "mycustomendpoint1", false},
+		{"endpoint with user and password without protocol", "user:password@mycustomendpoint:80", "mycustomendpoint", false},
+		{"endpoint with user and password without protocol without port", "user:password@mycustomendpoint", "mycustomendpoint", false},
+		{"invalid endpoint with user and password ending ://", "user:password@mycustomendpoint1://", "", true},
+		{"invalid endpoint with user and password ending : without port", "user:password@mycustomendpoint1:", "", true},
+		{"invalid endpoint with user and password ending  with multiple ports", "user:password@mycustomendpoint1:80:80", "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			res, err := GetHostnameFromEndpoint(tt.endpoint)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.Equal(t, tt.expected, res)
+
+		})
+	}
 }

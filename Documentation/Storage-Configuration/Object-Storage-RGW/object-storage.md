@@ -180,6 +180,9 @@ export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret ceph-bucket -o jsonpath
 export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret ceph-bucket -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode)
 ```
 
+If any `hosting.dnsNames` are set in the `CephObjectStore` CRD, S3 clients can access buckets in [virtual-host-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html).
+Otherwise, S3 clients must be configured to use path-style access.
+
 ## Consume the Object Storage
 
 Now that you have the object store configured and a bucket created, you can consume the

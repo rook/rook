@@ -103,6 +103,24 @@ python3 create-external-cluster-resources.py --upgrade --rbd-data-pool-name repl
     An existing non-restricted user cannot be converted to a restricted user by upgrading.
     The upgrade flag should only be used to append new permissions to users. It shouldn't be used for changing a csi user already applied permissions. For example, you shouldn't change the pool(s) a user has access to.
 
+### Admin privileges
+
+If in case the cluster needs the admin keyring to configure, update the admin key `rook-ceph-mon` secret with client.admin keyring
+
+!!! note
+    Sharing the admin key with the external cluster is not generally recommended
+
+1. Get the `client.admin` keyring from the ceph cluster
+    ```console
+    ceph auth get client.admin
+    ```
+
+2. Update two values in the `rook-ceph-mon` secret:
+    - `ceph-username`: Set to `client.admin`
+    - `ceph-secret`: Set the client.admin keyring
+
+After restarting the rook operator (and the toolbox if in use), rook will configure ceph with admin privileges.
+
 ### 2. Copy the bash output
 
 Example Output:
@@ -122,29 +140,6 @@ export RGW_POOL_PREFIX=default
 ```
 
 ## Commands on the K8s consumer cluster
-
-### Import the Source Data
-
-1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
-
-1. The import script in the next step uses the current kubeconfig context by
-   default. If you want to specify the kubernetes cluster to use without
-   changing the current context, you can specify the cluster name by setting
-   the KUBECONTEXT environment variable.
-
-   ```console
-   export KUBECONTEXT=hub-cluster
-   ```
-
-1. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
-
-   !!! note
-       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
-       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
-
-    ```console
-    . import-external-cluster.sh
-    ```
 
 ### Helm Installation
 
@@ -169,6 +164,29 @@ If not installing with Helm, here are the steps to install with manifests.
 1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
 
 2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml)
+
+### Import the Source Data
+
+1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+
+1. The import script in the next step uses the current kubeconfig context by
+   default. If you want to specify the kubernetes cluster to use without
+   changing the current context, you can specify the cluster name by setting
+   the KUBECONTEXT environment variable.
+
+   ```console
+   export KUBECONTEXT=<cluster-name>
+   ```
+
+1. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
+
+   !!! note
+       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
+       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
+
+    ```console
+    . import-external-cluster.sh
+    ```
 
 ### Cluster Verification
 
