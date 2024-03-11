@@ -141,29 +141,6 @@ export RGW_POOL_PREFIX=default
 
 ## Commands on the K8s consumer cluster
 
-### Import the Source Data
-
-1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
-
-1. The import script in the next step uses the current kubeconfig context by
-   default. If you want to specify the kubernetes cluster to use without
-   changing the current context, you can specify the cluster name by setting
-   the KUBECONTEXT environment variable.
-
-   ```console
-   export KUBECONTEXT=hub-cluster
-   ```
-
-1. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
-
-   !!! note
-       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
-       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
-
-    ```console
-    . import-external-cluster.sh
-    ```
-
 ### Helm Installation
 
 To install with Helm, the rook cluster helm chart will configure the necessary resources for the external cluster with the example `values-external.yaml`.
@@ -187,6 +164,29 @@ If not installing with Helm, here are the steps to install with manifests.
 1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
 
 2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml)
+
+### Import the Source Data
+
+1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+
+1. The import script in the next step uses the current kubeconfig context by
+   default. If you want to specify the kubernetes cluster to use without
+   changing the current context, you can specify the cluster name by setting
+   the KUBECONTEXT environment variable.
+
+   ```console
+   export KUBECONTEXT=<cluster-name>
+   ```
+
+1. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/import-external-cluster.sh) script.
+
+   !!! note
+       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
+       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
+
+    ```console
+    . import-external-cluster.sh
+    ```
 
 ### Cluster Verification
 
