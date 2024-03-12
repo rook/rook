@@ -42,6 +42,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
+	validation "k8s.io/apimachinery/pkg/util/validation"
 )
 
 const (
@@ -1074,13 +1075,20 @@ func poolName(poolPrefix, poolName string) string {
 }
 
 // GetObjectBucketProvisioner returns the bucket provisioner name appended with operator namespace if OBC is watching on it
-func GetObjectBucketProvisioner(data map[string]string, namespace string) string {
+func GetObjectBucketProvisioner(data map[string]string, namespace string) (string, error) {
 	provName := bucketProvisionerName
 	obcWatchOnNamespace := k8sutil.GetValue(data, "ROOK_OBC_WATCH_OPERATOR_NAMESPACE", "false")
-	if strings.EqualFold(obcWatchOnNamespace, "true") {
+	obcProvisionerNamePrefix := k8sutil.GetValue(data, "ROOK_OBC_PROVISIONER_NAME_PREFIX", "")
+	if obcProvisionerNamePrefix != "" {
+		errList := validation.IsDNS1123Label(obcProvisionerNamePrefix)
+		if len(errList) > 0 {
+			return "", errors.Errorf("invalid OBC provisioner name prefix %q. %v", obcProvisionerNamePrefix, errList)
+		}
+		provName = fmt.Sprintf("%s.%s", obcProvisionerNamePrefix, bucketProvisionerName)
+	} else if obcWatchOnNamespace == "true" {
 		provName = fmt.Sprintf("%s.%s", namespace, bucketProvisionerName)
 	}
-	return provName
+	return provName, nil
 }
 
 // CheckDashboardUser returns true if the dashboard user exists and has the same credentials as the given user, else return false

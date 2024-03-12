@@ -616,6 +616,10 @@ imagePullSecrets:
 # -- Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
 enableOBCWatchOperatorNamespace: true
 
+# -- Specify the prefix for the OBC provisioner in place of the cluster namespace
+# @default -- `ceph cluster namespace`
+obcProvisionerNamePrefix:
+
 monitoring:
   # -- Enable monitoring. Requires Prometheus to be pre-installed.
   # Enabling will also create RBAC rules to allow Operator to create ServiceMonitors

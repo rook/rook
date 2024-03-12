@@ -10,6 +10,11 @@ Rook supports the creation of new buckets and access to existing buckets via two
 An OBC references a storage class which is created by an administrator. The storage class defines whether the bucket requested is a new bucket or an existing bucket. It also defines the bucket retention policy.
 Users request a new or existing bucket by creating an OBC which is shown below. The ceph provisioner detects the OBC and creates a new bucket or grants access to an existing bucket, depending the storage class referenced in the OBC. It also generates a Secret which provides credentials to access the bucket, and a ConfigMap which contains the bucket's endpoint. Application pods consume the information in the Secret and ConfigMap to access the bucket. Please note that to make provisioner watch the cluster namespace only you need to set `ROOK_OBC_WATCH_OPERATOR_NAMESPACE` to `true` in the operator manifest, otherwise it watches all namespaces.
 
+The OBC provisioner name found in the storage class by default includes the operator namespace as a prefix. A custom prefix can be applied by the operator setting in the `rook-ceph-operator-config` configmap: `ROOK_OBC_PROVISIONER_NAME_PREFIX`.
+
+!!! Note
+    Changing the prefix is not supported on existing clusters. This may impact the function of existing OBCs.
+
 ## Example
 
 ### OBC Custom Resource

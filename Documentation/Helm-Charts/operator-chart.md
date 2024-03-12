@@ -146,6 +146,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `logLevel` | Global log level for the operator. Options: `ERROR`, `WARNING`, `INFO`, `DEBUG` | `"INFO"` |
 | `monitoring.enabled` | Enable monitoring. Requires Prometheus to be pre-installed. Enabling will also create RBAC rules to allow Operator to create ServiceMonitors | `false` |
 | `nodeSelector` | Kubernetes [`nodeSelector`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector) to add to the Deployment. | `{}` |
+| `obcProvisionerNamePrefix` | Specify the prefix for the OBC provisioner in place of the cluster namespace | `ceph cluster namespace` |
 | `priorityClassName` | Set the priority class for the rook operator deployment if desired | `nil` |
 | `pspEnable` | If true, create & use PSP resources | `false` |
 | `rbacAggregate.enableOBCs` | If true, create a ClusterRole aggregated to [user facing roles](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) for objectbucketclaims | `false` |

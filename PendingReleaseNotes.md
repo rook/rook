@@ -16,3 +16,4 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 - Create object stores with shared metadata and data pools. Isolation between object stores is enabled via RADOS namespaces.
 - The feature support for VolumeSnapshotGroup has been added to the RBD and CephFS CSI driver.
 - Support for virtual style hosting for s3 buckets in the CephObjectStore.
+- Add option to specify prefix for the OBC provisioner.

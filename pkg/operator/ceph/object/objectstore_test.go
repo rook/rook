@@ -502,17 +502,40 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 	testNamespace := "test-namespace"
 	t.Setenv(k8sutil.PodNamespaceEnvVar, testNamespace)
 
-	t.Run("watch single namespace", func(t *testing.T) {
+	t.Run("watch ceph cluster namespace", func(t *testing.T) {
 		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true"}
-		bktprovisioner := GetObjectBucketProvisioner(data, testNamespace)
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
 		assert.Equal(t, fmt.Sprintf("%s.%s", testNamespace, bucketProvisionerName), bktprovisioner)
+		assert.NoError(t, err)
 	})
 
 	t.Run("watch all namespaces", func(t *testing.T) {
 		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "false"}
-		bktprovisioner := GetObjectBucketProvisioner(data, testNamespace)
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
 		assert.Equal(t, bucketProvisionerName, bktprovisioner)
+		assert.NoError(t, err)
 	})
+
+	t.Run("prefix object provisioner", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_PROVISIONER_NAME_PREFIX": "my-prefix"}
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Equal(t, "my-prefix."+bucketProvisionerName, bktprovisioner)
+		assert.NoError(t, err)
+	})
+
+	t.Run("watch ceph cluster namespace and prefix object provisioner", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true", "ROOK_OBC_PROVISIONER_NAME_PREFIX": "my-prefix"}
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Equal(t, "my-prefix."+bucketProvisionerName, bktprovisioner)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid prefix value for object provisioner", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_PROVISIONER_NAME_PREFIX": "my-prefix."}
+		_, err := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Error(t, err)
+	})
+
 }
 
 func TestRGWPGNumVersion(t *testing.T) {
