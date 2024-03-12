@@ -1431,6 +1431,11 @@ type ObjectStoreSpec struct {
 	// +nullable
 	DataPool PoolSpec `json:"dataPool,omitempty"`
 
+	// The pool information when configuring RADOS namespaces in existing pools.
+	// +optional
+	// +nullable
+	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
+
 	// Preserve pools on object store deletion
 	// +optional
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete,omitempty"`
@@ -1467,6 +1472,21 @@ type ObjectStoreSpec struct {
 	// Hosting settings for the object store
 	// +optional
 	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
+}
+
+// ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.
+type ObjectSharedPoolsSpec struct {
+	// The metadata pool used for creating RADOS namespaces in the object store
+	// +kubebuilder:validation:XValidation:message="object store shared metadata pool is immutable",rule="self == oldSelf"
+	MetadataPoolName string `json:"metadataPoolName"`
+
+	// The data pool used for creating RADOS namespaces in the object store
+	// +kubebuilder:validation:XValidation:message="object store shared data pool is immutable",rule="self == oldSelf"
+	DataPoolName string `json:"dataPoolName"`
+
+	// Whether the RADOS namespaces should be preserved on deletion of the object store
+	// +optional
+	PreserveRadosNamespaceDataOnDelete bool `json:"preserveRadosNamespaceDataOnDelete"`
 }
 
 // ObjectHealthCheckSpec represents the health check of an object store
@@ -1881,6 +1901,11 @@ type ObjectZoneSpec struct {
 	// The data pool settings
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
+
+	// The pool information when configuring RADOS namespaces in existing pools.
+	// +optional
+	// +nullable
+	SharedPools ObjectSharedPoolsSpec `json:"sharedPools"`
 
 	// If this zone cannot be accessed from other peer Ceph clusters via the ClusterIP Service
 	// endpoint created by Rook, you must set this to the externally reachable endpoint(s). You may

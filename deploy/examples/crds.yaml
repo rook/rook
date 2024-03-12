@@ -10096,6 +10096,29 @@ spec:
                           type: string
                       type: object
                   type: object
+                sharedPools:
+                  description: The pool information when configuring RADOS namespaces in existing pools.
+                  nullable: true
+                  properties:
+                    dataPoolName:
+                      description: The data pool used for creating RADOS namespaces in the object store
+                      type: string
+                      x-kubernetes-validations:
+                        - message: object store shared data pool is immutable
+                          rule: self == oldSelf
+                    metadataPoolName:
+                      description: The metadata pool used for creating RADOS namespaces in the object store
+                      type: string
+                      x-kubernetes-validations:
+                        - message: object store shared metadata pool is immutable
+                          rule: self == oldSelf
+                    preserveRadosNamespaceDataOnDelete:
+                      description: Whether the RADOS namespaces should be preserved on deletion of the object store
+                      type: boolean
+                  required:
+                    - dataPoolName
+                    - metadataPoolName
+                  type: object
                 zone:
                   description: The multisite info
                   nullable: true
@@ -10858,6 +10881,29 @@ spec:
                   default: true
                   description: Preserve pools on object zone deletion
                   type: boolean
+                sharedPools:
+                  description: The pool information when configuring RADOS namespaces in existing pools.
+                  nullable: true
+                  properties:
+                    dataPoolName:
+                      description: The data pool used for creating RADOS namespaces in the object store
+                      type: string
+                      x-kubernetes-validations:
+                        - message: object store shared data pool is immutable
+                          rule: self == oldSelf
+                    metadataPoolName:
+                      description: The metadata pool used for creating RADOS namespaces in the object store
+                      type: string
+                      x-kubernetes-validations:
+                        - message: object store shared metadata pool is immutable
+                          rule: self == oldSelf
+                    preserveRadosNamespaceDataOnDelete:
+                      description: Whether the RADOS namespaces should be preserved on deletion of the object store
+                      type: boolean
+                  required:
+                    - dataPoolName
+                    - metadataPoolName
+                  type: object
                 zoneGroup:
                   description: The display name for the ceph users
                   type: string

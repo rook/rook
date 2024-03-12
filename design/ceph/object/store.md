@@ -82,11 +82,11 @@ spec:
 
 #### Pools shared by multiple CephObjectStore
 
-If user want to use existing pools for metadata and data, the pools must be created before the object store is created. This will be useful if multiple objectstore can share same pools. The detail of pools need to shared in `radosNamespaces` settings in object-store CRD. Now the object stores can consume same pool isolated with different namespaces. Usually RGW server itself create different [namespaces](https://docs.ceph.com/en/latest/radosgw/layout/#appendix-compendium) on the pools. User can create via [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md), this is need to present before the object store is created. Similar to `preservePoolsOnDelete` setting, `preserveRadosNamespaceDataOnDelete` is used to preserve the data in the rados namespace when the object store is deleted. It is set to 'false' by default.
+If user want to use existing pools for metadata and data, the pools must be created before the object store is created. This will be useful if multiple objectstore can share same pools. The detail of pools need to shared in `sharedPools` settings in object-store CRD. Now the object stores can consume same pool isolated with different namespaces. Usually RGW server itself create different [namespaces](https://docs.ceph.com/en/latest/radosgw/layout/#appendix-compendium) on the pools. User can create via [Pool CRD](/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md), this is need to present before the object store is created. Similar to `preservePoolsOnDelete` setting, `preserveRadosNamespaceDataOnDelete` is used to preserve the data in the rados namespace when the object store is deleted. It is set to 'false' by default.
 
 ```yaml
 spec:
-  radosNamespaces:
+  sharedPools:
     metadataPoolName: rgw-meta-pool
     dataPoolName: rgw-data-pool
     preserveRadosNamespaceDataOnDelete: true

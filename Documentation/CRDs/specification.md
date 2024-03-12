@@ -1872,6 +1872,20 @@ PoolSpec
 </tr>
 <tr>
 <td>
+<code>sharedPools</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectSharedPoolsSpec">
+ObjectSharedPoolsSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The pool information when configuring RADOS namespaces in existing pools.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>preservePoolsOnDelete</code><br/>
 <em>
 bool
@@ -2215,6 +2229,20 @@ PoolSpec
 </td>
 <td>
 <p>The data pool settings</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sharedPools</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectSharedPoolsSpec">
+ObjectSharedPoolsSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The pool information when configuring RADOS namespaces in existing pools.</p>
 </td>
 </tr>
 <tr>
@@ -8952,6 +8980,58 @@ PullSpec
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectSharedPoolsSpec">ObjectSharedPoolsSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
+</p>
+<div>
+<p>ObjectSharedPoolsSpec represents object store pool info when configuring RADOS namespaces in existing pools.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The metadata pool used for creating RADOS namespaces in the object store</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The data pool used for creating RADOS namespaces in the object store</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preserveRadosNamespaceDataOnDelete</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether the RADOS namespaces should be preserved on deletion of the object store</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectStoreHostingSpec">ObjectStoreHostingSpec
 </h3>
 <p>
@@ -9074,6 +9154,20 @@ PoolSpec
 <td>
 <em>(Optional)</em>
 <p>The data pool settings</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sharedPools</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectSharedPoolsSpec">
+ObjectSharedPoolsSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The pool information when configuring RADOS namespaces in existing pools.</p>
 </td>
 </tr>
 <tr>
@@ -9744,6 +9838,20 @@ PoolSpec
 </td>
 <td>
 <p>The data pool settings</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sharedPools</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectSharedPoolsSpec">
+ObjectSharedPoolsSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The pool information when configuring RADOS namespaces in existing pools.</p>
 </td>
 </tr>
 <tr>
