@@ -105,4 +105,18 @@ subjects:
   - kind: ServiceAccount
     name: rook-ceph-purge-osd
     namespace: {{ .Release.Namespace }} # namespace:cluster
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-default
+  namespace: {{ .Release.Namespace }} # namespace:cluster
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-default
+subjects:
+  - kind: ServiceAccount
+    name: rook-ceph-default
+    namespace: {{ .Release.Namespace }} # namespace:cluster
 {{- end }}
