@@ -11,6 +11,7 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 ## Configure an Object Store
 
 Rook can configure the Ceph Object Store for several different scenarios. See each linked section for the configuration details.
+
 1. Create a [local object store](#create-a-local-object-store) with dedicated Ceph pools. This option is recommended if a single object store is required, and is the simplest to get started.
 2. Create [one or more object stores with shared Ceph pools](#create-local-object-stores-with-shared-pools). This option is recommended when multiple object stores are required.
 3. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
