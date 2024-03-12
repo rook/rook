@@ -206,6 +206,8 @@ spec:
   #   cleanup:
   #   mgr:
   #   prepareosd:
+  # These labels are applied to ceph-exporter servicemonitor only
+  #   exporter:
   # monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
   # These labels can be passed as LabelSelector to Prometheus
   #   monitoring:
