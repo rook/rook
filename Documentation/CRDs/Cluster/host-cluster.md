@@ -22,7 +22,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: quay.io/ceph/ceph:v18.2.1
+    image: quay.io/ceph/ceph:v18.2.2
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -49,7 +49,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.1
+    image: quay.io/ceph/ceph:v18.2.2
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -101,7 +101,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.1
+    image: quay.io/ceph/ceph:v18.2.2
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
