@@ -481,8 +481,11 @@ data:
   # (Optional) Retry Period in seconds the LeaderElector clients should wait between tries of actions. Defaults to 26 seconds.
   # CSI_LEADER_ELECTION_RETRY_PERIOD: "26s"
 
-  # Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used
+  # Whether the OBC provisioner should watch on the ceph cluster namespace or not, if not default provisioner value is set
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: "true"
+
+  # Custom prefix value for the OBC provisioner instead of ceph cluster namespace, do not set on existing cluster
+  # ROOK_OBC_PROVISIONER_NAME_PREFIX: "custom-prefix"
 
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
   # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.

@@ -10,17 +10,22 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 
 ## Configure an Object Store
 
-Rook has the ability to either deploy an object store in Kubernetes or to connect to an external RGW service.
-Most commonly, the object store will be configured locally by Rook.
-Alternatively, if you have an existing Ceph cluster with Rados Gateways, see the
-[external section](#connect-to-an-external-object-store) to consume it from Rook.
+Rook can configure the Ceph Object Store for several different scenarios. See each linked section for the configuration details.
+
+1. Create a [local object store](#create-a-local-object-store) with dedicated Ceph pools. This option is recommended if a single object store is required, and is the simplest to get started.
+2. Create [one or more object stores with shared Ceph pools](#create-local-object-stores-with-shared-pools). This option is recommended when multiple object stores are required.
+3. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
+4. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
+
+!!! note
+    Updating the configuration of an object store between these types is not supported.
 
 ### Create a Local Object Store
 
 The below sample will create a `CephObjectStore` that starts the RGW service in the cluster with an S3 API.
 
 !!! note
-    This sample requires *at least 3 bluestore OSDs*, with each OSD located on a *different node*.
+    This sample requires *at least 3 OSDs*, with each OSD located on a *different node*.
 
 The OSDs must be located on different nodes, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
 
@@ -39,6 +44,7 @@ spec:
       size: 3
   dataPool:
     failureDomain: host
+    # For production it is recommended to use more chunks, such as 4+2 or 8+4
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
@@ -63,6 +69,120 @@ To confirm the object store is configured, wait for the RGW pod(s) to start:
 ```console
 kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 ```
+
+To consume the object store, continue below in the section to [Create a bucket](#create-a-bucket).
+
+### Create Local Object Store(s) with Shared Pools
+
+The below sample will create one or more object stores. Shared Ceph pools will be created, which reduces the overhead of additional Ceph pools for each additional object store.
+
+Data isolation is enforced between the object stores with the use of Ceph RADOS namespaces. The separate RADOS namespaces do not allow access of the data across object stores.
+
+!!! note
+    This sample requires *at least 3 OSDs*, with each OSD located on a *different node*.
+
+The OSDs must be located on different nodes, because the [`failureDomain`](../../CRDs/Block-Storage/ceph-block-pool-crd.md#spec) is set to `host` and the `erasureCoded` chunk settings require at least 3 different OSDs (2 `dataChunks` + 1 `codingChunks`).
+
+#### Shared Pools
+
+Create the shared pools that will be used by each of the object stores.
+
+!!! note
+    If object stores have been previously created, the first pool below (`.rgw.root`)
+    does not need to be defined again as it would have already been created
+    with an existing object store. There is only one `.rgw.root` pool existing
+    to store metadata for all object stores.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: rgw-root
+  namespace: rook-ceph # namespace:cluster
+spec:
+  name: .rgw.root
+  failureDomain: host
+  replicated:
+    size: 3
+    requireSafeReplicaSize: false
+  parameters:
+    pg_num: "8"
+  application: rgw
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: rgw-meta-pool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+    requireSafeReplicaSize: false
+  parameters:
+    pg_num: "8"
+  application: rgw
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: rgw-data-pool
+  namespace: rook-ceph # namespace:cluster
+spec:
+  failureDomain: osd
+  erasureCoded:
+    # For production it is recommended to use more chunks, such as 4+2 or 8+4
+    dataChunks: 2
+    codingChunks: 1
+  application: rgw
+```
+
+Create the shared pools:
+
+```console
+kubectl create -f object-shared-pools.yaml
+```
+
+#### Create Each Object Store
+
+After the pools have been created above, create each object store to consume the shared pools.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  sharedPools:
+    metadataPoolName: rgw-meta-pool
+    dataPoolName: rgw-data-pool
+    preserveRadosNamespaceDataOnDelete: true
+  gateway:
+    sslCertificateRef:
+    port: 80
+    instances: 1
+```
+
+Create the object store:
+
+```console
+kubectl create -f object-a.yaml
+```
+
+To confirm the object store is configured, wait for the RGW pod(s) to start:
+
+```console
+kubectl -n rook-ceph get pod -l rgw=store-a
+```
+
+Additional object stores can be created based on the same shared pools by simply changing the
+`name` of the CephObjectStore. In the example manifests folder, two object store examples are
+provided: `object-a.yaml` and `object-b.yaml`.
+
+To consume the object store, continue below in the section to [Create a bucket](#create-a-bucket).
+Modify the default example object store name from `my-store` to the alternate name of the object store
+such as `store-a` in this example.
 
 ### Connect to an External Object Store
 

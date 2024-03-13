@@ -1,0 +1,9 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-bucket-a
+provisioner: rook-ceph.ceph.rook.io/bucket # driver:namespace:cluster
+reclaimPolicy: Delete
+parameters:
+  objectStoreName: store-a
+  objectStoreNamespace: rook-ceph # namespace:cluster

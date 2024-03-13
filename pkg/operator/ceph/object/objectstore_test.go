@@ -18,7 +18,9 @@ package object
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -70,6 +72,47 @@ const (
 		"max_objects": -1
 	}
 }`
+	objectZoneJson = `{
+		"id": "c1a20ed9-6370-4abd-b78c-bdf0da2a8dbb",
+		"name": "store-a",
+		"domain_root": "rgw-meta-pool:store-a.meta.root",
+		"control_pool": "rgw-meta-pool:store-a.control",
+		"gc_pool": "rgw-meta-pool:store-a.log.gc",
+		"lc_pool": "rgw-meta-pool:store-a.log.lc",
+		"log_pool": "rgw-meta-pool:store-a.log",
+		"intent_log_pool": "rgw-meta-pool:store-a.log.intent",
+		"usage_log_pool": "rgw-meta-pool:store-a.log.usage",
+		"roles_pool": "rgw-meta-pool:store-a.meta.roles",
+		"reshard_pool": "rgw-meta-pool:store-a.log.reshard",
+		"user_keys_pool": "rgw-meta-pool:store-a.meta.users.keys",
+		"user_email_pool": "rgw-meta-pool:store-a.meta.users.email",
+		"user_swift_pool": "rgw-meta-pool:store-a.meta.users.swift",
+		"user_uid_pool": "rgw-meta-pool:store-a.meta.users.uid",
+		"otp_pool": "rgw-meta-pool:store-a.otp",
+		"system_key": {
+			"access_key": "",
+			"secret_key": ""
+		},
+		"placement_pools": [
+			{
+				"key": "default-placement",
+				"val": {
+					"index_pool": "rgw-meta-pool:store-a.buckets.index",
+					"storage_classes": {
+						"STANDARD": {
+							"data_pool": "rgw-data-pool:store-a.buckets.data"
+						}
+					},
+					"data_extra_pool": "rgw-data-pool:store-a.buckets.non-ec",
+					"index_type": 0,
+					"inline_data": true
+				}
+			}
+		],
+		"realm_id": "e7f176c6-d207-459c-aa04-c3334300ddc6",
+		"notif_pool": "rgw-meta-pool:store-a.log.notif"
+	}`
+
 	//#nosec G101 -- The credentials are just for the unit tests
 	access_key = "VFKF8SSU9L3L2UR03Z8C"
 	//#nosec G101 -- The credentials are just for the unit tests
@@ -98,12 +141,244 @@ func TestReconcileRealm(t *testing.T) {
 	objContext := NewContext(context, &client.ClusterInfo{Namespace: "mycluster"}, storeName)
 	// create the first realm, marked as default
 	store := cephv1.CephObjectStore{}
-	err := setMultisite(objContext, &store, nil)
+	err := configureObjectStore(objContext, &store, nil)
 	assert.Nil(t, err)
 
 	// create the second realm, not marked as default
-	err = setMultisite(objContext, &store, nil)
+	err = configureObjectStore(objContext, &store, nil)
 	assert.Nil(t, err)
+}
+
+func TestApplyExpectedRadosNamespaceSettings(t *testing.T) {
+	dataPoolName := "testdatapool"
+	metaPrefix := "testmeta"
+	dataPrefix := "testdata"
+	var zoneConfig map[string]interface{}
+
+	t.Run("fail when input empty", func(t *testing.T) {
+		input := map[string]interface{}{}
+		err := applyExpectedRadosNamespaceSettings(input, metaPrefix, dataPrefix, dataPoolName)
+		assert.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "placement_pools"))
+	})
+	t.Run("valid input", func(t *testing.T) {
+		assert.NoError(t, json.Unmarshal([]byte(objectZoneJson), &zoneConfig))
+		assert.NoError(t, applyExpectedRadosNamespaceSettings(zoneConfig, metaPrefix, dataPrefix, dataPoolName))
+		// validate a sampling of the updated fields
+		assert.Equal(t, metaPrefix+"log.notif", zoneConfig["notif_pool"])
+		placementPools := zoneConfig["placement_pools"].([]interface{})
+		placementPool := placementPools[0].(map[string]interface{})
+		placementVals := placementPool["val"].(map[string]interface{})
+		storageClasses := placementVals["storage_classes"].(map[string]interface{})
+		stdStorageClass := storageClasses["STANDARD"].(map[string]interface{})
+		assert.Equal(t, dataPoolName, stdStorageClass["data_pool"])
+	})
+	t.Run("placement pools empty", func(t *testing.T) {
+		// remove expected sections of the json and confirm that it returns an error without throwing an exception
+		emptyPlacementPoolsJson := `{
+			"otp_pool": "rgw-meta-pool:store-a.otp",
+			"placement_pools": []
+		}`
+		assert.NoError(t, json.Unmarshal([]byte(emptyPlacementPoolsJson), &zoneConfig))
+		err := applyExpectedRadosNamespaceSettings(zoneConfig, metaPrefix, dataPrefix, dataPoolName)
+		assert.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "no placement pools"))
+	})
+	t.Run("placement pool value missing", func(t *testing.T) {
+		missingPoolValueJson := `{
+			"otp_pool": "rgw-meta-pool:store-a.otp",
+			"placement_pools": [
+				{
+					"key": "default-placement"
+				}
+			]
+		}`
+		assert.NoError(t, json.Unmarshal([]byte(missingPoolValueJson), &zoneConfig))
+		err := applyExpectedRadosNamespaceSettings(zoneConfig, metaPrefix, dataPrefix, dataPoolName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "placement_pools[0].val")
+	})
+	t.Run("storage classes missing", func(t *testing.T) {
+		storageClassesMissing := `{
+			"otp_pool": "rgw-meta-pool:store-a.otp",
+			"placement_pools": [
+				{
+					"key": "default-placement",
+					"val": {
+						"index_pool": "rgw-meta-pool:store-a.buckets.index"
+					}
+				}
+			]
+		}`
+		assert.NoError(t, json.Unmarshal([]byte(storageClassesMissing), &zoneConfig))
+		err := applyExpectedRadosNamespaceSettings(zoneConfig, metaPrefix, dataPrefix, dataPoolName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "storage_classes")
+	})
+	t.Run("standard storage class missing", func(t *testing.T) {
+		standardSCMissing := `{
+			"otp_pool": "rgw-meta-pool:store-a.otp",
+			"placement_pools": [
+				{
+					"key": "default-placement",
+					"val": {
+						"index_pool": "rgw-meta-pool:store-a.buckets.index",
+						"storage_classes": {
+							"BAD": {
+								"data_pool": "rgw-data-pool:store-a.buckets.data"
+							}
+						}
+					}
+				}
+			]
+		}`
+		assert.NoError(t, json.Unmarshal([]byte(standardSCMissing), &zoneConfig))
+		err := applyExpectedRadosNamespaceSettings(zoneConfig, metaPrefix, dataPrefix, dataPoolName)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "storage_classes.STANDARD")
+	})
+	t.Run("no config missing", func(t *testing.T) {
+		nothingMissing := `{
+			"otp_pool": "rgw-meta-pool:store-a.otp",
+			"placement_pools": [
+				{
+					"key": "default-placement",
+					"val": {
+						"index_pool": "rgw-meta-pool:store-a.buckets.index",
+						"storage_classes": {
+							"STANDARD": {
+								"data_pool": "rgw-data-pool:store-a.buckets.data"
+							}
+						}
+					}
+				}
+			]
+		}`
+		assert.NoError(t, json.Unmarshal([]byte(nothingMissing), &zoneConfig))
+		err := applyExpectedRadosNamespaceSettings(zoneConfig, metaPrefix, dataPrefix, dataPoolName)
+		assert.NoError(t, err)
+	})
+}
+
+func TestSharedPoolsExist(t *testing.T) {
+	executor := &exectest.MockExecutor{}
+	poolJson := ""
+	mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "osd" && args[1] == "lspools" {
+			return poolJson, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		return mockExecutorFuncOutput(command, args...)
+	}
+	context := &Context{Context: &clusterd.Context{Executor: executor}, Name: "myobj", clusterInfo: client.AdminTestClusterInfo("mycluster")}
+	sharedPools := cephv1.ObjectSharedPoolsSpec{
+		MetadataPoolName: "metapool",
+		DataPoolName:     "datapool",
+	}
+	poolJson = `[{"poolnum":1,"poolname":".mgr"},{"poolnum":13,"poolname":".rgw.root"},
+	{"poolnum":14,"poolname":"rgw-meta-pool"},{"poolnum":15,"poolname":"rgw-data-pool"}]`
+	err := sharedPoolsExist(context, sharedPools)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "pools do not exist")
+
+	sharedPools.MetadataPoolName = "rgw-meta-pool"
+	err = sharedPoolsExist(context, sharedPools)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "data pool does not exist")
+
+	sharedPools.DataPoolName = "rgw-data-pool"
+	sharedPools.MetadataPoolName = "bad-pool"
+	err = sharedPoolsExist(context, sharedPools)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "metadata pool does not exist")
+
+	sharedPools.MetadataPoolName = "rgw-meta-pool"
+	err = sharedPoolsExist(context, sharedPools)
+	assert.NoError(t, err)
+}
+
+func TestConfigureStoreWithSharedPools(t *testing.T) {
+	dataPoolAlreadySet := "datapool:store-a.buckets.data"
+	zoneGetCalled := false
+	zoneSetCalled := false
+	placementModifyCalled := false
+	mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "osd" && args[1] == "lspools" {
+			return `[{"poolnum":14,"poolname":"test-meta"},{"poolnum":15,"poolname":"test-data"}]`, nil
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	executorFuncTimeout := func(timeout time.Duration, command string, args ...string) (string, error) {
+		logger.Infof("CommandTimeout: %s %v", command, args)
+		if args[0] == "zone" {
+			if args[1] == "get" {
+				zoneGetCalled = true
+				replaceDataPool := "rgw-data-pool:store-a.buckets.data"
+				return strings.Replace(objectZoneJson, replaceDataPool, dataPoolAlreadySet, -1), nil
+			} else if args[1] == "set" {
+				zoneSetCalled = true
+				return objectZoneJson, nil
+			} else if args[1] == "placement" && args[2] == "modify" {
+				placementModifyCalled = true
+				return objectZoneJson, nil
+			}
+		}
+		return "", errors.Errorf("unexpected ceph command %q", args)
+	}
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput:         mockExecutorFuncOutput,
+		MockExecuteCommandWithCombinedOutput: mockExecutorFuncOutput,
+		MockExecuteCommandWithTimeout:        executorFuncTimeout,
+	}
+	context := &Context{
+		Context:     &clusterd.Context{Executor: executor},
+		Name:        "myobj",
+		Realm:       "myobj",
+		ZoneGroup:   "myobj",
+		Zone:        "myobj",
+		clusterInfo: client.AdminTestClusterInfo("mycluster"),
+	}
+
+	t.Run("no shared pools", func(t *testing.T) {
+		// No shared pools specified, so skip the config
+		sharedPools := cephv1.ObjectSharedPoolsSpec{}
+		err := ConfigureSharedPoolsForZone(context, sharedPools)
+		assert.NoError(t, err)
+		assert.False(t, zoneGetCalled)
+		assert.False(t, zoneSetCalled)
+		assert.False(t, placementModifyCalled)
+	})
+	t.Run("configure the zone", func(t *testing.T) {
+		sharedPools := cephv1.ObjectSharedPoolsSpec{
+			MetadataPoolName: "test-meta",
+			DataPoolName:     "test-data",
+		}
+		err := ConfigureSharedPoolsForZone(context, sharedPools)
+		assert.NoError(t, err)
+		assert.True(t, zoneGetCalled)
+		assert.True(t, zoneSetCalled)
+		assert.True(t, placementModifyCalled)
+	})
+	t.Run("data pool already set", func(t *testing.T) {
+		// Simulate that the data pool has already been set and the zone update can be skipped
+		sharedPools := cephv1.ObjectSharedPoolsSpec{
+			MetadataPoolName: "test-meta",
+			DataPoolName:     "test-data",
+		}
+		dataPoolAlreadySet = fmt.Sprintf("%s:%s.buckets.data", sharedPools.DataPoolName, context.Zone)
+		zoneGetCalled = false
+		zoneSetCalled = false
+		placementModifyCalled = false
+		err := ConfigureSharedPoolsForZone(context, sharedPools)
+		assert.True(t, zoneGetCalled)
+		assert.False(t, zoneSetCalled)
+		assert.False(t, placementModifyCalled)
+		assert.NoError(t, err)
+	})
 }
 
 func TestDeleteStore(t *testing.T) {
@@ -227,17 +502,40 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 	testNamespace := "test-namespace"
 	t.Setenv(k8sutil.PodNamespaceEnvVar, testNamespace)
 
-	t.Run("watch single namespace", func(t *testing.T) {
+	t.Run("watch ceph cluster namespace", func(t *testing.T) {
 		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true"}
-		bktprovisioner := GetObjectBucketProvisioner(data, testNamespace)
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
 		assert.Equal(t, fmt.Sprintf("%s.%s", testNamespace, bucketProvisionerName), bktprovisioner)
+		assert.NoError(t, err)
 	})
 
 	t.Run("watch all namespaces", func(t *testing.T) {
 		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "false"}
-		bktprovisioner := GetObjectBucketProvisioner(data, testNamespace)
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
 		assert.Equal(t, bucketProvisionerName, bktprovisioner)
+		assert.NoError(t, err)
 	})
+
+	t.Run("prefix object provisioner", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_PROVISIONER_NAME_PREFIX": "my-prefix"}
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Equal(t, "my-prefix."+bucketProvisionerName, bktprovisioner)
+		assert.NoError(t, err)
+	})
+
+	t.Run("watch ceph cluster namespace and prefix object provisioner", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_WATCH_OPERATOR_NAMESPACE": "true", "ROOK_OBC_PROVISIONER_NAME_PREFIX": "my-prefix"}
+		bktprovisioner, err := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Equal(t, "my-prefix."+bucketProvisionerName, bktprovisioner)
+		assert.NoError(t, err)
+	})
+
+	t.Run("invalid prefix value for object provisioner", func(t *testing.T) {
+		data := map[string]string{"ROOK_OBC_PROVISIONER_NAME_PREFIX": "my-prefix."}
+		_, err := GetObjectBucketProvisioner(data, testNamespace)
+		assert.Error(t, err)
+	})
+
 }
 
 func TestRGWPGNumVersion(t *testing.T) {
@@ -652,7 +950,8 @@ func Test_createMultisite(t *testing.T) {
 			objContext := NewContext(ctx, &client.ClusterInfo{Namespace: "my-cluster"}, "my-store")
 
 			// assumption: endpointArg is sufficiently tested by integration tests
-			err := createMultisite(objContext, "")
+			store := &cephv1.CephObjectStore{}
+			err := createNonMultisiteStore(objContext, "", store)
 			assert.Equal(t, tt.expectCommands.getRealm, calledGetRealm)
 			assert.Equal(t, tt.expectCommands.createRealm, calledCreateRealm)
 			assert.Equal(t, tt.expectCommands.getZoneGroup, calledGetZoneGroup)
