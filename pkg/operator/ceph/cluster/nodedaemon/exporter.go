@@ -262,6 +262,7 @@ func EnableCephExporterServiceMonitor(context *clusterd.Context, cephCluster cep
 
 func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *monitoringv1.ServiceMonitor) {
 	if cephCluster.Spec.Labels != nil {
+		cephv1.GetMonitoringLabels(cephCluster.Spec.Labels).OverwriteApplyToObjectMeta(&serviceMonitor.ObjectMeta)
 		if cephExporterLabels, ok := cephCluster.Spec.Labels["exporter"]; ok {
 			if managedBy, ok := cephExporterLabels["rook.io/managedBy"]; ok {
 				relabelConfig := monitoringv1.RelabelConfig{
