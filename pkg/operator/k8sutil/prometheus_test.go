@@ -27,7 +27,7 @@ func TestGetServiceMonitor(t *testing.T) {
 	name := "rook-ceph-mgr"
 	namespace := "rook-ceph"
 	port := "http-metrics"
-	interval := monitoringv1.Duration("5s")
+	interval := monitoringv1.Duration("10s")
 	servicemonitor := GetServiceMonitor(name, namespace, port)
 	assert.Equal(t, name, servicemonitor.GetName())
 	assert.Equal(t, namespace, servicemonitor.GetNamespace())
