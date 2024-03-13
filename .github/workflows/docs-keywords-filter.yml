@@ -1,0 +1,76 @@
+name: docs-keywords-filter
+on:
+  pull_request:
+    branches:
+      - master
+      - release-*
+
+# cancel the in-progress workflow when PR is refreshed.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docs-keywords-filter:
+    name: docs-keywords-filter
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get changed docs
+        id: changed-docs
+        uses: tj-actions/changed-files@v42
+        with:
+          # Avoid using single or double quotes for multiline patterns
+          files: |
+            Documentation/**.md
+            Documentation/**/**.md
+
+      - name: List all changed docs with keywords
+        if: steps.changed-docs.outputs.any_changed == 'true'
+        env:
+          ALL_CHANGED_DOCS: ${{ steps.changed-docs.outputs.all_changed_files }}
+          # Keywords regex for grep
+          GREP_KEYWORD_DICS: 'you,your,yours,they,them,their,theirs,she,her,hers,he,him,his'
+        run: |
+
+          echo -e "Changed files: \n ${ALL_CHANGED_DOCS}"
+
+          # Get SHA
+          base_sha=${{ github.event.pull_request.base.sha }}
+          head_sha=${{ github.event.pull_request.head.sha }}
+          echo "Base SHA:${base_sha}"
+          echo "Head SHA:${head_sha}"
+
+          # Grep may return 1 when no added content
+          set +e
+
+          echo "In the docs we try not to use (${GREP_KEYWORD_DICS})"
+          # to or regex for grep
+          keywords_regex="$(echo ${GREP_KEYWORD_DICS}|sed 's/,/\\|/g')"
+
+          for file in ${ALL_CHANGED_DOCS}; do
+            # Get changed content by 'git diff'
+            # Delete diff summary by sed
+            # Filter added/modified lines , which with a '+' prefix
+            # Match keywords as words and ignore case
+            content_with_keyword="$(git diff ${base_sha} ${head_sha} ${file}|sed '0,/^@/d'|grep '^+'|grep -iw ${keywords_regex})"
+            if [[ "x${content_with_keyword}" != "x" ]] ; then
+              echo "❌ Failed : ${file}"
+              echo "${content_with_keyword}"
+            else
+              echo "✅ Success : ${file}"
+            fi
+          done
+
+          # exit with error if keywords matched
+          if [[ "x${content_with_keyword}" != "x" ]]; then
+            exit 1
+          else
+             echo "⭐ All file passed"
+             exit 0
+          fi
