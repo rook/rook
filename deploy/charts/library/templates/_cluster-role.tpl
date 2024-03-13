@@ -148,4 +148,14 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "update", "delete", "list"]
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: rook-ceph-default
+  namespace: {{ .Release.Namespace }} # namespace:cluster
+rules:
+  - apiGroups: [""]
+    resources: [""]
+    verbs: [""]
 {{- end }}
