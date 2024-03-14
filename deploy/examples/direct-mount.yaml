@@ -16,6 +16,7 @@ spec:
         app: rook-direct-mount
     spec:
       dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: rook-ceph-default
       containers:
         - name: rook-direct-mount
           image: rook/ceph:master

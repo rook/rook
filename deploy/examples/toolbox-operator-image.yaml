@@ -22,6 +22,7 @@ spec:
         app: rook-ceph-tools-operator-image
     spec:
       dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: rook-ceph-default
       containers:
         - name: rook-ceph-tools-operator-image
           image: rook/ceph:master
