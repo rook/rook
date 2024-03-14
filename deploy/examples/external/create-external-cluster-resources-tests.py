@@ -1,0 +1,1 @@
+../create-external-cluster-resources-tests.py
