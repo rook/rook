@@ -120,7 +120,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.registrar.image` | Kubernetes CSI registrar image | `registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.0` |
 | `csi.resizer.image` | Kubernetes CSI resizer image | `registry.k8s.io/sig-storage/csi-resizer:v1.10.0` |
 | `csi.serviceMonitor.enabled` | Enable ServiceMonitor for Ceph CSI drivers | `false` |
-| `csi.serviceMonitor.interval` | Service monitor scrape interval | `"5s"` |
+| `csi.serviceMonitor.interval` | Service monitor scrape interval | `"10s"` |
 | `csi.serviceMonitor.labels` | ServiceMonitor additional labels | `{}` |
 | `csi.serviceMonitor.namespace` | Use a different namespace for the ServiceMonitor | `nil` |
 | `csi.sidecarLogLevel` | Set logging level for Kubernetes-csi sidecar containers. Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity. | `0` |
