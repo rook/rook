@@ -27,6 +27,7 @@ data:
   CSI_ENABLE_ENCRYPTION: {{ .Values.csi.enableCSIEncryption | quote }}
   CSI_ENABLE_OMAP_GENERATOR: {{ .Values.csi.enableOMAPGenerator | quote }}
   CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
+  CSI_DISABLE_HOLDER_PODS: {{ .Values.csi.disableHolderPods | quote }}
   CSI_ENABLE_METADATA: {{ .Values.csi.enableMetadata | quote }}
   CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: {{ .Values.csi.enableVolumeGroupSnapshot | quote }}
 {{- if .Values.csi.csiDriverNamePrefix }}

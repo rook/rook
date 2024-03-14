@@ -20,6 +20,7 @@ import (
 	"context"
 	_ "embed"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -419,14 +420,6 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		})
 	}
 
-	holderEnabled = !CSIParam.EnableCSIHostNetwork
-
-	for i := range r.clustersWithHolder {
-		if r.clustersWithHolder[i].cluster.Spec.Network.IsMultus() {
-			holderEnabled = true
-			break
-		}
-	}
 	// get common provisioner tolerations and node affinity
 	provisionerTolerations := getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{})
 	provisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{})
@@ -944,6 +937,15 @@ func GenerateNetNamespaceFilePath(ctx context.Context, client client.Client, clu
 	err := client.Get(ctx, opNamespaceName, opConfig)
 	if err != nil && !kerrors.IsNotFound(err) {
 		return "", errors.Wrap(err, "failed to get operator's configmap")
+	}
+
+	// net namespace file path is empty string if holder pods are disabled
+	csiDisableHolders, err := strconv.ParseBool(k8sutil.GetValue(opConfig.Data, "CSI_DISABLE_HOLDER_PODS", "false"))
+	if err != nil {
+		return "", errors.Wrap(err, "failed to parse value for 'CSI_DISABLE_HOLDER_PODS'")
+	}
+	if csiDisableHolders {
+		return "", nil
 	}
 
 	switch driverName {

@@ -341,6 +341,7 @@ func updateCSIDriverOptions(curr, clusterKey string,
 		}
 	}
 
+	updateNetNamespaceFilePath(clusterKey, cc)
 	return formatCsiClusterConfig(cc)
 }
 

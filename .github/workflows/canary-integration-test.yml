@@ -1533,6 +1533,9 @@ jobs:
         shell: bash --noprofile --norc -eo pipefail -x {0}
         run: tests/scripts/github-action-helper.sh build_rook
 
+      - name: allow holder pod deployment
+        run: sed -i "s|CSI_DISABLE_HOLDER_PODS|# CSI_DISABLE_HOLDER_PODS|g" "deploy/examples/operator.yaml"
+
       - name: validate-yaml
         run: tests/scripts/github-action-helper.sh validate_yaml
 
@@ -1597,6 +1600,9 @@ jobs:
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
+
+      - name: allow holder pod deployment
+        run: sed -i "s|CSI_DISABLE_HOLDER_PODS|# CSI_DISABLE_HOLDER_PODS|g" "deploy/examples/operator.yaml"
 
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"

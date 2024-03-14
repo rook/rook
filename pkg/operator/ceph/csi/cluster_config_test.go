@@ -503,6 +503,8 @@ func TestUpdateCSIDriverOptions(t *testing.T) {
 		clusterKey       string
 		csiDriverOptions *cephv1.CSIDriverSpec
 	}
+	holderEnabled = true
+
 	tests := []struct {
 		name    string
 		args    args
