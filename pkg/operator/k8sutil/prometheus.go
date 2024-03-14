@@ -63,7 +63,7 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 				{
 					Port:     portName,
 					Path:     "/metrics",
-					Interval: "5s",
+					Interval: "10s",
 				},
 			},
 		},
