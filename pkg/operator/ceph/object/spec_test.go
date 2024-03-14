@@ -39,17 +39,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func configureSSE(t *testing.T, c *clusterConfig, kms bool, s3 bool) {
+func configureSSE(t *testing.T, c *clusterConfig, kms bool, s3 bool, token bool) {
 	c.store.Spec.Security = &cephv1.ObjectStoreSecuritySpec{}
 	if kms {
 		c.store.Spec.Security.KeyManagementService = cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}
-		c.store.Spec.Security.KeyManagementService.TokenSecretName = "vault-token"
+		if token {
+			c.store.Spec.Security.KeyManagementService.TokenSecretName = "vault-token"
+			c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_AUTH_METHOD"] = "token"
+		} else {
+			c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_AUTH_METHOD"] = "kubernetes"
+		}
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["KMS_PROVIDER"] = "vault"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
 	}
 	if s3 {
 		c.store.Spec.Security.ServerSideEncryptionS3 = cephv1.KeyManagementServiceSpec{ConnectionDetails: map[string]string{}}
-		c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName = "vault-token"
+		if token {
+			c.store.Spec.Security.ServerSideEncryptionS3.TokenSecretName = "vault-token"
+			c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_AUTH_METHOD"] = "token"
+		} else {
+			c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_AUTH_METHOD"] = "kubernetes"
+		}
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["KMS_PROVIDER"] = "vault"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_ADDR"] = "https://1.1.1.1:8200"
 	}
@@ -437,7 +447,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is missing", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		b, err := c.CheckRGWKMS()
 		assert.False(t, b)
 		assert.Error(t, err)
@@ -445,7 +455,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is kv with v1", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v1"
 		b, err := c.CheckRGWKMS()
@@ -455,7 +465,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is kv with v2", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_BACKEND"] = "v2"
 		b, err := c.CheckRGWKMS()
@@ -465,7 +475,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("Vault Secret Engine is transit", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		b, err := c.CheckRGWKMS()
 		assert.True(t, b)
@@ -474,7 +484,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("TLS is configured but secrets do not exist", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		b, err := c.CheckRGWKMS()
@@ -485,7 +495,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("TLS secret exists but empty key", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		tlsSecret := &v1.Secret{
@@ -504,7 +514,7 @@ func TestCheckRGWKMS(t *testing.T) {
 
 	t.Run("TLS config is valid", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		tlsSecret := &v1.Secret{
@@ -547,7 +557,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("Vault Secret Engine is missing", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		b, err := c.CheckRGWSSES3Enabled()
 		assert.False(t, b)
 		assert.Error(t, err)
@@ -555,7 +565,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("Vault Secret Engine is kv with v1", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_BACKEND"] = "v1"
 		b, err := c.CheckRGWSSES3Enabled()
@@ -565,7 +575,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("Vault Secret Engine is kv with v2", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "kv"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_BACKEND"] = "v2"
 		b, err := c.CheckRGWSSES3Enabled()
@@ -575,7 +585,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("Vault Secret Engine is transit", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		b, err := c.CheckRGWSSES3Enabled()
 		assert.True(t, b)
@@ -584,7 +594,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("TLS is configured but secrets do not exist", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		b, err := c.CheckRGWSSES3Enabled()
@@ -595,7 +605,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("TLS secret exists but empty key", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		tlsSecret := &v1.Secret{
@@ -614,7 +624,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 
 	t.Run("TLS config is valid", func(t *testing.T) {
 		c := setupTest()
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		tlsSecret := &v1.Secret{
@@ -768,11 +778,15 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(false)))
 	})
 
-	configureSSE(t, c, true, false)
+	configureSSE(t, c, true, false, true)
 	t.Run("Invalid Security Spec configured, no options will be configured", func(t *testing.T) {
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
 		assert.Error(t, err)
@@ -780,11 +794,15 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(false)))
 	})
 
-	t.Run("Security Spec configured with kms only,so kms options will be configured", func(t *testing.T) {
+	t.Run("Security Spec configured with kms only,so kms options with token will be configured", func(t *testing.T) {
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
 		assert.NoError(t, err)
@@ -792,12 +810,33 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(false)))
 	})
 
-	t.Run("Security Spec configured with s3 only, so s3 options will be configured", func(t *testing.T) {
-		configureSSE(t, c, false, true)
+	t.Run("Security Spec configured with kms only,so kms options with agent will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, false, false)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(false)))
+	})
+
+	t.Run("Security Spec configured with s3 only, so s3 options with token will be configured", func(t *testing.T) {
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
 		assert.NoError(t, err)
@@ -805,12 +844,33 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(true)))
 	})
 
-	t.Run("Security Spec configured with both kms and s3 settings, so both kms and s3 options will be configured", func(t *testing.T) {
-		configureSSE(t, c, true, true)
+	t.Run("Security Spec configured with s3 only, so s3 options with agent will be configured", func(t *testing.T) {
+		configureSSE(t, c, false, true, false)
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(true)))
+	})
+
+	t.Run("Security Spec configured with both kms and s3 settings, so both kms and s3 options with token will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, true, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
@@ -819,8 +879,30 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(true)))
+	})
+
+	t.Run("Security Spec configured with both kms and s3 settings, so both kms and s3 options with agent will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, true, false)
+		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSDefaultOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(true)))
+		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(true)))
 	})
 
 	tlsSecret := &v1.Secret{
@@ -834,7 +916,7 @@ func TestAWSServerSideEncryption(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("Security Spec configured with kms along with TLS, so kms including TLS options will be configured", func(t *testing.T) {
-		configureSSE(t, c, true, false)
+		configureSSE(t, c, true, false, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
@@ -843,12 +925,16 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(false)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(false)))
 	})
 
 	t.Run("Security Spec configured with s3 along with TLS, so s3 including TLS options will be configured", func(t *testing.T) {
-		configureSSE(t, c, false, true)
+		configureSSE(t, c, false, true, true)
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
@@ -857,12 +943,14 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(false)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
-		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(false)))
 	})
 
-	t.Run("Security Spec configured both kms and s3 aloong with TLS, all the serverr side encryption related options will be configured", func(t *testing.T) {
-		configureSSE(t, c, true, true)
+	t.Run("Security Spec configured both kms and s3 along with TLS, all the server side encryption related options will be configured", func(t *testing.T) {
+		configureSSE(t, c, true, true, true)
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails["VAULT_SECRET_ENGINE"] = "transit"
 		c.store.Spec.Security.KeyManagementService.ConnectionDetails["VAULT_CACERT"] = "vault-ca-secret"
@@ -873,8 +961,12 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3DefaultOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTokenOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTokenOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultAgentOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultAgentOptions(false)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultTLSOptions(true)))
 		assert.True(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultTLSOptions(true)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseKMSVaultNonTLSOptions(false)))
+		assert.False(t, checkRGWOptions(rgwContainer.Args, c.sseS3VaultNonTLSOptions(false)))
 	})
 }
 

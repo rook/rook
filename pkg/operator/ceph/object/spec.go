@@ -46,6 +46,7 @@ const (
 	sseKMS             = "ssekms"
 	sseS3              = "sses3"
 	vaultPrefix        = "/v1/"
+	vaultAgentAuth     = "agent"
 	//nolint:gosec // since this is not leaking any hardcoded details
 	setupVaultTokenFile = `
 set -e
@@ -389,14 +390,19 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, err
 	}
 	if kmsEnabled {
-		logger.Debugf("enabliing SSE-KMS. %v", c.store.Spec.Security.KeyManagementService)
+		logger.Debugf("enabling SSE-KMS. %v", c.store.Spec.Security.KeyManagementService)
 		container.Args = append(container.Args, c.sseKMSDefaultOptions(kmsEnabled)...)
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
 			container.Args = append(container.Args, c.sseKMSVaultTokenOptions(kmsEnabled)...)
+		} else if c.store.Spec.Security.KeyManagementService.IsK8sAuthEnabled() {
+			container.Args = append(container.Args, c.sseKMSVaultAgentOptions(kmsEnabled)...)
 		}
-		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() &&
-			c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSEKMSTLS) {
-			container.Args = append(container.Args, c.sseKMSVaultTLSOptions(kmsEnabled)...)
+		if c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSEKMSTLS) {
+			if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() {
+				container.Args = append(container.Args, c.sseKMSVaultTLSOptions(kmsEnabled)...)
+			} else {
+				container.Args = append(container.Args, c.sseKMSVaultNonTLSOptions(kmsEnabled)...)
+			}
 		}
 	}
 
@@ -405,14 +411,18 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		return v1.Container{}, err
 	}
 	if s3Enabled {
-		logger.Debugf("enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
+		logger.Debugf("enabling SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
 
 		container.Args = append(container.Args, c.sseS3DefaultOptions(s3Enabled)...)
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
 			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3Enabled)...)
+		} else if c.store.Spec.Security.ServerSideEncryptionS3.IsK8sAuthEnabled() {
+			container.Args = append(container.Args, c.sseS3VaultAgentOptions(s3Enabled)...)
 		}
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTLSEnabled() {
 			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3Enabled)...)
+		} else {
+			container.Args = append(container.Args, c.sseS3VaultNonTLSOptions(s3Enabled)...)
 		}
 	}
 
@@ -818,6 +828,9 @@ func (c *clusterConfig) sseKMSDefaultOptions(setOptions bool) []string {
 				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.Provider]),
 			cephconfig.NewFlag("rgw crypt vault addr",
 				c.store.Spec.Security.KeyManagementService.ConnectionDetails[api.EnvVaultAddress]),
+			cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
+			cephconfig.NewFlag("rgw crypt vault secret engine",
+				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
 		}
 	}
 	return []string{}
@@ -830,6 +843,10 @@ func (c *clusterConfig) sseS3DefaultOptions(setOptions bool) []string {
 				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.Provider]),
 			cephconfig.NewFlag("rgw crypt sse s3 vault addr",
 				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[api.EnvVaultAddress]),
+			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
+				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
+			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
+				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
 		}
 	}
 	return []string{}
@@ -841,9 +858,6 @@ func (c *clusterConfig) sseKMSVaultTokenOptions(setOptions bool) []string {
 			cephconfig.NewFlag("rgw crypt vault auth", kms.KMSTokenSecretNameKey),
 			cephconfig.NewFlag("rgw crypt vault token file",
 				path.Join(rgwVaultDirName, sseKMS, kms.VaultFileName)),
-			cephconfig.NewFlag("rgw crypt vault prefix", c.vaultPrefixRGW()),
-			cephconfig.NewFlag("rgw crypt vault secret engine",
-				c.store.Spec.Security.KeyManagementService.ConnectionDetails[kms.VaultSecretEngineKey]),
 		}
 	}
 	return []string{}
@@ -855,10 +869,6 @@ func (c *clusterConfig) sseS3VaultTokenOptions(setOptions bool) []string {
 			cephconfig.NewFlag("rgw crypt sse s3 vault auth", kms.KMSTokenSecretNameKey),
 			cephconfig.NewFlag("rgw crypt sse s3 vault token file",
 				path.Join(rgwVaultDirName, sseS3, kms.VaultFileName)),
-			cephconfig.NewFlag("rgw crypt sse s3 vault prefix",
-				path.Join(vaultPrefix, c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey])),
-			cephconfig.NewFlag("rgw crypt sse s3 vault secret engine",
-				c.store.Spec.Security.ServerSideEncryptionS3.ConnectionDetails[kms.VaultSecretEngineKey]),
 		}
 	}
 	return []string{}
@@ -902,6 +912,38 @@ func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
 			rgwOptions = append(rgwOptions,
 				cephconfig.NewFlag("rgw crypt sse s3 vault ssl cacert", path.Join(rgwVaultDirName, sseS3, kms.VaultCAFileName)))
 		}
+	}
+	return rgwOptions
+}
+
+func (c *clusterConfig) sseKMSVaultNonTLSOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt vault verify ssl", "false"))
+	}
+	return rgwOptions
+}
+
+func (c *clusterConfig) sseS3VaultNonTLSOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt sse s3 vault verify ssl", "false"))
+	}
+	return rgwOptions
+}
+
+func (c *clusterConfig) sseKMSVaultAgentOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt vault auth", vaultAgentAuth))
+	}
+	return rgwOptions
+}
+
+func (c *clusterConfig) sseS3VaultAgentOptions(setOptions bool) []string {
+	var rgwOptions []string
+	if setOptions {
+		rgwOptions = append(rgwOptions, cephconfig.NewFlag("rgw crypt sse s3 vault auth", vaultAgentAuth))
 	}
 	return rgwOptions
 }

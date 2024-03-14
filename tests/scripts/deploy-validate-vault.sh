@@ -28,8 +28,10 @@ ROOK_NAMESPACE=rook-ceph
 ROOK_VAULT_SA=rook-vault-auth
 ROOK_SYSTEM_SA=rook-ceph-system
 ROOK_OSD_SA=rook-ceph-osd
+ROOK_RGW_SA=rook-ceph-rgw
 VAULT_POLICY_NAME=rook
 SECRET_NAME=vault-server-tls
+VAULT_AGENT_SECRET_NAME=vault-agent-tls
 TMPDIR=$(mktemp -d)
 VAULT_SERVER=https://vault.default:8200
 RGW_BUCKET_KEY=mybucketkey
@@ -61,6 +63,14 @@ function create_secret_generic {
   kubectl create secret generic vault-ca-cert --namespace ${ROOK_NAMESPACE} --from-file=cert="${TMPDIR}"/vault.ca
   kubectl create secret generic vault-client-cert --namespace ${ROOK_NAMESPACE} --from-file=cert="${TMPDIR}"/vault.crt
   kubectl create secret generic vault-client-key --namespace ${ROOK_NAMESPACE} --from-file=key="${TMPDIR}"/vault.key
+
+  # for vault agent
+  kubectl create secret generic ${VAULT_AGENT_SECRET_NAME} \
+    --namespace ${ROOK_NAMESPACE} \
+    --from-file=vault.key="${TMPDIR}"/vault.key \
+    --from-file=vault.crt="${TMPDIR}"/vault.crt \
+    --from-file=vault.ca="${TMPDIR}"/vault.ca
+
 }
 
 function vault_helm_tls {
@@ -252,7 +262,7 @@ EOF
 
   # configure a role for rook
   kubectl exec -ti vault-0 -- vault write auth/kubernetes/role/"$ROOK_NAMESPACE" \
-    bound_service_account_names="$ROOK_SYSTEM_SA","$ROOK_OSD_SA" \
+    bound_service_account_names="$ROOK_SYSTEM_SA","$ROOK_OSD_SA","$ROOK_RGW_SA" \
     bound_service_account_namespaces="$ROOK_NAMESPACE" \
     policies="$VAULT_POLICY_NAME" \
     ttl=1440h

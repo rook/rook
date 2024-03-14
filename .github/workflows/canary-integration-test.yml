@@ -1098,6 +1098,7 @@ jobs:
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl create -f tests/manifests/test-object-with-vault-agent.yaml
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
@@ -1106,6 +1107,7 @@ jobs:
       - name: wait for ceph to be ready
         run: |
           tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+          tests/scripts/validate_cluster.sh rgw my-store
           kubectl -n rook-ceph get pods
           kubectl -n rook-ceph get secrets
 
@@ -1113,6 +1115,21 @@ jobs:
         run: |
           tests/scripts/deploy-validate-vault.sh validate_osd
           sudo lsblk
+
+      - name: validate rgw vault kv
+        run: |
+            tests/scripts/deploy-validate-vault.sh validate_rgw
+
+      - name: validate rgw vault transit
+        run: |
+            kubectl delete -f tests/manifests/test-object-with-vault-agent.yaml
+            yq write -i tests/manifests/test-object-with-vault-agent.yaml "spec.security.kms.connectionDetails.VAULT_SECRET_ENGINE" transit
+            timeout 120 bash -c 'while kubectl -n rook-ceph get cephobjectstore my-store; do echo "waiting for objectstore my-store to delete"; sleep 5; done'
+            echo "wait for rgw pod to be deleted"
+            kubectl wait --for=delete pod -l app=rook-ceph-rgw -n rook-ceph --timeout=100s
+            kubectl create -f tests/manifests/test-object-with-vault-agent.yaml
+            tests/scripts/validate_cluster.sh rgw my-store
+            tests/scripts/deploy-validate-vault.sh validate_rgw
 
       - name: collect common logs
         if: always()
