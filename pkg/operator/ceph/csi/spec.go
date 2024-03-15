@@ -676,14 +676,62 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	return nil
 }
 
-func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
+func compareOwnerRefrence(ownerInfo *k8sutil.OwnerInfo, resourceOwnerInfo []metav1.OwnerReference) bool {
+	var operatorOwnerInfoUID, csiResourceOwnerInfoUID string
+	if ownerInfo != nil && ownerInfo.OwnerReference() != nil {
+		operatorOwnerInfoUID = string(ownerInfo.OwnerReference().UID)
+	}
+	if resourceOwnerInfo[0] != (metav1.OwnerReference{}) {
+		csiResourceOwnerInfoUID = string(resourceOwnerInfo[0].UID)
+	}
+
+	// check the value not the address
+	if csiResourceOwnerInfoUID != operatorOwnerInfoUID {
+		logger.Debugf("csi owner reference UID %q does not match the operator owner reference UID %q, so don't delete the csi resource", operatorOwnerInfoUID, csiResourceOwnerInfoUID)
+		return false
+	}
+
+	return true
+}
+
+// return false is rook operator is not the owner of csi driver,
+// so csi driver do not get deleted as it isn't deployed by
+// rook operator and someone externally installed it
+func (r *ReconcileCSI) provisionerOwnedByRook(ownerInfo *k8sutil.OwnerInfo, deploymentName string) bool {
+	getDeployment, err := r.context.Clientset.AppsV1().Deployments(r.opConfig.OperatorNamespace).Get(r.opManagerContext, deploymentName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debugf("csi deployment pod not present %q %q", deploymentName, r.opConfig.OperatorNamespace)
+			return true
+		}
+		logger.Debugf("failed to get csi deployment pod %q %q", deploymentName, r.opConfig.OperatorNamespace)
+		return true
+	}
+
+	return compareOwnerRefrence(ownerInfo, getDeployment.OwnerReferences)
+}
+
+func (r *ReconcileCSI) daemonOwnedByRook(ownerInfo *k8sutil.OwnerInfo, daemonSetName string) bool {
+	getDaemonSet, err := r.context.Clientset.AppsV1().DaemonSets(r.opConfig.OperatorNamespace).Get(r.opManagerContext, daemonSetName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debugf("csi daemonset not present %q %q", daemonSetName, r.opConfig.OperatorNamespace)
+			return true
+		}
+		logger.Debugf("failed to get csi daemonset %q %q", daemonSetName, r.opConfig.OperatorNamespace)
+		return true
+	}
+	return compareOwnerRefrence(ownerInfo, getDaemonSet.OwnerReferences)
+}
+
+func (r *ReconcileCSI) stopDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerInfo) error {
 	RBDDriverName = fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
 	CephFSDriverName = fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	NFSDriverName = fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 
 	if !EnableRBD {
 		logger.Info("CSI Ceph RBD driver disabled")
-		err := r.deleteCSIDriverResources(ver, CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
+		err := r.deleteCSIDriverResources(ver, CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName, ownerInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI Ceph RBD driver")
 		}
@@ -692,7 +740,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableCephFS {
 		logger.Info("CSI CephFS driver disabled")
-		err := r.deleteCSIDriverResources(ver, CsiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
+		err := r.deleteCSIDriverResources(ver, CsiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName, ownerInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI CephFS driver")
 		}
@@ -701,7 +749,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableNFS {
 		logger.Info("CSI NFS driver disabled")
-		err := r.deleteCSIDriverResources(ver, CsiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName)
+		err := r.deleteCSIDriverResources(ver, CsiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName, ownerInfo)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI NFS driver")
 		}
@@ -711,27 +759,36 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 	return nil
 }
 
-func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) error {
-	csiDriverobj := v1CsiDriver{}
-	err := k8sutil.DeleteDaemonset(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete the %q", daemonset)
+func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string, ownerInfo *k8sutil.OwnerInfo) error {
+	daemonOwnedByRook := r.daemonOwnedByRook(ownerInfo, daemonset)
+	if daemonOwnedByRook {
+		err := k8sutil.DeleteDaemonset(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete the %q", daemonset)
+		}
 	}
 
-	err = k8sutil.DeleteDeployment(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, deployment)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete the %q", deployment)
+	provisionerOwnedByRook := r.provisionerOwnedByRook(ownerInfo, deployment)
+	if provisionerOwnedByRook {
+		err := k8sutil.DeleteDeployment(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, deployment)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete the %q", deployment)
+		}
 	}
 
-	err = k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, service)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete the %q", service)
+	if daemonOwnedByRook && provisionerOwnedByRook {
+		err := k8sutil.DeleteService(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, service)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete the %q", service)
+		}
+
+		csiDriverobj := v1CsiDriver{}
+		err = csiDriverobj.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, driverName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete %q Driver Info", driverName)
+		}
 	}
 
-	err = csiDriverobj.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, driverName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete %q Driver Info", driverName)
-	}
 	return nil
 }
 

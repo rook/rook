@@ -142,6 +142,17 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
 	}
 
+	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
+	if err != nil {
+		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
+	}
+	if ownerRef != nil {
+		blockOwnerDeletion := false
+		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
+	}
+
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
+
 	// See if there is a CephCluster
 	cephClusters := &cephv1.CephClusterList{}
 	err = r.client.List(r.opManagerContext, cephClusters, &client.ListOptions{})
@@ -149,7 +160,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		if kerrors.IsNotFound(err) {
 			logger.Debug("no ceph cluster found not deploying ceph csi driver")
 			EnableRBD, EnableCephFS, EnableNFS = false, false, false
-			err = r.stopDrivers(serverVersion)
+			err = r.stopDrivers(serverVersion, ownerInfo)
 			if err != nil {
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
 			}
@@ -164,7 +175,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	if len(cephClusters.Items) == 0 {
 		logger.Debug("no ceph cluster found not deploying ceph csi driver")
 		EnableRBD, EnableCephFS, EnableNFS = false, false, false
-		err = r.stopDrivers(serverVersion)
+		err = r.stopDrivers(serverVersion, ownerInfo)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop Drivers")
 		}
@@ -254,16 +265,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		}
 	}
 
-	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
-	if err != nil {
-		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
-	}
-	if ownerRef != nil {
-		blockOwnerDeletion := false
-		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
-	}
-
-	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
 	// create an empty config map. config map will be filled with data
 	// later when clusters have mons
 	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)

@@ -147,6 +147,11 @@ func (info *OwnerInfo) GetUID() types.UID {
 	return info.owner.GetUID()
 }
 
+// GetOwnerReference gets the owner references of the owner
+func (info *OwnerInfo) OwnerReference() *metav1.OwnerReference {
+	return info.ownerRef
+}
+
 func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.ResourceRequirements {
 	// if the first has no limits set, apply the second limits if any are specified
 	if len(first.Limits) == 0 {

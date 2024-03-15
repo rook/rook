@@ -59,7 +59,7 @@ func (r *ReconcileCSI) validateAndConfigureDrivers(serverVersion *version.Info, 
 	}
 
 	// Check whether RBD or CephFS needs to be disabled
-	return r.stopDrivers(serverVersion)
+	return r.stopDrivers(serverVersion, ownerInfo)
 }
 
 func (r *ReconcileCSI) setParams(ver *version.Info) error {
