@@ -26,6 +26,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -35,11 +36,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 func TestCephCSIController(t *testing.T) {
+	oldReconcileSaveCSIDriverOptions := reconcileSaveCSIDriverOptions
+	defer func() { reconcileSaveCSIDriverOptions = oldReconcileSaveCSIDriverOptions }()
+	saveCSIDriverOptionsCalledForClusterNS := []string{}
+	reconcileSaveCSIDriverOptions = func(clientset kubernetes.Interface, clusterNamespace string, clusterInfo *client.ClusterInfo) error {
+		saveCSIDriverOptionsCalledForClusterNS = append(saveCSIDriverOptionsCalledForClusterNS, clusterNamespace)
+		return nil
+	}
+
 	ctx := context.TODO()
 	var (
 		name      = "rook-ceph"
@@ -129,8 +139,25 @@ func TestCephCSIController(t *testing.T) {
 				},
 			},
 		}
+		// Mock clusterInfo
+		secrets := map[string][]byte{
+			"fsid":         []byte(name),
+			"mon-secret":   []byte("monsecret"),
+			"admin-secret": []byte("adminsecret"),
+		}
+		secret := &v1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "rook-ceph-mon",
+				Namespace: namespace,
+			},
+			Data: secrets,
+			Type: k8sutil.RookType,
+		}
+		_, err = c.Clientset.CoreV1().Secrets(namespace).Create(ctx, secret, metav1.CreateOptions{})
+		assert.NoError(t, err)
 		s := scheme.Scheme
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &v1.ConfigMap{})
+		saveCSIDriverOptionsCalledForClusterNS = []string{}
 
 		object := []runtime.Object{
 			cephCluster,
@@ -156,6 +183,8 @@ func TestCephCSIController(t *testing.T) {
 		ds, err := c.Clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
 		assert.NoError(t, err)
 		assert.Equal(t, 2, len(ds.Items), ds)
+
+		assert.Equal(t, []string{namespace}, saveCSIDriverOptionsCalledForClusterNS)
 	})
 
 	t.Run("success ceph csi deployment with multus", func(t *testing.T) {
@@ -209,6 +238,7 @@ func TestCephCSIController(t *testing.T) {
 		assert.NoError(t, err)
 		s := scheme.Scheme
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &v1.ConfigMap{})
+		saveCSIDriverOptionsCalledForClusterNS = []string{}
 
 		object := []runtime.Object{
 			cephCluster,
@@ -240,5 +270,7 @@ func TestCephCSIController(t *testing.T) {
 		assert.Equal(t, "csi-rbdplugin", ds.Items[2].Name)
 		assert.Equal(t, "csi-rbdplugin-holder-rook-ceph", ds.Items[3].Name)
 		assert.Equal(t, `[{"name":"public-net","namespace":"rook-ceph"}]`, ds.Items[1].Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"], ds.Items[1].Spec.Template.Annotations)
+
+		assert.Equal(t, []string{namespace}, saveCSIDriverOptionsCalledForClusterNS)
 	})
 }

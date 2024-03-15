@@ -17,4 +17,4 @@ spec:
   endpoints:
     - port: ceph-exporter-http-metrics
       path: /metrics
-      interval: 5s
+      interval: 10s

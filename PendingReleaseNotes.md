@@ -7,6 +7,10 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 - updating `netNamespaceFilePath` for all clusterIDs in rook-ceph-csi-config configMap in [PR](https://github.com/rook/rook/pull/13613)
   - Issue: The netNamespaceFilePath isn't updated in the CSI config map for all the clusterIDs when `CSI_ENABLE_HOST_NETWORK` is set to false in `operator.yaml`
   - Impact: This results in the unintended network configurations, with pods using the host networking instead of pod networking.
+- Rook is beginning the process of deprecating holder pods. This is especially important for Multus
+  users. Helm chart users should take care to set the new config `disableHolderPods: false` if they
+  are using Multus and still using the `rook-ceph` chart's default `values.yaml`. Special upgrade
+  docs for multus can be found [here](Documentation/CRDs/Cluster/network-providers.md#migrating-to-remove-multus-holder-pods).
 
 ## Features
 

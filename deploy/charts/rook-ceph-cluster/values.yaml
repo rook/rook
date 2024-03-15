@@ -61,7 +61,7 @@ monitoring:
   # externalMgrEndpoints: <list of endpoints>
   # externalMgrPrometheusPort: <port>
   # Scrape interval for prometheus
-  # interval: 5s
+  # interval: 10s
   # allow adding custom labels and annotations to the prometheus rule
   prometheusRule:
     # -- Labels applied to PrometheusRule
