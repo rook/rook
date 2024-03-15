@@ -593,7 +593,16 @@ discover:
   #     operator: Exists
   #     effect: NoSchedule
   # -- The node labels for affinity of `discover-agent` [^1]
-  nodeAffinity: # key1=value1,value2; key2=value3
+  nodeAffinity:
+  #   key1=value1,value2; key2=value3
+  #
+  #   or
+  #
+  #   requiredDuringSchedulingIgnoredDuringExecution:
+  #     nodeSelectorTerms:
+  #       - matchExpressions:
+  #           - key: storage-node
+  #             operator: Exists
   # -- Labels to add to the discover pods
   podLabels: # "key1=value1,key2=value2"
   # -- Add resources to discover daemon pods
