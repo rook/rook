@@ -68,7 +68,7 @@ spec:
 {{- end }}
 {{- if .Values.discover.nodeAffinity }}
         - name: DISCOVER_AGENT_NODE_AFFINITY
-          value: {{ .Values.discover.nodeAffinity }}
+          value: {{ toYaml .Values.discover.nodeAffinity | quote }}
 {{- end }}
 {{- if .Values.discover.podLabels }}
         - name: DISCOVER_AGENT_POD_LABELS
