@@ -241,6 +241,46 @@ Consume the S3 Storage, in two different ways:
 If encryption or compression on the wire is needed, specify the `--v2-port-enable` flag.
 If the v2 address type is present in the `ceph quorum_status`, then the output of 'ceph mon data' i.e, `ROOK_EXTERNAL_CEPH_MON_DATA` will use the v2 port(`3300`).
 
+### NFS storage
+
+Make use of the NFS client running on the external ceph standalone cluster.
+
+Create the export,
+```console
+ceph nfs export create cephfs <nfs-client-name> /test <filesystem-name>
+```
+
+Create the PV,
+```console
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: <pv-name>
+spec:
+  capacity:
+    storage: <storage>
+  accessModes:
+  - ReadWriteOnce
+  nfs:
+    path: /test
+    server: <nfs-client-server-ip>
+  persistentVolumeReclaimPolicy: Retain
+```
+And PVC,
+```
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-claim1
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: <storage>
+  volumeName: <pv-name>
+```
+
 ## Exporting Rook to another cluster
 
 If you have multiple K8s clusters running, and want to use the local `rook-ceph` cluster as the central storage,
