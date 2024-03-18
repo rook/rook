@@ -16,6 +16,7 @@ spec:
         app: rook-ceph-tools
     spec:
       dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: rook-ceph-default
       containers:
         - name: rook-ceph-tools
           image: quay.io/ceph/ceph:v18.2.2

@@ -57,6 +57,12 @@ metadata:
   name: rook-ceph-cmd-reporter
   namespace: rook-ceph-external # namespace:cluster
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-default
+  namespace: rook-ceph-external # namespace:cluster
+---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
