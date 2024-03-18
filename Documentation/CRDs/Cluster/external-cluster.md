@@ -1,6 +1,7 @@
 ---
 title: External Storage Cluster
 ---
+# add you failed
 
 An external cluster is a Ceph configuration that is managed outside of the local K8s cluster. The external cluster could be managed by cephadm, or it could be another Rook cluster that is configured to allow the access (usually configured with host networking).
 
