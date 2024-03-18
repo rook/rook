@@ -19,9 +19,10 @@ ROOK_RBD_FEATURES=${ROOK_RBD_FEATURES:-"layering"}
 ROOK_EXTERNAL_MAX_MON_ID=2
 ROOK_EXTERNAL_MAPPING={}
 RBD_STORAGE_CLASS_NAME=ceph-rbd
+RBD_TOPOLOGY_STORAGE_CLASS_NAME=ceph-rbd-topology
 CEPHFS_STORAGE_CLASS_NAME=cephfs
 ROOK_EXTERNAL_MONITOR_SECRET=mon-secret
-OPERATOR_NAMESPACE=rook-ceph                                 # default set to rook-ceph
+OPERATOR_NAMESPACE=rook-ceph # default set to rook-ceph
 CSI_DRIVER_NAME_PREFIX=${CSI_DRIVER_NAME_PREFIX:-$OPERATOR_NAMESPACE}
 RBD_PROVISIONER=$CSI_DRIVER_NAME_PREFIX".rbd.csi.ceph.com"       # csi-provisioner-name
 CEPHFS_PROVISIONER=$CSI_DRIVER_NAME_PREFIX".cephfs.csi.ceph.com" # csi-provisioner-name
@@ -298,6 +299,63 @@ eof
   fi
 }
 
+function getTopologyTemplate() {
+  topology=$(
+    cat <<-END
+     {"poolName":"$1",
+      "domainSegments":[
+        {"domainLabel":"$2","value":"$3"}]},
+END
+  )
+}
+
+function createTopology() {
+  TOPOLOGY=""
+  declare -a topology_failure_domain_values_array=()
+  declare -a topology_pools_array=()
+  topology_pools=("$(echo "$TOPOLOGY_POOLS" | tr "," "\n")")
+  for i in ${topology_pools[0]}; do topology_pools_array+=("$i"); done
+  topology_failure_domain_values=("$(echo "$TOPOLOGY_FAILURE_DOMAIN_VALUES" | tr "," "\n")")
+  for i in ${topology_failure_domain_values[0]}; do topology_failure_domain_values_array+=("$i"); done
+  for ((i = 0; i < ${#topology_failure_domain_values_array[@]}; i++)); do
+    getTopologyTemplate "${topology_pools_array[$i]}" "$TOPOLOGY_FAILURE_DOMAIN_LABEL" "${topology_failure_domain_values_array[$i]}"
+    TOPOLOGY="$TOPOLOGY"$'\n'"$topology"
+    topology=""
+  done
+}
+
+function createRBDTopologyStorageClass() {
+  if ! kubectl -n "$NAMESPACE" get storageclass $RBD_TOPOLOGY_STORAGE_CLASS_NAME &>/dev/null; then
+    cat <<eof | kubectl create -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: $RBD_TOPOLOGY_STORAGE_CLASS_NAME
+provisioner: $RBD_PROVISIONER
+parameters:
+  clusterID: $CLUSTER_ID_RBD
+  pool: $RBD_POOL_NAME
+  imageFormat: "2"
+  imageFeatures: $ROOK_RBD_FEATURES
+  topologyConstrainedPools: |
+    [$TOPOLOGY
+    ]
+  csi.storage.k8s.io/provisioner-secret-name: "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
+  csi.storage.k8s.io/provisioner-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/controller-expand-secret-name:  "rook-$CSI_RBD_PROVISIONER_SECRET_NAME"
+  csi.storage.k8s.io/controller-expand-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/node-stage-secret-name: "rook-$CSI_RBD_NODE_SECRET_NAME"
+  csi.storage.k8s.io/node-stage-secret-namespace: $NAMESPACE
+  csi.storage.k8s.io/fstype: ext4
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+eof
+  else
+    echo "storageclass $RBD_TOPOLOGY_STORAGE_CLASS_NAME already exists"
+  fi
+}
+
 function createCephFSStorageClass() {
   if ! $KUBECTL -n "$NAMESPACE" get storageclass $CEPHFS_STORAGE_CLASS_NAME &>/dev/null; then
     cat <<eof | $KUBECTL create -f -
@@ -356,4 +414,8 @@ if [ -n "$RBD_POOL_NAME" ]; then
 fi
 if [ -n "$CEPHFS_FS_NAME" ] && [ -n "$CEPHFS_POOL_NAME" ]; then
   createCephFSStorageClass
+fi
+if [ -n "$TOPOLOGY_POOLS" ] && [ -n "$TOPOLOGY_FAILURE_DOMAIN_LABEL" ] && [ -n "$TOPOLOGY_FAILURE_DOMAIN_VALUES" ]; then
+  createTopology
+  createRBDTopologyStorageClass
 fi

@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       ceph_images:
-        description: 'JSON list of Ceph images for creating Ceph cluster'
+        description: "JSON list of Ceph images for creating Ceph cluster"
         default: '["quay.io/ceph/ceph:v18"]'
         type: string
 
@@ -227,6 +227,39 @@ jobs:
             echo "script run completed with stderr error after passing the wrong realm: $output"
           else
             echo "script failed because wrong realm was passed"
+          fi
+
+      - name: test topology flags
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          # create 3 replica-1 pools
+          sed -i 's/replicapool/replica1a/' deploy/examples/pool-test.yaml
+          kubectl create -f deploy/examples/pool-test.yaml
+          sed -i 's/replica1a/replica1b/' deploy/examples/pool-test.yaml
+          kubectl create -f deploy/examples/pool-test.yaml
+          sed -i 's/replica1b/replica1c/' deploy/examples/pool-test.yaml
+          kubectl create -f deploy/examples/pool-test.yaml
+          # bring back the original file
+          sed -i 's/replica1c/replicapool/' deploy/examples/pool-test.yaml
+
+          # check and wait for the pools to get ready
+          kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replica1a -nrook-ceph
+          kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replica1b -nrook-ceph
+          kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replica1c -nrook-ceph
+
+          # pass correct flags
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03
+          # pass the pool which is not exists
+          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools ab,cd,ef --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
+            echo "script run completed with stderr error after passing the wrong pools: $output"
+          else
+            echo "script failed because wrong pools doesn't exist"
+          fi
+          # dont pass all topology flags
+          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
+            echo "script run completed with stderr error after passing the wrong flags: $output"
+          else
+            echo "script failed because topology-failure-domain-label is missing"
           fi
 
       - name: test enable v2 mon port
