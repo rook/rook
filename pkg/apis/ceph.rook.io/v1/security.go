@@ -48,6 +48,10 @@ func (kms *KeyManagementServiceSpec) IsVaultKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == secrets.TypeVault
 }
 
+func (kms *KeyManagementServiceSpec) IsAzureMS() bool {
+	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == secrets.TypeAzure
+}
+
 // IsIBMKeyProtectKMS return whether IBM Key Protect KMS is configured
 func (kms *KeyManagementServiceSpec) IsIBMKeyProtectKMS() bool {
 	return getParam(kms.ConnectionDetails, "KMS_PROVIDER") == "ibmkeyprotect"

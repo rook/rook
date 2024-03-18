@@ -53,6 +53,8 @@ jobs:
       - name: run unit tests
         run: |
           export ROOK_UNIT_JQ_PATH="$(which jq)"
+          # AZURE_EXTENSION_DIR is set in GH action runners and affects Azure KMS unit tests; unset it
+          unset AZURE_EXTENSION_DIR
           GOPATH=$(go env GOPATH) make -j $(nproc) test | tee output.txt
 
       - name: check mds liveness probe script ran successfully
