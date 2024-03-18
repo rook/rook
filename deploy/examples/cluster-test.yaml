@@ -23,6 +23,9 @@ spec:
   mgr:
     count: 1
     allowMultiplePerNode: true
+    modules:
+      - name: rook
+        enabled: true
   dashboard:
     enabled: true
   crashCollector:

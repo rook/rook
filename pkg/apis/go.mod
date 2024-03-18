@@ -2,6 +2,16 @@ module github.com/rook/rook/pkg/apis
 
 go 1.21
 
+replace (
+	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
+	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
+
+	// TODO: remove this replace once https://github.com/libopenstorage/secrets/pull/83 is merged
+	github.com/libopenstorage/secrets => github.com/rook/secrets v0.0.0-20240315053144-3195f6906937
+	github.com/portworx/sched-ops => github.com/portworx/sched-ops v0.20.4-openstorage-rc3
+	github.com/rook/rook/pkg/apis => ./pkg/apis
+)
+
 require (
 	github.com/hashicorp/vault/api v1.12.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.6.0
@@ -86,8 +96,7 @@ exclude (
 	github.com/elazarl/goproxy v0.0.0-20170405201442-c4fc26588b6e
 	github.com/elazarl/goproxy v0.0.0-20180725130230-947c36da3153
 	github.com/elazarl/goproxy v0.0.0-20181111060418-2ce16c963a8a
-	// portworx dependencies are a mess, and we don't use portworx code, so skip it
-	github.com/portworx/sched-ops v1.20.4-rc1
+	github.com/kubernetes-incubator/external-storage v0.20.4-openstorage-rc2
 	// Exclude pre-go-mod kubernetes tags, because they are older
 	// than v0.x releases but are picked when updating dependencies.
 	k8s.io/client-go v1.4.0

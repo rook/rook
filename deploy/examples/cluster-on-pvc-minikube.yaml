@@ -140,6 +140,9 @@ spec:
             storage: 10Gi
   mgr:
     count: 1
+    modules:
+      - name: rook
+        enabled: true
   dashboard:
     enabled: true
     ssl: false

@@ -186,50 +186,6 @@ func getRemoveCertFilesFunc(filesToRemove []*os.File) removeCertFilesFunction {
 	})
 }
 
-func put(v secrets.Secrets, secretName, secretValue string, keyContext map[string]string) error {
-	// First we must see if the key entry already exists, if it does we do nothing
-	key, err := get(v, secretName, keyContext)
-	if err != nil && err != secrets.ErrInvalidSecretId {
-		return errors.Wrapf(err, "failed to get secret %q in vault", secretName)
-	}
-	if key != "" {
-		logger.Debugf("key %q already exists in vault!", secretName)
-		return nil
-	}
-
-	// Build Secret
-	data := make(map[string]interface{})
-	data[secretName] = secretValue
-
-	//nolint:gosec // Write the encryption key in Vault
-	_, err = v.PutSecret(secretName, data, keyContext)
-	if err != nil {
-		return errors.Wrapf(err, "failed to put secret %q in vault", secretName)
-	}
-
-	return nil
-}
-
-func get(v secrets.Secrets, secretName string, keyContext map[string]string) (string, error) {
-	//nolint:gosec // Write the encryption key in Vault
-	s, _, err := v.GetSecret(secretName, keyContext)
-	if err != nil {
-		return "", err
-	}
-
-	return s[secretName].(string), nil
-}
-
-func deleteSecret(v secrets.Secrets, secretName string, keyContext map[string]string) error {
-	//nolint:gosec // Write the encryption key in Vault
-	err := v.DeleteSecret(secretName, keyContext)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete secret %q in vault", secretName)
-	}
-
-	return nil
-}
-
 func buildVaultKeyContext(config map[string]string) map[string]string {
 	// Key context is just the Vault namespace, available in the enterprise version only
 	keyContext := map[string]string{secrets.KeyVaultNamespace: config[api.EnvVaultNamespace]}

@@ -21,3 +21,4 @@ read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https
 - The feature support for VolumeSnapshotGroup has been added to the RBD and CephFS CSI driver.
 - Support for virtual style hosting for s3 buckets in the CephObjectStore.
 - Add option to specify prefix for the OBC provisioner.
+- Support Azure Key Vault for storing OSD encryption keys.

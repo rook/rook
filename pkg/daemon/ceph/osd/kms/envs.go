@@ -31,7 +31,7 @@ import (
 
 var (
 	kmipKMSPrefix  = "KMIP_"
-	knownKMSPrefix = []string{"VAULT_", "IBM_", kmipKMSPrefix}
+	knownKMSPrefix = []string{"VAULT_", "IBM_", kmipKMSPrefix, "AZURE_"}
 )
 
 // VaultTokenEnvVarFromSecret returns the kms token secret value as an env var
