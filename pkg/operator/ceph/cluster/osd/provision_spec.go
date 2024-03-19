@@ -144,6 +144,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		return nil, errors.Wrap(err, "failed to generate OSD provisioning container")
 	}
 
+	isHost, _ := c.spec.Network.IsHost()
 	podSpec := v1.PodSpec{
 		ServiceAccountName: serviceAccountName,
 		InitContainers: []v1.Container{
@@ -154,11 +155,11 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		},
 		RestartPolicy:     restart,
 		Volumes:           volumes,
-		HostNetwork:       c.spec.Network.IsHost(),
+		HostNetwork:       isHost,
 		PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 		SchedulerName:     osdProps.schedulerName,
 	}
-	if c.spec.Network.IsHost() {
+	if isHost {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	if osdProps.onPVC() {

@@ -99,6 +99,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 	}
 	cronJobLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
 
+	isHost, _ := cephCluster.Spec.Network.IsHost()
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: cronJobLabels,
@@ -108,7 +109,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 				getCrashPruneContainer(cephCluster, *cephVersion),
 			},
 			RestartPolicy:      corev1.RestartPolicyNever,
-			HostNetwork:        cephCluster.Spec.Network.IsHost(),
+			HostNetwork:        isHost,
 			Volumes:            volumes,
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},

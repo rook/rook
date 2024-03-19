@@ -103,6 +103,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 		}
 		k8sutil.AddRookVersionLabelToDeployment(deploy)
 
+		isHost, _ := cephCluster.Spec.Network.IsHost()
 		deploy.Spec.Template = corev1.PodTemplateSpec{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: podLabels,
@@ -118,7 +119,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 				},
 				Tolerations:        tolerations,
 				RestartPolicy:      corev1.RestartPolicyAlways,
-				HostNetwork:        cephCluster.Spec.Network.IsHost(),
+				HostNetwork:        isHost,
 				Volumes:            volumes,
 				PriorityClassName:  cephv1.GetCrashCollectorPriorityClassName(cephCluster.Spec.PriorityClassNames),
 				ServiceAccountName: k8sutil.DefaultServiceAccount,

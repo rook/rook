@@ -148,7 +148,9 @@ func TestHostNetwork(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, d)
 
-	assert.Equal(t, true, c.spec.Network.IsHost())
+	isHost, err := c.spec.Network.IsHost()
+	assert.NoError(t, err)
+	assert.Equal(t, true, isHost)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }
 

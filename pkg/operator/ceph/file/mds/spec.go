@@ -48,6 +48,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 	mdsContainer = cephconfig.ConfigureStartupProbe(mdsContainer, c.fs.Spec.MetadataServer.StartupProbe)
 	mdsContainer = cephconfig.ConfigureLivenessProbe(mdsContainer, c.fs.Spec.MetadataServer.LivenessProbe)
 
+	useHost, _ := c.clusterSpec.Network.IsHost()
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      mdsConfig.ResourceName,
@@ -63,7 +64,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 			},
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName, c.clusterSpec.DataDirHostPath),
-			HostNetwork:        c.clusterSpec.Network.IsHost(),
+			HostNetwork:        useHost,
 			PriorityClassName:  c.fs.Spec.MetadataServer.PriorityClassName,
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
@@ -101,8 +102,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 			},
 		},
 	}
-
-	if c.clusterSpec.Network.IsHost() {
+	if isHost, _ := c.clusterSpec.Network.IsHost(); isHost {
 		d.Spec.Template.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.clusterSpec.Network.IsMultus() {
 		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.clusterSpec.Network, &podSpec.ObjectMeta); err != nil {
@@ -136,7 +136,8 @@ func (c *Cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig, fsName string) v1
 		"--foreground",
 	)
 
-	if !c.clusterSpec.Network.IsHost() && !c.clusterSpec.Network.IsMultus() {
+	isHost, _ := c.clusterSpec.Network.IsHost()
+	if !isHost && !c.clusterSpec.Network.IsMultus() {
 		args = append(args,
 			cephconfig.NewFlag("public-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
 	}

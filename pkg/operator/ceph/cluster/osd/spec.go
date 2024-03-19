@@ -611,6 +611,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 			"",
 		))
 
+	isHost, _ := c.spec.Network.IsHost()
 	envVars = append(envVars, controller.ApplyNetworkEnv(&c.spec)...)
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -620,7 +621,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		Spec: v1.PodSpec{
 			RestartPolicy:      v1.RestartPolicyAlways,
 			ServiceAccountName: serviceAccountName,
-			HostNetwork:        c.spec.Network.IsHost(),
+			HostNetwork:        isHost,
 			HostIPC:            hostIPC,
 			PriorityClassName:  cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 			InitContainers:     initContainers,
@@ -664,7 +665,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureStartupProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.StartupProbe[cephv1.KeyOSD])
 	podTemplateSpec.Spec.Containers[0] = opconfig.ConfigureLivenessProbe(podTemplateSpec.Spec.Containers[0], c.spec.HealthCheck.LivenessProbe[cephv1.KeyOSD])
 
-	if c.spec.Network.IsHost() {
+	if isHost, _ := c.spec.Network.IsHost(); isHost {
 		podTemplateSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	} else if c.spec.Network.IsMultus() {
 		if err := k8sutil.ApplyMultus(c.clusterInfo.Namespace, &c.spec.Network, &podTemplateSpec.ObjectMeta); err != nil {
