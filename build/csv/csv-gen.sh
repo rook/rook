@@ -40,13 +40,6 @@ function generate_csv() {
     # We don't need to include these files in csv as ocs-operator creates its own.
     rm -rf "../../build/csv/ceph/$PLATFORM/manifests/rook-ceph-operator-config_v1_configmap.yaml"
 
-    # This change are just to make the CSV file as it was earlier and as ocs-operator reads.
-    # Skipping this change for darwin since `sed -i` doesn't work with darwin properly.
-    # and the csv is not ever needed in the mac builds.
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        return
-    fi
-
     sed -i 's/image: rook\/ceph:.*/image: {{.RookOperatorImage}}/g' "$CSV_FILE_NAME"
     sed -i 's/name: rook-ceph.v.*/name: rook-ceph.v{{.RookOperatorCsvVersion}}/g' "$CSV_FILE_NAME"
     sed -i 's/version: 0.0.0/version: {{.RookOperatorCsvVersion}}/g' "$CSV_FILE_NAME"

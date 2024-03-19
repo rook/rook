@@ -138,10 +138,12 @@ build: csv-clean build.common ## Only build for linux platform
 	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
 	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
 
-build.all: build.common ## Build source code for all platforms.
+build.all: build.common csv ## Build source code for all platforms.
 ifneq ($(GOHOSTARCH),amd64)
 	$(error cross platform image build only supported on amd64 host currently)
 endif
+	export MAX_DESC_LEN=0;\
+	export NO_OB_OBC_VOL_GEN=true;\
 	@$(MAKE) do.build.parallel
 	@$(MAKE) -C images build.all
 
