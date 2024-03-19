@@ -39,6 +39,16 @@ type PeerToken struct {
 	Namespace string `json:"namespace"`
 }
 
+type MirroredImages struct {
+	// Images is the list of mirrored images on a pool
+	Images *[]Images
+}
+
+type Images struct {
+	// Name of the pool image
+	Name string
+}
+
 var (
 	rbdMirrorPeerCaps      = []string{"mon", "profile rbd-mirror-peer", "osd", "profile rbd"}
 	rbdMirrorPeerKeyringID = "rbd-mirror-peer"
@@ -120,7 +130,7 @@ func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, po
 }
 
 // disablePoolMirroring turns off mirroring on a pool
-func disablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) error {
+func DisablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) error {
 	logger.Infof("disabling mirroring for pool %q", poolName)
 
 	// Build command
@@ -136,7 +146,7 @@ func disablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	return nil
 }
 
-func removeClusterPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, peerUUID string) error {
+func RemoveClusterPeer(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, peerUUID string) error {
 	logger.Infof("removing cluster peer with UUID %q for the pool %q", peerUUID, poolName)
 
 	// Build command
@@ -173,6 +183,29 @@ func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo,
 	}
 
 	return &poolMirroringStatus, nil
+}
+
+// GetMirroredPoolImages returns a list of mirrored images for a given pool
+func GetMirroredPoolImages(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*MirroredImages, error) {
+	logger.Debugf("retrieving mirrored images for pool %q", poolName)
+
+	// Build command
+	args := []string{"mirror", "pool", "status", "--verbose", poolName}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = true
+
+	// Run command
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve mirroring pool %q status", poolName)
+	}
+
+	var mirroredImages MirroredImages
+	if err := json.Unmarshal([]byte(buf), &mirroredImages); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal mirror pool status response")
+	}
+
+	return &mirroredImages, nil
 }
 
 // GetPoolMirroringInfo  prints the pool mirroring information

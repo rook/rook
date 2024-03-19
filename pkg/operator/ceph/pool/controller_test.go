@@ -75,7 +75,14 @@ func TestCreatePool(t *testing.T) {
 				}
 			}
 			if command == "rbd" {
-				assert.Equal(t, []string{"pool", "init", p.Name}, args[0:3])
+				if args[0] == "mirror" && args[2] == "info" {
+					return "{}", nil
+				} else if args[0] == "mirror" && args[2] == "disable" {
+					return "", nil
+				} else {
+					assert.Equal(t, []string{"pool", "init", p.Name}, args[0:3])
+				}
+
 			}
 			return "", nil
 		},
@@ -335,8 +342,11 @@ func TestCephBlockPoolController(t *testing.T) {
 				if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
 					return "", nil
 				}
-
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return "{}", nil
+				}
 				return "", nil
+
 			},
 		}
 		c.Executor = executor
@@ -425,6 +435,9 @@ func TestCephBlockPoolController(t *testing.T) {
 			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 				if args[0] == "mirror" && args[1] == "pool" && args[2] == "peer" && args[3] == "bootstrap" && args[4] == "create" {
 					return `eyJmc2lkIjoiYzZiMDg3ZjItNzgyOS00ZGJiLWJjZmMtNTNkYzM0ZTBiMzVkIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFBV1lsWmZVQ1Q2RGhBQVBtVnAwbGtubDA5YVZWS3lyRVV1NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjE5Mi4xNjguMTExLjEwOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTA6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjEyOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTI6Njc4OV0sW3YyOjE5Mi4xNjguMTExLjExOjMzMDAsdjE6MTkyLjE2OC4xMTEuMTE6Njc4OV0ifQ==`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return "{}", nil
 				}
 				return "", nil
 			},
