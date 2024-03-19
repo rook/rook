@@ -4,5 +4,5 @@ nav:
     - host-cluster.md
     - pvc-cluster.md
     - stretch-cluster.md
-    - external-cluster.md
+    - external-cluster
     - ...

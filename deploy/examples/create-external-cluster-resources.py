@@ -474,6 +474,24 @@ class RadosJSON:
             required=False,
             help="provides the name of the rgw-zonegroup",
         )
+        output_group.add_argument(
+            "--topology-pools",
+            default="",
+            required=False,
+            help="comma-separated list of topology-constrained rbd pools",
+        )
+        output_group.add_argument(
+            "--topology-failure-domain-label",
+            default="",
+            required=False,
+            help="k8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain",
+        )
+        output_group.add_argument(
+            "--topology-failure-domain-values",
+            default="",
+            required=False,
+            help="comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list",
+        )
 
         upgrade_group = argP.add_argument_group("upgrade")
         upgrade_group.add_argument(
@@ -1321,16 +1339,15 @@ class RadosJSON:
             "",
         )
 
-    def validate_rbd_pool(self):
-        if not self.cluster.pool_exists(self._arg_parser.rbd_data_pool_name):
+    def validate_rbd_pool(self, pool_name):
+        if not self.cluster.pool_exists(pool_name):
             raise ExecutionFailureException(
-                f"The provided pool, '{self._arg_parser.rbd_data_pool_name}', does not exist"
+                f"The provided pool, '{pool_name}', does not exist"
             )
 
-    def init_rbd_pool(self):
+    def init_rbd_pool(self, rbd_pool_name):
         if isinstance(self.cluster, DummyRados):
             return
-        rbd_pool_name = self._arg_parser.rbd_data_pool_name
         ioctx = self.cluster.open_ioctx(rbd_pool_name)
         rbd_inst = rbd.RBD()
         rbd_inst.pool_init(ioctx, True)
@@ -1501,6 +1518,54 @@ class RadosJSON:
                 return "-1"
         return ""
 
+    def convert_comma_separated_to_array(self, value):
+        return value.split(",")
+
+    def raise_exception_if_any_topology_flag_is_missing(self):
+        if (
+            (
+                self._arg_parser.topology_pools != ""
+                and (
+                    self._arg_parser.topology_failure_domain_label == ""
+                    or self._arg_parser.topology_failure_domain_values == ""
+                )
+            )
+            or (
+                self._arg_parser.topology_failure_domain_label != ""
+                and (
+                    self._arg_parser.topology_pools == ""
+                    or self._arg_parser.topology_failure_domain_values == ""
+                )
+            )
+            or (
+                self._arg_parser.topology_failure_domain_values != ""
+                and (
+                    self._arg_parser.topology_pools == ""
+                    or self._arg_parser.topology_failure_domain_label == ""
+                )
+            )
+        ):
+            raise ExecutionFailureException(
+                "provide all the topology flags --topology-pools, --topology-failure-domain-label, --topology-failure-domain-values"
+            )
+
+    def validate_topology_values(self, topology_pools, topology_fd):
+        if len(topology_pools) != len(topology_fd):
+            raise ExecutionFailureException(
+                f"The provided topology pools, '{topology_pools}', and "
+                f"topology failure domain, '{topology_fd}',"
+                f"are of different length, '{len(topology_pools)}' and '{len(topology_fd)}' respctively"
+            )
+        return
+
+    def validate_topology_rbd_pools(self, topology_rbd_pools):
+        for pool in topology_rbd_pools:
+            self.validate_rbd_pool(pool)
+
+    def init_topology_rbd_pools(self, topology_rbd_pools):
+        for pool in topology_rbd_pools:
+            self.init_rbd_pool(pool)
+
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -1510,8 +1575,8 @@ class RadosJSON:
         self._arg_parser.k8s_cluster_name = (
             self._arg_parser.k8s_cluster_name.lower()
         )  # always convert cluster name to lowercase characters
-        self.validate_rbd_pool()
-        self.init_rbd_pool()
+        self.validate_rbd_pool(self._arg_parser.rbd_data_pool_name)
+        self.init_rbd_pool(self._arg_parser.rbd_data_pool_name)
         self.validate_rados_namespace()
         self._excluded_keys.add("K8S_CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
@@ -1585,6 +1650,33 @@ class RadosJSON:
         self.out_map["RBD_METADATA_EC_POOL_NAME"] = (
             self.validate_rbd_metadata_ec_pool_name()
         )
+        self.out_map["TOPOLOGY_POOLS"] = self._arg_parser.topology_pools
+        self.out_map["TOPOLOGY_FAILURE_DOMAIN_LABEL"] = (
+            self._arg_parser.topology_failure_domain_label
+        )
+        self.out_map["TOPOLOGY_FAILURE_DOMAIN_VALUES"] = (
+            self._arg_parser.topology_failure_domain_values
+        )
+        if (
+            self._arg_parser.topology_pools != ""
+            and self._arg_parser.topology_failure_domain_label != ""
+            and self._arg_parser.topology_failure_domain_values != ""
+        ):
+            self.validate_topology_values(
+                self.convert_comma_separated_to_array(self.out_map["TOPOLOGY_POOLS"]),
+                self.convert_comma_separated_to_array(
+                    self.out_map["TOPOLOGY_FAILURE_DOMAIN_VALUES"]
+                ),
+            )
+            self.validate_topology_rbd_pools(
+                self.convert_comma_separated_to_array(self.out_map["TOPOLOGY_POOLS"])
+            )
+            self.init_topology_rbd_pools(
+                self.convert_comma_separated_to_array(self.out_map["TOPOLOGY_POOLS"])
+            )
+        else:
+            self.raise_exception_if_any_topology_flag_is_missing()
+
         self.out_map["RGW_POOL_PREFIX"] = self._arg_parser.rgw_pool_prefix
         self.out_map["RGW_ENDPOINT"] = ""
         if self._arg_parser.rgw_endpoint:
@@ -1820,6 +1912,33 @@ class RadosJSON:
                         },
                     }
                 )
+
+        # if 'TOPOLOGY_POOLS', 'TOPOLOGY_FAILURE_DOMAIN_LABEL', 'TOPOLOGY_FAILURE_DOMAIN_VALUES'  exists,
+        # then only add 'topology' StorageClass
+        if (
+            self.out_map["TOPOLOGY_POOLS"]
+            and self.out_map["TOPOLOGY_FAILURE_DOMAIN_LABEL"]
+            and self.out_map["TOPOLOGY_FAILURE_DOMAIN_VALUES"]
+        ):
+            json_out.append(
+                {
+                    "name": "ceph-rbd-topology",
+                    "kind": "StorageClass",
+                    "data": {
+                        "topologyFailureDomainLabel": self.out_map[
+                            "TOPOLOGY_FAILURE_DOMAIN_LABEL"
+                        ],
+                        "topologyFailureDomainValues": self.out_map[
+                            "TOPOLOGY_FAILURE_DOMAIN_VALUES"
+                        ],
+                        "topologyPools": self.out_map["TOPOLOGY_POOLS"],
+                        "pool": self.out_map["RBD_POOL_NAME"],
+                        "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                        "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
+                        "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
+                    },
+                }
+            )
 
         # if 'CEPHFS_FS_NAME' exists, then only add 'cephfs' StorageClass
         if self.out_map["CEPHFS_FS_NAME"]:

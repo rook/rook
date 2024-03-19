@@ -8,7 +8,7 @@ There are primarily four different modes in which to create your cluster.
 1. [Host Storage Cluster](host-cluster.md): Consume storage from host paths and raw devices
 2. [PVC Storage Cluster](pvc-cluster.md): Dynamically provision storage underneath Rook by specifying the storage class Rook should use to consume storage (via PVCs)
 3. [Stretched Storage Cluster](stretch-cluster.md): Distribute Ceph mons across three zones, while storage (OSDs) is only configured in two zones
-4. [External Ceph Cluster](external-cluster.md): Connect your K8s applications to an external Ceph cluster
+4. [External Ceph Cluster](external-cluster/external-cluster.md): Connect your K8s applications to an external Ceph cluster
 
 See the separate topics for a description and examples of each of these scenarios.
 
@@ -24,7 +24,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 * `external`:
-    * `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](external-cluster.md). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
+    * `enable`: if `true`, the cluster will not be managed by Rook but via an external entity. This mode is intended to connect to an existing cluster. In this case, Rook will only consume the external cluster. However, Rook will be able to deploy various daemons in Kubernetes such as object gateways, mds and nfs if an image is provided and will refuse otherwise. If this setting is enabled **all** the other options will be ignored except `cephVersion.image` and `dataDirHostPath`. See [external cluster configuration](external-cluster/external-cluster.md). If `cephVersion.image` is left blank, Rook will refuse the creation of extra CRs like object, file and nfs.
 * `cephVersion`: The version information for launching the ceph daemons.
     * `image`: The image used for running the ceph daemons. For example, `quay.io/ceph/ceph:v18.2.2`. For more details read the [container images section](#ceph-container-images).
   For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
