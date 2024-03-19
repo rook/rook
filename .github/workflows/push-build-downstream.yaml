@@ -1,0 +1,59 @@
+name: Push Image Build Downstream
+on:
+  push:
+    branches:
+      - master
+      - release-*
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - master
+
+defaults:
+  run:
+    # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
+    shell: bash --noprofile --norc -eo pipefail -x {0}
+
+permissions:
+  contents: read
+
+jobs:
+  push-image-to-container-registry:
+    runs-on: ubuntu-20.04
+    if: github.repository == 'red-hat-storage/rook'
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
+        # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
+      - name: set up QEMU
+        uses: docker/setup-qemu-action@master
+        with:
+          platforms: all
+
+      - name: log in to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_OCS_DEV_ROBOT_USER }}
+          password: ${{ secrets.QUAY_OCS_DEV_ROBOT_PASSWORD }}
+
+      # creating custom env var
+      - name: set env
+        run: |
+          echo "BRANCH_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          echo "GITHUB_SHA=${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - name: build and release
+        env:
+          BRANCH_NAME: ${{ env.BRANCH_NAME }}
+          GITHUB_SHA: $ {{ env.GITHUB_SHA }}
+        run: |
+          tests/scripts/build-release-downstream.sh
