@@ -21,11 +21,9 @@ import (
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/pkg/errors"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -136,25 +134,6 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 				},
 			},
 		}
-		usePDBV1Beta1, err := k8sutil.UsePDBV1Beta1Version(r.context.ClusterdContext.Clientset)
-		if err != nil {
-			return errors.Wrap(err, "failed to fetch pdb version")
-		}
-		if usePDBV1Beta1 {
-			pdb := &policyv1beta1.PodDisruptionBudget{
-				ObjectMeta: objectMeta,
-				Spec: policyv1beta1.PodDisruptionBudgetSpec{
-					Selector:     labelSelector,
-					MinAvailable: minAvailable,
-				},
-			}
-			request := types.NamespacedName{Name: pdbName, Namespace: namespace}
-			err = r.reconcileStaticPDB(request, pdb)
-			if err != nil {
-				return errors.Wrapf(err, "failed to reconcile cephobjectstore pdb %v", request)
-			}
-			continue
-		}
 		pdb := &policyv1.PodDisruptionBudget{
 			ObjectMeta: objectMeta,
 			Spec: policyv1.PodDisruptionBudgetSpec{
@@ -163,7 +142,7 @@ func (r *ReconcileClusterDisruption) reconcileCephObjectStore(cephObjectStoreLis
 			},
 		}
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
-		err = r.reconcileStaticPDB(request, pdb)
+		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
 			return errors.Wrapf(err, "failed to reconcile cephobjectstore pdb %v", request)
 		}
@@ -204,25 +183,6 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 				},
 			},
 		}
-		usePDBV1Beta1, err := k8sutil.UsePDBV1Beta1Version(r.context.ClusterdContext.Clientset)
-		if err != nil {
-			return errors.Wrap(err, "failed to fetch pdb version")
-		}
-		if usePDBV1Beta1 {
-			pdb := &policyv1beta1.PodDisruptionBudget{
-				ObjectMeta: objectMeta,
-				Spec: policyv1beta1.PodDisruptionBudgetSpec{
-					Selector:     labelSelector,
-					MinAvailable: minAvailable,
-				},
-			}
-			request := types.NamespacedName{Name: pdbName, Namespace: namespace}
-			err := r.reconcileStaticPDB(request, pdb)
-			if err != nil {
-				return errors.Wrapf(err, "failed to reconcile cephfs pdb %v", request)
-			}
-			continue
-		}
 		pdb := &policyv1.PodDisruptionBudget{
 			ObjectMeta: objectMeta,
 			Spec: policyv1.PodDisruptionBudgetSpec{
@@ -231,7 +191,7 @@ func (r *ReconcileClusterDisruption) reconcileCephFilesystem(cephFilesystemList 
 			},
 		}
 		request := types.NamespacedName{Name: pdbName, Namespace: namespace}
-		err = r.reconcileStaticPDB(request, pdb)
+		err := r.reconcileStaticPDB(request, pdb)
 		if err != nil {
 			return errors.Wrapf(err, "failed to reconcile cephfs pdb %v", request)
 		}

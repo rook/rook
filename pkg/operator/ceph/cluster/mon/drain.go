@@ -20,7 +20,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -51,29 +50,12 @@ func (c *Cluster) reconcileMonPDB() error {
 }
 
 func (c *Cluster) createOrUpdateMonPDB(maxUnavailable int32) (controllerutil.OperationResult, error) {
-	usePDBV1Beta1, err := k8sutil.UsePDBV1Beta1Version(c.context.Clientset)
-	if err != nil {
-		return controllerutil.OperationResultNone, errors.Wrap(err, "failed to fetch pdb version")
-	}
 	objectMeta := metav1.ObjectMeta{
 		Name:      monPDBName,
 		Namespace: c.Namespace,
 	}
 	selector := &metav1.LabelSelector{
 		MatchLabels: map[string]string{k8sutil.AppAttr: AppName},
-	}
-	if usePDBV1Beta1 {
-		pdb := &policyv1beta1.PodDisruptionBudget{
-			ObjectMeta: objectMeta}
-
-		mutateFunc := func() error {
-			pdb.Spec = policyv1beta1.PodDisruptionBudgetSpec{
-				Selector:       selector,
-				MaxUnavailable: &intstr.IntOrString{IntVal: maxUnavailable},
-			}
-			return nil
-		}
-		return controllerutil.CreateOrUpdate(c.ClusterInfo.Context, c.context.Client, pdb, mutateFunc)
 	}
 	pdb := &policyv1.PodDisruptionBudget{
 		ObjectMeta: objectMeta}

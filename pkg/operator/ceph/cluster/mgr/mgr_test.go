@@ -39,7 +39,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -64,8 +63,6 @@ func createNewCluster(t *testing.T) *Cluster {
 	configDir := t.TempDir()
 	scheme := scheme.Scheme
 	err := policyv1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	err = policyv1beta1.AddToScheme(scheme)
 	assert.NoError(t, err)
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
 
