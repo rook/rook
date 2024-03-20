@@ -91,6 +91,27 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .status.info.type
+          name: Type
+          type: string
+        - jsonPath: .status.info.failureDomain
+          name: FailureDomain
+          type: string
+        - jsonPath: .spec.replicated.size
+          name: Replication
+          priority: 1
+          type: integer
+        - jsonPath: .spec.erasureCoded.codingChunks
+          name: EC-CodingChunks
+          priority: 1
+          type: integer
+        - jsonPath: .spec.erasureCoded.dataChunks
+          name: EC-DataChunks
+          priority: 1
+          type: integer
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -629,6 +650,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -776,6 +800,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -4915,6 +4942,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -6920,6 +6950,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -8864,6 +8897,15 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .status.info.endpoint
+          name: Endpoint
+          type: string
+        - jsonPath: .status.info.secureEndpoint
+          name: SecureEndpoint
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -10215,6 +10257,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -10440,6 +10485,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -10523,6 +10571,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
@@ -10973,6 +11024,9 @@ spec:
         - jsonPath: .status.phase
           name: Phase
           type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
       name: v1
       schema:
         openAPIV3Schema:
