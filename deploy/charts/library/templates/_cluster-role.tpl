@@ -20,22 +20,6 @@ rules:
     resources: ["cephclusters", "cephclusters/finalizers"]
     verbs: ["get", "list", "create", "update", "delete"]
 ---
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-rgw
-  namespace: {{ .Release.Namespace }} # namespace:cluster
-rules:
-  # Placeholder role so the rgw service account will
-  # be generated in the csv. Remove this role and role binding
-  # when fixing https://github.com/rook/rook/issues/10141.
-  - apiGroups:
-      - ""
-    resources:
-      - configmaps
-    verbs:
-      - get
----
 # Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1

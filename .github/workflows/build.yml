@@ -36,12 +36,6 @@ jobs:
 
       - name: build rook
         run: |
-          # Install kubectl binary as required for generating csv
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/darwin/amd64/kubectl"
-          chmod +x ./kubectl
-          sudo mv ./kubectl /usr/local/bin/kubectl
-          sudo chown root: /usr/local/bin/kubectl
-
           GOPATH=$(go env GOPATH) make clean && make -j$nproc IMAGES='ceph' BUILD_CONTAINER_IMAGE=false build
 
       - name: validate build
@@ -60,7 +54,7 @@ jobs:
         run: tests/scripts/validate_modified_files.sh modcheck
 
       - name: run crds-gen
-        run: make csv-clean && GOPATH=$(go env GOPATH) make crds
+        run: GOPATH=$(go env GOPATH) make crds
 
       - name: validate crds-gen
         run: tests/scripts/validate_modified_files.sh crd
