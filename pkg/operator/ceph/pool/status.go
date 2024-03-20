@@ -22,6 +22,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -129,4 +130,28 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 	}
 
 	return mirroringStatusSpec, mirroringInfoSpec, snapshotScheduleStatusSpec
+}
+
+func buildStatusInfo(cephBlockPool *cephv1.CephBlockPool) map[string]string {
+	m := make(map[string]string)
+	if cephBlockPool.Spec.Mirroring.Enabled {
+		mirroringInfo := opcontroller.GenerateStatusInfo(cephBlockPool)
+		for key, value := range mirroringInfo {
+			m[key] = value
+		}
+	}
+
+	if cephBlockPool.Spec.IsReplicated() {
+		m["type"] = "Replicated"
+	} else {
+		m["type"] = "Erasure Coded"
+	}
+
+	if cephBlockPool.Spec.FailureDomain != "" {
+		m["failureDomain"] = cephBlockPool.Spec.FailureDomain
+	} else {
+		m["failureDomain"] = cephv1.DefaultFailureDomain
+	}
+
+	return m
 }

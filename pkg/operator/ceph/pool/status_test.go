@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -57,4 +58,46 @@ func TestToCustomResourceStatus(t *testing.T) {
 		assert.NotEmpty(t, newMirroringInfo.Mode, "pool")
 		assert.NotEmpty(t, newSnapshotScheduleStatus)
 	}
+}
+
+func TestBuildStatusInfo(t *testing.T) {
+
+	cephBlockPoolReplicated := &cephv1.CephBlockPool{
+		Spec: cephv1.NamedBlockPoolSpec{
+			Name: "test-pool-replicated",
+			PoolSpec: cephv1.PoolSpec{
+				Replicated: cephv1.ReplicatedSpec{
+					Size: 3,
+				},
+			},
+		},
+	}
+	statusInfo := buildStatusInfo(cephBlockPoolReplicated)
+	assert.Equal(t, "Replicated", statusInfo["type"])
+	assert.Equal(t, cephv1.DefaultFailureDomain, statusInfo["failureDomain"])
+	assert.Empty(t, statusInfo[opcontroller.RBDMirrorBootstrapPeerSecretName])
+
+	cephBlockPoolErasureCoded := &cephv1.CephBlockPool{
+		Spec: cephv1.NamedBlockPoolSpec{
+			Name: "test-pool-erasure-coded",
+			PoolSpec: cephv1.PoolSpec{
+				FailureDomain: "osd",
+				ErasureCoded: cephv1.ErasureCodedSpec{
+					CodingChunks: 6,
+					DataChunks:   2,
+				},
+			},
+		},
+	}
+	statusInfo = buildStatusInfo(cephBlockPoolErasureCoded)
+	assert.Equal(t, "Erasure Coded", statusInfo["type"])
+	assert.Equal(t, "osd", statusInfo["failureDomain"])
+	assert.Empty(t, statusInfo[opcontroller.RBDMirrorBootstrapPeerSecretName])
+
+	cephBlockPoolErasureCoded.Spec.PoolSpec.Mirroring = cephv1.MirroringSpec{
+		Enabled: true,
+	}
+
+	statusInfo = buildStatusInfo(cephBlockPoolErasureCoded)
+	assert.NotEmpty(t, statusInfo[opcontroller.RBDMirrorBootstrapPeerSecretName])
 }
