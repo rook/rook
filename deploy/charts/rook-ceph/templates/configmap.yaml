@@ -20,6 +20,7 @@ data:
 {{- if .Values.csi }}
   ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
+  ROOK_CSI_DISABLE_DRIVER: {{ .Values.csi.disableCsiDriver | quote }}
   CSI_ENABLE_CEPHFS_SNAPSHOTTER: {{ .Values.csi.enableCephfsSnapshotter | quote }}
   CSI_ENABLE_NFS_SNAPSHOTTER: {{ .Values.csi.enableNFSSnapshotter | quote }}
   CSI_ENABLE_RBD_SNAPSHOTTER: {{ .Values.csi.enableRBDSnapshotter | quote }}
