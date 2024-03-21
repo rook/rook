@@ -88,33 +88,27 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 	// Loop forever until the osd is safe-to-destroy
 	for {
 		isSafeToDestroy, err := client.OsdSafeToDestroy(clusterdContext, clusterInfo, osdID)
-		if err != nil {
+		if err != nil && forceOSDRemoval {
 			// If we want to force remove the OSD and there was an error let's break outside of
 			// the loop and proceed with the OSD removal
-			if forceOSDRemoval {
-				logger.Errorf("failed to check if osd %d is safe to destroy, but force removal is enabled so proceeding with removal. %v", osdID, err)
-				break
-			} else {
-				logger.Errorf("failed to check if osd %d is safe to destroy, retrying in 1m. %v", osdID, err)
-				time.Sleep(1 * time.Minute)
-				continue
-			}
-		}
-
-		// If no error and the OSD is safe to destroy, we can proceed with the OSD removal
-		if isSafeToDestroy {
+			logger.Errorf("failed to check if osd %d is safe to destroy, but force removal is enabled so proceeding with removal. %v", osdID, err)
+			break
+		} else if err != nil {
+			logger.Errorf("failed to check if osd %d is safe to destroy, retrying in 1m. %v", osdID, err)
+		} else if isSafeToDestroy {
+			// If no error and the OSD is safe to destroy, we can proceed with the OSD removal
 			logger.Infof("osd.%d is safe to destroy, proceeding", osdID)
 			break
-		} else {
+		} else if forceOSDRemoval {
 			// If we arrive here and forceOSDRemoval is true, we should proceed with the OSD removal
-			if forceOSDRemoval {
-				logger.Infof("osd.%d is NOT ok to destroy but force removal is enabled so proceeding with removal", osdID)
-				break
-			}
+			logger.Infof("osd.%d is NOT ok to destroy but force removal is enabled so proceeding with removal", osdID)
+			break
+		} else {
 			// Else we wait until the OSD can be removed
 			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 1m until success", osdID)
-			time.Sleep(1 * time.Minute)
 		}
+
+		time.Sleep(1 * time.Minute)
 	}
 
 	// Remove the OSD deployment
