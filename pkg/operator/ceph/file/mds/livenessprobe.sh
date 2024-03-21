@@ -6,7 +6,7 @@ MDS_ID="{{ .MdsId }}"
 FILESYSTEM_NAME="{{ .FilesystemName }}"
 KEYRING="{{ .Keyring }}"
 
-outp="$(ceph fs dump --mon-host="$ROOK_CEPH_MON_HOST" --mon-initial-members="$ROOK_CEPH_MON_INITIAL_MEMBERS" --keyring "$KEYRING" --format json)"
+outp="$(ceph fs dump --mon-host="$ROOK_CEPH_MON_HOST" --mon-initial-members="$ROOK_CEPH_MON_INITIAL_MEMBERS" --keyring "$KEYRING" --format json --connect-timeout 15)"
 rc=$?
 if [ $rc -ne 0 ]; then
     echo "ceph MDS dump check failed with the following output:"
