@@ -27,7 +27,6 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -42,8 +41,6 @@ func createFakeCluster(t *testing.T, cephClusterObj *cephv1.CephCluster, k8sVers
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	scheme := scheme.Scheme
 	err := policyv1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	err = policyv1beta1.AddToScheme(scheme)
 	assert.NoError(t, err)
 
 	cl := fake.NewClientBuilder().WithScheme(scheme).WithRuntimeObjects().Build()
@@ -108,22 +105,10 @@ func TestReconcileMonPDB(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		// check for PDBV1Beta1 version
-		c := createFakeCluster(t, tc.cephCluster, "v1.20.0")
-		err := c.reconcileMonPDB()
-		assert.NoError(t, err)
-		existingPDBV1Beta1 := &policyv1beta1.PodDisruptionBudget{}
-		err = c.context.Client.Get(context.TODO(), types.NamespacedName{Name: monPDBName, Namespace: mockNamespace}, existingPDBV1Beta1)
-		if tc.errorExpected {
-			assert.Error(t, err)
-			continue
-		}
-		assert.NoError(t, err)
-		assert.Equalf(t, tc.expectedMaxUnAvailable, int32(existingPDBV1Beta1.Spec.MaxUnavailable.IntValue()), "[%s]: incorrect minAvailable count in pdb", tc.name)
 
 		// check for PDBV1 version
-		c = createFakeCluster(t, tc.cephCluster, "v1.21.0")
-		err = c.reconcileMonPDB()
+		c := createFakeCluster(t, tc.cephCluster, "v1.21.0")
+		err := c.reconcileMonPDB()
 		assert.NoError(t, err)
 		existingPDBV1 := &policyv1.PodDisruptionBudget{}
 		err = c.context.Client.Get(context.TODO(), types.NamespacedName{Name: monPDBName, Namespace: mockNamespace}, existingPDBV1)
@@ -159,23 +144,7 @@ func TestAllowMonDrain(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, 1, int(existingPDBV1.Spec.MaxUnavailable.IntValue()))
 	})
-	// check for PDBV1Beta1 version
-	c = createFakeCluster(t, &cephv1.CephCluster{
-		Spec: cephv1.ClusterSpec{
-			DisruptionManagement: cephv1.DisruptionManagementSpec{
-				ManagePodBudgets: true,
-			},
-		},
-	}, "v1.20.0")
-	t.Run("allow mon drain for K8s version v1.20.0", func(t *testing.T) {
-		// change MaxUnavailable mon PDB to 1
-		err := c.allowMonDrain(fakeNamespaceName)
-		assert.NoError(t, err)
-		existingPDBV1Beta1 := &policyv1beta1.PodDisruptionBudget{}
-		err = c.context.Client.Get(context.TODO(), fakeNamespaceName, existingPDBV1Beta1)
-		assert.NoError(t, err)
-		assert.Equal(t, 1, int(existingPDBV1Beta1.Spec.MaxUnavailable.IntValue()))
-	})
+
 }
 
 func TestBlockMonDrain(t *testing.T) {
@@ -196,22 +165,5 @@ func TestBlockMonDrain(t *testing.T) {
 		err = c.context.Client.Get(context.TODO(), fakeNamespaceName, existingPDBV1)
 		assert.NoError(t, err)
 		assert.Equal(t, 0, int(existingPDBV1.Spec.MaxUnavailable.IntValue()))
-	})
-	// check for PDBV1Beta1 version
-	c = createFakeCluster(t, &cephv1.CephCluster{
-		Spec: cephv1.ClusterSpec{
-			DisruptionManagement: cephv1.DisruptionManagementSpec{
-				ManagePodBudgets: true,
-			},
-		},
-	}, "v1.20.0")
-	t.Run("block mon drain for K8s version v1.20.0", func(t *testing.T) {
-		// change MaxUnavailable mon PDB to 0
-		err := c.blockMonDrain(fakeNamespaceName)
-		assert.NoError(t, err)
-		existingPDBV1Beta1 := &policyv1beta1.PodDisruptionBudget{}
-		err = c.context.Client.Get(context.TODO(), fakeNamespaceName, existingPDBV1Beta1)
-		assert.NoError(t, err)
-		assert.Equal(t, 0, int(existingPDBV1Beta1.Spec.MaxUnavailable.IntValue()))
 	})
 }

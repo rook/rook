@@ -20,9 +20,7 @@ import (
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -36,17 +34,8 @@ func (r *ReconcileClusterDisruption) createStaticPDB(pdb client.Object) error {
 }
 
 func (r *ReconcileClusterDisruption) reconcileStaticPDB(request types.NamespacedName, pdb client.Object) error {
-	var existingPDB client.Object
-	usePDBV1Beta1, err := k8sutil.UsePDBV1Beta1Version(r.context.ClusterdContext.Clientset)
-	if err != nil {
-		return errors.Wrap(err, "failed to fetch pdb version")
-	}
-	if usePDBV1Beta1 {
-		existingPDB = &policyv1beta1.PodDisruptionBudget{}
-	} else {
-		existingPDB = &policyv1.PodDisruptionBudget{}
-	}
-	err = r.client.Get(r.context.OpManagerContext, request, existingPDB)
+	existingPDB := &policyv1.PodDisruptionBudget{}
+	err := r.client.Get(r.context.OpManagerContext, request, existingPDB)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			return r.createStaticPDB(pdb)

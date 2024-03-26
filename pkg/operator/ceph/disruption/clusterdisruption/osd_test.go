@@ -34,7 +34,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -122,8 +121,6 @@ func fakePDBConfigMap(drainingFailureDomain string) *corev1.ConfigMap {
 func getFakeReconciler(t *testing.T, obj ...runtime.Object) *ReconcileClusterDisruption {
 	scheme := scheme.Scheme
 	err := policyv1.AddToScheme(scheme)
-	assert.NoError(t, err)
-	err = policyv1beta1.AddToScheme(scheme)
 	assert.NoError(t, err)
 
 	err = appsv1.AddToScheme(scheme)
@@ -395,19 +392,6 @@ func TestReconcilePDBForOSD(t *testing.T) {
 			for _, pdb := range existingPDBsV1.Items {
 				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
 			}
-			// check for PDBV1Beta1 version
-			test.SetFakeKubernetesVersion(clientset, "v1.20.0")
-			r.context = &controllerconfig.Context{ClusterdContext: &clusterd.Context{Executor: executor, Clientset: clientset}}
-			_, err = r.reconcilePDBsForOSDs(clusterInfo, request, tc.configMap, "zone", tc.allFailureDomains, tc.osdDownFailureDomains, tc.activeNodeDrains, tc.pgHealthyRegex)
-			assert.NoError(t, err)
-			existingPDBsV1Beta1 := &policyv1beta1.PodDisruptionBudgetList{}
-			err = r.client.List(context.TODO(), existingPDBsV1Beta1)
-			assert.NoError(t, err)
-			assert.Equal(t, tc.expectedOSDPDBCount, len(existingPDBsV1Beta1.Items))
-			for _, pdb := range existingPDBsV1Beta1.Items {
-				assert.Equal(t, tc.expectedMaxUnavailableCount, pdb.Spec.MaxUnavailable.IntValue())
-			}
-
 			// assert that config map is updated with correct failure domain
 			existingConfigMaps := &corev1.ConfigMapList{}
 			err = r.client.List(context.TODO(), existingConfigMaps)

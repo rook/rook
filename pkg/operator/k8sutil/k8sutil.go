@@ -26,7 +26,6 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/pkg/errors"
 	rookversion "github.com/rook/rook/pkg/version"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -192,17 +191,6 @@ func validateLabelValue(value string) string {
 		sanitized = sanitized[:maxlen]
 	}
 	return sanitized
-}
-
-func UsePDBV1Beta1Version(Clientset kubernetes.Interface) (bool, error) {
-	k8sVersion, err := GetK8SVersion(Clientset)
-	if err != nil {
-		return false, errors.Wrap(err, "failed to fetch k8s version")
-	}
-	logger.Debugf("kubernetes version fetched %v", k8sVersion)
-	// minimum k8s version required for v1 PodDisruptionBudget is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 PodDisruptionBudget.
-	minVersionForPDBV1 := "1.21.0"
-	return k8sVersion.LessThan(version.MustParseSemantic(minVersionForPDBV1)), nil
 }
 
 // ToValidDNSLabel converts a given string to a valid DNS-1035 spec label. The DNS-1035 spec
