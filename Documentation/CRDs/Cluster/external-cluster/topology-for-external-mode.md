@@ -95,7 +95,6 @@ metadata:
 parameters:
   ...
   ...
-  pool: replicapool
   topologyConstrainedPools: |
     [
      {"poolName":"pool-a",
