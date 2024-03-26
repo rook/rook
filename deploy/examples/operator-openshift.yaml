@@ -121,6 +121,8 @@ data:
   ROOK_CSI_ENABLE_RBD: "true"
   # Enable the CSI NFS driver. To start another version of the CSI driver, see image properties below.
   ROOK_CSI_ENABLE_NFS: "false"
+  # Disable the CSI driver.
+  ROOK_CSI_DISABLE_DRIVER: "false"
 
   # Set to true to enable Ceph CSI pvc encryption support.
   CSI_ENABLE_ENCRYPTION: "false"

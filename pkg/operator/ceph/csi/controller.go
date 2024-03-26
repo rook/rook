@@ -137,6 +137,34 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	// reconcileResult is used to communicate the result of the reconciliation back to the caller
 	var reconcileResult reconcile.Result
 
+	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
+	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
+	// CM won't be found
+	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: r.opConfig.OperatorNamespace}
+	opConfig := &v1.ConfigMap{}
+	err := r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debug("operator's configmap resource not found. will use default value or env var.")
+			r.opConfig.Parameters = make(map[string]string)
+		} else {
+			// Error reading the object - requeue the request.
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get operator's configmap")
+		}
+	} else {
+		// Populate the operator's config
+		r.opConfig.Parameters = opConfig.Data
+	}
+
+	// do not recocnile if csi driver is disabled
+	disableCSI, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_DISABLE_DRIVER", "false"))
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "unable to parse value for 'ROOK_CSI_DISABLE_DRIVER")
+	} else if disableCSI {
+		logger.Info("ceph csi driver is disabled")
+		return reconcile.Result{}, nil
+	}
+
 	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
@@ -170,24 +198,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		}
 
 		return reconcile.Result{}, nil
-	}
-	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
-	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
-	// CM won't be found
-	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: r.opConfig.OperatorNamespace}
-	opConfig := &v1.ConfigMap{}
-	err = r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("operator's configmap resource not found. will use default value or env var.")
-			r.opConfig.Parameters = make(map[string]string)
-		} else {
-			// Error reading the object - requeue the request.
-			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get operator's configmap")
-		}
-	} else {
-		// Populate the operator's config
-		r.opConfig.Parameters = opConfig.Data
 	}
 
 	csiHostNetworkEnabled, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true"))

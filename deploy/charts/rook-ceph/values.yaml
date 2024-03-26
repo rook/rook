@@ -81,6 +81,9 @@ csi:
   enableRbdDriver: true
   # -- Enable Ceph CSI CephFS driver
   enableCephfsDriver: true
+  # -- Disable the CSI driver.
+  disableCsiDriver: "false"
+
   # -- Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance
