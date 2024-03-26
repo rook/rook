@@ -224,7 +224,6 @@ dmsetup version
 function open_encrypted_block {
 	echo "Opening encrypted device $BLOCK_PATH at $DM_PATH"
 	cryptsetup luksOpen --verbose --disable-keyring --allow-discards --key-file "$KEY_FILE_PATH" "$BLOCK_PATH" "$DM_NAME"
-	rm -f "$KEY_FILE_PATH"
 }
 
 # This is done for upgraded clusters that did not have the subsystem and label set by the prepare job
