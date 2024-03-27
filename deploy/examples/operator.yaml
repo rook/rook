@@ -591,7 +591,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
-          image: rook/ceph:master
+          image: rook/ceph:v1.14.0-beta.0
           args: ["ceph", "operator"]
           securityContext:
             runAsNonRoot: true
