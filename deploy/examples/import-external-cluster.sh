@@ -334,7 +334,6 @@ metadata:
 provisioner: $RBD_PROVISIONER
 parameters:
   clusterID: $CLUSTER_ID_RBD
-  pool: $RBD_POOL_NAME
   imageFormat: "2"
   imageFeatures: $ROOK_RBD_FEATURES
   topologyConstrainedPools: |

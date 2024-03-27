@@ -1932,7 +1932,6 @@ class RadosJSON:
                             "TOPOLOGY_FAILURE_DOMAIN_VALUES"
                         ],
                         "topologyPools": self.out_map["TOPOLOGY_POOLS"],
-                        "pool": self.out_map["RBD_POOL_NAME"],
                         "csi.storage.k8s.io/provisioner-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/controller-expand-secret-name": f"rook-{self.out_map['CSI_RBD_PROVISIONER_SECRET_NAME']}",
                         "csi.storage.k8s.io/node-stage-secret-name": f"rook-{self.out_map['CSI_RBD_NODE_SECRET_NAME']}",
