@@ -216,6 +216,7 @@ security:
       VAULT_BACKEND_PATH: rgw
       VAULT_SECRET_ENGINE: kv
       VAULT_BACKEND: v2
+       VAULT_AUTH_METHOD: token
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rgw-vault-kms-token
   s3:
@@ -224,6 +225,7 @@ security:
       VAULT_ADDR: http://vault.default.svc.cluster.local:8200
       VAULT_BACKEND_PATH: rgw
       VAULT_SECRET_ENGINE: transit
+       VAULT_AUTH_METHOD: token
     # name of the k8s secret containing the kms authentication token
     tokenSecretName: rgw-vault-s3-token
 ```
@@ -241,6 +243,113 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 * TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
 * `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
 * `AWS-SSE:S3` requires Ceph Quincy v17.2.3 or later.
+
+### Service Account Authentication
+
+The Kubernetes Service Account authentication method is configured for RGW with help of [vault agent](https://docs.ceph.com/en/latest/radosgw/vault/#vault-agent). The `ObjectStore CRD` are similar to [ceph cluster configuration](../../Storage-Configuration/Advanced/key-management-system.md#kubernetes-based-authentication). Below is sample configuration for running RGW server with vault agent.
+
+```yaml
+spec:
+  gateway:
+  annotations:
+    vault.hashicorp.com/agent-inject: 'true'
+    vault.hashicorp.com/agent-configmap: <ceph-object-store>-vault-agent-cm
+    vault.hashicorp.com/tls-secret: <name of k8s secret>
+  security:
+    kms:
+      connectionDetails:
+          KMS_PROVIDER: vault
+          VAULT_ADDR: http://127.0.0.1:8100
+          VAULT_BACKEND_PATH: rook
+          VAULT_SECRET_ENGINE: kv
+          VAULT_AUTH_METHOD: kubernetes
+    s3:
+      connectionDetails:
+          KMS_PROVIDER: vault
+          VAULT_ADDR: http://127.0.0.1:8100
+          VAULT_BACKEND_PATH: rook
+          VAULT_SECRET_ENGINE: kv
+          VAULT_AUTH_METHOD: kubernetes
+
+---
+kind: ConfigMap
+metadata:
+  name: <ceph-object-store>-vault-agent-cm
+  namespace: rook-ceph
+apiVersion: v1
+data:
+  config.hcl: |
+    pid_file = "/home/vault/pidfile"
+    auto_auth {
+        method "kubernetes" {
+            mount_path = "auth/kubernetes"
+            config = {
+                role = "rook-ceph"
+            }
+        }
+    }
+    cache {
+        use_auto_auth_token = true
+    }
+    exit_after_auth = false
+    listener "tcp" {
+        address = "127.0.0.1:8100" # port where vault agent listens in the pod
+        tls_disable = "true"
+    }
+    vault {
+      address = "http://vault.default:8200" # address of vault server
+      ca_cert = "/vault/tls/ca.crt"
+      client_cert = "/vault/tls/client.crt"
+      client_key = "/vault/tls/client.key"
+    }
+  config-init.hcl: |
+    pid_file = "/home/vault/pidfile"
+    auto_auth {
+        method "kubernetes" {
+            mount_path = "auth/kubernetes"
+            config = {
+                role = "rook-ceph"
+            }
+        }
+    }
+    cache {
+        use_auto_auth_token = true
+    }
+    listener "tcp" {
+        address = "127.0.0.1:8100" # port where vault agent listens in the pod
+        tls_disable = "true"
+    }
+    exit_after_auth = true
+    vault {
+      address = "http://vault.default:8200" # address of vault server
+      ca_cert = "/vault/tls/ca.crt"
+      client_cert = "/vault/tls/client.crt"
+      client_key = "/vault/tls/client.key"
+    }
+
+---
+
+kind: Secret
+metadata:
+  name: <name of k8s secret>
+  namespace: rook-ceph
+type: Opaque
+data:
+  client.key: <>
+  client.crt: <>
+  ca.crt:     <>
+
+```
+
+* vault.hashicorp.com/agent-inject --> brings vault agent with rgw pod
+* vault.hashicorp.com/agent-configmap -->  config map containing settings for vault agent pod
+* vault.hashicorp.com/tls-secret --> the name of kubernetes secret containing TLS cert to communicate with vault server.
+
+More about annotations for vault agent can be found [here](https://developer.hashicorp.com/vault/docs/platform/k8s/injector/annotations#vault-hashicorp-com-agent-copy-volume-mounts). `listener` block contains settings for vault agent and `vault` contains settings used by agent to communicate with vault server. The `autoauth` contains authentication mechanism used by vault agent to communicate with vault server. In this case it is service account. More details can be found [here](https://developer.hashicorp.com/vault/docs/agent-and-proxy/agent).
+
+!!! Note:
+
+Above configuration brings up vault agent container locally along with rgw container in the objectstore pod. User can also configure vault agent separately and provide the details in the `spec.Security`.
 
 ## Deleting a CephObjectStore
 
