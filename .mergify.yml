@@ -15,86 +15,6 @@ pull_request_rules:
       comment:
         message: Hi @{{author}}, this pull request was opened against a release branch, is it expected? Normally patches should go in the master branch first and then be backported to release branches.
 
-  # release-1.8 branch
-  - name: automerge backport release-1.8
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.8
-      - label!=do-not-merge
-      - "status-success=DCO"
-      - "check-success=canary"
-      - "check-success=unittests"
-      - "check-success=golangci-lint"
-      - "check-success=codegen"
-      - "check-success=lint"
-      - "check-success=modcheck"
-      - "check-success=pvc"
-      - "check-success=pvc-db"
-      - "check-success=pvc-db-wal"
-      - "check-success=encryption-pvc"
-      - "check-success=encryption-pvc-db"
-      - "check-success=encryption-pvc-db-wal"
-      - "check-success=encryption-pvc-kms-vault-token-auth"
-      - "check-success=encryption-pvc-kms-vault-k8s-auth"
-      - "check-success=lvm-pvc"
-      - "check-success=multi-cluster-mirroring"
-      - "check-success=rgw-multisite-testing"
-      - "check-success=TestCephSmokeSuite (v1.16.15)"
-      - "check-success=TestCephSmokeSuite (v1.22.2)"
-      - "check-success=TestCephHelmSuite (v1.16.15)"
-      - "check-success=TestCephHelmSuite (v1.22.2)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.22.2)"
-      - "check-success=TestCephUpgradeSuite (v1.16.15)"
-      - "check-success=TestCephUpgradeSuite (v1.22.2)"
-    actions:
-      merge:
-        method: merge
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
-  # release-1.9 branch
-  - name: automerge backport release-1.9
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.9
-      - label!=do-not-merge
-      - "status-success=DCO"
-      - "check-success=canary"
-      - "check-success=unittests"
-      - "check-success=golangci-lint"
-      - "check-success=codegen"
-      - "check-success=codespell"
-      - "check-success=lint"
-      - "check-success=modcheck"
-      - "check-success=Shellcheck"
-      - "check-success=yaml-linter"
-      - "check-success=lint-test"
-      - "check-success=gen-rbac"
-      - "check-success=crds-gen"
-      - "check-success=pvc"
-      - "check-success=pvc-db"
-      - "check-success=pvc-db-wal"
-      - "check-success=encryption-pvc"
-      - "check-success=encryption-pvc-db"
-      - "check-success=encryption-pvc-db-wal"
-      - "check-success=encryption-pvc-kms-vault-token-auth"
-      - "check-success=encryption-pvc-kms-vault-k8s-auth"
-      - "check-success=lvm-pvc"
-      - "check-success=multi-cluster-mirroring"
-      - "check-success=rgw-multisite-testing"
-      - "check-success=TestCephSmokeSuite (v1.17.17)"
-      - "check-success=TestCephSmokeSuite (v1.23.0)"
-      - "check-success=TestCephHelmSuite (v1.17.17)"
-      - "check-success=TestCephHelmSuite (v1.23.0)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.23.0)"
-      - "check-success=TestCephUpgradeSuite (v1.17.17)"
-      - "check-success=TestCephUpgradeSuite (v1.23.0)"
-    actions:
-      merge:
-        method: merge
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
   # release-1.10 branch
   - name: automerge backport release-1.10
     conditions:
@@ -304,6 +224,7 @@ pull_request_rules:
       - label!=do-not-merge
       - "status-success=DCO"
       - "check-success=linux-build-all (1.21)"
+      - "check-success=linux-build-all (1.22)"
       - "check-success=unittests"
       - "check-success=golangci-lint"
       - "check-success=codegen"
@@ -333,44 +254,26 @@ pull_request_rules:
       - "check-success=encryption-pvc-kms-vault-token-auth (quay.io/ceph/ceph:v18)"
       - "check-success=encryption-pvc-kms-vault-k8s-auth (quay.io/ceph/ceph:v18)"
       - "check-success=lvm-pvc (quay.io/ceph/ceph:v18)"
-      # - "check-success=multi-cluster-mirroring (quay.io/ceph/ceph:v18)"
+      - "check-success=multi-cluster-mirroring (quay.io/ceph/ceph:v18)"
       - "check-success=rgw-multisite-testing (quay.io/ceph/ceph:v18)"
-      # - "check-success=encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v18)"
+      - "check-success=encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v18)"
       - "check-success=multus-cluster-network (quay.io/ceph/ceph:v18)"
       - "check-success=csi-hostnetwork-disabled (quay.io/ceph/ceph:v18)"
-      - "check-success=TestCephSmokeSuite (v1.23.17)"
-      - "check-success=TestCephSmokeSuite (v1.29.0)"
-      - "check-success=TestCephHelmSuite (v1.23.17)"
-      - "check-success=TestCephHelmSuite (v1.29.0)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.29.0)"
-      - "check-success=TestCephObjectSuite (v1.29.0)"
-      - "check-success=TestCephUpgradeSuite (v1.23.17)"
-      - "check-success=TestCephUpgradeSuite (v1.29.0)"
-      - "check-success=TestHelmUpgradeSuite (v1.23.17)"
-      - "check-success=TestHelmUpgradeSuite (v1.29.0)"
+      - "check-success=TestCephSmokeSuite (v1.25.16)"
+      - "check-success=TestCephSmokeSuite (v1.29.2)"
+      - "check-success=TestCephHelmSuite (v1.25.16)"
+      - "check-success=TestCephHelmSuite (v1.29.2)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.29.2)"
+      - "check-success=TestCephObjectSuite (v1.29.2)"
+      - "check-success=TestCephUpgradeSuite (v1.25.16)"
+      - "check-success=TestCephUpgradeSuite (v1.29.2)"
+      - "check-success=TestHelmUpgradeSuite (v1.25.16)"
+      - "check-success=TestHelmUpgradeSuite (v1.29.2)"
     actions:
       merge:
         method: merge
       dismiss_reviews: {}
       delete_head_branch: {}
-
-  # release-1.8 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.8
-    conditions:
-      - label=backport-release-1.8
-    name: backport release-1.8
-
-  # release-1.9 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.9
-    conditions:
-      - label=backport-release-1.9
-    name: backport release-1.9
 
   # release-1.10 branch
   - actions:
@@ -407,3 +310,12 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.13
     name: backport release-1.13
+
+  # release-1.14 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.14
+    conditions:
+      - label=backport-release-1.14
+    name: backport release-1.14
