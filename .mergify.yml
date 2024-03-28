@@ -239,7 +239,7 @@ pull_request_rules:
       - "check-success=docs-check"
       - "check-success=pylint"
       - "check-success=canary (quay.io/ceph/ceph:v18)"
-      - "check-success=raw-disk (quay.io/ceph/ceph:v18)"
+      - "check-success=raw-disk-with-object (quay.io/ceph/ceph:v18)"
       - "check-success=two-osds-in-device (quay.io/ceph/ceph:v18)"
       - "check-success=osd-with-metadata-partition-device (quay.io/ceph/ceph:v18)"
       - "check-success=osd-with-metadata-device (quay.io/ceph/ceph:v18)"
