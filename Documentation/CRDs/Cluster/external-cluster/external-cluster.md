@@ -31,7 +31,7 @@ Run the python script [create-external-cluster-resources.py](https://github.com/
 python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --cephfs-filesystem-name <filesystem-name> --rgw-endpoint  <rgw-endpoint> --namespace <namespace> --format bash
 ```
 
-* `--namespace`: Namespace where CephCluster will run, for example `rook-ceph-external`
+* `--namespace`: Namespace where CephCluster will run, for example `rook-ceph`
 * `--format bash`: The format of the output
 * `--rbd-data-pool-name`: The name of the RBD data pool
 * `--alias-rbd-data-pool-name`: Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore
@@ -60,9 +60,9 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--upgrade`: (optional) Upgrades the cephCSIKeyrings(For example: client.csi-cephfs-provisioner) and client.healthchecker ceph users with new permissions needed for the new cluster version and older permission will still be applied.
 * `--restricted-auth-permission`: (optional) Restrict cephCSIKeyrings auth permissions to specific pools, and cluster. Mandatory flags that need to be set are `--rbd-data-pool-name`, and `--k8s-cluster-name`. `--cephfs-filesystem-name` flag can also be passed in case of CephFS user restriction, so it can restrict users to particular CephFS filesystem.
 * `--v2-port-enable`: (optional) Enables the v2 mon port (3300) for mons.
-*  `--topology-pools`: (optional) Comma-separated list of topology-constrained rbd pools
-*  `--topology-failure-domain-label`: (optional) K8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain
-*  `--topology-failure-domain-values`: (optional) Comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list
+* `--topology-pools`: (optional) Comma-separated list of topology-constrained rbd pools
+* `--topology-failure-domain-label`: (optional) K8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain
+* `--topology-failure-domain-values`: (optional) Comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list
 
 ### Multi-tenancy
 
@@ -75,7 +75,7 @@ So you would be running different isolated consumer clusters on top of single `S
     So apply these secrets only to new `Consumer cluster` deployment while using the same `Source cluster`.
 
 ```console
-python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --k8s-cluster-name <k8s-cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoin> --namespace <rook-ceph-external>
+python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesystem-name> --rbd-data-pool-name <pool_name> --k8s-cluster-name <k8s-cluster-name> --restricted-auth-permission true --format <bash> --rgw-endpoint <rgw_endpoin> --namespace <rook-ceph>
 ```
 
 ### RGW Multisite
@@ -94,7 +94,6 @@ A new storageclass named `ceph-rbd-topology` will be created by the import scrip
 The storageclass is used to create a volume in the pool matching the topology where a pod is scheduled.
 
 For more details, see the [Topology-Based Provisioning](topology-for-external-mode.md)
-
 
 ### Upgrade Example
 
@@ -123,13 +122,14 @@ If in case the cluster needs the admin keyring to configure, update the admin ke
     Sharing the admin key with the external cluster is not generally recommended
 
 1. Get the `client.admin` keyring from the ceph cluster
+
     ```console
     ceph auth get client.admin
     ```
 
 2. Update two values in the `rook-ceph-mon` secret:
-    - `ceph-username`: Set to `client.admin`
-    - `ceph-secret`: Set the client.admin keyring
+    * `ceph-username`: Set to `client.admin`
+    * `ceph-secret`: Set the client.admin keyring
 
 After restarting the rook operator (and the toolbox if in use), rook will configure ceph with admin privileges.
 
@@ -153,6 +153,29 @@ export RGW_POOL_PREFIX=default
 
 ## Commands on the K8s consumer cluster
 
+### Import the Source Data
+
+1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
+
+1. The import script in the next step uses the current kubeconfig context by
+   default. If you want to specify the kubernetes cluster to use without
+   changing the current context, you can specify the cluster name by setting
+   the KUBECONTEXT environment variable.
+
+   ```console
+   export KUBECONTEXT=hub-cluster
+   ```
+
+1. Run the [import](https://github.com/rook/rook/blob/master/deploy/examples/external/import-external-cluster.sh) script.
+
+   !!! note
+       If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
+       `fast-diff,object-map,deep-flatten,exclusive-lock` from the `imageFeatures` line.
+
+    ```console
+    . import-external-cluster.sh
+    ```
+
 ### Helm Installation
 
 To install with Helm, the rook cluster helm chart will configure the necessary resources for the external cluster with the example `values-external.yaml`.
@@ -175,7 +198,7 @@ If not installing with Helm, here are the steps to install with manifests.
 
 1. Deploy Rook, create [common.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common.yaml), [crds.yaml](https://github.com/rook/rook/blob/master/deploy/examples/crds.yaml) and [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml) manifests.
 
-2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external.yaml)
+2. Create [common-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/external/common-external.yaml) and [cluster-external.yaml](https://github.com/rook/rook/blob/master/deploy/examples/external/cluster-external.yaml)
 
 ### Import the Source Data
 
@@ -205,26 +228,26 @@ If not installing with Helm, here are the steps to install with manifests.
 1. Verify the consumer cluster is connected to the source ceph cluster:
 
     ```console
-    $ kubectl -n rook-ceph-external  get CephCluster
+    $ kubectl -n rook-ceph  get CephCluster
     NAME                 DATADIRHOSTPATH   MONCOUNT   AGE    STATE       HEALTH
-    rook-ceph-external   /var/lib/rook                162m   Connected   HEALTH_OK
+    rook-ceph            /var/lib/rook                162m   Connected   HEALTH_OK
     ```
 
 2. Verify the creation of the storage class depending on the rbd pools and filesystem provided.
     `ceph-rbd` and `cephfs` would be the respective names for the RBD and CephFS storage classes.
 
     ```console
-    kubectl -n rook-ceph-external get sc
+    kubectl -n rook-ceph get sc
     ```
 
 3. Then you can now create a [persistent volume](https://github.com/rook/rook/tree/master/deploy/examples/csi) based on these StorageClass.
 
 ### Connect to an External Object Store
 
-Create the [external object store CR](https://github.com/rook/rook/blob/master/deploy/examples/object-external.yaml) to configure connection to external gateways.
+Create the [external object store CR](https://github.com/rook/rook/blob/master/deploy/examples/external/object-external.yaml) to configure connection to external gateways.
 
 ```console
-    cd deploy/examples
+    cd deploy/examples/external
     kubectl create -f object-external.yaml
 ```
 
@@ -262,7 +285,7 @@ you can export the settings from this cluster with the following steps.
 
    ```console
    toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-   kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
+   kubectl -n rook-ceph cp deploy/examples/external/create-external-cluster-resources.py $toolbox:/etc/ceph
    ```
 
 2) Exec to the toolbox pod and execute create-external-cluster-resources.py with needed options to create required [users and keys](#supported-features).

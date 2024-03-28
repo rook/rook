@@ -1,0 +1,28 @@
+#################################################################################################################
+# Define the settings for the rook-ceph-external cluster with common settings for a production cluster.
+
+#   kubectl create -f ../../examples/crds.yaml -f ../../examples/common.yaml -f ../../examples/operator.yaml
+#   kubectl create -f common-external.yaml -f cluster-external.yaml
+
+#################################################################################################################
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: rook-ceph-external
+  namespace: rook-ceph # default set to rook-ceph
+spec:
+  external:
+    enable: true
+  crashCollector:
+    disable: true
+  healthCheck:
+    daemonHealth:
+      mon:
+        disabled: false
+        interval: 45s
+  # optionally, the ceph-mgr IP address can be passed to gather metric from the prometheus exporter
+  # monitoring:
+  #   enabled: true
+  #   externalMgrEndpoints:
+  #   - ip: ip
+  #     externalMgrPrometheusPort: 9283
