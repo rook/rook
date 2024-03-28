@@ -103,7 +103,7 @@ const (
 							"data_pool": "rgw-data-pool:store-a.buckets.data"
 						}
 					},
-					"data_extra_pool": "rgw-data-pool:store-a.buckets.non-ec",
+					"data_extra_pool": "rgw-meta-pool:store-a.buckets.non-ec",
 					"index_type": 0,
 					"inline_data": true
 				}

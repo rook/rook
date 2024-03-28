@@ -931,7 +931,9 @@ func applyExpectedRadosNamespaceSettings(zoneConfig map[string]interface{}, meta
 		return fmt.Errorf("failed to parse placement_pools[0].val")
 	}
 	placementVals["index_pool"] = metadataPrefix + "buckets.index"
-	placementVals["data_extra_pool"] = dataPrefix + "buckets.non-ec"
+	// The extra pool is for omap data for multi-part uploads, so we use
+	// the metadata pool instead of the data pool.
+	placementVals["data_extra_pool"] = metadataPrefix + "buckets.non-ec"
 	storageClasses, ok := placementVals["storage_classes"].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("failed to parse storage_classes")
