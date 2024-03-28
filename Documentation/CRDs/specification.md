@@ -945,6 +945,20 @@ The default wait timeout is 10 minutes.</p>
 </tr>
 <tr>
 <td>
+<code>upgradeOSDRequiresHealthyPGs</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>UpgradeOSDRequiresHealthyPGs defines if OSD upgrade requires PGs are clean. If set to <code>true</code> OSD upgrade process won&rsquo;t start until PGs are healthy.
+This configuration will be ignored if <code>skipUpgradeChecks</code> is <code>true</code>.
+Default is false.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>disruptionManagement</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.DisruptionManagementSpec">
@@ -4414,6 +4428,20 @@ If the timeout exceeds and OSD is not ok to stop, then the operator would skip u
 if <code>continueUpgradeAfterChecksEvenIfNotHealthy</code> is <code>false</code>. If <code>continueUpgradeAfterChecksEvenIfNotHealthy</code> is <code>true</code>, then operator would
 continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won&rsquo;t be applied if <code>skipUpgradeChecks</code> is <code>true</code>.
 The default wait timeout is 10 minutes.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>upgradeOSDRequiresHealthyPGs</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>UpgradeOSDRequiresHealthyPGs defines if OSD upgrade requires PGs are clean. If set to <code>true</code> OSD upgrade process won&rsquo;t start until PGs are healthy.
+This configuration will be ignored if <code>skipUpgradeChecks</code> is <code>true</code>.
+Default is false.</p>
 </td>
 </tr>
 <tr>
