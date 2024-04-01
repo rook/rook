@@ -984,3 +984,36 @@ func TestGetOSDLocationFromArgs(t *testing.T) {
 	assert.Equal(t, osdLocaiton, "")
 	assert.Equal(t, locationFound, false)
 }
+
+func TestValidateOSDSettings(t *testing.T) {
+	namespace := "ns"
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   namespace,
+		CephVersion: cephver.Quincy,
+		Context:     context.TODO(),
+	}
+	clusterInfo.SetName("rook-ceph-test")
+	c := New(&clusterd.Context{}, clusterInfo, cephv1.ClusterSpec{}, "version")
+
+	t.Run("validate with no settings", func(t *testing.T) {
+		assert.NoError(t, c.validateOSDSettings())
+	})
+
+	t.Run("valid device sets", func(t *testing.T) {
+		c.spec.Storage.StorageClassDeviceSets = []cephv1.StorageClassDeviceSet{
+			{Name: "set1"},
+			{Name: "set2"},
+			{Name: "set3"},
+		}
+		assert.NoError(t, c.validateOSDSettings())
+	})
+
+	t.Run("duplicate device sets", func(t *testing.T) {
+		c.spec.Storage.StorageClassDeviceSets = []cephv1.StorageClassDeviceSet{
+			{Name: "set1"},
+			{Name: "set2"},
+			{Name: "set1"},
+		}
+		assert.Error(t, c.validateOSDSettings())
+	})
+}
