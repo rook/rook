@@ -26,6 +26,7 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/object/secret"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	corev1 "k8s.io/api/core/v1"
@@ -241,17 +242,28 @@ func GenerateCephUserSecretName(store, username string) string {
 	return fmt.Sprintf("rook-ceph-object-user-%s-%s", store, username)
 }
 
-func generateCephUserSecret(userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) *corev1.Secret {
+func generateCephUserSecret(userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) (*corev1.Secret, error) {
 	secretName := GenerateCephUserSecretName(storeName, userConfig.ID)
+	accessKey := userConfig.Keys[0].AccessKey
+	secretKey := userConfig.Keys[0].SecretKey
+	credentials := []secret.Credential{
+		{AccessKey: accessKey,
+			SecretKey: secretKey}}
+	credentialsKeys, err := json.Marshal(credentials)
+	if err != nil {
+		return &corev1.Secret{}, err
+	}
 	// Store the keys in a secret
 	secrets := map[string]string{
-		"AccessKey": userConfig.Keys[0].AccessKey,
-		"SecretKey": userConfig.Keys[0].SecretKey,
-		"Endpoint":  endpoint,
+		"AccessKey":   accessKey,
+		"SecretKey":   secretKey,
+		"Credentials": string(credentialsKeys),
+		"Endpoint":    endpoint,
 	}
 	if tlsSecretName != "" {
 		secrets["SSLCertSecretName"] = tlsSecretName
 	}
+
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -266,15 +278,18 @@ func generateCephUserSecret(userConfig *admin.User, endpoint, namespace, storeNa
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	return secret
+
+	return secret, nil
 }
 
 func ReconcileCephUserSecret(ctx context.Context, k8sclient client.Client, scheme *runtime.Scheme, ownerRef metav1.Object, userConfig *admin.User, endpoint, namespace, storeName, tlsSecretName string) (reconcile.Result, error) {
 	// Generate Kubernetes Secret
-	secret := generateCephUserSecret(userConfig, endpoint, namespace, storeName, tlsSecretName)
-
+	secret, err := generateCephUserSecret(userConfig, endpoint, namespace, storeName, tlsSecretName)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to get the ceph object user secret %q", GenerateCephUserSecretName(storeName, userConfig.ID))
+	}
 	// Set owner ref to the object store user object
-	err := controllerutil.SetControllerReference(ownerRef, secret, scheme)
+	err = controllerutil.SetControllerReference(ownerRef, secret, scheme)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
 	}
