@@ -195,11 +195,11 @@ Configure the network that will be enabled for the cluster and services.
 
 * `provider`: Specifies the network provider that will be used to connect the network interface. You can choose between `host`, and `multus`.
 * `selectors`: Used for `multus` provider only. Select NetworkAttachmentDefinitions to use for Ceph networks.
-  * `public`: Select the NetworkAttachmentDefinition to use for the public network.
-  * `cluster`: Select the NetworkAttachmentDefinition to use for the cluster network.
+    * `public`: Select the NetworkAttachmentDefinition to use for the public network.
+    * `cluster`: Select the NetworkAttachmentDefinition to use for the cluster network.
 * `addressRanges`: Used for `host` or `multus` providers only. Allows overriding the address ranges (CIDRs) that Ceph will listen on.
-  * `public`: A list of individual network ranges in CIDR format to use for Ceph's public network.
-  * `cluster`: A list of individual network ranges in CIDR format to use for Ceph's cluster network.
+    * `public`: A list of individual network ranges in CIDR format to use for Ceph's public network.
+    * `cluster`: A list of individual network ranges in CIDR format to use for Ceph's cluster network.
 * `ipFamily`: Specifies the network stack Ceph daemons should listen on.
 * `dualStack`: Specifies that Ceph daemon should listen on both IPv4 and IPv6 network stacks.
 * `connections`: Settings for network connections using Ceph's msgr2 protocol
