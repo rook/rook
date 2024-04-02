@@ -222,6 +222,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		}
 	}
 
+	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	// DELETE: the CR was deleted
 	if !cephBlockPool.GetDeletionTimestamp().IsZero() {
 		deps, err := cephBlockPoolDependents(r.context, r.clusterInfo, cephBlockPool)
@@ -239,7 +240,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		r.recorder.Event(cephBlockPool, corev1.EventTypeNormal, string(cephv1.ReconcileStarted), "starting blockpool deletion")
 
-		poolSpec := cephBlockPool.ToNamedPoolSpec()
 		logger.Infof("deleting pool %q", poolSpec.Name)
 		err = deletePool(r.context, clusterInfo, &poolSpec)
 		if err != nil {
@@ -295,8 +295,6 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if err := configureRBDStats(r.context, clusterInfo, ""); err != nil {
 		return reconcile.Result{}, *cephBlockPool, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
-
-	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &poolSpec)
 	// ADD PEERS
 	logger.Debug("reconciling create rbd mirror peer configuration")
@@ -341,9 +339,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// If not mirrored there is no Status Info field to fulfil
 	} else {
 		// disable mirroring
-		err := r.disableMirroring(cephBlockPool)
+		err := r.disableMirroring(poolSpec.Name)
 		if err != nil {
-			return reconcile.Result{}, *cephBlockPool, errors.Wrapf(err, "failed to disable mirroring on pool %q", cephBlockPool.Name)
+			logger.Warningf("failed to disable mirroring on pool %q. %v", poolSpec.Name, err)
 		}
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
@@ -503,20 +501,20 @@ func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPool *cephv1.Ce
 	}
 }
 
-func (r *ReconcileCephBlockPool) disableMirroring(pool *cephv1.CephBlockPool) error {
-	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, pool.Name)
+func (r *ReconcileCephBlockPool) disableMirroring(pool string) error {
+	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, pool)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool.Name)
+		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool)
 	}
 
 	if mirrorInfo.Mode == "image" {
-		mirroredPools, err := cephclient.GetMirroredPoolImages(r.context, r.clusterInfo, pool.Name)
+		mirroredPools, err := cephclient.GetMirroredPoolImages(r.context, r.clusterInfo, pool)
 		if err != nil {
-			return errors.Wrapf(err, "failed to list mirrored images for pool %q", pool.Name)
+			return errors.Wrapf(err, "failed to list mirrored images for pool %q", pool)
 		}
 
 		if len(*mirroredPools.Images) > 0 {
-			msg := fmt.Sprintf("there are images in the pool %q. Please manually disable mirroring for each image", pool.Name)
+			msg := fmt.Sprintf("there are images in the pool %q. Please manually disable mirroring for each image", pool)
 			logger.Errorf(msg)
 			return errors.New(msg)
 		}
@@ -525,20 +523,20 @@ func (r *ReconcileCephBlockPool) disableMirroring(pool *cephv1.CephBlockPool) er
 	// Remove storage cluster peers
 	for _, peer := range mirrorInfo.Peers {
 		if peer.UUID != "" {
-			err := cephclient.RemoveClusterPeer(r.context, r.clusterInfo, pool.Name, peer.UUID)
+			err := cephclient.RemoveClusterPeer(r.context, r.clusterInfo, pool, peer.UUID)
 			if err != nil {
-				return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q", peer.UUID, pool.Name)
+				return errors.Wrapf(err, "failed to remove cluster peer with UUID %q for the pool %q", peer.UUID, pool)
 			}
-			logger.Infof("successfully removed peer site %q for the pool %q", peer.UUID, pool.Name)
+			logger.Infof("successfully removed peer site %q for the pool %q", peer.UUID, pool)
 		}
 	}
 
 	// Disable mirroring on pool
-	err = cephclient.DisablePoolMirroring(r.context, r.clusterInfo, pool.Name)
+	err = cephclient.DisablePoolMirroring(r.context, r.clusterInfo, pool)
 	if err != nil {
-		return errors.Wrapf(err, "failed to disable mirroring for pool %q", pool.Name)
+		return errors.Wrapf(err, "failed to disable mirroring for pool %q", pool)
 	}
-	logger.Infof("successfully disabled mirroring on the pool %q", pool.Name)
+	logger.Infof("successfully disabled mirroring on the pool %q", pool)
 
 	return nil
 }
