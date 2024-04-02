@@ -2,15 +2,16 @@
 
 ## Breaking Changes
 
-- The removal of `CSI_ENABLE_READ_AFFINITY` option and its replacement with per-cluster
-read affinity setting in cephCluster CR (CSIDriverOptions section) in [PR](https://github.com/rook/rook/pull/13665)
-- updating `netNamespaceFilePath` for all clusterIDs in rook-ceph-csi-config configMap in [PR](https://github.com/rook/rook/pull/13613)
-  - Issue: The netNamespaceFilePath isn't updated in the CSI config map for all the clusterIDs when `CSI_ENABLE_HOST_NETWORK` is set to false in `operator.yaml`
-  - Impact: This results in the unintended network configurations, with pods using the host networking instead of pod networking.
-- Rook is beginning the process of deprecating holder pods. This is especially important for Multus
-  users. Helm chart users should take care to set the new config `disableHolderPods: false` if they
-  are using Multus and still using the `rook-ceph` chart's default `values.yaml`. Special upgrade
-  docs for multus can be found [here](Documentation/CRDs/Cluster/network-providers.md#migrating-to-remove-multus-holder-pods).
+- The minimum supported version of Kubernetes is v1.25.
+  Upgrade to Kubernetes v1.25 or higher before upgrading Rook.
+- The Rook operator config `CSI_ENABLE_READ_AFFINITY` was removed. v1.13 clusters that have modified
+  this value to be `"true"` must set the option as desired in each CephCluster as documented
+  [here](https://rook.github.io/docs/rook/v1.14/CRDs/Cluster/ceph-cluster-crd/#csi-driver-options)
+  before upgrading to v1.14.
+- Rook is beginning the process of deprecating CSI network "holder" pods.
+  If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, see the
+  [detailed documentation](./Documentation/CRDs/Cluster/network-providers.md#holder-pod-deprecation)
+  to disable them. This is optional for v1.14, but will be required in a future release.
 
 ## Features
 
