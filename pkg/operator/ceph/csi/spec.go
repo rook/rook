@@ -139,7 +139,7 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.10.2"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.11.0"
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.0"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v4.0.0"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.5.0"
