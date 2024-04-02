@@ -23,14 +23,13 @@ import (
 )
 
 var (
-	testMinVersion   = CephCSIVersion{3, 9, 0}
-	testReleaseV380  = CephCSIVersion{3, 8, 0}
-	testReleaseV381  = CephCSIVersion{3, 8, 1}
+	testMinVersion   = CephCSIVersion{3, 10, 0}
 	testReleaseV390  = CephCSIVersion{3, 9, 0}
 	testReleaseV391  = CephCSIVersion{3, 9, 1}
 	testreleasev310  = CephCSIVersion{3, 10, 0}
 	testReleaseV3101 = CephCSIVersion{3, 10, 1}
 	testReleaseV3102 = CephCSIVersion{3, 10, 2}
+	testReleaseV3110 = CephCSIVersion{3, 11, 0}
 
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
@@ -45,12 +44,12 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testMinVersion.isAtLeast(&testMinVersion)
 	assert.Equal(t, true, ret)
 
-	// Test for 3.8.0
-	ret = testReleaseV380.isAtLeast(&testMinVersion)
+	// Test for 3.9.0
+	ret = testReleaseV390.isAtLeast(&testMinVersion)
 	assert.Equal(t, false, ret)
 
-	// Test for 3.8.1
-	ret = testReleaseV381.isAtLeast(&testMinVersion)
+	// Test for 3.9.1
+	ret = testReleaseV391.isAtLeast(&testMinVersion)
 	assert.Equal(t, false, ret)
 
 	// Test for 3.10.0
@@ -65,6 +64,10 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testReleaseV3102.isAtLeast(&testReleaseV3102)
 	assert.Equal(t, true, ret)
 
+	// Test for 3.11.0
+	ret = testReleaseV3110.isAtLeast(&testReleaseV3110)
+	assert.Equal(t, true, ret)
+
 }
 
 func TestSupported(t *testing.T) {
@@ -75,23 +78,20 @@ func TestSupported(t *testing.T) {
 	ret = testVersionUnsupported.Supported()
 	assert.Equal(t, false, ret)
 
-	// 3.8.x is not supported after 3.10.0 release
-	ret = testReleaseV380.Supported()
-	assert.Equal(t, false, ret)
-
-	ret = testReleaseV381.Supported()
-	assert.Equal(t, false, ret)
-
+	// 3.9.x is not supported after 3.11.0 release
 	ret = testReleaseV390.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testReleaseV391.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testreleasev310.Supported()
 	assert.Equal(t, true, ret)
 
 	ret = testReleaseV3101.Supported()
+	assert.Equal(t, true, ret)
+
+	ret = testReleaseV3110.Supported()
 	assert.Equal(t, true, ret)
 }
 
