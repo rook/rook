@@ -80,33 +80,33 @@ data:
   CSI_LEADER_ELECTION_RETRY_PERIOD: {{ .Values.csi.csiLeaderElectionRetryPeriod | quote }}
 {{- end }}
 {{- if .Values.csi.cephcsi }}
-{{- if .Values.csi.cephcsi.image }}
-  ROOK_CSI_CEPH_IMAGE: {{ .Values.csi.cephcsi.image | quote }}
+{{- if and .Values.csi.cephcsi.repository .Values.csi.cephcsi.tag }}
+  ROOK_CSI_CEPH_IMAGE: "{{ .Values.csi.cephcsi.repository }}:{{ .Values.csi.cephcsi.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.registrar }}
-{{- if .Values.csi.registrar.image }}
-  ROOK_CSI_REGISTRAR_IMAGE: {{ .Values.csi.registrar.image | quote }}
+{{- if and .Values.csi.registrar.repository .Values.csi.registrar.tag }}
+  ROOK_CSI_REGISTRAR_IMAGE: "{{ .Values.csi.registrar.repository }}:{{ .Values.csi.registrar.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.provisioner }}
-{{- if .Values.csi.provisioner.image }}
-  ROOK_CSI_PROVISIONER_IMAGE: {{ .Values.csi.provisioner.image | quote }}
+{{- if and .Values.csi.provisioner.repository .Values.csi.provisioner.tag }}
+  ROOK_CSI_PROVISIONER_IMAGE: "{{ .Values.csi.provisioner.repository }}:{{ .Values.csi.provisioner.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.snapshotter }}
-{{- if .Values.csi.snapshotter.image }}
-  ROOK_CSI_SNAPSHOTTER_IMAGE: {{ .Values.csi.snapshotter.image | quote }}
+{{- if and .Values.csi.snapshotter.repository .Values.csi.snapshotter.tag }}
+  ROOK_CSI_SNAPSHOTTER_IMAGE: "{{ .Values.csi.snapshotter.repository }}:{{ .Values.csi.snapshotter.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.attacher }}
-{{- if .Values.csi.attacher.image }}
-  ROOK_CSI_ATTACHER_IMAGE: {{ .Values.csi.attacher.image | quote }}
+{{- if and .Values.csi.attacher.repository .Values.csi.attacher.tag }}
+  ROOK_CSI_ATTACHER_IMAGE: "{{ .Values.csi.attacher.repository }}:{{ .Values.csi.attacher.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.resizer }}
-{{- if .Values.csi.resizer.image }}
-  ROOK_CSI_RESIZER_IMAGE: {{ .Values.csi.resizer.image | quote }}
+{{- if and .Values.csi.resizer.repository .Values.csi.resizer.tag }}
+  ROOK_CSI_RESIZER_IMAGE: "{{ .Values.csi.resizer.repository }}:{{ .Values.csi.resizer.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.imagePullPolicy }}
@@ -114,8 +114,8 @@ data:
 {{- end }}
 {{- if .Values.csi.csiAddons }}
   CSI_ENABLE_CSIADDONS: {{ .Values.csi.csiAddons.enabled | quote }}
-{{- if .Values.csi.csiAddons.image }}
-  ROOK_CSIADDONS_IMAGE: {{ .Values.csi.csiAddons.image | quote }}
+{{- if and .Values.csi.csiAddons.repository .Values.csi.csiAddons.tag }}
+  ROOK_CSIADDONS_IMAGE: "{{ .Values.csi.csiAddons.repository }}:{{ .Values.csi.csiAddons.tag }}"
 {{- end }}
 {{- end }}
 {{- if .Values.csi.topology }}
