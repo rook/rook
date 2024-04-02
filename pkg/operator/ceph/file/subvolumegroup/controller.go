@@ -40,6 +40,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -187,7 +188,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		if cephCluster.Spec.External.Enable {
 			logger.Warningf("external subvolume group %q deletion is not supported, delete it manually", namespacedName)
 		} else {
-			err := r.deleteSubVolumeGroup(cephFilesystemSubVolumeGroup)
+			err = r.deleteSubVolumeGroup(cephFilesystemSubVolumeGroup, &cephCluster)
 			if err != nil {
 				if strings.Contains(err.Error(), opcontroller.UninitializedCephConfigError) {
 					logger.Info(opcontroller.OperatorNotInitializedMessage)
@@ -326,7 +327,8 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) createOrUpdateSubVolumeGroup(cep
 }
 
 // Delete the ceph filesystem subvolume group
-func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) error {
+func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup,
+	cephCluster *cephv1.CephCluster) error {
 	namespacedName := fmt.Sprintf("%s/%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Name)
 	logger.Infof("deleting ceph filesystem subvolume group object %q", namespacedName)
 	if err := cephclient.DeleteCephFSSubVolumeGroup(r.context, r.clusterInfo, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup)); err != nil {
@@ -339,7 +341,17 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 		// If the subvolume group has subvolumes the command will fail with:
 		// Error ENOTEMPTY: error in rmdir /volumes/csi
 		if ok && (code == int(syscall.ENOTEMPTY)) {
-			return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q, remove the subvolumes first", cephFilesystemSubVolumeGroup.Name)
+			msg := fmt.Sprintf("failed to delete ceph filesystem subvolume group %q, remove the subvolumes first", cephFilesystemSubVolumeGroup.Name)
+			if opcontroller.ForceDeleteRequested(cephFilesystemSubVolumeGroup.GetAnnotations()) {
+				// cleanup cephFS subvolumes
+				cleanupErr := r.cleanup(cephFilesystemSubVolumeGroup, cephCluster)
+				if cleanupErr != nil {
+					return errors.Wrapf(cleanupErr, "failed to clean up all the ceph resources created by subVolumeGroup %q", namespacedName)
+				}
+				msg = fmt.Sprintf("failed to delete ceph filesystem subvolume group %q, started clean up job to delete the subvolumes", cephFilesystemSubVolumeGroup.Name)
+			}
+
+			return errors.Wrapf(err, msg)
 		}
 
 		return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)
@@ -379,4 +391,21 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(observedGeneration 
 func buildClusterID(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup) string {
 	clusterID := fmt.Sprintf("%s-%s-file-%s", cephFilesystemSubVolumeGroup.Namespace, cephFilesystemSubVolumeGroup.Spec.FilesystemName, getSubvolumeGroupName(cephFilesystemSubVolumeGroup))
 	return k8sutil.Hash(clusterID)
+}
+
+func (r *ReconcileCephFilesystemSubVolumeGroup) cleanup(svg *cephv1.CephFilesystemSubVolumeGroup, cephCluster *cephv1.CephCluster) error {
+	logger.Infof("starting cleanup of the ceph resources for subVolumeGroup %q in namespace %q", svg.Name, svg.Namespace)
+	cleanupConfig := map[string]string{
+		opcontroller.CephFSSubVolumeGroupNameEnv: svg.Spec.Name,
+		opcontroller.CephFSNameEnv:               svg.Spec.FilesystemName,
+		opcontroller.CSICephFSRadosNamesaceEnv:   "csi",
+		opcontroller.CephFSMetaDataPoolNameEnv:   file.GenerateMetaDataPoolName(svg.Spec.FilesystemName),
+	}
+	cleanup := opcontroller.NewResourceCleanup(svg, cephCluster, r.opConfig.Image, cleanupConfig)
+	jobName := k8sutil.TruncateNodeNameForJob("cleanup-svg-%s", fmt.Sprintf("%s-%s", svg.Spec.FilesystemName, svg.Name))
+	err := cleanup.StartJob(r.clusterInfo.Context, r.context.Clientset, jobName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to run clean up job to clean the ceph resources in cephFS subVolumeGroup %q", svg.Name)
+	}
+	return nil
 }
