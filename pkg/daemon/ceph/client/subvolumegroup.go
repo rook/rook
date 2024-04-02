@@ -19,10 +19,12 @@ package client
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -128,4 +130,82 @@ func validatePinningValues(pinning cephv1.CephFilesystemSubVolumeGroupSpecPinnin
 		return nil // pinning disabled
 	}
 	return err
+}
+
+func GetOMAPKey(context *clusterd.Context, clusterInfo *ClusterInfo, omapObj, poolName, namespace string) (string, error) {
+	args := []string{"getomapval", omapObj, "csi.volname", "-p", poolName, "--namespace", namespace, "/dev/stdout"}
+	cmd := NewRadosCommand(context, clusterInfo, args)
+	buf, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to list omapKeys for omapObj %q", omapObj)
+	}
+
+	// Todo: is there a way to avoid this parsing?
+	respStr := string(buf)
+	var pvcName string
+	if len(respStr) != 0 {
+		resp := strings.Split(respStr, "\n")
+		if len(resp) == 2 {
+			pvcName = resp[1]
+		}
+	}
+
+	if pvcName == "" {
+		return "", nil
+	}
+
+	omapKey := fmt.Sprintf("ceph.volume.%s", pvcName)
+	return omapKey, nil
+}
+
+func DeleteOmapValue(context *clusterd.Context, clusterInfo *ClusterInfo, omapValue, poolName, namespace string) error {
+	args := []string{"rm", omapValue, "-p", poolName, "--namespace", namespace}
+	cmd := NewRadosCommand(context, clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete omap value %q in pool %q", omapValue, poolName)
+	}
+	logger.Infof("successfully deleted omap value %q for pool %q", omapValue, poolName)
+	return nil
+}
+
+func DeleteOmapKey(context *clusterd.Context, clusterInfo *ClusterInfo, omapKey, poolName, namespace string) error {
+	args := []string{"rmomapkey", "csi.volumes.default", omapKey, "-p", poolName, "--namespace", namespace}
+	cmd := NewRadosCommand(context, clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete omapKey %q in pool %q", omapKey, poolName)
+	}
+	logger.Infof("successfully deleted omap key %q for pool %q", omapKey, poolName)
+	return nil
+}
+
+func DeleteSubVolume(context *clusterd.Context, clusterInfo *ClusterInfo, fs, subvol, svg string) error {
+	args := []string{"fs", "subvolume", "rm", fs, subvol, svg, "--force"}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete subvolume %q in filesystem %q", subvol, fs)
+	}
+	return nil
+}
+
+func DeleteSubvolumeSnapshot(context *clusterd.Context, clusterInfo *ClusterInfo, fs, subvol, svg, snap string) error {
+	args := []string{"fs", "subvolume", "snapshot", "rm", fs, subvol, snap, "--group_name", svg}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to delete subvolume %q in filesystem %q", subvol, fs)
+	}
+	return nil
+}
+
+func CancelSnapshotClone(context *clusterd.Context, clusterInfo *ClusterInfo, fs, svg, clone string) error {
+	args := []string{"fs", "clone", "cancel", fs, clone, "--group_name", svg}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	_, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return errors.Wrapf(err, "failed to cancel clone %q in filesystem %q in group %q", clone, fs, svg)
+	}
+	return nil
 }

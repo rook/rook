@@ -169,7 +169,7 @@ func newFS(name, namespace string) *Filesystem {
 func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
 	// generating the metadata pool's name
 	metadataPool := cephv1.NamedPoolSpec{
-		Name:     generateMetaDataPoolName(f),
+		Name:     GenerateMetaDataPoolName(f.Name),
 		PoolSpec: spec.MetadataPool,
 	}
 	metadataPool.Application = cephfsApplication
@@ -242,7 +242,7 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 
 	spec.MetadataPool.Application = cephfsApplication
 	metadataPool := cephv1.NamedPoolSpec{
-		Name:     generateMetaDataPoolName(f),
+		Name:     GenerateMetaDataPoolName(f.Name),
 		PoolSpec: spec.MetadataPool,
 	}
 	if _, poolFound := reversedPoolMap[metadataPool.Name]; !poolFound {
@@ -307,7 +307,7 @@ func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 	return dataPoolNames
 }
 
-// generateMetaDataPoolName generates MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
-func generateMetaDataPoolName(f *Filesystem) string {
-	return fmt.Sprintf("%s-%s", f.Name, metaDataPoolSuffix)
+// GenerateMetaDataPoolName generates MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
+func GenerateMetaDataPoolName(fsName string) string {
+	return fmt.Sprintf("%s-%s", fsName, metaDataPoolSuffix)
 }
