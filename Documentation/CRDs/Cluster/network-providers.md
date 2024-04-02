@@ -155,7 +155,7 @@ understand and implement these requirements.
     need to be an order of magnitude larger (or more) than the host address space to allow the
     storage cluster to grow in the future.
 
-If these prerequisites are not achievable, the remaining option is to set the Rook operator config
+If these prerequisites are not achievable, plan to set the Rook operator config
 `CSI_ENABLE_HOST_NETWORK: "false"` as documented in the [CSI Host Networking](#csi-host-networking)
 section.
 
@@ -418,6 +418,24 @@ spec:
     }'
 ```
 
+## Holder Pod Deprecation
+
+Rook plans to remove CSI "holder" pods in Rook v1.16. CephCluster with `csi-*plugin-holder-*` pods
+present in the Rook operator namespace must plan to set `CSI_DISABLE_HOLDER_PODS` to `"true"` after
+Rook v1.14 is installed and before v1.16 is installed by following the migration sections below.
+CephClusters with no holder pods do not need to follow migration steps.
+
+CephClusters that do not use `network.provider: multus` can follow the
+[Disabling Holder Pods](#disabling-holder-pods) section.
+
+CephClusters that use `network.provider: multus` will need to plan the migration more carefully.
+Read the [Disabling Holder Pods with Multus and CSI Host Networking](#disabling-holder-pods-with-multus-and-csi-host-networking)
+section. Decide whether to use CSI host networking or not following the sections below.
+
+!!! hint
+    To determine if holder pods are deployed, use
+    `kubectl --namespace $ROOK_OPERATOR get pods | grep plugin-holder`
+
 ## Modifying CSI networking
 
 ### Disabling Holder Pods with Multus and CSI Host Networking
@@ -515,7 +533,8 @@ If any CephClusters have Multus enabled (`network.provider: "multus"`), follow t
 steps above before continuing.
 
 **Step 2**
-Begin by setting `CSI_DISABLE_HOLDER_PODS: "true"` (and `CSI_ENABLE_HOST_NETWORK: "true"` if desired).
+Begin by setting `CSI_DISABLE_HOLDER_PODS: "true"` -- also set the desired value of
+`CSI_ENABLE_HOST_NETWORK` if needed.
 
 After this, `csi-*plugin-*` pods will restart, and `csi-*plugin-holder-*` pods will remain running.
 
