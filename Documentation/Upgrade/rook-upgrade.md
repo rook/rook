@@ -60,6 +60,10 @@ those releases.
   If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, see the
   [detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
   to disable them. This is optional for v1.14, but will be required in a future release.
+* In the operator helm chart, the images for the CSI driver are now specified with separate
+  `repository` and `tag` values. If the CSI images have been customized, convert them from the
+  `image` value to the separated `repository` and `tag` values.
+
 
 ## Considerations
 
