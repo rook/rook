@@ -790,16 +790,6 @@ rules:
       - update
       - delete
 ---
-kind: Role
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-default
-  namespace: rook-ceph # namespace:cluster
-rules:
-  - apiGroups: [""]
-    resources: [""]
-    verbs: [""]
----
 # Aspects of ceph-mgr that operate within the cluster's namespace
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1044,20 +1034,6 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: rook-ceph-cmd-reporter
-    namespace: rook-ceph # namespace:cluster
----
-kind: RoleBinding
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: rook-ceph-default
-  namespace: rook-ceph # namespace:cluster
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: rook-ceph-default
-subjects:
-  - kind: ServiceAccount
-    name: rook-ceph-default
     namespace: rook-ceph # namespace:cluster
 ---
 # Allow the ceph mgr to access resources scoped to the CephCluster namespace necessary for mgr modules
