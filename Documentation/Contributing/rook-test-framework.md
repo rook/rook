@@ -41,11 +41,11 @@ virtual machine.
 make build
 ```
 
-Tag the newly built images to `rook/ceph:local-build` for running tests, or `rook/ceph:v1.14.0-beta.0` if creating example manifests::
+Tag the newly built images to `rook/ceph:local-build` for running tests, or `rook/ceph:master` if creating example manifests::
 
 ```console
 docker tag $(docker images|awk '/build-/ {print $1}') rook/ceph:local-build
-docker tag rook/ceph:local-build rook/ceph:v1.14.0-beta.0
+docker tag rook/ceph:local-build rook/ceph:master
 ```
 
 ## Run integration tests
