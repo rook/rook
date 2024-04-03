@@ -22,6 +22,7 @@ import (
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +31,7 @@ import (
 )
 
 // updateStatus updates a pool CR with the given status
-func updateStatus(ctx context.Context, client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, info map[string]string, observedGeneration int64) {
+func updateStatus(ctx context.Context, client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
 	pool := &cephv1.CephBlockPool{}
 	err := client.Get(ctx, poolName, pool)
 	if err != nil {
@@ -47,7 +48,7 @@ func updateStatus(ctx context.Context, client client.Client, poolName types.Name
 	}
 
 	pool.Status.Phase = status
-	pool.Status.Info = info
+	updateStatusInfo(pool)
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		pool.Status.ObservedGeneration = observedGeneration
 	}
@@ -129,4 +130,28 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 	}
 
 	return mirroringStatusSpec, mirroringInfoSpec, snapshotScheduleStatusSpec
+}
+
+func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
+	m := make(map[string]string)
+	if cephBlockPool.Status.Phase == cephv1.ConditionReady && cephBlockPool.Spec.Mirroring.Enabled {
+		mirroringInfo := opcontroller.GenerateStatusInfo(cephBlockPool)
+		for key, value := range mirroringInfo {
+			m[key] = value
+		}
+	}
+
+	if cephBlockPool.Spec.IsReplicated() {
+		m["type"] = "Replicated"
+	} else {
+		m["type"] = "Erasure Coded"
+	}
+
+	if cephBlockPool.Spec.FailureDomain != "" {
+		m["failureDomain"] = cephBlockPool.Spec.FailureDomain
+	} else {
+		m["failureDomain"] = cephv1.DefaultFailureDomain
+	}
+
+	cephBlockPool.Status.Info = m
 }
