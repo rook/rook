@@ -23,3 +23,4 @@
 - Support for virtual style hosting for s3 buckets in the CephObjectStore.
 - Add option to specify prefix for the OBC provisioner.
 - Support Azure Key Vault for storing OSD encryption keys.
+- Separate image repository and tag values in the helm chart for the CSI images.
