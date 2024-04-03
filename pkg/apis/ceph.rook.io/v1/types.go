@@ -694,6 +694,12 @@ type CrashCollectorSpec struct {
 
 // CephBlockPool represents a Ceph Storage Pool
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Type",type=string,JSONPath=`.status.info.type`
+// +kubebuilder:printcolumn:name="FailureDomain",type=string,JSONPath=`.status.info.failureDomain`
+// +kubebuilder:printcolumn:name="Replication",type=integer,JSONPath=`.spec.replicated.size`,priority=1
+// +kubebuilder:printcolumn:name="EC-CodingChunks",type=integer,JSONPath=`.spec.erasureCoded.codingChunks`,priority=1
+// +kubebuilder:printcolumn:name="EC-DataChunks",type=integer,JSONPath=`.spec.erasureCoded.dataChunks`,priority=1
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBlockPool struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1401,6 +1407,9 @@ type PeerStatSpec struct {
 
 // CephObjectStore represents a Ceph Object Store Gateway
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Endpoint",type=string,JSONPath=`.status.info.endpoint`
+// +kubebuilder:printcolumn:name="SecureEndpoint",type=string,JSONPath=`.status.info.secureEndpoint`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1664,6 +1673,7 @@ type ObjectStoreHostingSpec struct {
 // CephObjectStoreUser represents a Ceph Object Store Gateway User
 // +kubebuilder:resource:shortName=rcou;objectuser
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1841,6 +1851,7 @@ type PullSpec struct {
 
 // CephObjectZoneGroup represents a Ceph Object Store Gateway Zone Group
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectZoneGroup struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1871,6 +1882,7 @@ type ObjectZoneGroupSpec struct {
 
 // CephObjectZone represents a Ceph Object Store Gateway Zone
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephObjectZone struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -1933,6 +1945,7 @@ type ObjectZoneSpec struct {
 
 // CephBucketTopic represents a Ceph Object Topic for Bucket Notifications
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephBucketTopic struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2569,6 +2582,7 @@ type DisruptionManagementSpec struct {
 
 // CephClient represents a Ceph Client
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephClient struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2656,6 +2670,7 @@ type SanitizeDisksSpec struct {
 
 // CephRBDMirror represents a Ceph RBD Mirror
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephRBDMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2727,6 +2742,7 @@ type MirroringPeerSpec struct {
 
 // CephFilesystemMirror is the Ceph Filesystem Mirror object definition
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephFilesystemMirror struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -2961,6 +2977,7 @@ type StorageClassDeviceSet struct {
 
 // CephFilesystemSubVolumeGroup represents a Ceph Filesystem SubVolumeGroup
 // +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 // +kubebuilder:subresource:status
 type CephFilesystemSubVolumeGroup struct {
 	metav1.TypeMeta   `json:",inline"`
