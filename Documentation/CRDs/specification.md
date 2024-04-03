@@ -5556,7 +5556,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.</p>
+<p>The IP of this endpoint. As a legacy behavior, this supports being given a DNS-addressable hostname as well.</p>
 </td>
 </tr>
 <tr>

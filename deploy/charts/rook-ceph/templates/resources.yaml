@@ -10313,7 +10313,7 @@ spec:
                             description: The DNS-addressable Hostname of this endpoint. This field will be preferred over IP if both are given.
                             type: string
                           ip:
-                            description: The IP of this endpoint. As a legacy behavior, this supports being given a DNS-adressable hostname as well.
+                            description: The IP of this endpoint. As a legacy behavior, this supports being given a DNS-addressable hostname as well.
                             type: string
                         type: object
                         x-kubernetes-map-type: atomic
