@@ -1587,13 +1587,13 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        run: IS_LEGACY_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
 
       - name: wait for cephnfs to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
+        run: IS_LEGACY_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
 
       - name: check multus connections
         run: tests/scripts/github-action-helper.sh test_multus_connections
@@ -1614,7 +1614,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
           additional-namespace: kube-system
 
-  csi-hostnetwork-disabled:
+  csi-hostnetwork-disabled-legacy:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
@@ -1652,7 +1652,65 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        run: |
+          # Added 'IS_LEGACY_MULTUS=true' as this implementation is same as multus where holder pod is deployed
+          IS_LEGACY_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+
+      - name: wait for ceph-csi configmap to be updated with network namespace
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
+
+      - name: test ceph-csi-rbd plugin restart
+        run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
+
+      - name: test ceph-csi-cephfs plugin restart
+        run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
+
+      - name: test ceph-csi-nfs plugin restart
+        run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
+
+
+  csi-hostnetwork-disabled:
+    runs-on: ubuntu-20.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+      - name: deploy CSI hostNetworking disabled cluster
+        run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
