@@ -1087,7 +1087,7 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
-  encryption-pvc-kms-vault-k:
+  encryption-pvc-kms-vault-k8s-auth:
     runs-on: ubuntu-20.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
