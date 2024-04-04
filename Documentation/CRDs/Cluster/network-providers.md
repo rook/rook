@@ -79,27 +79,6 @@ to or from host networking after you update this setting, you will need to
 [failover the mons](../../Storage-Configuration/Advanced/ceph-mon-health.md#failing-over-a-monitor)
 in order to have mons on the desired network configuration.
 
-## CSI Host Networking
-
-Host networking for CSI pods is controlled independently from CephCluster networking. CSI can be
-deployed with host networking or pod networking. CSI uses host networking by default, which is the
-recommended configuration. CSI can be forced to use pod networking by setting the operator config
-`CSI_ENABLE_HOST_NETWORK: "false"`.
-
-When CSI uses pod networking (`"false"` value), it is critical that `csi-rbdplugin`,
-`csi-cephfsplugin`, and `csi-nfsplugin` pods are not deleted or updated without following a special
-process outlined below. If one of these pods is deleted, it will cause all existing PVCs on the
-pod's node to hang permanently until all application pods are restarted.
-
-The process for updating CSI plugin pods is to follow the following steps on each Kubernetes node
-sequentially:
-1. `cordon` and `drain` the node
-2. When the node is drained, delete the plugin pod on the node (optionally, the node can be rebooted)
-3. `uncordon` the node
-4. Proceed to the next node when pods on the node rerun and stabilize
-
-For modifications, see [Modifying CSI Networking](#modifying-csi-networking).
-
 ## Multus
 `network.provider: multus`
 
@@ -113,13 +92,6 @@ specific host interfaces. This improves latency and bandwidth while preserving h
 isolation.
 
 ### Multus Prerequisites
-
-These prerequisites apply when:
-- CephCluster `network.selector['public']` is specified, AND
-- Operator config `CSI_ENABLE_HOST_NETWORK` is `"true"` (or unspecified), AND
-- Operator config `CSI_DISABLE_HOLDER_PODS` is `"true"`
-
-If any of the above do not apply, these prerequisites can be skipped.
 
 In order for host network-enabled Ceph-CSI to communicate with a Multus-enabled CephCluster, some
 setup is required for Kubernetes hosts.
@@ -154,10 +126,6 @@ understand and implement these requirements.
     Keep in mind that there are often ten or more Rook/Ceph pods per host. The pod address space may
     need to be an order of magnitude larger (or more) than the host address space to allow the
     storage cluster to grow in the future.
-
-If these prerequisites are not achievable, plan to set the Rook operator config
-`CSI_ENABLE_HOST_NETWORK: "false"` as documented in the [CSI Host Networking](#csi-host-networking)
-section.
 
 ### Multus Configuration
 
@@ -425,28 +393,23 @@ present in the Rook operator namespace must plan to set `CSI_DISABLE_HOLDER_PODS
 Rook v1.14 is installed and before v1.16 is installed by following the migration sections below.
 CephClusters with no holder pods do not need to follow migration steps.
 
+Helm users will set `csi.disableHolderPods: true` in values.yaml instead of `CSI_DISABLE_HOLDER_PODS`.
+
 CephClusters that do not use `network.provider: multus` can follow the
 [Disabling Holder Pods](#disabling-holder-pods) section.
 
 CephClusters that use `network.provider: multus` will need to plan the migration more carefully.
-Read the [Disabling Holder Pods with Multus and CSI Host Networking](#disabling-holder-pods-with-multus-and-csi-host-networking)
-section. Decide whether to use CSI host networking or not following the sections below.
+Read the [Disabling Holder Pods with Multus](#disabling-holder-pods-with-multus) section in full
+before beginning.
 
 !!! hint
     To determine if holder pods are deployed, use
     `kubectl --namespace $ROOK_OPERATOR get pods | grep plugin-holder`
 
-## Modifying CSI networking
+### Disabling Holder Pods with Multus
 
-### Disabling Holder Pods with Multus and CSI Host Networking
-
-This migration section applies in the following scenarios:
-- CephCluster `network.provider` is `"multus"`, AND
-- Operator config `CSI_DISABLE_HOLDER_PODS` is changed to `"true"`, AND
-- Operator config `CSI_ENABLE_HOST_NETWORK` is (or is modified to be) `"true"`
-
-If the scenario does not apply, skip ahead to the
-[Disabling Holder Pods](#disabling-holder-pods) section below.
+This migration section applies when any CephCluster `network.provider` is `"multus"`. If the
+scenario does not apply, skip ahead to the [Disabling Holder Pods](#disabling-holder-pods) section.
 
 **Step 1**
 Before setting `CSI_ENABLE_HOST_NETWORK: "true"` and `CSI_DISABLE_HOLDER_PODS: "true"`, thoroughly
@@ -525,16 +488,14 @@ If the above check succeeds for all nodes, proceed with the
 
 ### Disabling Holder Pods
 
-This migration section applies when `CSI_DISABLE_HOLDER_PODS` is changed to `"true"`.
-
 **Step 1**
 If any CephClusters have Multus enabled (`network.provider: "multus"`), follow the
-[Disabling Holder Pods with Multus and CSI Host Networking](#disabling-holder-pods-with-multus-and-csi-host-networking)
+[Disabling Holder Pods with Multus](#disabling-holder-pods-with-multus)
 steps above before continuing.
 
 **Step 2**
-Begin by setting `CSI_DISABLE_HOLDER_PODS: "true"` -- also set the desired value of
-`CSI_ENABLE_HOST_NETWORK` if needed.
+Begin by setting `CSI_DISABLE_HOLDER_PODS: "true"`. If `CSI_ENABLE_HOST_NETWORK` is set to
+`"false"`, also set this value to `"true"` at the same time.
 
 After this, `csi-*plugin-*` pods will restart, and `csi-*plugin-holder-*` pods will remain running.
 
@@ -580,31 +541,4 @@ daemonset.apps "csi-rbdplugin-holder-my-cluster" deleted
 ```
 
 **Step 6**
-The migration is now complete! Congratulations!
-
-### Applying CSI Networking
-
-This migration section applies in the following scenario:
-- `CSI_ENABLE_HOST_NETWORK` is modified, AND
-- `CSI_DISABLE_HOLDER_PODS` is `"true"`
-
-**Step 1**
-If `CSI_DISABLE_HOLDER_PODS` is unspecified or is `"false"`, follow the
-[Disabling Holder Pods](#disabling-holder-pods) section first.
-
-**Step 2**
-Begin by setting the desired `CSI_ENABLE_HOST_NETWORK` value.
-
-**Step 3**
-At this stage, PVCs for running applications are still using the the old network. These PVCs must be
-migrated to the new network. Follow the below process to do so.
-
-For each node in the Kubernetes cluster:
-1. `cordon` and `drain` the node
-2. Wait for all pods to drain
-3. `uncordon` and `undrain` the node
-4. Wait for the node to be rehydrated and stable
-5. Proceed to the next node
-
-**Step 4**
 The migration is now complete! Congratulations!

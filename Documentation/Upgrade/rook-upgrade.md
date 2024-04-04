@@ -112,7 +112,7 @@ The upgrade steps in this guide will clarify what Helm handles automatically.
 
 !!! important
     If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, set the new
-    config `disableHolderPods: false` in the values.yaml before upgrading to v1.14.
+    config `csi.disableHolderPods: false` in the values.yaml before upgrading to v1.14.
 
 The `rook-ceph` helm chart upgrade performs the Rook upgrade.
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](#ceph-version-upgrades) if the Ceph image is updated.
