@@ -3016,6 +3016,12 @@ type CephFilesystemSubVolumeGroupSpec struct {
 	// only one out of (export, distributed, random) can be set at a time
 	// +optional
 	Pinning CephFilesystemSubVolumeGroupSpecPinning `json:"pinning,omitempty"`
+	// Quota size of the Ceph Filesystem subvolume group.
+	// +optional
+	Quota *resource.Quantity `json:"quota,omitempty"`
+	// The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
+	// +optional
+	DataPoolName string `json:"dataPoolName"`
 }
 
 // CephFilesystemSubVolumeGroupSpecPinning represents the pinning configuration of SubVolumeGroup
