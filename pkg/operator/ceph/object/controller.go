@@ -559,8 +559,10 @@ func (r *ReconcileCephObjectStore) reconcileCOSIUser(cephObjectStore *cephv1.Cep
 		}
 	}
 
+	// if vhost is enabled then select from dnsNames
+	endpointForCOSIBucket := GetDomainName(cephObjectStore, true)
 	// Create COSI user secret
-	return ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStore, &user, objCtx.Endpoint, cephObjectStore.Namespace, cephObjectStore.Name, cephObjectStore.Spec.Gateway.SSLCertificateRef)
+	return ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStore, &user, endpointForCOSIBucket, cephObjectStore.Namespace, cephObjectStore.Name, cephObjectStore.Spec.Gateway.SSLCertificateRef)
 }
 
 func generateCOSIUserConfig() *admin.User {

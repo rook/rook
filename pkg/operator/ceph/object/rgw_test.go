@@ -208,7 +208,7 @@ func TestBuildDomainNameAndEndpoint(t *testing.T) {
 			Namespace: "rook-ceph",
 		},
 	}
-	dns := GetDomainName(s)
+	dns := GetDomainName(s, false)
 	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph.svc", dns)
 
 	// non-secure endpoint
