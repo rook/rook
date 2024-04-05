@@ -652,7 +652,9 @@ metadata:
   name: ` + groupName + `
   namespace: ` + m.settings.Namespace + `
 spec:
-  filesystemName: ` + fsName
+  filesystemName: ` + fsName + `
+  quota: 10G
+  dataPoolName: ` + fsName + "-data0"
 }
 
 func (m *CephManifestsMaster) GetCOSIDriver() string {

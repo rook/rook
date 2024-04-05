@@ -17,3 +17,7 @@ spec:
     distributed: 1            # distributed=<0, 1> (disabled=0)
     # export:                 # export=<0-256> (disabled=-1)
     # random:                 # random=[0.0, 1.0](disabled=0.0)
+  # Quota size of the subvolume group.
+  #quota: 10G
+  # data pool name for the subvolume group layout instead of the default data pool.
+  #dataPoolName: myfs-replicated
