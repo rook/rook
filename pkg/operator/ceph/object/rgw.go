@@ -348,9 +348,6 @@ func getDomainName(s *cephv1.CephObjectStore, returnRandomDomainIfMultiple bool)
 		for _, e := range s.Spec.Gateway.ExternalRgwEndpoints {
 			endpoints = append(endpoints, e.String())
 		}
-	} else if s.Spec.Hosting != nil && len(s.Spec.Hosting.DNSNames) > 0 {
-		// if the store is internal and has DNS names, pick a random DNS name to use
-		endpoints = s.Spec.Hosting.DNSNames
 	} else {
 		return domainNameOfService(s)
 	}
