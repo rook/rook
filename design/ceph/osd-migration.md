@@ -166,7 +166,7 @@ The OSD prepare pod job will destroy an OSD using following steps:
 
 ## Planning
 
-These changes require ignificant developemnt effort to migrate existing OSDs to use a new backend.
+These changes require significant development effort to migrate existing OSDs to use a new backend.
 They will be divided into following phases:
 * New OSDs (greenfield).
 * Migrating existing OSDs on PVC without metadata devices.
