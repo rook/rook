@@ -107,14 +107,14 @@ Two basic requirements must be met:
 These two requirements can be broken down further as follows:
 
 1. For routing Kubernetes hosts to the Multus public network, each host must ensure the following:
-   1. the host must have an interface connected to the Multus public network (the "public-network-interface").
-   2. the "public-network-interface" must have an IP address.
-   3. a route must exist to direct traffic destined for pods on the Multus public network through
-      the "public-network-interface".
+    1. the host must have an interface connected to the Multus public network (the "public-network-interface").
+    2. the "public-network-interface" must have an IP address.
+    3. a route must exist to direct traffic destined for pods on the Multus public network through
+       the "public-network-interface".
 2. For routing pods on the Multus public network to Kubernetes hosts, the public
    NetworkAttachementDefinition must be configured to ensure the following:
-  1. The definition must have its IP Address Management (IPAM) configured to route traffic destined
-     for nodes through the network.
+    1. The definition must have its IP Address Management (IPAM) configured to route traffic destined
+       for nodes through the network.
 3. To ensure routing between the two networks works properly, no IP address assigned to a node can
    overlap with any IP address assigned to a pod on the Multus public network.
 
@@ -233,6 +233,7 @@ writing it's unclear when this will be supported.
 #### Macvlan, Whereabouts, Node Dynamic IPs
 
 The network plan for this cluster will be as follows:
+
 - The underlying network supporting the public network will be attached to hosts at `eth0`
 - Macvlan will be used to attach pods to `eth0`
 - Pods and nodes will have separate IP ranges
@@ -291,6 +292,7 @@ spec:
 #### Macvlan, Whereabouts, Node Static IPs
 
 The network plan for this cluster will be as follows:
+
 - The underlying network supporting the public network will be attached to hosts at `eth0`
 - Macvlan will be used to attach pods to `eth0`
 - Pods and nodes will share the IP range 192.168.0.0/16
@@ -349,6 +351,7 @@ spec:
 #### Macvlan, DHCP
 
 The network plan for this cluster will be as follows:
+
 - The underlying network supporting the public network will be attached to hosts at `eth0`
 - Macvlan will be used to attach pods to `eth0`
 - Pods and nodes will share the IP range 192.168.0.0/16
@@ -412,6 +415,7 @@ This migration section applies when any CephCluster `network.provider` is `"mult
 scenario does not apply, skip ahead to the [Disabling Holder Pods](#disabling-holder-pods) section.
 
 **Step 1**
+
 Before setting `CSI_ENABLE_HOST_NETWORK: "true"` and `CSI_DISABLE_HOLDER_PODS: "true"`, thoroughly
 read through the [Multus Prerequisites section](#multus-prerequisites). Use the prerequisites
 section to develop a plan for modifying host configurations as well as the public
@@ -420,21 +424,25 @@ NetworkAttachmentDefinition.
 Once the plan is developed, execute the plan by following the steps below.
 
 **Step 2**
+
 First, modify the public NetworkAttachmentDefinition as needed. For example, it may be necessary to
 add the `routes` directive to the Whereabouts IPAM configuration as in
 [this example](#macvlan-whereabouts-node-static-ips).
 
 **Step 3**
+
 Next, modify the host configurations in the host configuration system. The host configuration system
 may be something like PXE, ignition config, cloud-init, Ansible, or any other such system. A node
 reboot is likely necessary to apply configuration updates, but wait until the next step to reboot
 nodes.
 
 **Step 4**
+
 After the NetworkAttachmentDefinition is modified, OSD pods must be restarted. It is easiest to
 complete this requirement at the same time nodes are being rebooted to apply configuration updates.
 
 For each node in the Kubernetes cluster:
+
 1. `cordon` and `drain` the node
 2. Wait for all pods to drain
 3. Reboot the node, ensuring the new host configuration will be applied
@@ -448,6 +456,7 @@ restarted as part of the `drain` and `undrain` process on each node.
 OSDs can be restarted manually if node configuration updates do not require reboot.
 
 **Step 5**
+
 Once all nodes are running the new configuration and all OSDs have been restarted, check that the
 new node and NetworkAttachmentDefinition configurations are compatible. To do so, verify that each
 node can `ping` OSD pods via the public network.
@@ -483,23 +492,27 @@ direction, or the network switch may have a firewall rule blocking the connectio
 the issue, then return to **Step 1**.
 
 **Step 6**
+
 If the above check succeeds for all nodes, proceed with the
 [Disabling Holder Pods](#disabling-holder-pods) steps below.
 
 ### Disabling Holder Pods
 
 **Step 1**
+
 If any CephClusters have Multus enabled (`network.provider: "multus"`), follow the
 [Disabling Holder Pods with Multus](#disabling-holder-pods-with-multus)
 steps above before continuing.
 
 **Step 2**
+
 Begin by setting `CSI_DISABLE_HOLDER_PODS: "true"`. If `CSI_ENABLE_HOST_NETWORK` is set to
 `"false"`, also set this value to `"true"` at the same time.
 
 After this, `csi-*plugin-*` pods will restart, and `csi-*plugin-holder-*` pods will remain running.
 
 **Step 3**
+
 Check that CSI pods are using the correct host networking configuration using the example below as
 guidance (in the example, `CSI_ENABLE_HOST_NETWORK` is `"true"`):
 ```console
@@ -512,10 +525,12 @@ $ kubectl -n rook-ceph get -o yaml daemonsets.apps csi-nfsplugin | grep -i hostn
 ```
 
 **Step 4**
+
 At this stage, PVCs for running applications are still using the holder pods. These PVCs must be
 migrated from the holder to the new network. Follow the below process to do so.
 
 For each node in the Kubernetes cluster:
+
 1. `cordon` and `drain` the node
 2. Wait for all pods to drain
 3. Delete all `csi-*plugin-holder*` pods on the node (a new holder will take it's place)
@@ -524,6 +539,7 @@ For each node in the Kubernetes cluster:
 6. Proceed to the next node
 
 **Step 5**
+
 After this process is done for all Kubernetes nodes, it is safe to delete the `csi-*plugin-holder*`
 daemonsets.
 
@@ -541,4 +557,5 @@ daemonset.apps "csi-rbdplugin-holder-my-cluster" deleted
 ```
 
 **Step 6**
+
 The migration is now complete! Congratulations!
