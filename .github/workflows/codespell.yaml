@@ -48,3 +48,12 @@ jobs:
           ignore_words_list: aks,keyserver,atleast,ser,ist,ba,iam,te,parm,assigment,ro,RO
           check_filenames: true
           check_hidden: true
+  misspell:
+    name: misspell
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: misspell
+        uses: reviewdog/action-misspell@v1
