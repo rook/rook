@@ -100,7 +100,7 @@ func GetCleanupResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCleanup]
 }
 
-// GetCleanupResources returns the placement for the cleanup job
+// GetCephExporterResources returns the placement for the cleanup job
 func GetCephExporterResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCephExporter]
 }

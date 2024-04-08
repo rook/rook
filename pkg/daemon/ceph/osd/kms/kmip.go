@@ -81,7 +81,7 @@ type kmipKMS struct {
 	writeTimeout uint8
 }
 
-// InitKKMIP initializes the KMIP KMS.
+// InitKMIP initializes the KMIP KMS.
 func InitKMIP(config map[string]string) (*kmipKMS, error) {
 	kms := &kmipKMS{}
 

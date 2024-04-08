@@ -237,7 +237,7 @@ func mockExecCommand(command string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-// TestHelperProcess isn't a real test. It's used as a helper process
+// TestCmdReporterHelperProcess isn't a real test. It's used as a helper process
 // for TestParameterRun.
 // Inspired by: https://github.com/golang/go/blob/master/src/os/exec/exec_test.go
 func TestCmdReporterHelperProcess(*testing.T) {
