@@ -95,6 +95,15 @@ func (c *clusterConfig) createOrUpdateStore(realmName, zoneGroupName, zoneName s
 	return nil
 }
 
+func GenerateRandomString(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz"
+	result := make([]byte, length)
+	for i := range result {
+		result[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(result)
+}
+
 func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) error {
 	// backward compatibility, triggered during updates
 	if c.store.Spec.Gateway.Instances < 1 {
@@ -114,6 +123,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 	for i := 0; i < desiredRgwInstances; i++ {
 		var err error
 
+		randId := GenerateRandomString(6)
 		daemonLetterID := k8sutil.IndexToName(i)
 
 		if rgwsToSkipReconcile.Has(daemonLetterID) {
@@ -122,9 +132,9 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string) 
 		}
 
 		// Each rgw is id'ed by <store_name>-<letterID>
-		daemonName := fmt.Sprintf("%s-%s", c.store.Name, daemonLetterID)
+		daemonName := fmt.Sprintf("%s-%s-%s", c.store.Name, daemonLetterID, randId)
 		// resource name is rook-ceph-rgw-<store_name>-<daemon_name>
-		resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.store.Name, daemonLetterID)
+		resourceName := fmt.Sprintf("%s-%s-%s-%s", AppName, c.store.Name, daemonLetterID, randId)
 
 		rgwConfig := &rgwConfig{
 			ResourceName: resourceName,
