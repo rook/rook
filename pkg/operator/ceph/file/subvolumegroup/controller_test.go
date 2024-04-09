@@ -338,3 +338,29 @@ func Test_buildClusterID(t *testing.T) {
 	clusterID := buildClusterID(cephFilesystemSubVolumeGroup)
 	assert.Equal(t, "29e92135b7e8c014079b9f9f3566777d", clusterID)
 }
+
+func Test_formatPinning(t *testing.T) {
+	pinning := &cephv1.CephFilesystemSubVolumeGroupSpecPinning{}
+	pinningStatus := formatPinning(*pinning)
+	assert.Equal(t, "distributed=1", pinningStatus)
+
+	distributedValue := 0
+	pinning.Distributed = &distributedValue
+	pinningStatus = formatPinning(*pinning)
+	assert.Equal(t, "distributed=0", pinningStatus)
+
+	pinning.Distributed = nil
+
+	exportValue := 42
+	pinning.Export = &exportValue
+	pinningStatus = formatPinning(*pinning)
+	assert.Equal(t, "export=42", pinningStatus)
+
+	pinning.Export = nil
+
+	randomValue := 0.31
+	pinning.Random = &randomValue
+	pinningStatus = formatPinning(*pinning)
+	assert.Equal(t, "random=0.31", pinningStatus)
+
+}

@@ -170,6 +170,9 @@ func PinCephFSSubVolumeGroup(context *clusterd.Context, clusterInfo *ClusterInfo
 	return nil
 }
 
+// validateConfiguration validates the provided pinning configuration.
+// despite CRD validation, this ensures no duplicate values are set programmatically
+// and to safeguard against potential internal changes of the configuration.
 func validatePinningValues(pinning cephv1.CephFilesystemSubVolumeGroupSpecPinning) error {
 	numNils := 0
 	var err error
@@ -190,11 +193,11 @@ func validatePinningValues(pinning cephv1.CephFilesystemSubVolumeGroupSpecPinnin
 	if pinning.Random != nil {
 		numNils++
 		if (*pinning.Random < 0) || (*pinning.Random > 1.0) {
-			err = errors.Errorf("validate pinning type failed, Random: value %.2f is not between 0.0 and 1.1 (inclusive)", *pinning.Random)
+			err = errors.Errorf("validate pinning type failed, Random: value %.2f is not between 0.0 and 1.0 (inclusive)", *pinning.Random)
 		}
 	}
 	if numNils > 1 {
-		return fmt.Errorf("only one can be set")
+		return fmt.Errorf("only one pinning type can be set at a time")
 	}
 	if numNils == 0 {
 		return nil // pinning disabled
