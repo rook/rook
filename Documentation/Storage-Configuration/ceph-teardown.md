@@ -200,6 +200,7 @@ Once the cleanup job is completed successfully, Rook will remove the finalizers 
 
 This cleanup is supported only for the following custom resources:
 
-| Custom Resource                                | Ceph Resources to be cleaned up |
-| --------                                       | ------- |
-| CephFilesystemSubVolumeGroup                   | CSI stored RADOS OMAP details for pvc/volumesnapshots, subvolume snapshots, subvolume clones, subvolumes |
+| Custom Resource                      | Ceph Resources to be cleaned up |
+| --------                             | ------- |
+| CephFilesystemSubVolumeGroup         | CSI stored RADOS OMAP details for pvc/volumesnapshots, subvolume snapshots, subvolume clones, subvolumes |
+| CephBlockPoolRadosNamespace          | Images and snapshots in the RADOS namespace|

@@ -40,6 +40,10 @@ const (
 	CephFSNameEnv               = "FILESYSTEM_NAME"
 	CSICephFSRadosNamesaceEnv   = "CSI_CEPHFS_RADOS_NAMESPACE"
 	CephFSMetaDataPoolNameEnv   = "METADATA_POOL_NAME"
+
+	// cephblockpoolradosnamespace env resources
+	CephBlockPoolNameEnv           = "BLOCKPOOL_NAME"
+	CephBlockPoolRadosNamespaceEnv = "RADOS_NAMESPACE"
 )
 
 // ResourceCleanup defines an rook ceph resource to be cleaned up

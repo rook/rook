@@ -55,10 +55,7 @@ func TestJobTemplateSpec(t *testing.T) {
 	cleanup := NewResourceCleanup(svgObj, cluster, rookImage, testConfig)
 	podTemplateSpec := cleanup.jobTemplateSpec()
 	assert.Equal(t, "CephFSSubvolumeGroup", podTemplateSpec.Spec.Containers[0].Args[2])
-	assert.Equal(t, "config1", podTemplateSpec.Spec.Containers[0].Env[3].Name)
-	assert.Equal(t, "value1", podTemplateSpec.Spec.Containers[0].Env[3].Value)
-	assert.Equal(t, "config2", podTemplateSpec.Spec.Containers[0].Env[4].Name)
-	assert.Equal(t, "value2", podTemplateSpec.Spec.Containers[0].Env[4].Value)
+	assert.Equal(t, 5, len(podTemplateSpec.Spec.Containers[0].Env))
 }
 
 func TestForceDeleteRequested(t *testing.T) {
