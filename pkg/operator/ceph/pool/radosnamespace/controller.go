@@ -189,6 +189,12 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 					logger.Info(opcontroller.OperatorNotInitializedMessage)
 					return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
 				}
+				if opcontroller.ForceDeleteRequested(cephBlockPoolRadosNamespace.GetAnnotations()) {
+					cleanupErr := r.cleanup(cephBlockPoolRadosNamespace, &cephCluster)
+					if cleanupErr != nil {
+						return reconcile.Result{}, errors.Wrapf(cleanupErr, "failed to create clean up job for ceph blockpool rados namespace %q", namespacedName)
+					}
+				}
 				return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph blockpool rados namespace %q", cephBlockPoolRadosNamespace.Name)
 			}
 		}
@@ -355,4 +361,19 @@ func (r *ReconcileCephBlockPoolRadosNamespace) updateStatus(client client.Client
 func buildClusterID(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace) string {
 	clusterID := fmt.Sprintf("%s-%s-block-%s", cephBlockPoolRadosNamespace.Namespace, cephBlockPoolRadosNamespace.Spec.BlockPoolName, getRadosNamespaceName(cephBlockPoolRadosNamespace))
 	return k8sutil.Hash(clusterID)
+}
+
+func (r *ReconcileCephBlockPoolRadosNamespace) cleanup(radosNamespace *cephv1.CephBlockPoolRadosNamespace, cephCluster *cephv1.CephCluster) error {
+	logger.Infof("starting cleanup of the ceph resources for radosNamesapce %q in namespace %q", radosNamespace.Name, radosNamespace.Namespace)
+	cleanupConfig := map[string]string{
+		opcontroller.CephBlockPoolNameEnv:           radosNamespace.Spec.BlockPoolName,
+		opcontroller.CephBlockPoolRadosNamespaceEnv: getRadosNamespaceName(radosNamespace),
+	}
+	cleanup := opcontroller.NewResourceCleanup(radosNamespace, cephCluster, r.opConfig.Image, cleanupConfig)
+	jobName := k8sutil.TruncateNodeNameForJob("cleanup-radosnamespace-%s", fmt.Sprintf("%s-%s", radosNamespace.Spec.BlockPoolName, radosNamespace.Name))
+	err := cleanup.StartJob(r.clusterInfo.Context, r.context.Clientset, jobName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to run clean up job to clean the ceph resources in radosNamesapce %q", radosNamespace.Name)
+	}
+	return nil
 }
