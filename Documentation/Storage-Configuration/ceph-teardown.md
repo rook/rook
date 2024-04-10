@@ -2,6 +2,11 @@
 title: Cleanup
 ---
 
+Rook provides the following clean up options:
+
+1. [Uninstall: Clean up the entire cluster and delete all data](#cleaning-up-a-cluster)
+1. [Force delete individual resources](#force-delete-resources)
+
 ## Cleaning up a Cluster
 
 To tear down the cluster, the following resources need to be cleaned up:
@@ -179,3 +184,22 @@ If the operator is not able to remove the finalizers (i.e., the operator is not 
 kubectl -n rook-ceph patch configmap rook-ceph-mon-endpoints --type merge -p '{"metadata":{"finalizers": []}}'
 kubectl -n rook-ceph patch secrets rook-ceph-mon --type merge -p '{"metadata":{"finalizers": []}}'
 ```
+
+## Force Delete Resources
+
+To keep your data safe in the cluster, Rook disallows deleting critical cluster resources by default. To override this behavior and force delete a specific custom resource, add the annotation `rook.io/force-deletion="true"` to the resource and then delete it. Rook will start a cleanup job that will delete all the related ceph resources created by that custom resource.
+
+For example, run the following commands to clean the `CephFilesystemSubVolumeGroup` resource named `my-subvolumegroup`
+
+``` console
+kubectl -n rook-ceph annotate cephfilesystemsubvolumegroups.ceph.rook.io my-subvolumegroup rook.io/force-deletion="true"
+kubectl -n rook-ceph delete cephfilesystemsubvolumegroups.ceph.rook.io my-subvolumegroup
+```
+
+Once the cleanup job is completed successfully, Rook will remove the finalizers from the deleted custom resource.
+
+This cleanup is supported only for the following custom resources:
+
+| Custom Resource                                | Ceph Resources to be cleaned up |
+| --------                                       | ------- |
+| CephFilesystemSubVolumeGroup                   | CSI stored RADOS OMAP details for pvc/volumesnapshots, subvolume snapshots, subvolume clones, subvolumes |
