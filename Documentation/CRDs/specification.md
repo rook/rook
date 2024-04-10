@@ -1562,6 +1562,30 @@ reference <a href="https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-su
 only one out of (export, distributed, random) can be set at a time</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>quota</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Quota size of the Ceph Filesystem subvolume group.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3700,6 +3724,30 @@ CephFilesystemSubVolumeGroupSpecPinning
 <p>Pinning configuration of CephFilesystemSubVolumeGroup,
 reference <a href="https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups">https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups</a>
 only one out of (export, distributed, random) can be set at a time</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>quota</code><br/>
+<em>
+k8s.io/apimachinery/pkg/api/resource.Quantity
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Quota size of the Ceph Filesystem subvolume group.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.</p>
 </td>
 </tr>
 </tbody>

@@ -233,6 +233,8 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				return `{"standbys":[], "filesystems":[]}`, nil
 			} else if reflect.DeepEqual(args[0:5], []string{"fs", "subvolumegroup", "create", fsName, defaultCSISubvolumeGroup}) {
 				return "", nil
+			} else if reflect.DeepEqual(args[0:5], []string{"fs", "subvolumegroup", "info", fsName, defaultCSISubvolumeGroup}) {
+				return "", nil
 			} else if contains(args, "osd") && contains(args, "lspools") {
 				return "[]", nil
 			} else if contains(args, "mds") && contains(args, "fail") {

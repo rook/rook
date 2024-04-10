@@ -32,6 +32,10 @@ spec:
     distributed: 1            # distributed=<0, 1> (disabled=0)
     # export:                 # export=<0-256> (disabled=-1)
     # random:                 # random=[0.0, 1.0](disabled=0.0)
+  # Quota size of the subvolume group.
+  #quota: 10G
+  # data pool name for the subvolume group layout instead of the default data pool.
+  #dataPoolName: myfs-replicated
 ```
 
 ## Settings
@@ -48,7 +52,11 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 * `filesystemName`: The metadata name of the CephFilesystem CR where the subvolume group will be created.
 
-* `pinning`: To distribute load across MDS ranks in predictable and stable ways. Reference: https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups.
+* `quota`: Quota size of the Ceph Filesystem subvolume group.
+
+* `dataPoolName`: The data pool name for the subvolume group layout instead of the default data pool.
+
+* `pinning`: To distribute load across MDS ranks in predictable and stable ways. See the Ceph doc for [Pinning subvolume groups](https://docs.ceph.com/en/latest/cephfs/fs-volumes/#pinning-subvolumes-and-subvolume-groups).
     * `distributed`: Range: <0, 1>, for disabling it set to 0
     * `export`: Range: <0-256>, for disabling it set to -1
     * `random`: Range: [0.0, 1.0], for disabling it set to 0.0
