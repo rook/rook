@@ -366,7 +366,7 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.Clu
 	poolSpec := cephBlockPool.ToNamedPoolSpec()
 	err := createPool(r.context, clusterInfo, cephCluster, &poolSpec)
 	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to create pool %q.", cephBlockPool.GetName())
+		return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to configure pool %q.", cephBlockPool.GetName())
 	}
 
 	// Let's return here so that on the initial creation we don't check for update right away
@@ -382,7 +382,7 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, clusterInfo.Namespace)
 	if err := cephclient.CreatePool(context, clusterInfo, clusterSpec, *p); err != nil {
-		return errors.Wrapf(err, "failed to create pool %q", p.Name)
+		return errors.Wrapf(err, "failed to configure pool %q", p.Name)
 	}
 
 	if p.Application != poolApplicationNameRBD {

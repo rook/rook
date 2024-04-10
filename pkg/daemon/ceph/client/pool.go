@@ -253,16 +253,16 @@ func DeletePool(context *clusterd.Context, clusterInfo *ClusterInfo, name string
 
 	logger.Infof("purging pool %q (id=%d)", name, pool.Number)
 	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
-	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to delete pool %q", name)
+		return errors.Wrapf(err, "failed to delete pool %q. %s", name, string(output))
 	}
 
 	// remove the crush rule for this pool and ignore the error in case the rule is still in use or not found
 	args = []string{"osd", "crush", "rule", "rm", name}
-	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	output, err = NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		logger.Errorf("failed to delete crush rule %q. %v", name, err)
+		logger.Errorf("failed to delete crush rule %q. %v. %s", name, err, string(output))
 	}
 
 	logger.Infof("purge completed for pool %q", name)
@@ -280,9 +280,9 @@ func givePoolAppTag(context *clusterd.Context, clusterInfo *ClusterInfo, poolNam
 	}
 
 	args := []string{"osd", "pool", "application", "enable", poolName, appName, confirmFlag}
-	_, err = NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to enable application %q on pool %q", appName, poolName)
+		return errors.Wrapf(err, "failed to enable application %q on pool %q. %s", appName, poolName, string(output))
 	}
 
 	return nil
@@ -456,7 +456,7 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 
 	if checkFailureDomain || pool.PoolSpec.DeviceClass != "" {
 		if err = updatePoolCrushRule(context, clusterInfo, clusterSpec, pool); err != nil {
-			return nil
+			return errors.Wrapf(err, "failed to update crush rule for pool %q", pool.Name)
 		}
 	}
 	return nil
@@ -561,9 +561,9 @@ func extractPoolDetails(rule ruleSpec) (string, string) {
 func setCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, crushRule string) error {
 	args := []string{"osd", "pool", "set", poolName, "crush_rule", crushRule}
 
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to set crush rule %q", crushRule)
+		return errors.Wrapf(err, "failed to set crush rule %q. %s", crushRule, string(output))
 	}
 	return nil
 }
@@ -714,9 +714,9 @@ func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterI
 		args = append(args, deviceClass)
 	}
 
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create crush rule %s", ruleName)
+		return errors.Wrapf(err, "failed to create crush rule %s. %s", ruleName, string(output))
 	}
 
 	return nil
@@ -726,9 +726,9 @@ func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterI
 func SetPoolProperty(context *clusterd.Context, clusterInfo *ClusterInfo, name, propName, propVal string) error {
 	args := []string{"osd", "pool", "set", name, propName, propVal}
 	logger.Infof("setting pool property %q to %q on pool %q", propName, propVal, name)
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to set pool property %q on pool %q", propName, name)
+		return errors.Wrapf(err, "failed to set pool property %q on pool %q. %s", propName, name, string(output))
 	}
 	return nil
 }
@@ -737,9 +737,9 @@ func SetPoolProperty(context *clusterd.Context, clusterInfo *ClusterInfo, name, 
 func setPoolQuota(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, quotaType, quotaVal string) error {
 	args := []string{"osd", "pool", "set-quota", poolName, quotaType, quotaVal}
 	logger.Infof("setting quota %q=%q on pool %q", quotaType, quotaVal, poolName)
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to set %q quota on pool %q", quotaType, poolName)
+		return errors.Wrapf(err, "failed to set %q quota on pool %q. %s", quotaType, poolName, string(output))
 	}
 	return nil
 }
@@ -752,9 +752,9 @@ func SetPoolReplicatedSizeProperty(context *clusterd.Context, clusterInfo *Clust
 		args = append(args, "--yes-i-really-mean-it")
 	}
 
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to set pool property %q on pool %q", propName, poolName)
+		return errors.Wrapf(err, "failed to set pool property %q on pool %q. %s", propName, poolName, string(output))
 	}
 
 	return nil

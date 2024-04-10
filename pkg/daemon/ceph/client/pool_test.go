@@ -179,6 +179,11 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 				assert.Equal(t, "12345", args[8])
 				return "", nil
 			}
+			if args[2] == "get" {
+				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, "all", args[4])
+				return `{"pool":"replicapool","pool_id":2,"size":1,"min_size":1,"crush_rule":"replicapool_osd"}`, nil
+			}
 			if args[2] == "set" {
 				assert.Equal(t, "mypool", args[3])
 				if args[4] == "size" {
@@ -203,8 +208,12 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot, deviceClass, 
 		if args[1] == "crush" {
 			crushRuleCreated = true
 			assert.Equal(t, "rule", args[2])
+			if args[3] == "dump" {
+				assert.Equal(t, "replicapool_osd", args[4])
+				return `{"rule_id": 3,"rule_name": "replicapool_osd","type": 1}`, nil
+			}
 			assert.Equal(t, "create-replicated", args[3])
-			assert.Equal(t, "mypool", args[4])
+			assert.Contains(t, args[4], "mypool")
 			if crushRoot == "" {
 				assert.Equal(t, "cluster-crush-root", args[5])
 			} else {
