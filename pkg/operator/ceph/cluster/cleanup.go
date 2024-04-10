@@ -138,7 +138,7 @@ func (c *ClusterController) cleanUpJobContainer(cluster *cephv1.CephCluster, mon
 		SecurityContext: securityContext,
 		VolumeMounts:    volumeMounts,
 		Env:             envVars,
-		Args:            []string{"ceph", "clean"},
+		Args:            []string{"ceph", "clean", "host"},
 		Resources:       cephv1.GetCleanupResources(cluster.Spec.Resources),
 	}
 }

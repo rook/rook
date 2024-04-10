@@ -435,7 +435,7 @@ type SubvolumeList []Subvolume
 const NoSubvolumeGroup = ""
 
 // ListSubvolumesInGroup lists all subvolumes present in the given filesystem's subvolume group by
-// name. If groupName is empty, list subvolumes that are not in any group. Times out after 5 seconds.
+// name. If groupName is empty, list subvolumes that are not in any group.
 var ListSubvolumesInGroup = listSubvolumesInGroup
 
 // with above, allow this to be overridden for unit testing
@@ -453,10 +453,61 @@ func listSubvolumesInGroup(context *clusterd.Context, clusterInfo *ClusterInfo, 
 	if err != nil {
 		return svs, errors.Wrapf(err, "failed to list subvolumes in filesystem %q subvolume group %q", fsName, groupName)
 	}
-
 	if err := json.Unmarshal(buf, &svs); err != nil {
 		return svs, errors.Wrapf(err, "failed to unmarshal subvolume list for filesystem %q subvolume group %q", fsName, groupName)
 	}
+	return svs, nil
+}
+
+// SubVolumeSnapshot represents snapshot of a cephFS subvolume
+type SubVolumeSnapshot struct {
+	Name string `json:"name"`
+}
+
+// SubVolumeSnapshots is the list of snapshots in a CephFS subvolume
+type SubVolumeSnapshots []SubVolumeSnapshot
+
+// ListSubVolumeSnaphots lists all the subvolume snapshots present in the subvolume in the given filesystem's subvolume group.
+var ListSubVolumeSnapshots = listSubVolumeSnapshots
+
+func listSubVolumeSnapshots(context *clusterd.Context, clusterInfo *ClusterInfo, fsName, subVolumeName, groupName string) (SubVolumeSnapshots, error) {
+	svs := SubVolumeSnapshots{}
+	args := []string{"fs", "subvolume", "snapshot", "ls", fsName, subVolumeName, "--group_name", groupName}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	buf, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return svs, errors.Wrapf(err, "failed to list subvolumes in filesystem %q subvolume group %q", fsName, groupName)
+	}
+
+	if err := json.Unmarshal(buf, &svs); err != nil {
+		return svs, errors.Wrapf(err, "failed to unmarshal snapshots for subvolume %q for filesystem %q subvolume group %q", subVolumeName, fsName, groupName)
+	}
 
 	return svs, nil
+}
+
+// SubVolumeSnapshotPendingClones refers to all the pending clones available in a cephFS subvolume snapshot
+type SubVolumeSnapshotPendingClones struct {
+	Clones []struct {
+		Name string `json:"name"`
+	} `json:"pending_clones"`
+}
+
+var ListSubVolumeSnapshotPendingClones = listSubVolumeSnapshotPendingClones
+
+// listSubVolumeSnapshotPendingClones lists all the pending clones available in a cephFS subvolume snapshot
+func listSubVolumeSnapshotPendingClones(context *clusterd.Context, clusterInfo *ClusterInfo, fsName, subVolumeName, snap, groupName string) (SubVolumeSnapshotPendingClones, error) {
+	pendingClones := SubVolumeSnapshotPendingClones{}
+	args := []string{"fs", "subvolume", "snapshot", "info", fsName, subVolumeName, snap, "--group_name", groupName}
+	cmd := NewCephCommand(context, clusterInfo, args)
+	buf, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+	if err != nil {
+		return pendingClones, errors.Wrapf(err, "failed to list pending clones available for snapshot %q in filesystem %q in subvolume group %q", snap, fsName, groupName)
+	}
+
+	if err := json.Unmarshal(buf, &pendingClones); err != nil {
+		return pendingClones, errors.Wrapf(err, "failed to unmarshal pending clones list for for snapshot %q in filesystem %q subvolume group %q", snap, fsName, groupName)
+	}
+
+	return pendingClones, nil
 }
