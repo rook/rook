@@ -456,7 +456,7 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 
 	if checkFailureDomain || pool.PoolSpec.DeviceClass != "" {
 		if err = updatePoolCrushRule(context, clusterInfo, clusterSpec, pool); err != nil {
-			return nil
+			return errors.Wrapf(err, "failed to update crush rule for pool %q", pool.Name)
 		}
 	}
 	return nil
@@ -696,9 +696,9 @@ func createReplicationCrushRule(context *clusterd.Context, clusterInfo *ClusterI
 		args = append(args, deviceClass)
 	}
 
-	_, err := NewCephCommand(context, clusterInfo, args).Run()
+	output, err := NewCephCommand(context, clusterInfo, args).Run()
 	if err != nil {
-		return errors.Wrapf(err, "failed to create crush rule %s", ruleName)
+		return errors.Wrapf(err, "failed to create crush rule %s. %s", ruleName, string(output))
 	}
 
 	return nil
