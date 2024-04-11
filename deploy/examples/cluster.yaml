@@ -43,6 +43,10 @@ spec:
   # continue with the upgrade of an OSD even if its not ok to stop after the timeout. This timeout won't be applied if `skipUpgradeChecks` is `true`.
   # The default wait timeout is 10 minutes.
   waitTimeoutForHealthyOSDInMinutes: 10
+  # Whether or not requires PGs are clean before an OSD upgrade. If set to `true` OSD upgrade process won't start until PGs are healthy.
+  # This configuration will be ignored if `skipUpgradeChecks` is `true`.
+  # Default is false.
+  upgradeOSDRequiresHealthyPGs: false
   mon:
     # Set the number of mons to be started. Generally recommended to be 3.
     # For highest availability, an odd number of mons should be specified.
