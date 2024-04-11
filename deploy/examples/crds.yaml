@@ -7977,6 +7977,9 @@ spec:
             spec:
               description: Spec represents the specification of a Ceph Filesystem SubVolumeGroup
               properties:
+                dataPoolName:
+                  description: The data pool name for the Ceph Filesystem subvolume group layout, if the default CephFS pool is not desired.
+                  type: string
                 filesystemName:
                   description: |-
                     FilesystemName is the name of Ceph Filesystem SubVolumeGroup volume name. Typically it's the name of
@@ -8018,6 +8021,13 @@ spec:
                   x-kubernetes-validations:
                     - message: only one pinning type should be set
                       rule: (has(self.export) && !has(self.distributed) && !has(self.random)) || (!has(self.export) && has(self.distributed) && !has(self.random)) || (!has(self.export) && !has(self.distributed) && has(self.random)) || (!has(self.export) && !has(self.distributed) && !has(self.random))
+                quota:
+                  anyOf:
+                    - type: integer
+                    - type: string
+                  description: Quota size of the Ceph Filesystem subvolume group.
+                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                  x-kubernetes-int-or-string: true
               required:
                 - filesystemName
               type: object

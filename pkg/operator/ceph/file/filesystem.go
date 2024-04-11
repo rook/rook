@@ -74,7 +74,7 @@ func createFilesystem(
 		}
 	}
 
-	err := cephclient.CreateCephFSSubVolumeGroup(context, clusterInfo, fs.Name, defaultCSISubvolumeGroup)
+	err := cephclient.CreateCephFSSubVolumeGroup(context, clusterInfo, fs.Name, defaultCSISubvolumeGroup, nil)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create subvolume group %q", defaultCSISubvolumeGroup)
 	}
