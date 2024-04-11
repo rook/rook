@@ -362,8 +362,8 @@ func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames
 }
 
 // WaitForNoStandbys waits for all standbys go away
-func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, timeout time.Duration) error {
-	err := wait.PollUntilContextTimeout(clusterInfo.Context, 3*time.Second, timeout, true, func(ctx ctx.Context) (bool, error) {
+func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, retryInterval, timeout time.Duration) error {
+	err := wait.PollUntilContextTimeout(clusterInfo.Context, retryInterval, timeout, true, func(ctx ctx.Context) (bool, error) {
 		mdsDump, err := GetMDSDump(context, clusterInfo)
 		if err != nil {
 			logger.Errorf("failed to get fs dump. %v", err)
