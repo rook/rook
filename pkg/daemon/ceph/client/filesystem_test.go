@@ -542,7 +542,7 @@ func TestWaitForNoStandbys(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err := WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), 6*time.Second)
+	err := WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), time.Millisecond, 5*time.Millisecond)
 	assert.Error(t, err)
 
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
@@ -555,7 +555,7 @@ func TestWaitForNoStandbys(t *testing.T) {
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
 
-	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), 6*time.Second)
+	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), time.Millisecond, 5*time.Millisecond)
 	assert.Error(t, err)
 
 	firstCall := true
@@ -582,9 +582,8 @@ func TestWaitForNoStandbys(t *testing.T) {
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
 	}
-	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), 6*time.Second)
+	err = WaitForNoStandbys(context, AdminTestClusterInfo("mycluster"), time.Millisecond, 5*time.Millisecond)
 	assert.NoError(t, err)
-
 }
 
 func TestListSubvolumeGroups(t *testing.T) {
