@@ -173,12 +173,7 @@ func (osdProps osdProperties) getPreparePlacement() cephv1.Placement {
 	return osdProps.placement
 }
 
-// Start the osd management
-func (c *Cluster) Start() error {
-	namespace := c.clusterInfo.Namespace
-	config := c.newProvisionConfig()
-	errs := newProvisionErrors()
-
+func (c *Cluster) validateOSDSettings() error {
 	// Validate pod's memory if specified
 	for resourceKey, resourceValue := range c.spec.Resources {
 		if strings.HasPrefix(resourceKey, cephv1.ResourcesKeyOSD) {
@@ -187,6 +182,25 @@ func (c *Cluster) Start() error {
 				return errors.Wrap(err, "failed to check pod memory")
 			}
 		}
+	}
+	deviceSetNames := map[string]bool{}
+	for _, deviceSet := range c.spec.Storage.StorageClassDeviceSets {
+		if deviceSetNames[deviceSet.Name] {
+			return errors.Errorf("device set %q name is duplicated, OSDs cannot be configured", deviceSet.Name)
+		}
+		deviceSetNames[deviceSet.Name] = true
+	}
+	return nil
+}
+
+// Start the osd management
+func (c *Cluster) Start() error {
+	namespace := c.clusterInfo.Namespace
+	config := c.newProvisionConfig()
+	errs := newProvisionErrors()
+
+	if err := c.validateOSDSettings(); err != nil {
+		return err
 	}
 	logger.Infof("start running osds in namespace %q", namespace)
 
