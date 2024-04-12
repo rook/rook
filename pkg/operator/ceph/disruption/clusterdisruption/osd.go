@@ -223,7 +223,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 	allFailureDomains,
 	osdDownFailureDomains []string,
 	activeNodeDrains bool,
-	pgHealhtyRegex string,
+	pgHealthyRegex string,
 ) (reconcile.Result, error) {
 	var osdDown bool
 	var drainingFailureDomain string
@@ -232,7 +232,7 @@ func (r *ReconcileClusterDisruption) reconcilePDBsForOSDs(
 		drainingFailureDomain = osdDownFailureDomains[0]
 	}
 
-	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(r.context.ClusterdContext, clusterInfo, pgHealhtyRegex)
+	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(r.context.ClusterdContext, clusterInfo, pgHealthyRegex)
 	if err != nil {
 		// If the error contains that message, this means the cluster is not up and running
 		// No monitors are present and thus no ceph configuration has been created
