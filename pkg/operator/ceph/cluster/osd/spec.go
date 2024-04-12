@@ -585,7 +585,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	} else {
 		// Add the volume to the spec and the mount to the daemon container
 		// so that it can pick the already mounted/activated osd metadata path
-		// This container will activate the OSD and place the activated filesinto an empty dir
+		// This container will activate the OSD and place the activated files into an empty dir
 		// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
 		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd, osdProps)
 		volumes = append(volumes, activateOSDVolume...)
