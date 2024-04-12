@@ -56,6 +56,12 @@ var cleanUpSubVolumeGroupCmd = &cobra.Command{
 	Short: "Starts the cleanup process of a CephFilesystemSubVolumeGroup",
 }
 
+var cleanUpRadosNamespaceCmd = &cobra.Command{
+	// the subcommand matches CRD kind of the custom resource to be cleaned up
+	Use:   "CephBlockPoolRadosNamespace",
+	Short: "Starts the cleanup process for a CephBlockPoolRadosNamespace",
+}
+
 func init() {
 	cleanUpCmd.Flags().StringVar(&dataDirHostPath, "data-dir-host-path", "", "dataDirHostPath on the node")
 	cleanUpCmd.Flags().StringVar(&namespaceDir, "namespace-dir", "", "dataDirHostPath on the node")
@@ -68,10 +74,11 @@ func init() {
 
 	flags.SetFlagsFromEnv(cleanUpSubVolumeGroupCmd.Flags(), rook.RookEnvVarPrefix)
 
-	cleanUpCmd.AddCommand(cleanUpHostCmd, cleanUpSubVolumeGroupCmd)
+	cleanUpCmd.AddCommand(cleanUpHostCmd, cleanUpSubVolumeGroupCmd, cleanUpRadosNamespaceCmd)
 
 	cleanUpHostCmd.RunE = startHostCleanUp
 	cleanUpSubVolumeGroupCmd.RunE = startSubVolumeGroupCleanUp
+	cleanUpRadosNamespaceCmd.RunE = startRadosNamespaceCleanup
 }
 
 func startHostCleanUp(cmd *cobra.Command, args []string) error {
@@ -136,6 +143,33 @@ func startSubVolumeGroupCleanUp(cmd *cobra.Command, args []string) error {
 	err := cleanup.SubVolumeGroupCleanup(context, clusterInfo, fsName, subVolumeGroupName, poolName, csiNamespace)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to cleanup cephFS %q SubVolumeGroup %q in the namespace %q. %v", fsName, subVolumeGroupName, namespace, err))
+	}
+
+	return nil
+}
+
+func startRadosNamespaceCleanup(cmd *cobra.Command, args []string) error {
+	rook.SetLogLevel()
+	rook.LogStartupInfo(cleanUpRadosNamespaceCmd.Flags())
+
+	ctx := cmd.Context()
+	context := createContext()
+	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	clusterInfo := client.AdminClusterInfo(ctx, namespace, "")
+
+	poolName := os.Getenv(opcontroller.CephBlockPoolNameEnv)
+	if poolName == "" {
+		rook.TerminateFatal(fmt.Errorf("cephblockpool name is not available in the pod environment variables"))
+	}
+
+	radosNamespace := os.Getenv(opcontroller.CephBlockPoolRadosNamespaceEnv)
+	if radosNamespace == "" {
+		rook.TerminateFatal(fmt.Errorf("cephblockpool radosNamespace is not available in the pod environment variables"))
+	}
+
+	err := cleanup.RadosNamespaceCleanup(context, clusterInfo, poolName, radosNamespace)
+	if err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to cleanup cephBlockPoolRadosNamespace %q resources in the pool %q. %v", radosNamespace, poolName, err))
 	}
 
 	return nil

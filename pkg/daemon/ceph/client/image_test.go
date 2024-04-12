@@ -187,7 +187,7 @@ func TestListImageLogLevelInfo(t *testing.T) {
 	}
 
 	clusterInfo := AdminTestClusterInfo("mycluster")
-	images, err = ListImages(context, clusterInfo, "pool1")
+	images, err = ListImagesInPool(context, clusterInfo, "pool1")
 	assert.Nil(t, err)
 	assert.NotNil(t, images)
 	assert.True(t, len(images) == 3)
@@ -195,7 +195,7 @@ func TestListImageLogLevelInfo(t *testing.T) {
 	listCalled = false
 
 	emptyListResult = true
-	images, err = ListImages(context, clusterInfo, "pool1")
+	images, err = ListImagesInPool(context, clusterInfo, "pool1")
 	assert.Nil(t, err)
 	assert.NotNil(t, images)
 	assert.True(t, len(images) == 0)
@@ -251,7 +251,7 @@ func TestListImageLogLevelDebug(t *testing.T) {
 	}
 
 	clusterInfo := AdminTestClusterInfo("mycluster")
-	images, err = ListImages(context, clusterInfo, "pool1")
+	images, err = ListImagesInPool(context, clusterInfo, "pool1")
 	assert.Nil(t, err)
 	assert.NotNil(t, images)
 	assert.True(t, len(images) == 3)
@@ -259,7 +259,7 @@ func TestListImageLogLevelDebug(t *testing.T) {
 	listCalled = false
 
 	emptyListResult = true
-	images, err = ListImages(context, clusterInfo, "pool1")
+	images, err = ListImagesInPool(context, clusterInfo, "pool1")
 	assert.Nil(t, err)
 	assert.NotNil(t, images)
 	assert.True(t, len(images) == 0)
