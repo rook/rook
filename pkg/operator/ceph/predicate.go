@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
-// predicateOpController is the predicate function to trigger reconcile on operator configuration cm change
+// predicateController is the predicate function to trigger reconcile on operator configuration cm change
 func predicateController(ctx context.Context, client client.Client) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
