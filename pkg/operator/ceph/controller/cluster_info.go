@@ -141,6 +141,9 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		} else {
 			return nil, maxMonID, monMapping, errors.New("failed to find either the cluster admin key or the username")
 		}
+		if len(secrets.OwnerReferences) > 0 {
+			clusterInfo.OwnerInfo = k8sutil.NewOwnerInfoWithOwnerRef(&secrets.GetOwnerReferences()[0], namespace)
+		}
 		logger.Debugf("found existing monitor secrets for cluster %s", clusterInfo.Namespace)
 	}
 
