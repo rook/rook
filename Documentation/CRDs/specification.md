@@ -12,8 +12,6 @@ Resource Types:
 <ul><li>
 <a href="#ceph.rook.io/v1.CephBlockPool">CephBlockPool</a>
 </li><li>
-<a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespace">CephBlockPoolRadosNamespace</a>
-</li><li>
 <a href="#ceph.rook.io/v1.CephBucketNotification">CephBucketNotification</a>
 </li><li>
 <a href="#ceph.rook.io/v1.CephBucketTopic">CephBucketTopic</a>
@@ -142,107 +140,6 @@ CephBlockPoolStatus
 </em>
 </td>
 <td>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.CephBlockPoolRadosNamespace">CephBlockPoolRadosNamespace
-</h3>
-<div>
-<p>CephBlockPoolRadosNamespace represents a Ceph BlockPool Rados Namespace</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>apiVersion</code><br/>
-string</td>
-<td>
-<code>
-ceph.rook.io/v1
-</code>
-</td>
-</tr>
-<tr>
-<td>
-<code>kind</code><br/>
-string
-</td>
-<td><code>CephBlockPoolRadosNamespace</code></td>
-</tr>
-<tr>
-<td>
-<code>metadata</code><br/>
-<em>
-<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
-Kubernetes meta/v1.ObjectMeta
-</a>
-</em>
-</td>
-<td>
-Refer to the Kubernetes API documentation for the fields of the
-<code>metadata</code> field.
-</td>
-</tr>
-<tr>
-<td>
-<code>spec</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceSpec">
-CephBlockPoolRadosNamespaceSpec
-</a>
-</em>
-</td>
-<td>
-<p>Spec represents the specification of a Ceph BlockPool Rados Namespace</p>
-<br/>
-<br/>
-<table>
-<tr>
-<td>
-<code>name</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>blockPoolName</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>BlockPoolName is the name of Ceph BlockPool. Typically it&rsquo;s the name of
-the CephBlockPool CR.</p>
-</td>
-</tr>
-</table>
-</td>
-</tr>
-<tr>
-<td>
-<code>status</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">
-CephBlockPoolRadosNamespaceStatus
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Status represents the status of a CephBlockPool Rados Namespace</p>
 </td>
 </tr>
 </tbody>
@@ -3082,6 +2979,90 @@ string
 </em>
 </td>
 <td>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephBlockPoolRadosNamespace">CephBlockPoolRadosNamespace
+</h3>
+<div>
+<p>CephBlockPoolRadosNamespace represents a Ceph BlockPool Rados Namespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>metadata</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#objectmeta-v1-meta">
+Kubernetes meta/v1.ObjectMeta
+</a>
+</em>
+</td>
+<td>
+Refer to the Kubernetes API documentation for the fields of the
+<code>metadata</code> field.
+</td>
+</tr>
+<tr>
+<td>
+<code>spec</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceSpec">
+CephBlockPoolRadosNamespaceSpec
+</a>
+</em>
+</td>
+<td>
+<p>Spec represents the specification of a Ceph BlockPool Rados Namespace</p>
+<br/>
+<br/>
+<table>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>blockPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>BlockPoolName is the name of Ceph BlockPool. Typically it&rsquo;s the name of
+the CephBlockPool CR.</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td>
+<code>status</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">
+CephBlockPoolRadosNamespaceStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Status represents the status of a CephBlockPool Rados Namespace</p>
 </td>
 </tr>
 </tbody>

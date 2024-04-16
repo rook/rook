@@ -19,7 +19,18 @@ spec:
     singular: cephblockpoolradosnamespace
   scope: Namespaced
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - description: Name of the Ceph BlockPool
+          jsonPath: .spec.blockPoolName
+          name: BlockPool
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1
       schema:
         openAPIV3Schema:
           description: CephBlockPoolRadosNamespace represents a Ceph BlockPool Rados Namespace
@@ -7948,6 +7959,17 @@ spec:
     - additionalPrinterColumns:
         - jsonPath: .status.phase
           name: Phase
+          type: string
+        - description: Name of the CephFileSystem
+          jsonPath: .spec.filesystemName
+          name: Filesystem
+          type: string
+        - jsonPath: .spec.quota
+          name: Quota
+          type: string
+        - jsonPath: .status.info.pinning
+          name: Pinning
+          priority: 1
           type: string
         - jsonPath: .metadata.creationTimestamp
           name: Age
