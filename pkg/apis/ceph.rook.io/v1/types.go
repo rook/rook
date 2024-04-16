@@ -1479,6 +1479,7 @@ type ObjectStoreSpec struct {
 	AllowUsersInNamespaces []string `json:"allowUsersInNamespaces,omitempty"`
 
 	// Hosting settings for the object store
+	// The features provided by the `hosting` configuration section are experimental. APIs may be subject to change.
 	// +optional
 	Hosting *ObjectStoreHostingSpec `json:"hosting,omitempty"`
 }
@@ -1655,6 +1656,7 @@ type ObjectEndpoints struct {
 }
 
 // ObjectStoreHostingSpec represents the hosting settings for the object store
+// The features provided by the `hosting` configuration section are experimental. APIs may be subject to change.
 type ObjectStoreHostingSpec struct {
 	// A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
 	// Each domain requires wildcard support like ingress loadbalancer.

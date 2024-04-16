@@ -34,10 +34,11 @@ spec:
     port: 80
     securePort: 443
     instances: 3
-    hosting:
-      dnsNames:
-      - "my-ingress.mydomain.com"
-      - "rook-ceph-rgw-my-store.rook-ceph.svc"
+  # The features provided by the `hosting` configuration section are experimental. APIs may be subject to change.
+  hosting:
+    dnsNames:
+    - "my-ingress.mydomain.com"
+    - "rook-ceph-rgw-my-store.rook-ceph.svc"
 ```
 
 Now create the object store.
@@ -343,6 +344,7 @@ For accessing the bucket point user need to configure wildcard dns in the cluste
 
 ```yaml
 spec:
+  # The features provided by the `hosting` configuration section are experimental. APIs may be subject to change.
   hosting:
     dnsNames:
     - "my-ingress.mydomain.com"

@@ -1980,7 +1980,8 @@ ObjectStoreHostingSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Hosting settings for the object store</p>
+<p>Hosting settings for the object store
+The features provided by the <code>hosting</code> configuration section are experimental. APIs may be subject to change.</p>
 </td>
 </tr>
 </table>
@@ -9038,7 +9039,8 @@ bool
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>)
 </p>
 <div>
-<p>ObjectStoreHostingSpec represents the hosting settings for the object store</p>
+<p>ObjectStoreHostingSpec represents the hosting settings for the object store
+The features provided by the <code>hosting</code> configuration section are experimental. APIs may be subject to change.</p>
 </div>
 <table>
 <thead>
@@ -9266,7 +9268,8 @@ ObjectStoreHostingSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Hosting settings for the object store</p>
+<p>Hosting settings for the object store
+The features provided by the <code>hosting</code> configuration section are experimental. APIs may be subject to change.</p>
 </td>
 </tr>
 </tbody>

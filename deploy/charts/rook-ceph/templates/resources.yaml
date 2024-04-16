@@ -11193,7 +11193,9 @@ spec:
                       type: object
                   type: object
                 hosting:
-                  description: Hosting settings for the object store
+                  description: |-
+                    Hosting settings for the object store
+                    The features provided by the `hosting` configuration section are experimental. APIs may be subject to change.
                   properties:
                     dnsNames:
                       description: |-

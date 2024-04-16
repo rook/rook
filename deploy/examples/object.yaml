@@ -108,6 +108,7 @@ spec:
       disabled: false
     readinessProbe:
       disabled: false
+  # # The features provided by the `hosting` configuration section are experimental. APIs may be subject to change.
   # hosting:
   #   The list of subdomain names for virtual hosting of buckets.
   #   dnsNames:
