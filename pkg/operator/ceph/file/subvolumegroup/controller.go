@@ -377,7 +377,11 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateStatus(observedGeneration 
 	}
 
 	cephFilesystemSubVolumeGroup.Status.Phase = status
-	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{"clusterID": buildClusterID(cephFilesystemSubVolumeGroup)}
+	cephFilesystemSubVolumeGroup.Status.Info = map[string]string{
+		"clusterID": buildClusterID(cephFilesystemSubVolumeGroup),
+		"pinning":   formatPinning(cephFilesystemSubVolumeGroup.Spec.Pinning),
+	}
+
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		cephFilesystemSubVolumeGroup.Status.ObservedGeneration = observedGeneration
 	}
@@ -408,4 +412,20 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) cleanup(svg *cephv1.CephFilesyst
 		return errors.Wrapf(err, "failed to run clean up job to clean the ceph resources in cephFS subVolumeGroup %q", svg.Name)
 	}
 	return nil
+}
+
+func formatPinning(pinning cephv1.CephFilesystemSubVolumeGroupSpecPinning) string {
+	var formatted string
+
+	if pinning.Export != nil {
+		formatted = fmt.Sprintf("export=%d", *pinning.Export)
+	} else if pinning.Distributed != nil {
+		formatted = fmt.Sprintf("distributed=%d", *pinning.Distributed)
+	} else if pinning.Random != nil {
+		formatted = fmt.Sprintf("random=%.2f", *pinning.Random)
+	} else {
+		formatted = fmt.Sprintf("distributed=%d", 1)
+	}
+
+	return formatted
 }
