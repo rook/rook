@@ -4,7 +4,7 @@ title: Snapshots
 
 ## Prerequisites
 
-- Install the snapshot controller and snapshot v1 CRD as required. More info can be found [here](https://github.com/kubernetes-csi/external-snapshotter/tree/v6.0.1#usage).
+- Install the [snapshot controller and snapshot v1 CRD](https://github.com/kubernetes-csi/external-snapshotter/tree/master#usage).
 
 - We also need a `VolumeSnapshotClass` for volume snapshot to work. The purpose of a `VolumeSnapshotClass` is
 defined in [the kubernetes
@@ -16,10 +16,6 @@ In short, as the documentation describes it:
     "classes" of storage they offer when provisioning a volume,
     VolumeSnapshotClass provides a way to describe the "classes" of storage when
     provisioning a volume snapshot.
-
-## Upgrade Snapshot API
-
-If your Kubernetes version is updated to a newer version of the snapshot API, follow the upgrade guide [here](https://github.com/kubernetes-csi/external-snapshotter/tree/v4.0.0#upgrade) to upgrade from v1alpha1 to v1beta1, or v1beta1 to v1.
 
 ## RBD Snapshots
 
