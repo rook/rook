@@ -133,7 +133,7 @@ func CmdReporterFlagArgumentToCommand(flagArg string) (cmd []string, args []stri
 // return an error if the command could not be run for any reason or if there was
 // an error storing the command results into the ConfigMap. An application label
 // is applied to the ConfigMap, and if the label already exists and has a
-// different application's name name, this returns an error, as this may indicate
+// different application's name, this returns an error, as this may indicate
 // that it is not safe for cmd-reporter to edit the ConfigMap.
 func (r *CmdReporter) Run() error {
 	stdout, stderr, retcode, err := r.runCommand()

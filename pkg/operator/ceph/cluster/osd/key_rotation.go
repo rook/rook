@@ -219,7 +219,7 @@ func (c *Cluster) makeKeyRotationCronJob(pvcName string, osd OSDInfo, osdProps o
 	return cronJob, nil
 }
 
-// reconcileKeyRotationCronJobs reconciles the key rotation cron jobs for the OSDs.
+// reconcileKeyRotationCronJob reconciles the key rotation cron jobs for the OSDs.
 func (c *Cluster) reconcileKeyRotationCronJob() error {
 	if !c.spec.Security.KeyRotation.Enabled {
 		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, keyRotationCronJobAppName)}

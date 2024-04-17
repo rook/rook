@@ -46,7 +46,7 @@ const (
 	labelHostname       = "kubernetes.io/hostname"
 )
 
-// ExtractTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
+// ExtractOSDTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
 func ExtractOSDTopologyFromLabels(labels map[string]string) (map[string]string, string) {
 	topology, topologyAffinity := extractTopologyFromLabels(labels)
 
