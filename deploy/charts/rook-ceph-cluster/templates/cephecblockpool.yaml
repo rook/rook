@@ -33,8 +33,8 @@ provisioner: {{ $root.Values.operatorNamespace }}.rbd.csi.ceph.com
 {{- end }}
 parameters:
   clusterID: {{ $ecblockpool.parameters.clusterID }}
-  dataPool: {{ $ecblockpool.name }}-metadata
-  pool: {{ $ecblockpool.name }}
+  pool: {{ $ecblockpool.name }}-metadata
+  dataPool: {{ $ecblockpool.name }}
   imageFormat: "{{ $ecblockpool.parameters.imageFormat }}"
   imageFeatures: {{ $ecblockpool.parameters.imageFeatures }}
 
