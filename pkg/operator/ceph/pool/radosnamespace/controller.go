@@ -175,6 +175,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo.Context = r.opManagerContext
+	r.clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephCluster, r.scheme)
 
 	// DELETE: the CR was deleted
 	if !cephBlockPoolRadosNamespace.GetDeletionTimestamp().IsZero() {

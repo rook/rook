@@ -180,6 +180,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo.Context = r.opManagerContext
+	r.clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephCluster, r.scheme)
 
 	// DELETE: the CR was deleted
 	if !cephFilesystemSubVolumeGroup.GetDeletionTimestamp().IsZero() {
