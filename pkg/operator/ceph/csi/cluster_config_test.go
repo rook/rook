@@ -17,17 +17,22 @@ limitations under the License.
 package csi
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 
+	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/topology"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-
-	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 func unmarshal(s string) ([]CSIClusterConfigEntry, error) {
@@ -890,5 +895,127 @@ func TestUpdateNetNamespaceFilePath(t *testing.T) {
 
 			}
 		}
+	})
+}
+
+func Test_updateCsiConfigMapOwnerRefs(t *testing.T) {
+	ctx := context.TODO()
+	ns := "test-ns"
+	ownerController := true
+	blockOwnerDel := true
+	opDeployRef := metav1.OwnerReference{
+		APIVersion:         "v1",
+		Kind:               "Deployment",
+		Name:               "rook-ceph-operator",
+		UID:                "e55604f2-710c-4353-9a3e-9d23ea2d6eb9", // random uuid
+		Controller:         &ownerController,
+		BlockOwnerDeletion: &blockOwnerDel,
+	}
+	expectedOwnerInfo := k8sutil.NewOwnerInfoWithOwnerRef(&opDeployRef, ns)
+
+	minimalCsiConfigMap := func() *corev1.ConfigMap {
+		return &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:            ConfigName,
+				Namespace:       ns,
+				OwnerReferences: []metav1.OwnerReference{},
+			},
+		}
+	}
+
+	t.Run("no configmap", func(t *testing.T) {
+		clientset := test.New(t, 1)
+		err := updateCsiConfigMapOwnerRefs(ctx, ns, clientset, expectedOwnerInfo)
+		assert.ErrorContains(t, err, "failed to fetch csi config map")
+		assert.ErrorContains(t, err, "which already exists")
+	})
+
+	assertOwner := func(t *testing.T, clientset kubernetes.Interface) {
+		t.Helper()
+
+		cm, err := clientset.CoreV1().ConfigMaps(ns).Get(ctx, ConfigName, metav1.GetOptions{})
+		assert.NoError(t, err)
+		assert.Len(t, cm.GetOwnerReferences(), 1)
+		cmOwner := cm.GetOwnerReferences()[0]
+		assert.Equal(t, "v1", cmOwner.APIVersion)
+		assert.Equal(t, "Deployment", cmOwner.Kind)
+		assert.Equal(t, "rook-ceph-operator", cmOwner.Name)
+		assert.Equal(t, "e55604f2-710c-4353-9a3e-9d23ea2d6eb9", string(cmOwner.UID))
+		assert.True(t, *cmOwner.Controller)
+		assert.True(t, *cmOwner.BlockOwnerDeletion)
+	}
+
+	t.Run("no existing owner ref", func(t *testing.T) {
+		clientset := test.New(t, 1)
+		cm := minimalCsiConfigMap()
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = updateCsiConfigMapOwnerRefs(ctx, ns, clientset, expectedOwnerInfo)
+		assert.NoError(t, err)
+		assertOwner(t, clientset)
+	})
+
+	t.Run("correct existing owner ref", func(t *testing.T) {
+		clientset := test.New(t, 1)
+		cm := minimalCsiConfigMap()
+		cm.OwnerReferences = []metav1.OwnerReference{
+			*opDeployRef.DeepCopy(), // correct ref
+		}
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = updateCsiConfigMapOwnerRefs(ctx, ns, clientset, expectedOwnerInfo)
+		assert.NoError(t, err)
+		assertOwner(t, clientset)
+	})
+
+	t.Run("single incorrect existing owner ref", func(t *testing.T) {
+		clientset := test.New(t, 1)
+		cm := minimalCsiConfigMap()
+
+		ownerController := true
+		blockOwnerDel := true
+		cm.OwnerReferences = []metav1.OwnerReference{
+			{
+				APIVersion:         "ceph.rook.io/v1",
+				Kind:               "CephCluster",
+				Name:               "my-cluster",
+				UID:                "a77777a7-777a-7777-7a7a-7a77aa7a7aa7", // random uuid
+				Controller:         &ownerController,
+				BlockOwnerDeletion: &blockOwnerDel,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = updateCsiConfigMapOwnerRefs(ctx, ns, clientset, expectedOwnerInfo)
+		assert.NoError(t, err)
+		assertOwner(t, clientset)
+	})
+
+	t.Run("multiple existing owner refs, one correct", func(t *testing.T) {
+		clientset := test.New(t, 1)
+		cm := minimalCsiConfigMap()
+
+		ownerController := true
+		blockOwnerDel := true
+		cm.OwnerReferences = []metav1.OwnerReference{
+			*opDeployRef.DeepCopy(), // correct ref
+			{
+				APIVersion:         "ceph.rook.io/v1",
+				Kind:               "CephCluster",
+				Name:               "my-cluster",
+				UID:                "a77777a7-777a-7777-7a7a-7a77aa7a7aa7", // random uuid
+				Controller:         &ownerController,
+				BlockOwnerDeletion: &blockOwnerDel,
+			},
+		}
+		_, err := clientset.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+		assert.NoError(t, err)
+
+		err = updateCsiConfigMapOwnerRefs(ctx, ns, clientset, expectedOwnerInfo)
+		assert.NoError(t, err)
+		assertOwner(t, clientset)
 	})
 }
