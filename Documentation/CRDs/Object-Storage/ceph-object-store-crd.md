@@ -32,21 +32,6 @@ spec:
       dataChunks: 2
       codingChunks: 1
   preservePoolsOnDelete: true
-  #auth:
-  #  keystone:
-  #    acceptedRoles:
-  #      - admin
-  #      - member
-  #      - service
-  #    implicitTenants: "swift"
-  #    revocationInterval: 1200
-  #    serviceUserSecretName: usersecret
-  #   tokenCacheSize: 1000
-  #    url: https://keystone.example-namespace.svc/
-  #protocols:
-  #  swift:
-  #    accountInUrl: true
-  #    urlPrefix: /swift
   gateway:
     # sslCertificateRef:
     # caBundleRef:
@@ -116,7 +101,30 @@ Currently only OpenStack Keystone is supported.
 
 ### Keystone Settings
 
-The `keystone`-section allows to configure the Keystone instance to use.
+The keystone authentication can be configured in the `spec.auth.keystone` section of the CRD:
+
+```yaml
+spec:
+  [...]
+  auth:
+    keystone:
+      acceptedRoles:
+        - admin
+        - member
+        - service
+      implicitTenants: "swift"
+      revocationInterval: 1200
+      serviceUserSecretName: usersecret
+      tokenCacheSize: 1000
+      url: https://keystone.example-namespace.svc/
+  protocols:
+    swift:
+      accountInUrl: true
+     urlPrefix: /swift
+  [...]
+```
+
+The following options can be configured in the `keystone`-section:
 
 * `acceptedRoles`: The OpenStack Keystone [roles](https://docs.openstack.org/keystone/latest/admin/cli-manage-projects-users-and-roles.html#roles-and-role-assignments) accepted by RGW when authenticating against Keystone.
 * `implicitTenants`: Indicates whether to use implicit tenants. This can be `true`, `false`, `swift` and `s3`. For more details see the Ceph RadosGW documentation on [multitenancy](https://docs.ceph.com/en/latest/radosgw/multitenancy/).
