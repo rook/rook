@@ -200,6 +200,34 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return reconcile.Result{}, nil
 	}
 
+	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
+	if err != nil {
+		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
+	}
+	if ownerRef != nil {
+		blockOwnerDeletion := false
+		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
+	}
+
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
+	// create an empty config map. config map will be filled with data
+	// later when clusters have mons
+	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
+	}
+
+	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create pool ID mapping config map")
+	}
+
+	exists, err := checkCsiCephConfigMapExists(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get csi ceph.conf configmap")
+	}
+	CustomCSICephConfigExists = exists
+
 	csiHostNetworkEnabled, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true"))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
@@ -263,34 +291,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to update CSI driver options for cluster %q", cluster.Name)
 		}
 	}
-
-	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
-	if err != nil {
-		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
-	}
-	if ownerRef != nil {
-		blockOwnerDeletion := false
-		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
-	}
-
-	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
-	// create an empty config map. config map will be filled with data
-	// later when clusters have mons
-	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
-	}
-
-	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to create pool ID mapping config map")
-	}
-
-	exists, err := checkCsiCephConfigMapExists(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get csi ceph.conf configmap")
-	}
-	CustomCSICephConfigExists = exists
 
 	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
 	if err != nil {

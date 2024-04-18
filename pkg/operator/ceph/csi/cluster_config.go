@@ -292,10 +292,7 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, 
 	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context, ConfigName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			err = CreateCsiConfigMap(clusterInfo.Context, csiNamespace, clientset, clusterInfo.OwnerInfo)
-			if err != nil {
-				return errors.Wrap(err, "failed creating csi config map")
-			}
+			return errors.Wrap(err, "waiting for CSI config map to be created")
 		}
 		return errors.Wrap(err, "failed to fetch current csi config map")
 	}
