@@ -144,7 +144,13 @@ func (info *OwnerInfo) SetControllerReference(object metav1.Object) error {
 
 // GetUID gets the UID of the owner
 func (info *OwnerInfo) GetUID() types.UID {
-	return info.owner.GetUID()
+	if info.owner != nil {
+		return info.owner.GetUID()
+	}
+	if info.ownerRef != nil {
+		return info.ownerRef.UID
+	}
+	return types.UID("")
 }
 
 func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.ResourceRequirements {

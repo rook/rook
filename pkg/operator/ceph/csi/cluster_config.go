@@ -254,9 +254,47 @@ func CreateCsiConfigMap(ctx context.Context, namespace string, clientset kuberne
 		if !k8serrors.IsAlreadyExists(err) {
 			return errors.Wrapf(err, "failed to create initial csi config map %q (in %q)", configMap.Name, namespace)
 		}
+		// CM already exists; update owner refs to it if needed
+		// this corrects issues where the csi config map was sometimes created with CephCluster
+		// owner ref, which would result in the cm being deleted if that cluster was deleted
+		if err := updateCsiConfigMapOwnerRefs(ctx, namespace, clientset, ownerInfo); err != nil {
+			return errors.Wrapf(err, "failed to ensure csi config map %q (in %q) owner references", configMap.Name, namespace)
+		}
 	}
 
 	logger.Infof("successfully created csi config map %q", configMap.Name)
+	return nil
+}
+
+// check the owner references on the csi config map, and fix incorrect references if needed
+func updateCsiConfigMapOwnerRefs(ctx context.Context, namespace string, clientset kubernetes.Interface, expectedOwnerInfo *k8sutil.OwnerInfo) error {
+	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(ctx, ConfigName, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to fetch csi config map %q (in %q) which already exists", ConfigName, namespace)
+	}
+
+	existingOwners := cm.GetOwnerReferences()
+	var currentOwner *metav1.OwnerReference = nil
+	if len(existingOwners) == 1 {
+		currentOwner = &existingOwners[0] // currentOwner is nil unless there is exactly one owner on the cm
+	}
+	// if there is exactly one owner, and it is correct --> no fix needed
+	if currentOwner != nil && (currentOwner.UID == expectedOwnerInfo.GetUID()) {
+		logger.Debugf("csi config map %q (in %q) has the expected owner; owner id: %q", ConfigName, namespace, currentOwner.UID)
+		return nil
+	}
+
+	// must fix owner refs
+	logger.Infof("updating csi configmap %q (in %q) owner info", ConfigName, namespace)
+	cm.OwnerReferences = []metav1.OwnerReference{}
+	if err := expectedOwnerInfo.SetControllerReference(cm); err != nil {
+		return errors.Wrapf(err, "failed to set updated owner reference on csi config map %q (in %q)", ConfigName, namespace)
+	}
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Update(ctx, cm, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update csi config map %q (in %q) to update its owner reference", ConfigName, namespace)
+	}
+
 	return nil
 }
 
@@ -292,10 +330,7 @@ func SaveClusterConfig(clientset kubernetes.Interface, clusterNamespace string, 
 	configMap, err := clientset.CoreV1().ConfigMaps(csiNamespace).Get(clusterInfo.Context, ConfigName, metav1.GetOptions{})
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			err = CreateCsiConfigMap(clusterInfo.Context, csiNamespace, clientset, clusterInfo.OwnerInfo)
-			if err != nil {
-				return errors.Wrap(err, "failed creating csi config map")
-			}
+			return errors.Wrap(err, "waiting for CSI config map to be created")
 		}
 		return errors.Wrap(err, "failed to fetch current csi config map")
 	}
