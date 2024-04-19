@@ -260,15 +260,15 @@ pull_request_rules:
       - "check-success=multus-cluster-network (quay.io/ceph/ceph:v18)"
       - "check-success=csi-hostnetwork-disabled (quay.io/ceph/ceph:v18)"
       - "check-success=TestCephSmokeSuite (v1.25.16)"
-      - "check-success=TestCephSmokeSuite (v1.29.2)"
+      - "check-success=TestCephSmokeSuite (v1.30.0)"
       - "check-success=TestCephHelmSuite (v1.25.16)"
-      - "check-success=TestCephHelmSuite (v1.29.2)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.29.2)"
-      - "check-success=TestCephObjectSuite (v1.29.2)"
+      - "check-success=TestCephHelmSuite (v1.30.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.30.0)"
+      - "check-success=TestCephObjectSuite (v1.30.0)"
       - "check-success=TestCephUpgradeSuite (v1.25.16)"
-      - "check-success=TestCephUpgradeSuite (v1.29.2)"
+      - "check-success=TestCephUpgradeSuite (v1.30.0)"
       - "check-success=TestHelmUpgradeSuite (v1.25.16)"
-      - "check-success=TestHelmUpgradeSuite (v1.29.2)"
+      - "check-success=TestHelmUpgradeSuite (v1.30.0)"
     actions:
       merge:
         method: merge
