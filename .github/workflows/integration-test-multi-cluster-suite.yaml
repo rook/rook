@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        kubernetes-versions: ["v1.29.2"]
+        kubernetes-versions: ["v1.30.0"]
     steps:
       - name: checkout
         uses: actions/checkout@v4

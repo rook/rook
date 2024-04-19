@@ -7,7 +7,7 @@ and Rook is granted the required privileges (see below for more information).
 
 ## Kubernetes Version
 
-Kubernetes versions **v1.25** through **v1.29** are supported.
+Kubernetes versions **v1.25** through **v1.30** are supported.
 
 ## CPU Architecture
 
