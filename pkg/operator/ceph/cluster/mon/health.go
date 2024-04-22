@@ -450,6 +450,7 @@ func (c *Cluster) determineExtraMonToRemove() string {
 	for _, mon := range mons {
 		if mon.NodeName == "" {
 			logger.Debugf("mon %q is not scheduled to a specific host", mon.DaemonName)
+			arbitraryMon = mon.DaemonName
 			continue
 		}
 		// Check if there are multiple mons on the node
