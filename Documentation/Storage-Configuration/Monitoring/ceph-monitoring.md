@@ -80,12 +80,12 @@ echo "http://$(kubectl -n rook-ceph -o jsonpath={.status.hostIP} get pod prometh
 
 Following is an example to configure the Prometheus endpoint in the CephCluster CR.
 
-    ```YAML
+```YAML
     spec:
       dashboard:
         prometheusEndpoint: http://192.168.61.204:30900
         prometheusEndpointSSLVerify: true
-    ```
+```
 
 !!! note
     It is not recommended to consume storage from the Ceph cluster for Prometheus.
