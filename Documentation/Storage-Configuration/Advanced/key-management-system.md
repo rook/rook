@@ -2,7 +2,10 @@
 title: Key Management System
 ---
 
-Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](#pvc-based-cluster).
+<!-- markdownlint-disable MD024 -->
+<!-- allow duplicate headers in this file -->
+
+Rook has the ability to encrypt OSDs of clusters running on PVC via the flag (`encrypted: true`) in your `storageClassDeviceSets` [template](../../CRDs/Cluster/pvc-cluster.md).
 Rook also has the ability to rotate encryption keys of OSDs using a cron job per OSD.
 By default, the Key Encryption Keys (also known as Data Encryption Keys) are stored in a Kubernetes Secret.
 However, if a Key Management System exists Rook is capable of using it.
@@ -10,30 +13,30 @@ However, if a Key Management System exists Rook is capable of using it.
 The `security` section contains settings related to encryption of the cluster.
 
 * `security`:
-  * `kms`: Key Management System settings
-    * `connectionDetails`: the list of parameters representing kms connection details
-    * `tokenSecretName`: the name of the Kubernetes Secret containing the kms authentication token
-  * `keyRotation`: Key Rotation settings
-    * `enabled`: whether key rotation is enabled or not, default is `false`
-    * `schedule`: the schedule, written in [cron format](https://en.wikipedia.org/wiki/Cron), with which key rotation [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) is created, default value is `"@weekly"`.
+    * `kms`: Key Management System settings
+        * `connectionDetails`: the list of parameters representing kms connection details
+        * `tokenSecretName`: the name of the Kubernetes Secret containing the kms authentication token
+    * `keyRotation`: Key Rotation settings
+        * `enabled`: whether key rotation is enabled or not, default is `false`
+        * `schedule`: the schedule, written in [cron format](https://en.wikipedia.org/wiki/Cron), with which key rotation [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) is created, default value is `"@weekly"`.
 
 !!! note
     Currently key rotation is only supported for the default type, where the Key Encryption Keys are stored in a Kubernetes Secret.
 
 Supported KMS providers:
 
-* [Vault](#vault)
-  * [Authentication methods](#authentication-methods)
-    * [Token-based authentication](#token-based-authentication)
-    * [Kubernetes-based authentication](#kubernetes-based-authentication)
-  * [General Vault configuration](#general-vault-configuration)
-  * [TLS configuration](#tls-configuration)
-* [IBM Key Protect](#ibm-key-protect)
-  * [Configuration](#configuration)
-* [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
-  * [Configuration](#configuration-1)
-* [Azure Key Vault](#azure-key-vault)
-  * [Client Authentication](#client-authentication)
+- [Vault](#vault)
+    - [Authentication methods](#authentication-methods)
+        - [Token-based authentication](#token-based-authentication)
+        - [Kubernetes-based authentication](#kubernetes-based-authentication)
+    - [General Vault configuration](#general-vault-configuration)
+    - [TLS configuration](#tls-configuration)
+- [IBM Key Protect](#ibm-key-protect)
+    - [Configuration](#configuration)
+- [Key Management Interoperability Protocol](#key-management-interoperability-protocol)
+    - [Configuration](#configuration-1)
+- [Azure Key Vault](#azure-key-vault)
+    - [Client Authentication](#client-authentication)
 
 ## Vault
 
@@ -44,12 +47,12 @@ Rook supports storing OSD encryption keys in [HashiCorp Vault KMS](https://www.v
 Rook support two authentication methods:
 
 * [token-based](#token-based-authentication): a token is provided by the user and is stored in a Kubernetes Secret. It's used to
-  authenticate the KMS by the Rook operator. This has several pitfalls such as:
-  * when the token expires it must be renewed, so the secret holding it must be updated
-  * no token automatic rotation
+    authenticate the KMS by the Rook operator. This has several pitfalls such as:
+    * when the token expires it must be renewed, so the secret holding it must be updated
+    * no token automatic rotation
 * [Kubernetes Service Account](#kubernetes-based-authentication) uses [Vault Kubernetes native
-  authentication](https://www.vaultproject.io/docs/auth/kubernetes) mechanism and alleviate some of the limitations from the token authentication such as token automatic renewal. This method is
-  generally recommended over the token-based authentication.
+    authentication](https://www.vaultproject.io/docs/auth/kubernetes) mechanism and alleviate some of the limitations from the token authentication such as token automatic renewal. This method is
+    generally recommended over the token-based authentication.
 
 #### Token-based authentication
 
@@ -289,9 +292,9 @@ security:
 More options are supported such as:
 
 * `IBM_BASE_URL`: the base URL of the Key Protect instance, depending on your
-  [region](https://cloud.ibm.com/docs/key-protect?topic=key-protect-regions). Defaults to `https://us-south.kms.cloud.ibm.com`.
+    [region](https://cloud.ibm.com/docs/key-protect?topic=key-protect-regions). Defaults to `https://us-south.kms.cloud.ibm.com`.
 * `IBM_TOKEN_URL`: the URL of the Key Protect instance to retrieve the token. Defaults to
-  `https://iam.cloud.ibm.com/oidc/token`. Only needed for private instances.
+    `https://iam.cloud.ibm.com/oidc/token`. Only needed for private instances.
 
 ## Key Management Interoperability Protocol
 
@@ -346,14 +349,14 @@ Rook supports storing OSD encryption keys in [Azure Key vault](https://learn.mic
 Different methods are available in Azure to authenticate a client. Rook supports Azure recommended method of authentication with Service Principal and a certificate. Refer the following Azure documentation to set up key vault and authenticate it via service principal and certtificate
 
 * [Create Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/quick-create-portal)
-  * `AZURE_VAULT_URL` can be retrieved at this step
+    * `AZURE_VAULT_URL` can be retrieved at this step
 
 * [Create Service Principal](https://learn.microsoft.com/en-us/entra/identity-platform/howto-create-service-principal)
-  * `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` can be obtained after creating the service principal
-  * Ensure that the service principal is authenticated with a certificate and not with a client secret.
+    * `AZURE_CLIENT_ID` and `AZURE_TENANT_ID` can be obtained after creating the service principal
+    * Ensure that the service principal is authenticated with a certificate and not with a client secret.
 
 * [Set Azure Key Vault RBAC](https://learn.microsoft.com/en-us/azure/key-vault/general/rbac-guide?tabs=azure-cli#enable-azure-rbac-permissions-on-key-vault)
-  * Ensure that the role assigned to the key vault should be able to create, retrieve and delete secrets in the key vault.
+    * Ensure that the role assigned to the key vault should be able to create, retrieve and delete secrets in the key vault.
 
 Provide the following KMS connection details in order to connect with Azure Key Vault.
 

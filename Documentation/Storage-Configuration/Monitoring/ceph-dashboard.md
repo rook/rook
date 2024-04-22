@@ -60,14 +60,14 @@ spec:
 ```
 
 * `urlPrefix` If you are accessing the dashboard via a reverse proxy, you may
-  wish to serve it under a URL prefix.  To get the dashboard to use hyperlinks
-  that include your prefix, you can set the `urlPrefix` setting.
+    wish to serve it under a URL prefix.  To get the dashboard to use hyperlinks
+    that include your prefix, you can set the `urlPrefix` setting.
 * `port` The port that the dashboard is served on may be changed from the
-  default using the `port` setting. The corresponding K8s service exposing the
-  port will automatically be updated.
+    default using the `port` setting. The corresponding K8s service exposing the
+    port will automatically be updated.
 * `ssl` The dashboard may be served without SSL (useful for when you deploy the
-  dashboard behind a proxy already served using SSL) by setting the `ssl` option
-  to be false.
+    dashboard behind a proxy already served using SSL) by setting the `ssl` option
+    to be false.
 
 ## Visualization of 'Physical Disks' section in the dashboard
 

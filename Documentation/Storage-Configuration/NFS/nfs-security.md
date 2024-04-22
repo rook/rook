@@ -41,15 +41,17 @@ Methods of providing the configuration file are documented in the
 [NFS CRD security section](../../CRDs/ceph-nfs-crd.md#security).
 
 Recommendations:
+
 - The SSSD sidecar only requires the namespace switch (a.k.a. "nsswitch" or "nss"). We recommend
-  enabling only the `nss` service to lower CPU usage.
+    enabling only the `nss` service to lower CPU usage.
 - NFS-Ganesha does not require user enumeration. We recommend leaving this option unset or setting
-  `enumerate = false` to speed up lookups and reduce RAM usage.
+    `enumerate = false` to speed up lookups and reduce RAM usage.
 - NFS exports created via documented methods do not require listing all members of groups. We
-  recommend setting `ignore_group_members = true` to speed up LDAP lookups. Only customized exports
-  that set `manage_gids` need to consider this option.
+    recommend setting `ignore_group_members = true` to speed up LDAP lookups. Only customized exports
+    that set `manage_gids` need to consider this option.
 
 A sample `sssd.conf` file is shown below.
+
 ```ini
 [sssd]
 # Only the nss service is required for the SSSD sidecar.
@@ -96,23 +98,26 @@ users are authenticated and not merely client machines.
 
 Kerberos authentication requires configuration files in order for the NFS-Ganesha server to
 authenticate to the Kerberos server (KDC). The requirements are two-parted:
+
 1. one or more kerberos configuration files that configures the connection to the Kerberos server.
-   This file follows the `krb5.conf` format documented in its
-   [man pages](https://linux.die.net/man/5/krb5.conf).
+    This file follows the `krb5.conf` format documented in its
+    [man pages](https://linux.die.net/man/5/krb5.conf).
 2. a keytab file that provides credentials for the
-   [service principal](#nfs-service-principals) that NFS-Ganesha will use to authenticate with the
-   Kerberos server.
+    [service principal](#nfs-service-principals) that NFS-Ganesha will use to authenticate with the
+    Kerberos server.
 3. a kerberos domain name which will be used to map kerberos credentials to uid/gid
-   [domain name](#kerberos-domain-name) that NFS-Ganesha will use to authenticate with the
+    [domain name](#kerberos-domain-name) that NFS-Ganesha will use to authenticate with the
 
 Methods of providing the configuration files are documented in the
 [NFS CRD security section](../../CRDs/ceph-nfs-crd.md#security).
 
 Recommendations:
+
 - Rook configures Kerberos to log to stderr. We suggest removing logging sections from config files
-  to avoid consuming unnecessary disk space from logging to files.
+    to avoid consuming unnecessary disk space from logging to files.
 
 A sample Kerberos config file is shown below.
+
 ```ini
 [libdefaults]
 default_realm = EXAMPLE.NET
@@ -145,9 +150,10 @@ securely add files via annotations on the CephNFS spec (passed to the NFS server
 
 The Kerberos service principal used by Rook's CephNFS servers to authenticate with the Kerberos
 server is built up from 3 components:
+
 1. the configured from `spec.security.kerberos.principalName` that acts as the service name
 2. the hostname of the server on which NFS-Ganesha is running which is in turn built up from the
-   namespace and name of the CephNFS resource, joined by a hyphen. e.g., `rooknamespace-nfsname`
+    namespace and name of the CephNFS resource, joined by a hyphen. e.g., `rooknamespace-nfsname`
 3. the realm as configured by the kerberos config file(s) from `spec.security.kerberos.configFiles`
 
 The full service principal name is constructed as `<principalName>/<namespace>-<name>@<realm>`. For

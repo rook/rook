@@ -38,7 +38,7 @@ Since it's the same procedure for all service accounts, here is just one example
 kubectl -n rook-ceph edit serviceaccount rook-ceph-default
 ```
 
-```yaml hl_lines="9-10"
+```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:

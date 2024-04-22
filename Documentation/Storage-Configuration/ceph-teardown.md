@@ -5,7 +5,7 @@ title: Cleanup
 Rook provides the following clean up options:
 
 1. [Uninstall: Clean up the entire cluster and delete all data](#cleaning-up-a-cluster)
-1. [Force delete individual resources](#force-delete-resources)
+2. [Force delete individual resources](#force-delete-resources)
 
 ## Cleaning up a Cluster
 
@@ -44,31 +44,32 @@ kubectl delete storageclass csi-cephfs
 
 1. To instruct Rook to wipe the host paths and volumes, edit the `CephCluster` and add the `cleanupPolicy`:
 
-```console
-kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
-```
+    ```console
+    kubectl -n rook-ceph patch cephcluster rook-ceph --type merge -p '{"spec":{"cleanupPolicy":{"confirmation":"yes-really-destroy-data"}}}'
+    ```
 
-Once the cleanup policy is enabled, any new configuration changes in the CephCluster will be blocked. Nothing will happen until the deletion of the CR is requested, so this `cleanupPolicy` change can still be reverted if needed.
+    Once the cleanup policy is enabled, any new configuration changes in the CephCluster will be blocked. Nothing will happen until the deletion of the CR is requested, so this `cleanupPolicy` change can still be reverted if needed.
 
-Checkout more details about the `cleanupPolicy` [here](../CRDs/Cluster/ceph-cluster-crd.md#cleanup-policy)
+    Checkout more details about the `cleanupPolicy` [here](../CRDs/Cluster/ceph-cluster-crd.md#cleanup-policy)
 
 2. Delete the `CephCluster` CR.
 
-```console
-kubectl -n rook-ceph delete cephcluster rook-ceph
-```
+    ```console
+    kubectl -n rook-ceph delete cephcluster rook-ceph
+    ```
 
 3. Verify that the cluster CR has been deleted before continuing to the next step.
 
-```console
-kubectl -n rook-ceph get cephcluster
-```
+    ```console
+    kubectl -n rook-ceph get cephcluster
+    ```
 
-If the `cleanupPolicy` was applied, wait for the `rook-ceph-cleanup` jobs to be completed on all the nodes.
-These jobs will perform the following operations:
+4. If the `cleanupPolicy` was applied, wait for the `rook-ceph-cleanup` jobs to be completed on all the nodes.
 
-* Delete the namespace directory under `dataDirHostPath`, for example `/var/lib/rook/rook-ceph`, on all the nodes
-* Wipe the data on the drives on all the nodes where OSDs were running in this cluster
+    These jobs will perform the following operations:
+
+    * Delete the namespace directory under `dataDirHostPath`, for example `/var/lib/rook/rook-ceph`, on all the nodes
+    * Wipe the data on the drives on all the nodes where OSDs were running in this cluster
 
 !!! note
     The cleanup jobs might not start if the resources created on top of Rook Cluster are not deleted completely.

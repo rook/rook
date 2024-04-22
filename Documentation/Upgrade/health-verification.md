@@ -35,7 +35,8 @@ kubectl -n $ROOK_CLUSTER_NAMESPACE exec -it $TOOLS_POD -- ceph status
 ```
 
 The output should look similar to the following:
-```
+
+```console
   cluster:
     id:     a3f4d647-9538-4aff-9fd1-b845873c3fe9
     health: HEALTH_OK
@@ -61,7 +62,7 @@ The output should look similar to the following:
 In the output above, note the following indications that the cluster is in a healthy state:
 
 * Cluster health: The overall cluster status is `HEALTH_OK` and there are no warning or error status
-  messages displayed.
+    messages displayed.
 * Monitors (mon):  All of the monitors are included in the `quorum` list.
 * Manager (mgr): The Ceph manager is in the `active` state.
 * OSDs (osd): All OSDs are `up` and `in`.

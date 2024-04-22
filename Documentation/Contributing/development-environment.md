@@ -67,23 +67,23 @@ on their minikube cluster.
 
 1) Set the local Docker environment to use minikube:
 
-```console
-eval $(minikube docker-env -p minikube)
-```
+    ```console
+    eval $(minikube docker-env -p minikube)
+    ```
 
 2) Build your local Rook image. The following command will generate a Rook image
 labeled in the format `local/ceph-<arch>`.
 
-```console
-cd <your_rook_src_directory>
-make BUILD_REGISTRY=local
-```
+    ```console
+    cd <your_rook_src_directory>
+    make BUILD_REGISTRY=local
+    ```
 
 3) Tag the generated image as `rook/ceph:master` so operator will pick it.
 
-```console
-docker tag "local/ceph-$(go env GOARCH)" 'rook/ceph:master'
-```
+    ```console
+    docker tag "local/ceph-$(go env GOARCH)" 'rook/ceph:master'
+    ```
 
 4) Create a Rook cluster in minikube, or if the Rook cluster is already configured, apply the new
 operator image by restarting the operator.

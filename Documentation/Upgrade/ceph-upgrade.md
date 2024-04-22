@@ -18,7 +18,7 @@ until all the daemons have been updated.
 ## Considerations
 
 * **WARNING**: Upgrading a Rook cluster is not without risk. There may be unexpected issues or
-  obstacles that damage the integrity and health of the storage cluster, including data loss.
+    obstacles that damage the integrity and health of the storage cluster, including data loss.
 * The Rook cluster's storage may be unavailable for short periods during the upgrade process.
 * Read this document in full before undertaking a Rook cluster upgrade.
 
@@ -51,10 +51,10 @@ Official Ceph container images can be found on [Quay](https://quay.io/repository
 These images are tagged in a few ways:
 
 * The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v18.2.2-20240311`).
-  These tags are recommended for production clusters, as there is no possibility for the cluster to
-  be heterogeneous with respect to the version of Ceph running in containers.
+    These tags are recommended for production clusters, as there is no possibility for the cluster to
+    be heterogeneous with respect to the version of Ceph running in containers.
 * Ceph major version tags (e.g., `v18`) are useful for development and test clusters so that the
-  latest version of Ceph is always available.
+    latest version of Ceph is always available.
 
 **Ceph containers other than the official images from the registry above will not be supported.**
 

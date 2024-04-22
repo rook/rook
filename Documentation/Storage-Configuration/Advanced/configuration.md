@@ -48,8 +48,7 @@ spec:
     pgp_num: '128' # this should at least match `pg_num` so that all PGs are used
 ```
 
- Ceph [OSD and Pool config
-docs](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#a-preselection-of-pg-num)
+Ceph [OSD and Pool config docs](https://docs.ceph.com/docs/master/rados/operations/placement-groups/#a-preselection-of-pg-num)
 provide detailed information about how to tune these parameters.
 
 Nautilus [introduced the PG auto-scaler mgr module](https://ceph.com/rados/new-in-nautilus-pg-merging-and-autotuning/)

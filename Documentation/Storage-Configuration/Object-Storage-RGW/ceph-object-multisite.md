@@ -26,9 +26,9 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 If an admin wants to set up multisite on a Rook Ceph cluster, the following resources must be created:
 
 1. A [realm](../../CRDs/Object-Storage/ceph-object-realm-crd.md#settings)
-1. A [zonegroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings)
-1. A [zone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings)
-1. A ceph object store with the `zone` section
+2. A [zonegroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings)
+3. A [zone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings)
+4. A ceph object store with the `zone` section
 
 object-multisite.yaml in the [examples](https://github.com/rook/rook/blob/master/deploy/examples/) directory can be used to create the multisite CRDs.
 
@@ -45,6 +45,7 @@ The zone will create the pools for the object-store(s) that are in the zone to u
 When one of the multisite CRs (realm, zone group, zone) is deleted the underlying ceph realm/zone group/zone is not deleted, neither are the pools created by the zone. See the "Multisite Cleanup" section for more information.
 
 For more information on the multisite CRDs, see the related CRDs:
+
 - [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-realm-crd.md)
 - [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md)
 - [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md)
@@ -56,7 +57,7 @@ If an admin wants to sync data from another cluster, the admin needs to pull a r
 To begin doing this, the admin needs 2 pieces of information:
 
 1. An endpoint from the realm being pulled from
-1. The access key and the system key of the system user from the realm being pulled from.
+2. The access key and the system key of the system user from the realm being pulled from.
 
 ### Getting the Pull Endpoint
 
@@ -176,9 +177,9 @@ kubectl create -f realm-a-keys.yaml
 Once the admin knows the endpoint and the secret for the keys has been created, the admin should create:
 
 1. A [CephObjectRealm](../../CRDs/Object-Storage/ceph-object-realm-crd.md#settings) matching to the realm on the other Ceph cluster, with an endpoint as described above.
-1. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the realm was pulled from.
-1. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings) referring to the CephObjectZoneGroup created above.
-1. A CephObjectStore referring to the new CephObjectZone resource.
+2. A [CephObjectZoneGroup](../../CRDs/Object-Storage/ceph-object-zonegroup-crd.md#settings) matching the master zone group name or the master CephObjectZoneGroup from the cluster the realm was pulled from.
+3. A [CephObjectZone](../../CRDs/Object-Storage/ceph-object-zone-crd.md#settings) referring to the CephObjectZoneGroup created above.
+4. A CephObjectStore referring to the new CephObjectZone resource.
 
 object-multisite-pull-realm.yaml (with changes) in the [examples](https://github.com/rook/rook/blob/master/deploy/examples/) directory can be used to create the multisite CRDs.
 
@@ -346,6 +347,7 @@ Removing object store(s) from the master zone of the master zone group should be
 ## Configure an Existing Object Store for Multisite
 
 When an object store is configured by Rook, it internally creates a zone, zone group, and realm with the same name as the object store. To enable multisite, you will need to create the corresponding zone, zone group, and realm CRs with the same name as the object store. For example, to create multisite CRs for an object store named `my-store`:
+
 ```yaml
 apiVersion: ceph.rook.io/v1
 kind: CephObjectRealm
@@ -398,11 +400,13 @@ spec:
 
 #### Using custom names
 If names different from the object store need to be set for the realm, zone, or zone group, first rename them in the backend via toolbox pod, then following the procedure above.
+
 ```console
 radosgw-admin realm rename --rgw-realm=my-store --realm-new-name=<new-realm-name>
 radosgw-admin zonegroup rename --rgw-zonegroup=my-store --zonegroup-new-name=<new-zonegroup-name> --rgw-realm=<new-realm-name>
 radosgw-admin zone rename --rgw-zone=my-store --zone-new-name=<new-zone-name>  --rgw-zonegroup=<new-zonegroup-name> --rgw-realm=<new-realm-name>
 radosgw-admin period update --commit
 ```
+
 !!! important
     Renaming in the toolbox must be performed **before** creating the multisite CRs

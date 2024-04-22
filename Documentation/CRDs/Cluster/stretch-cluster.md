@@ -11,7 +11,7 @@ Two mons run in each of the two data zones, while two replicas of the data are i
 The third zone (arbiter) runs a single mon. No other Rook or Ceph daemons need to be run in the arbiter zone.
 
 For this example, we assume the desired failure domain is a zone. Another failure domain can also be specified with a
-known [topology node label](#osd-topology) which is already being used for OSD failure domains.
+known [topology node label](../../CRDs/Cluster/ceph-cluster-crd.md#osd-topology) which is already being used for OSD failure domains.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
