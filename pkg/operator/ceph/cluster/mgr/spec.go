@@ -344,6 +344,8 @@ func (c *Cluster) makeDashboardService(name string) (*v1.Service, error) {
 			},
 		},
 	}
+	cephv1.GetDashboardAnnotations(c.spec.Annotations).ApplyToObjectMeta(&svc.ObjectMeta)
+	cephv1.GetDashboardLabels(c.spec.Labels).ApplyToObjectMeta(&svc.ObjectMeta)
 	err := c.clusterInfo.OwnerInfo.SetControllerReference(svc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to dashboard service %q", svc.Name)

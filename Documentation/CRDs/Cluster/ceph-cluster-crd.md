@@ -369,6 +369,7 @@ You can set annotations / labels for Rook components for the list of key value p
 * `mgr`: Set annotations / labels for MGRs
 * `mon`: Set annotations / labels for mons
 * `osd`: Set annotations / labels for OSDs
+* `dashboard`: Set annotations / labels for the dashboard service
 * `prepareosd`: Set annotations / labels for OSD Prepare Jobs
 * `monitoring`: Set annotations / labels for service monitor
 * `crashcollector`: Set annotations / labels for crash collectors

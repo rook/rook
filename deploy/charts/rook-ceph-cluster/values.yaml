@@ -270,6 +270,7 @@ cephClusterSpec:
   #   prepareosd:
   #   # If no mgr annotations are set, prometheus scrape annotations will be set by default.
   #   mgr:
+  #   dashboard:
 
   # labels:
   #   all:
@@ -281,6 +282,7 @@ cephClusterSpec:
   #   # monitoring is a list of key-value pairs. It is injected into all the monitoring resources created by operator.
   #   # These labels can be passed as LabelSelector to Prometheus
   #   monitoring:
+  #   dashboard:
 
   resources:
     mgr:
