@@ -118,7 +118,9 @@ $ ceph -s
 
 ## Automatic Monitor Failover
 
-Rook will automatically fail over the mons when the following settings are updated in the CephCluster CR:
+Rook will automatically fail over the mons when the following settings are updated in the
+CephCluster CR:
+
 - `spec.network.hostNetwork`: When enabled or disabled, Rook fails over all monitors, configuring them to enable or disable host networking.
 - `spec.network.Provider` : When updated from being empty to "host", Rook fails over all monitors, configuring them to enable or disable host networking.
 - `spec.network.multiClusterService`: When enabled or disabled, Rook fails over all monitors, configuring them to start (or stop) using service IPs compatible with the multi-cluster service.

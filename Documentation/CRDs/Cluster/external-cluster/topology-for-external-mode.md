@@ -23,7 +23,7 @@ Determine the names of the zones (or other failure domains) in the Ceph CRUSH ma
 
 Create a zone-specific CRUSH rule for each of the pools. For example, this is a CRUSH rule for `zone-a`:
 
-```
+```console
 $ ceph osd crush rule create-replicated <rule-name> <root> <failure-domain> <class>
  {
             "rule_id": 5,
@@ -50,7 +50,7 @@ $ ceph osd crush rule create-replicated <rule-name> <root> <failure-domain> <cla
 Create replica-1 pools based on each of the CRUSH rules from the previous step. Each pool must be created with a CRUSH rule to limit the pool to OSDs in a specific zone.
 
 !!! note
-   Disable the ceph warning for replica-1 pools: `ceph config set global mon_allow_pool_size_one true`
+    Disable the ceph warning for replica-1 pools: `ceph config set global mon_allow_pool_size_one true`
 
 Determine the zones in the K8s cluster that correspond to each of the pools in the Ceph pool. The K8s nodes require labels as defined with the [OSD Topology labels](../ceph-cluster-crd.md#osd-topology). Some environments already have nodes labeled in zones. Set the topology labels on the nodes if not already present.
 
@@ -63,12 +63,14 @@ Set the flags of the external cluster configuration script based on the pools an
 --topology-failure-domain-values=zone-a,zone-b,zone-c
 
 Then run the python script to generate the settings which will be imported to the Rook cluster:
-```
+
+```console
  python3 create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools pool-a,pool-b,pool-c --topology-failure-domain-label zone --topology-failure-domain-values zone-a,zone-b,zone-c
 ```
 
 Output:
-```
+
+```console
 export ROOK_EXTERNAL_FSID=8f01d842-d4b2-11ee-b43c-0050568fb522
 ....
 ....
@@ -82,7 +84,8 @@ export TOPOLOGY_FAILURE_DOMAIN_VALUES=zone-a,zone-b,zone-c
 
 Check the external cluster is created and connected as per the installation steps.
 Review the new storage class:
-```
+
+```console
 $ kubectl get sc ceph-rbd-topology -o yaml
 allowVolumeExpansion: true
 apiVersion: storage.k8s.io/v1

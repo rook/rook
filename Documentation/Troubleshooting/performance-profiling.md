@@ -28,6 +28,7 @@ To collect this information, please follow these steps:
 ```
 
 * Install `gdb` , `perf` and `git` inside the pod. For example:
+
 ```console
 # dnf install gdb git perf -y
 ```

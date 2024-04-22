@@ -51,7 +51,7 @@ Extract Ceph cluster credentials from the generated secret (note that the subkey
 kubectl --namespace rook-ceph get secret rook-ceph-client-example -o jsonpath="{.data.example}" | base64 -d
 ```
 
-The base64 encoded value that is returned *is* the password for your ceph client.
+The base64 encoded value that is returned **is** the password for your ceph client.
 
 ### 4. Retrieve the mon endpoints
 
@@ -61,9 +61,9 @@ To send writes to the cluster, you must retrieve the mons in use:
 kubectl --namespace rook-ceph get configmap rook-ceph-mon-endpoints -o jsonpath='{.data.data}' | sed 's/.=//g'`
 ```
 
-This command *should* produce a line that looks somewhat like this:
+This command should produce a line that looks somewhat like this:
 
-```
+```console
 10.107.72.122:6789,10.103.244.218:6789,10.99.33.227:6789
 ```
 
@@ -77,6 +77,7 @@ If you choose to generate files for Ceph to use you will need to generate the fo
 Examples of the files follow:
 
 `ceph.conf`
+
 ```ini
 [global]
 mon_host=10.107.72.122:6789,10.103.244.218:6789,10.99.33.227:6789
@@ -84,6 +85,7 @@ log file = /tmp/ceph-$pid.log
 ```
 
 `ceph.keyring`
+
 ```ini
 [client.example]
   key = < key, decoded from k8s secret>

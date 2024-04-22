@@ -114,12 +114,12 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 * `dataPools`: The settings to create the filesystem data pools. Optionally (and we highly recommend), a pool name can be specified with the `name` field to override the default generated name; see more below. If multiple pools are specified, Rook will add the pools to the filesystem. Assigning users or files to a pool is left as an exercise for the reader with the [CephFS documentation](http://docs.ceph.com/docs/master/cephfs/file-layouts/). The data pools can use replication or erasure coding. If erasure coding pools are specified, the cluster must be running with bluestore enabled on the OSDs.
     * `name`: (optional, and highly recommended) Override the default generated name of the pool. The final pool name will consist of the filesystem name and pool name, e.g., `<fsName>-<poolName>`. We highly recommend to specify `name` to prevent issues that can arise from modifying the spec in a way that causes Rook to lose the original pool ordering.
 * `preserveFilesystemOnDelete`: If it is set to 'true' the filesystem will remain when the
-  CephFilesystem resource is deleted. This is a security measure to avoid loss of data if the
-  CephFilesystem resource is deleted accidentally. The default value is 'false'. This option
-  replaces `preservePoolsOnDelete` which should no longer be set.
+    CephFilesystem resource is deleted. This is a security measure to avoid loss of data if the
+    CephFilesystem resource is deleted accidentally. The default value is 'false'. This option
+    replaces `preservePoolsOnDelete` which should no longer be set.
 * (deprecated) `preservePoolsOnDelete`: This option is replaced by the above
-  `preserveFilesystemOnDelete`. For backwards compatibility and upgradeability, if this is set to
-  'true', Rook will treat `preserveFilesystemOnDelete` as being set to 'true'.
+    `preserveFilesystemOnDelete`. For backwards compatibility and upgradeability, if this is set to
+    'true', Rook will treat `preserveFilesystemOnDelete` as being set to 'true'.
 
 ## Metadata Server Settings
 
@@ -135,9 +135,9 @@ The metadata server settings correspond to the MDS daemon settings.
         * `path`: filesystem source path to take the snapshot on
         * `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
         * `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
-  * `snapshotRetention`: allow to manage retention policies:
-      * `path`: filesystem source path to apply the retention on
-      * `duration`:
+    * `snapshotRetention`: allow to manage retention policies:
+        * `path`: filesystem source path to apply the retention on
+        * `duration`:
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
 * `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/master/deploy/examples/cluster.yaml).

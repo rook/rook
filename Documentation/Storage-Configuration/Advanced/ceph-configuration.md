@@ -211,8 +211,7 @@ ceph osd pool set rbd pg_num 512
 !!! warning
     The advised method for controlling Ceph configuration is to use the [`cephConfig:` structure](../../CRDs/Cluster/ceph-cluster-crd.md#ceph-config)
     in the `CephCluster` CRD.
-
-    It is highly recommended that this only be used when absolutely necessary and that the `config` be
+    <br><br>It is highly recommended that this only be used when absolutely necessary and that the `config` be
     reset to an empty string if/when the configurations are no longer necessary. Configurations in the
     config file will make the Ceph cluster less configurable from the CLI and dashboard and may make
     future tuning or debugging difficult.
@@ -235,7 +234,7 @@ has been initialized, each daemon will need to be restarted where you want the s
 
 * mons: ensure all three mons are online and healthy before restarting each mon pod, one at a time.
 * mgrs: the pods are stateless and can be restarted as needed, but note that this will disrupt the
-  Ceph dashboard during restart.
+    Ceph dashboard during restart.
 * OSDs: restart your the pods by deleting them, one at a time, and running `ceph -s`
 between each restart to ensure the cluster goes back to "active/clean" state.
 * RGW: the pods are stateless and can be restarted as needed.
@@ -358,10 +357,10 @@ sizes vary.  This should work for most use-cases, but the following situations
 could warrant weight changes:
 
 * Your cluster has some relatively slow OSDs or nodes. Lowering their weight can
-  reduce the impact of this bottleneck.
+    reduce the impact of this bottleneck.
 * You're using bluestore drives provisioned with Rook v0.3.1 or older.  In this
-  case you may notice OSD weights did not get set relative to their storage
-  capacity.  Changing the weight can fix this and maximize cluster capacity.
+    case you may notice OSD weights did not get set relative to their storage
+    capacity.  Changing the weight can fix this and maximize cluster capacity.
 
 This example sets the weight of osd.0 which is 600GiB
 

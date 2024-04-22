@@ -93,10 +93,10 @@ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integra
 3. Only the `CephSmokeSuite` is currently supported on OpenShift.
 4. Set the following environment variables depending on the environment:
 
-```console
-export TEST_ENV_NAME=openshift
-export TEST_STORAGE_CLASS=gp2
-export TEST_BASE_DIR=/tmp
-```
+    ```console
+    export TEST_ENV_NAME=openshift
+    export TEST_STORAGE_CLASS=gp2
+    export TEST_BASE_DIR=/tmp
+    ```
 
 5. Run the integration tests

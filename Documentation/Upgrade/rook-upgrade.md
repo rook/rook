@@ -51,18 +51,18 @@ those releases.
 ## Breaking changes in v1.14
 
 * The minimum supported version of Kubernetes is v1.25.
-  Upgrade to Kubernetes v1.25 or higher before upgrading Rook.
+    Upgrade to Kubernetes v1.25 or higher before upgrading Rook.
 * The Rook operator config `CSI_ENABLE_READ_AFFINITY` was removed. v1.13 clusters that have modified
-  this value to be `"true"` must set the option as desired in each CephCluster as documented
-  [here](https://rook.github.io/docs/rook/v1.14/CRDs/Cluster/ceph-cluster-crd/#csi-driver-options)
-  before upgrading to v1.14.
+    this value to be `"true"` must set the option as desired in each CephCluster as documented
+    [here](https://rook.github.io/docs/rook/v1.14/CRDs/Cluster/ceph-cluster-crd/#csi-driver-options)
+    before upgrading to v1.14.
 * Rook is beginning the process of deprecating CSI network "holder" pods.
-  If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, see the
-  [detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
-  to disable them. This is optional for v1.14, but will be required in a future release.
+    If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, see the
+    [detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
+    to disable them. This is optional for v1.14, but will be required in a future release.
 * In the operator helm chart, the images for the CSI driver are now specified with separate
-  `repository` and `tag` values. If the CSI images have been customized, convert them from the
-  `image` value to the separated `repository` and `tag` values.
+    `repository` and `tag` values. If the CSI images have been customized, convert them from the
+    `image` value to the separated `repository` and `tag` values.
 
 
 ## Considerations
@@ -70,9 +70,9 @@ those releases.
 With this upgrade guide, there are a few notes to consider:
 
 * **WARNING**: Upgrading a Rook cluster is not without risk. There may be unexpected issues or
-  obstacles that damage the integrity and health the storage cluster, including data loss.
+    obstacles that damage the integrity and health the storage cluster, including data loss.
 * The Rook cluster's storage may be unavailable for short periods during the upgrade process for
-  both Rook operator updates and for Ceph version updates.
+    both Rook operator updates and for Ceph version updates.
 * Read this document in full before undertaking a Rook cluster upgrade.
 
 ## Patch Release Upgrades
@@ -103,7 +103,7 @@ manifests before any update. The common resources and CRDs might not be updated 
 release, but Kubernetes will only apply updates to the ones that changed.
 
 Also update optional resources like Prometheus monitoring noted more fully in the
-[upgrade section below](#updates-for-optional-resources).
+[upgrade section below](#prometheus-updates).
 
 ## Helm
 
@@ -115,7 +115,7 @@ The upgrade steps in this guide will clarify what Helm handles automatically.
     config `csi.disableHolderPods: false` in the values.yaml before upgrading to v1.14.
 
 The `rook-ceph` helm chart upgrade performs the Rook upgrade.
-The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](#ceph-version-upgrades) if the Ceph image is updated.
+The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](./ceph-upgrade.md) if the Ceph image is updated.
 The `rook-ceph` chart should be upgraded before `rook-ceph-cluster`, so the latest operator has the opportunity to update
 custom resources as necessary.
 
@@ -127,8 +127,8 @@ custom resources as necessary.
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
 
 * The cluster should be in a healthy state with full functionality. Review the
-  [health verification guide](health-verification.md) in order to verify a CephCluster is in a good
-  starting state.
+    [health verification guide](health-verification.md) in order to verify a CephCluster is in a good
+    starting state.
 * All pods consuming Rook storage should be created, running, and in a steady state.
 
 ## Rook Operator Upgrade
