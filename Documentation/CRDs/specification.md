@@ -7386,6 +7386,8 @@ string
 <td></td>
 </tr><tr><td><p>&#34;crashcollector&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;dashboard&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;mds&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;mgr&#34;</p></td>
