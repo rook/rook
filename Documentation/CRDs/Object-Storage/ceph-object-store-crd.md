@@ -65,7 +65,7 @@ spec:
   #zone:
     #name: zone-a
   #hosting:
-  #  dnsName:
+  #  dnsNames:
   #    - "mystore.example.com"
   #    - "mystore.example.org"
 ```
