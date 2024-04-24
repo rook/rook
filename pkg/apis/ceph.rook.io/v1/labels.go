@@ -43,6 +43,11 @@ func GetMgrLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMgr)
 }
 
+// GetDashboardLabels returns the Labels for the Dashboard service
+func GetDashboardLabels(a LabelsSpec) Labels {
+	return mergeAllLabelsWithKey(a, KeyDashboard)
+}
+
 // GetMonLabels returns the Labels for the MON service
 func GetMonLabels(a LabelsSpec) Labels {
 	return mergeAllLabelsWithKey(a, KeyMon)
