@@ -18,7 +18,7 @@ namespace as the operator when the first CephCluster CR is created.
 
 ## Supported Versions
 
-The supported Ceph CSI version is 3.3.0 or greater with Rook. Refer to ceph csi [releases](https://github.com/ceph/ceph-csi/releases)
+The two most recent Ceph CSI version are supported with Rook. Refer to ceph csi [releases](https://github.com/ceph/ceph-csi/releases)
 for more information.
 
 ## Static Provisioning
@@ -92,19 +92,6 @@ volumesnapshotclass, search for: `# csi-provisioner-name`
 
 All CSI pods are deployed with a sidecar container that provides a Prometheus
 metric for tracking whether the CSI plugin is alive and running.
-These metrics are meant to be scraped (collected) by Prometheus but can also be
-accessed through a GET request to a specific node as follows:
-
-`curl -X get http://[pod ip]:[liveness-port][liveness-path]  2>/dev/null | grep csi`
-
-For example:
-
-```console
-$ curl -X GET http://10.109.65.142:9080/metrics 2>/dev/null | grep csi
-# HELP csi_liveness Liveness Probe
-# TYPE csi_liveness gauge
-csi_liveness 1
-```
 
 Check the [monitoring documentation](../Monitoring/ceph-monitoring.md) to see how to integrate CSI
 liveness and GRPC metrics into Ceph monitoring.
