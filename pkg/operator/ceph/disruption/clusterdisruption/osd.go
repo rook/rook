@@ -488,7 +488,7 @@ func (r *ReconcileClusterDisruption) hasPGHealthCheckTimedout(pdbStateMap *corev
 	return false
 }
 
-// hasNodeDrained returns true if OSD pod is not assigned to any node or if the OSD node is not schedulable
+// hasOSDNodeDrained returns true if OSD pod is not assigned to any node or if the OSD node is not schedulable
 func hasOSDNodeDrained(ctx context.Context, c client.Client, namespace, osdID string) (bool, error) {
 	osdNodeName, err := getOSDNodeName(ctx, c, namespace, osdID)
 	if err != nil {
