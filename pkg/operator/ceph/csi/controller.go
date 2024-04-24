@@ -137,12 +137,29 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	// reconcileResult is used to communicate the result of the reconciliation back to the caller
 	var reconcileResult reconcile.Result
 
+	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
+	if err != nil {
+		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
+	}
+	if ownerRef != nil {
+		blockOwnerDeletion := false
+		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
+	}
+
+	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
+	// create an empty config map. config map will be filled with data
+	// later when clusters have mons
+	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
+	}
+
 	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
 	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
 	// CM won't be found
 	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: r.opConfig.OperatorNamespace}
 	opConfig := &v1.ConfigMap{}
-	err := r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
+	err = r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("operator's configmap resource not found. will use default value or env var.")
@@ -198,23 +215,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		}
 
 		return reconcile.Result{}, nil
-	}
-
-	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
-	if err != nil {
-		logger.Warningf("could not find deployment owner reference to assign to csi drivers. %v", err)
-	}
-	if ownerRef != nil {
-		blockOwnerDeletion := false
-		ownerRef.BlockOwnerDeletion = &blockOwnerDeletion
-	}
-
-	ownerInfo := k8sutil.NewOwnerInfoWithOwnerRef(ownerRef, r.opConfig.OperatorNamespace)
-	// create an empty config map. config map will be filled with data
-	// later when clusters have mons
-	err = CreateCsiConfigMap(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, ownerInfo)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
 	}
 
 	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
