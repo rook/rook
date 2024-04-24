@@ -260,9 +260,10 @@ func CreateCsiConfigMap(ctx context.Context, namespace string, clientset kuberne
 		if err := updateCsiConfigMapOwnerRefs(ctx, namespace, clientset, ownerInfo); err != nil {
 			return errors.Wrapf(err, "failed to ensure csi config map %q (in %q) owner references", configMap.Name, namespace)
 		}
+	} else {
+		logger.Infof("successfully created csi config map %q", configMap.Name)
 	}
 
-	logger.Infof("successfully created csi config map %q", configMap.Name)
 	return nil
 }
 
