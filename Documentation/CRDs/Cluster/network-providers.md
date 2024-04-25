@@ -211,7 +211,7 @@ kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- rook multus 
 
 Then, update the args in the
 [multus-validation](https://github.com/rook/rook/blob/master/deploy/examples/multus-validation.yaml)
-job template. Minimally, add the NAD names(s) for public and/or cluster as needed and and then,
+job template. Minimally, add the NAD names(s) for public and/or cluster as needed and then,
 create the job to validate the Multus configuration.
 
 If the tool fails, it will suggest what things may be preventing Multus networks from working

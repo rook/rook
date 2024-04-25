@@ -44,7 +44,7 @@ reported, even if the command's return code is nonzero (failure). Run will
 terminate if the command could not be run for any reason or if there was an
 error storing the command results into the ConfigMap. An application label
 is applied to the ConfigMap. Run will also terminate if the label already
-exists and has a different application's name name; this may indicate that
+exists and has a different application's name; this may indicate that
 it is not safe for cmd-reporter to edit the ConfigMap.`,
 	Args:   cobra.NoArgs,
 	Run:    runCmdReporter,

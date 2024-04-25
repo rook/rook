@@ -824,7 +824,7 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 	}
 }
 
-// replaceOSDForNewStore deletes an existing OSD deployment that does not not match the expected OSD backend store provided in the storage spec
+// replaceOSDForNewStore deletes an existing OSD deployment that does not match the expected OSD backend store provided in the storage spec
 func (c *Cluster) replaceOSDForNewStore() error {
 	if c.spec.Storage.Store.UpdateStore != OSDStoreUpdateConfirmation {
 		logger.Debugf("no OSD migration to a new backend store is requested")

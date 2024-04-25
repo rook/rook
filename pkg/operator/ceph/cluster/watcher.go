@@ -79,7 +79,7 @@ func checkStorageForNode(cluster *cephv1.CephCluster) bool {
 	return true
 }
 
-// onK8sNodeAdd is triggered when a node is added in the Kubernetes cluster
+// onK8sNode is triggered when a node is added in the Kubernetes cluster
 func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bool {
 	node, ok := object.(*corev1.Node)
 	if !ok {

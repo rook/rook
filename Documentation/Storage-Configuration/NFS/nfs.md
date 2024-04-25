@@ -10,7 +10,7 @@ filesystem storage from within the Kubernetes cluster via PVC while simultaneous
 via direct client connection from within or outside of the Kubernetes cluster.
 
 !!! warning
-    Simultaneous access to NFS storage from Pods and from from external clients complicates NFS user
+    Simultaneous access to NFS storage from Pods and from external clients complicates NFS user
     ID mapping significantly. Client IDs mapped from external clients will not be the same as the
     IDs associated with the NFS CSI driver, which mount exports for Kubernetes pods.
 
