@@ -252,9 +252,7 @@ func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[str
 				lc != "swift" &&
 				lc != "s3" {
 
-				errString := fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %q", string(keystone.ImplicitTenants))
-				logger.Errorf(errString)
-				return nil, errors.New(errString)
+				return nil, errors.New(fmt.Sprintf("ImplicitTenantSetting can only be 'swift', 's3', 'true' or 'false', not %q", string(keystone.ImplicitTenants)))
 
 			}
 
@@ -267,15 +265,13 @@ func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[str
 		}
 
 		if rgwConfig.KeystoneSecret == nil {
-			logger.Error("Cannot find keystone secret!")
 			return nil, errors.New("Cannot find keystone secret")
 		}
 
 		var err error
 		configOptions, err = mapKeystoneSecretToConfig(configOptions, rgwConfig.KeystoneSecret)
 		if err != nil {
-			logger.Infof("error mapping keystone secret %s to config: %s", rgwConfig.KeystoneSecret.Name, err)
-			return nil, err
+			return nil, errors.Wrap(err, fmt.Sprintf("error mapping keystone secret %s to config", rgwConfig.KeystoneSecret.Name))
 		}
 
 	} else {
