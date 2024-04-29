@@ -159,6 +159,8 @@ The hosting settings allow you to host buckets in the object store on a custom D
 
 * `dnsNames`: a list of DNS names to host buckets on. These names need to valid according RFC-1123. Otherwise it will fail. Each endpoint requires wildcard support like [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards). Do not include the wildcard itself in the list of hostnames (e.g., use "mystore.example.com" instead of "*.mystore.example.com"). Add all the hostnames like openshift routes otherwise access will be denied, but if the hostname does not support wild card then virtual host style won't work those hostname. By default cephobjectstore service endpoint and custom endpoints from cephobjectzone is included. The feature is supported only for Ceph v18 and later versions.
 
+Please consider following points while setting this option. Domains added to `dnsNames` should listen to the same port mentioned in `CephObjectStoreSpec`. If the user specified both `port` and `securePort` in the `CephObjectStoreSpec`, then domains input into `dnsNames` must only specify `securePort`. If TLS is enabled with RGW, either TLS certificate include to verify the domains in `dnsNames` or user need to set `insecureSkipVerify` to true in the kubernetes secret.
+
 ## Runtime settings
 
 ### MIME types
