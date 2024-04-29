@@ -20,12 +20,11 @@ import (
 	"context"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
-
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -102,9 +101,8 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
 
 	// install yaook-keystone here
-	if err := InstallKeystoneInTestCluster(h.k8shelper, namespace); err != nil {
-		return
-	}
+	err := InstallKeystoneInTestCluster(h.k8shelper, namespace)
+	h.Suite.NoErrorf(err, "Failed to install Keystone in cluster")
 
 	// create usersecret for object store to use
 	testCtx := context.TODO()
@@ -127,11 +125,8 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 		Data: secrets,
 	}
 
-	_, err := h.k8shelper.Clientset.CoreV1().Secrets(namespace).Create(testCtx, secret, metav1.CreateOptions{})
-
-	if err != nil {
-		return
-	}
+	_, err = h.k8shelper.Clientset.CoreV1().Secrets(namespace).Create(testCtx, secret, metav1.CreateOptions{})
+	h.Suite.NoErrorf(err, "Failed to create keystone usersecret")
 
 	h.helper = clients.CreateTestClient(h.k8shelper, h.installer.Manifests)
 }
