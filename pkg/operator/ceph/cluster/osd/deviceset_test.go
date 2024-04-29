@@ -280,16 +280,20 @@ func TestPrepareDeviceSetsWithCrushParams(t *testing.T) {
 }
 
 func TestPVCName(t *testing.T) {
-	id := deviceSetPVCID("mydeviceset", "a", 0)
-	assert.Equal(t, "mydeviceset-a-0", id)
+	id, err := deviceSetPVCID("mydeviceset-making-the-length-of-pvc-id-greater-than-the-limit-63", "a", 0)
+	assert.Error(t, err)
+	assert.Equal(t, "", id)
 
-	id = deviceSetPVCID("mydeviceset", "a", 10)
+	id, err = deviceSetPVCID("mydeviceset", "a", 10)
+	assert.NoError(t, err)
 	assert.Equal(t, "mydeviceset-a-10", id)
 
-	id = deviceSetPVCID("device-set", "a", 10)
+	id, err = deviceSetPVCID("device-set", "a", 10)
+	assert.NoError(t, err)
 	assert.Equal(t, "device-set-a-10", id)
 
-	id = deviceSetPVCID("device.set.with.dots", "b", 10)
+	id, err = deviceSetPVCID("device.set.with.dots", "b", 10)
+	assert.NoError(t, err)
 	assert.Equal(t, "device-set-with-dots-b-10", id)
 }
 
