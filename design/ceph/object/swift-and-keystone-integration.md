@@ -51,9 +51,12 @@ to further technologies (such as LDAP authentication).
   create a separate `cephobjectstoreuser`, configure its access rights
   to the bucket and use those credentials.
 
+* Support for Kubernetes Container Object Storage (COSI)
+
 * Support for authentication technologies other than Keystone (e.g. LDAP)
 
 * Exposing options that disable security features (e.g. TLS verification)
+
 
 ## Proposal details
 

@@ -2,10 +2,13 @@
 title: Object Store with Keystone and Swift
 ---
 
-!!! attention
-    This feature is experimental.
+!!! note
+    The Object Store with Keystone and Swift is currently in experimental mode.
 
 Ceph RGW can integrate natively with the Swift API and Keystone via the CephObjectStore CRD. This allows native integration of Rook-operated Ceph RGWs into [OpenStack](https://www.openstack.org/) clouds.
+
+!!! note
+    Authentication via the OBC and COSI features is not affected by this configuration.
 
 ## Create a Local Object Store with Keystone and Swift
 
@@ -73,7 +76,7 @@ spec:
   protocols:
     swift:
       accountInUrl: true
-      urlPrefix: /swift  
+      urlPrefix: /swift
   preservePoolsOnDelete: true
   gateway:
     sslCertificateRef:
@@ -115,7 +118,7 @@ openstack object create exampleContainer /etc/hosts
 # retrieve and save the file
 openstack object save --file /tmp/hosts.saved exampleContainer /etc/hosts
 openstack object delete exampleContainer /etc/hosts
-openstack container delete exampleContainer 
+openstack container delete exampleContainer
 ```
 
 ## Basic concepts
@@ -123,7 +126,7 @@ openstack container delete exampleContainer
 When using Keystone as an authentication provider, Ceph uses the credentials of an admin user (provided in the secret references by `serviceUserSecretName`) to access Keystone.
 
 For each user accessing the object store using Swift, Ceph implicitly creates a user which must be represented in Keystone with an authorized counterpart.
-Keystone checks for a user of the same name. Based on the name and other parameters ((OpenStack Keystone) project, (OpenStack Keystone) role) Keystone allows or disallows access to a swift container or object. 
+Keystone checks for a user of the same name. Based on the name and other parameters ((OpenStack Keystone) project, (OpenStack Keystone) role) Keystone allows or disallows access to a swift container or object.
 
 It is not necessary to create any users in OpenStack Keystone (except for the admin user provided in the `serviceUserSecretName`).
 
