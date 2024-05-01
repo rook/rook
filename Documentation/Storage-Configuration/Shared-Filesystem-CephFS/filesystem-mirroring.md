@@ -58,7 +58,7 @@ spec:
 
 ## Create the cephfs-mirror daemon
 
-Launch the `rook-ceph-fs-mirror` pod on the source storage cluster, which deploys the `cephfs-mirror` daemon in the cluster:  
+Launch the `rook-ceph-fs-mirror` pod on the source storage cluster, which deploys the `cephfs-mirror` daemon in the cluster:
 
 ```console
 kubectl create -f deploy/examples/filesystem-mirror.yaml
@@ -84,7 +84,7 @@ This secret can then be fetched like so:
 eyJmc2lkIjoiOTFlYWUwZGQtMDZiMS00ZDJjLTkxZjMtMTMxMWM5ZGYzODJiIiwiY2xpZW50X2lkIjoicmJkLW1pcnJvci1wZWVyIiwia2V5IjoiQVFEN1psOWZ3V1VGRHhBQWdmY0gyZi8xeUhYeGZDUTU5L1N0NEE9PSIsIm1vbl9ob3N0IjoiW3YyOjEwLjEwMS4xOC4yMjM6MzMwMCx2MToxMC4xMDEuMTguMjIzOjY3ODldIn0=
 ```
 
-### Import the token in the Destination cluster 
+### Import the token in the Destination cluster
 
 The decoded secret must be saved in a file before importing.
 
@@ -99,7 +99,7 @@ Further refer to CephFS mirror documentation to [configure a directory for snaps
 
 ## Verify that the snapshots have synced
 
-To check the `mirror daemon status`, please run the following command from the [toolbox](../../Troubleshooting/ceph-toolbox.md) pod. 
+To check the `mirror daemon status`, please run the following command from the [toolbox](../../Troubleshooting/ceph-toolbox.md) pod.
 
 For example :
 

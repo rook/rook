@@ -110,13 +110,13 @@ These two requirements can be broken down further as follows:
     1. the host must have an interface connected to the Multus public network (the "public-network-interface").
     2. the "public-network-interface" must have an IP address.
     3. a route must exist to direct traffic destined for pods on the Multus public network through
-       the "public-network-interface".
+        the "public-network-interface".
 2. For routing pods on the Multus public network to Kubernetes hosts, the public
-   NetworkAttachementDefinition must be configured to ensure the following:
+    NetworkAttachementDefinition must be configured to ensure the following:
     1. The definition must have its IP Address Management (IPAM) configured to route traffic destined
-       for nodes through the network.
+        for nodes through the network.
 3. To ensure routing between the two networks works properly, no IP address assigned to a node can
-   overlap with any IP address assigned to a pod on the Multus public network.
+    overlap with any IP address assigned to a pod on the Multus public network.
 
 These requirements require careful planning, but some methods are able to meet these requirements
 more easily than others. [Examples are provided after the full document](#multus-examples) to help
@@ -163,15 +163,15 @@ spec:
 ```
 
 * Note that the example above does not specify information that would route pods on the network to
-  Kubernetes hosts.
+    Kubernetes hosts.
 * Ensure that `master` matches the network interface on hosts that you want to use.
-  It must be the same across all hosts.
+    It must be the same across all hosts.
 * CNI type [macvlan](https://www.cni.dev/plugins/current/main/macvlan/) is highly recommended.
-  It has less CPU and memory overhead compared to traditional Linux `bridge` configurations.
+    It has less CPU and memory overhead compared to traditional Linux `bridge` configurations.
 * IPAM type [whereabouts](https://github.com/k8snetworkplumbingwg/whereabouts) is recommended
-  because it ensures each pod gets an IP address unique within the Kubernetes cluster. No DHCP
-  server is required. If a DHCP server is present on the network, ensure the IP range does not
-  overlap with the DHCP server's range.
+    because it ensures each pod gets an IP address unique within the Kubernetes cluster. No DHCP
+    server is required. If a DHCP server is present on the network, ensure the IP range does not
+    overlap with the DHCP server's range.
 
 NetworkAttachmentDefinitions are selected for the desired Ceph network using `selectors`. Selector
 values should include the namespace in which the NAD is present. `public` and `cluster` may be
@@ -205,6 +205,7 @@ installing any Custom Resources, run the tool from the operator pod.
 
 The tool's CLI is designed to be as helpful as possible. Get help text for the multus validation
 tool like so:
+
 ```console
 kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- rook multus validation run --help
 ```
@@ -239,7 +240,7 @@ The network plan for this cluster will be as follows:
 - Pods and nodes will have separate IP ranges
 - Nodes will get the IP range 192.168.252.0/22 (this allows up to 1024 hosts)
 - Nodes will have IPs assigned dynamically via DHCP
-  (DHCP configuration is outside the scope of this document)
+    (DHCP configuration is outside the scope of this document)
 - Pods will get the IP range 192.168.0.0/18 (this allows up to 16,384 Rook/Ceph pods)
 - Whereabouts will be used to assign IPs to the Multus public network
 
@@ -300,7 +301,7 @@ The network plan for this cluster will be as follows:
 - Pods will get the remainder of the ranges (192.168.0.1 to 192.168.251.255)
 - Whereabouts will be used to assign IPs to the Multus public network
 - Nodes will have IPs assigned statically via PXE configs
-  (PXE configuration and static IP management is outside the scope of this document)
+    (PXE configuration and static IP management is outside the scope of this document)
 
 PXE configuration for the nodes must apply a configuration to nodes to allow nodes to route to pods
 on the Multus public network.
@@ -466,6 +467,7 @@ Use the [toolbox](../../Troubleshooting/ceph-toolbox.md) or the
 
 The example below uses
 the kubectl plugin, and the OSD public network is 192.168.20.0/24.
+
 ```console
 $ kubectl rook-ceph ceph osd dump | grep 'osd\.'
 osd.0 up   in  weight 1 up_from 7 up_thru 0 down_at 0 last_clean_interval [0,0) [v2:192.168.20.19:6800/213587265,v1:192.168.20.19:6801/213587265] [v2:192.168.30.1:6800/213587265,v1:192.168.30.1:6801/213587265] exists,up 7ebbc19a-d45a-4b12-8fef-0f9423a59e78
@@ -474,6 +476,7 @@ osd.2 up   in  weight 1 up_from 21 up_thru 0 down_at 20 last_clean_interval [18,
 ```
 
 Now check that each node (NODE) can reach OSDs over the public network:
+
 ```console
 $ ssh user@NODE
 $ user@NODE $> ping -c3 192.168.20.19
@@ -515,6 +518,7 @@ After this, `csi-*plugin-*` pods will restart, and `csi-*plugin-holder-*` pods w
 
 Check that CSI pods are using the correct host networking configuration using the example below as
 guidance (in the example, `CSI_ENABLE_HOST_NETWORK` is `"true"`):
+
 ```console
 $ kubectl -n rook-ceph get -o yaml daemonsets.apps csi-rbdplugin | grep -i hostnetwork
       hostNetwork: true
@@ -544,6 +548,7 @@ After this process is done for all Kubernetes nodes, it is safe to delete the `c
 daemonsets.
 
 Delete the holder daemonsets using the example below as guidance:
+
 ```console
 $ kubectl -n rook-ceph get daemonset -o name | grep plugin-holder
 daemonset.apps/csi-cephfsplugin-holder-my-cluster

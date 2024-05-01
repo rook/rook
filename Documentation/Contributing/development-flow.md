@@ -326,23 +326,23 @@ Make modifications directly in the manager module and reload:
 
 2. Shell into the manager container:
 
-```console
-kubectl exec -n rook-ceph --stdin --tty $(kubectl get pod -n rook-ceph -l ceph_daemon_type=mgr,instance=a  -o jsonpath='{.items[0].metadata.name}') -c mgr  -- /bin/bash
-```
+    ```console
+    kubectl exec -n rook-ceph --stdin --tty $(kubectl get pod -n rook-ceph -l ceph_daemon_type=mgr,instance=a  -o jsonpath='{.items[0].metadata.name}') -c mgr  -- /bin/bash
+    ```
 
 3. Make the modifications needed in the required manager module. The manager module source code is found in `/usr/share/ceph/mgr/`.
 
-!!! Note
-    If the manager pod is restarted, all modifications made in the mgr container will be lost
+    !!! Note
+        If the manager pod is restarted, all modifications made in the mgr container will be lost
 
-1. Restart the modified manager module to test the modifications:
+4. Restart the modified manager module to test the modifications:
 
-Example for restarting the rook manager module with the [kubectl plugin](https://github.com/rook/kubectl-rook-ceph):
+    Example for restarting the rook manager module with the [kubectl plugin](https://github.com/rook/kubectl-rook-ceph):
 
-```console
-kubectl rook-ceph ceph mgr module disable rook
-kubectl rook-ceph ceph mgr module enable rook
-```
+    ```console
+    kubectl rook-ceph ceph mgr module disable rook
+    kubectl rook-ceph ceph mgr module enable rook
+    ```
 
-Once the module is restarted the modifications will be running in the active manager.
-View the manager pod log or other changed behavior to validate the changes.
+5. Once the module is restarted the modifications will be running in the active manager.
+    View the manager pod log or other changed behavior to validate the changes.

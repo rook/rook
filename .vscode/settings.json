@@ -16,4 +16,13 @@
     "editor.defaultFormatter": "ms-python.black-formatter",
     "editor.formatOnSave": true
   },
+  "[markdown]": {
+    "editor.tabSize": 4,
+    "editor.detectIndentation": false,
+  },
+  "markdown.extension.list.indentationSize": "inherit",
+  "markdownlint.lintWorkspaceGlobs": [
+    "Documentation/**/*.md",
+    "!Documentation/Helm-Charts",
+  ],
 }

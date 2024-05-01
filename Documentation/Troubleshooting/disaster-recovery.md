@@ -72,11 +72,11 @@ the CRs to their prior state without even necessarily suffering cluster downtime
 
     2. **Verify that all critical resources are shown in the output.** The critical resources are these:
 
-          - Secrets: `rook-ceph-admin-keyring`, `rook-ceph-config`, `rook-ceph-mon`, `rook-ceph-mons-keyring`
-          - ConfigMap: `rook-ceph-mon-endpoints`
-          - Services: `rook-ceph-mon-*`, `rook-ceph-mgr-*`
-          - Deployments: `rook-ceph-mon-*`, `rook-ceph-osd-*`, `rook-ceph-mgr-*`
-          - PVCs (if applicable): `rook-ceph-mon-*` and the OSD PVCs (named `<deviceset>-*`, for example `set1-data-*`)
+        - Secrets: `rook-ceph-admin-keyring`, `rook-ceph-config`, `rook-ceph-mon`, `rook-ceph-mons-keyring`
+        - ConfigMap: `rook-ceph-mon-endpoints`
+        - Services: `rook-ceph-mon-*`, `rook-ceph-mgr-*`
+        - Deployments: `rook-ceph-mon-*`, `rook-ceph-osd-*`, `rook-ceph-mgr-*`
+        - PVCs (if applicable): `rook-ceph-mon-*` and the OSD PVCs (named `<deviceset>-*`, for example `set1-data-*`)
 
     3. For each listed resource, remove the `ownerReferences` metadata field, in order to unlink it from the deleting `CephCluster`
         CR.
@@ -125,9 +125,9 @@ the CRs to their prior state without even necessarily suffering cluster downtime
 6. If there are other CRs in terminating state such as CephBlockPools, CephObjectStores, or CephFilesystems,
     follow the above steps as well for those CRs:
 
-      1. Backup the CR
-      2. Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
-      3. Create the CR again
+    1. Backup the CR
+    2. Remove the finalizer and confirm the CR is deleted (the underlying Ceph resources will be preserved)
+    3. Create the CR again
 
 7. Scale up the operator
 
@@ -172,26 +172,25 @@ Situations this section can help resolve:
 Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to adopt is named `rook-ceph`.
 
 1. Make sure the old Kubernetes cluster is completely torn down and the new Kubernetes cluster is up and running without Rook Ceph.
-1. Backup `/var/lib/rook` in all the Rook Ceph nodes to a different directory. Backups will be used later.
-1. Pick a `/var/lib/rook/rook-ceph/rook-ceph.config` from any previous Rook Ceph node and save the old cluster `fsid` from its content.
-1. Remove `/var/lib/rook` from all the Rook Ceph nodes.
-1. Add identical `CephCluster` descriptor to the new Kubernetes cluster, especially identical `spec.storage.config` and `spec.storage.nodes`, except `mon.count`, which should be set to `1`.
-1. Add identical `CephFilesystem` `CephBlockPool` `CephNFS` `CephObjectStore` descriptors (if any) to the new Kubernetes cluster.
-1. Install Rook Ceph in the new Kubernetes cluster.
-1. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
-1. **STATE**: Now the cluster will have `rook-ceph-mon-a`, `rook-ceph-mgr-a`, and all the auxiliary pods up and running, and zero (hopefully) `rook-ceph-osd-ID-xxxxxx` running. `ceph -s` output should report 1 mon, 1 mgr running, and all of the OSDs down, all PGs are in `unknown` state. Rook should not start any OSD daemon since all devices belongs to the old cluster (which have a different `fsid`).
-1. Run `kubectl -n rook-ceph exec -it rook-ceph-mon-a-xxxxxxxx bash` to enter the `rook-ceph-mon-a` pod,
+2. Backup `/var/lib/rook` in all the Rook Ceph nodes to a different directory. Backups will be used later.
+3. Pick a `/var/lib/rook/rook-ceph/rook-ceph.config` from any previous Rook Ceph node and save the old cluster `fsid` from its content.
+4. Remove `/var/lib/rook` from all the Rook Ceph nodes.
+5. Add identical `CephCluster` descriptor to the new Kubernetes cluster, especially identical `spec.storage.config` and `spec.storage.nodes`, except `mon.count`, which should be set to `1`.
+6. Add identical `CephFilesystem` `CephBlockPool` `CephNFS` `CephObjectStore` descriptors (if any) to the new Kubernetes cluster.
+7. Install Rook Ceph in the new Kubernetes cluster.
+8. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
+9. **STATE**: Now the cluster will have `rook-ceph-mon-a`, `rook-ceph-mgr-a`, and all the auxiliary pods up and running, and zero (hopefully) `rook-ceph-osd-ID-xxxxxx` running. `ceph -s` output should report 1 mon, 1 mgr running, and all of the OSDs down, all PGs are in `unknown` state. Rook should not start any OSD daemon since all devices belongs to the old cluster (which have a different `fsid`).
+10. Run `kubectl -n rook-ceph exec -it rook-ceph-mon-a-xxxxxxxx bash` to enter the `rook-ceph-mon-a` pod,
 
     ```console
     mon-a# cat /etc/ceph/keyring-store/keyring  # save this keyring content for later use
     mon-a# exit
     ```
 
-1. Stop the Rook operator by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `0`.
-1. Stop cluster daemons by running `kubectl -n rook-ceph delete deploy/X` where X is every deployment in namespace `rook-ceph`, except `rook-ceph-operator` and `rook-ceph-tools`.
-1. Save the `rook-ceph-mon-a` address with `kubectl -n rook-ceph get cm/rook-ceph-mon-endpoints -o yaml` in the new Kubernetes cluster for later use.
-
-1. SSH to the host where `rook-ceph-mon-a` in the new Kubernetes cluster resides.
+11. Stop the Rook operator by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `0`.
+12. Stop cluster daemons by running `kubectl -n rook-ceph delete deploy/X` where X is every deployment in namespace `rook-ceph`, except `rook-ceph-operator` and `rook-ceph-tools`.
+13. Save the `rook-ceph-mon-a` address with `kubectl -n rook-ceph get cm/rook-ceph-mon-endpoints -o yaml` in the new Kubernetes cluster for later use.
+14. SSH to the host where `rook-ceph-mon-a` in the new Kubernetes cluster resides.
     1. Remove `/var/lib/rook/mon-a`
     2. Pick a healthy `rook-ceph-mon-ID` directory (`/var/lib/rook/mon-ID`) in the previous backup, copy to `/var/lib/rook/mon-a`. `ID` is any healthy mon node ID of the old cluster.
     3. Replace `/var/lib/rook/mon-a/keyring` with the saved keyring, preserving only the `[mon.]` section, remove `[client.admin]` section.
@@ -213,13 +212,13 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
         exit
         ```
 
-1. Tell Rook to run as old cluster by running `kubectl -n rook-ceph edit secret/rook-ceph-mon` and changing `fsid` to the original `fsid`. Note that the `fsid` is base64 encoded and must not contain a trailing carriage return. For example:
+15. Tell Rook to run as old cluster by running `kubectl -n rook-ceph edit secret/rook-ceph-mon` and changing `fsid` to the original `fsid`. Note that the `fsid` is base64 encoded and must not contain a trailing carriage return. For example:
 
     ```console
     echo -n a811f99a-d865-46b7-8f2c-f94c064e4356 | base64  # Replace with the fsid from your old cluster.
     ```
 
-1. Disable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and adding content below:
+16. Disable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and adding content below:
 
     ```yaml
     data:
@@ -231,10 +230,10 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
         auth supported = none
     ```
 
-1. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
-1. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
-1. **STATE**: Now the new cluster should be up and running with authentication disabled. `ceph -s` should report 1 mon & 1 mgr & all of the OSDs up and running, and all PGs in either `active` or `degraded` state.
-1. Run `kubectl -n rook-ceph exec -it rook-ceph-tools-XXXXXXX bash` to enter tools pod:
+17. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
+18. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
+19. **STATE**: Now the new cluster should be up and running with authentication disabled. `ceph -s` should report 1 mon & 1 mgr & all of the OSDs up and running, and all PGs in either `active` or `degraded` state.
+20. Run `kubectl -n rook-ceph exec -it rook-ceph-tools-XXXXXXX bash` to enter tools pod:
 
     ```console
     vi key
@@ -243,31 +242,31 @@ Assuming `dataHostPathData` is `/var/lib/rook`, and the `CephCluster` trying to 
     rm key
     ```
 
-1. Re-enable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and removing auth configuration added in previous steps.
-1. Stop the Rook operator by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `0`.
-1. Shut down entire new cluster by running `kubectl -n rook-ceph delete deploy/X` where X is every deployment in namespace `rook-ceph`, except `rook-ceph-operator` and `rook-ceph-tools`, again. This time OSD daemons are present and should be removed too.
-1. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
-1. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
-1. **STATE**: Now the new cluster should be up and running with authentication enabled. `ceph -s` output should not change much comparing to previous steps.
+21. Re-enable authentication by running `kubectl -n rook-ceph edit cm/rook-config-override` and removing auth configuration added in previous steps.
+22. Stop the Rook operator by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `0`.
+23. Shut down entire new cluster by running `kubectl -n rook-ceph delete deploy/X` where X is every deployment in namespace `rook-ceph`, except `rook-ceph-operator` and `rook-ceph-tools`, again. This time OSD daemons are present and should be removed too.
+24. Bring the Rook Ceph operator back online by running `kubectl -n rook-ceph edit deploy/rook-ceph-operator` and set `replicas` to `1`.
+25. Watch the operator logs with `kubectl -n rook-ceph logs -f rook-ceph-operator-xxxxxxx`, and wait until the orchestration has settled.
+26. **STATE**: Now the new cluster should be up and running with authentication enabled. `ceph -s` output should not change much comparing to previous steps.
 
 ## Backing up and restoring a cluster based on PVCs into a new Kubernetes cluster
 
 It is possible to migrate/restore an rook/ceph cluster from an existing Kubernetes cluster to a new one without resorting to SSH access or ceph tooling. This allows doing the migration using standard kubernetes resources only. This guide assumes the following:
 
 1. You have a CephCluster that uses PVCs to persist mon and osd data. Let's call it the "old cluster"
-1. You can restore the PVCs as-is in the new cluster. Usually this is done by taking regular snapshots of the PVC volumes and using a tool that can re-create PVCs from these snapshots in the underlying cloud provider. [Velero](https://github.com/vmware-tanzu/velero) is one such tool.
-1. You have regular backups of the secrets and configmaps in the rook-ceph namespace. Velero provides this functionality too.
+2. You can restore the PVCs as-is in the new cluster. Usually this is done by taking regular snapshots of the PVC volumes and using a tool that can re-create PVCs from these snapshots in the underlying cloud provider. [Velero](https://github.com/vmware-tanzu/velero) is one such tool.
+3. You have regular backups of the secrets and configmaps in the rook-ceph namespace. Velero provides this functionality too.
 
 Do the following in the new cluster:
 
 1. Stop the rook operator by scaling the deployment `rook-ceph-operator` down to zero: `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 0`
 and deleting the other deployments. An example command to do this is `k -n rook-ceph delete deployment -l operator!=rook`
-1. Restore the rook PVCs to the new cluster.
-1. Copy the keyring and fsid secrets from the old cluster: `rook-ceph-mgr-a-keyring`, `rook-ceph-mon`, `rook-ceph-mons-keyring`, `rook-ceph-osd-0-keyring`, ...
-1. Delete mon services and copy them from the old cluster: `rook-ceph-mon-a`, `rook-ceph-mon-b`, ... Note that simply re-applying won't work because the goal here is to restore the `clusterIP` in each service and this field is immutable in `Service` resources.
-1. Copy the endpoints configmap from the old cluster: `rook-ceph-mon-endpoints`
-1. Scale the rook operator up again : `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 1`
-1. Wait until the reconciliation is over.
+2. Restore the rook PVCs to the new cluster.
+3. Copy the keyring and fsid secrets from the old cluster: `rook-ceph-mgr-a-keyring`, `rook-ceph-mon`, `rook-ceph-mons-keyring`, `rook-ceph-osd-0-keyring`, ...
+4. Delete mon services and copy them from the old cluster: `rook-ceph-mon-a`, `rook-ceph-mon-b`, ... Note that simply re-applying won't work because the goal here is to restore the `clusterIP` in each service and this field is immutable in `Service` resources.
+5. Copy the endpoints configmap from the old cluster: `rook-ceph-mon-endpoints`
+6. Scale the rook operator up again : `kubectl -n rook-ceph scale deployment rook-ceph-operator --replicas 1`
+7. Wait until the reconciliation is over.
 
 ## Restoring the Rook cluster after the Rook namespace is deleted
 

@@ -47,10 +47,10 @@ For further details, please see the complete [security release process](SECURITY
 
 Please use the following to reach members of the community:
 
-- Slack: Join our [slack channel](https://slack.rook.io)
-- GitHub: Start a [discussion](https://github.com/rook/rook/discussions) or open an [issue](https://github.com/rook/rook/issues)
-- Twitter: [@rook_io](https://twitter.com/rook_io)
-- Security topics: [cncf-rook-security@lists.cncf.io](#reporting-security-vulnerabilities)
+-   Slack: Join our [slack channel](https://slack.rook.io)
+-   GitHub: Start a [discussion](https://github.com/rook/rook/discussions) or open an [issue](https://github.com/rook/rook/issues)
+-   Twitter: [@rook_io](https://twitter.com/rook_io)
+-   Security topics: [cncf-rook-security@lists.cncf.io](#reporting-security-vulnerabilities)
 
 ## Community Meeting
 
@@ -61,9 +61,9 @@ Any changes to the meeting schedule will be added to the [agenda doc](https://do
 
 Anyone who wants to discuss the direction of the project, design and implementation reviews, or general questions with the broader community is welcome and encouraged to join.
 
-- Meeting link: <https://zoom.us/j/98052644520?pwd=K0R4RUZCc3NhQisyMnA5VlV2MVBhQT09>
-- [Current agenda and past meeting notes](https://docs.google.com/document/d/1exd8_IG6DkdvyA0eiTtL2z5K2Ra-y68VByUUgwP7I9A/edit?usp=sharing)
-- [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)
+-   Meeting link: <https://zoom.us/j/98052644520?pwd=K0R4RUZCc3NhQisyMnA5VlV2MVBhQT09>
+-   [Current agenda and past meeting notes](https://docs.google.com/document/d/1exd8_IG6DkdvyA0eiTtL2z5K2Ra-y68VByUUgwP7I9A/edit?usp=sharing)
+-   [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)
 
 ## Official Releases
 

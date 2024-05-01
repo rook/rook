@@ -187,7 +187,7 @@ The Rook maintainers would like to receive telemetry reports for Rook clusters.
 The data is anonymous and does not include any identifying information.
 Enable the telemetry reporting feature with the following command in the toolbox:
 
-```
+```console
 ceph telemetry on
 ```
 

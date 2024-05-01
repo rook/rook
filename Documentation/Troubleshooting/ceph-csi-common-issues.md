@@ -255,8 +255,8 @@ When a user requests to create the application pod with PVC, there is a three-st
 ### csi-driver registration
 
 `csi-cephfsplugin-xxxx` or `csi-rbdplugin-xxxx` is a daemonset pod running on all the nodes
- where your application gets scheduled. If the plugin pods are not running on the node where
- your application is scheduled might cause the issue, make sure plugin pods are always running.
+where your application gets scheduled. If the plugin pods are not running on the node where
+your application is scheduled might cause the issue, make sure plugin pods are always running.
 
 Each plugin pod has two important containers: one is `driver-registrar` and `csi-rbdplugin` or
 `csi-cephfsplugin`. Sometimes there is also a `liveness-prometheus` container.

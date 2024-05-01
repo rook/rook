@@ -8,14 +8,14 @@ OpenShift Console uses OpenShift Prometheus for monitoring and populating data i
 
 1. Change the monitoring namespace to `openshift-monitoring`
 
-   Change the namespace of the RoleBinding `rook-ceph-metrics` from `rook-ceph` to `openshift-monitoring` for the `prometheus-k8s` ServiceAccount in [rbac.yaml](https://github.com/rook/rook/blob/master/deploy/examples/monitoring/rbac.yaml#L70).
+    Change the namespace of the RoleBinding `rook-ceph-metrics` from `rook-ceph` to `openshift-monitoring` for the `prometheus-k8s` ServiceAccount in [rbac.yaml](https://github.com/rook/rook/blob/master/deploy/examples/monitoring/rbac.yaml#L70).
 
-```yaml
-subjects:
-- kind: ServiceAccount
-  name: prometheus-k8s
-  namespace: openshift-monitoring
-```
+    ```yaml
+    subjects:
+    - kind: ServiceAccount
+    name: prometheus-k8s
+    namespace: openshift-monitoring
+    ```
 
 2. Enable Ceph Cluster monitoring
 

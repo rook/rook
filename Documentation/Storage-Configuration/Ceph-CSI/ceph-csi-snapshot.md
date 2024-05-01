@@ -19,7 +19,7 @@ In short, as the documentation describes it:
 
 ## RBD Snapshots
 
-### VolumeSnapshotClass
+### RBD VolumeSnapshotClass
 
 In [VolumeSnapshotClass](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
@@ -62,7 +62,7 @@ rbd-pvc-snapshot   true         rbd-pvc                             1Gi         
 The snapshot will be ready to restore to a new PVC when the `READYTOUSE` field of the
 `volumesnapshot` is set to true.
 
-### Restore the snapshot to a new PVC
+### Restore the RBD snapshot to a new PVC
 
 In [pvc-restore](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/pvc-restore.yaml),
 `dataSource` should be the name of the `VolumeSnapshot` previously
@@ -95,7 +95,7 @@ kubectl delete -f deploy/examples/csi/rbd/snapshotclass.yaml
 
 ## CephFS Snapshots
 
-### VolumeSnapshotClass
+### CephFS VolumeSnapshotClass
 
 In [VolumeSnapshotClass](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/snapshotclass.yaml),
 the `csi.storage.k8s.io/snapshotter-secret-name` parameter should reference the
@@ -138,7 +138,7 @@ cephfs-pvc-snapshot   true         cephfs-pvc                         1Gi       
 The snapshot will be ready to restore to a new PVC when `READYTOUSE` field of the
 `volumesnapshot` is set to true.
 
-### Restore the snapshot to a new PVC
+### Restore the CephFS snapshot to a new PVC
 
 In
 [pvc-restore](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/pvc-restore.yaml),

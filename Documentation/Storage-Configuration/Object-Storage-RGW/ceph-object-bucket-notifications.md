@@ -68,38 +68,38 @@ spec:
 ```
 
 1. `name` of the `CephBucketTopic`
-    * In case of AMQP endpoint, the name is used for the AMQP topic (“routing key” for a topic exchange)
-    * In case of Kafka endpoint, the name is used as the Kafka topic
-1. `namespace`(optional) of the `CephBucketTopic`. Should match the namespace of the CephBucketNotification associated with this CephBucketTopic, and the OBC with the label referencing the CephBucketNotification
-1. `objectStoreName` is the name of the object store in which the topic should be created. This must be the same object store used for the buckets associated with the notifications referencing this topic.
-1. `objectStoreNamespace` is the namespace of the object store in which the topic should be created
-1. `opaqueData` (optional) is added to all notifications triggered by a notifications associated with the topic
-1. `persistent` (optional) indicates whether notifications to this endpoint are persistent (=asynchronous) or sent synchronously (“false” by default)
-1. `endpoint` to which to send the notifications to. Exactly one of the endpoints must be defined: `http`, `amqp`, `kafka`
-1. `http` (optional) hold the spec for an HTTP endpoint. The format of the URI would be: `http[s]://<fqdn>[:<port>][/<resource>]`
-    * port defaults to: 80/443 for HTTP/S accordingly
-1. `disableVerifySSL` indicates whether the RGW is going to verify the SSL certificate of the HTTP server in case HTTPS is used ("false" by default)
-1. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). Supported for Ceph Quincy (v17) or newer ("false" by default)
-1. `amqp` (optional) hold the spec for an AMQP endpoint. The format of the URI would be: `amqp[s]://[<user>:<password>@]<fqdn>[:<port>][/<vhost>]`
-    * port defaults to: 5672/5671 for AMQP/S accordingly
-    * user/password defaults to: guest/guest
-    * user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
-    * vhost defaults to: “/”
-1. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the AMQP server in case AMQPS is used ("false" by default)
-1. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
-    * “none”: message is considered “delivered” if sent to broker
-    * “broker”: message is considered “delivered” if acked by broker (default)
-    * “routable”: message is considered “delivered” if broker can route to a consumer
-1. `exchange` in the AMQP broker that would route the notifications. Different topics pointing to the same endpoint must use the same exchange
-1. `kafka` (optional) hold the spec for a Kafka endpoint. The format of the URI would be: `kafka://[<user>:<password>@]<fqdn>[:<port]`
-    * port defaults to: 9092
-    * user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
-    * user/password may only be provided together with `useSSL`, if not, the connection to the broker would fail
-1. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the Kafka server in case `useSSL` flag is used ("false" by default)
-1. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
-    * “none”: message is considered “delivered” if sent to broker
-    * “broker”: message is considered “delivered” if acked by broker (default)
-1. `useSSL` (optional) indicates that secure connection will be used for connecting with the broker (“false” by default)
+    + In case of AMQP endpoint, the name is used for the AMQP topic (“routing key” for a topic exchange)
+    + In case of Kafka endpoint, the name is used as the Kafka topic
+2. `namespace`(optional) of the `CephBucketTopic`. Should match the namespace of the CephBucketNotification associated with this CephBucketTopic, and the OBC with the label referencing the CephBucketNotification
+3. `objectStoreName` is the name of the object store in which the topic should be created. This must be the same object store used for the buckets associated with the notifications referencing this topic.
+4. `objectStoreNamespace` is the namespace of the object store in which the topic should be created
+5. `opaqueData` (optional) is added to all notifications triggered by a notifications associated with the topic
+6. `persistent` (optional) indicates whether notifications to this endpoint are persistent (=asynchronous) or sent synchronously (“false” by default)
+7. `endpoint` to which to send the notifications to. Exactly one of the endpoints must be defined: `http`, `amqp`, `kafka`
+8. `http` (optional) hold the spec for an HTTP endpoint. The format of the URI would be: `http[s]://<fqdn>[:<port>][/<resource>]`
+    + port defaults to: 80/443 for HTTP/S accordingly
+9. `disableVerifySSL` indicates whether the RGW is going to verify the SSL certificate of the HTTP server in case HTTPS is used ("false" by default)
+10. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). Supported for Ceph Quincy (v17) or newer ("false" by default)
+11. `amqp` (optional) hold the spec for an AMQP endpoint. The format of the URI would be: `amqp[s]://[<user>:<password>@]<fqdn>[:<port>][/<vhost>]`
+    + port defaults to: 5672/5671 for AMQP/S accordingly
+    + user/password defaults to: guest/guest
+    + user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
+    + vhost defaults to: “/”
+12. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the AMQP server in case AMQPS is used ("false" by default)
+13. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
+    + “none”: message is considered “delivered” if sent to broker
+    + “broker”: message is considered “delivered” if acked by broker (default)
+    + “routable”: message is considered “delivered” if broker can route to a consumer
+14. `exchange` in the AMQP broker that would route the notifications. Different topics pointing to the same endpoint must use the same exchange
+15. `kafka` (optional) hold the spec for a Kafka endpoint. The format of the URI would be: `kafka://[<user>:<password>@]<fqdn>[:<port]`
+    + port defaults to: 9092
+    + user/password may only be provided if HTTPS is used with the RGW. If not, topic creation request will be rejected
+    + user/password may only be provided together with `useSSL`, if not, the connection to the broker would fail
+16. `disableVerifySSL` (optional) indicates whether the RGW is going to verify the SSL certificate of the Kafka server in case `useSSL` flag is used ("false" by default)
+17. `ackLevel` (optional) indicates what kind of ack the RGW is waiting for after sending the notifications:
+    + “none”: message is considered “delivered” if sent to broker
+    + “broker”: message is considered “delivered” if acked by broker (default)
+18. `useSSL` (optional) indicates that secure connection will be used for connecting with the broker (“false” by default)
 
 !!! note
     In case of Kafka and AMQP, the consumer of the notifications is not required to ack the notifications, since the broker persists the messages before delivering them to their final destinations.
@@ -142,13 +142,13 @@ spec:
 ```
 
 1. `name` of the `CephBucketNotification`
-1. `namespace`(optional) of the `CephBucketNotification`. Should match the namespace of the CephBucketTopic referenced in [3], and the OBC with the label referencing the CephBucketNotification
-1. `topic` to which the notifications should be sent
-1. `filter` (optional) holds a list of filtering rules of different types. Only objects that match all the filters will trigger notification sending
-1. `keyFilter` (optional) are filters based on the object key. There could be up to 3 key filters defined: `prefix`, `suffix` and `regex`
-1. `metadataFilters` (optional) are filters based on the object metadata. All metadata fields defined as filters must exists in the object, with the values defined in the filter. Other metadata fields may exist in the object
-1. `tagFilters` (optional) are filters based on object tags. All tags defined as filters must exists in the object, with the values defined in the filter. Other tags may exist in the object
-1. `events` (optional) is a list of events that should trigger the notifications. By default all events should trigger notifications. Valid Events are:
+2. `namespace`(optional) of the `CephBucketNotification`. Should match the namespace of the CephBucketTopic referenced in [3], and the OBC with the label referencing the CephBucketNotification
+3. `topic` to which the notifications should be sent
+4. `filter` (optional) holds a list of filtering rules of different types. Only objects that match all the filters will trigger notification sending
+5. `keyFilter` (optional) are filters based on the object key. There could be up to 3 key filters defined: `prefix`, `suffix` and `regex`
+6. `metadataFilters` (optional) are filters based on the object metadata. All metadata fields defined as filters must exists in the object, with the values defined in the filter. Other metadata fields may exist in the object
+7. `tagFilters` (optional) are filters based on object tags. All tags defined as filters must exists in the object, with the values defined in the filter. Other tags may exist in the object
+8. `events` (optional) is a list of events that should trigger the notifications. By default all events should trigger notifications. Valid Events are:
     * s3:ObjectCreated:*
     * s3:ObjectCreated:Put
     * s3:ObjectCreated:Post

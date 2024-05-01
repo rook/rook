@@ -206,141 +206,141 @@ The bluestore partition has the following reference combinations supported by th
 
 * A single "data" device.
 
-  ```yaml
-    storage:
-      storageClassDeviceSets:
-      - name: set1
-        count: 3
-        portable: false
-        volumeClaimTemplates:
-        - metadata:
-            name: data
-          spec:
-            resources:
-              requests:
-                storage: 10Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-            storageClassName: gp2
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-  ```
+    ```yaml
+        storage:
+        storageClassDeviceSets:
+        - name: set1
+            count: 3
+            portable: false
+            volumeClaimTemplates:
+            - metadata:
+                name: data
+            spec:
+                resources:
+                requests:
+                    storage: 10Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+                storageClassName: gp2
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+    ```
 
 * A "data" device and a "metadata" device.
 
-  ```yaml
-    storage:
-      storageClassDeviceSets:
-      - name: set1
-        count: 3
-        portable: false
-        volumeClaimTemplates:
-        - metadata:
-            name: data
-          spec:
-            resources:
-              requests:
-                storage: 10Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-            storageClassName: gp2
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-        - metadata:
-            name: metadata
-          spec:
-            resources:
-              requests:
-                # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
-                storage: 5Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
-            storageClassName: io1
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-  ```
+    ```yaml
+        storage:
+        storageClassDeviceSets:
+        - name: set1
+            count: 3
+            portable: false
+            volumeClaimTemplates:
+            - metadata:
+                name: data
+            spec:
+                resources:
+                requests:
+                    storage: 10Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+                storageClassName: gp2
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+            - metadata:
+                name: metadata
+            spec:
+                resources:
+                requests:
+                    # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+                    storage: 5Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+                storageClassName: io1
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+    ```
 
 * A "data" device and a "wal" device.
 A WAL device can be used for BlueStore’s internal journal or write-ahead log (block.wal), it is only useful to use a WAL device if the device is faster than the primary device (data device).
 There is no separate "metadata" device in this case, the data of main OSD block and block.db located in "data" device.
 
-  ```yaml
-    storage:
-      storageClassDeviceSets:
-      - name: set1
-        count: 3
-        portable: false
-        volumeClaimTemplates:
-        - metadata:
-            name: data
-          spec:
-            resources:
-              requests:
-                storage: 10Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-            storageClassName: gp2
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-        - metadata:
-            name: wal
-          spec:
-            resources:
-              requests:
-                # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
-                storage: 5Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
-            storageClassName: io1
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-  ```
+    ```yaml
+        storage:
+        storageClassDeviceSets:
+        - name: set1
+            count: 3
+            portable: false
+            volumeClaimTemplates:
+            - metadata:
+                name: data
+            spec:
+                resources:
+                requests:
+                    storage: 10Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+                storageClassName: gp2
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+            - metadata:
+                name: wal
+            spec:
+                resources:
+                requests:
+                    # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+                    storage: 5Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+                storageClassName: io1
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+    ```
 
 * A "data" device, a "metadata" device and a "wal" device.
 
-  ```yaml
-    storage:
-      storageClassDeviceSets:
-      - name: set1
-        count: 3
-        portable: false
-        volumeClaimTemplates:
-        - metadata:
-            name: data
-          spec:
-            resources:
-              requests:
-                storage: 10Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-            storageClassName: gp2
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-        - metadata:
-            name: metadata
-          spec:
-            resources:
-              requests:
-                # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
-                storage: 5Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
-            storageClassName: io1
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-        - metadata:
-            name: wal
-          spec:
-            resources:
-              requests:
-                # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
-                storage: 5Gi
-            # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
-            storageClassName: io1
-            volumeMode: Block
-            accessModes:
-              - ReadWriteOnce
-  ```
+    ```yaml
+        storage:
+        storageClassDeviceSets:
+        - name: set1
+            count: 3
+            portable: false
+            volumeClaimTemplates:
+            - metadata:
+                name: data
+            spec:
+                resources:
+                requests:
+                    storage: 10Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
+                storageClassName: gp2
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+            - metadata:
+                name: metadata
+            spec:
+                resources:
+                requests:
+                    # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+                    storage: 5Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+                storageClassName: io1
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+            - metadata:
+                name: wal
+            spec:
+                resources:
+                requests:
+                    # Find the right size https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing
+                    storage: 5Gi
+                # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, io1)
+                storageClassName: io1
+                volumeMode: Block
+                accessModes:
+                - ReadWriteOnce
+    ```
 
 To determine the size of the metadata block follow the [official Ceph sizing guide](https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#sizing).
 

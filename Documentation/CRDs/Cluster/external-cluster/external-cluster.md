@@ -71,7 +71,6 @@ It will generate the secrets which you can use for creating new `Consumer cluste
 So you would be running different isolated consumer clusters on top of single `Source cluster`.
 
 !!! note
-
     Restricting the csi-users per pool, and per cluster will require creating new csi-users and new secrets for that csi-users.
     So apply these secrets only to new `Consumer cluster` deployment while using the same `Source cluster`.
 
@@ -112,7 +111,6 @@ Restricted users created using `--restricted-auth-permission` flag need to pass 
     ```
 
 !!! note
-
     An existing non-restricted user cannot be converted to a restricted user by upgrading.
     The upgrade flag should only be used to append new permissions to users. It shouldn't be used for changing a csi user already applied permissions. For example, you shouldn't change the pool(s) a user has access to.
 
@@ -121,7 +119,6 @@ Restricted users created using `--restricted-auth-permission` flag need to pass 
 If in case the cluster needs the admin keyring to configure, update the admin key `rook-ceph-mon` secret with client.admin keyring
 
 !!! note
-
     Sharing the admin key with the external cluster is not generally recommended
 
 1. Get the `client.admin` keyring from the ceph cluster
@@ -185,9 +182,9 @@ If not installing with Helm, here are the steps to install with manifests.
 1. Paste the above output from `create-external-cluster-resources.py` into your current shell to allow importing the source data.
 
 2. The import script in the next step uses the current kubeconfig context by
-   default. If you want to specify the kubernetes cluster to use without
-   changing the current context, you can specify the cluster name by setting
-   the KUBECONTEXT environment variable.
+    default. If you want to specify the kubernetes cluster to use without
+    changing the current context, you can specify the cluster name by setting
+    the KUBECONTEXT environment variable.
 
     ```console
     export KUBECONTEXT=<cluster-name>
@@ -202,7 +199,6 @@ If not installing with Helm, here are the steps to install with manifests.
 4. Run the import script.
 
     !!! note
-
         If your Rook cluster nodes are running a kernel earlier than or equivalent to 5.4, remove
         `fast-diff, object-map, deep-flatten,exclusive-lock` from the `imageFeatures` line.
 
@@ -256,7 +252,6 @@ Consume the S3 Storage, in two different ways:
     ```
 
 !!! hint
-
     For more details see the [Object Store topic](../../../Storage-Configuration/Object-Storage-RGW/object-storage.md#connect-to-an-external-object-store)
 
 ### Connect to v2 mon port
@@ -279,5 +274,4 @@ you can export the settings from this cluster with the following steps.
 2. Exec to the toolbox pod and execute create-external-cluster-resources.py with needed options to create required [users and keys](#1-create-all-users-and-keys).
 
 !!! important
-
     For other clusters to connect to storage in this cluster, Rook must be configured with a networking configuration that is accessible from other clusters. Most commonly this is done by enabling host networking in the CephCluster CR so the Ceph daemons will be addressable by their host IPs.

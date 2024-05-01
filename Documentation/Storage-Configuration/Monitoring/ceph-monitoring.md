@@ -23,6 +23,7 @@ A full explanation can be found in the [Prometheus operator repository on GitHub
 ```console
 kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
 ```
+
 !!! note
     If the Prometheus Operator is already present in your cluster, the command provided above may fail. For a detailed explanation of the issue and a workaround, please refer to [this issue](https://github.com/rook/rook/issues/13459).
 
@@ -68,7 +69,9 @@ kubectl -n rook-ceph get pod prometheus-rook-prometheus-0
 
 ### Dashboard config
 
-Configure the Prometheus endpoint so the dashboard can retrieve metrics from Prometheus with two settings:
+Configure the Prometheus endpoint so the dashboard can retrieve metrics from Prometheus with two
+settings:
+
 - `prometheusEndpoint`: The url of the Prometheus instance
 - `prometheusEndpointSSLVerify`: Whether SSL should be verified if the Prometheus server is using https
 
@@ -80,12 +83,12 @@ echo "http://$(kubectl -n rook-ceph -o jsonpath={.status.hostIP} get pod prometh
 
 Following is an example to configure the Prometheus endpoint in the CephCluster CR.
 
-    ```YAML
-    spec:
-      dashboard:
-        prometheusEndpoint: http://192.168.61.204:30900
-        prometheusEndpointSSLVerify: true
-    ```
+```YAML
+spec:
+    dashboard:
+    prometheusEndpoint: http://192.168.61.204:30900
+    prometheusEndpointSSLVerify: true
+```
 
 !!! note
     It is not recommended to consume storage from the Ceph cluster for Prometheus.
@@ -130,10 +133,10 @@ A guide to how you can write your own Prometheus consoles can be found on the of
 To enable the Ceph Prometheus alerts via the helm charts, set the following properties in values.yaml:
 
 * rook-ceph chart:
-  `monitoring.enabled: true`
+    - `monitoring.enabled: true`
 * rook-ceph-cluster chart:
-  `monitoring.enabled: true`
-  `monitoring.createPrometheusRules: true`
+    - `monitoring.enabled: true`
+    - `monitoring.createPrometheusRules: true`
 
 Alternatively, to enable the Ceph Prometheus alerts with example manifests follow these steps:
 
