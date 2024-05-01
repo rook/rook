@@ -273,6 +273,10 @@ kubectl create -f csi-metrics-service-monitor.yaml
 
 This will create the service monitor to have prometheus monitor CSI
 
+!!! note
+    Please note that the liveness sidecar is disabled by default.
+    To enable it set `CSI_ENABLE_LIVENESS` to `true` in the Rook operator settings (operator.yaml).
+
 ### Collecting RBD per-image IO statistics
 
 RBD per-image IO statistics collection is disabled by default. This can be enabled by setting `enableRBDStats: true` in the CephBlockPool spec.

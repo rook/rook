@@ -15,11 +15,6 @@ for more info.
 
 ## RBD Volume Cloning
 
-### Volume Clone Prerequisites
-
- 1. Requires Kubernetes v1.16+ which supports volume clone.
- 2. Ceph-csi diver v3.0.0+ which supports volume clone.
-
 ### Volume Cloning
 
 In
