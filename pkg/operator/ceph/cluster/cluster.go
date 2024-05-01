@@ -656,26 +656,21 @@ func (c *cluster) configureMsgr2() error {
 		}
 	}
 	// Set network compression
-	if c.ClusterInfo.CephVersion.IsAtLeastQuincy() {
-		if c.Spec.Network.Connections == nil || c.Spec.Network.Connections.Compression == nil || !c.Spec.Network.Connections.Compression.Enabled {
-			encryptionConfig := []config.Option{
-				{Who: "global", Option: "ms_osd_compress_mode"},
-			}
-			if err := monStore.DeleteAll(encryptionConfig...); err != nil {
-				return errors.Wrap(err, "failed to delete msgr2 compression settings")
-			}
-		} else {
-			globalConfigSettings := map[string]string{
-				"ms_osd_compress_mode": "force",
-			}
-			logger.Infof("setting msgr2 compression mode to %q", "force")
-			if err := monStore.SetAll("global", globalConfigSettings); err != nil {
-				return err
-			}
+	if c.Spec.Network.Connections == nil || c.Spec.Network.Connections.Compression == nil || !c.Spec.Network.Connections.Compression.Enabled {
+		encryptionConfig := []config.Option{
+			{Who: "global", Option: "ms_osd_compress_mode"},
 		}
-
+		if err := monStore.DeleteAll(encryptionConfig...); err != nil {
+			return errors.Wrap(err, "failed to delete msgr2 compression settings")
+		}
 	} else {
-		logger.Warningf("network compression requires Ceph Quincy (v17) or newer, skipping for current ceph %q", c.ClusterInfo.CephVersion.String())
+		globalConfigSettings := map[string]string{
+			"ms_osd_compress_mode": "force",
+		}
+		logger.Infof("setting msgr2 compression mode to %q", "force")
+		if err := monStore.SetAll("global", globalConfigSettings); err != nil {
+			return err
+		}
 	}
 
 	return nil
