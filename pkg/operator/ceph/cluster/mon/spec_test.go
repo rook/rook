@@ -102,6 +102,32 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 		assert.Equal(t, int32(900), container.LivenessProbe.InitialDelaySeconds)
 		assert.Equal(t, int32(1000), container.StartupProbe.InitialDelaySeconds)
 	})
+
+	t.Run(("msgr2 not required"), func(t *testing.T) {
+		container := c.makeMonDaemonContainer(monConfig)
+		checkMsgr2Required(t, container, false)
+	})
+
+	t.Run(("require msgr2"), func(t *testing.T) {
+		monConfig.Port = DefaultMsgr2Port
+		container := c.makeMonDaemonContainer(monConfig)
+		checkMsgr2Required(t, container, true)
+	})
+}
+
+func checkMsgr2Required(t *testing.T, container v1.Container, expectedRequireMsgr2 bool) {
+	foundDisabledMsgr1 := false
+	foundMsgr2Port := false
+	for _, arg := range container.Args {
+		if arg == "--ms-bind-msgr1=false" {
+			foundDisabledMsgr1 = true
+		}
+		if arg == "--public-bind-addr=$(ROOK_POD_IP):3300" {
+			foundMsgr2Port = true
+		}
+	}
+	assert.Equal(t, expectedRequireMsgr2, foundDisabledMsgr1)
+	assert.Equal(t, expectedRequireMsgr2, foundMsgr2Port)
 }
 
 func TestDeploymentPVCSpec(t *testing.T) {
