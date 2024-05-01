@@ -324,7 +324,12 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 		WorkingDir:    config.VarLogCephDir,
 	}
 
-	if monConfig.Port != DefaultMsgr2Port {
+	bindaddr := controller.ContainerEnvVarReference(podIPEnvVar)
+	if monConfig.Port == DefaultMsgr2Port {
+		container.Args = append(container.Args, config.NewFlag("ms_bind_msgr1", "false"))
+		// To avoid binding to the msgr1 port, ceph expects to find the msgr2 port on the bind address
+		bindaddr = fmt.Sprintf("%s:%d", bindaddr, DefaultMsgr2Port)
+	} else {
 		// Add messenger 1 port
 		container.Ports = append(container.Ports, corev1.ContainerPort{
 			Name:          "tcp-msgr1",
@@ -349,8 +354,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	if !monConfig.UseHostNetwork {
 		// Opposite of the above, --public-bind-addr will *not* still advertise on the previous
 		// port, which makes sense because this is the pod IP, which changes with every new pod.
-		container.Args = append(container.Args,
-			config.NewFlag("public-bind-addr", controller.ContainerEnvVarReference(podIPEnvVar)))
+		container.Args = append(container.Args, config.NewFlag("public-bind-addr", bindaddr))
 	}
 
 	return container
