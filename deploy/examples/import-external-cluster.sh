@@ -4,7 +4,7 @@ set -e
 ##############
 # VARIABLES #
 #############
-NAMESPACE=${NAMESPACE:="rook-ceph-external"}
+NAMESPACE=${NAMESPACE:="rook-ceph"}
 MON_SECRET_NAME=rook-ceph-mon
 RGW_ADMIN_OPS_USER_SECRET_NAME=rgw-admin-ops-user
 MON_SECRET_CLUSTER_NAME_KEYNAME=cluster-name
