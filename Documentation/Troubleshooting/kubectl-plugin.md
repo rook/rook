@@ -18,41 +18,41 @@ See the [kubectl-rook-ceph documentation](https://github.com/rook/kubectl-rook-c
 - Install [krew](https://krew.sigs.k8s.io/docs/user-guide/setup/install/)
 - Install Rook plugin
 
-  ```console
+    ```console
     kubectl krew install rook-ceph
-  ```
+    ```
 
 ## Ceph Commands
 
 - Run any `ceph` command with `kubectl rook-ceph ceph <args>`. For example, get the Ceph status:
 
-  ```console
+    ```console
     kubectl rook-ceph ceph status
-  ```
+    ```
 
-  Output:
+    Output:
 
-  ```console
-    cluster:
-    id:     a1ac6554-4cc8-4c3b-a8a3-f17f5ec6f529
-    health: HEALTH_OK
+    ```console
+        cluster:
+        id:     a1ac6554-4cc8-4c3b-a8a3-f17f5ec6f529
+        health: HEALTH_OK
 
-    services:
-    mon: 3 daemons, quorum a,b,c (age 11m)
-    mgr: a(active, since 10m)
-    mds: 1/1 daemons up, 1 hot standby
-    osd: 3 osds: 3 up (since 10m), 3 in (since 8d)
+        services:
+        mon: 3 daemons, quorum a,b,c (age 11m)
+        mgr: a(active, since 10m)
+        mds: 1/1 daemons up, 1 hot standby
+        osd: 3 osds: 3 up (since 10m), 3 in (since 8d)
 
-    data:
-    volumes: 1/1 healthy
-    pools:   6 pools, 137 pgs
-    objects: 34 objects, 4.1 KiB
-    usage:   58 MiB used, 59 GiB / 59 GiB avail
-    pgs:     137 active+clean
+        data:
+        volumes: 1/1 healthy
+        pools:   6 pools, 137 pgs
+        objects: 34 objects, 4.1 KiB
+        usage:   58 MiB used, 59 GiB / 59 GiB avail
+        pgs:     137 active+clean
 
-    io:
-    client:   1.2 KiB/s rd, 2 op/s rd, 0 op/s wr
-  ```
+        io:
+        client:   1.2 KiB/s rd, 2 op/s rd, 0 op/s wr
+    ```
 
 Reference: [Ceph Status](https://github.com/rook/kubectl-rook-ceph/blob/master/README.md#run-a-ceph-command)
 
@@ -62,14 +62,14 @@ Debug mode can be useful when a MON or OSD needs advanced maintenance operations
 
 - Start the debug pod for mon b
 
-  ```console
+    ```console
     kubectl rook-ceph debug start rook-ceph-mon-b
-  ```
+    ```
 
 - Stop the debug pod for mon b
 
-  ```console
+    ```console
     kubectl rook-ceph debug stop rook-ceph-mon-b
-  ```
+    ```
 
 Reference: [Debug Mode](https://github.com/rook/kubectl-rook-ceph/blob/master/README.md#debug-mode)

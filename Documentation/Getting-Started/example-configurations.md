@@ -23,9 +23,9 @@ The examples all assume the operator and all Ceph daemons will be started in the
 After the common resources are created, the next step is to create the Operator deployment. Several spec file examples are provided in [this directory](https://github.com/rook/rook/blob/master/deploy/examples/):
 
 * [`operator.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml): The most common settings for production deployments
-  * `kubectl create -f operator.yaml`
+    * `kubectl create -f operator.yaml`
 * [`operator-openshift.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/operator-openshift.yaml): Includes all of the operator settings for running a basic Rook cluster in an OpenShift environment. You will also want to review the [OpenShift Prerequisites](../Getting-Started/ceph-openshift.md) to confirm the settings.
-  * `oc create -f operator-openshift.yaml`
+    * `oc create -f operator-openshift.yaml`
 
 Settings for the operator are configured through environment variables on the operator deployment. The individual settings are documented in [operator.yaml](https://github.com/rook/rook/blob/master/deploy/examples/operator.yaml).
 
@@ -40,7 +40,9 @@ the cluster. These examples represent several different ways to configure the st
 * [`cluster-on-pvc.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-on-pvc.yaml): Common settings for backing the Ceph Mons and OSDs by PVs. Useful when running in cloud environments or where local PVs have been created for Ceph to consume.
 * [`cluster-external.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/external/cluster-external.yaml): Connect to an [external Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md#external-cluster) with minimal access to monitor the health of the cluster and connect to the storage.
 * [`cluster-external-management.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-external-management.yaml): Connect to an [external Ceph cluster](../CRDs/Cluster/ceph-cluster-crd.md#external-cluster) with the admin key of the external cluster to enable
-  remote creation of pools and configure services such as an [Object Store](../Storage-Configuration/Object-Storage-RGW/object-storage.md) or a [Shared Filesystem](../Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md).
+    remote creation of pools and configure services such as an
+    [Object Store](../Storage-Configuration/Object-Storage-RGW/object-storage.md) or a
+    [Shared Filesystem](../Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md).
 * [`cluster-stretched.yaml`](https://github.com/rook/rook/blob/master/deploy/examples/cluster-stretched.yaml): Create a cluster in "stretched" mode, with five mons stretched across three zones, and the OSDs across two zones. See the [Stretch documentation](../CRDs/Cluster/ceph-cluster-crd.md#stretch-cluster).
 
 See the [Cluster CRD](../CRDs/Cluster/ceph-cluster-crd.md) topic for more details and more examples for the settings.

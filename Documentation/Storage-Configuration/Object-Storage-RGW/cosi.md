@@ -10,6 +10,7 @@ The Ceph COSI driver provisions buckets for object storage. This document instru
 ## Prerequisites
 
 COSI requires:
+
 1. A running Rook [object store](object-storage.md)
 2. [COSI controller](https://github.com/kubernetes-sigs/container-object-storage-interface-controller#readme)
 

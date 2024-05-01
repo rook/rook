@@ -5,12 +5,12 @@ title: Ceph CSI Drivers
 There are three CSI drivers integrated with Rook that are used in different scenarios:
 
 * RBD: This block storage driver is optimized for RWO pod access where only one pod may access the
-  storage. [More information](../Block-Storage-RBD/block-storage.md).
+    storage. [More information](../Block-Storage-RBD/block-storage.md).
 * CephFS: This file storage driver allows for RWX with one or more pods accessing the same storage.
-  [More information](../Shared-Filesystem-CephFS/filesystem-storage.md).
+    [More information](../Shared-Filesystem-CephFS/filesystem-storage.md).
 * NFS (experimental): This file storage driver allows creating NFS exports that can be mounted on
-  pods, or directly via an NFS client from inside or outside the
-  Kubernetes cluster. [More information](../NFS/nfs-csi-driver.md)
+    pods, or directly via an NFS client from inside or outside the
+    Kubernetes cluster. [More information](../NFS/nfs-csi-driver.md)
 
 The Ceph Filesystem (CephFS) and RADOS Block Device (RBD) drivers are enabled automatically by
 the Rook operator. The NFS driver is disabled by default. All drivers will be started in the same
@@ -182,29 +182,29 @@ which are not enabled by default.
 Execute the following to enable the CSI-Addons sidecars:
 
 * Update the `rook-ceph-operator-config` configmap and patch the
- following configuration:
+    following configuration:
 
-```console
-kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
-```
+    ```console
+    kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
+    ```
 
 * After enabling `CSI_ENABLE_CSIADDONS` in the configmap, a new sidecar container named `csi-addons`
-will start automatically in the RBD CSI provisioner and nodeplugin pods.
+    will start automatically in the RBD CSI provisioner and nodeplugin pods.
 
 ### CSI-Addons Operations
 
 CSI-Addons supports the following operations:
 
 * Reclaim Space
-  * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacejob)
-  * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacecronjob)
-  * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
-  * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-namespace)
+    * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacejob)
+    * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacecronjob)
+    * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+    * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-namespace)
 * Network Fencing
-  * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/networkfence.md)
+    * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/networkfence.md)
 * Volume Replication
-  * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplicationclass.md)
-  * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplication.md)
+    * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplicationclass.md)
+    * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplication.md)
 
 ## Enable RBD Encryption Support
 
@@ -243,7 +243,7 @@ data:
 ```
 
 * Update the `rook-ceph-operator-config` configmap and patch the
- following configurations
+    following configurations
 
 ```console
 kubectl patch cm rook-ceph-operator-config -nrook-ceph -p $'data:\n "CSI_ENABLE_ENCRYPTION": "true"'

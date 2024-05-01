@@ -228,8 +228,8 @@ You can do that using the following recipe.
 * In the `rook` namespace, create a copy of the secret `rook-csi-cephfs-node`, name it `rook-csi-cephfs-node-user`
 .
 * Edit your new secret, changing the name of the keys (keep the value as it is):
-  * `adminID` -> `userID`
-  * `adminKey` -> `userKey`
+    * `adminID` -> `userID`
+    * `adminKey` -> `userKey`
 * Create the PVC you want to share, for example:
 
 ```yaml
@@ -295,12 +295,12 @@ spec:
 * On this PV, change the `persistentVolumeReclaimPolicy` parameter to `Retain` to avoid it from being deleted when you will delete PVCs. Don't forget to change it back to `Delete` when you want to remove the shared volume (see full procedure in the next section).
 
 * Copy the YAML content of the PV, and create a new static PV with the same information and some modifications. From the original YAML, you must:
-  * Modify the original name. To keep track, the best solution is to append to the original name the namespace name where you want your new PV. In this example `newnamespace`.
-  * Modify the volumeHandle. Again append the targeted namespace.
-  * Add the `staticVolume: "true"` entry to the volumeAttributes.
-  * Add the rootPath entry to the volumeAttributes, with the same content as `subvolumePath`.
-  * In the `nodeStageSecretRef` section, change the name to point to the secret you created earlier, `rook-csi-cephfs-node-user`.
-  * Remove the unnecessary information before applying the YAML (claimRef, managedFields,...):
+    * Modify the original name. To keep track, the best solution is to append to the original name the namespace name where you want your new PV. In this example `newnamespace`.
+    * Modify the volumeHandle. Again append the targeted namespace.
+    * Add the `staticVolume: "true"` entry to the volumeAttributes.
+    * Add the rootPath entry to the volumeAttributes, with the same content as `subvolumePath`.
+    * In the `nodeStageSecretRef` section, change the name to point to the secret you created earlier, `rook-csi-cephfs-node-user`.
+    * Remove the unnecessary information before applying the YAML (claimRef, managedFields,...):
 
 Your YAML should look like this:
 

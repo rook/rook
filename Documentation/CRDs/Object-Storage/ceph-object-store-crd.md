@@ -86,12 +86,12 @@ When the `zone` section is set pools with the object stores name will not be cre
 * `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 * `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
 * `preservePoolsOnDelete`: If it is set to 'true' the pools used to support the object store will remain when the object store
-  will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified
-  is also deemed as 'false'.
+    will be deleted. This is a security measure to avoid accidental loss of data. It is set to 'false' by default. If not specified
+    is also deemed as 'false'.
 * `allowUsersInNamespaces`: If a CephObjectStoreUser is created in a namespace other than the Rook cluster namespace,
-  the namespace must be added to this list of allowed namespaces, or specify "*" to allow all namespaces.
-  This is useful for applications that need object store credentials to be created in their own namespace,
-  where neither OBCs nor COSI is being used to create buckets. The default is empty.
+    the namespace must be added to this list of allowed namespaces, or specify "*" to allow all namespaces.
+    This is useful for applications that need object store credentials to be created in their own namespace,
+    where neither OBCs nor COSI is being used to create buckets. The default is empty.
 
 ## Gateway Settings
 
@@ -99,30 +99,30 @@ The gateway settings correspond to the RGW daemon settings.
 
 * `type`: `S3` is supported
 * `sslCertificateRef`: If specified, this is the name of the Kubernetes secret(`opaque` or `tls`
-  type) that contains the TLS certificate to be used for secure connections to the object store.
-  If it is an opaque Kubernetes Secret, Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be
-  in the format expected by the [RGW
-  service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb):
-  "The server key, server certificate, and any other CA or intermediate certificates be supplied in
-  one file. Each of these items must be in PEM form." They are scenarios where the certificate DNS is set for a particular domain
-  that does not include the local Kubernetes DNS, namely the object store DNS service endpoint. If
-  adding the service DNS name to the certificate is not empty another key can be specified in the
-  secret's data: `insecureSkipVerify: true` to skip the certificate verification. It is not
-  recommended to enable this option since TLS is susceptible to machine-in-the-middle attacks unless
-  custom verification is used.
+    type) that contains the TLS certificate to be used for secure connections to the object store.
+    If it is an opaque Kubernetes Secret, Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be
+    in the format expected by the [RGW
+    service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb):
+    "The server key, server certificate, and any other CA or intermediate certificates be supplied in
+    one file. Each of these items must be in PEM form." They are scenarios where the certificate DNS is set for a particular domain
+    that does not include the local Kubernetes DNS, namely the object store DNS service endpoint. If
+    adding the service DNS name to the certificate is not empty another key can be specified in the
+    secret's data: `insecureSkipVerify: true` to skip the certificate verification. It is not
+    recommended to enable this option since TLS is susceptible to machine-in-the-middle attacks unless
+    custom verification is used.
 * `caBundleRef`: If specified, this is the name of the Kubernetes secret (type `opaque`) that
-  contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
-  cluster. Rook will look in the secret provided at the `cabundle` key name.
+    contains additional custom ca-bundle to use. The secret must be in the same namespace as the Rook
+    cluster. Rook will look in the secret provided at the `cabundle` key name.
 * `hostNetwork`: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
 * `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
 * `instances`: The number of pods that will be started to load balance this object store.
 * `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
-  (works with external mode). This setting will be ignored if the `CephCluster` does not have
-  `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)
-  for more details. Multiple endpoints can be given, but for stability of ObjectBucketClaims, we
-	highly recommend that users give only a single external RGW endpoint that is a load balancer that
-	sends requests to the multiple RGWs.
+    (works with external mode). This setting will be ignored if the `CephCluster` does not have
+    `external` spec enabled. Refer to the [external cluster section](../Cluster/ceph-cluster-crd.md#external-cluster)
+    for more details. Multiple endpoints can be given, but for stability of ObjectBucketClaims, we
+    highly recommend that users give only a single external RGW endpoint that is a load balancer that
+    sends requests to the multiple RGWs.
 * `annotations`: Key value pair list of annotations to add.
 * `labels`: Key value pair list of labels to add.
 * `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
@@ -256,8 +256,8 @@ Kubernetes Custom Resource, but the Ceph pools which store the data will not be 
 Rook will warn about which buckets are blocking deletion in three ways:
 
 1. An event will be registered on the CephObjectStore resource
-1. A status condition will be added to the CephObjectStore resource
-1. An error will be added to the Rook Ceph Operator log
+2. A status condition will be added to the CephObjectStore resource
+3. An error will be added to the Rook Ceph Operator log
 
 If the CephObjectStore is configured in a [multisite setup](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) the above conditions are applicable only to stores that belong to a single master zone.
 Otherwise the conditions are ignored. Even if the store is removed the user can access the
