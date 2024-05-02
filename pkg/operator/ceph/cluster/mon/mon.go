@@ -1112,7 +1112,9 @@ func (c *Cluster) saveMonConfig() error {
 			Monitors: monEndpoints,
 		},
 	}
-	if err := csi.SaveClusterConfig(c.context.Clientset, c.Namespace, c.ClusterInfo, csiConfigEntry); err != nil {
+
+	clusterId := c.Namespace // cluster id is same as cluster namespace for CephClusters
+	if err := csi.SaveClusterConfig(c.context.Clientset, clusterId, c.Namespace, c.ClusterInfo, csiConfigEntry); err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
 

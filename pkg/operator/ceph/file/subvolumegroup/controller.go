@@ -198,7 +198,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 			}
 		}
 
-		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, nil)
+		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, nil)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 		}
@@ -307,7 +307,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 		csiClusterConfigEntry.CephFS.NetNamespaceFilePath = netNamespaceFilePath
 	}
 
-	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), r.clusterInfo, &csiClusterConfigEntry)
+	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, &csiClusterConfigEntry)
 	if err != nil {
 		return errors.Wrap(err, "failed to save cluster config")
 	}
