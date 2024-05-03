@@ -149,8 +149,6 @@ func mapKeystoneSecretToConfig(cfg map[string]string, secret *v1.Secret) (map[st
 	cfg["rgw_keystone_admin_user"] = data["OS_USERNAME"]
 	cfg["rgw_keystone_admin_password"] = data["OS_PASSWORD"]
 
-	cfg["rgw_s3_auth_use_keystone"] = "true"
-
 	return cfg, nil
 }
 
@@ -185,6 +183,7 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		if s3.AuthUseKeystone != nil {
 			configOptions["rgw_s3_auth_use_keystone"] = fmt.Sprintf("%t", *s3.AuthUseKeystone)
 		}
+
 	}
 
 	if swift := rgwConfig.Protocols.Swift; swift != nil {
@@ -204,6 +203,7 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		if swift.VersioningEnabled != nil {
 			configOptions["rgw_swift_versioning_enabled"] = fmt.Sprintf("%t", *swift.VersioningEnabled)
 		}
+
 	}
 
 	if s3disabled {
