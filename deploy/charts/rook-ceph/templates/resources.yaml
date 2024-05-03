@@ -3523,6 +3523,7 @@ spec:
                             type: boolean
                           name:
                             description: Name is a unique identifier for the set
+                            maxLength: 40
                             type: string
                           placement:
                             nullable: true
