@@ -923,7 +923,8 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 	}
 
 	// Save the path of the network namespace file for ceph-csi to use
-	err = SaveClusterConfig(r.context.Clientset, c.cluster.Namespace, c.clusterInfo, clusterConfigEntry)
+	clusterId := c.cluster.Namespace // cluster ID is same as cluster namespace for CephClusters
+	err = SaveClusterConfig(r.context.Clientset, clusterId, c.cluster.Namespace, c.clusterInfo, clusterConfigEntry)
 	if err != nil {
 		return errors.Wrapf(err, "failed to save cluster config for csi holder %q", driver.fullName)
 	}
