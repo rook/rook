@@ -1526,7 +1526,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
 
-  multus-cluster-network:
+  multus-cluster-network-with-holder:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
@@ -1587,13 +1587,13 @@ jobs:
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        run: IS_POD_NETWORK=true IS_MULTUS_WITH_HOLDER=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
 
       - name: wait for cephnfs to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
+        run: IS_POD_NETWORK=true IS_MULTUS_WITH_HOLDER=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
 
       - name: check multus connections
         run: tests/scripts/github-action-helper.sh test_multus_connections
@@ -1614,7 +1614,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
           additional-namespace: kube-system
 
-  csi-hostnetwork-disabled:
+  multus-cluster-network-without-holder:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
@@ -1631,31 +1631,57 @@ jobs:
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
 
+      - name: setup golang
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21"
+
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
 
-      - name: allow holder pod deployment
-        run: sed -i "s|CSI_DISABLE_HOLDER_PODS|# CSI_DISABLE_HOLDER_PODS|g" "deploy/examples/operator.yaml"
-
       - name: set Ceph version in CephCluster manifest
         run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
+      - name: install deps
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: tests/scripts/github-action-helper.sh install_deps
+
+      - name: print k8s cluster status
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
+
+      - name: build rook
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: tests/scripts/github-action-helper.sh build_rook
+
+      - name: validate-yaml
+        run: tests/scripts/github-action-helper.sh validate_yaml
 
       - name: use local disk and create partitions for osds
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-      - name: deploy CSI hostNetworking disabled cluster
-        run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
+      - name: deploy multus
+        run: tests/scripts/github-action-helper.sh deploy_multus
+
+      - name: deploy multus cluster
+        run: tests/scripts/github-action-helper.sh deploy_multus_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
 
       - name: wait for ceph-csi configmap to be updated with network namespace
         run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
+
+      - name: wait for cephnfs to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
+
+      - name: check multus connections
+        run: tests/scripts/github-action-helper.sh test_multus_connections
 
       - name: test ceph-csi-rbd plugin restart
         run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
@@ -1671,3 +1697,4 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+          additional-namespace: kube-system
