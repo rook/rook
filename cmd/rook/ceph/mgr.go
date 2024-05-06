@@ -96,9 +96,9 @@ func runMgrSidecar(cmd *cobra.Command, args []string) error {
 	clusterInfo.CephVersion = *version
 
 	m := mgr.New(context, &clusterInfo, clusterSpec, "")
-	prevActiveMgr := "unknown"
+	activeMgr := "unknown"
 	for {
-		prevActiveMgr, err = m.UpdateActiveMgrLabel(daemonName, prevActiveMgr)
+		activeMgr, err = m.UpdateActiveMgrLabel(daemonName, activeMgr)
 		if err != nil {
 			logger.Errorf("failed to reconcile services. %v", err)
 		} else {
