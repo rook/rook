@@ -271,6 +271,10 @@ func (c *Cluster) UpdateActiveMgrLabel(daemonNameToUpdate string, prevActiveMgr 
 		return "", err // force mrg_role update in the next call
 	}
 
+	// Normally, there should only be one mgr pod with the specific name daemonNameToUpdate. However,
+	// during transitions, there might be additional mgr pods shutting down. To handle this, the code
+	// updates the label mgrRoleLabelName on all mgr pods. If this update fails, the system rolls back
+	// the currently active manager (currActiveMgr). This way the next call will retry the update.
 	for i, pod := range pods.Items {
 
 		labels := pod.GetLabels()
@@ -288,7 +292,10 @@ func (c *Cluster) UpdateActiveMgrLabel(daemonNameToUpdate string, prevActiveMgr 
 			pod.SetLabels(labels)
 			_, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, &pods.Items[i], metav1.UpdateOptions{})
 			if err != nil {
-				logger.Infof("cannot update the active mgr pod %q. err=%v", pods.Items[i].Name, err)
+				// In case of failure we report as 'active manager' the previous value, this way
+				// we force refreshing mgrRoleLabelName label next time this function is called
+				currActiveMgr = prevActiveMgr
+				logger.Warningf("cannot update the active mgr pod %q. err=%v", pods.Items[i].Name, err)
 			}
 		}
 	}
