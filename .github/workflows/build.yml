@@ -66,7 +66,7 @@ jobs:
         run: tests/scripts/validate_modified_files.sh gen-rbac
 
   linux-build-all:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       fail-fast: false
