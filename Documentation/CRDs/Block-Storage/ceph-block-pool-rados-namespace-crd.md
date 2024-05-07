@@ -7,7 +7,7 @@ This guide assumes you have created a Rook cluster as explained in the main [Qui
 RADOS currently uses pools both for data distribution (pools are shared into
 PGs, which map to OSDs) and as the granularity for security (capabilities can
 restrict access by pool).  Overloading pools for both purposes makes it hard to
-do multi-tenancy because it not a good idea to have a very large number of
+do multi-tenancy because it is not a good idea to have a very large number of
 pools.
 
 A namespace would be a division of a pool into separate logical namespaces. For
