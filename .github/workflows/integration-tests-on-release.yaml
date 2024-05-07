@@ -14,7 +14,7 @@ defaults:
 
 jobs:
   TestCephHelmSuite:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -55,7 +55,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephMultiClusterDeploySuite:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -96,7 +96,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephSmokeSuite:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -135,7 +135,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephUpgradeSuite:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -174,7 +174,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestHelmUpgradeSuite:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
@@ -216,7 +216,7 @@ jobs:
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   TestCephObjectSuite:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:

@@ -26,7 +26,7 @@ concurrency:
 
 jobs:
   canary:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -264,7 +264,7 @@ jobs:
           name: canary
 
   raw-disk:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -322,7 +322,7 @@ jobs:
           name: canary
 
   two-osds-in-device:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -367,7 +367,7 @@ jobs:
           name: canary
 
   osd-with-metadata-device:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -419,7 +419,7 @@ jobs:
           name: canary
 
   encryption:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -465,7 +465,7 @@ jobs:
           name: canary
 
   lvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -516,7 +516,7 @@ jobs:
           name: canary
 
   pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -588,7 +588,7 @@ jobs:
           name: pvc
 
   pvc-db:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -636,7 +636,7 @@ jobs:
           name: pvc-db
 
   pvc-db-wal:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -687,7 +687,7 @@ jobs:
           name: pvc-db-wal
 
   encryption-pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -751,7 +751,7 @@ jobs:
           name: encryption-pvc
 
   encryption-pvc-db:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -801,7 +801,7 @@ jobs:
           name: encryption-pvc-db
 
   encryption-pvc-db-wal:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -861,7 +861,7 @@ jobs:
           name: encryption-pvc-db-wal
 
   encryption-pvc-kms-vault-token-auth:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -943,7 +943,7 @@ jobs:
           name: encryption-pvc-kms-vault-token-auth
 
   encryption-pvc-kms-vault-k8s-auth:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1005,7 +1005,7 @@ jobs:
           name: encryption-pvc-kms-vault-k8s-auth
 
   lvm-pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1058,7 +1058,7 @@ jobs:
           name: lvm-pvc
 
   multi-cluster-mirroring:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1312,7 +1312,7 @@ jobs:
           name: multi-cluster-mirroring
 
   rgw-multisite-testing:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1340,7 +1340,7 @@ jobs:
           path: test
 
   encryption-pvc-kms-ibm-kp:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with:
@@ -1371,7 +1371,7 @@ jobs:
           path: test
 
   multus-cluster-network:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
@@ -1449,7 +1449,7 @@ jobs:
           name: canary-multus
 
   csi-hostnetwork-disabled:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
