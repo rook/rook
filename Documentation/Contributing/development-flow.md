@@ -95,7 +95,7 @@ rook
 │   ├── charts                    # Helm charts
 │   │   └── rook-ceph
 │   │   └── rook-ceph-cluster
-│   └── examples                  # Sample manifestes to configure the cluster
+│   └── examples                  # Sample manifests to configure the cluster
 │
 ├── cmd
 │   ├── rook                      # Main command entry points for operators and daemons
