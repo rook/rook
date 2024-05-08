@@ -36,6 +36,12 @@ jobs:
         with:
           python-version: 3.9
 
+      - uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            Documentation/**/*.md
+            !Documentation/Helm-Charts
+
       - name: Check helm-docs
         run: make check-helm-docs
       - name: Check docs
