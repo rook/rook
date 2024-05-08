@@ -15,7 +15,7 @@ defaults:
 
 jobs:
   canary:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -298,7 +298,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   raw-disk-with-object:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -375,7 +375,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   two-osds-in-device:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -424,7 +424,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   osd-with-metadata-partition-device:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -472,7 +472,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   osd-with-metadata-device:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -528,7 +528,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -578,7 +578,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   lvm:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -633,7 +633,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -709,7 +709,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   pvc-db:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -761,7 +761,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   pvc-db-wal:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -816,7 +816,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -884,7 +884,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-db:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -938,7 +938,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-db-wal:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1002,7 +1002,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-kms-vault-token-auth:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1088,7 +1088,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-kms-vault-k8s-auth:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1154,7 +1154,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   lvm-pvc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1211,7 +1211,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   multi-cluster-mirroring:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1470,7 +1470,7 @@ jobs:
           additional-namespace: rook-ceph-secondary
 
   rgw-multisite-testing:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1499,7 +1499,7 @@ jobs:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   encryption-pvc-kms-ibm-kp:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1527,7 +1527,7 @@ jobs:
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   multus-cluster-network:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
@@ -1615,7 +1615,7 @@ jobs:
           additional-namespace: kube-system
 
   csi-hostnetwork-disabled:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
       matrix:
