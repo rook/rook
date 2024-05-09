@@ -5157,6 +5157,12 @@ spec:
                 storage:
                   description: CephStorage represents flavors of Ceph Cluster Storage
                   properties:
+                    deprecatedOSDs:
+                      additionalProperties:
+                        items:
+                          type: integer
+                        type: array
+                      type: object
                     deviceClasses:
                       items:
                         description: DeviceClasses represents device classes of a Ceph Cluster
