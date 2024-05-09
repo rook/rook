@@ -473,8 +473,9 @@ type Capacity struct {
 
 // CephStorage represents flavors of Ceph Cluster Storage
 type CephStorage struct {
-	DeviceClasses []DeviceClasses `json:"deviceClasses,omitempty"`
-	OSD           OSDStatus       `json:"osd,omitempty"`
+	DeviceClasses  []DeviceClasses  `json:"deviceClasses,omitempty"`
+	OSD            OSDStatus        `json:"osd,omitempty"`
+	DeprecatedOSDs map[string][]int `json:"deprecatedOSDs,omitempty"`
 }
 
 // DeviceClasses represents device classes of a Ceph Cluster
