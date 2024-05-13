@@ -216,10 +216,10 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
-	// identify OSDs that need migration to a new backend store
-	err := c.replaceOSDForNewStore()
+	// replace OSDs for a new backing store
+	osdsToBeReplaced, err := c.replaceOSDForNewStore()
 	if err != nil {
-		return errors.Wrapf(err, "failed to replace an OSD that needs migration to new backend store in namespace %q", namespace)
+		return errors.Wrapf(err, "failed to replace OSD for new backing store %q in namespace %q", c.spec.Storage.Store.Type, namespace)
 	}
 
 	osdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
@@ -231,6 +231,11 @@ func (c *Cluster) Start() error {
 	updateQueue, deployments, err := c.getOSDUpdateInfo(errs)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get information about currently-running OSD Deployments in namespace %q", namespace)
+	}
+
+	// OSDs that are to be replaced should not be upgraded. So remove them from the `updateQueue`
+	if len(osdsToBeReplaced) > 0 {
+		updateQueue.Remove(osdsToBeReplaced.getOSDIds())
 	}
 
 	logger.Debugf("%d of %d OSD Deployments need update", updateQueue.Len(), deployments.Len())
@@ -284,27 +289,23 @@ func (c *Cluster) Start() error {
 	}
 
 	if c.spec.Storage.Store.UpdateStore == OSDStoreUpdateConfirmation {
-		if c.replaceOSD != nil {
-			delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
-			err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
-			if err != nil {
+		delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
+		err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				logger.Debugf("config map %q not found. Ignoring since object must be deleted.", OSDReplaceConfigName)
+			} else {
 				return errors.Wrapf(err, "failed to delete the %q configmap", OSDReplaceConfigName)
 			}
 		}
 
-		// wait for the pgs to be healthy before attempting to migrate the next OSD
-		_, err := c.waitForHealthyPGs()
-		if err != nil {
-			return errors.Wrapf(err, "failed to wait for pgs to be healhty")
-		}
-
-		// reconcile if migration of one or more OSD is pending.
-		osdsToReplace, err := c.getOSDWithNonMatchingStore()
-		if err != nil {
-			return errors.Wrapf(err, "failed to check if any OSD migration is pending")
-		}
-
-		if len(osdsToReplace) != 0 {
+		if len(osdsToBeReplaced) > 0 {
+			// wait for the pgs to be healthy before attempting to migrate the next OSD
+			_, err := c.waitForHealthyPGs()
+			if err != nil {
+				return errors.Wrapf(err, "failed to wait for pgs to be healhty")
+			}
+			// return with error to reconcile the operator since there are OSDs that are pending migration
 			return errors.New("reconcile operator to replace OSDs that are pending migration")
 		}
 	}
@@ -825,27 +826,10 @@ func (c *Cluster) applyUpgradeOSDFunctionality() {
 	}
 }
 
-// replaceOSDForNewStore deletes an existing OSD deployment that does not match the expected OSD backend store provided in the storage spec
-func (c *Cluster) replaceOSDForNewStore() error {
-	if c.spec.Storage.Store.UpdateStore != OSDStoreUpdateConfirmation {
-		logger.Debugf("no OSD migration to a new backend store is requested")
-		return nil
-	}
-
-	osdToReplace, err := c.getOSDReplaceInfo()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get OSD replace info")
-	}
-
-	if osdToReplace == nil {
-		logger.Info("no osd to replace")
-		return nil
-	}
-
-	logger.Infof("starting migration of the OSD.%d", osdToReplace.ID)
-
+// deleteOSDDeployment deletes an existing OSD deployment and saves the information in the configmap
+func (c *Cluster) deleteOSDDeployment(osdID int) error {
 	// Delete the OSD deployment
-	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdToReplace.ID)
+	deploymentName := fmt.Sprintf("rook-ceph-osd-%d", osdID)
 	logger.Infof("removing the OSD deployment %q", deploymentName)
 	if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.clusterInfo.Namespace, deploymentName); err != nil {
 		if err != nil {
@@ -857,9 +841,7 @@ func (c *Cluster) replaceOSDForNewStore() error {
 		}
 	}
 
-	c.replaceOSD = osdToReplace
-
-	return osdToReplace.saveAsConfig(c.context, c.clusterInfo)
+	return c.replaceOSD.saveAsConfig(c.context, c.clusterInfo)
 }
 
 func (c *Cluster) waitForHealthyPGs() (bool, error) {

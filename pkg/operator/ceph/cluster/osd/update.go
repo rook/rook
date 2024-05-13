@@ -232,7 +232,6 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 
 	updateQueue := newUpdateQueueWithCapacity(len(deps.Items))
 	existenceList := newExistenceListWithCapacity(len(deps.Items))
-
 	for i := range deps.Items {
 		id, err := getOSDID(&deps.Items[i]) // avoid implicit memory aliasing by indexing
 		if err != nil {
@@ -240,7 +239,6 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 			errs.addError("%v. did a user create their own deployment with label %q?", selector, err)
 			continue
 		}
-
 		// all OSD deployments should be marked as existing
 		existenceList.Add(id)
 		updateQueue.Push(id)
@@ -297,6 +295,11 @@ func (q *updateQueue) Exists(osdID int) bool {
 		}
 	}
 	return false
+}
+
+// Clear deletes all entries inside the queue
+func (q *updateQueue) Clear() {
+	q.q = q.q[:0]
 }
 
 // Remove removes the items from the queue if they exist.
@@ -368,4 +371,19 @@ func (c *Cluster) getFuncToListDeploymentsWithIDs(osdIDs []string) func() (*apps
 	return func() (*appsv1.DeploymentList, error) {
 		return c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
 	}
+}
+
+// getOSDDeployments returns the list of existing OSD deployments
+func (c *Cluster) getOSDDeployments() (*appsv1.DeploymentList, error) {
+	namespace := c.clusterInfo.Namespace
+	selector := fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)
+	listOpts := metav1.ListOptions{
+		// list only rook-ceph-osd Deployments
+		LabelSelector: selector,
+	}
+	deps, err := c.context.Clientset.AppsV1().Deployments(namespace).List(c.clusterInfo.Context, listOpts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to query existing OSD deployments to check if they need to be updated")
+	}
+	return deps, nil
 }
