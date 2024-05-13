@@ -555,6 +555,13 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	if osdProps.onPVC() {
 		if osd.CVMode == "lvm" {
 			initContainers = append(initContainers, c.getPVCInitContainer(osdProps))
+
+			// This is a deprecated OSD and should be replaced for future supportability
+			if c.deprecatedOSDs == nil {
+				c.deprecatedOSDs = make(map[string][]int)
+			}
+			reason := "LVM-based OSDs on a PVC are deprecated, see documentation on replacing OSDs"
+			c.deprecatedOSDs[reason] = append(c.deprecatedOSDs[reason], osd.ID)
 		} else {
 			// Raw mode on PVC needs this path so that OSD's metadata files can be chown after 'ceph-bluestore-tool' ran
 			dataPath = activateOSDMountPath + osdID
