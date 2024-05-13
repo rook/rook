@@ -77,14 +77,15 @@ const (
 
 // Cluster keeps track of the OSDs
 type Cluster struct {
-	context      *clusterd.Context
-	clusterInfo  *cephclient.ClusterInfo
-	rookVersion  string
-	spec         cephv1.ClusterSpec
-	ValidStorage cephv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
-	kv           *k8sutil.ConfigMapKVStore
-	deviceSets   []deviceSet
-	replaceOSD   *OSDReplaceInfo
+	context        *clusterd.Context
+	clusterInfo    *cephclient.ClusterInfo
+	rookVersion    string
+	spec           cephv1.ClusterSpec
+	ValidStorage   cephv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
+	kv             *k8sutil.ConfigMapKVStore
+	deviceSets     []deviceSet
+	replaceOSD     *OSDReplaceInfo
+	deprecatedOSDs map[string][]int
 }
 
 // New creates an instance of the OSD manager
@@ -901,6 +902,9 @@ func (c *Cluster) updateCephStorageStatus() error {
 	}
 
 	cephClusterStorage.OSD = *osdStore
+
+	// Add the status about deprecated OSDs
+	cephClusterStorage.DeprecatedOSDs = c.deprecatedOSDs
 
 	err = c.context.Client.Get(c.clusterInfo.Context, c.clusterInfo.NamespacedName(), &cephCluster)
 	if err != nil {
