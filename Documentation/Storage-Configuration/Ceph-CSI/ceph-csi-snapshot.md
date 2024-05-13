@@ -66,7 +66,16 @@ The snapshot will be ready to restore to a new PVC when the `READYTOUSE` field o
 
 In [pvc-restore](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/pvc-restore.yaml),
 `dataSource` should be the name of the `VolumeSnapshot` previously
-created. The `dataSource` kind should be the `VolumeSnapshot`.
+created. The `dataSource` kind should be the `VolumeSnapshot`. The `storageClassName`
+can be any RBD storageclass.
+
+Please Note:
+    * `provisioner` must be the same for both the Parent PVC and the restored PVC.
+    * The non-encrypted PVC cannot be restored to an encrypted one and vice-versa.
+        * encrypted -> encrypted (possible)
+        * non-encrypted -> non-encrypted (possible)
+        * encrypted -> non-encrypted (not possible)
+        * non-encrypted -> encrypted (not possible)
 
 Create a new PVC from the snapshot
 

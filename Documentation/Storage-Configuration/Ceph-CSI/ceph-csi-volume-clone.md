@@ -17,8 +17,16 @@ for more info.
 
 In [pvc-clone](https://github.com/rook/rook/tree/master/deploy/examples/csi/rbd/pvc-clone.yaml),
 `dataSource` should be the name of the `PVC` which is already created by RBD
-CSI driver. The `dataSource` kind should be the `PersistentVolumeClaim` and also storageclass
-should be same as the source `PVC`.
+CSI driver. The `dataSource` kind should be the `PersistentVolumeClaim`.
+The `storageClassName` can be any RBD storageclass (not necessarily same as Parent PVC)
+
+Please note:
+    * `provisioner` must be the same for both the Parent PVC and the Clone PVC.
+    * The non-encrypted PVC cannot be cloned to an encrypted one and vice-versa.
+        * encrypted -> encrypted (possible)
+        * non-encrypted -> non-encrypted (possible)
+        * encrypted -> non-encrypted (not possible)
+        * non-encrypted -> encrypted (not possible)
 
 Create a new PVC Clone from the PVC
 
