@@ -12,6 +12,7 @@ subst = "\\1/%s/"
 
 
 def define_env(env):
+    target = None
     repo = Repository(".")
     if repo is not None:
         target = repo.head.shorthand
