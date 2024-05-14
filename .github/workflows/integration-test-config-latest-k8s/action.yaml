@@ -16,7 +16,7 @@ runs:
         tool-cache: true
 
     - name: setup golang
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v5
       with:
         go-version: "1.21"
 
