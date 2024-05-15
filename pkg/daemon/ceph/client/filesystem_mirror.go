@@ -25,7 +25,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
@@ -215,12 +214,8 @@ func GetFSMirrorDaemonStatus(context *clusterd.Context, clusterInfo *ClusterInfo
 	// Using Debug level since this is called in a recurrent go routine
 	logger.Debugf("retrieving filesystem mirror status for filesystem %q", fsName)
 
-	args := []string{"fs", "snapshot", "mirror", "daemon", "status"} // for Ceph v16.2.7 and above
-	if !clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}) {
-		// fs-name needed for Ceph v16.2.6 and earlier
-		args = append(args, fsName)
-	}
 	// Build command
+	args := []string{"fs", "snapshot", "mirror", "daemon", "status"}
 	cmd := NewCephCommand(context, clusterInfo, args)
 
 	// Run command

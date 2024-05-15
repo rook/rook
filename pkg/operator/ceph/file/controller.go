@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/file/mirror"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	appsv1 "k8s.io/api/apps/v1"
@@ -341,59 +340,59 @@ func (r *ReconcileCephFilesystem) reconcile(request reconcile.Request) (reconcil
 	statusUpdated := false
 
 	// Enable mirroring if needed
-	if r.clusterInfo.CephVersion.IsAtLeast(mirror.PeerAdditionMinVersion) {
+	if cephFilesystem.Spec.Mirroring != nil {
+
 		// Disable mirroring on that filesystem if needed
-		if cephFilesystem.Spec.Mirroring != nil {
-			if !cephFilesystem.Spec.Mirroring.Enabled {
-				err = cephclient.DisableFilesystemSnapshotMirror(r.context, r.clusterInfo, cephFilesystem.Name)
-				if err != nil {
-					return reconcile.Result{}, *cephFilesystem,
-						errors.Wrapf(err, "failed to disable mirroring on filesystem %q", cephFilesystem.Name)
-				}
-			} else {
-				logger.Info("reconciling cephfs-mirror mirroring configuration")
-				err = r.reconcileMirroring(cephFilesystem, request.NamespacedName)
-				if err != nil {
-					return opcontroller.ImmediateRetryResult, *cephFilesystem,
-						errors.Wrapf(err, "failed to configure mirroring for filesystem %q.", cephFilesystem.Name)
-				}
+		if !cephFilesystem.Spec.Mirroring.Enabled {
+			err = cephclient.DisableFilesystemSnapshotMirror(r.context, r.clusterInfo, cephFilesystem.Name)
+			if err != nil {
+				return reconcile.Result{}, *cephFilesystem,
+					errors.Wrapf(err, "failed to disable mirroring on filesystem %q", cephFilesystem.Name)
+			}
+		} else {
+			logger.Info("reconciling cephfs-mirror mirroring configuration")
+			err = r.reconcileMirroring(cephFilesystem, request.NamespacedName)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, *cephFilesystem,
+					errors.Wrapf(err, "failed to configure mirroring for filesystem %q.", cephFilesystem.Name)
+			}
 
-				// Always create a bootstrap peer token in case another cluster wants to add us as a peer
-				logger.Info("reconciling create cephfs-mirror peer configuration")
-				reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, r.clusterInfo, cephFilesystem, k8sutil.NewOwnerInfo(cephFilesystem, r.scheme))
-				if err != nil {
-					r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil)
-					return reconcileResponse, *cephFilesystem,
-						errors.Wrapf(err, "failed to create cephfs-mirror bootstrap peer for filesystem %q.", cephFilesystem.Name)
-				}
+			// Always create a bootstrap peer token in case another cluster wants to add us as a peer
+			logger.Info("reconciling create cephfs-mirror peer configuration")
+			reconcileResponse, err = opcontroller.CreateBootstrapPeerSecret(r.context, r.clusterInfo, cephFilesystem, k8sutil.NewOwnerInfo(cephFilesystem, r.scheme))
+			if err != nil {
+				r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, cephv1.ConditionFailure, nil)
+				return reconcileResponse, *cephFilesystem,
+					errors.Wrapf(err, "failed to create cephfs-mirror bootstrap peer for filesystem %q.", cephFilesystem.Name)
+			}
 
-				logger.Info("reconciling add cephfs-mirror peer configuration")
-				err = r.reconcileAddBootstrapPeer(cephFilesystem, request.NamespacedName)
-				if err != nil {
-					return opcontroller.ImmediateRetryResult, *cephFilesystem,
-						errors.Wrapf(err, "failed to configure mirroring for filesystem %q.", cephFilesystem.Name)
-				}
+			logger.Info("reconciling add cephfs-mirror peer configuration")
+			err = r.reconcileAddBootstrapPeer(cephFilesystem, request.NamespacedName)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, *cephFilesystem,
+					errors.Wrapf(err, "failed to configure mirroring for filesystem %q.", cephFilesystem.Name)
+			}
 
-				// update ObservedGeneration in status at the end of reconcile
-				// Set Ready status, we are done reconciling
-				if r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem)) != nil {
-					statusUpdated = true
-				}
+			// update ObservedGeneration in status at the end of reconcile
+			// Set Ready status, we are done reconciling
+			if r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady, opcontroller.GenerateStatusInfo(cephFilesystem)) != nil {
+				statusUpdated = true
+			}
 
-				// Run go routine check for mirroring status
-				if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
-					// Start monitoring cephfs-mirror status
-					if r.fsContexts[fsChannelKeyName(cephFilesystem)].started {
-						logger.Debug("ceph filesystem mirror status monitoring go routine already running!")
-					} else {
-						checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephFilesystem.Spec, cephFilesystem.Name)
-						go checker.checkMirroring(r.fsContexts[fsChannelKeyName(cephFilesystem)].internalCtx)
-						r.fsContexts[fsChannelKeyName(cephFilesystem)].started = true
-					}
+			// Run go routine check for mirroring status
+			if !cephFilesystem.Spec.StatusCheck.Mirror.Disabled {
+				// Start monitoring cephfs-mirror status
+				if r.fsContexts[fsChannelKeyName(cephFilesystem)].started {
+					logger.Debug("ceph filesystem mirror status monitoring go routine already running!")
+				} else {
+					checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &cephFilesystem.Spec, cephFilesystem.Name)
+					go checker.checkMirroring(r.fsContexts[fsChannelKeyName(cephFilesystem)].internalCtx)
+					r.fsContexts[fsChannelKeyName(cephFilesystem)].started = true
 				}
 			}
 		}
 	}
+
 	if !statusUpdated {
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling$
