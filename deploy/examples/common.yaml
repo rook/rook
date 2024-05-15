@@ -19,6 +19,18 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
@@ -28,6 +40,9 @@ rules:
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
@@ -73,6 +88,12 @@ rules:
   - apiGroups: ["groupsnapshot.storage.k8s.io"]
     resources: ["volumegroupsnapshotcontents/status"]
     verbs: ["update", "patch"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["serviceaccounts/token"]
+    verbs: ["create"]
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1

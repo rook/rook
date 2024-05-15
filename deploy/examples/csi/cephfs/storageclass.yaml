@@ -24,6 +24,15 @@ parameters:
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-cephfs-node
   csi.storage.k8s.io/node-stage-secret-namespace: rook-ceph # namespace:cluster
 
+  # (optional) Set it to true to encrypt each volume with encryption keys
+  # from a key management system (KMS)
+  # encrypted: "true"
+
+  # (optional) Use external key management system (KMS) for encryption key by
+  # specifying a unique ID matching a KMS ConfigMap. The ID is only used for
+  # correlation to configmap entry.
+  # encryptionKMSID: <kms-config-id>
+
   # (optional) The driver can use either ceph-fuse (fuse) or ceph kernel client (kernel)
   # If omitted, default volume mounter will be used - this is determined by probing for ceph-fuse
   # or by setting the default mounter explicitly via --volumemounter command-line argument.
