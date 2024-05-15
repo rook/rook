@@ -21,7 +21,6 @@ import (
 
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
@@ -36,11 +35,6 @@ const (
 `
 	user   = "client.fs-mirror"
 	userID = "fs-mirror"
-)
-
-var (
-	// PeerAdditionMinVersion This version includes a number of fixes for snapshots and mirror status
-	PeerAdditionMinVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 5}
 )
 
 // daemonConfig for a single rbd-mirror

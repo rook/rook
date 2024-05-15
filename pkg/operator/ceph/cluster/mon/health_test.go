@@ -30,7 +30,6 @@ import (
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -274,16 +273,6 @@ func TestSkipMonFailover(t *testing.T) {
 		assert.NoError(t, c.allowFailover(monName))
 	})
 
-	t.Run("skip failover for arbiter if an older version of ceph", func(t *testing.T) {
-		c.arbiterMon = monName
-		c.ClusterInfo.CephVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 6}
-		assert.Error(t, c.allowFailover(monName))
-	})
-
-	t.Run("don't skip failover for arbiter if a newer version of ceph", func(t *testing.T) {
-		c.ClusterInfo.CephVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 7}
-		assert.NoError(t, c.allowFailover(monName))
-	})
 }
 
 func TestEvictMonOnSameNode(t *testing.T) {
