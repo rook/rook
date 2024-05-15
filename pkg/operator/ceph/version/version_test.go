@@ -162,27 +162,27 @@ func TestIsInferior(t *testing.T) {
 
 func TestValidateCephVersionsBetweenLocalAndExternalClusters(t *testing.T) {
 	// TEST 1: versions are identical
-	localCephVersion := CephVersion{Major: 15, Minor: 2, Extra: 1}
-	externalCephVersion := CephVersion{Major: 15, Minor: 2, Extra: 1}
+	localCephVersion := CephVersion{Major: 17, Minor: 2, Extra: 1}
+	externalCephVersion := CephVersion{Major: 17, Minor: 2, Extra: 1}
 	err := ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.NoError(t, err)
 
 	// TEST 2: local cluster version major is lower than external cluster version
-	localCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
-	externalCephVersion = CephVersion{Major: 16, Minor: 2, Extra: 1}
+	localCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1}
+	externalCephVersion = CephVersion{Major: 18, Minor: 2, Extra: 1}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.NoError(t, err)
 
 	// TEST 3: local cluster version major is higher than external cluster version
-	localCephVersion = CephVersion{Major: 16, Minor: 2, Extra: 1}
-	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
+	localCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1}
+	externalCephVersion = CephVersion{Major: 16, Minor: 2, Extra: 1}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.Error(t, err)
 
 	// TEST 4: local version is > but from a minor release
 	// local version must never be higher
-	localCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 2}
-	externalCephVersion = CephVersion{Major: 15, Minor: 2, Extra: 1}
+	localCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 2}
+	externalCephVersion = CephVersion{Major: 17, Minor: 2, Extra: 1}
 	err = ValidateCephVersionsBetweenLocalAndExternalClusters(localCephVersion, externalCephVersion)
 	assert.Error(t, err)
 

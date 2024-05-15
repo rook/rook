@@ -29,7 +29,6 @@ import (
 	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -47,8 +46,6 @@ var (
 	timeZero                       = time.Duration(0)
 	// Check whether mons are on the same node once per operator restart since it's a rare scheduling condition
 	needToCheckMonsOnSameNode = true
-	// Version of Ceph where the arbiter failover is supported
-	arbiterFailoverSupportedCephVersion = version.CephVersion{Major: 16, Minor: 2, Extra: 7}
 )
 
 // HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
@@ -552,13 +549,9 @@ func (c *Cluster) allowFailover(name string) error {
 		// failover if it's a non-arbiter
 		return nil
 	}
-	if c.ClusterInfo.CephVersion.IsAtLeast(arbiterFailoverSupportedCephVersion) {
-		// failover the arbiter if at least v16.2.7
-		return nil
-	}
 
 	// Ceph does not support updating the arbiter mon in older versions
-	return errors.Errorf("refusing to failover arbiter mon %q on a stretched cluster until upgrading to ceph version %s", name, arbiterFailoverSupportedCephVersion.String())
+	return errors.Errorf("refusing to failover arbiter mon %q on a stretched cluster", name)
 }
 
 func (c *Cluster) removeOrphanMonResources() {

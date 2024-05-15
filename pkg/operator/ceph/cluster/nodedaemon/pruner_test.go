@@ -38,7 +38,7 @@ import (
 
 func TestCreateOrUpdateCephCron(t *testing.T) {
 	cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
-	cephVersion := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
+	cephVersion := &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
 	ctx := context.TODO()
 	context := &clusterd.Context{
 		Clientset:     test.New(t, 1),

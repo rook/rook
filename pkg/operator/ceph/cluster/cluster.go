@@ -251,13 +251,6 @@ func (c *ClusterController) configureLocalCephCluster(cluster *cluster) error {
 	// Set the value of isUpgrade based on the image discovery done by detectAndValidateCephVersion()
 	cluster.isUpgrade = isUpgrade
 
-	if cluster.Spec.IsStretchCluster() {
-		stretchVersion := cephver.CephVersion{Major: 16, Minor: 2, Build: 5}
-		if !cephVersion.IsAtLeast(stretchVersion) {
-			return errors.Errorf("stretch clusters minimum ceph version is %q, but is running %s", stretchVersion.String(), cephVersion.String())
-		}
-	}
-
 	if cluster.Spec.Network.MultiClusterService.Enabled {
 		serviceExportVersion := cephver.CephVersion{Major: 17, Minor: 2, Extra: 6}
 		if !cephVersion.IsAtLeast(serviceExportVersion) {

@@ -34,7 +34,6 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -60,11 +59,8 @@ var (
 	lvmConfPath   = "/etc/lvm/lvm.conf"
 	cvLogDir      = ""
 
-	// The mitigation of phantom ATARI partition problem is fixed in Ceph v16.2.6. Quincy doesn't have this problem from the beginning
-	// See https://github.com/ceph/ceph/pull/42469
-	cephIgnorePhantomAtariPartitionCephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
-	isEncrypted                                = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
-	isOnPVC                                    = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
+	isEncrypted = os.Getenv(oposd.EncryptedDeviceEnvVarName) == "true"
+	isOnPVC     = os.Getenv(oposd.PVCBackedOSDVarName) == "true"
 )
 
 type osdInfoBlock struct {
@@ -446,15 +442,7 @@ func (a *OsdAgent) allowRawMode(context *clusterd.Context) (bool, error) {
 }
 
 // test if safe to use raw mode for a particular device
-func isSafeToUseRawMode(device *DeviceOsdIDEntry, cephVersion cephver.CephVersion) bool {
-	if device.DeviceInfo.Type == sys.DiskType {
-		// if this is a disk but the atari partition fix isn't in, we can't use raw mode
-		if !cephVersion.IsAtLeast(cephIgnorePhantomAtariPartitionCephVersion) {
-			logger.Debugf("won't use raw mode for disk %q since this is a disk and the atari partition issue isn't fixed", device.Config.Name)
-			return false
-		}
-	}
-
+func isSafeToUseRawMode(device *DeviceOsdIDEntry) bool {
 	// ceph-volume raw mode does not support more than one OSD per disk
 	if device.Config.OSDsPerDevice > 1 {
 		logger.Debugf("won't use raw mode for disk %q since osd per device is %d", device.Config.Name, device.Config.OSDsPerDevice)
@@ -517,7 +505,7 @@ func (a *OsdAgent) initializeDevices(context *clusterd.Context, devices *DeviceO
 		// which reports only the phantom partitions (and malformed OSD info) when they exist and
 		// ignores the original (correct) OSDs created on the raw disk.
 		// See: https://github.com/rook/rook/issues/7940
-		if allowRawMode && isSafeToUseRawMode(device, a.clusterInfo.CephVersion) {
+		if allowRawMode && isSafeToUseRawMode(device) {
 			rawDevices.Entries[name] = device
 			continue
 		}

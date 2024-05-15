@@ -507,23 +507,14 @@ func TestConfigureArbiter(t *testing.T) {
 	c.context = &clusterd.Context{Clientset: test.New(t, 5), Executor: executor}
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(5)
 
-	t.Run("no arbiter failover for old ceph version", func(t *testing.T) {
-		c.arbiterMon = "changed"
-		c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
-		err := c.ConfigureArbiter()
-		assert.NoError(t, err)
-		assert.False(t, setNewTiebreaker)
-	})
 	t.Run("stretch mode already configured - new", func(t *testing.T) {
 		c.arbiterMon = currentArbiter
-		c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
 		err := c.ConfigureArbiter()
 		assert.NoError(t, err)
 		assert.False(t, setNewTiebreaker)
 	})
 	t.Run("tiebreaker changed", func(t *testing.T) {
 		c.arbiterMon = "changed"
-		c.ClusterInfo.CephVersion = cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
 		err := c.ConfigureArbiter()
 		assert.NoError(t, err)
 		assert.True(t, setNewTiebreaker)

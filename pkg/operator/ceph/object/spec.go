@@ -70,8 +70,7 @@ chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 )
 
 var (
-	cephVersionMinRGWSSES3     = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
-	cephVersionMinRGWSSEKMSTLS = cephver.CephVersion{Major: 16, Minor: 2, Extra: 6}
+	cephVersionMinRGWSSES3 = cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}
 
 	//go:embed rgw-probe.sh
 	rgwProbeScriptTemplate string
@@ -394,8 +393,7 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		if c.store.Spec.Security.KeyManagementService.IsTokenAuthEnabled() {
 			container.Args = append(container.Args, c.sseKMSVaultTokenOptions(kmsEnabled)...)
 		}
-		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() &&
-			c.clusterInfo.CephVersion.IsAtLeast(cephVersionMinRGWSSEKMSTLS) {
+		if c.store.Spec.Security.KeyManagementService.IsTLSEnabled() {
 			container.Args = append(container.Args, c.sseKMSVaultTLSOptions(kmsEnabled)...)
 		}
 	}
