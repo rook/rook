@@ -2054,6 +2054,20 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>inputCredentials</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserInputCredentials">
+ObjectUserInputCredentials
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Input Credentials for the cephObjectUser</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -9508,6 +9522,20 @@ string
 <p>The namespace where the parent CephCluster and CephObjectStore are found</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>inputCredentials</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserInputCredentials">
+ObjectUserInputCredentials
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Input Credentials for the cephObjectUser</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus
@@ -9558,6 +9586,20 @@ int64
 <td>
 <em>(Optional)</em>
 <p>ObservedGeneration is the latest generation observed by the controller.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>inputCredentialsStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserInputCredentialsStatus">
+ObjectUserInputCredentialsStatus
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Input Credentials for the cephObjectUser</p>
 </td>
 </tr>
 </tbody>
@@ -9768,6 +9810,76 @@ string
 <td>
 <em>(Optional)</em>
 <p>Add capabilities for user to set rate limiter for user and bucket. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ObjectUserInputCredentials">ObjectUserInputCredentials
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secretName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretName for input Credentials for the cephObjectUser</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ObjectUserInputCredentialsStatus">ObjectUserInputCredentialsStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserStatus">ObjectStoreUserStatus</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>secretName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SecretName for input Credentials for the cephObjectUser</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secretGeneration</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The generation of the above secret Rook last used to apply creds</p>
 </td>
 </tr>
 </tbody>

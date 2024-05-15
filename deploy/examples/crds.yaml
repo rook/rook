@@ -11755,6 +11755,13 @@ spec:
                 displayName:
                   description: The display name for the ceph users
                   type: string
+                inputCredentials:
+                  description: Input Credentials for the cephObjectUser
+                  properties:
+                    secretName:
+                      description: SecretName for input Credentials for the cephObjectUser
+                      type: string
+                  type: object
                 quotas:
                   description: ObjectUserQuotaSpec can be used to set quotas for the object store user to limit their usage. See the [Ceph docs](https://docs.ceph.com/en/latest/radosgw/admin/?#quota-management) for more
                   nullable: true
@@ -11790,6 +11797,17 @@ spec:
                   additionalProperties:
                     type: string
                   nullable: true
+                  type: object
+                inputCredentialsStatus:
+                  description: Input Credentials for the cephObjectUser
+                  properties:
+                    secretGeneration:
+                      description: The generation of the above secret Rook last used to apply creds
+                      format: int64
+                      type: integer
+                    secretName:
+                      description: SecretName for input Credentials for the cephObjectUser
+                      type: string
                   type: object
                 observedGeneration:
                   description: ObservedGeneration is the latest generation observed by the controller.

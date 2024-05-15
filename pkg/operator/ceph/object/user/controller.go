@@ -250,7 +250,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE CEPH USER
-	reconcileResponse, overwriteExistingCreds, err := r.reconcileCephUser(cephObjectStoreUser)
+	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -263,13 +263,12 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
-	if !overwriteExistingCreds {
-		reconcileResponse, err = object.ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.objContext.Endpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
-		if err != nil {
-			r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
-			return reconcileResponse, *cephObjectStoreUser, err
-		}
+	reconcileResponse, err = object.ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.objContext.Endpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
+	if err != nil {
+		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
+		return reconcileResponse, *cephObjectStoreUser, err
 	}
+
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Ready status, we are done reconciling
 	r.updateStatus(observedGeneration, request.NamespacedName, k8sutil.ReadyStatus)
@@ -282,7 +281,10 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 func (r *ReconcileObjectStoreUser) getUserDefinedSecret(u *cephv1.CephObjectStoreUser) ([]secret.Credential, bool, error) {
 	var credentialsStruct []secret.Credential
 	overwriteExistingCreds := false
-	secretName := object.GenerateCephUserSecretName(u.Spec.Store, u.Name)
+	if u.Spec.InputCredentials == nil {
+		return credentialsStruct, overwriteExistingCreds, nil
+	}
+	secretName := u.Spec.InputCredentials.SecretName
 	namspacedName := types.NamespacedName{Namespace: u.Namespace, Name: secretName}
 
 	cephObjectStoreUserSecret := &corev1.Secret{}
@@ -294,35 +296,33 @@ func (r *ReconcileObjectStoreUser) getUserDefinedSecret(u *cephv1.CephObjectStor
 		logger.Debugf("no user secret %q provided for cephobjectstoreuser", secretName)
 
 	} else {
-		if secret.GetUserDefinedSecretAnnotations(cephObjectStoreUserSecret.GetAnnotations()) {
-			overwriteExistingCreds = true
-			credentialsStruct, err = secret.UnmarshalKeys(cephObjectStoreUserSecret.Data["Credentials"])
-			if err != nil {
-				return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "invalid cephobjectstoreuser secret %q format", secretName)
-			}
-			credentialsStruct, err = secret.ValidateCredentials(string(cephObjectStoreUserSecret.Data["AccessKey"]), string(cephObjectStoreUserSecret.Data["SecretKey"]), credentialsStruct)
-			if err != nil {
-				return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "invalid cephobjectstoreuser secret %q values", secretName)
-			}
+		overwriteExistingCreds = true
+		credentialsStruct, err = secret.UnmarshalKeys(cephObjectStoreUserSecret.Data["Credentials"])
+		if err != nil {
+			return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "invalid cephobjectstoreuser secret %q format", secretName)
+		}
+		credentialsStruct, err = secret.ValidateCredentials(string(cephObjectStoreUserSecret.Data["AccessKey"]), string(cephObjectStoreUserSecret.Data["SecretKey"]), credentialsStruct)
+		if err != nil {
+			return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "invalid cephobjectstoreuser secret %q values", secretName)
 		}
 	}
 
 	return credentialsStruct, overwriteExistingCreds, nil
 }
 
-func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, bool, error) {
+func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {
 	// get the user defined k8s s3 keys if exists
 	creds, overwriteExistingCreds, err := r.getUserDefinedSecret(cephObjectStoreUser)
 	if err != nil {
-		return reconcile.Result{}, overwriteExistingCreds, errors.Wrapf(err, "failed to user defined k8s s3 keys of object user %q", r.userConfig.ID)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to user defined k8s s3 keys of object user %q", r.userConfig.ID)
 	}
 
 	err = r.createOrUpdateCephUser(cephObjectStoreUser, creds, overwriteExistingCreds)
 	if err != nil {
-		return reconcile.Result{}, overwriteExistingCreds, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
 	}
 
-	return reconcile.Result{}, overwriteExistingCreds, nil
+	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileObjectStoreUser) modifyObjectUserSecret(credentialsStruct []secret.Credential, user admin.User) error {

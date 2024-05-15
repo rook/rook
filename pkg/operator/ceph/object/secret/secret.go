@@ -18,16 +18,9 @@ package secret
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
-)
-
-const (
-	//#nosec G101 -- This is the name of an annotation key, not a secret
-	UpdateObjectUserSecretAnnotation = "rook.io/source-of-truth"
-	SourceOfTruthSecret              = "secret"
 )
 
 // Credential is the user credential values
@@ -61,15 +54,6 @@ func UnmarshalKeys(credentials []byte) ([]Credential, error) {
 		return userKeys, errors.Wrapf(err, "unable to unmarshal credentials from the object secret")
 	}
 	return userKeys, nil
-}
-
-func GetUserDefinedSecretAnnotations(annotations map[string]string) bool {
-	if value, found := annotations[UpdateObjectUserSecretAnnotation]; found {
-		if strings.EqualFold(value, SourceOfTruthSecret) {
-			return true
-		}
-	}
-	return false
 }
 
 func UpdatecredentialsUserId(uid, displayName string, credentials []Credential) []admin.UserKeySpec {

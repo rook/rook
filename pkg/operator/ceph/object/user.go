@@ -26,7 +26,6 @@ import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/object/secret"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	corev1 "k8s.io/api/core/v1"
@@ -246,9 +245,9 @@ func generateCephUserSecret(userConfig *admin.User, endpoint, namespace, storeNa
 	secretName := GenerateCephUserSecretName(storeName, userConfig.ID)
 	accessKey := userConfig.Keys[0].AccessKey
 	secretKey := userConfig.Keys[0].SecretKey
-	credentials := []secret.Credential{
-		{AccessKey: accessKey,
-			SecretKey: secretKey}}
+	// TODO
+	//marshal []admin.UserKeySpec to []secret.Credential
+	credentials := userConfig.Keys
 	credentialsKeys, err := json.Marshal(credentials)
 	if err != nil {
 		return &corev1.Secret{}, err

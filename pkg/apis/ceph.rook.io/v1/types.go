@@ -1701,6 +1701,18 @@ type ObjectStoreUserStatus struct {
 	// ObservedGeneration is the latest generation observed by the controller.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+	// Input Credentials for the cephObjectUser
+	// +optional
+	InputCredentials *ObjectUserInputCredentialsStatus `json:"inputCredentialsStatus,omitempty"`
+}
+
+type ObjectUserInputCredentialsStatus struct {
+	// SecretName for input Credentials for the cephObjectUser
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+	// The generation of the above secret Rook last used to apply creds
+	// +optional
+	SecretGeneration int64 `json:"secretGeneration,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -1729,6 +1741,15 @@ type ObjectStoreUserSpec struct {
 	// The namespace where the parent CephCluster and CephObjectStore are found
 	// +optional
 	ClusterNamespace string `json:"clusterNamespace,omitempty"`
+	// Input Credentials for the cephObjectUser
+	// +optional
+	InputCredentials *ObjectUserInputCredentials `json:"inputCredentials,omitempty"`
+}
+
+type ObjectUserInputCredentials struct {
+	// SecretName for input Credentials for the cephObjectUser
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
 }
 
 // Additional admin-level capabilities for the Ceph object store user

@@ -93,45 +93,55 @@ type: kubernetes.io/rook
 
 AccessKey, SecretKey, and Credentials can be specified before CephObjectStore creation or modified afterwards to support user-specified keys and key rotation. Endpoint cannot be overridden by users and will always be updated by Rook to match the latest CephObjectStore information.
 
-Create or update the Kubernetes secret with name, `rook-ceph-object-user-<store-name>-<user-name>` in the same namespace of cephobjectUser,
+1) Update the cephObjectStoreUser spec with secretName.
 
-Steps:
+    ```
+    spec:
+      inputCredentials:
+        secretName: user-secret
+    ```
 
-i) Specify the annotations as `rook.io/source-of-truth: secret` and type as `type: "kubernetes.io/rook"`.
+2) Create or update the Kubernetes secret with user specified name, in the same namespace of cephobjectUser,
 
-ii) Specify the user defined `AccessKey` and `SecretKey`.
+    Steps:
 
-iii) (optional) The array of `Credentials` which contains all the trusted access and secret keys. Make sure to also add the user defined `AccessKey` and `SecretKey` of step ii).
+    i) Specify the type as `type: "kubernetes.io/rook"`.
 
-`Credentials`
-```console
-[{"access_key":"IE58RNT71Y2F1EQE80RA","secret_key":"cULyMz5dCpX18dPsJhpIKay7vcDNRNJWJPu8VqUA"}, {"access_key":"IE58RNT71Y2F1EQE80RC","secret_key":"cULyMz5dCpX18dPsJhpIKay7vcDNRNJWJPu8VqUA"}]
-```
+    ii) Specify the user defined `AccessKey` and `SecretKey`.
 
-If any key is present in the ceph user and not present in the `Credentials`, it will be removed from the ceph user too.
-If `Credentials` is left empty, it will be auto updated by the latest AccessKey and SecretKey and will remove all the other keys from the ceph user.
+    iii) (optional) The array of `Credentials` which contains all the trusted access and secret keys. Make sure to also add the user defined `AccessKey` and `SecretKey` of step ii).
 
-!!! note
-    Secret data usually needs to be converted to base64 format.
+    `Credentials`
+    ```console
+    [{"access_key":"IE58RNT71Y2F1EQE80RA","secret_key":"cULyMz5dCpX18dPsJhpIKay7vcDNRNJWJPu8VqUA"}, {"access_key":"IE58RNT71Y2F1EQE80RC","secret_key":"cULyMz5dCpX18dPsJhpIKay7vcDNRNJWJPu8VqUA"}]
+    ```
 
-Example Secret:
+    If any key is present in the ceph user and not present in the `Credentials`, it will be removed from the ceph user too.
+    If `Credentials` is left empty, it will be auto updated by the latest AccessKey and SecretKey and will remove all the other keys from the ceph user.
 
-```console
-kubectl create -f
-apiVersion: v1
-kind: Secret
-metadata:
-  name: rook-ceph-object-user-my-store-my-user
-  namespace: rook-ceph
-  annotations:
-    rook.io/source-of-truth: secret
-data:
-  AccessKey: ***
-  SecretKey: ***
-  Endpoint: ***
-  Credentials: ***
-type: "kubernetes.io/rook"
-```
+    !!! note
+        Secret data usually needs to be converted to base64 format.
 
-!!! note
-    Be careful when updating Kubernetes secret values. Mistakes entering info can cause errors reconciling the CephObjectStore.
+    Example Secret:
+
+    ```console
+    kubectl create -f
+    apiVersion: v1
+    kind: Secret
+    metadata:
+    name: user-secret
+    namespace: rook-ceph
+    annotations:
+        rook.io/source-of-truth: secret
+    data:
+    AccessKey: ***
+    SecretKey: ***
+    Endpoint: ***
+    Credentials: ***
+    type: "kubernetes.io/rook"
+    ```
+
+    !!! note
+        Be careful when updating Kubernetes secret values. Mistakes entering info can cause errors reconciling the CephObjectStore.
+
+Validate looking the cephObjectStoreUser status if the User-Specified Reference Secret is updated successful to the rgw/s3 user backend.
