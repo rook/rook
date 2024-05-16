@@ -70,7 +70,7 @@ DOCKER_REGISTRY ?= rook
 REGISTRIES ?= $(DOCKER_REGISTRY)
 IMAGE_ARCHS := $(subst linux_,,$(filter linux_%,$(PLATFORMS)))
 IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))
-IMAGE_PLATFORMS_COMMA=$(shell echo "$(IMAGE_PLATFORMS)" | sed 's/ /,/')
+IMAGE_PLATFORMS_COMMA := $(shell echo "$(IMAGE_PLATFORMS)" | sed 's/ /,/g' | sed 's/.$$//')
 
 S3_BUCKET ?= rook.releases
 S3_CP := aws s3 cp --only-show-errors
