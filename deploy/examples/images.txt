@@ -8,4 +8,4 @@
  registry.k8s.io/sig-storage/csi-provisioner:v4.0.0
  registry.k8s.io/sig-storage/csi-resizer:v1.10.0
  registry.k8s.io/sig-storage/csi-snapshotter:v7.0.1
- rook/ceph:v1.13.8
+ rook/ceph:v1.13.9
