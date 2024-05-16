@@ -1,0 +1,38 @@
+# ServiceAccount and RBAC to support running multus validation test on OpenShift
+# Deploy these resources, then use `serviceAccountName: multus-validation-test` in the validation
+# test config file.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: multus-validation-test
+  namespace: openshift-storage
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: multus-validation-test
+  namespace: openshift-storage
+rules:
+  - apiGroups:
+      - security.openshift.io
+    resourceNames:
+      - hostnetwork-v2
+    resources:
+      - securitycontextconstraints
+    verbs:
+      - use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: multus-validation-test
+  namespace: openshift-storage
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: multus-validation-test
+subjects:
+  - kind: ServiceAccount
+    name: multus-validation-test
+    namespace: openshift-storage
