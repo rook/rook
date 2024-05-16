@@ -55,6 +55,9 @@ jobs:
       - name: Setup multus
         run: ./tests/scripts/multus/setup-multus.sh
 
+      - name: Set up multus prerequisite host routing
+        run: kubectl create -f tests/scripts/multus/host-cfg-ds.yaml
+
       - name: Install public and cluster NADs in default namespace
         run: kubectl create -f tests/scripts/multus/default-public-cluster-nads.yaml
 

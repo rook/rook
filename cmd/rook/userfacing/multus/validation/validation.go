@@ -38,6 +38,9 @@ var (
 
 	// keep special var for `--daemons-per-node` that needs put into node config for validation run
 	flagDaemonsPerNode = -1
+
+	// keep special var for --host-check-only flag that can override what is from config file
+	flagHostCheckOnly = false
 )
 
 // commands
@@ -131,6 +134,9 @@ func init() {
 			"The default value is set to the worst-case value for a Rook Ceph cluster with 3 portable OSDs, 3 portable monitors, "+
 			"and where all optional child resources have been created with 1 daemon such that they all might run on a single node in a failure scenario. "+
 			"If you aren't sure what to choose for this value, add 1 for each additional OSD beyond 3.")
+	runCmd.Flags().BoolVar(&flagHostCheckOnly, "host-check-only", defaultConfig.HostCheckOnly,
+		"Only check that hosts can connect to the server via the public network. Do not start clients. "+
+			"This mode is recommended when a Rook cluster is already running and consuming the public network specified.")
 	runCmd.Flags().StringVar(&validationConfig.NginxImage, "nginx-image", defaultConfig.NginxImage,
 		"The Nginx image used for the validation server and clients.")
 
@@ -147,7 +153,8 @@ func init() {
 			"clients to start, and it therefore may take longer for all clients to become 'Ready'; in that case, this value can be set slightly higher.")
 
 	runCmd.Flags().StringVarP(&validationConfigFile, "config", "c", "",
-		"The validation test config file to use. This cannot be used with other flags.")
+		"The validation test config file to use. This cannot be used with other flags except --host-check-only.")
+	// allow using --host-check-only in combo with --config so the same config can be used with that flag if desired
 	runCmd.MarkFlagsMutuallyExclusive("config", "timeout-minutes")
 	runCmd.MarkFlagsMutuallyExclusive("config", "namespace")
 	runCmd.MarkFlagsMutuallyExclusive("config", "public-network")
@@ -182,6 +189,11 @@ func runValidation(ctx context.Context) {
 				OtherDaemonsPerNode: 0,
 			},
 		}
+	}
+
+	// allow --host-check-only(=true) flag to override default/configfile settings
+	if flagHostCheckOnly {
+		validationConfig.HostCheckOnly = true
 	}
 
 	if err := validationConfig.ValidationTestConfig.Validate(); err != nil {
