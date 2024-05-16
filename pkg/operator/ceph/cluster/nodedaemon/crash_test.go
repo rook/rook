@@ -50,7 +50,7 @@ func TestCreateOrUpdateCephCrash(t *testing.T) {
 	}
 	cephCluster.Spec.Labels = cephv1.LabelsSpec{}
 	cephCluster.Spec.PriorityClassNames = cephv1.PriorityClassNamesSpec{}
-	cephVersion := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 0}
+	cephVersion := &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
 	ctx := context.TODO()
 	context := &clusterd.Context{
 		Clientset:     test.New(t, 1),
