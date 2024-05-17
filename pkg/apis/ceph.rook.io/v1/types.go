@@ -673,6 +673,14 @@ type Module struct {
 	// Enabled determines whether a module should be enabled or not
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
+	// Settings to further configure the module
+	Settings ModuleSettings `json:"settings,omitempty"`
+}
+
+type ModuleSettings struct {
+	// BalancerMode sets the `balancer` module with different modes like `upmap`, `crush-compact` etc
+	// +kubebuilder:validation:Enum="";crush-compat;upmap;upmap-read
+	BalancerMode string `json:"balancerMode,omitempty"`
 }
 
 // ExternalSpec represents the options supported by an external cluster

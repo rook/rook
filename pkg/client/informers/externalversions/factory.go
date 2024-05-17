@@ -142,7 +142,7 @@ func (f *sharedInformerFactory) WaitForCacheSync(stopCh <-chan struct{}) map[ref
 	return res
 }
 
-// InformerFor returns the SharedIndexInformer for obj using an internal
+// InternalInformerFor returns the SharedIndexInformer for obj using an internal
 // client.
 func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer {
 	f.lock.Lock()

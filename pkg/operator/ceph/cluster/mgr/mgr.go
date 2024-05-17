@@ -42,18 +42,18 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
-	AppName              = "rook-ceph-mgr"
-	serviceAccountName   = "rook-ceph-mgr"
-	PrometheusModuleName = "prometheus"
-	crashModuleName      = "crash"
-	balancerModuleName   = "balancer"
-	balancerModuleMode   = "upmap"
-	mgrRoleLabelName     = "mgr_role"
-	activeMgrStatus      = "active"
-	standbyMgrStatus     = "standby"
-	monitoringPath       = "/etc/ceph-monitoring/"
-	serviceMonitorFile   = "service-monitor.yaml"
-	serviceMonitorPort   = "http-metrics"
+	AppName                   = "rook-ceph-mgr"
+	serviceAccountName        = "rook-ceph-mgr"
+	PrometheusModuleName      = "prometheus"
+	crashModuleName           = "crash"
+	balancerModuleName        = "balancer"
+	defaultBalancerModuleMode = "upmap"
+	mgrRoleLabelName          = "mgr_role"
+	activeMgrStatus           = "active"
+	standbyMgrStatus          = "standby"
+	monitoringPath            = "/etc/ceph-monitoring/"
+	serviceMonitorFile        = "service-monitor.yaml"
+	serviceMonitorPort        = "http-metrics"
 	// minimum amount of memory in MB to run the pod
 	cephMgrPodMinimumMemory uint64 = 512
 	// DefaultMetricsPort prometheus exporter port
@@ -487,8 +487,12 @@ func (c *Cluster) configureMgrModules() error {
 
 		if module.Enabled {
 			if module.Name == balancerModuleName {
+				mode := module.Settings.BalancerMode
+				if mode == "" {
+					mode = defaultBalancerModuleMode
+				}
 				// Configure balancer module mode
-				err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, balancerModuleMode)
+				err := cephclient.ConfigureBalancerModule(c.context, c.clusterInfo, mode)
 				if err != nil {
 					return errors.Wrapf(err, "failed to configure module %q", module.Name)
 				}
