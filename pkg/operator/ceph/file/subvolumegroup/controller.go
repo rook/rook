@@ -399,8 +399,13 @@ func buildClusterID(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolume
 
 func (r *ReconcileCephFilesystemSubVolumeGroup) cleanup(svg *cephv1.CephFilesystemSubVolumeGroup, cephCluster *cephv1.CephCluster) error {
 	logger.Infof("starting cleanup of the ceph resources for subVolumeGroup %q in namespace %q", svg.Name, svg.Namespace)
+	svgName := svg.Spec.Name
+	// use resource name if `spec.Name` is empty in the subvolumeGroup CR.
+	if svgName == "" {
+		svgName = svg.Name
+	}
 	cleanupConfig := map[string]string{
-		opcontroller.CephFSSubVolumeGroupNameEnv: svg.Spec.Name,
+		opcontroller.CephFSSubVolumeGroupNameEnv: svgName,
 		opcontroller.CephFSNameEnv:               svg.Spec.FilesystemName,
 		opcontroller.CSICephFSRadosNamesaceEnv:   "csi",
 		opcontroller.CephFSMetaDataPoolNameEnv:   file.GenerateMetaDataPoolName(svg.Spec.FilesystemName),
