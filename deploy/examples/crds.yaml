@@ -1583,6 +1583,18 @@ spec:
                           name:
                             description: Name is the name of the ceph manager module
                             type: string
+                          settings:
+                            description: Settings to further configure the module
+                            properties:
+                              balancerMode:
+                                description: BalancerMode sets the `balancer` module with different modes like `upmap`, `crush-compact` etc
+                                enum:
+                                  - ""
+                                  - crush-compat
+                                  - upmap
+                                  - upmap-read
+                                type: string
+                            type: object
                         type: object
                       nullable: true
                       type: array
