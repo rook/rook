@@ -49,3 +49,35 @@ If any setting is unspecified, a suitable default will be used automatically.
 ### Spec
 
 - `blockPoolName`: The metadata name of the CephBlockPool CR where the rados namespace will be created.
+
+## Creating a Storage Class
+
+Once the RADOS namespace is created, an RBD-based StorageClass can be created to
+create PVs in this RADOS namespace. For this purpose, the `clusterID` value from the
+CephBlockPoolRadosNamespace status needs to be put into the `clusterID` field of the StorageClass
+spec. 
+
+Extract the clusterID from the CephBlockPoolRadosNamespace CR:
+
+```console
+$ kubectl -n rook-ceph  get cephblockpoolradosnamespace/namespace-a -o jsonpath='{.status.info.clusterID}'
+80fc4f4bacc064be641633e6ed25ba7e
+```
+
+In this example, replace `namespace-a` by the actual name of the radosnamespace
+created before.
+Now set the `clusterID` retrieved from the previous step into the `clusterID` of the storage class.
+
+Example:
+
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-ceph-block-rados-ns
+provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
+parameters:
+  clusterID: 80fc4f4bacc064be641633e6ed25ba7e
+  pool: replicapool
+  ...
+```
