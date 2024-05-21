@@ -18,6 +18,7 @@ package mon
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -105,29 +106,72 @@ func testPodSpec(t *testing.T, monID string, pvc bool) {
 
 	t.Run(("msgr2 not required"), func(t *testing.T) {
 		container := c.makeMonDaemonContainer(monConfig)
-		checkMsgr2Required(t, container, false)
+		checkMsgr2Required(t, container, false, false, false)
 	})
 
 	t.Run(("require msgr2"), func(t *testing.T) {
 		monConfig.Port = DefaultMsgr2Port
 		container := c.makeMonDaemonContainer(monConfig)
-		checkMsgr2Required(t, container, true)
+		checkMsgr2Required(t, container, true, true, false)
+	})
+
+	t.Run(("require msgr2 -- dual stack"), func(t *testing.T) {
+		monConfig.Port = DefaultMsgr2Port
+		c.spec.Network = cephv1.NetworkSpec{
+			DualStack: true,
+		}
+		monConfig.Port = DefaultMsgr2Port
+		container := c.makeMonDaemonContainer(monConfig)
+		checkMsgr2Required(t, container, true, false, false)
+	})
+
+	t.Run(("require msgr2 -- IPv4"), func(t *testing.T) {
+		monConfig.Port = DefaultMsgr2Port
+		c.spec.Network = cephv1.NetworkSpec{
+			DualStack: false,
+			IPFamily:  cephv1.IPv4,
+		}
+		monConfig.Port = DefaultMsgr2Port
+		container := c.makeMonDaemonContainer(monConfig)
+		checkMsgr2Required(t, container, true, true, false)
+	})
+
+	t.Run(("require msgr2 -- IPv6"), func(t *testing.T) {
+		monConfig.Port = DefaultMsgr2Port
+		c.spec.Network = cephv1.NetworkSpec{
+			DualStack: false,
+			IPFamily:  cephv1.IPv6,
+		}
+		monConfig.Port = DefaultMsgr2Port
+		container := c.makeMonDaemonContainer(monConfig)
+		checkMsgr2Required(t, container, true, true, true)
 	})
 }
 
-func checkMsgr2Required(t *testing.T, container v1.Container, expectedRequireMsgr2 bool) {
+func checkMsgr2Required(t *testing.T, container v1.Container, expectedRequireMsgr2, expectedPort, expectedBrackets bool) {
 	foundDisabledMsgr1 := false
 	foundMsgr2Port := false
+	foundBrackets := false
+
 	for _, arg := range container.Args {
 		if arg == "--ms-bind-msgr1=false" {
 			foundDisabledMsgr1 = true
 		}
-		if arg == "--public-bind-addr=$(ROOK_POD_IP):3300" {
-			foundMsgr2Port = true
+		if strings.HasPrefix(arg, "--public-bind-addr=") {
+			// flag should always refer to the env var, no matter what
+			assert.Contains(t, arg, "$(ROOK_POD_IP)")
+			if strings.HasSuffix(arg, ":3300") {
+				foundMsgr2Port = true
+			}
+			// brackets are expected for IPv6 addrs
+			if strings.Contains(arg, "[$(ROOK_POD_IP)]") {
+				foundBrackets = true
+			}
 		}
 	}
 	assert.Equal(t, expectedRequireMsgr2, foundDisabledMsgr1)
-	assert.Equal(t, expectedRequireMsgr2, foundMsgr2Port)
+	assert.Equal(t, expectedPort, foundMsgr2Port)
+	assert.Equal(t, expectedBrackets, foundBrackets)
 }
 
 func TestDeploymentPVCSpec(t *testing.T) {
