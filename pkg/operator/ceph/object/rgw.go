@@ -137,6 +137,7 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 			ZoneGroup:      zoneGroupName,
 			Zone:           zoneName,
 			Auth:           c.store.Spec.Auth,
+			Protocols:      c.store.Spec.Protocols,
 			KeystoneSecret: keystoneSecret,
 		}
 

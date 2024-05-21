@@ -509,8 +509,8 @@ spec:
       url: https://keystone.{{ .Manifests.Settings.Namespace }}.svc/
   protocols:
     swift:
-      accountInUrl: true
-      urlPrefix: /swift
+      accountInUrl: false
+      urlPrefix: swift
     s3:
       enabled: true
       authUseKeystone: true

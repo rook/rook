@@ -187,9 +187,11 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 	}
 
 	if swift := rgwConfig.Protocols.Swift; swift != nil {
+
 		if swift.AccountInUrl != nil {
 			configOptions["rgw_swift_account_in_url"] = fmt.Sprintf("%t", *swift.AccountInUrl)
 		}
+
 		if swift.UrlPrefix != nil {
 			configOptions["rgw_swift_url_prefix"] = *swift.UrlPrefix
 
