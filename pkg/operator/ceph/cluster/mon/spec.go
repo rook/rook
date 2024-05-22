@@ -18,6 +18,7 @@ package mon
 
 import (
 	"fmt"
+	"net/netip"
 	"path"
 	"strings"
 
@@ -73,7 +74,6 @@ func (c *Cluster) getFailureDomainName() string {
 }
 
 func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
-
 	if spec.IsStretchCluster() && spec.Mon.StretchCluster.FailureDomainLabel != "" {
 		return spec.Mon.StretchCluster.FailureDomainLabel
 	}
@@ -328,7 +328,16 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	if monConfig.Port == DefaultMsgr2Port {
 		container.Args = append(container.Args, config.NewFlag("ms_bind_msgr1", "false"))
 		// To avoid binding to the msgr1 port, ceph expects to find the msgr2 port on the bind address
-		bindaddr = fmt.Sprintf("%s:%d", bindaddr, DefaultMsgr2Port)
+
+		// This special logic attempts to check if IPv6 is being used and ensures the IP is wrapped
+		// in [], otherwise the port will be joined twice. Without this extra logic a Pod IP of `::1`
+		// (for example) would become `::1:3300` (where 3300 is the port), then Ceph would add the
+		// port again (but with brackets this time), so it finally becomes `[::1:3300]:3300`.
+		if ip, _ := netip.ParseAddr(monConfig.PublicIP); ip.IsValid() && ip.Is6() {
+			bindaddr = fmt.Sprintf("[%s]:%d", bindaddr, DefaultMsgr2Port)
+		} else {
+			bindaddr = fmt.Sprintf("%s:%d", bindaddr, DefaultMsgr2Port)
+		}
 	} else {
 		// Add messenger 1 port
 		container.Ports = append(container.Ports, corev1.ContainerPort{
@@ -362,7 +371,6 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 
 // UpdateCephDeploymentAndWait verifies a deployment can be stopped or continued
 func UpdateCephDeploymentAndWait(context *clusterd.Context, clusterInfo *client.ClusterInfo, deployment *apps.Deployment, daemonType, daemonName string, skipUpgradeChecks, continueUpgradeAfterChecksEvenIfNotHealthy bool) error {
-
 	callback := func(action string) error {
 		// At this point, we are in an upgrade
 		if skipUpgradeChecks {
