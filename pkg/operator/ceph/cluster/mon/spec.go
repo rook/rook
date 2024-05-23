@@ -327,8 +327,22 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) corev1.Container 
 	bindaddr := controller.ContainerEnvVarReference(podIPEnvVar)
 	if monConfig.Port == DefaultMsgr2Port {
 		container.Args = append(container.Args, config.NewFlag("ms_bind_msgr1", "false"))
-		// To avoid binding to the msgr1 port, ceph expects to find the msgr2 port on the bind address
-		bindaddr = fmt.Sprintf("%s:%d", bindaddr, DefaultMsgr2Port)
+
+		// mons don't use --ms-bind-msgr1 to control whether they bind to v1 port or not.
+		// in order to force use of only v2 port, Rook must include the port in the bind addr
+		if c.spec.Network.DualStack {
+			// in a dual stack environment, Rook can't know whether IPv4 or IPv6 will be used.
+			// in order to be safe, don't add the port to the bind addr. this will mean that mons
+			// might listen on both msgr1 and msgr2 ports, but it is more critical to make sure mons
+			// don't crash than to forcefully disable msgr1
+		} else if c.spec.Network.IPFamily == cephv1.IPv6 {
+			// IPv6 addrs have to be surrounded in square brackets when a port is given
+			bindaddr = fmt.Sprintf("[%s]:%d", bindaddr, DefaultMsgr2Port)
+		} else if c.spec.Network.IPFamily == cephv1.IPv4 || c.spec.Network.IPFamily == "" {
+			// IPv4 addrs must have the port added without any special syntax
+			// if the IP family is unset, IPv4 is a safe assumption
+			bindaddr = fmt.Sprintf("%s:%d", bindaddr, DefaultMsgr2Port)
+		}
 	} else {
 		// Add messenger 1 port
 		container.Ports = append(container.Ports, corev1.ContainerPort{
