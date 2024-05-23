@@ -52,11 +52,11 @@ func shouldReconcileChangedNode(objOld, objNew *corev1.Node) bool {
 }
 
 // predicateForNodeWatcher is the predicate function to trigger reconcile on Node events
-func predicateForNodeWatcher(ctx context.Context, client client.Client, context *clusterd.Context) predicate.Funcs {
+func predicateForNodeWatcher(ctx context.Context, client client.Client, context *clusterd.Context, opNamespace string) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			clientCluster := newClientCluster(client, e.Object.GetNamespace(), context)
-			return clientCluster.onK8sNode(ctx, e.Object)
+			return clientCluster.onK8sNode(ctx, e.Object, opNamespace)
 		},
 
 		UpdateFunc: func(e event.UpdateEvent) bool {
@@ -67,7 +67,7 @@ func predicateForNodeWatcher(ctx context.Context, client client.Client, context 
 					}
 
 					clientCluster := newClientCluster(client, e.ObjectNew.GetNamespace(), context)
-					return clientCluster.onK8sNode(ctx, e.ObjectNew)
+					return clientCluster.onK8sNode(ctx, e.ObjectNew, opNamespace)
 				}
 			}
 			return false

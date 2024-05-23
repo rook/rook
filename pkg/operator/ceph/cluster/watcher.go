@@ -81,7 +81,7 @@ func checkStorageForNode(cluster *cephv1.CephCluster) bool {
 }
 
 // onK8sNode is triggered when a node is added in the Kubernetes cluster
-func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bool {
+func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, opNamespace string) bool {
 	node, ok := object.(*corev1.Node)
 	if !ok {
 		return false
@@ -91,7 +91,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	cluster := c.getCephCluster()
 
 	// Continue reconcile in case of failure too since we don't want to block other node reconcile
-	if err := c.handleNodeFailure(ctx, cluster, node); err != nil {
+	if err := c.handleNodeFailure(ctx, cluster, node, opNamespace); err != nil {
 		logger.Errorf("failed to handle node failure. %v", err)
 	}
 
@@ -158,7 +158,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	return false
 }
 
-func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.CephCluster, node *corev1.Node) error {
+func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.CephCluster, node *corev1.Node, opNamespace string) error {
 	watchForNodeLoss, err := k8sutil.GetOperatorSetting(ctx, c.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_WATCH_FOR_NODE_FAILURE", "true")
 	if err != nil {
 		return pkgerror.Wrapf(err, "failed to get configmap value `ROOK_WATCH_FOR_NODE_FAILURE`.")
@@ -199,7 +199,7 @@ func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.C
 	}
 
 	if nodeHasOutOfServiceTaint {
-		err := c.fenceNode(ctx, node, cluster)
+		err := c.fenceNode(ctx, node, cluster, opNamespace)
 		if err != nil {
 			return pkgerror.Wrapf(err, "failed to create network fence for node %q.", node.Name)
 		}
@@ -215,11 +215,10 @@ func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.C
 	if err != nil {
 		return pkgerror.Wrapf(err, "failed to delete cephFS network fence for node %q.", node.Name)
 	}
-
 	return nil
 }
 
-func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster) error {
+func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster, opNamespace string) error {
 	volumesInuse := node.Status.VolumesInUse
 	if len(volumesInuse) == 0 {
 		logger.Debugf("no volumes in use for node %q", node.Name)
@@ -227,9 +226,9 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 	}
 	logger.Debugf("volumesInuse %s", volumesInuse)
 
-	rbdVolumesInUse, cephFSVolumeInUse := getCephVolumesInUse(cluster, volumesInuse)
+	rbdVolumesInUse, cephFSVolumeInUse := getCephVolumesInUse(cluster, volumesInuse, opNamespace)
 	if len(rbdVolumesInUse) == 0 && len(cephFSVolumeInUse) == 0 {
-		logger.Debugf("no rbd or cephFS volumes in use for out of service node %q", node.Name)
+		logger.Debugf("no rbd or cephfs subvolumes in use for out of service node %q", node.Name)
 		return nil
 	}
 
@@ -239,7 +238,7 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 	}
 
 	if len(rbdVolumesInUse) != 0 {
-		rbdPVList := listRBDPV(listPVs, cluster, rbdVolumesInUse)
+		rbdPVList := listRBDPV(listPVs, cluster, rbdVolumesInUse, opNamespace)
 		if len(rbdPVList) == 0 {
 			logger.Debug("No rbd PVs found on the node")
 		} else {
@@ -273,55 +272,53 @@ func (c *clientCluster) fenceNode(ctx context.Context, node *corev1.Node, cluste
 		for _, vol := range cephFSVolumeInUse {
 			cephFSVolumeInUseMap[vol] = struct{}{}
 		}
-		cephFSPVList := listRWOCephFSPV(listPVs, cluster, cephFSVolumeInUseMap)
+		cephFSPVList := listRWOCephFSPV(listPVs, cluster, cephFSVolumeInUseMap, opNamespace)
 		if len(cephFSPVList) == 0 {
-			logger.Debug("No cephFS PVs found on the node")
+			logger.Debug("No cephfs PVs found on the node %s", node.Name)
 			return nil
 		}
-		logger.Infof("node %q require fencing, found cephFS volumes in use", node.Name)
+		logger.Infof("node %q require fencing, found cephfs subvolumes in use", node.Name)
 		clusterInfo, _, _, err := opcontroller.LoadClusterInfo(c.context, ctx, cluster.Namespace, &cluster.Spec)
 		if err != nil {
-			return pkgerror.Wrapf(err, "Failed to load cluster info.")
+			return pkgerror.Wrap(err, "Failed to load cluster info.")
 		}
 
 		for i := range cephFSPVList {
-			err = c.fenceCephFSVolume(ctx, node, cluster, clusterInfo, cephFSPVList[i])
+			err = c.fenceCephFSSubvolume(ctx, node, cluster, clusterInfo, cephFSPVList[i])
 			// We only need to create the network fence for any one of cephFS pv.
 			if err == nil {
 				break
 			}
 
-			// continue to fence next rbd volume if active client not found
+			// continue to fence next cephfs subvolume if active client not found
 			if stderrors.Is(err, errActiveClientNotFound) {
 				continue
 			}
 			if i == len(cephFSPVList)-1 {
-				return pkgerror.Wrapf(err, "failed to fence cephFS volumes")
+				return pkgerror.Wrap(err, "failed to fence cephfs subvolumes")
 			}
-			logger.Errorf("failed to fence cephFS volumes %q, trying next cephFS volume", cephFSPVList[i].Name)
+			logger.Errorf("failed to fence cephfs subvolume %q, trying next cephfs subvolume", cephFSPVList[i].Name)
 		}
 
 	}
-
 	return nil
 }
 
-func getCephVolumesInUse(cluster *cephv1.CephCluster, volumesInUse []corev1.UniqueVolumeName) ([]string, []string) {
+func getCephVolumesInUse(cluster *cephv1.CephCluster, volumesInUse []corev1.UniqueVolumeName, opNamespace string) ([]string, []string) {
 	var rbdVolumesInUse, cephFSVolumeInUse []string
 
 	for _, volume := range volumesInUse {
 		splitVolumeInUseBased := trimeVolumeInUse(volume)
 		logger.Infof("volumeInUse after split based on '^' %v", splitVolumeInUseBased)
 
-		if len(splitVolumeInUseBased) == 2 && splitVolumeInUseBased[0] == fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace) {
+		if len(splitVolumeInUseBased) == 2 && splitVolumeInUseBased[0] == fmt.Sprintf("%s.rbd.csi.ceph.com", opNamespace) {
 			rbdVolumesInUse = append(rbdVolumesInUse, splitVolumeInUseBased[1])
 		}
 
-		if len(splitVolumeInUseBased) == 2 && splitVolumeInUseBased[0] == fmt.Sprintf("%s.cephfs.csi.ceph.com", cluster.Namespace) {
+		if len(splitVolumeInUseBased) == 2 && splitVolumeInUseBased[0] == fmt.Sprintf("%s.cephfs.csi.ceph.com", opNamespace) {
 			cephFSVolumeInUse = append(cephFSVolumeInUse, splitVolumeInUseBased[1])
 		}
 	}
-
 	return rbdVolumesInUse, cephFSVolumeInUse
 }
 
@@ -331,7 +328,7 @@ func trimeVolumeInUse(volume corev1.UniqueVolumeName) []string {
 	return splitVolumeInUseBased
 }
 
-func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster, rbdVolumesInUse []string) []corev1.PersistentVolume {
+func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster, rbdVolumesInUse []string, opNamespace string) []corev1.PersistentVolume {
 	var listRbdPV []corev1.PersistentVolume
 
 	for _, pv := range listPVs.Items {
@@ -341,7 +338,7 @@ func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster
 			continue
 		}
 
-		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace) {
+		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.rbd.csi.ceph.com", opNamespace) {
 			// Ignore PVs that support multinode access (RWX, ROX), since they can be mounted on multiple nodes.
 			if pvSupportsMultiNodeAccess(pv.Spec.AccessModes) {
 				continue
@@ -361,24 +358,24 @@ func listRBDPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster
 	return listRbdPV
 }
 
-func listRWOCephFSPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster, cephFSVolumesInUse map[string]struct{}) []corev1.PersistentVolume {
+func listRWOCephFSPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephCluster, cephFSVolumesInUse map[string]struct{}, opNamespace string) []corev1.PersistentVolume {
 	var listCephFSPV []corev1.PersistentVolume
 
 	for _, pv := range listPVs.Items {
 		// Skip if pv is not provisioned by CSI
 		if pv.Spec.CSI == nil {
-			logger.Debugf("pv %q is not provisioned by CSI", pv.Name)
+			logger.Debugf("PV %q is not provisioned by CSI", pv.Name)
 			continue
 		}
 
-		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.cephfs.csi.ceph.com", cluster.Namespace) {
+		if pv.Spec.CSI.Driver == fmt.Sprintf("%s.cephfs.csi.ceph.com", opNamespace) {
 			// Ignore PVs that support multinode access (RWX, ROX), since they can be mounted on multiple nodes.
 			if pvSupportsMultiNodeAccess(pv.Spec.AccessModes) {
 				continue
 			}
 
 			if pv.Spec.CSI.VolumeAttributes["staticVolume"] == "true" {
-				logger.Debugf("skipping, static pv %q", pv.Name)
+				logger.Debugf("skipping, static PV %q", pv.Name)
 				continue
 			}
 			// Check if the volume is in use
@@ -386,7 +383,6 @@ func listRWOCephFSPV(listPVs *corev1.PersistentVolumeList, cluster *cephv1.CephC
 				listCephFSPV = append(listCephFSPV, pv)
 			}
 		}
-
 	}
 	return listCephFSPV
 }
@@ -433,15 +429,15 @@ func (c *clientCluster) fenceRbdImage(
 	return nil
 }
 
-func (c *clientCluster) fenceCephFSVolume(
+func (c *clientCluster) fenceCephFSSubvolume(
 	ctx context.Context, node *corev1.Node, cluster *cephv1.CephCluster,
 	clusterInfo *cephclient.ClusterInfo, cephFSPV corev1.PersistentVolume) error {
 
-	logger.Infof("fencing cephfs volume %q on node %q", cephFSPV.Name, node.Name)
+	logger.Infof("fencing cephfs subvolume %q on node %q", cephFSPV.Name, node.Name)
 
 	status, err := cephclient.StatusWithUser(c.context, clusterInfo)
 	if err != nil {
-		return pkgerror.Wrapf(err, "failed to get ceph status for check active mds")
+		return pkgerror.Wrap(err, "failed to get ceph status for check active mds")
 	}
 
 	var activeMDS string
@@ -457,15 +453,15 @@ func (c *clientCluster) fenceCephFSVolume(
 
 	buf, err := cmd.Run()
 	if err != nil {
-		return fmt.Errorf("failed to list watchers for cephfs pool/subvoumeName %s/%s. %v", cephFSPV.Spec.CSI.VolumeAttributes["pool"], cephFSPV.Spec.CSI.VolumeAttributes["subvolumeName"], err)
+		return fmt.Errorf("failed to list watchers for cephfs subvolumeName %s. %v", cephFSPV.Spec.CSI.VolumeAttributes["subvolumeName"], err)
 	}
-	ips, err := cephFSMDSClientMarshal(buf, cephFSPV)
+	ips, err := cephFSMDSClientMarshal(buf, node.Name, cephFSPV)
 	if err != nil {
-		return pkgerror.Wrapf(err, "failed to unmarshal cephfs mds output")
+		return pkgerror.Wrap(err, "failed to unmarshal cephfs mds output")
 	}
 
 	if len(ips) == 0 {
-		logger.Infof("no active mds clients found for cephfs volume %q", cephFSPV.Name)
+		logger.Infof("no active mds clients found for cephfs subvolume %q", cephFSPV.Name)
 		return errActiveClientNotFound
 	}
 
@@ -477,7 +473,7 @@ func (c *clientCluster) fenceCephFSVolume(
 	return nil
 }
 
-func cephFSMDSClientMarshal(output []byte, cephFSPV corev1.PersistentVolume) ([]string, error) {
+func cephFSMDSClientMarshal(output []byte, nodeName string, cephFSPV corev1.PersistentVolume) ([]string, error) {
 	type entity struct {
 		Addr struct {
 			Addr  string `json:"addr"`
@@ -486,7 +482,8 @@ func cephFSMDSClientMarshal(output []byte, cephFSPV corev1.PersistentVolume) ([]
 	}
 
 	type clientMetadata struct {
-		Root string `json:"root"`
+		Root     string `json:"root"`
+		Hostname string `json:"hostname"`
 	}
 
 	type cephFSData struct {
@@ -502,10 +499,13 @@ func cephFSMDSClientMarshal(output []byte, cephFSPV corev1.PersistentVolume) ([]
 
 	watcherIPlist := []string{}
 	for _, d := range data {
-		if cephFSPV.Spec.CSI.VolumeAttributes["subvolumePath"] == d.ClientMetadata.Root {
-			logger.Infof("cephfs mds client ips to fence %v", d.Entity.Addr)
-			watcherIP := concatenateWatcherIp(d.Entity.Addr.Addr)
-			watcherIPlist = append(watcherIPlist, watcherIP)
+		if d.ClientMetadata.Hostname != "" {
+			if strings.Contains(nodeName, d.ClientMetadata.Hostname) && cephFSPV.Spec.CSI.VolumeAttributes["subvolumePath"] == d.ClientMetadata.Root {
+				logger.Infof("cephfs mds client ips to fence %v", d.Entity.Addr)
+				watcherIP := concatenateWatcherIp(d.Entity.Addr.Addr)
+				watcherIPlist = append(watcherIPlist, watcherIP)
+				break
+			}
 		}
 	}
 

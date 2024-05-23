@@ -99,16 +99,17 @@ type ReconcileCephCluster struct {
 	context           *clusterd.Context
 	clusterController *ClusterController
 	opManagerContext  context.Context
+	opConfig          opcontroller.OperatorConfig
 }
 
 // Add creates a new CephCluster Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
-func Add(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController, opManagerContext context.Context) error {
-	return add(opManagerContext, mgr, newReconciler(mgr, ctx, clusterController, opManagerContext), ctx)
+func Add(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
+	return add(opManagerContext, mgr, newReconciler(mgr, ctx, clusterController, opManagerContext, opConfig), ctx, opConfig)
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController, opManagerContext context.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController *ClusterController, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	// add "rook-" prefix to the controller name to make sure it is clear to all reading the events
 	// that they are coming from Rook. The controller name already has context that it is for Ceph
 	// and from the cluster controller.
@@ -118,12 +119,13 @@ func newReconciler(mgr manager.Manager, ctx *clusterd.Context, clusterController
 		client:            mgr.GetClient(),
 		scheme:            mgr.GetScheme(),
 		context:           ctx,
+		opConfig:          opConfig,
 		clusterController: clusterController,
 		opManagerContext:  opManagerContext,
 	}
 }
 
-func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context) error {
+func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reconciler, context *clusterd.Context, opConfig opcontroller.OperatorConfig) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -170,7 +172,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		mgr.GetCache(),
 		&corev1.Node{TypeMeta: metav1.TypeMeta{Kind: "Node", APIVersion: corev1.SchemeGroupVersion.String()}},
 		handler.EnqueueRequestsFromMapFunc(handlerFunc),
-		predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context))
+		predicateForNodeWatcher(opManagerContext, mgr.GetClient(), context, opConfig.OperatorNamespace))
 	err = c.Watch(nodeKind)
 	if err != nil {
 		return err

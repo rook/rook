@@ -102,13 +102,13 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 // AddToManager adds all the registered controllers to the passed manager.
 // each controller package will have an Add method listed in AddToManagerFuncs
 // which will setup all the necessary watch
-func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, opManagerContext context.Context) error {
+func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, opManagerContext context.Context, opconfig opcontroller.OperatorConfig) error {
 	if c == nil {
 		return errors.New("nil context passed")
 	}
 
 	// Run CephCluster CR
-	if err := cluster.Add(m, c.ClusterdContext, o.clusterController, opManagerContext); err != nil {
+	if err := cluster.Add(m, c.ClusterdContext, o.clusterController, opManagerContext, opconfig); err != nil {
 		return err
 	}
 
@@ -173,7 +173,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 	}
 
 	// Add the registered controllers to the manager (entrypoint for controllers)
-	err = o.addToManager(mgr, controllerOpts, context)
+	err = o.addToManager(mgr, controllerOpts, context, *o.config)
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to add controllers to controller-runtime manager")
 		return
