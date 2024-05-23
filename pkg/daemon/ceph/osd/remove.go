@@ -84,7 +84,7 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 		logger.Errorf("failed to exclude osd.%d out of the crush map. %v", osdID, err)
 	}
 
-	// Check we can remove the OSD
+	// Check if we can safely remove the OSD
 	// Loop forever until the osd is safe-to-destroy
 	for {
 		isSafeToDestroy, err := client.OsdSafeToDestroy(clusterdContext, clusterInfo, osdID)
@@ -112,8 +112,8 @@ func removeOSD(clusterdContext *clusterd.Context, clusterInfo *client.ClusterInf
 				break
 			}
 			// Else we wait until the OSD can be removed
-			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 1m until success", osdID)
-			time.Sleep(1 * time.Minute)
+			logger.Warningf("osd.%d is NOT ok to destroy, retrying in 15s until success", osdID)
+			time.Sleep(15 * time.Second)
 		}
 	}
 
