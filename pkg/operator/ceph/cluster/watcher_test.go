@@ -179,7 +179,7 @@ func TestHandleNodeFailure(t *testing.T) {
 		case command == "ceph" && args[0] == "status":
 			return `{"entity":[{"addr": [{"addr": "10.244.0.12:0", "nonce":3247243972}]}], "client_metadata":{"root":"/"}}`, nil
 		case command == "ceph" && args[0] == "tell":
-			return `[{"entity":{"addr":{"addr":"10.244.0.12:0","nonce":3247243972}}, "client_metadata":{"root":"/volumes/csi/csi-vol-58469d41-f6c0-4720-b23a-0a0826b842ca"}}]`, nil
+			return `[{"entity":{"addr":{"addr":"10.244.0.12:0","nonce":3247243972}}, "client_metadata":{"root":"/volumes/csi/csi-vol-58469d41-f6c0-4720-b23a-0a0826b842ca","hostname":"fakenode"}}]`, nil
 
 		}
 		return "", errors.Errorf("unexpected rbd/ceph command %q", args)
@@ -426,6 +426,13 @@ func TestHandleNodeFailure(t *testing.T) {
 
 	// When out-of-service taint is removed
 	node.Spec.Taints = []corev1.Taint{}
+	networkFenceRbd.Status.Message = addonsv1alpha1.UnFenceOperationSuccessfulMessage
+	err = c.client.Update(ctx, networkFenceRbd)
+	assert.NoError(t, err)
+
+	networkFenceCephFs.Status.Message = addonsv1alpha1.UnFenceOperationSuccessfulMessage
+	err = c.client.Update(ctx, networkFenceCephFs)
+	assert.NoError(t, err)
 
 	err = c.handleNodeFailure(ctx, cephCluster, node)
 	assert.NoError(t, err)

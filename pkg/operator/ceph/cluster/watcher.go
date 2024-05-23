@@ -449,7 +449,7 @@ func (c *clientCluster) fenceCephFSVolume(
 	if err != nil {
 		return fmt.Errorf("failed to list watchers for cephfs pool/subvoumeName %s/%s. %v", cephFSPV.Spec.CSI.VolumeAttributes["pool"], cephFSPV.Spec.CSI.VolumeAttributes["subvolumeName"], err)
 	}
-	ips, err := cephFSMDSClientMarshal(buf, cephFSPV)
+	ips, err := cephFSMDSClientMarshal(buf, node.Name, cephFSPV)
 	if err != nil {
 		return pkgerror.Wrapf(err, "failed to unmarshal cephfs mds output")
 	}
@@ -467,7 +467,7 @@ func (c *clientCluster) fenceCephFSVolume(
 	return nil
 }
 
-func cephFSMDSClientMarshal(output []byte, cephFSPV corev1.PersistentVolume) ([]string, error) {
+func cephFSMDSClientMarshal(output []byte, nodeName string, cephFSPV corev1.PersistentVolume) ([]string, error) {
 	type entity struct {
 		Addr struct {
 			Addr  string `json:"addr"`
@@ -476,7 +476,8 @@ func cephFSMDSClientMarshal(output []byte, cephFSPV corev1.PersistentVolume) ([]
 	}
 
 	type clientMetadata struct {
-		Root string `json:"root"`
+		Root     string `json:"root"`
+		Hostname string `json:"hostname"`
 	}
 
 	type cephFSData struct {
@@ -492,10 +493,12 @@ func cephFSMDSClientMarshal(output []byte, cephFSPV corev1.PersistentVolume) ([]
 
 	watcherIPlist := []string{}
 	for _, d := range data {
-		if cephFSPV.Spec.CSI.VolumeAttributes["subvolumePath"] == d.ClientMetadata.Root {
-			logger.Infof("cephfs mds client ips to fence %v", d.Entity.Addr)
-			watcherIP := concatenateWatcherIp(d.Entity.Addr.Addr)
-			watcherIPlist = append(watcherIPlist, watcherIP)
+		if d.ClientMetadata.Hostname != "" {
+			if strings.Contains(nodeName, d.ClientMetadata.Hostname) && cephFSPV.Spec.CSI.VolumeAttributes["subvolumePath"] == d.ClientMetadata.Root {
+				logger.Infof("cephfs mds client ips to fence %v", d.Entity.Addr)
+				watcherIP := concatenateWatcherIp(d.Entity.Addr.Addr)
+				watcherIPlist = append(watcherIPlist, watcherIP)
+			}
 		}
 	}
 
