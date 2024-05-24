@@ -510,7 +510,7 @@ spec:
   protocols:
     swift:
       accountInUrl: false
-      urlPrefix: swift
+      urlPrefix: foobar
     s3:
       enabled: true
       authUseKeystone: true
