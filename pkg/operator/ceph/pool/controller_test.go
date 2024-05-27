@@ -498,7 +498,7 @@ func TestCephBlockPoolController(t *testing.T) {
 		err := r.client.Update(context.TODO(), pool)
 		assert.NoError(t, err)
 		res, err := r.Reconcile(ctx, req)
-		// assert reconcile failure because peer token secert was not created
+		// assert reconcile failure because peer token secret was not created
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
 	})
