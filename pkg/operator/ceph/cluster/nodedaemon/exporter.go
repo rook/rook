@@ -267,10 +267,10 @@ func applyCephExporterLabels(cephCluster cephv1.CephCluster, serviceMonitor *mon
 			if managedBy, ok := cephExporterLabels["rook.io/managedBy"]; ok {
 				relabelConfig := monitoringv1.RelabelConfig{
 					TargetLabel: "managedBy",
-					Replacement: managedBy,
+					Replacement: &managedBy,
 				}
 				serviceMonitor.Spec.Endpoints[0].RelabelConfigs = append(
-					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, &relabelConfig)
+					serviceMonitor.Spec.Endpoints[0].RelabelConfigs, relabelConfig)
 			} else {
 				logger.Info("rook.io/managedBy not specified in ceph-exporter labels")
 			}
