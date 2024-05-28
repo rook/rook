@@ -3150,6 +3150,12 @@ spec:
                   description: A spec for available storage in the cluster and how it should be used
                   nullable: true
                   properties:
+                    backfillFullRatio:
+                      description: BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
+                      maximum: 1
+                      minimum: 0
+                      nullable: true
+                      type: number
                     config:
                       additionalProperties:
                         type: string
@@ -3190,6 +3196,18 @@ spec:
                         User needs to manually restart the OSD pod if they manage to fix the underlying OSD flapping issue before the restart interval.
                         The sleep will be disabled if this interval is set to 0.
                       type: integer
+                    fullRatio:
+                      description: FullRatio is the ratio at which the cluster is considered full and ceph will stop accepting writes. Default is 0.95.
+                      maximum: 1
+                      minimum: 0
+                      nullable: true
+                      type: number
+                    nearFullRatio:
+                      description: NearFullRatio is the ratio at which the cluster is considered nearly full and will raise a ceph health warning. Default is 0.85.
+                      maximum: 1
+                      minimum: 0
+                      nullable: true
+                      type: number
                     nodes:
                       items:
                         description: Node is a storage nodes

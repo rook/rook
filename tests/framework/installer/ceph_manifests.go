@@ -238,6 +238,14 @@ spec:
     config:
       databaseSizeMB: "1024"
 `
+		// Append the storage settings if it's not an upgrade from 1.13 where the settings do not exist
+		if m.settings.RookVersion != Version1_13 {
+			clusterSpec += `
+    fullRatio: 0.96
+    backfillFullRatio: 0.91
+    nearFullRatio: 0.88
+`
+		}
 	}
 
 	if m.settings.ConnectionsEncrypted {

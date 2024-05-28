@@ -272,6 +272,12 @@ spec:
     onlyApplyOSDPlacement: false
     # Time for which an OSD pod will sleep before restarting, if it stopped due to flapping
     # flappingRestartIntervalHours: 24
+    # The ratio at which Ceph should block IO if the OSDs are too full. The default is 0.95.
+    # fullRatio: 0.95
+    # The ratio at which Ceph should stop backfilling data if the OSDs are too full. The default is 0.90.
+    # backfillFullRatio: 0.90
+    # The ratio at which Ceph should raise a health warning if the OSDs are almost full. The default is 0.85.
+    # nearFullRatio: 0.85
   # The section for configuring management of daemon disruptions during upgrade or fencing.
   disruptionManagement:
     # If true, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically

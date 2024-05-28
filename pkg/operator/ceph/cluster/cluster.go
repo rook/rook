@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path"
@@ -474,6 +475,10 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "")
 	}
 
+	if err := c.configureStorageSettings(); err != nil {
+		return errors.Wrap(err, "failed to configure storage settings")
+	}
+
 	crushRoot := client.GetCrushRootFromSpec(c.Spec)
 	if crushRoot != "default" {
 		// Remove the root=default and replicated_rule which are created by
@@ -490,6 +495,65 @@ func (c *cluster) postMonStartupActions() error {
 	}
 
 	return nil
+}
+
+func (c *cluster) configureStorageSettings() error {
+	if !c.shouldSetClusterFullSettings() {
+		return nil
+	}
+	osdDump, err := client.GetOSDDump(c.context, c.ClusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get osd dump for setting cluster full settings")
+	}
+
+	if err := c.setClusterFullRatio("set-full-ratio", c.Spec.Storage.FullRatio, osdDump.FullRatio); err != nil {
+		return err
+	}
+
+	if err := c.setClusterFullRatio("set-backfillfull-ratio", c.Spec.Storage.BackfillFullRatio, osdDump.BackfillFullRatio); err != nil {
+		return err
+	}
+
+	if err := c.setClusterFullRatio("set-nearfull-ratio", c.Spec.Storage.NearFullRatio, osdDump.NearFullRatio); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *cluster) setClusterFullRatio(ratioCommand string, desiredRatio *float64, actualRatio float64) error {
+	if !shouldUpdateFloatSetting(desiredRatio, actualRatio) {
+		if desiredRatio != nil {
+			logger.Infof("desired value %s=%.2f is already set", ratioCommand, *desiredRatio)
+		}
+		return nil
+	}
+	desiredStringVal := fmt.Sprintf("%.2f", *desiredRatio)
+	logger.Infof("updating %s from %.2f to %s", ratioCommand, actualRatio, desiredStringVal)
+	args := []string{"osd", ratioCommand, desiredStringVal}
+	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
+	output, err := cephCmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to update %s to %q. %s", ratioCommand, desiredStringVal, output)
+	}
+	return nil
+}
+
+func shouldUpdateFloatSetting(desired *float64, actual float64) bool {
+	if desired == nil {
+		return false
+	}
+	if *desired == actual {
+		return false
+	}
+	if actual != 0 && math.Abs(*desired-actual)/actual > 0.01 {
+		return true
+	}
+	return false
+}
+
+func (c *cluster) shouldSetClusterFullSettings() bool {
+	return c.Spec.Storage.FullRatio != nil || c.Spec.Storage.BackfillFullRatio != nil || c.Spec.Storage.NearFullRatio != nil
 }
 
 func (c *cluster) updateConfigStoreFromCRD() error {

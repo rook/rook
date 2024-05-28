@@ -86,6 +86,9 @@ For more details on the mons and when to choose a number other than `3`, see the
         * For non-PVCs: `placement.all` and `placement.osd`
         * For PVCs: `placement.all` and inside the storageClassDeviceSets from the `placement` or `preparePlacement`
     * `flappingRestartIntervalHours`: Defines the time for which an OSD pod will sleep before restarting, if it stopped due to flapping. Flapping occurs where OSDs are marked `down` by Ceph more than 5 times in 600 seconds. The OSDs will stay down when flapping since they likely have a bad disk or other issue that needs investigation. If the issue with the OSD is fixed manually, the OSD pod can be manually restarted. The sleep is disabled if this interval is set to 0.
+    * `fullRatio`: The ratio at which Ceph should block IO if the OSDs are too full. The default is 0.95.
+    * `backfillFullRatio`: The ratio at which Ceph should stop backfilling data if the OSDs are too full. The default is 0.90.
+    * `nearFullRatio`: The ratio at which Ceph should raise a health warning if the cluster is almost full. The default is 0.85.
 * `disruptionManagement`: The section for configuring management of daemon disruptions
     * `managePodBudgets`: if `true`, the operator will create and manage PodDisruptionBudgets for OSD, Mon, RGW, and MDS daemons. OSD PDBs are managed dynamically via the strategy outlined in the [design](https://github.com/rook/rook/blob/master/design/ceph/ceph-managed-disruptionbudgets.md). The operator will block eviction of OSDs by default and unblock them safely when drains are detected.
     * `osdMaintenanceTimeout`: is a duration in minutes that determines how long an entire failureDomain like `region/zone/host` will be held in `noout` (in addition to the default DOWN/OUT interval) when it is draining. The default value is `30` minutes.
