@@ -2839,6 +2839,24 @@ type StorageScopeSpec struct {
 	// User needs to manually restart the OSD pod if they manage to fix the underlying OSD flapping issue before the restart interval.
 	// The sleep will be disabled if this interval is set to 0.
 	FlappingRestartIntervalHours int `json:"flappingRestartIntervalHours"`
+	// FullRatio is the ratio at which the cluster is considered full and ceph will stop accepting writes. Default is 0.95.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	FullRatio *float64 `json:"fullRatio,omitempty"`
+	// NearFullRatio is the ratio at which the cluster is considered nearly full and will raise a ceph health warning. Default is 0.85.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	NearFullRatio *float64 `json:"nearFullRatio,omitempty"`
+	// BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
+	// +kubebuilder:validation:Minimum=0.0
+	// +kubebuilder:validation:Maximum=1.0
+	// +optional
+	// +nullable
+	BackfillFullRatio *float64 `json:"backfillFullRatio,omitempty"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs

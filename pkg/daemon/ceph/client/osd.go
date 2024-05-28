@@ -65,8 +65,11 @@ type OSDDump struct {
 		Up  json.Number `json:"up"`
 		In  json.Number `json:"in"`
 	} `json:"osds"`
-	Flags          string              `json:"flags"`
-	CrushNodeFlags map[string][]string `json:"crush_node_flags"`
+	Flags             string              `json:"flags"`
+	CrushNodeFlags    map[string][]string `json:"crush_node_flags"`
+	FullRatio         float64             `json:"full_ratio"`
+	BackfillFullRatio float64             `json:"backfillfull_ratio"`
+	NearFullRatio     float64             `json:"nearfull_ratio"`
 }
 
 // IsFlagSet checks if an OSD flag is set
