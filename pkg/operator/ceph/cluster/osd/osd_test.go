@@ -19,7 +19,6 @@ package osd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -728,7 +727,7 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 			},
 		}
 		c := New(context, clusterInfo, spec, "myversion")
-		err := c.replaceOSDForNewStore()
+		_, err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
 		assert.Nil(t, c.replaceOSD)
 	})
@@ -743,7 +742,7 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 			},
 		}
 		c := New(context, clusterInfo, spec, "myversion")
-		err := c.replaceOSDForNewStore()
+		_, err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
 		assert.Nil(t, c.replaceOSD)
 	})
@@ -761,8 +760,9 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		d := getDummyDeploymentOnNode(clientset, c, "node2", 0)
 		d.Labels[osdStore] = "bluestore-rdr"
 		createDeploymentOrPanic(clientset, d)
-		err := c.replaceOSDForNewStore()
+		osdsToBeReplaced, err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
+		assert.Equal(t, 0, len(osdsToBeReplaced))
 		assert.Nil(t, c.replaceOSD)
 	})
 
@@ -779,7 +779,7 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		// create osd deployment with `bluestore` backend store
 		d := getDummyDeploymentOnNode(clientset, c, "node2", 1)
 		createDeploymentOrPanic(clientset, d)
-		err := c.replaceOSDForNewStore()
+		_, err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
 		assert.NotNil(t, c.replaceOSD)
 		assert.Equal(t, 1, c.replaceOSD.ID)
@@ -816,9 +816,9 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		c := New(context, clusterInfo, spec, "myversion")
 		d := getDummyDeploymentOnPVC(clientset, c, "pvc1", 2)
 		createDeploymentOrPanic(clientset, d)
-		err := c.replaceOSDForNewStore()
+		osdsToBeReplaced, err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
-		fmt.Printf("%+v", c.replaceOSD)
+		assert.Equal(t, 1, len(osdsToBeReplaced))
 		assert.NotNil(t, c.replaceOSD)
 		assert.Equal(t, 2, c.replaceOSD.ID)
 		assert.Equal(t, "pvc1", c.replaceOSD.Path)
@@ -862,8 +862,9 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 		}
 		context.Executor = executor
 		c := New(context, clusterInfo, spec, "myversion")
-		err := c.replaceOSDForNewStore()
+		osdsToBeReplaced, err := c.replaceOSDForNewStore()
 		assert.NoError(t, err)
+		assert.Equal(t, 0, len(osdsToBeReplaced))
 		assert.Nil(t, c.replaceOSD)
 	})
 }

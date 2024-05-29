@@ -19,7 +19,6 @@ package osd
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -41,6 +40,16 @@ type OSDReplaceInfo struct {
 	ID   int    `json:"id"`
 	Path string `json:"path"`
 	Node string `json:"node"`
+}
+
+type OSDReplaceInfoList []OSDReplaceInfo
+
+func (o *OSDReplaceInfoList) getOSDIds() []int {
+	osdIDs := []int{}
+	for _, osd := range *o {
+		osdIDs = append(osdIDs, osd.ID)
+	}
+	return osdIDs
 }
 
 func (o *OSDReplaceInfo) saveAsConfig(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo) error {
@@ -81,58 +90,67 @@ func (o *OSDReplaceInfo) string() (string, error) {
 	return string(configInBytes), nil
 }
 
-// getOSDReplaceInfo returns an existing OSD that needs to be replaced for a new backend store
-func (c *Cluster) getOSDReplaceInfo() (*OSDReplaceInfo, error) {
-	osdReplaceInfo, err := GetOSDReplaceConfigMap(c.context, c.clusterInfo)
+func (c *Cluster) replaceOSDForNewStore() (OSDReplaceInfoList, error) {
+	if c.spec.Storage.Store.UpdateStore != OSDStoreUpdateConfirmation {
+		logger.Info("no replacement of osds is requested")
+		return nil, nil
+	}
+
+	osdsToBeReplaced, err := c.getOSDWithNonMatchingStore()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get any existing OSD in replace configmap")
+		return nil, errors.Wrapf(err, "failed to get information about the OSDs where backing store does not match the spec in namespace %q", c.clusterInfo.Namespace)
 	}
 
-	if osdReplaceInfo != nil {
-		return osdReplaceInfo, nil
+	if len(osdsToBeReplaced) == 0 {
+		logger.Debug("all OSDs are using the desired backing store. No replacement is required.")
+		return osdsToBeReplaced, nil
 	}
 
+	// replace an OSD only if Pgs are healthy
 	pgHealthMsg, pgClean, err := cephclient.IsClusterClean(c.context, c.clusterInfo, c.spec.DisruptionManagement.PGHealthyRegex)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check if the pgs are clean before replacing OSDs")
 	}
+
 	if !pgClean {
 		logger.Warningf("skipping OSD replacement because pgs are not healthy. PG status: %q", pgHealthMsg)
-		return nil, nil
+		return osdsToBeReplaced, nil
 	}
 
-	logger.Infof("placement group status: %q", pgHealthMsg)
-
-	osdsToReplace, err := c.getOSDWithNonMatchingStore()
+	// Check for an existing OSDs in the configmap
+	osdToBeReplaced, err := GetOSDReplaceConfigMap(c.context, c.clusterInfo)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to list out OSDs with non matching backend store")
+		return nil, errors.Wrap(err, "failed to get any existing OSD in replace configmap")
+	}
+	if osdToBeReplaced != nil {
+		c.replaceOSD = osdToBeReplaced
+	} else {
+		c.replaceOSD = &osdsToBeReplaced[0]
 	}
 
-	if len(osdsToReplace) == 0 {
-		logger.Infof("all osds have already been migrated to backend store %q", c.spec.Storage.Store.Type)
-		return nil, nil
+	logger.Infof("replacing OSD.%d to the new backing store %q", c.replaceOSD.ID, c.spec.Storage.Store.Type)
+	err = c.deleteOSDDeployment(c.replaceOSD.ID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to delete OSD deployment that needs migration to new backend store in namespace %q", c.clusterInfo.Namespace)
 	}
 
-	logger.Infof("%d osd(s) require migration to new backend store %q.", len(osdsToReplace), c.spec.Storage.Store.Type)
-
-	return &osdsToReplace[0], nil
+	return osdsToBeReplaced, nil
 }
 
 // getOSDWithNonMatchingStore returns OSDs with osd-store label different from expected store in cephCluster spec
-func (c *Cluster) getOSDWithNonMatchingStore() ([]OSDReplaceInfo, error) {
-	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, AppName)}
-	deployments, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to query OSDs to skip reconcile")
-	}
-
+func (c *Cluster) getOSDWithNonMatchingStore() (OSDReplaceInfoList, error) {
 	osdReplaceList := []OSDReplaceInfo{}
-	for i := range deployments.Items {
-		if osdStore, ok := deployments.Items[i].Labels[osdStore]; ok {
+	// get existing OSD deployments
+	osdDeployments, err := c.getOSDDeployments()
+	if err != nil {
+		return osdReplaceList, errors.Wrapf(err, "failed to get existing OSD deployments in namespace %q", c.clusterInfo.Namespace)
+	}
+	for i := range osdDeployments.Items {
+		if osdStore, ok := osdDeployments.Items[i].Labels[osdStore]; ok {
 			if osdStore != string(c.spec.Storage.Store.Type) {
-				osdInfo, err := c.getOSDInfo(&deployments.Items[i])
+				osdInfo, err := c.getOSDInfo(&osdDeployments.Items[i])
 				if err != nil {
-					return nil, errors.Wrapf(err, "failed to details about the OSD %q", deployments.Items[i].Name)
+					return nil, errors.Wrapf(err, "failed to details about the OSD %q", osdDeployments.Items[i].Name)
 				}
 				var path string
 				if osdInfo.PVCName != "" {
