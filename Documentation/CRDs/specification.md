@@ -12170,6 +12170,42 @@ User needs to manually restart the OSD pod if they manage to fix the underlying 
 The sleep will be disabled if this interval is set to 0.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>fullRatio</code><br/>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>FullRatio is the ratio at which the cluster is considered full and ceph will stop accepting writes. Default is 0.95.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>nearFullRatio</code><br/>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>NearFullRatio is the ratio at which the cluster is considered nearly full and will raise a ceph health warning. Default is 0.85.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>backfillFullRatio</code><br/>
+<em>
+float64
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.StoreType">StoreType

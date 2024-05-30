@@ -335,3 +335,98 @@ func TestTelemetry(t *testing.T) {
 		c.reportTelemetry()
 	})
 }
+func TestClusterFullSettings(t *testing.T) {
+	actualFullRatio := 0.95
+	actualBackfillFullRatio := 0.90
+	actualNearFullRatio := 0.85
+	setFullRatio := false
+	setBackfillFullRatio := false
+	setNearFullRatio := false
+	clientset := testop.New(t, 1)
+	context := &clusterd.Context{Clientset: clientset}
+	c := cluster{
+		context:     context,
+		ClusterInfo: cephclient.AdminTestClusterInfo("cluster"),
+		Spec:        &cephv1.ClusterSpec{},
+	}
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "osd" {
+				if args[1] == "dump" {
+					return fmt.Sprintf(
+						`{	"full_ratio": %.2f,
+					"backfillfull_ratio": %.2f,
+					"nearfull_ratio": %.2f}`, actualFullRatio, actualBackfillFullRatio, actualNearFullRatio), nil
+				}
+				if args[1] == "set-full-ratio" {
+					assert.Equal(t, fmt.Sprintf("%.2f", *c.Spec.Storage.FullRatio), args[2])
+					setFullRatio = true
+					return "", nil
+				}
+				if args[1] == "set-nearfull-ratio" {
+					assert.Equal(t, fmt.Sprintf("%.2f", *c.Spec.Storage.NearFullRatio), args[2])
+					setNearFullRatio = true
+					return "", nil
+				}
+				if args[1] == "set-backfillfull-ratio" {
+					assert.Equal(t, fmt.Sprintf("%.2f", *c.Spec.Storage.BackfillFullRatio), args[2])
+					setBackfillFullRatio = true
+					return "", nil
+				}
+			}
+			return "", errors.New("mock error to simulate failure of mon store config")
+		},
+	}
+	t.Run("no settings", func(t *testing.T) {
+		err := c.configureStorageSettings()
+		assert.NoError(t, err)
+		assert.False(t, setFullRatio)
+		assert.False(t, setNearFullRatio)
+		assert.False(t, setBackfillFullRatio)
+	})
+
+	val91 := 0.91
+	val90 := 0.90
+	val85 := 0.85
+	val80 := 0.80
+
+	t.Run("all settings applied", func(t *testing.T) {
+		c.Spec.Storage.FullRatio = &val90
+		c.Spec.Storage.NearFullRatio = &val80
+		c.Spec.Storage.BackfillFullRatio = &val85
+		err := c.configureStorageSettings()
+		assert.NoError(t, err)
+		assert.True(t, setFullRatio)
+		assert.True(t, setNearFullRatio)
+		assert.True(t, setBackfillFullRatio)
+	})
+
+	t.Run("no settings changed", func(t *testing.T) {
+		setFullRatio = false
+		setBackfillFullRatio = false
+		setNearFullRatio = false
+		c.Spec.Storage.FullRatio = &actualFullRatio
+		c.Spec.Storage.NearFullRatio = &actualNearFullRatio
+		c.Spec.Storage.BackfillFullRatio = &actualBackfillFullRatio
+		err := c.configureStorageSettings()
+		assert.NoError(t, err)
+		assert.False(t, setFullRatio)
+		assert.False(t, setNearFullRatio)
+		assert.False(t, setBackfillFullRatio)
+	})
+
+	t.Run("one setting applied", func(t *testing.T) {
+		setFullRatio = false
+		setBackfillFullRatio = false
+		setNearFullRatio = false
+		c.Spec.Storage.FullRatio = &val91
+		c.Spec.Storage.NearFullRatio = nil
+		c.Spec.Storage.BackfillFullRatio = nil
+		err := c.configureStorageSettings()
+		assert.NoError(t, err)
+		assert.True(t, setFullRatio)
+		assert.False(t, setNearFullRatio)
+		assert.False(t, setBackfillFullRatio)
+	})
+}
