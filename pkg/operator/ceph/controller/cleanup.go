@@ -69,9 +69,8 @@ func (c *ResourceCleanup) StartJob(ctx context.Context, clientset kubernetes.Int
 	podSpec := c.jobTemplateSpec()
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            jobName,
-			Namespace:       c.resource.GetNamespace(),
-			OwnerReferences: c.resource.GetOwnerReferences(),
+			Name:      jobName,
+			Namespace: c.resource.GetNamespace(),
 		},
 		Spec: batch.JobSpec{
 			Template: podSpec,
