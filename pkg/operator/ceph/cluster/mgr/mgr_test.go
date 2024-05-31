@@ -375,7 +375,7 @@ func TestApplyMonitoringLabels(t *testing.T) {
 	applyMonitoringLabels(c, sm)
 	fmt.Printf("Hello1")
 	assert.Equal(t, "managedBy", sm.Spec.Endpoints[0].RelabelConfigs[0].TargetLabel)
-	assert.Equal(t, "storagecluster", sm.Spec.Endpoints[0].RelabelConfigs[0].Replacement)
+	assert.Equal(t, "storagecluster", *sm.Spec.Endpoints[0].RelabelConfigs[0].Replacement)
 
 	// Service Monitor RelabelConfigs not updated when the required monitoring label is not found
 	monitoringLabels = cephv1.LabelsSpec{
