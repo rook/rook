@@ -4533,6 +4533,21 @@ func (in *StorageScopeSpec) DeepCopyInto(out *StorageScopeSpec) {
 		}
 	}
 	out.Store = in.Store
+	if in.FullRatio != nil {
+		in, out := &in.FullRatio, &out.FullRatio
+		*out = new(float64)
+		**out = **in
+	}
+	if in.NearFullRatio != nil {
+		in, out := &in.NearFullRatio, &out.NearFullRatio
+		*out = new(float64)
+		**out = **in
+	}
+	if in.BackfillFullRatio != nil {
+		in, out := &in.BackfillFullRatio, &out.BackfillFullRatio
+		*out = new(float64)
+		**out = **in
+	}
 	return
 }
 
