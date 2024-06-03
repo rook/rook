@@ -28,7 +28,7 @@ all: build
 .DEFAULT_GOAL := all
 
 # ====================================================================================
-# Build Options
+# Build Options testing
 
 # Controller-gen version
 # f284e2e8... is master ahead of v0.5.0 which has ability to generate embedded objectmeta in CRDs

@@ -26,11 +26,9 @@ require (
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
-	github.com/libopenstorage/secrets v0.0.0-20231011182615-5f4b25ceede1
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.74.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.74.0
-	github.com/rook/rook/pkg/apis v0.0.0-20231204200402-5287527732f7
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
@@ -65,7 +63,7 @@ require (
 	github.com/golang-jwt/jwt/v5 v5.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c // indirect
-	github.com/portworx/sched-ops v1.20.4-rc1 // indirect
+	github.com/portworx/sched-ops v0.20.4-openstorage-rc3 // indirect
 )
 
 require (
