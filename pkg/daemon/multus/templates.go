@@ -113,6 +113,12 @@ func (vt *ValidationTest) generateClientTemplateConfig(
 	if attachCluster && serverClusterAddr != "" {
 		netNamesAndAddresses["cluster"] = serverClusterAddr
 	}
+	for name, addr := range netNamesAndAddresses {
+		if strings.Contains(addr, ":") {
+			// it's an IPv6 address and needs square brackets around it to support :<port> addition
+			netNamesAndAddresses[name] = "[" + addr + "]"
+		}
+	}
 	return clientTemplateConfig{
 		NodeType:                 nodeType,
 		ClientType:               clientType,

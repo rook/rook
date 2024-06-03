@@ -17,4 +17,4 @@ metadata:
   labels:
   annotations:
 spec:
-  config: '{ "cniVersion": "0.3.1", "type": "macvlan", "master": "eth0", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.30.0/24" } }'
+  config: '{ "cniVersion": "0.3.1", "type": "macvlan", "master": "eth0", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "fc00::/96" } }'
