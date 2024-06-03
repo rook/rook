@@ -339,6 +339,16 @@ func TestExtractPoolDetails(t *testing.T) {
 		assert.Equal(t, "zone", failureDomain)
 		assert.Equal(t, "ssd", deviceClass)
 	})
+
+	t.Run("valid crush rule with crushroot combined", func(t *testing.T) {
+		rule := ruleSpec{Steps: []stepSpec{
+			{Type: ""},
+			{Type: "zone", ItemName: "default~ssd"},
+		}}
+		failureDomain, deviceClass := extractPoolDetails(rule)
+		assert.Equal(t, "zone", failureDomain)
+		assert.Equal(t, "ssd", deviceClass)
+	})
 }
 
 func TestGetPoolStatistics(t *testing.T) {
