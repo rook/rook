@@ -529,7 +529,12 @@ func extractPoolDetails(rule ruleSpec) (string, string) {
 			failureDomain = step.Type
 		}
 		if step.ItemName != "" {
-			deviceClass = step.ItemName
+			// we are not using crushRoot currently, but in future improve
+			// this part to improve advanced crushrule support
+			crushRootAndDeviceClass := step.ItemName
+			parts := strings.SplitN(crushRootAndDeviceClass, "~", 2)
+			deviceClass = parts[1]
+			logger.Debugf("Using deviceClass as %q ", deviceClass)
 		}
 		// We expect the rule to be found by the second step, or else it is a more
 		// complex rule that would not be supported for updating the failure domain
