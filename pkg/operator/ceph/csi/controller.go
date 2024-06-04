@@ -205,7 +205,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to list ceph clusters")
 	}
 
-	// // Do not nothing if no ceph cluster is present
+	// Do nothing if no ceph cluster is present
 	if len(cephClusters.Items) == 0 {
 		logger.Debug("no ceph cluster found not deploying ceph csi driver")
 		EnableRBD, EnableCephFS, EnableNFS = false, false, false
@@ -216,6 +216,10 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 
 		return reconcile.Result{}, nil
 	}
+
+	// if at least one cephcluster is present update the csi lograte sidecar
+	// with the first listed ceph cluster specs with logrotate enabled
+	setCSILogrotateParams(cephClusters.Items)
 
 	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
 	if err != nil {
@@ -298,4 +302,25 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 
 	return reconcileResult, nil
+}
+
+func setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {
+	logger.Debug("set logrotate values in csi param")
+	spec := cephClustersItems[0].Spec
+	for _, cluster := range cephClustersItems {
+		if cluster.Spec.LogCollector.Enabled {
+			spec = cluster.Spec
+			break
+		}
+	}
+	CSIParam.CsiLogDirPath = spec.DataDirHostPath
+	if spec.DataDirHostPath == "" {
+		CSIParam.CsiLogDirPath = k8sutil.DataDir
+	}
+	CSIParam.CSILogRotation = spec.LogCollector.Enabled
+	if spec.LogCollector.Enabled {
+		maxSize, period := opcontroller.GetLogRotateConfig(spec)
+		CSIParam.CSILogRotationMaxSize = maxSize.String()
+		CSIParam.CSILogRotationPeriod = period
+	}
 }
