@@ -246,4 +246,11 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 	info, err = getNodeInfoFromNode(*node)
 	assert.NoError(t, err)
 	assert.Equal(t, "1.2.3.4", info.Address)
+
+	node.Annotations = map[string]string{
+		monIPAnnotation: "9.8.7.6",
+	}
+	info, err = getNodeInfoFromNode(*node)
+	assert.NoError(t, err)
+	assert.Equal(t, "9.8.7.6", info.Address)
 }
