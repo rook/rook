@@ -7,7 +7,10 @@ metadata:
 data:
   server.conf: |
     server {
+        # listen on all IPv4 addrs
         listen       8080;
+        # listen on all IPv6 addrs
+        listen       [::]:8080;
         server_name  localhost;
 
         # return the client ip upon connect
