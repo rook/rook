@@ -73,6 +73,14 @@ Ceph daemons will use any network available on the host for communication. To re
 only a specific specific host interfaces or networks, use `addressRanges` to select the network
 CIDRs Ceph will bind to on the host.
 
+If the Ceph mons are expected to bind to a public network that is different from the IP address
+assign to the K8s node where the mon is running, the IP address for the mon can be set by
+adding an annotation to the node:
+
+```yaml
+network.rook.io/mon-ip: <IPAddress>
+```
+
 If the host networking setting is changed in a cluster where mons are already running, the existing mons will
 remain running with the same network settings with which they were created. To complete the conversion
 to or from host networking after you update this setting, you will need to

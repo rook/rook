@@ -22,10 +22,22 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+const (
+	monIPAnnotation = "network.rook.io/mon-ip"
+)
+
 func getNodeInfoFromNode(n v1.Node) (*opcontroller.MonScheduleInfo, error) {
 	nr := &opcontroller.MonScheduleInfo{
 		Name:     n.Name,
 		Hostname: n.Labels[v1.LabelHostname],
+	}
+
+	// If the host networking is setup such that a different IP should be used
+	// than the one that is to the K8s node.
+	if customIP, ok := n.Annotations[monIPAnnotation]; ok {
+		logger.Infof("found %s annotation on node %q --> %q", monIPAnnotation, n.Name, customIP)
+		nr.Address = customIP
+		return nr, nil
 	}
 
 	for _, ip := range n.Status.Addresses {
