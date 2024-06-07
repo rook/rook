@@ -10478,6 +10478,18 @@ string
 </tr>
 <tr>
 <td>
+<code>enableCrushUpdates</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Allow rook operator to change the pool CRUSH tunables once the pool is created</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>compressionMode</code><br/>
 <em>
 string
