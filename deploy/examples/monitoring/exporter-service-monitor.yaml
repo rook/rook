@@ -13,7 +13,6 @@ spec:
     matchLabels:
       app: rook-ceph-exporter
       rook_cluster: rook-ceph # namespace:cluster
-      ceph_daemon_id: exporter
   endpoints:
     - port: ceph-exporter-http-metrics
       path: /metrics
