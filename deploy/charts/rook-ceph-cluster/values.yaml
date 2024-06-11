@@ -452,6 +452,8 @@ cephBlockPools:
     storageClass:
       enabled: true
       name: ceph-block
+      annotations: { }
+      labels: { }
       isDefault: true
       reclaimPolicy: Delete
       allowVolumeExpansion: true
@@ -534,6 +536,8 @@ cephFileSystems:
       reclaimPolicy: Delete
       allowVolumeExpansion: true
       volumeBindingMode: "Immediate"
+      annotations: { }
+      labels: { }
       mountOptions: []
       # see https://github.com/rook/rook/blob/master/Documentation/Storage-Configuration/Shared-Filesystem-CephFS/filesystem-storage.md#provision-storage for available configuration
       parameters:
@@ -606,6 +610,8 @@ cephObjectStores:
       name: ceph-bucket
       reclaimPolicy: Delete
       volumeBindingMode: "Immediate"
+      annotations: { }
+      labels: { }
       # see https://github.com/rook/rook/blob/master/Documentation/Storage-Configuration/Object-Storage-RGW/ceph-object-bucket-claim.md#storageclass for available configuration
       parameters:
         # note: objectStoreNamespace and objectStoreName are configured by the chart
@@ -669,8 +675,10 @@ cephObjectStores:
 #    storageClass:
 #      provisioner: rook-ceph.rbd.csi.ceph.com # csi-provisioner-name
 #      enabled: true
-#      name:  rook-ceph-block
+#      name: rook-ceph-block
 #      isDefault: false
+#      annotations: { }
+#      labels: { }
 #      allowVolumeExpansion: true
 #      reclaimPolicy: Delete
 

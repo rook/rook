@@ -22,10 +22,16 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $ecblockpool.storageClass.name }}
-  {{- if $ecblockpool.storageClass.isDefault }}
+{{- if $ecblockpool.storageClass.labels }}
+  labels:
+{{ toYaml $ecblockpool.storageClass.labels | indent 4 }}
+{{- end }}
   annotations:
-    storageclass.kubernetes.io/is-default-class: "true"
-  {{end}}
+    storageclass.kubernetes.io/is-default-class: "{{ if default false $ecblockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+{{- if $ecblockpool.storageClass.annotations }}
+{{ toYaml $ecblockpool.storageClass.annotations | indent 4 }}
+{{- end }}
+
 {{- if $root.Values.csiDriverNamePrefix }}
 provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
 {{- else }}
