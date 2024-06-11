@@ -14,8 +14,15 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $blockpool.storageClass.name }}
+{{- if $blockpool.storageClass.labels }}
+  labels:
+{{ toYaml $blockpool.storageClass.labels | indent 4 }}
+{{- end }}
   annotations:
     storageclass.kubernetes.io/is-default-class: "{{ if default false $blockpool.storageClass.isDefault }}true{{ else }}false{{ end }}"
+{{- if $blockpool.storageClass.annotations }}
+{{ toYaml $blockpool.storageClass.annotations | indent 4 }}
+{{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
 provisioner: {{ $root.Values.csiDriverNamePrefix }}.rbd.csi.ceph.com
 {{- else }}
