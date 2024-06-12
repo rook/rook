@@ -33,8 +33,15 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $filesystem.storageClass.name }}
+{{- if $filesystem.storageClass.labels }}
+  labels:
+{{ toYaml $filesystem.storageClass.labels | indent 4 }}
+{{- end }}
   annotations:
     storageclass.kubernetes.io/is-default-class: "{{ if default false $filesystem.storageClass.isDefault }}true{{ else }}false{{ end }}"
+{{- if $filesystem.storageClass.annotations }}
+{{ toYaml $filesystem.storageClass.annotations | indent 4 }}
+{{- end }}
 {{- if $root.Values.csiDriverNamePrefix }}
 provisioner: {{ $root.Values.csiDriverNamePrefix }}.cephfs.csi.ceph.com
 {{- else }}
