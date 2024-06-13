@@ -206,3 +206,16 @@ To clean your cluster of the resources created by this example, run the followin
 ```console
 kubectl delete -f deploy/examples/csi/nfs/pvc-clone.yaml
 ```
+
+## Consuming NFS from an external source
+
+For consuming NFS services and exports external to the Kubernetes cluster (including those backed by an external standalone Ceph cluster), Rook recommends using Kubernetes regular NFS consumption model. This requires the Ceph admin to create the needed export, while reducing the privileges needed in the client cluster for the NFS volume.
+
+Export and get the nfs client to a particular cephFS filesystem:
+
+```yaml
+ceph nfs export create cephfs <nfs-client-name> /test <filesystem-name>
+ceph nfs export get <service> <export-name>
+```
+
+Create the [PV and PVC](https://github.com/kubernetes/examples/tree/master/staging/volumes/nfs) using `nfs-client-server-ip`. It will mount NFS volumes with PersistentVolumes and then mount the PVCs in the [user Pod Application](https://kubernetes.io/docs/concepts/storage/volumes/#nfs) to utilize the NFS type storage.
