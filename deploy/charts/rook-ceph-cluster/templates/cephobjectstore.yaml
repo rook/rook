@@ -14,6 +14,14 @@ apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
   name: {{ $objectstore.storageClass.name }}
+{{- if $objectstore.storageClass.labels }}
+  labels:
+{{ toYaml $objectstore.storageClass.labels | indent 4 }}
+{{- end }}
+{{- if $objectstore.storageClass.annotations }}
+  annotations:
+{{ toYaml $objectstore.storageClass.annotations | indent 4 }}
+{{- end }}
 provisioner: {{ $root.Release.Namespace }}.ceph.rook.io/bucket
 reclaimPolicy: {{ default "Delete" $objectstore.storageClass.reclaimPolicy }}
 volumeBindingMode: {{ default "Immediate" $objectstore.storageClass.volumeBindingMode }}
