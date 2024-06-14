@@ -95,7 +95,7 @@ When the `zone` section is set pools with the object stores name will not be cre
 
 ## Auth Settings
 
-The `auth`-section allows the configuration of authentication providers.
+The `auth`-section allows the configuration of authentication providers in addition to the regular authentication mechanism.
 
 Currently only OpenStack Keystone is supported.
 
