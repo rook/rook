@@ -127,13 +127,13 @@ openstack container delete exampleContainer
 When using Keystone as an authentication provider, Ceph uses the credentials of an admin user (provided in the secret references by `serviceUserSecretName`) to access Keystone.
 
 For each user accessing the object store using Swift, Ceph implicitly creates a user which must be represented in Keystone with an authorized counterpart.
-Keystone checks for a user of the same name. Based on the name and other parameters ((OpenStack Keystone) project, (OpenStack Keystone) role) Keystone allows or disallows access to a swift container or object.
+Keystone checks for a user of the same name. Based on the name and other parameters ((OpenStack Keystone) project, (OpenStack Keystone) role) Keystone allows or disallows access to a swift container or object. Note that the implicitly created users are creaded in addition to any users that are created through other means, so Keystone authentication is not exclusive.
 
 It is not necessary to create any users in OpenStack Keystone (except for the admin user provided in the `serviceUserSecretName`).
 
 ## Keystone setup
 
-Keystone must support the v3-API-Version to be used with Rook . Other API versions are not supported.
+Keystone must support the v3-API-Version to be used with Rook. Other API versions are not supported.
 
 The admin user and all users accessing the Object store must exist and their authorizations configured accordingly in Keystone.
 
