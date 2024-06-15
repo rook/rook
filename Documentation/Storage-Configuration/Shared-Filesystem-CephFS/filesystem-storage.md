@@ -391,7 +391,7 @@ kubectl delete -f kube-registry.yaml
 To delete the filesystem components and backing data, delete the Filesystem CRD.
 
 !!! warning
-    Data will be deleted if preserveFilesystemOnDelete=false**.
+    Data will be deleted if **preserveFilesystemOnDelete=false**.
 
 ```console
 kubectl -n rook-ceph delete cephfilesystem myfs
