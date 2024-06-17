@@ -14,9 +14,9 @@ replace (
 
 require (
 	github.com/IBM/keyprotect-go-client v0.14.1
-	github.com/aws/aws-sdk-go v1.53.19
+	github.com/aws/aws-sdk-go v1.54.2
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/go-ceph v0.27.0
+	github.com/ceph/go-ceph v0.28.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
 	github.com/csi-addons/kubernetes-csi-addons v0.8.0
 	github.com/gemalto/kmip-go v0.0.10
@@ -31,7 +31,7 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.74.0
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.74.0
 	github.com/rook/rook/pkg/apis v0.0.0-20231204200402-5287527732f7
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/sykesm/zap-logfmt v0.0.4
