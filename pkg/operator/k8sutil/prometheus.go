@@ -61,9 +61,10 @@ func GetServiceMonitor(name string, namespace string, portName string) *monitori
 			},
 			Endpoints: []monitoringv1.Endpoint{
 				{
-					Port:     portName,
-					Path:     "/metrics",
-					Interval: "10s",
+					Port:        portName,
+					Path:        "/metrics",
+					Interval:    "10s",
+					HonorLabels: true,
 				},
 			},
 		},
