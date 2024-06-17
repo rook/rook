@@ -184,6 +184,9 @@ spec:
                   description: The device class the OSD should set to for use in the pool
                   nullable: true
                   type: string
+                enableCrushUpdates:
+                  description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                  type: boolean
                 enableRBDStats:
                   description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                   type: boolean
@@ -6540,6 +6543,9 @@ spec:
                         description: The device class the OSD should set to for use in the pool
                         nullable: true
                         type: string
+                      enableCrushUpdates:
+                        description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                        type: boolean
                       enableRBDStats:
                         description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                         type: boolean
@@ -6721,6 +6727,9 @@ spec:
                       description: The device class the OSD should set to for use in the pool
                       nullable: true
                       type: string
+                    enableCrushUpdates:
+                      description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                       type: boolean
@@ -10198,6 +10207,9 @@ spec:
                       description: The device class the OSD should set to for use in the pool
                       nullable: true
                       type: string
+                    enableCrushUpdates:
+                      description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                       type: boolean
@@ -11310,6 +11322,9 @@ spec:
                       description: The device class the OSD should set to for use in the pool
                       nullable: true
                       type: string
+                    enableCrushUpdates:
+                      description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                       type: boolean
@@ -12037,6 +12052,9 @@ spec:
                       description: The device class the OSD should set to for use in the pool
                       nullable: true
                       type: string
+                    enableCrushUpdates:
+                      description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                       type: boolean
@@ -12213,6 +12231,9 @@ spec:
                       description: The device class the OSD should set to for use in the pool
                       nullable: true
                       type: string
+                    enableCrushUpdates:
+                      description: Allow rook operator to change the pool CRUSH tunables once the pool is created
+                      type: boolean
                     enableRBDStats:
                       description: EnableRBDStats is used to enable gathering of statistics for all RBD images in the pool
                       type: boolean

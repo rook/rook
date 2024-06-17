@@ -281,7 +281,8 @@ func TestUpdateFailureDomain(t *testing.T) {
 		p := cephv1.NamedPoolSpec{
 			Name: "mypool",
 			PoolSpec: cephv1.PoolSpec{
-				Replicated: cephv1.ReplicatedSpec{Size: 3},
+				Replicated:         cephv1.ReplicatedSpec{Size: 3},
+				EnableCrushUpdates: true,
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
@@ -294,11 +295,26 @@ func TestUpdateFailureDomain(t *testing.T) {
 		p := cephv1.NamedPoolSpec{
 			Name: "mypool",
 			PoolSpec: cephv1.PoolSpec{
-				FailureDomain: currentFailureDomain,
-				Replicated:    cephv1.ReplicatedSpec{Size: 3},
+				FailureDomain:      currentFailureDomain,
+				Replicated:         cephv1.ReplicatedSpec{Size: 3},
+				EnableCrushUpdates: true,
 			},
 		}
 		testCrushRuleName = "mypool_rack"
+		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
+		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
+		assert.NoError(t, err)
+		assert.Equal(t, "", newCrushRule)
+	})
+
+	t.Run("trying to change failure domain without enabling EnableCrushUpdates", func(t *testing.T) {
+		p := cephv1.NamedPoolSpec{
+			Name: "mypool",
+			PoolSpec: cephv1.PoolSpec{
+				FailureDomain: "zone",
+				Replicated:    cephv1.ReplicatedSpec{Size: 3},
+			},
+		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}
 		err := updatePoolCrushRule(context, AdminTestClusterInfo("mycluster"), clusterSpec, p)
 		assert.NoError(t, err)
@@ -309,8 +325,9 @@ func TestUpdateFailureDomain(t *testing.T) {
 		p := cephv1.NamedPoolSpec{
 			Name: "mypool",
 			PoolSpec: cephv1.PoolSpec{
-				FailureDomain: "zone",
-				Replicated:    cephv1.ReplicatedSpec{Size: 3},
+				FailureDomain:      "zone",
+				Replicated:         cephv1.ReplicatedSpec{Size: 3},
+				EnableCrushUpdates: true,
 			},
 		}
 		clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{}}

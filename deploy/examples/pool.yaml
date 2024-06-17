@@ -33,6 +33,8 @@ spec:
   # If device classes are specified, ensure this property is added to every pool in the cluster,
   # otherwise Ceph will warn about pools with overlapping roots.
   #deviceClass: my-class
+  # allow rook to update pool spec and crush rule, use with caution, disabled by default
+  #enableCrushUpdates: true
   # Enables collecting RBD per-image IO statistics by enabling dynamic OSD performance counters. Defaults to false.
   # For reference: https://docs.ceph.com/docs/master/mgr/prometheus/#rbd-io-statistics
   # enableRBDStats: true
