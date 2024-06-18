@@ -1528,6 +1528,9 @@ class RadosJSON:
         for pool in topology_rbd_pools:
             self.init_rbd_pool(pool)
 
+    def getScriptCliFlags(self):
+        return " ".join(sys.argv[1:])
+
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -1542,6 +1545,7 @@ class RadosJSON:
         self.validate_rados_namespace()
         self._excluded_keys.add("K8S_CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
+        self.out_map["EXTERNAL_CLUSTER_USER_COMMAND"] = self.getScriptCliFlags()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
         self.out_map["K8S_CLUSTER_NAME"] = self._arg_parser.k8s_cluster_name
         self.out_map["ROOK_EXTERNAL_FSID"] = self.get_fsid()
@@ -1702,6 +1706,13 @@ class RadosJSON:
         if self._arg_parser.dry_run:
             return ""
         json_out = [
+            {
+                "name": "external-cluster-user-command",
+                "kind": "ConfigMap",
+                "data": {
+                    "command": self.out_map["EXTERNAL_CLUSTER_USER_COMMAND"],
+                },
+            },
             {
                 "name": "rook-ceph-mon-endpoints",
                 "kind": "ConfigMap",
