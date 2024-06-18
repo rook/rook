@@ -63,6 +63,32 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--topology-pools`: (optional) Comma-separated list of topology-constrained rbd pools
 * `--topology-failure-domain-label`: (optional) K8s cluster failure domain label (example: zone, rack, or host) for the topology-pools that match the ceph domain
 * `--topology-failure-domain-values`: (optional) Comma-separated list of the k8s cluster failure domain values corresponding to each of the pools in the `topology-pools` list
+* `--config-file`: Path to the configuration file, Priority: command-line-args > config.ini values > default values
+
+### Config-file
+
+Use the config file to set the user configuration file, add the flag `--config-file` to set the file path.
+
+Example:
+
+`/config.ini`
+
+```console
+[Configurations]
+format = bash
+cephfs-filesystem-name = <filesystem-name>
+rbd-data-pool-name = <pool_name>
+...
+```
+
+```console
+python3 create-external-cluster-resources.py --config-file /config.ini
+```
+
+!!! note
+    You can use both config file and other arguments at the same time
+    Priority: command-line-args > config.ini file values > default values
+
 
 ### Multi-tenancy
 
