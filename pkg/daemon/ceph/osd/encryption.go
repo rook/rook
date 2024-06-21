@@ -272,10 +272,10 @@ func addEncryptionKey(context *clusterd.Context, disk, passphrase, newPassphrase
 		if err != nil {
 			return errors.Wrapf(err, "failed to ensure passphrase in slot %q of encrypted device %q", slot, disk)
 		}
-		// if newPassphrase is not one in the slot, then remove the key slot and
-		// add add the newPassphrase to it.
+		// if newPassphrase is not one in the slot, then remove the key slot using current passphrase and then
+		// add the newPassphrase to it.
 		if !matched {
-			err = removeEncryptionKeySlot(context, disk, newPassphrase, slot)
+			err = removeEncryptionKeySlot(context, disk, passphrase, slot)
 			if err != nil {
 				return errors.Wrapf(err, "failed to remove key slot %q of encrypted device %q", slot, disk)
 			}
