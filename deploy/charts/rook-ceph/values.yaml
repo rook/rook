@@ -538,8 +538,6 @@ csi:
     enabled: false
 
   topology:
-    # -- Enable topology based provisioning
-    enabled: false
     # NOTE: the value here serves as an example and needs to be
     # updated with node labels that define domains of interest
     # -- domainLabels define which node labels to use as domains

@@ -168,11 +168,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableCSIAddonsSideCar = true
 	}
 
-	CSIParam.EnableCSITopology = false
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_TOPOLOGY", "false"), "true") {
-		CSIParam.EnableCSITopology = true
-	}
-
 	CSIParam.EnableCSIEncryption = false
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_ENCRYPTION", "false"), "true") {
 		CSIParam.EnableCSIEncryption = true

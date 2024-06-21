@@ -566,8 +566,6 @@ data:
   # enabled by default as long as the necessary CRDs are available in the cluster.
   CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: "true"
 
-  # Enable topology based provisioning.
-  CSI_ENABLE_TOPOLOGY: "false"
   # Domain labels define which node labels to use as domains
   # for CSI nodeplugins to advertise their domains
   # NOTE: the value here serves as an example and needs to be

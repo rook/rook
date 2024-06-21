@@ -76,7 +76,7 @@ spec:
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
             {{ end }}
-            {{- if .EnableCSITopology }}
+            {{- if .CSIDomainLabels }}
             - "--domainlabels={{ .CSIDomainLabels }}"
             {{- end }}
           env:

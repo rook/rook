@@ -78,7 +78,6 @@ type Param struct {
 	MountCustomCephConf                      bool
 	EnableCSIDriverSeLinuxMount              bool
 	EnableCSIEncryption                      bool
-	EnableCSITopology                        bool
 	EnableLiveness                           bool
 	CephFSAttachRequired                     bool
 	RBDAttachRequired                        bool
