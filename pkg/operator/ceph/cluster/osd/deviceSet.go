@@ -205,20 +205,16 @@ func (c *Cluster) createDeviceSetPVC(existingPVCs map[string]*v1.PersistentVolum
 	// old labels and PVC ID for backward compatibility
 	pvcID := legacyDeviceSetPVCID(deviceSetName, setIndex)
 
-	var err error
 	// check for the existence of the pvc
 	existingPVC, ok := existingPVCs[pvcID]
 	if !ok {
 		// The old name of the PVC didn't exist, now try the new PVC name and label
-		pvcID, err = deviceSetPVCID(deviceSetName, pvcTemplate.GetName(), setIndex)
-		if err != nil {
-			return nil, err
-		}
+		pvcID = deviceSetPVCID(deviceSetName, pvcTemplate.GetName(), setIndex)
 		existingPVC = existingPVCs[pvcID]
 	}
 
 	pvc := makeDeviceSetPVC(deviceSetName, pvcID, setIndex, pvcTemplate, c.clusterInfo.Namespace, createValidImageVersionLabel(c.spec.CephVersion.Image), createValidImageVersionLabel(c.rookVersion))
-	err = c.clusterInfo.OwnerInfo.SetControllerReference(pvc)
+	err := c.clusterInfo.OwnerInfo.SetControllerReference(pvc)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set owner reference to osd pvc %q", pvc.Name)
 	}
@@ -295,14 +291,10 @@ func legacyDeviceSetPVCID(deviceSetName string, setIndex int) string {
 
 // This is the new function that generates the labels
 // It includes the pvcTemplateName in it
-func deviceSetPVCID(deviceSetName, pvcTemplateName string, setIndex int) (string, error) {
+func deviceSetPVCID(deviceSetName, pvcTemplateName string, setIndex int) string {
 	cleanName := strings.Replace(pvcTemplateName, " ", "-", -1)
 	deviceSetName = strings.Replace(deviceSetName, ".", "-", -1)
-	pvcID := fmt.Sprintf("%s-%s-%d", deviceSetName, cleanName, setIndex)
-	if len(pvcID) > 62 {
-		return "", fmt.Errorf("the OSD PVC name requested is %q (length %d) is too long and must be less than 63 characters, shorten either the storageClassDeviceSet name or the storage class name", pvcID, len(pvcID))
-	}
-	return pvcID, nil
+	return fmt.Sprintf("%s-%s-%d", deviceSetName, cleanName, setIndex)
 }
 
 func createValidImageVersionLabel(image string) string {
