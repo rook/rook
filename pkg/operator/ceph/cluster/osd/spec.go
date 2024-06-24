@@ -183,7 +183,10 @@ sys.exit('no disk found with OSD ID $OSD_ID')
 "
 	}
 
-	ceph-volume raw list "$DEVICE" > "$OSD_LIST"
+	if ! ceph-volume raw list "$DEVICE" > "$OSD_LIST"; then
+		# if the command fails, the disk may be renamed
+		echo '' > "$OSD_LIST"
+	fi
 	cat "$OSD_LIST"
 
 	if ! find_device < "$OSD_LIST"; then
