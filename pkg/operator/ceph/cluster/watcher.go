@@ -168,6 +168,16 @@ func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.C
 		return nil
 	}
 
+	disabledCSI, err := k8sutil.GetOperatorSetting(ctx, c.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_CSI_DISABLE_DRIVER", "false")
+	if err != nil {
+		return pkgerror.Wrapf(err, "failed to get configmap value `ROOK_CSI_DISABLE_DRIVER`.")
+	}
+
+	if strings.ToLower(disabledCSI) != "false" {
+		logger.Debugf("not watching for node failures since `ROOK_CSI_DISABLE_DRIVER` is set to %q, skip creating networkFence", disabledCSI)
+		return nil
+	}
+
 	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
