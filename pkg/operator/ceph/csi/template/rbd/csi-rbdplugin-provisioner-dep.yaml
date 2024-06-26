@@ -38,9 +38,6 @@ spec:
             - "--extra-create-metadata=true"
             - "--prevent-volume-mode-conversion=true"
             - "--feature-gates=HonorPVReclaimPolicy=true"
-            {{- if .EnableCSITopology }}
-            - "--feature-gates=Topology=true"
-            {{- end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
