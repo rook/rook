@@ -68,7 +68,8 @@ jobs:
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
-          kubectl -n rook-ceph cp tests/ceph-status-out $toolbox:/etc/ceph/test-data/
+          kubectl -n rook-ceph cp tests/external-cluster/ceph-status-out $toolbox:/etc/ceph/test-data/
+          kubectl -n rook-ceph cp tests/external-cluster/external-config.ini $toolbox:/etc/ceph/
           kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
           kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
           timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
@@ -266,6 +267,29 @@ jobs:
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
+
+      - name: test config file flag
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          # create `radosNamespace2` rados-namespace for `replicapool` rbd data-pool
+          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosnamespace2
+
+          # validate `--rados-namespace`, config file value is radosnamespace2, cli arg flag is set to radosnamespace1 and no default is set
+          # command line arg should be used
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosnamespace1 --config-file /etc/ceph/external-config.ini
+
+          # validate the `rbd-data-pool-name`,config value set to replicapoolconfig, command line arg is not set and no default
+          # config value should be used
+          sed -i 's/replicapool/replicapoolconfig/' deploy/examples/pool-test.yaml
+          kubectl create -f deploy/examples/pool-test.yaml
+          kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replicapoolconfig -nrook-ceph
+          # create `radosNamespace2` rados-namespace for `replicapoolconfig` rbd data-pool
+          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapoolconfig/radosnamespace2
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --config-file /etc/ceph/external-config.ini
+
+          # validate the default `format`` flag, config file value is not set and no cmd line argument is set and default value is `Json``,
+          # default value should be used
+          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --config-file /etc/ceph/external-config.ini
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences

@@ -21,6 +21,7 @@ import argparse
 import re
 import subprocess
 import hmac
+import configparser
 from hashlib import sha1 as sha
 from os import linesep as LINESEP
 from os import path
@@ -478,6 +479,15 @@ class RadosJSON:
             + "Upgrade flag should only be used to append new permissions to users, it shouldn't be used for changing user already applied permission, for example you shouldn't change in which pool user has access",
         )
 
+        # Add command-line arguments
+        config_group = argP.add_argument_group("config")
+        config_group.add_argument(
+            "--config-file",
+            type=str,
+            help="Path to the configuration file, Priority: command-line-args > config.ini file values > default values",
+            required=False,
+        )
+
         if args_to_parse:
             assert (
                 type(args_to_parse) == list
@@ -617,10 +627,31 @@ class RadosJSON:
             ("-1"),
         )
 
+    def parse_config_file(self, config_file):
+        config = configparser.ConfigParser()
+        config.read(config_file)
+        for arg in list(vars(self._arg_parser)):
+            # python treats flag-name as flag_name internally, so converting back to flag-name,
+            # so we can get those values from config file
+            argument = arg.replace("_", "-")
+            argumentValue = str(getattr(self._arg_parser, arg))
+            config_value = config.get("Configurations", argument, fallback=None)
+            # give priority to command line argument, if command line argument is not present use config.ini value,
+            if (
+                (str(sys.argv).find(argument) == -1)
+                and ((argumentValue is None) or (argumentValue is ""))
+                and ((config_value is not None) and (config_value is not ""))
+            ):
+                self._arg_parser.__setattr__(arg, config_value)
+
+        return config
+
     def __init__(self, arg_list=None):
         self.out_map = {}
         self._excluded_keys = set()
         self._arg_parser = self.gen_arg_parser(args_to_parse=arg_list)
+        if self._arg_parser.config_file:
+            self.config = self.parse_config_file(self._arg_parser.config_file)
         self._check_conflicting_options()
         self.run_as_user = self._arg_parser.run_as_user
         self.output_file = self._arg_parser.output
