@@ -73,6 +73,11 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--pidlimit=-1"
             - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin/csi-rbdplugin.log"
+            {{ end }}
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
             {{ end }}
@@ -121,6 +126,10 @@ spec:
               mountPath: /tmp/csi/keys
             - name: host-run-mount
               mountPath: /run/mount
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin
+              name: csi-log
+            {{ end }}
             {{ if .EnablePluginSelinuxHostMount }}
             - name: etc-selinux
               mountPath: /etc/selinux
@@ -154,6 +163,11 @@ spec:
             - "--namespace=$(POD_NAMESPACE)"
             - "--pod-uid=$(POD_UID)"
             - "--stagingpath={{ .KubeletDirPath }}/plugins/kubernetes.io/csi/"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin/csi-addons.log"
+            {{ end }}
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
@@ -179,6 +193,10 @@ spec:
           volumeMounts:
             - name: plugin-dir
               mountPath: /csi
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin
+              name: csi-log
+            {{ end }}
         {{ end }}
         {{ if .EnableLiveness }}
         - name: liveness-prometheus
@@ -210,6 +228,13 @@ spec:
         - name: plugin-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
+            type: DirectoryOrCreate
+        - name: csi-log
+          hostPath:
+            path: {{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin
+            type: DirectoryOrCreate
+        - name: csi-logs-logrotate
+          emptyDir:
             type: DirectoryOrCreate
         - name: plugin-mount-dir
           hostPath:

@@ -38,9 +38,9 @@ spec:
             - "--extra-create-metadata=true"
             - "--prevent-volume-mode-conversion=true"
             - "--feature-gates=HonorPVReclaimPolicy=true"
-            {{- if .EnableCSITopology }}
+            {{ if .EnableCSITopology }}
             - "--feature-gates=Topology=true"
-            {{- end }}
+            {{ end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -116,7 +116,7 @@ spec:
         {{ if .EnableOMAPGenerator }}
         - name: csi-omap-generator
           image: {{ .CSIPluginImage }}
-          args :
+          args:
             - "--type=controller"
             - "--drivernamespace=$(DRIVER_NAMESPACE)"
             - "--v={{ .LogLevel }}"
@@ -142,7 +142,7 @@ spec:
         {{ if .EnableCSIAddonsSideCar }}
         - name: csi-addons
           image: {{ .CSIAddonsImage }}
-          args :
+          args:
             - "--node-id=$(NODE_ID)"
             - "--v={{ .LogLevel }}"
             - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
@@ -155,6 +155,11 @@ spec:
             - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner/csi-addons.log"
+            {{ end }}
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
@@ -180,10 +185,14 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+              name: csi-log
+            {{ end }}
         {{ end }}
         - name: csi-rbdplugin
           image: {{ .CSIPluginImage }}
-          args :
+          args:
             - "--nodeid=$(NODE_ID)"
             - "--endpoint=$(CSI_ENDPOINT)"
             - "--v={{ .LogLevel }}"
@@ -191,6 +200,11 @@ spec:
             - "--controllerserver=true"
             - "--drivername={{ .DriverNamePrefix }}rbd.csi.ceph.com"
             - "--pidlimit=-1"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner/csi-rbdplugin.log"
+            {{ end }}
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
             {{ end }}
@@ -225,6 +239,10 @@ spec:
               mountPath: /csi
             - mountPath: /dev
               name: host-dev
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+              name: csi-log
+            {{ end }}
             - mountPath: /sys
               name: host-sys
             - mountPath: /lib/modules
@@ -272,6 +290,13 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        - name: csi-log
+          hostPath:
+            path: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            type: DirectoryOrCreate
+        - name: csi-logs-logrotate
+          emptyDir:
+            type: DirectoryOrCreate
         - name: host-sys
           hostPath:
             path: /sys

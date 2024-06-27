@@ -52,6 +52,7 @@ type Param struct {
 	ResizerImage                             string
 	DriverNamePrefix                         string
 	KubeletDirPath                           string
+	CsiLogDirPath                            string
 	ForceCephFSKernelClient                  string
 	CephFSKernelMountOptions                 string
 	CephFSPluginUpdateStrategy               string
@@ -97,6 +98,10 @@ type Param struct {
 	CSICephFSPodLabels                       map[string]string
 	CSINFSPodLabels                          map[string]string
 	CSIRBDPodLabels                          map[string]string
+	CSILogRotation                           bool
+	CSILogRotationMaxSize                    string
+	CSILogRotationPeriod                     string
+	CSILogFolder                             string
 }
 
 type templateParam struct {
@@ -177,6 +182,9 @@ var (
 	NFSProvisionerDepTemplatePath string
 	//go:embed template/nfs/csi-nfsplugin-holder.yaml
 	NFSPluginHolderTemplatePath string
+
+	//go:embed template/csi-logrotate-sidecar.yaml
+	LogrotateTemplatePath string
 
 	holderEnabled bool
 )
@@ -349,10 +357,18 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
+		if tp.CSILogRotation {
+			tp.CSILogFolder = "rbd-plugin"
+			applyLogrotateSidecar(&rbdPlugin.Spec.Template, "csi-rbd-daemonset-log-collector", LogrotateTemplatePath, tp)
+		}
 
 		rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
+		}
+		if tp.CSILogRotation {
+			tp.CSILogFolder = "rbd-provisioner"
+			applyLogrotateSidecar(&rbdProvisionerDeployment.Spec.Template, "csi-rbd-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 
 		// Create service if either liveness or GRPC metrics are enabled.

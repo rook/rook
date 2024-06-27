@@ -120,8 +120,8 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 		Param:     CSIParam,
 		Namespace: "foo",
 	}
-	// rbdplugin has 11 volumes by default
-	defaultVolumes := 11
+	// rbdplugin has 13 volumes by default
+	defaultVolumes := 13
 	ds, err := templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
 	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)

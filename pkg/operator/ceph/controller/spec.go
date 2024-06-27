@@ -757,9 +757,7 @@ func PrivilegedContext(runAsRoot bool) *v1.SecurityContext {
 	return sec
 }
 
-// LogCollectorContainer rotate logs
-func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Container {
-
+func GetLogRotateConfig(c cephv1.ClusterSpec) (resource.Quantity, string) {
 	var maxLogSize resource.Quantity
 	if c.LogCollector.MaxLogSize != nil {
 		size := c.LogCollector.MaxLogSize.Value() / 1000 / 1000
@@ -771,18 +769,26 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 		maxLogSize = resource.MustParse(fmt.Sprintf("%dM", size))
 	}
 
+	var periodicity string
+	switch c.LogCollector.Periodicity {
+	case "1h", "hourly":
+		periodicity = "hourly"
+	case "weekly", "monthly":
+		periodicity = c.LogCollector.Periodicity
+	default:
+		periodicity = "daily"
+	}
+
+	return maxLogSize, periodicity
+}
+
+// LogCollectorContainer rotate logs
+func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Container {
+	maxLogSize, periodicity := GetLogRotateConfig(c)
+
 	rotation := "7"
 	if strings.Contains(daemonID, "-client.rbd-mirror") {
 		rotation = "28"
-	}
-
-	var periodicity string
-	if c.LogCollector.Periodicity == "1h" || c.LogCollector.Periodicity == "hourly" {
-		periodicity = "hourly"
-	} else if c.LogCollector.Periodicity == "weekly" || c.LogCollector.Periodicity == "monthly" {
-		periodicity = c.LogCollector.Periodicity
-	} else {
-		periodicity = "daily"
 	}
 
 	logger.Debugf("setting periodicity to %q. Supported periodicity are hourly, daily, weekly and monthly", periodicity)

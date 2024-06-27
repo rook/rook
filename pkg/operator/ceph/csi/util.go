@@ -84,6 +84,20 @@ func templateToDeployment(name, templateData string, p templateParam) (*apps.Dep
 	return &dep, nil
 }
 
+func applyLogrotateSidecar(specTemplate *corev1.PodTemplateSpec, name, templateData string, p templateParam) {
+	var logrotateSidecarContainer corev1.Container
+	t, err := loadTemplate(name, templateData, p)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to load logrotate container template"))
+	}
+
+	err = yaml.Unmarshal(t, &logrotateSidecarContainer)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to unmarshal logrotate container template"))
+	}
+	specTemplate.Spec.Containers = append(specTemplate.Spec.Containers, logrotateSidecarContainer)
+}
+
 func applyResourcesToContainers(opConfig map[string]string, key string, podspec *corev1.PodSpec) {
 	resource := getComputeResource(opConfig, key)
 
