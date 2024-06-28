@@ -104,7 +104,7 @@ function test_demo_pool {
 function test_csi {
   timeout 360 bash -x <<-'EOF'
     echo $IS_POD_NETWORK
-    echo $IS_MULTUS
+    echo $IS_MULTUS_WITH_HOLDER
     if [ -z "$IS_POD_NETWORK" ]; then
       until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
         echo "waiting for csi pods to be ready"
@@ -116,7 +116,7 @@ function test_csi {
         sleep 5
       done
     fi
-    if [ -n "$IS_MULTUS" ]; then
+    if [ -n "$IS_MULTUS_WITH_HOLDER" ]; then
       echo "verifying csi holder interfaces (multus ones must be present)"
       kubectl -n rook-ceph exec -t ds/csi-rbdplugin-holder-my-cluster -- grep eth0 /proc/net/dev
       kubectl -n rook-ceph exec -t ds/csi-cephfsplugin-holder-my-cluster -- grep eth0 /proc/net/dev
