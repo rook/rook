@@ -102,6 +102,7 @@ type Param struct {
 	CSILogRotationMaxSize                    string
 	CSILogRotationPeriod                     string
 	CSILogFolder                             string
+	OperatorNamespace                        string
 }
 
 type templateParam struct {
@@ -393,11 +394,20 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
+		if tp.CSILogRotation {
+			tp.CSILogFolder = "cephfs-plugin"
+			applyLogrotateSidecar(&cephfsPlugin.Spec.Template, "csi-cephfs-daemonset-log-collector", LogrotateTemplatePath, tp)
+		}
 
 		cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
+		if tp.CSILogRotation {
+			tp.CSILogFolder = "cephfs-provisioner"
+			applyLogrotateSidecar(&cephfsProvisionerDeployment.Spec.Template, "csi-cephfs-deployment-log-collector", LogrotateTemplatePath, tp)
+		}
+
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
 			cephfsService, err = templateToService("cephfs-service", CephFSPluginServiceTemplatePath, tp)
@@ -421,11 +431,20 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs plugin template")
 		}
+		if tp.CSILogRotation {
+			tp.CSILogFolder = "nfs-plugin"
+			applyLogrotateSidecar(&nfsPlugin.Spec.Template, "csi-nfs-daemonset-log-collector", LogrotateTemplatePath, tp)
+		}
 
 		nfsProvisionerDeployment, err = templateToDeployment("nfs-provisioner", NFSProvisionerDepTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs provisioner deployment template")
 		}
+		if tp.CSILogRotation {
+			tp.CSILogFolder = "nfs-provisioner"
+			applyLogrotateSidecar(&nfsProvisionerDeployment.Spec.Template, "csi-nfs-deployment-log-collector", LogrotateTemplatePath, tp)
+		}
+
 		enabledDrivers = append(enabledDrivers, driverDetails{
 			name:           NFSDriverShortName,
 			fullName:       NFSDriverName,
