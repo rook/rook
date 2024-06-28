@@ -17,11 +17,12 @@ RGW_URL="$PROBE_PROTOCOL://0.0.0.0:$PROBE_PORT"
 
 function check() {
   local URL="$1"
+  # --max-time 3 - override the default 2 minutes wait time down to 3 seconds
   # --insecure - don't validate ssl if using secure port only
   # --silent - don't output progress info
   # --output /dev/stderr - output HTML header to stdout (good for debugging)
   # --write-out '%{response_code}' - print the HTTP response code to stdout
-  curl --insecure --silent --output /dev/stderr --write-out '%{response_code}' "$URL"
+  curl --max-time 3 --insecure --silent --output /dev/stderr --write-out '%{response_code}' "$URL"
 }
 
 http_response="$(check "$RGW_URL")"
