@@ -125,6 +125,10 @@ spec:
               mountPath: /etc/ceph/ceph.conf
               subPath: ceph.conf
             {{ end }}
+            {{ if .EnableCSIEncryption }}
+            - name: rook-ceph-csi-kms-config
+              mountPath: /etc/ceph-csi-encryption-kms-config/
+            {{ end }}
         {{ if .EnableLiveness }}
         - name: liveness-prometheus
           securityContext:
@@ -206,4 +210,12 @@ spec:
             items:
             - key: ceph.conf
               path: ceph.conf
+        {{ end }}
+        {{ if .EnableCSIEncryption }}
+        - name: rook-ceph-csi-kms-config
+          configMap:
+            name: rook-ceph-csi-kms-config
+            items:
+            - key: config.json
+              path: config.json
         {{ end }}

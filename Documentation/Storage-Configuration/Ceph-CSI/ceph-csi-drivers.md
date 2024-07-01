@@ -206,22 +206,28 @@ CSI-Addons supports the following operations:
     * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplicationclass.md)
     * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplication.md)
 
-## Enable RBD Encryption Support
+## Enable RBD and CephFS Encryption Support
 
-Ceph-CSI supports encrypting individual RBD PersistentVolumeClaims with LUKS. More details can be found
-[here](https://github.com/ceph/ceph-csi/blob/v3.6.0/docs/deploy-rbd.md#encryption-for-rbd-volumes)
-including a full list of supported encryption configurations. A sample configmap can be found
-[here](https://github.com/ceph/ceph-csi/blob/v3.6.0/examples/kms/vault/kms-config.yaml).
+Ceph-CSI supports encrypting PersistentVolumeClaims (PVCs) for both RBD and CephFS.
+This can be achieved using LUKS for RBD and fscrypt for CephFS. More details on encrypting RBD PVCs can be found
+[here](https://github.com/ceph/ceph-csi/blob/v3.11.0/docs/deploy-rbd.md#encryption-for-rbd-volumes),
+which includes a full list of supported encryption configurations.
+More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.11.0/docs/deploy-cephfs.md#cephfs-volume-encryption).
+A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.11.0/examples/kms/vault/kms-config.yaml).
+
+!!! note
+    Not all KMS are compatible with fscrypt. Generally, KMS that either store secrets to use directly (like Vault)
+    or allow access to the plain password (like Kubernetes Secrets) are compatible.
 
 !!! note
     Rook also supports OSD-level encryption (see `encryptedDevice` option [here](../../CRDs/Cluster/ceph-cluster-crd.md#osd-configuration-settings)).
 
 Using both RBD PVC encryption and OSD encryption at the same time will lead to double encryption and may reduce read/write performance.
 
-Existing Ceph clusters can also enable Ceph-CSI RBD PVC encryption support and multiple kinds of encryption
+Existing Ceph clusters can also enable Ceph-CSI PVC encryption support and multiple kinds of encryption
 KMS can be used on the same Ceph cluster using different storageclasses.
 
-The following steps demonstrate how to enable support for encryption:
+The following steps demonstrate the common process for enabling encryption support for both RBD and CephFS:
 
 * Create the `rook-ceph-csi-kms-config` configmap with required encryption configuration in
 the same namespace where the Rook operator is deployed. An example is shown below:
@@ -262,8 +268,9 @@ stringData:
   encryptionPassphrase: test-encryption
 ```
 
-* Create a new [storageclass](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass.yaml) with additional parameters
-`encrypted: "true"` and `encryptionKMSID: "<key used in configmap>"`. An example is show below:
+* Create a new [RBD storageclass](https://github.com/rook/rook/blob/master/deploy/examples/csi/rbd/storageclass.yaml) or
+[CephFS storageclass](https://github.com/rook/rook/blob/master/deploy/examples/csi/cephfs/storageclass.yaml) with additional parameters
+`encrypted: "true"` and `encryptionKMSID: "<key used in configmap>"`. An example is shown below:
 
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -278,6 +285,9 @@ parameters:
 ```
 
 * PVCs created using the new storageclass will be encrypted.
+
+!!! note
+    CephFS encryption requires fscrypt support in Linux kernel, kernel version 6.6 or higher.
 
 ## Enable Read affinity for RBD and CephFS volumes
 
