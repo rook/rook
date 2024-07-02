@@ -25,7 +25,7 @@ toolbox:
   # -- Enable Ceph debugging pod deployment. See [toolbox](../Troubleshooting/ceph-toolbox.md)
   enabled: false
   # -- Toolbox image, defaults to the image used by the Ceph cluster
-  image: #quay.io/ceph/ceph:v18.2.2
+  # image: quay.io/ceph/ceph:v18.2.2
   # -- Toolbox tolerations
   tolerations: []
   # -- Toolbox affinity
