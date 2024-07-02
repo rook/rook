@@ -1562,6 +1562,17 @@ class RadosJSON:
     def getScriptCliFlags(self):
         return " ".join(sys.argv[1:])
 
+    # this will return the final args that script uses to process
+    # the priority to set a particular value is,
+    # command-line-args > config.ini file values > default values
+    def getFinalUsedArgs(self):
+        list = []
+        for arg in vars(self._arg_parser):
+            if str(getattr(self._arg_parser, arg)):
+                argument = arg + ": " + str(getattr(self._arg_parser, arg))
+                list.append(argument)
+        return list
+
     def _gen_output_map(self):
         if self.out_map:
             return
@@ -1577,6 +1588,7 @@ class RadosJSON:
         self._excluded_keys.add("K8S_CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         self.out_map["EXTERNAL_CLUSTER_USER_COMMAND"] = self.getScriptCliFlags()
+        self.out_map["ARGS"] = self.getFinalUsedArgs()
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
         self.out_map["K8S_CLUSTER_NAME"] = self._arg_parser.k8s_cluster_name
         self.out_map["ROOK_EXTERNAL_FSID"] = self.get_fsid()
@@ -1742,6 +1754,7 @@ class RadosJSON:
                 "kind": "ConfigMap",
                 "data": {
                     "command": self.out_map["EXTERNAL_CLUSTER_USER_COMMAND"],
+                    "args": self.out_map["ARGS"],
                 },
             },
             {
