@@ -36,12 +36,14 @@ func TestValidationTestConfig_YAML(t *testing.T) {
 		{"empty config", emptyValidationTestConfig},
 		{"default config", NewDefaultValidationTestConfig()},
 		{"full config", &ValidationTestConfig{
-			Namespace:       "my-rook",
-			PublicNetwork:   "my-pub",
-			ClusterNetwork:  "my-priv",
-			ResourceTimeout: 2 * time.Minute,
-			FlakyThreshold:  30 * time.Second,
-			NginxImage:      "myorg/nginx:latest",
+			Namespace:          "my-rook",
+			ServiceAccountName: "my-svc-acct",
+			PublicNetwork:      "my-pub",
+			ClusterNetwork:     "my-priv",
+			ResourceTimeout:    2 * time.Minute,
+			FlakyThreshold:     30 * time.Second,
+			HostCheckOnly:      true,
+			NginxImage:         "myorg/nginx:latest",
 			NodeTypes: map[string]NodeConfig{
 				"osdOnlyNodes": {
 					OSDsPerNode:         9,

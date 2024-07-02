@@ -157,13 +157,13 @@ func (vt *ValidationTest) startImagePullers(ctx context.Context, owners []meta.O
 	return nil
 }
 
-func (vt *ValidationTest) deleteImagePullers(ctx context.Context) error {
+func (vt *ValidationTest) deleteDaemonsetsWithLabel(ctx context.Context, label string) error {
 	noGracePeriod := int64(0)
 	delOpts := meta.DeleteOptions{
 		GracePeriodSeconds: &noGracePeriod,
 	}
 	listOpts := meta.ListOptions{
-		LabelSelector: imagePullAppLabel(),
+		LabelSelector: label,
 	}
 	err := vt.Clientset.AppsV1().DaemonSets(vt.Namespace).DeleteCollection(ctx, delOpts, listOpts)
 	if err != nil {
@@ -171,6 +171,27 @@ func (vt *ValidationTest) deleteImagePullers(ctx context.Context) error {
 			return nil // already deleted
 		}
 		return fmt.Errorf("failed to delete image pullers: %w", err)
+	}
+
+	return nil
+}
+
+func (vt *ValidationTest) startHostCheckers(
+	ctx context.Context,
+	owners []meta.OwnerReference,
+	serverPublicAddr string,
+) error {
+	for typeName, nodeType := range vt.NodeTypes {
+		ds, err := vt.generateHostCheckerDaemonSet(serverPublicAddr, typeName, nodeType.Placement)
+		if err != nil {
+			return fmt.Errorf("failed to generate host checker daemonset: %w", err)
+		}
+		ds.SetOwnerReferences(owners) // set owner so cleanup is easier
+
+		_, err = vt.Clientset.AppsV1().DaemonSets(vt.Namespace).Create(ctx, ds, meta.CreateOptions{})
+		if err != nil {
+			return fmt.Errorf("failed to create host checker daemonset: %w", err)
+		}
 	}
 
 	return nil
@@ -335,10 +356,10 @@ func (vt *ValidationTest) getNumRunningPods(
 	return numRunning, nil
 }
 
-func (vt *ValidationTest) numClientsReady(ctx context.Context, expectedNumPods int) (int, error) {
-	pods, err := vt.getClientPods(ctx, expectedNumPods)
+func (vt *ValidationTest) numPodsReadyWithLabel(ctx context.Context, label string) (int, error) {
+	pods, err := vt.getPodsWithLabel(ctx, label)
 	if err != nil {
-		return 0, fmt.Errorf("unexpected error getting client pods: %w", err)
+		return 0, fmt.Errorf("unexpected error getting pods with label %q: %w", label, err)
 	}
 	numReady := 0
 	for _, p := range pods.Items {
@@ -349,16 +370,13 @@ func (vt *ValidationTest) numClientsReady(ctx context.Context, expectedNumPods i
 	return numReady, nil
 }
 
-func (vt *ValidationTest) getClientPods(ctx context.Context, expectedNumPods int) (*core.PodList, error) {
+func (vt *ValidationTest) getPodsWithLabel(ctx context.Context, label string) (*core.PodList, error) {
 	listOpts := meta.ListOptions{
-		LabelSelector: clientAppLabel(),
+		LabelSelector: label,
 	}
 	pods, err := vt.Clientset.CoreV1().Pods(vt.Namespace).List(ctx, listOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list client pods: %w", err)
-	}
-	if len(pods.Items) != expectedNumPods {
-		return nil, fmt.Errorf("the number of pods listed [%d] does not match the number expected [%d]", len(pods.Items), expectedNumPods)
+		return nil, fmt.Errorf("failed to list pods with label %q: %w", label, err)
 	}
 	return pods, err
 }
