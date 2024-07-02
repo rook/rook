@@ -129,6 +129,12 @@ spec:
             - name: CSI_ENDPOINT
               value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: {{ .ImagePullPolicy }}
+          {{ if .HostPathRequiresPrivileged }}
+          {{ if .CSILogRotation }}
+          securityContext:
+            privileged: true
+          {{ end }}
+          {{ end }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

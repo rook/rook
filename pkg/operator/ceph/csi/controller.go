@@ -317,6 +317,7 @@ func setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {
 	if spec.DataDirHostPath == "" {
 		CSIParam.CsiLogDirPath = k8sutil.DataDir
 	}
+
 	CSIParam.CSILogRotation = spec.LogCollector.Enabled
 	if spec.LogCollector.Enabled {
 		maxSize, period := opcontroller.GetLogRotateConfig(spec)
