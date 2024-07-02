@@ -332,15 +332,15 @@ func EmptyPool(pool cephv1.PoolSpec) bool {
 }
 
 // GetDomainName build the dns name to reach out the service endpoint
-func GetDomainName(s *cephv1.CephObjectStore) string {
-	return getDomainName(s, true)
+func GetDomainName(s *cephv1.CephObjectStore, forVirtualHostBuckets bool) string {
+	return getDomainName(s, true, forVirtualHostBuckets)
 }
 
 func GetStableDomainName(s *cephv1.CephObjectStore) string {
-	return getDomainName(s, false)
+	return getDomainName(s, false, false)
 }
 
-func getDomainName(s *cephv1.CephObjectStore, returnRandomDomainIfMultiple bool) string {
+func getDomainName(s *cephv1.CephObjectStore, returnRandomDomainIfMultiple, forVirtualHostBuckets bool) string {
 	endpoints := []string{}
 	if s.Spec.IsExternal() {
 		// if the store is external, pick a random endpoint to use. if the endpoint is down, this
@@ -348,8 +348,8 @@ func getDomainName(s *cephv1.CephObjectStore, returnRandomDomainIfMultiple bool)
 		for _, e := range s.Spec.Gateway.ExternalRgwEndpoints {
 			endpoints = append(endpoints, e.String())
 		}
-	} else if s.Spec.Hosting != nil && len(s.Spec.Hosting.DNSNames) > 0 {
-		// if the store is internal and has DNS names, pick a random DNS name to use
+	} else if s.Spec.Hosting != nil && len(s.Spec.Hosting.DNSNames) > 0 && forVirtualHostBuckets {
+		// if the store is internal and has DNS names, pick a random DNS name to use for Buckets
 		endpoints = s.Spec.Hosting.DNSNames
 	} else {
 		return domainNameOfService(s)

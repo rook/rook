@@ -139,7 +139,7 @@ func UpdateEndpoint(objContext *Context, store *cephv1.CephObjectStore) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get port for object store %q", nsName)
 	}
-	objContext.Endpoint = BuildDNSEndpoint(GetDomainName(store), port, store.Spec.IsTLSEnabled())
+	objContext.Endpoint = BuildDNSEndpoint(GetDomainName(store, false), port, store.Spec.IsTLSEnabled())
 
 	return nil
 }

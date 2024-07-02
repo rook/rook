@@ -17,7 +17,6 @@ limitations under the License.
 package bucket
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 
@@ -89,10 +88,14 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	}
 
 	var s3svc *object.S3Agent
+	s3endpoint, err := p.getObjectStoreEndpoint()
+	if err != nil {
+		return nil, err
+	}
 	if p.insecureTLS {
-		s3svc, err = object.NewInsecureS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
+		s3svc, err = object.NewInsecureS3Agent(p.accessKeyID, p.secretAccessKey, s3endpoint, logger.LevelAt(capnslog.DEBUG))
 	} else {
-		s3svc, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+		s3svc, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, s3endpoint, logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	}
 	if err != nil {
 		return nil, err
@@ -177,10 +180,14 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	}
 
 	var s3svc *object.S3Agent
+	s3endpoint, err := p.getObjectStoreEndpoint()
+	if err != nil {
+		return nil, err
+	}
 	if p.insecureTLS {
-		s3svc, err = object.NewInsecureS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
+		s3svc, err = object.NewInsecureS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, s3endpoint, logger.LevelAt(capnslog.DEBUG))
 	} else {
-		s3svc, err = object.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+		s3svc, err = object.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, s3endpoint, logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 	}
 	if err != nil {
 		return nil, err
@@ -274,10 +281,14 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		}
 
 		var s3svc *object.S3Agent
+		s3endpoint, err := p.getObjectStoreEndpoint()
+		if err != nil {
+			return err
+		}
 		if p.insecureTLS {
-			s3svc, err = object.NewInsecureS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
+			s3svc, err = object.NewInsecureS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, s3endpoint, logger.LevelAt(capnslog.DEBUG))
 		} else {
-			s3svc, err = object.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+			s3svc, err = object.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, s3endpoint, logger.LevelAt(capnslog.DEBUG), p.tlsCert)
 		}
 		if err != nil {
 			return err
@@ -510,7 +521,7 @@ func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error
 	if err != nil {
 		return err
 	}
-	p.storeDomainName = object.GetDomainName(store)
+	p.storeDomainName = object.GetDomainName(store, true)
 	return nil
 }
 
@@ -542,8 +553,13 @@ func (p *Provisioner) setEndpoint(sc *storagev1.StorageClass) {
 	p.endpoint = sc.Parameters[objectStoreEndpoint]
 }
 
-func (p Provisioner) getObjectStoreEndpoint() string {
-	return fmt.Sprintf("%s:%d", p.storeDomainName, p.storePort)
+func (p *Provisioner) getObjectStoreEndpoint() (string, error) {
+	cephObjectStore, err := p.getObjectStore()
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to get ceph object store %q", p.objectStoreName)
+	}
+
+	return object.BuildDNSEndpoint(object.GetDomainName(cephObjectStore, false), p.storePort, cephObjectStore.Spec.IsTLSEnabled()), nil
 }
 
 func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
@@ -680,7 +696,7 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	// Build endpoint
-	s3endpoint := object.BuildDNSEndpoint(object.GetDomainName(cephObjectStore), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
+	s3endpoint := object.BuildDNSEndpoint(object.GetDomainName(cephObjectStore, false), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
 
 	// If DEBUG level is set we will mutate the HTTP client for printing request and response
 	if logger.LevelAt(capnslog.DEBUG) {
