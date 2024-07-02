@@ -610,7 +610,7 @@ spec:
             - name: ROOK_CURRENT_NAMESPACE_ONLY
               value: "false"
 
-            # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
+            # Whether to start pods as privileged that mount a host path, which includes the Ceph mon, osd pods and csi provisioners(if logrotation is on).
             # Set this to true if SELinux is enabled (e.g. OpenShift) to workaround the anyuid issues.
             # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
             - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
