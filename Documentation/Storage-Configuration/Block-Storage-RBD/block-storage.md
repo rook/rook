@@ -201,19 +201,8 @@ If a node goes down where a pod is running where a RBD RWO volume is mounted, th
 
 ### Configure CSI-Addons
 
-Deploy the csi-addons manifests:
+Deploy csi-addons controller and enable `csi-addons` sidecar as mentioned in the [CSI Addons](../Ceph-CSI/ceph-csi-drivers#CSI-Addons-Controller) guide.
 
-```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/crds.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/setup-controller.yaml
-```
-
-Enable the `csi-addons` sidecar in the Rook operator configuration.
-
-```console
-kubectl patch cm rook-ceph-operator-config -n<namespace> -p $'data:\n "CSI_ENABLE_CSIADDONS": "true"'
-```
 
 ### Handling Node Loss
 

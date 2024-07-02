@@ -166,9 +166,9 @@ that the controller inspects and forwards to one or more CSI-Addons sidecars for
 Deploy the controller by running the following commands:
 
 ```console
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/crds.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/rbac.yaml
-kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/v0.8.0/deploy/controller/setup-controller.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.8.0/crds.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.8.0/rbac.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.8.0/setup-controller.yaml
 ```
 
 This creates the required CRDs and configures permissions.
