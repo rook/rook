@@ -119,6 +119,11 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--pidlimit=-1"
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/cephfs-provisioner/csi-cephfsplugin.log"
+            {{ end }}
             {{ if .CSIEnableMetadata }}
             - "--setmetadata={{ .CSIEnableMetadata }}"
             {{ end }}
@@ -162,6 +167,10 @@ spec:
               mountPath: /etc/ceph-csi-config/
             - name: keys-tmp-dir
               mountPath: /tmp/csi/keys
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/cephfs-provisioner
+              name: csi-log
+            {{ end }}
             {{ if .MountCustomCephConf }}
             - name: ceph-config
               mountPath: /etc/ceph/ceph.conf
@@ -187,6 +196,11 @@ spec:
             - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/cephfs-provisioner/csi-addons.log"
+            {{ end }}
           ports:
             - containerPort: {{ .CSIAddonsPort }}
           env:
@@ -212,6 +226,10 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/cephfs-provisioner
+              name: csi-log
+            {{ end }}
         {{ end }}
         {{ if .EnableLiveness }}
         - name: liveness-prometheus
@@ -259,6 +277,15 @@ spec:
           emptyDir: {
             medium: "Memory"
           }
+        {{ if .CSILogRotation }}
+        - name: csi-log
+          hostPath:
+            path: {{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/cephfs-provisioner
+            type: DirectoryOrCreate
+        - name: csi-logs-logrotate
+          emptyDir:
+            type: DirectoryOrCreate
+        {{ end }}
         {{ if .MountCustomCephConf }}
         - name: ceph-config
           configMap:

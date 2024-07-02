@@ -158,7 +158,7 @@ spec:
             {{ if .CSILogRotation }}
             - "--logtostderr=false"
             - "--alsologtostderr=true"
-            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner/csi-addons.log"
+            - "--log_file={{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/rbd-provisioner/csi-addons.log"
             {{ end }}
           ports:
             - containerPort: {{ .CSIAddonsPort }}
@@ -186,7 +186,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
             {{ if .CSILogRotation }}
-            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            - mountPath: {{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/rbd-provisioner
               name: csi-log
             {{ end }}
         {{ end }}
@@ -203,7 +203,7 @@ spec:
             {{ if .CSILogRotation }}
             - "--logtostderr=false"
             - "--alsologtostderr=true"
-            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner/csi-rbdplugin.log"
+            - "--log_file={{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/rbd-provisioner/csi-rbdplugin.log"
             {{ end }}
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
@@ -240,7 +240,7 @@ spec:
             - mountPath: /dev
               name: host-dev
             {{ if .CSILogRotation }}
-            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            - mountPath: {{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/rbd-provisioner
               name: csi-log
             {{ end }}
             - mountPath: /sys
@@ -290,13 +290,15 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        {{ if .CSILogRotation }}
         - name: csi-log
           hostPath:
-            path: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            path: {{ .CsiLogDirPath }}/{{ .OperatorNamespace }}/cephcsi/log/rbd-provisioner
             type: DirectoryOrCreate
         - name: csi-logs-logrotate
           emptyDir:
             type: DirectoryOrCreate
+        {{ end }}
         - name: host-sys
           hostPath:
             path: /sys
