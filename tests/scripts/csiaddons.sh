@@ -24,9 +24,9 @@ function setup_csiaddons() {
     echo "setting up csi-addons"
 
     echo "deploying controller"
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/$CSIADDONS_VERSION/deploy/controller/crds.yaml
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/$CSIADDONS_VERSION/deploy/controller/rbac.yaml
-    kubectl create -f https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/$CSIADDONS_VERSION/deploy/controller/setup-controller.yaml
+    kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/crds.yaml
+    kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/rbac.yaml
+    kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/setup-controller.yaml
 
     echo "enabling csi-addons"
     kubectl patch cm rook-ceph-operator-config -n rook-ceph --type merge -p '{"data":{"CSI_ENABLE_CSIADDONS":"true"}}'
