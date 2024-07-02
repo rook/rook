@@ -51,6 +51,7 @@ const (
 	cosiSocketMountPath       = "/var/lib/cosi"
 	DefaultServiceAccountName = "objectstorage-provisioner"
 	cosiSocketVolumeName      = "socket"
+	CephCOSIDriverPrefix      = "rook-ceph"
 )
 
 var (
