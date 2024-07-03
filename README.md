@@ -4,6 +4,7 @@
 [![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg)](https://github.com/rook/rook/releases)
 [![Docker Pulls](https://img.shields.io/docker/pulls/rook/ceph)](https://hub.docker.com/u/rook)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/rook/rook/badge)](https://scorecard.dev/viewer/?uri=github.com/rook/rook)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1599/badge)](https://bestpractices.coreinfrastructure.org/projects/1599)
 [![Security scanning](https://github.com/rook/rook/actions/workflows/snyk.yaml/badge.svg)](https://github.com/rook/rook/actions/workflows/snyk.yaml)
 [![Slack](https://img.shields.io/badge/rook-slack-blue)](https://slack.rook.io)
