@@ -30,7 +30,7 @@ jobs:
       - name: setup golang
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.22"
 
       - name: Install Docker
         run: |

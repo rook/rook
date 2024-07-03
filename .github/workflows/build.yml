@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.22"
 
       - name: Set up Helm
         uses: azure/setup-helm@v4
@@ -71,7 +71,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        go-version: ["1.21","1.22"]
+        go-version: ["1.22"]
     steps:
       - name: checkout
         uses: actions/checkout@v4

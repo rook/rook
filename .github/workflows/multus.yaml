@@ -39,7 +39,7 @@ jobs:
       - name: Set up Go version
         uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
+          go-version: "1.22"
 
       - name: Create KinD Cluster
         uses: helm/kind-action@v1.10.0
