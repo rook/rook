@@ -174,14 +174,20 @@ function createInputCommadConfigMap() {
       create \
       configmap \
       "$EXTERNAL_COMMAND_CONFIGMAP_NAME" \
-      --from-literal=command="$EXTERNAL_CLUSTER_USER_COMMAND"
+      --from-literal=command="$EXTERNAL_CLUSTER_USER_COMMAND" \
+      --from-literal=args="$ARGS"
   else
     echo "configmap $EXTERNAL_COMMAND_CONFIGMAP_NAME already exists, updating it"
     $KUBECTL -n "$NAMESPACE" \
       patch \
       configmap \
       "$EXTERNAL_COMMAND_CONFIGMAP_NAME" \
-      -p "{'data':{'command':$EXTERNAL_COMMAND_CONFIGMAP_NAME}}"
+      -p "{\"data\":{\"command\":\"$EXTERNAL_CLUSTER_USER_COMMAND\"}}"
+    $KUBECTL -n "$NAMESPACE" \
+      patch \
+      configmap \
+      "$EXTERNAL_COMMAND_CONFIGMAP_NAME" \
+      -p "{\"data\":{\"args\":\"$ARGS\"}}"
   fi
 }
 
