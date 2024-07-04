@@ -557,6 +557,12 @@ data:
   #       requests:
   #         cpu: 100m
   #         memory: 128Mi
+
+  # (Optional) Burst to use while communicating with the kubernetes apiserver.
+  # CSI_KUBE_API_BURST: "10"
+
+  # (Optional) QPS to use while communicating with the kubernetes apiserver.
+  # CSI_KUBE_API_QPS: "5.0"
 ---
 # OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1
