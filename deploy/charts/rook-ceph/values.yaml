@@ -186,6 +186,12 @@ csi:
   # -- Allow starting an unsupported ceph-csi image
   allowUnsupportedVersion: false
 
+  # -- Burst to use while communicating with the kubernetes apiserver.
+  kubeApiBurst:
+
+  # -- QPS to use while communicating with the kubernetes apiserver.
+  kubeApiQPS:
+
   # -- The volume of the CephCSI RBD plugin DaemonSet
   csiRBDPluginVolume:
   #  - name: lib-modules
