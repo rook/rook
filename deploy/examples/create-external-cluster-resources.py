@@ -638,10 +638,8 @@ class RadosJSON:
             argumentValue = str(getattr(self._arg_parser, arg))
             config_value = config.get("Configurations", argument, fallback=None)
             # give priority to command line argument, if command line argument is not present use config.ini value,
-            if (
-                (str(sys.argv).find(argument) == -1)
-                and ((argumentValue == None) or (argumentValue == ""))
-                and ((config_value != None) and (config_value != ""))
+            if (str(sys.argv).find(argument) == -1) and (
+                (config_value != None) and (config_value != "")
             ):
                 self._arg_parser.__setattr__(arg, config_value)
 
