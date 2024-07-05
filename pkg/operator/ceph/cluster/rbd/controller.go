@@ -116,10 +116,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the cephRBDMirror CRD object
-	s := source.Kind(
-		mgr.GetCache(),
-		&cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta})
-	err = c.Watch(s, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	s := source.Kind[client.Object](
+		mgr.GetCache(), &cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta},
+		&handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(s)
 	if err != nil {
 		return err
 	}
@@ -132,9 +132,10 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			&cephv1.CephRBDMirror{},
 		)
 		err = c.Watch(
-			source.Kind(mgr.GetCache(), t),
-			ownerRequest,
-			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+			source.Kind[client.Object](
+				mgr.GetCache(), t, ownerRequest,
+				opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephRBDMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme())),
+		)
 		if err != nil {
 			return err
 		}

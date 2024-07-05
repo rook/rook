@@ -88,7 +88,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		},
 	}
 	logger.Debugf("watch for changes to the nodes")
-	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.Node{}), &handler.EnqueueRequestForObject{}, specChangePredicate)
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &corev1.Node{}, &handler.EnqueueRequestForObject{}, specChangePredicate))
 	if err != nil {
 		return errors.Wrap(err, "failed to watch for node changes")
 	}
@@ -96,24 +96,25 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to the ceph-crash deployments
 	logger.Debugf("watch for changes to the ceph-crash deployments")
 	err = c.Watch(
-		source.Kind(mgr.GetCache(), &appsv1.Deployment{}),
-		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
-			deployment, ok := obj.(*appsv1.Deployment)
-			if !ok {
-				return []reconcile.Request{}
-			}
-			labels := deployment.GetLabels()
-			appName, ok := labels[k8sutil.AppAttr]
-			if !ok || appName != CrashCollectorAppName {
-				return []reconcile.Request{}
-			}
-			nodeName, ok := deployment.Spec.Template.ObjectMeta.Labels[NodeNameLabel]
-			if !ok {
-				return []reconcile.Request{}
-			}
-			req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
-			return []reconcile.Request{req}
-		}),
+		source.Kind[client.Object](mgr.GetCache(), &appsv1.Deployment{},
+			handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
+				deployment, ok := obj.(*appsv1.Deployment)
+				if !ok {
+					return []reconcile.Request{}
+				}
+				labels := deployment.GetLabels()
+				appName, ok := labels[k8sutil.AppAttr]
+				if !ok || appName != CrashCollectorAppName {
+					return []reconcile.Request{}
+				}
+				nodeName, ok := deployment.Spec.Template.ObjectMeta.Labels[NodeNameLabel]
+				if !ok {
+					return []reconcile.Request{}
+				}
+				req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
+				return []reconcile.Request{req}
+			}),
+			),
 		),
 	)
 	if err != nil {
@@ -123,41 +124,42 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Watch for changes to the ceph pods and enqueue their nodes
 	logger.Debugf("watch for changes to the ceph pods and enqueue their nodes")
 	err = c.Watch(
-		source.Kind(mgr.GetCache(), &corev1.Pod{}),
-		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
-			pod, ok := obj.(*corev1.Pod)
-			if !ok {
-				return []reconcile.Request{}
-			}
-			nodeName := pod.Spec.NodeName
-			if nodeName == "" {
-				return []reconcile.Request{}
-			}
-			if isCephPod(pod.Labels, pod.Name) {
-				req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
-				return []reconcile.Request{req}
-			}
-			return []reconcile.Request{}
-		}),
-		),
-		// only enqueue the update event if the pod moved nodes
-		predicate.Funcs{
-			UpdateFunc: func(event event.UpdateEvent) bool {
-				oldPod, ok := event.ObjectOld.(*corev1.Pod)
+		source.Kind[client.Object](mgr.GetCache(), &corev1.Pod{},
+			handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context context.Context, obj client.Object) []reconcile.Request {
+				pod, ok := obj.(*corev1.Pod)
 				if !ok {
-					return false
+					return []reconcile.Request{}
 				}
-				newPod, ok := event.ObjectNew.(*corev1.Pod)
-				if !ok {
-					return false
+				nodeName := pod.Spec.NodeName
+				if nodeName == "" {
+					return []reconcile.Request{}
 				}
-				// only enqueue if the nodename has changed
-				if oldPod.Spec.NodeName == newPod.Spec.NodeName {
-					return false
+				if isCephPod(pod.Labels, pod.Name) {
+					req := reconcile.Request{NamespacedName: types.NamespacedName{Name: nodeName}}
+					return []reconcile.Request{req}
 				}
-				return true
+				return []reconcile.Request{}
+			}),
+			),
+			// only enqueue the update event if the pod moved nodes
+			predicate.Funcs{
+				UpdateFunc: func(event event.UpdateEvent) bool {
+					oldPod, ok := event.ObjectOld.(*corev1.Pod)
+					if !ok {
+						return false
+					}
+					newPod, ok := event.ObjectNew.(*corev1.Pod)
+					if !ok {
+						return false
+					}
+					// only enqueue if the nodename has changed
+					if oldPod.Spec.NodeName == newPod.Spec.NodeName {
+						return false
+					}
+					return true
+				},
 			},
-		},
+		),
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to watch for changes on the ceph pod nodename and enqueue their nodes")

@@ -66,7 +66,7 @@ func addOBCLabelReconciler(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the OBC CRD object
-	err = c.Watch(source.Kind(mgr.GetCache(), &bktv1alpha1.ObjectBucketClaim{}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &bktv1alpha1.ObjectBucketClaim{}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
 	if err != nil {
 		return err
 	}

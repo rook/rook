@@ -75,7 +75,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	}
 
 	// Watch for CephClusters
-	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephCluster{}), &handler.EnqueueRequestForObject{}, cephClusterPredicate)
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephCluster{}, &handler.EnqueueRequestForObject{}, cephClusterPredicate))
 	if err != nil {
 		return err
 	}
@@ -102,21 +102,21 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 
 	// Watch for main PodDisruptionBudget and enqueue the CephCluster in the namespace
 	err = c.Watch(
-		source.Kind(mgr.GetCache(), &policyv1.PodDisruptionBudget{}),
-		handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context ctx.Context, obj client.Object) []reconcile.Request {
-			pdb, ok := obj.(*policyv1.PodDisruptionBudget)
-			if !ok {
-				// Not a pdb, returning empty
-				logger.Error("PDB handler received non-PDB")
-				return []reconcile.Request{}
-			}
-			namespace := pdb.GetNamespace()
-			req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
-			return []reconcile.Request{req}
-		}),
-		),
-		pdbPredicate,
-	)
+		source.Kind[client.Object](mgr.GetCache(), &policyv1.PodDisruptionBudget{},
+			handler.EnqueueRequestsFromMapFunc(handler.MapFunc(func(context ctx.Context, obj client.Object) []reconcile.Request {
+				pdb, ok := obj.(*policyv1.PodDisruptionBudget)
+				if !ok {
+					// Not a pdb, returning empty
+					logger.Error("PDB handler received non-PDB")
+					return []reconcile.Request{}
+				}
+				namespace := pdb.GetNamespace()
+				req := reconcile.Request{NamespacedName: types.NamespacedName{Namespace: namespace}}
+				return []reconcile.Request{req}
+			}),
+			),
+			pdbPredicate,
+		))
 	if err != nil {
 		return err
 	}
@@ -136,19 +136,19 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 	)
 
 	// Watch for CephBlockPools and enqueue the CephCluster in the namespace
-	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephBlockPool{}), enqueueByNamespace)
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBlockPool{}, enqueueByNamespace))
 	if err != nil {
 		return err
 	}
 
 	// Watch for CephFileSystems and enqueue the CephCluster in the namespace
-	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephFilesystem{}), enqueueByNamespace)
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystem{}, enqueueByNamespace))
 	if err != nil {
 		return err
 	}
 
 	// Watch for CephObjectStores and enqueue the CephCluster in the namespace
-	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephObjectStore{}), enqueueByNamespace)
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephObjectStore{}, enqueueByNamespace))
 	if err != nil {
 		return err
 	}

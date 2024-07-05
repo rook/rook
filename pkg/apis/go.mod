@@ -1,6 +1,8 @@
 module github.com/rook/rook/pkg/apis
 
-go 1.22
+go 1.22.0
+
+toolchain go1.22.5
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
@@ -19,18 +21,19 @@ require (
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.29.5
-	k8s.io/apimachinery v0.29.5
+	k8s.io/api v0.30.2
+	k8s.io/apimachinery v0.30.2
 )
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
-	github.com/onsi/ginkgo/v2 v2.14.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.17.1 // indirect
+	github.com/onsi/gomega v1.32.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/client-go v0.29.5 // indirect
+	k8s.io/client-go v0.30.2 // indirect
 	k8s.io/utils v0.0.0-20240310230437-4693a0247e57 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )

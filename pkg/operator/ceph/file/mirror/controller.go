@@ -107,7 +107,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephFilesystemMirror CRD object
-	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 			mgr.GetRESTMapper(),
 			&cephv1.CephFilesystemMirror{},
 		)
-		err = c.Watch(source.Kind(mgr.GetCache(), t), ownerRequest, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		err = c.Watch(source.Kind[client.Object](mgr.GetCache(), t, ownerRequest, opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystemMirror{TypeMeta: controllerTypeMeta}, mgr.GetScheme())))
 		if err != nil {
 			return err
 		}

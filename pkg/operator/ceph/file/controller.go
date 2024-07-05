@@ -117,7 +117,7 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	logger.Info("successfully started")
 
 	// Watch for changes on the CephFilesystem CRD object
-	err = c.Watch(source.Kind(mgr.GetCache(), &cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}), &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate())
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
 	if err != nil {
 		return err
 	}
@@ -129,8 +129,8 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 			mgr.GetRESTMapper(),
 			&cephv1.CephFilesystem{},
 		)
-		err = c.Watch(source.Kind(mgr.GetCache(), t), ownerRequest,
-			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}, mgr.GetScheme()))
+		err = c.Watch(source.Kind[client.Object](mgr.GetCache(), t, ownerRequest,
+			opcontroller.WatchPredicateForNonCRDObject(&cephv1.CephFilesystem{TypeMeta: controllerTypeMeta}, mgr.GetScheme())))
 		if err != nil {
 			return err
 		}
@@ -144,7 +144,9 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 	}
 
 	// Watch for ConfigMap "rook-ceph-mon-endpoints" update and reconcile, which will reconcile update the bootstrap peer token
-	err = c.Watch(source.Kind(mgr.GetCache(), &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}}), handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges())
+	err = c.Watch(source.Kind[client.Object](
+		mgr.GetCache(), &corev1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: corev1.SchemeGroupVersion.String()}},
+		handler.EnqueueRequestsFromMapFunc(handlerFunc), mon.PredicateMonEndpointChanges()))
 	if err != nil {
 		return err
 	}
