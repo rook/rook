@@ -12567,7 +12567,7 @@ will be set by the persistentvolume controller if it exists.
 If the resource referred to by volumeAttributesClass does not exist, this PersistentVolumeClaim will be
 set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
 exists.
-More info: <a href="https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass">https://kubernetes.io/docs/concepts/storage/persistent-volumes#volumeattributesclass</a>
+More info: <a href="https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/">https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/</a>
 (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.</p>
 </td>
 </tr>

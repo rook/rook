@@ -98,18 +98,23 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 	}
 
 	// Watch for ConfigMap (operator config)
-	configmapKind := source.Kind(mgr.GetCache(),
-		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}})
-	err = c.Watch(configmapKind, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace))
+	configmapKind := source.Kind[client.Object](
+		mgr.GetCache(),
+		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
+		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace),
+	)
+	err = c.Watch(configmapKind)
 	if err != nil {
 		return err
 	}
 
 	// Watch for CephCluster
-	clusterKind := source.Kind(
+	clusterKind := source.Kind[client.Object](
 		mgr.GetCache(),
-		&cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: v1.SchemeGroupVersion.String()}})
-	err = c.Watch(clusterKind, &handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace))
+		&cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: v1.SchemeGroupVersion.String()}},
+		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient(), opConfig.OperatorNamespace),
+	)
+	err = c.Watch(clusterKind)
 	if err != nil {
 		return err
 	}
