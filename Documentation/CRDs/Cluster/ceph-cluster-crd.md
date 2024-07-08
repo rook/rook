@@ -82,6 +82,9 @@ For more details on the mons and when to choose a number other than `3`, see the
     * `config`: Config settings applied to all OSDs on the node unless overridden by `devices`. See the [config settings](#osd-configuration-settings) below.
     * `allowDeviceClassUpdate`: Whether to allow changing the device class of an OSD after it is created. The default is false
         to prevent unintentional data movement or CRUSH changes if the device class is changed accidentally.
+    * `allowOsdCrushWeightUpdate`: Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
+        This allows cluster data to be rebalanced to make most effective use of new OSD space.
+        The default is false since data rebalancing can cause temporary cluster slowdown.
     * [storage selection settings](#storage-selection-settings)
     * [Storage Class Device Sets](#storage-class-device-sets)
     * `onlyApplyOSDPlacement`: Whether the placement specific for OSDs is merged with the `all` placement. If `false`, the OSD placement will be merged with the `all` placement. If true, the `OSD placement will be applied` and the `all` placement will be ignored. The placement for OSDs is computed from several different places depending on the type of OSD:
