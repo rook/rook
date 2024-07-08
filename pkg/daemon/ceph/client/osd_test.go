@@ -141,6 +141,18 @@ func TestOSDDeviceClasses(t *testing.T) {
 	})
 }
 
+func TestConvertKibibytesToTebibytes(t *testing.T) {
+	kib := "1024"
+	terabyte, err := convertKibibytesToTebibytes(kib)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(9.5367431640625e-07), terabyte)
+
+	kib = "1073741824"
+	terabyte, err = convertKibibytesToTebibytes(kib)
+	assert.NoError(t, err)
+	assert.Equal(t, float64(1), terabyte)
+}
+
 func TestOSDOkToStop(t *testing.T) {
 	returnString := ""
 	returnOkResult := true

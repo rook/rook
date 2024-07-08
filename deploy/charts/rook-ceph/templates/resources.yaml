@@ -3207,6 +3207,12 @@ spec:
                     allowDeviceClassUpdate:
                       description: Whether to allow updating the device class after the OSD is initially provisioned
                       type: boolean
+                    allowOsdCrushWeightUpdate:
+                      description: |-
+                        Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
+                        This allows cluster data to be rebalanced to make most effective use of new OSD space.
+                        The default is false since data rebalancing can cause temporary cluster slowdown.
+                      type: boolean
                     backfillFullRatio:
                       description: BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
                       maximum: 1

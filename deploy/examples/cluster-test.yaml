@@ -34,6 +34,7 @@ spec:
     useAllNodes: true
     useAllDevices: true
     allowDeviceClassUpdate: true
+    allowOsdCrushWeightUpdate: false
     #deviceFilter:
     #config:
     #  deviceClass: testclass
