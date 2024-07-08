@@ -148,6 +148,10 @@ spec:
               value: unix:///csi/csi-addons.sock
             {{ end }}
           imagePullPolicy: {{ .ImagePullPolicy }}
+          {{ if and .Privileged .CSILogRotation }}
+          securityContext:
+            privileged: true
+          {{ end }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -209,6 +213,10 @@ spec:
             - name: CSIADDONS_ENDPOINT
               value: unix:///csi/csi-addons.sock
           imagePullPolicy: {{ .ImagePullPolicy }}
+          {{ if and .Privileged .CSILogRotation }}
+          securityContext:
+            privileged: true
+          {{ end }}
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

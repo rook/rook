@@ -59,7 +59,7 @@ There are some Rook settings that also need to be adjusted to work in OpenShift.
 
 There is an environment variable that needs to be set in the operator spec that will allow Rook to run in OpenShift clusters.
 
-* `ROOK_HOSTPATH_REQUIRES_PRIVILEGED`: Must be set to `true`. Writing to the hostPath is required for the Ceph mon and osd pods. Given the restricted permissions in OpenShift with SELinux, the pod must be running privileged in order to write to the hostPath volume.
+* `ROOK_HOSTPATH_REQUIRES_PRIVILEGED`: Must be set to `true`. Writing to the hostPath is required for the Ceph mon, osd pods and csi provisioners(if logrotation is on). Given the restricted permissions in OpenShift with SELinux, the pod must be running privileged in order to write to the hostPath volume.
 
 ```yaml
 - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED

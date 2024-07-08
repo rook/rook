@@ -102,6 +102,7 @@ type Param struct {
 	CSILogRotationMaxSize                    string
 	CSILogRotationPeriod                     string
 	CSILogFolder                             string
+	Privileged                               bool
 }
 
 type templateParam struct {

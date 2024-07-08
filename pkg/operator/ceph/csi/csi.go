@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"github.com/pkg/errors"
@@ -123,6 +124,8 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_LIVENESS'")
 	}
+
+	CSIParam.Privileged = controller.HostPathRequiresPrivileged()
 
 	// default value `system-node-critical` is the highest available priority
 	CSIParam.PluginPriorityClassName = k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_PRIORITY_CLASSNAME", "")
