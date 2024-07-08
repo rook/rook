@@ -42,7 +42,7 @@ type OSDNodeUsage struct {
 	CrushWeight json.Number `json:"crush_weight"`
 	Depth       json.Number `json:"depth"`
 	Reweight    json.Number `json:"reweight"`
-	KB          json.Number `json:"kb"`
+	KB          json.Number `json:"kb"` // KB is in KiB units
 	UsedKB      json.Number `json:"kb_used"`
 	AvailKB     json.Number `json:"kb_avail"`
 	Utilization json.Number `json:"utilization"`

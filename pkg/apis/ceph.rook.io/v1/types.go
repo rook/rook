@@ -2864,6 +2864,11 @@ type StorageScopeSpec struct {
 	// Whether to allow updating the device class after the OSD is initially provisioned
 	// +optional
 	AllowDeviceClassUpdate bool `json:"allowDeviceClassUpdate,omitempty"`
+	// Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
+	// This allows cluster data to be rebalanced to make most effective use of new OSD space; however, data rebalancing can cause temporary cluster slowdown.
+	// +optional
+	// +kubebuilder:default=true
+	AllowOsdCrushWeightUpdate bool `json:"allowOsdCrushWeightUpdate,omitempty"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs

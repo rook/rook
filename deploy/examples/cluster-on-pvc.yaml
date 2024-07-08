@@ -54,6 +54,7 @@ spec:
     maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
   storage:
     allowDeviceClassUpdate: false # whether to allow changing the device class of an OSD after it is created
+    allowOsdCrushWeightUpdate: true # whether to allow resizing the OSD crush weight after osd pvc is increased
     storageClassDeviceSets:
       - name: set1
         # The number of OSDs to create from this device set
