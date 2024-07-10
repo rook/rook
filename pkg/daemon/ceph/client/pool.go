@@ -463,6 +463,11 @@ func createReplicatedPoolForApp(context *clusterd.Context, clusterInfo *ClusterI
 }
 
 func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
+	if clusterSpec.IsStretchCluster() {
+		logger.Debugf("skipping crush rule update for pool %q in a stretch cluster", pool.Name)
+		return nil
+	}
+
 	if pool.FailureDomain == "" && pool.DeviceClass == "" {
 		logger.Debugf("skipping check for failure domain and deviceClass on pool %q as it is not specified", pool.Name)
 		return nil
