@@ -468,6 +468,10 @@ func updatePoolCrushRule(context *clusterd.Context, clusterInfo *ClusterInfo, cl
 		logger.Debugf("Skipping crush rule update for pool %q: EnableCrushUpdates is disabled", pool.Name)
 		return nil
 	}
+	if clusterSpec.IsStretchCluster() {
+		logger.Debugf("skipping crush rule update for pool %q in a stretch cluster", pool.Name)
+		return nil
+	}
 
 	if pool.FailureDomain == "" && pool.DeviceClass == "" {
 		logger.Debugf("skipping check for failure domain and deviceClass on pool %q as it is not specified", pool.Name)
