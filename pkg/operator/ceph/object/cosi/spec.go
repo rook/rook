@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	defaultCOSISideCarImage    = "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20230130-v0.1.0-24-gc0cf995"
-	defaultCephCOSIDriverImage = "quay.io/ceph/cosi:v0.1.1"
+	defaultCOSISideCarImage    = "gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20240513-v0.1.0-35-gefb3255"
+	defaultCephCOSIDriverImage = "quay.io/ceph/cosi:v0.1.2"
 )
 
 func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*appsv1.Deployment, error) {
@@ -114,6 +114,9 @@ func createCOSIDriverContainer(cephCOSIDriver *cephv1.CephCOSIDriver) corev1.Con
 	return corev1.Container{
 		Name:  CephCOSIDriverName,
 		Image: cephCOSIDriveImage,
+		Args: []string{
+			"--driver-prefix=" + CephCOSIDriverPrefix,
+		},
 		Env: []corev1.EnvVar{
 			{Name: "POD_NAMESPACE", ValueFrom: &corev1.EnvVarSource{FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}},
 		VolumeMounts: []corev1.VolumeMount{

@@ -682,7 +682,7 @@ kind: BucketClass
 metadata:
   name: ` + name + `
   namespace: ` + m.settings.OperatorNamespace + `
-driverName: ceph.objectstorage.k8s.io
+driverName: ` + cosi.CephCOSIDriverPrefix + `.ceph.objectstorage.k8s.io
 deletionPolicy: ` + deletionPolicy + `
 parameters:
   objectStoreUserSecretName:  ` + objectStoreUserSecretName + `
