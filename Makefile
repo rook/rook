@@ -179,7 +179,6 @@ prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
 docs: helm-docs
-	@build/deploy/generate-deploy-examples.sh
 
 crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
