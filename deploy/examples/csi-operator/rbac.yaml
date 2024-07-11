@@ -1,0 +1,417 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: metrics-reader
+rules:
+- nonResourceURLs:
+  - "/metrics"
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: proxy-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: rook-ceph
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: controller-manager-metrics-service
+  namespace: rook-ceph
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+---
+# permissions for end users to edit cephclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: cephcluster-editor-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - cephclusters
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - cephclusters/status
+  verbs:
+  - get
+---
+# permissions for end users to view cephclusters.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: cephcluster-viewer-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - cephclusters
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - cephclusters/status
+  verbs:
+  - get
+---
+# permissions for end users to edit configs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: config-editor-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs/status
+  verbs:
+  - get
+---
+# permissions for end users to view configs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: config-viewer-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs/status
+  verbs:
+  - get
+---
+# permissions for end users to edit drivers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: driver-editor-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers/status
+  verbs:
+  - get
+---
+# permissions for end users to view drivers.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: driver-viewer-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers/status
+  verbs:
+  - get
+---
+# permissions to do leader election.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: leader-election-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: leader-election-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: rook-ceph
+---
+# permissions for end users to edit operatorconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: operatorconfig-editor-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - operatorconfigs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - operatorconfigs/status
+  verbs:
+  - get
+---
+# permissions for end users to view operatorconfigs.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: operatorconfig-viewer-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - operatorconfigs
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - operatorconfigs/status
+  verbs:
+  - get
+---
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - configs/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - csi.ceph.io
+  resources:
+  - drivers/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: manager-role
+subjects:
+- kind: ServiceAccount
+  name: controller-manager
+  namespace: rook-ceph
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: ceph-csi-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: controller-manager
+  namespace: rook-ceph
+---
