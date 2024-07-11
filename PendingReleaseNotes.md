@@ -7,3 +7,5 @@ please update the `BucketClass` and `BucketAccessClass` for resolving refer [her
 - During CephBlockPool updates, return an error if an invalid device class is specified. Pools with invalid device classes may start failing reconcile until the correct device class is specified. See #14057.
 
 ## Features
+
+- Added support for Ceph Squid (v19)

@@ -168,6 +168,17 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from quincy to reef")
 
+	//
+	// Upgrade from reef to squid
+	//
+	logger.Infof("*** UPGRADING CEPH FROM REEF TO SQUID ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_squid_upgrade")
+	s.upgradeCephVersion(installer.SquidVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile = "post-squid-upgrade-file"
+	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("Verified upgrade from reef to squid")
+
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
 
@@ -233,6 +244,39 @@ func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
 	newFile := "post-reef-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("verified upgrade from reef stable to reef devel")
+
+	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
+}
+
+func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
+	s.baseSetup(false, installer.SquidVersion)
+
+	objectUserID := "upgraded-user"
+	preFilename := "pre-upgrade-file"
+	s.settings.CephVersion = installer.SquidVersion
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
+	clusterInfo := client.AdminTestClusterInfo(s.namespace)
+	requireBlockImagesRemoved := false
+	defer func() {
+		blockTestDataCleanUp(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName, rbdPodName, requireBlockImagesRemoved)
+		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
+		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
+		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
+		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
+		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
+		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
+	}()
+
+	//
+	// Upgrade from squid to squid devel
+	//
+	logger.Infof("*** UPGRADING CEPH FROM SQUID STABLE TO SQUID DEVEL ***")
+	s.gatherLogs(s.settings.OperatorNamespace, "_before_squid_upgrade")
+	s.upgradeCephVersion(installer.SquidDevelVersion.Image, numOSDs)
+	// Verify reading and writing to the test clients
+	newFile := "post-squid-upgrade-file"
+	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
+	logger.Infof("verified upgrade from squid stable to squid devel")
 
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
