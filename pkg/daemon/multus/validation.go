@@ -85,7 +85,7 @@ type getExpectedNumberOfImagePullPodsState struct {
 
 // the length of time to wait for daemonset scheduler to stabilize to a specific number of pods
 // started. must be lower than the state timeout duration
-var podSchedulerDebounceTime = 5 * time.Second // TODO: reset after testing
+var podSchedulerDebounceTime = 30 * time.Second
 
 func (s *getExpectedNumberOfImagePullPodsState) Run(
 	ctx context.Context, vsm *validationStateMachine,
