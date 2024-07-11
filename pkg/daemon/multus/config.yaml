@@ -2,6 +2,12 @@
 # Rook-Ceph cluster will be installed.
 namespace: "{{ .Namespace }}"
 
+# The service account to run validation test pods as. Empty means pods won't use a service account.
+# This is useful in Kubernetes environments where security rules are in place.
+# Notably, host checker pods require host network access.
+# The default is to use the same service account for the Rook operator (rook-ceph-system).
+serviceAccountName: "{{ .ServiceAccountName }}"
+
 # These fields should be set to the name of the Network Attachment Definition (NAD) which will be
 # used for the Ceph cluster's public or cluster network, respectively. This should be a namespaced
 # name in the form <namespace>/<name> if the NAD is defined in a different namespace from the
@@ -28,6 +34,13 @@ resourceTimeout: "{{ .ResourceTimeout }}"
 # very large Kubernetes clusters, it may take longer for all clients to start, and it therefore may take
 # longer for all clients to become "Ready"; in that case, this value can be set slightly higher.
 flakyThreshold: "{{ .FlakyThreshold }}"
+
+# Enable host-check-only mode. This will instruct the validation test routine to only check host
+# connectivity to the server via the public network. It won't start clients and cannot check for
+# network flakiness. This mode is recommended when a Rook cluster is already running and consuming
+# the public network specified. This mode avoids disrupting to the running Rook cluster that could
+# be impacted by a large number of running clients that might run without this mode enabled.
+hostCheckOnly: {{ .HostCheckOnly }}
 
 # The Nginx image which will be used for the web server and clients.
 nginxImage: "{{ .NginxImage }}"

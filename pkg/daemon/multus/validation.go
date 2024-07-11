@@ -85,7 +85,7 @@ type getExpectedNumberOfImagePullPodsState struct {
 
 // the length of time to wait for daemonset scheduler to stabilize to a specific number of pods
 // started. must be lower than the state timeout duration
-var podSchedulerDebounceTime = 30 * time.Second
+var podSchedulerDebounceTime = 5 * time.Second // TODO: reset after testing
 
 func (s *getExpectedNumberOfImagePullPodsState) Run(
 	ctx context.Context, vsm *validationStateMachine,
@@ -137,6 +137,8 @@ func (s *ensureNodeTypesDoNotOverlapState) Run(ctx context.Context, vsm *validat
  *  Reusable state to verify that expected number of pods are "Running" but not necessarily "Ready"
  *    > Verify all image pull pods are running
  *        -- next state --> Delete image pull daemonset
+ *    > Verify all host checker pods are running
+ *        -- next state --> Verify all host checker pods are "Ready"
  *    > Verify all client pods are running
  *        -- next state --> Verify all client pods are "Ready"
  */
@@ -144,6 +146,7 @@ type verifyAllPodsRunningState struct {
 	AppType                  daemonsetAppType
 	ImagePullPodsPerNodeType perNodeTypeCount
 	ExpectedNumPods          int
+	WebServerInfo            *podNetworkInfo
 }
 
 func (s *verifyAllPodsRunningState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
@@ -155,6 +158,13 @@ func (s *verifyAllPodsRunningState) Run(ctx context.Context, vsm *validationStat
 		podSelectorLabel = imagePullAppLabel()
 		// image pull pods don't have multus labels, so this can't be a multus issue
 		suggestions = append(suggestions, "inability to run image pull pods is likely an issue with Nginx image or Kubernetes itself")
+	case hostCheckerDaemonsetAppType:
+		if s.WebServerInfo == nil {
+			return []string{}, fmt.Errorf("internal error; web server info is nil when checking for host checker readiness")
+		}
+		podSelectorLabel = hostCheckerAppLabel()
+		// host checker pods don't have multus labels, so this can't be a multus issue
+		suggestions = append(suggestions, "inability to run host checker pods likely means that cluster security permissions disallow pods with host network enabled")
 	case clientDaemonSetAppType:
 		podSelectorLabel = clientAppLabel()
 		suggestions = append(suggestions, "clients not being able to run can mean multus is unable to provide them with addresses")
@@ -178,6 +188,11 @@ func (s *verifyAllPodsRunningState) Run(ctx context.Context, vsm *validationStat
 		vsm.SetNextState(&deleteImagePullersState{
 			ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
 		})
+	case hostCheckerDaemonsetAppType:
+		vsm.SetNextState(&verifyAllHostCheckersReadyState{
+			WebServerInfo:            *s.WebServerInfo,
+			ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
+		})
 	case clientDaemonSetAppType:
 		vsm.vt.Logger.Infof("verifying all %d 'Running' client pods reach 'Ready' state", s.ExpectedNumPods)
 		vsm.SetNextState(&verifyAllClientsReadyState{
@@ -198,7 +213,7 @@ type deleteImagePullersState struct {
 }
 
 func (s *deleteImagePullersState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	err = vsm.vt.deleteImagePullers(ctx)
+	err = vsm.vt.deleteDaemonsetsWithLabel(ctx, imagePullAppLabel())
 	if err != nil {
 		// erroring here is not strictly necessary but does indicate a k8s issue that probably affects future test steps
 		return []string{"inability to delete resources is likely an issue with Kubernetes itself"}, err
@@ -212,7 +227,7 @@ func (s *deleteImagePullersState) Run(ctx context.Context, vsm *validationStateM
 
 /*
  *  > Get web server info
- *      -- next state --> Start clients
+ *      -- next state --> Start host checkers
  */
 type getWebServerInfoState struct {
 	ImagePullPodsPerNodeType perNodeTypeCount
@@ -240,8 +255,8 @@ func (s *getWebServerInfoState) Run(ctx context.Context, vsm *validationStateMac
 	if err != nil {
 		return suggestions, err
 	}
-	vsm.vt.Logger.Infof("starting clients on each node")
-	vsm.SetNextState(&startClientsState{
+	vsm.vt.Logger.Infof("starting host checkers on each node")
+	vsm.SetNextState(&startHostCheckersState{
 		WebServerInfo:            info,
 		ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
 	})
@@ -249,8 +264,112 @@ func (s *getWebServerInfoState) Run(ctx context.Context, vsm *validationStateMac
 }
 
 /*
- *  Start clients
- *    -- next state --> Verify all client pods are running
+ *  > Start host checkers
+ *      -- next state --> Verify all host checker pods are running
+ */
+type startHostCheckersState struct {
+	WebServerInfo            podNetworkInfo
+	ImagePullPodsPerNodeType perNodeTypeCount
+}
+
+func (s *startHostCheckersState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	if vsm.vt.PublicNetwork == "" {
+		vsm.vt.Logger.Infof("not starting host checkers because public network is not specified")
+		vsm.SetNextState(&startClientsState{
+			WebServerInfo:            s.WebServerInfo,
+			ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
+		})
+		return []string{}, nil
+	}
+
+	err = vsm.vt.startHostCheckers(ctx, vsm.resourceOwnerRefs, s.WebServerInfo.publicAddr)
+	if err != nil {
+		err = fmt.Errorf("failed to start host checkers: %w", err)
+		vsm.Exit() // this is a whole validation test failure if we can't start host checkers
+		return []string{}, err
+	}
+
+	// we expect only one host checker pod per host, which is the same as the image pullers, so we
+	// can use that as our expectation
+	vsm.vt.Logger.Infof("verifying host checker pods begin 'Running': count per node type: %v", s.ImagePullPodsPerNodeType)
+	vsm.SetNextState(&verifyAllPodsRunningState{
+		AppType:                  hostCheckerDaemonsetAppType,
+		ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
+		ExpectedNumPods:          s.ImagePullPodsPerNodeType.Total(),
+		WebServerInfo:            &s.WebServerInfo,
+	})
+	return []string{}, nil
+}
+
+/*
+ *  > Verify all host checker pods are "Ready"
+ *      -- next state -->  Delete host checkers
+ */
+type verifyAllHostCheckersReadyState struct {
+	WebServerInfo            podNetworkInfo
+	ImagePullPodsPerNodeType perNodeTypeCount
+}
+
+func (s *verifyAllHostCheckersReadyState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	totalExpected := s.ImagePullPodsPerNodeType.Total()
+
+	numReady, err := vsm.vt.numPodsReadyWithLabel(ctx, hostCheckerAppLabel())
+	hostSuggestions := []string{
+		"the host may not have a route that directs traffic to the public network",
+		"the public Network Attachment Definition may not have a route that directs traffic to hosts",
+		"there may be a network firewall or security policy blocking inter-node traffic on multus networks",
+	}
+	if err != nil {
+		return hostSuggestions, err
+	}
+
+	if numReady != totalExpected {
+		return hostSuggestions, fmt.Errorf("number of 'Ready' host checkers [%d] is not the number expected [%d]", numReady, totalExpected)
+	}
+
+	vsm.vt.Logger.Infof("all %d host checkers are 'Ready'", totalExpected)
+	vsm.SetNextState(&deleteHostCheckersState{
+		WebServerInfo:            s.WebServerInfo,
+		ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
+	})
+	return []string{}, nil
+}
+
+/*
+ *  > Delete host checkers
+ *      < host check only == true >
+ *        -- next state --> Exit / Done
+ *      < host check only == false >
+ *        -- next state --> Start clients
+ */
+type deleteHostCheckersState struct {
+	WebServerInfo            podNetworkInfo
+	ImagePullPodsPerNodeType perNodeTypeCount
+}
+
+func (s *deleteHostCheckersState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	err = vsm.vt.deleteDaemonsetsWithLabel(ctx, hostCheckerAppLabel())
+	if err != nil {
+		// erroring here is not strictly necessary but does indicate a k8s issue that probably affects future test steps
+		return []string{"inability to delete resources is likely an issue with Kubernetes itself"}, err
+	}
+
+	if vsm.vt.HostCheckOnly {
+		vsm.vt.Logger.Infof("done checking hosts in hostCheckOnly mode; exiting")
+		vsm.Exit()
+		return []string{}, nil
+	}
+
+	vsm.SetNextState(&startClientsState{
+		WebServerInfo:            s.WebServerInfo,
+		ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
+	})
+	return []string{}, nil
+}
+
+/*
+ *  > Start clients
+ *      -- next state --> Verify all client pods are running
  */
 type startClientsState struct {
 	WebServerInfo            podNetworkInfo
@@ -258,6 +377,8 @@ type startClientsState struct {
 }
 
 func (s *startClientsState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
+	vsm.vt.Logger.Infof("starting clients on each node")
+
 	podsPerNodeType := perNodeTypeCount{}
 	for nodeType := range vsm.vt.NodeTypes {
 		numClientDaemonsetsStarted, err := vsm.vt.startClients(ctx, vsm.resourceOwnerRefs, s.WebServerInfo.publicAddr, s.WebServerInfo.clusterAddr, nodeType)
@@ -277,6 +398,7 @@ func (s *startClientsState) Run(ctx context.Context, vsm *validationStateMachine
 		AppType:                  clientDaemonSetAppType,
 		ImagePullPodsPerNodeType: s.ImagePullPodsPerNodeType,
 		ExpectedNumPods:          podsPerNodeType.Total(),
+		WebServerInfo:            &s.WebServerInfo,
 	})
 	return []string{}, nil
 }
@@ -295,7 +417,7 @@ type verifyAllClientsReadyState struct {
 }
 
 func (s *verifyAllClientsReadyState) Run(ctx context.Context, vsm *validationStateMachine) (suggestions []string, err error) {
-	numReady, err := vsm.vt.numClientsReady(ctx, s.ExpectedNumClients)
+	numReady, err := vsm.vt.numPodsReadyWithLabel(ctx, clientAppLabel())
 	collocationSuggestion := "if clients on the same node as the web server become ready but not others, " +
 		"there may be a network firewall or security policy blocking inter-node traffic on multus networks"
 	defaultSuggestions := append([]string{collocationSuggestion, flakyNetworkSuggestion}, unableToProvideAddressSuggestions...)
@@ -358,6 +480,11 @@ func (vt *ValidationTest) Run(ctx context.Context) (*ValidationTestResults, erro
 
 	testResults := &ValidationTestResults{
 		suggestedDebugging: []string{},
+	}
+
+	if vt.PublicNetwork == "" && vt.HostCheckOnly {
+		vt.Logger.Infof("hostCheckOnly is set, and there is no public network; no host prerequisites are needed, so host check is successful")
+		return testResults, nil
 	}
 
 	// configmap's purpose is to serve as the owner resource object for all other test resources.

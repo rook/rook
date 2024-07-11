@@ -207,26 +207,43 @@ ranges could be manually specified for the networks if needed.
 
 ### Validating Multus configuration
 
-We **highly** recommend validating your Multus configuration before you install Rook. A tool exists
-to facilitate validating the Multus configuration. After installing the Rook operator and before
-installing any Custom Resources, run the tool from the operator pod.
+We **highly** recommend validating your Multus configuration before you install a CephCluster.
+A tool exists to facilitate validating the Multus configuration. After installing the Rook operator
+and before installing any Custom Resources, run the tool from the operator pod.
 
 The tool's CLI is designed to be as helpful as possible. Get help text for the multus validation
 tool like so:
 
-```console
-kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- rook multus validation run --help
-```
+1. Exec into the Rook operator pod
 
-Then, update the args in the
-[multus-validation](https://github.com/rook/rook/blob/master/deploy/examples/multus-validation.yaml)
-job template. Minimally, add the NAD names(s) for public and/or cluster as needed and then,
-create the job to validate the Multus configuration.
+    ```console
+    kubectl --namespace rook-ceph exec -it deploy/rook-ceph-operator -- bash
+    ```
 
-If the tool fails, it will suggest what things may be preventing Multus networks from working
-properly, and it will request the logs and outputs that will help debug issues.
+2. Output and read the tool's help text
 
-Check the logs of the pod created by the job to know the status of the validation test.
+    ```console
+    rook multus validation run --help
+    ```
+
+3. Use the validation tool config file for advanced configuration.
+
+    ```console
+    rook multus validation config --help
+    ```
+
+    Generate a sample config, that includes commented help text, using one of the available templates.
+
+4. Run the tool after configuring. If the tool fails, it will suggest what things may be preventing
+    Multus networks from working properly, and it will request the logs and outputs that will help
+    debug issues.
+
+!!! note
+    The tool requires host network access. Many Kubernetes distros have security limitations. Use
+    the tool's `serviceAccountName` config option or `--service-account-name` CLI flag to instruct
+    the tool to run using a particular ServiceAccount in order to allow necessary permissions.
+    An example compatible with openshift is provided in the Rook repository at
+    [deploy/examples/multus-validation-test-openshift.yaml](https://github.com/rook/rook/blob/master/deploy/examples/multus-validation-test-openshift.yaml)
 
 ### Known limitations with Multus
 
@@ -444,6 +461,10 @@ Next, modify the host configurations in the host configuration system. The host 
 may be something like PXE, ignition config, cloud-init, Ansible, or any other such system. A node
 reboot is likely necessary to apply configuration updates, but wait until the next step to reboot
 nodes.
+
+If desired, check that the NetworkAttachmentDefinition modification and host configurations are
+compatible using the [Multus validation tool](#validating-multus-configuration). For the upgrade
+case, use the `hostCheckOnly: true` config option or `--host-check-only` CLI flag.
 
 **Step 4**
 

@@ -1,0 +1,68 @@
+####################################################################################################
+# this daemonset configures each minikube or KinD node to route to the multus public net
+# it is not suitable for production
+####################################################################################################
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: host-net-config
+  labels:
+    app: host-net-config
+spec:
+  selector:
+    matchLabels:
+      app: host-net-config
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 100 # allow updating all at once
+  template:
+    metadata:
+      labels:
+        app: host-net-config
+    spec:
+      hostNetwork: true
+      tolerations:
+        # also run on control plane nodes for KinD testing
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+      terminationGracePeriodSeconds: 0 # allow updating/deleting immediately
+      containers:
+        - name: test
+          image: quay.io/ceph/ceph:v18
+          env:
+            - name: IFACE_NAME
+              value: eth0 # IFACE_NAME
+          command:
+            - bash
+            - -x
+            - -c
+          args:
+            - |
+              IFACE='$(IFACE_NAME)'
+
+              NODE_PUBLIC_NET_IP_FIRST3='192.168.29'
+              NET_ATT_DEF_PUBLIC_NET_CIDR='192.168.20.0/24'
+
+              # get the last part of the interface's IP addr
+              ip -4 addr show $IFACE
+              ip_cidr="$(ip -4 addr show $IFACE | grep inet | awk '{print $2}')" # e.g., 192.168.100.3/24
+              ip="${ip_cidr%/*}" # e.g., 192.168.100.3
+              last="${ip##*.}" # e.g., 3
+
+              # add a shim to connect IFACE to the macvlan public network, with a static IP
+              # avoid IP conflicts by re-using the last part of the existing IFACE IP
+              ip link add public-shim link ${IFACE} type macvlan mode bridge
+              ip addr add ${NODE_PUBLIC_NET_IP_FIRST3}.${last}/24 dev public-shim
+              ip link set public-shim up
+              ip route add ${NET_ATT_DEF_PUBLIC_NET_CIDR} dev public-shim
+
+              ip addr show $IFACE
+              ip addr show public-shim
+              ip route show
+
+              sleep infinity
+          resources: {}
+          securityContext:
+            capabilities:
+              add: ["NET_ADMIN"]
