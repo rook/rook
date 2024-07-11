@@ -72,6 +72,11 @@ spec:
             - "--drivername={{ .DriverNamePrefix }}cephfs.csi.ceph.com"
             - "--pidlimit=-1"
             - "--forcecephkernelclient={{ .ForceCephFSKernelClient }}"
+            {{ if .CSILogRotation }}
+            - "--logtostderr=false"
+            - "--alsologtostderr=true"
+            - "--log_file={{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/csi-cephfsplugin.log"
+            {{ end }}
             {{ if .CephFSKernelMountOptions }}
             - "--kernelmountoptions={{ .CephFSKernelMountOptions }}"
             {{ end }}
@@ -115,6 +120,10 @@ spec:
               mountPath: /tmp/csi/keys
             - name: host-run-mount
               mountPath: /run/mount
+            {{ if .CSILogRotation }}
+            - mountPath: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
+              name: csi-log
+            {{ end }}
             {{ if .EnablePluginSelinuxHostMount }}
             -  name: etc-selinux
                mountPath: /etc/selinux
@@ -198,6 +207,15 @@ spec:
         - name: host-run-mount
           hostPath:
             path: /run/mount
+        {{ if .CSILogRotation }}
+        - name: csi-log
+          hostPath:
+            path: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
+            type: DirectoryOrCreate
+        - name: csi-logs-logrotate
+          emptyDir:
+            type: DirectoryOrCreate
+        {{ end }}
         {{ if .EnablePluginSelinuxHostMount }}
         - name: etc-selinux
           hostPath:

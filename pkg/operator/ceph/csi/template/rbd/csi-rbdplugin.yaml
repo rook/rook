@@ -76,7 +76,7 @@ spec:
             {{ if .CSILogRotation }}
             - "--logtostderr=false"
             - "--alsologtostderr=true"
-            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin/csi-rbdplugin.log"
+            - "--log_file={{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/csi-rbdplugin.log"
             {{ end }}
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
@@ -127,7 +127,7 @@ spec:
             - name: host-run-mount
               mountPath: /run/mount
             {{ if .CSILogRotation }}
-            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin
+            - mountPath: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
               name: csi-log
             {{ end }}
             {{ if .EnablePluginSelinuxHostMount }}
@@ -166,7 +166,7 @@ spec:
             {{ if .CSILogRotation }}
             - "--logtostderr=false"
             - "--alsologtostderr=true"
-            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin/csi-addons.log"
+            - "--log_file={{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/csi-addons.log"
             {{ end }}
           ports:
             - containerPort: {{ .CSIAddonsPort }}
@@ -194,7 +194,7 @@ spec:
             - name: plugin-dir
               mountPath: /csi
             {{ if .CSILogRotation }}
-            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin
+            - mountPath: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
               name: csi-log
             {{ end }}
         {{ end }}
@@ -229,13 +229,15 @@ spec:
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins/{{ .DriverNamePrefix }}rbd.csi.ceph.com"
             type: DirectoryOrCreate
+        {{ if .CSILogRotation }}
         - name: csi-log
           hostPath:
-            path: {{ .CsiLogDirPath }}/cephcsi/log/rbd-plugin
+            path: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
             type: DirectoryOrCreate
         - name: csi-logs-logrotate
           emptyDir:
             type: DirectoryOrCreate
+        {{ end }}
         - name: plugin-mount-dir
           hostPath:
             path: "{{ .KubeletDirPath }}/plugins"

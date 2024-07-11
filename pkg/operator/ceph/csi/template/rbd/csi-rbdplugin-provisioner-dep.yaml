@@ -158,7 +158,7 @@ spec:
             {{ if .CSILogRotation }}
             - "--logtostderr=false"
             - "--alsologtostderr=true"
-            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner/csi-addons.log"
+            - "--log_file={{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/csi-addons.log"
             {{ end }}
           ports:
             - containerPort: {{ .CSIAddonsPort }}
@@ -190,7 +190,7 @@ spec:
             - name: socket-dir
               mountPath: /csi
             {{ if .CSILogRotation }}
-            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            - mountPath: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
               name: csi-log
             {{ end }}
         {{ end }}
@@ -207,7 +207,7 @@ spec:
             {{ if .CSILogRotation }}
             - "--logtostderr=false"
             - "--alsologtostderr=true"
-            - "--log_file={{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner/csi-rbdplugin.log"
+            - "--log_file={{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/csi-rbdplugin.log"
             {{ end }}
             {{ if .EnableCSIAddonsSideCar }}
             - "--csi-addons-endpoint=$(CSIADDONS_ENDPOINT)"
@@ -248,7 +248,7 @@ spec:
             - mountPath: /dev
               name: host-dev
             {{ if .CSILogRotation }}
-            - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            - mountPath: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
               name: csi-log
             {{ end }}
             - mountPath: /sys
@@ -298,13 +298,15 @@ spec:
         - name: host-dev
           hostPath:
             path: /dev
+        {{ if .CSILogRotation }}
         - name: csi-log
           hostPath:
-            path: {{ .CsiLogDirPath }}/cephcsi/log/rbd-provisioner
+            path: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
             type: DirectoryOrCreate
         - name: csi-logs-logrotate
           emptyDir:
             type: DirectoryOrCreate
+        {{ end }}
         - name: host-sys
           hostPath:
             path: /sys

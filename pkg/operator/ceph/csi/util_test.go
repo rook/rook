@@ -120,13 +120,22 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 		Param:     CSIParam,
 		Namespace: "foo",
 	}
-	// rbdplugin has 13 volumes by default
-	defaultVolumes := 13
+	// rbdplugin has 11 volumes by default
+	defaultVolumes := 11
 	ds, err := templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
 	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
 
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes)
+
+	// enable csi logrotate, two more volume mounts get added
+	tp.CSILogRotation = true
+	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
+	assert.Nil(t, err)
+	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes+2)
+	tp.CSILogRotation = false
+
 	// add new volume
 	volumes := []corev1.Volume{
 		{
@@ -198,6 +207,15 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
 
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes)
+
+	// enable csi logrotate, one more volumes get added
+	tp.CSILogRotation = true
+	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
+	assert.Nil(t, err)
+	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+1)
+	tp.CSILogRotation = false
+
 	// add new volume mount
 	volumeMounts := []corev1.VolumeMount{
 		{
