@@ -51,6 +51,12 @@ import (
 const (
 	healthyCephStatus   = `{"fsid":"877a47e0-7f6c-435e-891a-76983ab8c509","health":{"checks":{},"status":"HEALTH_OK"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["a","b","c"],"monmap":{"epoch":3,"fsid":"877a47e0-7f6c-435e-891a-76983ab8c509","modified":"2020-11-02 09:58:23.015313","created":"2020-11-02 09:57:37.719235","min_mon_release":14,"min_mon_release_name":"nautilus","features":{"persistent":["kraken","luminous","mimic","osdmap-prune","nautilus"],"optional":[]},"mons":[{"rank":0,"name":"a","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.74.42:3300","nonce":0},{"type":"v1","addr":"172.30.74.42:6789","nonce":0}]},"addr":"172.30.74.42:6789/0","public_addr":"172.30.74.42:6789/0"},{"rank":1,"name":"b","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.101.61:3300","nonce":0},{"type":"v1","addr":"172.30.101.61:6789","nonce":0}]},"addr":"172.30.101.61:6789/0","public_addr":"172.30.101.61:6789/0"},{"rank":2,"name":"c","public_addrs":{"addrvec":[{"type":"v2","addr":"172.30.250.55:3300","nonce":0},{"type":"v1","addr":"172.30.250.55:6789","nonce":0}]},"addr":"172.30.250.55:6789/0","public_addr":"172.30.250.55:6789/0"}]},"osdmap":{"osdmap":{"epoch":19,"num_osds":3,"num_up_osds":3,"num_in_osds":3,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"active+clean","count":96}],"num_pgs":96,"num_pools":3,"num_objects":79,"data_bytes":81553681,"bytes_used":3255447552,"bytes_avail":1646011994112,"bytes_total":1649267441664,"read_bytes_sec":853,"write_bytes_sec":5118,"read_op_per_sec":1,"write_op_per_sec":0},"fsmap":{"epoch":9,"id":1,"up":1,"in":1,"max":1,"by_rank":[{"filesystem_id":1,"rank":0,"name":"ocs-storagecluster-cephfilesystem-b","status":"up:active","gid":14161},{"filesystem_id":1,"rank":0,"name":"ocs-storagecluster-cephfilesystem-a","status":"up:standby-replay","gid":24146}],"up:standby":0},"mgrmap":{"epoch":10,"active_gid":14122,"active_name":"a","active_addrs":{"addrvec":[{"type":"v2","addr":"10.131.0.28:6800","nonce":1},{"type":"v1","addr":"10.131.0.28:6801","nonce":1}]}}}`
 	unHealthyCephStatus = `{"fsid":"613975f3-3025-4802-9de1-a2280b950e75","health":{"checks":{"OSD_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 osds down"}},"OSD_HOST_DOWN":{"severity":"HEALTH_WARN","summary":{"message":"1 host (1 osds) down"}},"PG_AVAILABILITY":{"severity":"HEALTH_WARN","summary":{"message":"Reduced data availability: 101 pgs stale"}},"POOL_APP_NOT_ENABLED":{"severity":"HEALTH_WARN","summary":{"message":"application not enabled on 1 pool(s)"}}},"status":"HEALTH_WARN","overall_status":"HEALTH_WARN"},"election_epoch":12,"quorum":[0,1,2],"quorum_names":["rook-ceph-mon0","rook-ceph-mon2","rook-ceph-mon1"],"monmap":{"epoch":3,"fsid":"613975f3-3025-4802-9de1-a2280b950e75","modified":"2017-08-11 20:13:02.075679","created":"2017-08-11 20:12:35.314510","features":{"persistent":["kraken","luminous"],"optional":[]},"mons":[{"rank":0,"name":"rook-ceph-mon0","addr":"10.3.0.45:6789/0","public_addr":"10.3.0.45:6789/0"},{"rank":1,"name":"rook-ceph-mon2","addr":"10.3.0.249:6789/0","public_addr":"10.3.0.249:6789/0"},{"rank":2,"name":"rook-ceph-mon1","addr":"10.3.0.252:6789/0","public_addr":"10.3.0.252:6789/0"}]},"osdmap":{"osdmap":{"epoch":17,"num_osds":2,"num_up_osds":1,"num_in_osds":2,"full":false,"nearfull":true,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"stale+active+clean","count":101},{"state_name":"active+clean","count":99}],"num_pgs":200,"num_pools":2,"num_objects":243,"data_bytes":976793635,"bytes_used":13611479040,"bytes_avail":19825307648,"bytes_total":33436786688},"fsmap":{"epoch":1,"by_rank":[]},"mgrmap":{"epoch":3,"active_gid":14111,"active_name":"rook-ceph-mgr0","active_addr":"10.2.73.6:6800/9","available":true,"standbys":[],"modules":["restful","status"],"available_modules":["dashboard","prometheus","restful","status","zabbix"]},"servicemap":{"epoch":1,"modified":"0.000000","services":{}}}`
+	osdDFResults        = `
+	{"nodes":[
+	{"id":0,"device_class":"hdd","name":"osd.0","type":"osd","type_id":0,"crush_weight":0.039093017578125,"depth":2,"pool_weights":{},"reweight":1,"kb":41943040,"kb_used":27640,"kb_used_data":432,"kb_used_omap":1,"kb_used_meta":27198,"kb_avail":41915400,"utilization":0.065898895263671875,"var":0.99448308946989694,"pgs":9,"status":"up"},
+	{"id":1,"device_class":"hdd","name":"osd.1","type":"osd","type_id":0,"crush_weight":0.039093017578125,"depth":2,"pool_weights":{},"reweight":1,"kb":41943040,"kb_used":27960,"kb_used_data":752,"kb_used_omap":1,"kb_used_meta":27198,"kb_avail":41915080,"utilization":0.066661834716796875,"var":1.005996641880547,"pgs":15,"status":"up"},
+	{"id":2,"device_class":"hdd","name":"osd.2","type":"osd","type_id":0,"crush_weight":0.039093017578125,"depth":2,"pool_weights":{},"reweight":1,"kb":41943040,"kb_used":27780,"kb_used_data":564,"kb_used_omap":1,"kb_used_meta":27198,"kb_avail":41915260,"utilization":0.066232681274414062,"var":0.99952026864955634,"pgs":8,"status":"up"}],
+	"stray":[],"summary":{"total_kb":125829120,"total_kb_used":83380,"total_kb_used_data":1748,"total_kb_used_omap":3,"total_kb_used_meta":81596,"total_kb_avail":125745740,"average_utilization":0.066264470418294266,"min_var":0.99448308946989694,"max_var":1.005996641880547,"dev":0.00031227879054369131}}`
 )
 
 func TestOSDProperties(t *testing.T) {
@@ -79,6 +85,9 @@ func TestStart(t *testing.T) {
 			if args[1] == "crush" && args[2] == "class" && args[3] == "ls" {
 				// Mock executor for OSD crush class list command, returning ssd as available device class
 				return `["ssd"]`, nil
+			}
+			if args[0] == "osd" && args[1] == "df" {
+				return osdDFResults, nil
 			}
 			return "", nil
 		},
@@ -361,6 +370,68 @@ func TestAddRemoveNode(t *testing.T) {
 	assert.True(t, k8serrors.IsNotFound(err))
 }
 
+func TestUpdateDeviceClass(t *testing.T) {
+	namespace := "ns"
+	clientset := fake.NewSimpleClientset()
+	removedDeviceClassOSD := ""
+	setDeviceClassOSD := ""
+	setDeviceClass := ""
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("ExecuteCommandWithOutput: %s %v", command, args)
+			if args[0] == "osd" {
+				if args[1] == "df" {
+					return osdDFResults, nil
+				}
+				if args[1] == "crush" {
+					if args[2] == "rm-device-class" {
+						removedDeviceClassOSD = args[3]
+					} else if args[2] == "set-device-class" {
+						setDeviceClass = args[3]
+						setDeviceClassOSD = args[4]
+					}
+				}
+			}
+			return "", nil
+		},
+	}
+
+	cephCluster := &cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "testing",
+			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{AllowDeviceClassUpdate: true}},
+	}
+	// Objects to track in the fake client.
+	object := []runtime.Object{
+		cephCluster,
+	}
+	s := scheme.Scheme
+	// Create a fake client to mock API calls.
+	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace:   namespace,
+		CephVersion: cephver.Quincy,
+		Context:     context.TODO(),
+	}
+	clusterInfo.SetName("rook-ceph-test")
+	context := &clusterd.Context{Clientset: clientset, Client: client, ConfigDir: "/var/lib/rook", Executor: executor}
+	c := New(context, clusterInfo, cephCluster.Spec, "myversion")
+
+	// Start the first time
+	desiredOSDs := map[int]*OSDInfo{
+		0: {ID: 0, DeviceClass: "hdd"},
+		1: {ID: 1, DeviceClass: "hdd"},
+		2: {ID: 2, DeviceClass: "newclass"},
+	}
+	err := c.postReconcileUpdateOSDProperties(desiredOSDs)
+	assert.Nil(t, err)
+	assert.Equal(t, "newclass", setDeviceClass)
+	assert.Equal(t, "osd.2", setDeviceClassOSD)
+	assert.Equal(t, "osd.2", removedDeviceClassOSD)
+}
+
 func TestAddNodeFailure(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node1672"
@@ -481,9 +552,9 @@ func TestGetOSDInfo(t *testing.T) {
 
 	node := "n1"
 	location := "root=default host=myhost zone=myzone"
-	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}
-	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
-	osd3 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "raw"}
+	osd1 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location, TopologyAffinity: "topology.rook.io/rack=rack0"}
+	osd2 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true}
+	osd3 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "raw"}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},
@@ -533,8 +604,8 @@ func TestGetOSDInfo(t *testing.T) {
 
 	t.Run("get info from node-based OSDs", func(t *testing.T) {
 		useAllDevices := true
-		osd4 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
-		osd5 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm"}
+		osd4 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
+		osd5 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm"}
 		osdProp = osdProperties{
 			crushHostname: node,
 			devices:       []cephv1.Device{},
@@ -668,9 +739,9 @@ func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 
 	node := "n1"
 	location := "root=custom-root host=myhost zone=myzone"
-	osd1 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
-	osd2 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}
-	osd3 := OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
+	osd1 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "dev/logical-volume-path", CVMode: "raw", Location: location}
+	osd2 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "vg1/lv1", CVMode: "lvm", LVBackedPV: true, Location: location}
+	osd3 := &OSDInfo{ID: 3, UUID: "osd-uuid", BlockPath: "", CVMode: "lvm", Location: location}
 	osdProp := osdProperties{
 		crushHostname: node,
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "pvc"},

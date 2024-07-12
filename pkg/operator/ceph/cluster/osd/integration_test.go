@@ -585,6 +585,9 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 						return `["ssd"]`, nil
 					}
 				}
+				if args[1] == "df" {
+					return osdDFResults, nil
+				}
 			}
 			if args[0] == "versions" {
 				// the update deploy code only cares about the mons from the ceph version command results

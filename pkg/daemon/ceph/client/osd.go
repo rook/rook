@@ -38,6 +38,7 @@ type OSDUsage struct {
 type OSDNodeUsage struct {
 	ID          int         `json:"id"`
 	Name        string      `json:"name"`
+	DeviceClass string      `json:"device_class"`
 	CrushWeight json.Number `json:"crush_weight"`
 	Depth       json.Number `json:"depth"`
 	Reweight    json.Number `json:"reweight"`
@@ -217,6 +218,24 @@ func GetOSDUsage(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDUsage
 	}
 
 	return &osdUsage, nil
+}
+
+func SetDeviceClass(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int, deviceClass string) error {
+	// First remove the existing device class
+	args := []string{"osd", "crush", "rm-device-class", fmt.Sprintf("osd.%d", osdID)}
+	buf, err := NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to remove device class. "+string(buf))
+	}
+
+	// Second, apply the desired device class
+	args = []string{"osd", "crush", "set-device-class", deviceClass, fmt.Sprintf("osd.%d", osdID)}
+	buf, err = NewCephCommand(context, clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrap(err, "failed to set the device class. "+string(buf))
+	}
+
+	return nil
 }
 
 func GetOSDPerfStats(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDPerfStats, error) {

@@ -283,6 +283,11 @@ func (c *Cluster) Start() error {
 		return errors.Wrapf(err, "failed to reconcile key rotation cron jobs")
 	}
 
+	err = c.postReconcileUpdateOSDProperties(updateConfig.osdDesiredState)
+	if err != nil {
+		return errors.Wrap(err, "failed post reconcile of osd properties")
+	}
+
 	err = c.updateCephStorageStatus()
 	if err != nil {
 		return errors.Wrapf(err, "failed to update ceph storage status")
@@ -314,6 +319,40 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo) error {
+	osdUsage, err := cephclient.GetOSDUsage(c.context, c.clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to get osd usage")
+	}
+	logger.Debugf("post processing osd properties with %d actual osds from ceph osd df and %d existing osds found during reconcile", len(osdUsage.OSDNodes), len(desiredOSDs))
+	for _, actualOSD := range osdUsage.OSDNodes {
+		if desiredOSD, ok := desiredOSDs[actualOSD.ID]; ok {
+			if err := c.updateDeviceClassIfChanged(actualOSD.ID, desiredOSD.DeviceClass, actualOSD.DeviceClass); err != nil {
+				// Log the error and allow other updates to continue
+				logger.Error(err)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Cluster) updateDeviceClassIfChanged(osdID int, desiredDeviceClass, actualDeviceClass string) error {
+	if !c.spec.Storage.AllowDeviceClassUpdate {
+		// device class updates are not allowed by default
+		return nil
+	}
+	if desiredDeviceClass != "" && desiredDeviceClass != actualDeviceClass {
+		logger.Infof("updating osd.%d device class from %q to %q", osdID, actualDeviceClass, desiredDeviceClass)
+		err := cephclient.SetDeviceClass(c.context, c.clusterInfo, osdID, desiredDeviceClass)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set device class on osd %d", osdID)
+		}
+		return nil
+	}
+	logger.Debugf("no device class change needed for osd.%d. desired=%q, actual=%q", osdID, desiredDeviceClass, actualDeviceClass)
+	return nil
+}
+
 func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.Set[string], error) {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s,%s", k8sutil.AppAttr, AppName, OSDOverPVCLabelKey)}
 
@@ -332,7 +371,7 @@ func (c *Cluster) getExistingOSDDeploymentsOnPVCs() (sets.Set[string], error) {
 	return result, nil
 }
 
-func deploymentOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisionConfig) (*appsv1.Deployment, error) {
+func deploymentOnNode(c *Cluster, osd *OSDInfo, nodeName string, config *provisionConfig) (*appsv1.Deployment, error) {
 	osdLongName := fmt.Sprintf("OSD %d on node %q", osd.ID, nodeName)
 
 	osdProps, err := c.getOSDPropsForNode(nodeName, osd.DeviceClass)
@@ -353,7 +392,7 @@ func deploymentOnNode(c *Cluster, osd OSDInfo, nodeName string, config *provisio
 	return d, nil
 }
 
-func deploymentOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
+func deploymentOnPVC(c *Cluster, osd *OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
 	osdLongName := fmt.Sprintf("OSD %d on PVC %q", osd.ID, pvcName)
 
 	osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
@@ -376,7 +415,7 @@ func deploymentOnPVC(c *Cluster, osd OSDInfo, pvcName string, config *provisionC
 
 // setOSDProperties is used to configure an OSD with parameters which can not be set via explicit
 // command-line arguments.
-func setOSDProperties(c *Cluster, osdProps osdProperties, osd OSDInfo) error {
+func setOSDProperties(c *Cluster, osdProps osdProperties, osd *OSDInfo) error {
 	// OSD's 'primary-affinity' has to be configured via command which goes through mons
 	if osdProps.storeConfig.PrimaryAffinity != "" {
 		return cephclient.SetPrimaryAffinity(c.context, c.clusterInfo, osd.ID, osdProps.storeConfig.PrimaryAffinity)
@@ -460,6 +499,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName, osdDeviceClass string) (osdProperti
 			}
 			osdProps.storeConfig.InitialWeight = deviceSet.CrushInitialWeight
 			osdProps.storeConfig.PrimaryAffinity = deviceSet.CrushPrimaryAffinity
+			osdProps.storeConfig.DeviceClass = deviceSet.CrushDeviceClass
 
 			// If OSD isn't portable, we're getting the host name either from the osd deployment that was already initialized
 			// or from the osd prepare job from initial creation.

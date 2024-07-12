@@ -62,7 +62,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 	}()
 	createCallsOnNode := []int{}
 	induceFailureCreatingOSD := -1 // allow causing the create call to fail for a given OSD ID
-	createDaemonOnNodeFunc = func(c *Cluster, osd OSDInfo, nodeName string, config *provisionConfig) error {
+	createDaemonOnNodeFunc = func(c *Cluster, osd *OSDInfo, nodeName string, config *provisionConfig) error {
 		createCallsOnNode = append(createCallsOnNode, osd.ID)
 		if induceFailureCreatingOSD == osd.ID {
 			return errors.Errorf("createOSDDaemonOnNode: induced failure on OSD %d", osd.ID)
@@ -76,7 +76,7 @@ func Test_createNewOSDsFromStatus(t *testing.T) {
 	}()
 	createCallsOnPVC := []int{}
 	// reuse induceFailureCreatingOSD from above
-	createDaemonOnPVCFunc = func(c *Cluster, osd OSDInfo, pvcName string, config *provisionConfig) error {
+	createDaemonOnPVCFunc = func(c *Cluster, osd *OSDInfo, pvcName string, config *provisionConfig) error {
 		createCallsOnPVC = append(createCallsOnPVC, osd.ID)
 		if induceFailureCreatingOSD == osd.ID {
 			return errors.Errorf("createOSDDaemonOnNode: induced failure on OSD %d", osd.ID)

@@ -53,6 +53,7 @@ spec:
     periodicity: daily # one of: hourly, daily, weekly, monthly
     maxLogSize: 500M # SUFFIX may be 'M' or 'G'. Must be at least 1M.
   storage:
+    allowDeviceClassUpdate: false # whether to allow changing the device class of an OSD after it is created
     storageClassDeviceSets:
       - name: set1
         # The number of OSDs to create from this device set
@@ -123,7 +124,7 @@ spec:
         volumeClaimTemplates:
           - metadata:
               name: data
-              # if you are looking at giving your OSD a different CRUSH device class than the one detected by Ceph
+              # set a different CRUSH device class on the OSD than the one detected by Ceph
               # annotations:
               #   crushDeviceClass: hybrid
             spec:

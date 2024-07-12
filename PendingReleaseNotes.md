@@ -9,3 +9,4 @@ please update the `BucketClass` and `BucketAccessClass` for resolving refer [her
 ## Features
 
 - Added support for Ceph Squid (v19)
+- Allow updating the device class of OSDs, if `allowDeviceClassUpdate: true` is set

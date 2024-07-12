@@ -114,7 +114,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	if len(devices) == 0 && len(dataDir) == 0 {
 		return
 	}
-	osd := OSDInfo{
+	osd := &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -190,7 +190,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		pvc:           corev1.PersistentVolumeClaimVolumeSource{ClaimName: "mypvc"},
 	}
 	// Not needed when running on PVC
-	osd = OSDInfo{
+	osd = &OSDInfo{
 		ID:     0,
 		CVMode: "lvm",
 	}
@@ -212,7 +212,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 9, len(cont.VolumeMounts), cont.VolumeMounts)
 
 	// Test OSD on PVC with RAW
-	osd = OSDInfo{
+	osd = &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -251,7 +251,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test OSD on PVC with RAW and metadata device
-	osd = OSDInfo{
+	osd = &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -275,7 +275,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test encrypted OSD on PVC with RAW and metadata device
-	osd = OSDInfo{
+	osd = &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -307,7 +307,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 12, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test OSD on PVC with RAW / metadata and wal device
-	osd = OSDInfo{
+	osd = &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -333,7 +333,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, 12, len(deployment.Spec.Template.Spec.Volumes), deployment.Spec.Template.Spec.Volumes)
 
 	// // Test encrypted OSD on PVC with RAW / metadata and wal device
-	osd = OSDInfo{
+	osd = &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -608,7 +608,7 @@ func TestHostNetwork(t *testing.T) {
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")
 
 	n := c.spec.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	osd := OSDInfo{
+	osd := &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}
@@ -712,7 +712,7 @@ func TestClusterGetPVCEncryptionInitContainerActivate(t *testing.T) {
 
 // WARNING! modifies c.deviceSets
 func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName string, osdID int) *appsv1.Deployment {
-	osd := OSDInfo{
+	osd := &OSDInfo{
 		ID:        osdID,
 		UUID:      "some-uuid",
 		BlockPath: "/some/path",
@@ -736,7 +736,7 @@ func getDummyDeploymentOnPVC(clientset *fake.Clientset, c *Cluster, pvcName stri
 
 // WARNING! modifies c.ValidStorage
 func getDummyDeploymentOnNode(clientset *fake.Clientset, c *Cluster, nodeName string, osdID int) *appsv1.Deployment {
-	osd := OSDInfo{
+	osd := &OSDInfo{
 		ID:        osdID,
 		UUID:      "some-uuid",
 		BlockPath: "/dev/vda",
@@ -855,7 +855,7 @@ func TestOSDPlacement(t *testing.T) {
 	}
 
 	c := New(context, clusterInfo, spec, "rook/rook:myversion")
-	osd := OSDInfo{
+	osd := &OSDInfo{
 		ID:     0,
 		CVMode: "raw",
 	}

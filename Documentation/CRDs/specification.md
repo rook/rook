@@ -12218,6 +12218,18 @@ float64
 <p>BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>allowDeviceClassUpdate</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to allow updating the device class after the OSD is initially provisioned</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.StoreType">StoreType
