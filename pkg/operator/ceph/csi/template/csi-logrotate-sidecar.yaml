@@ -1,18 +1,18 @@
 args:
   - |
     echo "Starting the csi-logrotate-sidecar"
-    mkdir -p {{ .CsiLogDirPath }}/cephcsi/logrotate-config/{{ .CSILogFolder }};
-    echo '{{ .CsiLogDirPath }}cephcsi/log/{{ .CSILogFolder }}/*.log {
+    mkdir -p {{ .CsiLogRootPath }}/logrotate-config/{{ .CsiComponentName }}
+    echo '{{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/*.log {
         {{ .CSILogRotationPeriod }}
         missingok
         rotate 7
         compress
         copytruncate
         notifempty
-    }' >  {{ .CsiLogDirPath }}/cephcsi/logrotate-config/{{ .CSILogFolder }}/csi;
-    echo "File creation container completed";
+    }' >  {{ .CsiLogRootPath }}/logrotate-config/{{ .CsiComponentName }}/csi
+    echo "File creation container completed"
 
-    LOG_ROTATE_CEPH_CSI_FILE={{ .CsiLogDirPath }}/cephcsi/logrotate-config/{{ .CSILogFolder }}/csi
+    LOG_ROTATE_CEPH_CSI_FILE={{ .CsiLogRootPath }}/logrotate-config/{{ .CsiComponentName }}/csi
     LOG_MAX_SIZE={{ .CSILogRotationMaxSize }}
     if [ "$LOG_MAX_SIZE" != "0" ]; then
       sed --in-place "4i \ \ \ \ maxsize $LOG_MAX_SIZE" "$LOG_ROTATE_CEPH_CSI_FILE"
@@ -29,7 +29,7 @@ image: {{ .CSIPluginImage }}
 imagePullPolicy: IfNotPresent
 name: log-collector
 volumeMounts:
-  - mountPath: {{ .CsiLogDirPath }}/cephcsi/logrotate-config/{{ .CSILogFolder }}
+  - mountPath: {{ .CsiLogRootPath }}/logrotate-config/{{ .CsiComponentName }}
     name: csi-logs-logrotate
-  - mountPath: {{ .CsiLogDirPath }}/cephcsi/log/{{ .CSILogFolder }}
+  - mountPath: {{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}
     name: csi-log

@@ -224,7 +224,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 
 	// if at least one cephcluster is present update the csi lograte sidecar
 	// with the first listed ceph cluster specs with logrotate enabled
-	setCSILogrotateParams(cephClusters.Items)
+	r.setCSILogrotateParams(cephClusters.Items)
 
 	err = peermap.CreateOrUpdateConfig(r.opManagerContext, r.context, &peermap.PeerIDMappings{})
 	if err != nil {
@@ -309,7 +309,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	return reconcileResult, nil
 }
 
-func setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {
+func (r *ReconcileCSI) setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {
 	logger.Debug("set logrotate values in csi param")
 	spec := cephClustersItems[0].Spec
 	for _, cluster := range cephClustersItems {
@@ -318,9 +318,9 @@ func setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {
 			break
 		}
 	}
-	CSIParam.CsiLogDirPath = spec.DataDirHostPath
+	csiRootPath = spec.DataDirHostPath
 	if spec.DataDirHostPath == "" {
-		CSIParam.CsiLogDirPath = k8sutil.DataDir
+		csiRootPath = k8sutil.DataDir
 	}
 
 	CSIParam.CSILogRotation = spec.LogCollector.Enabled
