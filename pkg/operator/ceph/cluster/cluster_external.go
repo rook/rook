@@ -138,7 +138,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 	logger.Info("successfully updated csi config map")
 
-	c
+	// Create Crash Collector Secret
 	if !cluster.Spec.CrashCollector.Disable {
 		err = nodedaemon.CreateCrashCollectorSecret(c.context, cluster.ClusterInfo)
 		if err != nil {
