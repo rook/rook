@@ -138,7 +138,7 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 	}
 	logger.Info("successfully updated csi config map")
 
-	// Create Crash Collector Secret
+	c
 	if !cluster.Spec.CrashCollector.Disable {
 		err = nodedaemon.CreateCrashCollectorSecret(c.context, cluster.ClusterInfo)
 		if err != nil {
@@ -154,6 +154,12 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 		if err != nil {
 			return errors.Wrap(err, "failed to get external ceph mon version")
 		}
+                // Create exporter Secret
+		err = nodedaemon.CreateExporterSecret(c.context, cluster.ClusterInfo)
+		if err != nil {
+			return errors.Wrap(err, "failed to create exporter kubernetes secret")
+		}
+		
 		cluster.ClusterInfo.CephVersion = *externalVersion
 
 		// Populate ceph version
