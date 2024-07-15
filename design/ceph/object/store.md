@@ -323,31 +323,120 @@ spec:
     caBundleRef: #ldaps-cabundle
 ```
 
-### Virtual Host Style access for buckets
+### Virtual host-style access for buckets
 
-The Ceph Object Gateway supports accessing buckets using [virtual host style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html) which allows accessing buckets using the bucket name as a subdomain in the endpoint. The user can configure this option manually like below:
+The Ceph Object Gateway supports accessing buckets using
+[virtual host-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+addressing, which allows accessing buckets using the bucket name as a subdomain in the endpoint.
+This is important because AWS (the primary definer of the S3 interface) has deprecated the
+alternative, path-style access which is Ceph (and Rook's) default deployment. AWS has extended
+support for path-style access, but Rook/OBC/COSI users have begun to identify applications which do
+not support the long-deprecated path-style access.
+
+Virtual host-style (vhost-style) addressing requires 2 things:
+1. An endpoint that supports [wildcard addressing](https://en.wikipedia.org/wiki/Wildcard_DNS_record)
+2. The above DNS endpoint must be added to RGW's `rgw_dns_names` list
+
+The user can configure this option manually in Rook like below for a wildcard-enabled endpoint:
 
 ```sh
 # ceph config set client.rgw.mystore.a rgw_dns_name my-ingress.mydomain.com,rook-ceph-rgw-my-store.rook-ceph.svc
 ```
 
-Multiple hostnames can be added to the list separated by comma. Each entry must be a valid RFC-1123 hostname, and Rook Operator will perform input validation using k8s apimachinery `IsDNS1123Subdomain()`.
+In this example, if the object store contains a bucket named `sample`, then the S3 vhost-style
+access URL would be `sample.my-ingress.mydomain.com`. More details about the feature can be
+found in [Ceph Documentation](https://docs.ceph.com/en/latest/radosgw/s3/commons/#bucket-and-host-name).
+This is supported from Ceph Reef release(v18.0) onwards.
 
-When `rgw_dns_name` is changed for an RGW cluster, all RGWs need to be restarted. To enforce this in Rook, we can apply the `--rgw-dns-name` flag, which will restart RGWs with no user action needed. This is supported from Ceph Reef release(v18.0) onwards.
+Wildcard DNS addressing can be configured in myriad ways. Some options:
+- Kubernetes [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards)
+- Openshift [DNS operator](https://docs.openshift.com/container-platform/latest/networking/dns-operator.html)
 
-This is different from `customEndpoints` which is used for configuring the object store to replicate and sync data amongst Multisite.
+Rook will implement the following API to allow for user configuration, with detailed design notes to follow.
 
-The default service endpoint for the object store `rook-ceph-rgw-my-store.rook-ceph.svc` and `customEndpoints` in `CephObjectZone` need to be added automatically by the Rook operator otherwise existing object store may impacted. Also check for deduplication in the `rgw_dns_name` list if user manually add the default service endpoint.
+- `hosting` (optional) - configures hosting settings for the CephObjectStore
+    - `advertiseEndpoint` (optional) - allow users to definitively specify which endpoint the user
+      wants applications to use by default for internal S3 connections.
+    - `dnsNames` (optional) - RGW will reject any S3 connections to unknown endpoints. Users should
+      add any additional endpoints RGW should accept here.
 
-For accessing the bucket point user need to configure wildcard dns in the cluster using [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards) or in openshift cluster use [dns operator](https://docs.openshift.com/container-platform/latest/networking/dns-operator.html). Same for TLS certificate, user need to configure the TLS certificate for the wildcard dns for the RGW endpoint. This option won't be enabled by default, user need to enable it by adding the `hosting` section in the `Gateway` settings:
+The below example illustrates a commonly-anticipated configuration, and one that Rook can recommend
+to users. The user is using an internal, wildcard-enabled K8s service as the advertised endpoint for
+OBCs. The user also has externally-available ingress that the RGW needs to accept connections from,
+which serves S3 applications outside the Kubernetes cluster. Both endpoints are wildcard-enabled,
+but the internal service is preferable to the external ingress to prevent the ingress router from
+being a cluster-wide S3 bottleneck for Kubernetes applications.
 
 ```yaml
 spec:
   hosting:
+    advertiseEndpoint:
+      dnsName: my-internal-wildcard-service.mydomain.com
+      port: 8443
+      useTLS: true
     dnsNames:
-    - "my-ingress.mydomain.com"
+      - my-external-ingress.mydomain.com
 ```
 
-A list of hostnames to use for accessing the bucket directly like a subdomain in the endpoint. For example if the ingress service endpoint `my-ingress.mydomain.com` added and the object store contains a bucket named `sample`, then the s3 [virtual host style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html) would be `http://sample.my-ingress.mydomain.com`. More details about the feature can be found in [Ceph Documentation](https://docs.ceph.com/en/latest/radosgw/s3/commons/#bucket-and-host-name).
+These proposed configurations are necessary for users to enable vhost-style addressing, but they are
+not **only** useful when DNS wildcarding is enabled. These configurations are independent and may
+provide some value to other user scenarios. Be clear in documentation that wildcarding is enabled by
+these features but not required.
 
-When this feature is enabled the endpoint in OBCs and COSI Bucket Access can be clubbed with bucket name and host name. For OBC  the `BUCKET_NAME` and the `BUCKET_HOST` from the config map combine to `http://$BUCKETNAME.$BUCKETHOST`. For COSI Bucket Access the `bucketName` and the `endpoint` in the `BucketInfo` to `http://bucketName.endpoint`.
+When the user configures DNS wildcarding on an endpoint other than the CephObjectStore service
+endpoint, Rook should advertise that endpoint to CephObjectStores, OBCs, and COSI Buckets/Accesses
+as a priority. However, Rook cannot know which endpoints support wildcarding in order to prioritize
+advertising them. Therefore, allow users to disambiguate for Rook which endpoint should be
+advertised via `advertiseEndpoint`.
+
+S3 clients (and therefore OBCs and COSI) generally assume a single endpoint for an object store.
+Multiple advertised endpoints will not be supported to avoid user and internal/developer confusion.
+
+By default, Rook will advertise the CephObjectStore service endpoint with a priority on advertising
+the HTTPS (`securePort`) endpoint. Because the advertised endpoint is primarily relevant for
+resources internal to the Kubernetes cluster, this default should be sufficient for most users, and
+this is the behavior expected by users when `dnsNames` is not configured, so it should be familiar.
+
+When this feature is enabled, there is also ambiguity about which endpoint Rook should use for Admin
+Ops API communication. Some users have reported issues with Rook using a `dnsNames` endpoint
+(or `advertiseEndpoint`) when they wish to set up ingress certificates after Rook deployment. The
+obvious alternative is to have Rook always use the CephObjectStore service, but other users have
+expressed troubles creating certificates or CAs that allow the service endpoint in the past.
+
+Each `rgw_dns_name` entry must be a valid RFC-1123 hostname, and Rook Operator will perform input validation using k8s apimachinery `IsDNS1123Subdomain()`.
+
+When `rgw_dns_name` is changed for an RGW cluster, all RGWs need to be restarted. To enforce this in Rook, we can apply the `--rgw-dns-name` flag, which will restart RGWs with no user action needed.
+
+This is different from CephObjectZone `customEndpoints` which is used for configuring the object store to replicate and sync data amongst Multisite.
+
+When endpoints are configured in `rgw_dns_names`, the RGW will reject any incoming connections
+intended for endpoints not in the list. Therefore, all endpoints that might be used must be added.
+
+For convenience, and to ensure other CephObjectStore configurations are not rendered unusable when
+users add additional endpoints to `dnsNames`, the following should be added to the `rgw_dns_names`
+list automatically by Rook:
+- the `advertiseEndpoint.dnsName`
+- the default service endpoint for the object store (e.g., `rook-ceph-rgw-my-store.rook-ceph.svc`)
+- CephObjectZone `customEndpoints`
+
+When Rook builds the `rgw_dns_names` list internally, Rook should remove any duplicate entries.
+While Rook add endpoints to the list for safety and convenience, users might add the same endpoints,
+which Rook should not treat as a configuration bug. Rook should also ensure the list ordering is
+consistent between reconciles.
+
+In order to attempt to strike the best balance for everyone, and to provide the best clarity for
+users and Rook internally, Rook will always use the service endpoint for admin ops. Rook
+documentation must inform users that if TLS is enabled, they must give Rook a certificate that
+accepts the service endpoint. Alternately, if that is not possible, Rook will add an
+`insecureSkipTlsVerification` option to the CephObjectStore to allow users to provision a healthy
+CephObjectStore. This opens users up to machine-in-the-middle attacks, so users should be advised to
+only use it for test/proof-of-concept clusters, or to work around bugs temporarily.
+
+Rook can refer users to this Kubernetes doc for a suggested way that they can manage certificates
+in a Kubernetes cluster that work with Kubernetes services like the CephObjectStore service:
+https://kubernetes.io/docs/tasks/tls/managing-tls-in-a-cluster/
+
+For external CephCephObjectStores (i.e., when `spec.gateway.externalRgwEndpoints` are set),
+vhost-style addressing should be configured on the host cluster, and `hosting.dnsNames` is
+irrelevant. The default `advertiseEndpoint` for external CephObjectStores is the first entry in the
+`spec.gateway.externalRgwEndpoints` list, which users should be able to override if desired.
