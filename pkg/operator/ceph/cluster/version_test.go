@@ -165,6 +165,8 @@ func TestMinVersion(t *testing.T) {
 	assert.NoError(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 18}
 	assert.NoError(t, c.validateCephVersion(v))
+	v = &cephver.CephVersion{Major: 19}
+	assert.NoError(t, c.validateCephVersion(v))
 }
 
 func TestSupportedVersion(t *testing.T) {
@@ -183,8 +185,12 @@ func TestSupportedVersion(t *testing.T) {
 	v = &cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
 
-	// Squid is not supported
-	v = &cephver.CephVersion{Major: 19, Minor: 1, Extra: 0}
+	// Squid is supported
+	v = &cephver.CephVersion{Major: 19, Minor: 2, Extra: 0}
+	assert.NoError(t, c.validateCephVersion(v))
+
+	// Tentacle release is not supported
+	v = &cephver.CephVersion{Major: 20, Minor: 1, Extra: 0}
 	assert.Error(t, c.validateCephVersion(v))
 
 	// Unsupported versions are now valid
