@@ -34,6 +34,12 @@ spec:
             - "--leader-election-lease-duration={{ .LeaderElectionLeaseDuration }}"
             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
+            {{ end }}
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
@@ -58,6 +64,12 @@ spec:
           {{ if .VolumeGroupSnapshotSupported }}
             - "--enable-volume-group-snapshots={{ .EnableVolumeGroupSnapshot }}"
           {{ end }}
+          {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+          {{ end }}
+          {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
+          {{ end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -79,6 +91,12 @@ spec:
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--handle-volume-inuse-error=false"
             - "--feature-gates=RecoverVolumeExpansionFailure=true"
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
+            {{ end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -101,6 +119,12 @@ spec:
             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
+            {{ end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock

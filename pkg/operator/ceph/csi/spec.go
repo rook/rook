@@ -92,6 +92,8 @@ type Param struct {
 	CephFSLivenessMetricsPort                uint16
 	CSIAddonsPort                            uint16
 	RBDLivenessMetricsPort                   uint16
+	KubeApiBurst                             uint16
+	KubeApiQPS                               float32
 	LeaderElectionLeaseDuration              time.Duration
 	LeaderElectionRenewDeadline              time.Duration
 	LeaderElectionRetryPeriod                time.Duration
