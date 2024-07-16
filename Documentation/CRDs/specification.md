@@ -1915,7 +1915,9 @@ ObjectStoreHostingSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Hosting settings for the object store</p>
+<p>Hosting settings for the object store.
+A common use case for hosting configuration is to inform Rook of endpoints that support DNS
+wildcards, which in turn allows virtual host-style bucket addressing.</p>
 </td>
 </tr>
 </table>
@@ -8977,6 +8979,60 @@ and prepares same OSD on that disk</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectEndpointSpec">ObjectEndpointSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreHostingSpec">ObjectStoreHostingSpec</a>)
+</p>
+<div>
+<p>ObjectEndpointSpec represents an object store endpoint</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>dnsName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>DnsName is the DNS name (in RFC-1123 format) of the endpoint.
+If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
+wildcard itself in the list of hostnames.
+E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>port</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>Port is the port on which S3 connections can be made for this endpoint.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>useTls</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>UseTls defines whether the endpoint uses TLS (HTTPS) or not (HTTP).</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectEndpoints">ObjectEndpoints
 </h3>
 <p>
@@ -9160,6 +9216,24 @@ bool
 <tbody>
 <tr>
 <td>
+<code>advertiseEndpoint</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectEndpointSpec">
+ObjectEndpointSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AdvertiseEndpoint is the default endpoint Rook will return for resources dependent on this
+object store. This endpoint will be returned to CephObjectStoreUsers, Object Bucket Claims,
+and COSI Buckets/Accesses.
+By default, Rook returns the endpoint for the object store&rsquo;s Kubernetes service using HTTPS
+with <code>gateway.securePort</code> if it is defined (otherwise, HTTP with <code>gateway.port</code>).</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>dnsNames</code><br/>
 <em>
 []string
@@ -9167,11 +9241,15 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
-Each domain requires wildcard support like ingress loadbalancer.
-Do not include the wildcard itself in the list of hostnames (e.g. use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;).
-Add all hostnames including user-created Kubernetes Service endpoints to the list.
-CephObjectStore Service Endpoints and CephObjectZone customEndpoints are automatically added to the list.
+<p>A list of DNS host names on which object store gateways will accept client S3 connections.
+When specified, object store gateways will reject client S3 connections to hostnames that are
+not present in this list, so include all endpoints.
+The object store&rsquo;s advertiseEndpoint and Kubernetes service endpoint, plus CephObjectZone
+<code>customEndpoints</code> are automatically added to the list but may be set here again if desired.
+Each DNS name must be valid according RFC-1123.
+If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
+wildcard itself in the list of hostnames.
+E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.
 The feature is supported only for Ceph v18 and later versions.</p>
 </td>
 </tr>
@@ -9376,7 +9454,9 @@ ObjectStoreHostingSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Hosting settings for the object store</p>
+<p>Hosting settings for the object store.
+A common use case for hosting configuration is to inform Rook of endpoints that support DNS
+wildcards, which in turn allows virtual host-style bucket addressing.</p>
 </td>
 </tr>
 </tbody>

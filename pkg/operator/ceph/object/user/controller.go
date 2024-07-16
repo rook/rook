@@ -67,15 +67,16 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileObjectStoreUser reconciles a ObjectStoreUser object
 type ReconcileObjectStoreUser struct {
-	client           client.Client
-	scheme           *runtime.Scheme
-	context          *clusterd.Context
-	objContext       *object.AdminOpsContext
-	userConfig       *admin.User
-	cephClusterSpec  *cephv1.ClusterSpec
-	clusterInfo      *cephclient.ClusterInfo
-	opManagerContext context.Context
-	recorder         record.EventRecorder
+	client            client.Client
+	scheme            *runtime.Scheme
+	context           *clusterd.Context
+	objContext        *object.AdminOpsContext
+	advertiseEndpoint string
+	userConfig        *admin.User
+	cephClusterSpec   *cephv1.ClusterSpec
+	clusterInfo       *cephclient.ClusterInfo
+	opManagerContext  context.Context
+	recorder          record.EventRecorder
 }
 
 // Add creates a new CephObjectStoreUser Controller and adds it to the Manager. The Manager will set fields on the Controller
@@ -264,7 +265,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
-	reconcileResponse, err = object.ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.objContext.Endpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
+	reconcileResponse, err = object.ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.advertiseEndpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -394,6 +395,12 @@ func (r *ReconcileObjectStoreUser) initializeObjectStoreContext(u *cephv1.CephOb
 				u.Namespace)
 		}
 	}
+
+	advertiseEndpoint, err := store.GetAdvertiseEndpointUrl()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get CephObjectStore %q advertise endpoint for object store user", u.Spec.Store)
+	}
+	r.advertiseEndpoint = advertiseEndpoint
 
 	objContext, err := object.NewMultisiteContext(r.context, r.clusterInfo, store)
 	if err != nil {

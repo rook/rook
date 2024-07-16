@@ -65,8 +65,11 @@ spec:
   #zone:
     #name: zone-a
   #hosting:
+  #  advertiseEndpoint:
+  #    dnsName: "mystore.example.com"
+  #    port: 80
+  #    useTls: false
   #  dnsNames:
-  #    - "mystore.example.com"
   #    - "mystore.example.org"
 ```
 
@@ -101,8 +104,7 @@ The gateway settings correspond to the RGW daemon settings.
 * `sslCertificateRef`: If specified, this is the name of the Kubernetes secret(`opaque` or `tls`
     type) that contains the TLS certificate to be used for secure connections to the object store.
     If it is an opaque Kubernetes Secret, Rook will look in the secret provided at the `cert` key name. The value of the `cert` key must be
-    in the format expected by the [RGW
-    service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb):
+    in the format expected by the [RGW service](https://docs.ceph.com/docs/master/install/ceph-deploy/install-ceph-gateway/#using-ssl-with-civetweb):
     "The server key, server certificate, and any other CA or intermediate certificates be supplied in
     one file. Each of these items must be in PEM form." They are scenarios where the certificate DNS is set for a particular domain
     that does not include the local Kubernetes DNS, namely the object store DNS service endpoint. If
@@ -115,7 +117,10 @@ The gateway settings correspond to the RGW daemon settings.
     cluster. Rook will look in the secret provided at the `cabundle` key name.
 * `hostNetwork`: Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
 * `port`: The port on which the Object service will be reachable. If host networking is enabled, the RGW daemons will also listen on that port. If running on SDN, the RGW daemon listening port will be 8080 internally.
-* `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be specified either via `sslCerticateRef` or `service.annotations`
+* `securePort`: The secure port on which RGW pods will be listening. A TLS certificate must be
+    specified either via `sslCerticateRef` or `service.annotations`. Refer to
+    [enabling TLS](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#enabling-tls)
+    documentation for more details.
 * `instances`: The number of pods that will be started to load balance this object store.
 * `externalRgwEndpoints`: A list of IP addresses to connect to external existing Rados Gateways
     (works with external mode). This setting will be ignored if the `CephCluster` does not have
@@ -155,9 +160,30 @@ The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.
 
 ## Hosting Settings
 
-The hosting settings allow you to host buckets in the object store on a custom DNS name, enabling virtual-hosted-style access to buckets similar to AWS S3 (https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html).
+`hosting` settings allow specifying object store endpoint configurations. These settings are only
+supported for Ceph v18 and higher.
 
-* `dnsNames`: a list of DNS names to host buckets on. These names need to valid according RFC-1123. Otherwise it will fail. Each endpoint requires wildcard support like [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards). Do not include the wildcard itself in the list of hostnames (e.g., use "mystore.example.com" instead of "*.mystore.example.com"). Add all the hostnames like openshift routes otherwise access will be denied, but if the hostname does not support wild card then virtual host style won't work those hostname. By default cephobjectstore service endpoint and custom endpoints from cephobjectzone is included. The feature is supported only for Ceph v18 and later versions.
+A common use case that requires configuring hosting is allowing
+[virtual host-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+bucket access. This use case is discussed in more detail in
+[Rook object storage docs](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#virtual-host-style-bucket-access).
+
+* `advertiseEndpoint`: By default, Rook advertises the most direct connection to RGWs to dependent
+    resources like CephObjectStoreUsers and ObjectBucketClaims. To advertise a different address
+    (e.g., a wildcard-enabled ingress), define the preferred endpoint here. Default behavior is
+    documented in more detail [here](../../Storage-Configuration/Object-Storage-RGW/object-storage.md#object-store-endpoint)
+    * `dnsName`: The valid RFC-1123 (sub)domain name of the endpoint.
+    * `port`: The nonzero port of the endpoint.
+    * `useTls`: Set to true if the endpoint is HTTPS. False if HTTP.
+* `dnsNames`: When this or `advertiseEndpoint` is set, Ceph RGW will reject S3 client connections
+    who attempt to reach the object store via any unspecified DNS name. Add all DNS names that the
+    object store should accept here. These must be valid RFC-1123 (sub)domain names.
+    Rook automatically adds the known CephObjectStore service DNS name to this list, as well as
+    corresponding CephObjectZone `customEndpoints` (if applicable).
+
+!!! Note
+    For DNS names that support wildcards, do not include wildcards.
+    E.g., use `mystore.example.com` instead of `*.mystore.example.com`.
 
 ## Runtime settings
 

@@ -19,6 +19,7 @@ package object
 import (
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httputil"
 	"regexp"
@@ -62,6 +63,9 @@ type debugHTTPClient struct {
 	client admin.HTTPClient
 	logger *capnslog.PackageLogger
 }
+
+// global rand source that can be overridden for unit tests
+var randSrc = rand.New(rand.NewSource(rand.Int63())) //nolint:gosec // G404: cryptographically weak RNG is fine here
 
 // NewDebugHTTPClient helps us mutating the HTTP client to debug the request/response
 func NewDebugHTTPClient(client admin.HTTPClient, logger *capnslog.PackageLogger) *debugHTTPClient {
@@ -116,7 +120,7 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 	objContext := NewContext(context, clusterInfo, store.Name)
 	objContext.UID = string(store.UID)
 
-	if err := UpdateEndpoint(objContext, store); err != nil {
+	if err := UpdateEndpointForAdminOps(objContext, store); err != nil {
 		return nil, err
 	}
 
@@ -131,16 +135,39 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 	return objContext, nil
 }
 
-// UpdateEndpoint updates an object.Context using the latest info from the CephObjectStore spec
-func UpdateEndpoint(objContext *Context, store *cephv1.CephObjectStore) error {
-	nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+// GetAdminOpsEndpoint returns an endpoint that can be used to perform RGW admin ops
+// It returns an HTTPS endpoint if available. It prefers direct routes to the RGW(s).
+func GetAdminOpsEndpoint(s *cephv1.CephObjectStore) (string, error) {
+	nsName := fmt.Sprintf("%s/%s", s.Namespace, s.Name)
 
-	port, err := store.Spec.GetPort()
+	port, err := s.Spec.GetPort()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get port for object store %q", nsName)
+		return "", errors.Wrapf(err, "failed to get port for object store %q", nsName)
 	}
-	objContext.Endpoint = BuildDNSEndpoint(GetDomainName(store), port, store.Spec.IsTLSEnabled())
 
+	domain := s.GetServiceDomainName()
+	if s.Spec.IsExternal() {
+		// if the store is external, pick a random external endpoint to use. if the endpoint is down, this
+		// reconcile may fail, but a future reconcile will eventually pick a different endpoint to try
+		endpoints := []string{}
+		for _, e := range s.Spec.Gateway.ExternalRgwEndpoints {
+			endpoints = append(endpoints, e.String())
+		}
+		idx := randSrc.Intn(len(endpoints))
+		domain = endpoints[idx]
+	}
+
+	return BuildDNSEndpoint(domain, port, s.Spec.IsTLSEnabled()), nil
+}
+
+// UpdateEndpointForAdminOps updates the object.Context endpoint with the latest admin ops endpoint
+// for the CephObjectStore.
+func UpdateEndpointForAdminOps(objContext *Context, store *cephv1.CephObjectStore) error {
+	endpoint, err := GetAdminOpsEndpoint(store)
+	if err != nil {
+		return err
+	}
+	objContext.Endpoint = endpoint
 	return nil
 }
 
