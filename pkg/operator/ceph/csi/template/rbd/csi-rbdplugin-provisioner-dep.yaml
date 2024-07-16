@@ -18,6 +18,7 @@ spec:
         {{ end }}
     spec:
       serviceAccountName: rook-csi-rbd-provisioner-sa
+      hostNetwork: {{ .EnableCSIHostNetwork }}
       {{ if .ProvisionerPriorityClassName }}
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}

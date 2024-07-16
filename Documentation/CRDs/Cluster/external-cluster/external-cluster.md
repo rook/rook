@@ -304,4 +304,4 @@ you can export the settings from this cluster with the following steps.
 2. Exec to the toolbox pod and execute create-external-cluster-resources.py with needed options to create required [users and keys](#1-create-all-users-and-keys).
 
 !!! important
-    For other clusters to connect to storage in this cluster, Rook must be configured with a networking configuration that is accessible from other clusters. Most commonly this is done by enabling host networking in the CephCluster CR so the Ceph daemons will be addressable by their host IPs.
+    For other clusters to connect to storage in this cluster, Rook must be configured with a networking configuration that is accessible from other clusters. Most commonly this is done by enabling host networking in the CephCluster CR so the Ceph daemons will be addressable by their host IPs and also enabling CSI_ENABLE_HOST_NETWORK on operator.yaml for csi pods.

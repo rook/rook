@@ -17,6 +17,7 @@ spec:
         {{ end }}
     spec:
       serviceAccountName: rook-csi-nfs-provisioner-sa
+      hostNetwork: {{ .EnableCSIHostNetwork }}
       {{ if .ProvisionerPriorityClassName }}
       priorityClassName: {{ .ProvisionerPriorityClassName }}
       {{ end }}
