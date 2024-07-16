@@ -100,6 +100,8 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.forceCephFSKernelClient` | Enable Ceph Kernel clients on kernel < 4.17. If your kernel does not support quotas for CephFS you may want to disable this setting. However, this will cause an issue during upgrades with the FUSE client. See the [upgrade guide](https://rook.io/docs/rook/v1.2/ceph-upgrade.html) | `true` |
 | `csi.grpcTimeoutInSeconds` | Set GRPC timeout for csi containers (in seconds). It should be >= 120. If this value is not set or is invalid, it defaults to 150 | `150` |
 | `csi.imagePullPolicy` | Image pull policy | `"IfNotPresent"` |
+| `csi.kubeApiBurst` | Burst to use while communicating with the kubernetes apiserver. | `nil` |
+| `csi.kubeApiQPS` | QPS to use while communicating with the kubernetes apiserver. | `nil` |
 | `csi.kubeletDirPath` | Kubelet root directory path (if the Kubelet uses a different path for the `--root-dir` flag) | `/var/lib/kubelet` |
 | `csi.logLevel` | Set logging level for cephCSI containers maintained by the cephCSI. Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity. | `0` |
 | `csi.nfs.enabled` | Enable the nfs csi driver | `false` |
