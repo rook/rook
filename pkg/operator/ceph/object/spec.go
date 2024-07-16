@@ -922,16 +922,26 @@ func renderProbe(cfg rgwProbeConfig) (string, error) {
 }
 
 func (c *clusterConfig) addDNSNamesToRGWServer() (string, error) {
-	if (c.store.Spec.Hosting == nil) || len(c.store.Spec.Hosting.DNSNames) <= 0 {
+	if c.store.Spec.Hosting == nil {
+		return "", nil
+	}
+	if !c.store.AdvertiseEndpointIsSet() && len(c.store.Spec.Hosting.DNSNames) == 0 {
 		return "", nil
 	}
 	if !c.clusterInfo.CephVersion.IsAtLeastReef() {
 		return "", errors.New("rgw dns names are supported from ceph v18 onwards")
 	}
 
-	// add default RGW service name to dns names
-	dnsNames := c.store.Spec.Hosting.DNSNames
-	dnsNames = append(dnsNames, domainNameOfService(c.store))
+	dnsNames := []string{}
+
+	if c.store.AdvertiseEndpointIsSet() {
+		dnsNames = append(dnsNames, c.store.Spec.Hosting.AdvertiseEndpoint.DnsName)
+	}
+
+	dnsNames = append(dnsNames, c.store.Spec.Hosting.DNSNames...)
+
+	// add default RGW service domain name to ensure RGW doesn't reject it
+	dnsNames = append(dnsNames, c.store.GetServiceDomainName())
 
 	// add custom endpoints from zone spec if exists
 	if c.store.Spec.Zone.Name != "" {
