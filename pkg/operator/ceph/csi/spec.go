@@ -361,23 +361,22 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	tp.Param.MountCustomCephConf = CustomCSICephConfigExists
 
 	if EnableRBD {
+		tp.CsiComponentName = nodePlugin
+		tp.CsiLogRootPath = path.Join(csiRootPath, RBDDriverName)
 		rbdPlugin, err = templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
 		if tp.CSILogRotation {
-			tp.CsiComponentName = nodePlugin
-			tp.CsiLogRootPath = path.Join(csiRootPath, RBDDriverName)
 			applyLogrotateSidecar(&rbdPlugin.Spec.Template, "csi-rbd-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
 
+		tp.CsiComponentName = controllerPlugin
 		rbdProvisionerDeployment, err = templateToDeployment("rbd-provisioner", RBDProvisionerDepTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
 		if tp.CSILogRotation {
-			tp.CsiComponentName = controllerPlugin
-			tp.CsiLogRootPath = path.Join(csiRootPath, RBDDriverName)
 			applyLogrotateSidecar(&rbdProvisionerDeployment.Spec.Template, "csi-rbd-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 
@@ -399,23 +398,22 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 		})
 	}
 	if EnableCephFS {
+		tp.CsiComponentName = nodePlugin
+		tp.CsiLogRootPath = path.Join(csiRootPath, CephFSDriverName)
 		cephfsPlugin, err = templateToDaemonSet("cephfsplugin", CephFSPluginTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
 		if tp.CSILogRotation {
-			tp.CsiComponentName = nodePlugin
-			tp.CsiLogRootPath = path.Join(csiRootPath, CephFSDriverName)
 			applyLogrotateSidecar(&cephfsPlugin.Spec.Template, "csi-cephfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
 
+		tp.CsiComponentName = controllerPlugin
 		cephfsProvisionerDeployment, err = templateToDeployment("cephfs-provisioner", CephFSProvisionerDepTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbd provisioner deployment template")
 		}
 		if tp.CSILogRotation {
-			tp.CsiComponentName = controllerPlugin
-			tp.CsiLogRootPath = path.Join(csiRootPath, CephFSDriverName)
 			applyLogrotateSidecar(&cephfsProvisionerDeployment.Spec.Template, "csi-cephfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 
@@ -438,23 +436,22 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	}
 
 	if EnableNFS {
+		tp.CsiComponentName = nodePlugin
+		tp.CsiLogRootPath = path.Join(csiRootPath, NFSDriverName)
 		nfsPlugin, err = templateToDaemonSet("nfsplugin", NFSPluginTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs plugin template")
 		}
 		if tp.CSILogRotation {
-			tp.CsiComponentName = nodePlugin
-			tp.CsiLogRootPath = path.Join(csiRootPath, NFSDriverName)
 			applyLogrotateSidecar(&nfsPlugin.Spec.Template, "csi-nfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
 
+		tp.CsiComponentName = controllerPlugin
 		nfsProvisionerDeployment, err = templateToDeployment("nfs-provisioner", NFSProvisionerDepTemplatePath, tp)
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs provisioner deployment template")
 		}
 		if tp.CSILogRotation {
-			tp.CsiComponentName = controllerPlugin
-			tp.CsiLogRootPath = path.Join(csiRootPath, NFSDriverName)
 			applyLogrotateSidecar(&nfsProvisionerDeployment.Spec.Template, "csi-nfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 
