@@ -3204,6 +3204,9 @@ spec:
                   description: A spec for available storage in the cluster and how it should be used
                   nullable: true
                   properties:
+                    allowDeviceClassUpdate:
+                      description: Whether to allow updating the device class after the OSD is initially provisioned
+                      type: boolean
                     backfillFullRatio:
                       description: BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
                       maximum: 1

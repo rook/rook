@@ -319,7 +319,7 @@ func deploymentName(osdID int) string {
 	return fmt.Sprintf(osdAppNameFmt, osdID)
 }
 
-func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
+func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	deploymentName := deploymentName(osd.ID)
 	replicaCount := int32(1)
 	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
@@ -337,6 +337,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// This property is used for both PVC and non-PVC use case
 	if osd.CVMode == "" {
 		return nil, errors.Errorf("failed to generate deployment for OSD %d. required CVMode is not specified for this OSD", osd.ID)
+	}
+
+	if c.spec.Storage.AllowDeviceClassUpdate && osdProps.storeConfig.DeviceClass != "" && osdProps.storeConfig.DeviceClass != osd.DeviceClass {
+		logger.Infof("The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, osdProps.storeConfig.DeviceClass)
+		osd.DeviceClass = osdProps.storeConfig.DeviceClass
 	}
 
 	dataDir := k8sutil.DataDir
@@ -507,10 +512,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
 	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
 
-	osdLabels := c.getOSDLabels(osd, failureDomainValue, osdProps.portable)
+	osdLabels := c.getOSDLabels(*osd, failureDomainValue, osdProps.portable)
 
 	if osd.ExportService {
-		osdService, err := c.createOSDService(osd, osdLabels)
+		osdService, err := c.createOSDService(*osd, osdLabels)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to configure osd service for osd.%d", osd.ID)
 		}
@@ -598,11 +603,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		// so that it can pick the already mounted/activated osd metadata path
 		// This container will activate the OSD and place the activated files into an empty dir
 		// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
-		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd, osdProps)
+		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, *osd, osdProps)
 		volumes = append(volumes, activateOSDVolume...)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 		initContainers = append(initContainers, *activateOSDContainer)
-		initContainers = append(initContainers, c.getExpandInitContainer(osdProps, c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd))
+		initContainers = append(initContainers, c.getExpandInitContainer(osdProps, c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, *osd))
 	}
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
@@ -734,7 +739,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 	if osdProps.portable {
 		// portable OSDs must have affinity to the topology where the osd prepare job was executed
-		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, osd); err != nil {
+		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, *osd); err != nil {
 			return nil, err
 		}
 	} else {

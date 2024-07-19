@@ -33,7 +33,10 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
+    allowDeviceClassUpdate: true
     #deviceFilter:
+    #config:
+    #  deviceClass: testclass
   monitoring:
     enabled: false
   healthCheck:

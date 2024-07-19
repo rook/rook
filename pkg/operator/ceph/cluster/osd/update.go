@@ -49,6 +49,7 @@ type updateConfig struct {
 	numUpdatesNeeded    int              // the number of OSDs that needed updating
 	deployments         *existenceList   // these OSDs have existing deployments
 	osdsToSkipReconcile sets.Set[string] // these OSDs should not be updated during reconcile
+	osdDesiredState     map[int]*OSDInfo // the desired state of the OSDs determined during the reconcile
 }
 
 func (c *Cluster) newUpdateConfig(
@@ -64,6 +65,7 @@ func (c *Cluster) newUpdateConfig(
 		queue.Len(),
 		deployments,
 		osdsToSkipReconcile,
+		map[int]*OSDInfo{},
 	}
 }
 
@@ -142,6 +144,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			errs.addError("failed to update OSD %d. failed to extract OSD info from existing deployment %q. %v", osdID, depName, err)
 			continue
 		}
+		c.osdDesiredState[osdID] = &osdInfo
 
 		if c.osdsToSkipReconcile.Has(strconv.Itoa(osdID)) {
 			logger.Warningf("Skipping update for OSD %d since labeled with %s", osdID, cephv1.SkipReconcileLabelKey)
@@ -174,7 +177,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 
 		if osdIsOnPVC(dep) {
 			logger.Infof("updating OSD %d on PVC %q", osdID, nodeOrPVCName)
-			updatedDep, err = deploymentOnPVCFunc(c.cluster, osdInfo, nodeOrPVCName, c.provisionConfig)
+			updatedDep, err = deploymentOnPVCFunc(c.cluster, &osdInfo, nodeOrPVCName, c.provisionConfig)
 			message := fmt.Sprintf("Processing OSD %d on PVC %q", osdID, nodeOrPVCName)
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		} else {
@@ -189,7 +192,7 @@ func (c *updateConfig) updateExistingOSDs(errs *provisionErrors) {
 			}
 
 			logger.Infof("updating OSD %d on node %q", osdID, nodeOrPVCName)
-			updatedDep, err = deploymentOnNodeFunc(c.cluster, osdInfo, nodeOrPVCName, c.provisionConfig)
+			updatedDep, err = deploymentOnNodeFunc(c.cluster, &osdInfo, nodeOrPVCName, c.provisionConfig)
 			message := fmt.Sprintf("Processing OSD %d on node %q", osdID, nodeOrPVCName)
 			updateConditionFunc(c.cluster.clusterInfo.Context, c.cluster.context, c.cluster.clusterInfo.NamespacedName(), k8sutil.ObservedGenerationNotAvailable, cephv1.ConditionProgressing, v1.ConditionTrue, cephv1.ClusterProgressingReason, message)
 		}
