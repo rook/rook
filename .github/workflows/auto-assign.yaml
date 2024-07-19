@@ -3,8 +3,14 @@ on:
   issue_comment:
     types: [created, edited]
 
+permissions:
+  contents: read
+
 jobs:
   assign:
+    permissions:
+      # write permissions are needed to assign the issue.
+      contents: write
     name: Run self assign job
     runs-on: ubuntu-latest
     steps:
