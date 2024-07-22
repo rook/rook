@@ -10255,7 +10255,7 @@ the triple <key,value,effect> using the matching operator <operator></p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>TopologySpreadConstraint specifies how to spread matching pods among the given topology</p>
+<p>TopologySpreadConstraints specifies how to spread matching pods among the given topology</p>
 </td>
 </tr>
 </tbody>

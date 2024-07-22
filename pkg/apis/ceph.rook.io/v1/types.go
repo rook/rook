@@ -2945,7 +2945,7 @@ type Placement struct {
 	// the triple <key,value,effect> using the matching operator <operator>
 	// +optional
 	Tolerations []v1.Toleration `json:"tolerations,omitempty"`
-	// TopologySpreadConstraint specifies how to spread matching pods among the given topology
+	// TopologySpreadConstraints specifies how to spread matching pods among the given topology
 	// +optional
 	TopologySpreadConstraints []v1.TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 }
