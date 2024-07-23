@@ -21,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -134,4 +135,38 @@ func TestSetBalancerMode(t *testing.T) {
 
 	err := setBalancerMode(&clusterd.Context{Executor: executor}, AdminTestClusterInfo("mycluster"), "upmap")
 	assert.NoError(t, err)
+}
+
+func TestGetMinCompatClientVersion(t *testing.T) {
+	clusterInfo := AdminTestClusterInfo("mycluster")
+	t.Run("upmap-read balancer mode with ceph v19", func(t *testing.T) {
+		clusterInfo.CephVersion = cephver.CephVersion{Major: 19}
+		result, err := desiredMinCompatClientVersion(clusterInfo, upmapReadBalancerMode)
+		assert.NoError(t, err)
+		assert.Equal(t, "reef", result)
+	})
+
+	t.Run("read balancer mode with ceph v19", func(t *testing.T) {
+		clusterInfo.CephVersion = cephver.CephVersion{Major: 19}
+		result, err := desiredMinCompatClientVersion(clusterInfo, readBalancerMode)
+		assert.NoError(t, err)
+		assert.Equal(t, "reef", result)
+	})
+	t.Run("upmap-read balancer mode with ceph below v19 should fail", func(t *testing.T) {
+		clusterInfo.CephVersion = cephver.CephVersion{Major: 18}
+		_, err := desiredMinCompatClientVersion(clusterInfo, upmapReadBalancerMode)
+		assert.Error(t, err)
+	})
+	t.Run("read balancer mode with ceph below v19 should fail", func(t *testing.T) {
+		clusterInfo.CephVersion = cephver.CephVersion{Major: 18}
+		_, err := desiredMinCompatClientVersion(clusterInfo, readBalancerMode)
+		assert.Error(t, err)
+	})
+
+	t.Run("upmap balancer set min compat client to luminous", func(t *testing.T) {
+		clusterInfo.CephVersion = cephver.CephVersion{Major: 19}
+		result, err := desiredMinCompatClientVersion(clusterInfo, "upmap")
+		assert.NoError(t, err)
+		assert.Equal(t, "luminous", result)
+	})
 }
