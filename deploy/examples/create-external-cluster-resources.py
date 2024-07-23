@@ -1558,23 +1558,19 @@ class RadosJSON:
         for pool in topology_rbd_pools:
             self.init_rbd_pool(pool)
 
-    def getScriptCliFlags(self):
-        return " ".join(sys.argv[1:])
-
     # this will return the final args that script uses to process
     # the priority to set a particular value is,
     # command-line-args > config.ini file values > default values
     def getFinalUsedArgs(self):
-        list = []
+        argument = f"[Configurations]\n"
         for arg in vars(self._arg_parser):
             if str(getattr(self._arg_parser, arg)):
                 # python treats flag-name as flag_name internally, so converting back to flag-name,
                 # so we can get those values from config file
-                argument = (
-                    arg.replace("_", "-") + ": " + str(getattr(self._arg_parser, arg))
-                )
-                list.append(argument)
-        return list
+                argValue = arg.replace("_", "-")
+                if argValue != "config-file":
+                    argument += f"{argValue} = {str(getattr(self._arg_parser, arg))}\n"
+        return argument
 
     def _gen_output_map(self):
         if self.out_map:
@@ -1591,7 +1587,6 @@ class RadosJSON:
         self._excluded_keys.add("K8S_CLUSTER_NAME")
         self.get_cephfs_data_pool_details()
         # double string needed for upstream exports of flags
-        self.out_map["EXTERNAL_CLUSTER_USER_COMMAND"] = f'"{self.getScriptCliFlags()}"'
         self.out_map["ARGS"] = f'"{self.getFinalUsedArgs()}"'
         self.out_map["NAMESPACE"] = self._arg_parser.namespace
         self.out_map["K8S_CLUSTER_NAME"] = self._arg_parser.k8s_cluster_name
@@ -1757,7 +1752,6 @@ class RadosJSON:
                 "name": "external-cluster-user-command",
                 "kind": "ConfigMap",
                 "data": {
-                    "command": self.out_map["EXTERNAL_CLUSTER_USER_COMMAND"],
                     "args": self.out_map["ARGS"],
                 },
             },
