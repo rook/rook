@@ -76,7 +76,7 @@ func (s *UpgradeSuite) TearDownSuite() {
 	s.installer.UninstallRook()
 }
 
-func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersionSpec) {
+func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initialCephVersion v1.CephVersionSpec) {
 	s.namespace = "upgrade"
 	s.settings = &installer.TestCephSettings{
 		ClusterName:                 s.namespace,
@@ -88,7 +88,7 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialCephVersion v1.CephVersion
 		Mons:                        1,
 		EnableDiscovery:             true,
 		SkipClusterCleanup:          true,
-		RookVersion:                 installer.Version1_13,
+		RookVersion:                 initialRookVersion,
 		CephVersion:                 initialCephVersion,
 	}
 
@@ -105,7 +105,7 @@ func (s *UpgradeSuite) TestUpgradeHelm() {
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
-	s.baseSetup(useHelm, initialCephVersion)
+	s.baseSetup(useHelm, installer.Version1_13, initialCephVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
@@ -183,7 +183,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
-	s.baseSetup(false, installer.QuincyVersion)
+	s.baseSetup(false, installer.LocalBuildTag, installer.QuincyVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
@@ -216,7 +216,7 @@ func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
-	s.baseSetup(false, installer.ReefVersion)
+	s.baseSetup(false, installer.LocalBuildTag, installer.ReefVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
@@ -249,7 +249,7 @@ func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
-	s.baseSetup(false, installer.SquidVersion)
+	s.baseSetup(false, installer.LocalBuildTag, installer.SquidVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
