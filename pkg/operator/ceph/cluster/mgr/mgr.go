@@ -248,62 +248,54 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 	}
 }
 
-// UpdateActiveMgrLabel updates the mgr_role label value to either
-// active or standby depending on the status of the ceph mgr running
-// in the pod
-func (c *Cluster) UpdateActiveMgrLabel(daemonNameToUpdate string, prevActiveMgr string) (string, error) {
-
-	logger.Infof("Checking mgr_role label value of daemon %s (prev active mgr was %s)", daemonNameToUpdate, prevActiveMgr)
-	currActiveMgr, err := c.getActiveMgr()
-	if err != nil || currActiveMgr == "" {
-		logger.Infof("cannot update active mgr, no active mgr found. err=%v", err)
-		return "", err
-	} else if prevActiveMgr == currActiveMgr {
-		logger.Infof("active mgr is still the same (%s). No need to update mgr_role label on daemon %s.", currActiveMgr, daemonNameToUpdate)
-		return currActiveMgr, err
-	}
-
+// SetMgrRoleLabel sets 'mgr_role: active' label to given manager daemon pods if isActive is true.
+// Otherwise sets 'mgr_role: standby' label to manager pods.
+func (c *Cluster) SetMgrRoleLabel(daemonNameToUpdate string, isActive bool) error {
 	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("mgr=%s", daemonNameToUpdate),
+		LabelSelector: fmt.Sprintf("%s=%s", controller.DaemonIDLabel, daemonNameToUpdate),
 	})
 	if err != nil {
 		logger.Infof("cannot get pod for mgr daemon %s", daemonNameToUpdate)
-		return "", err // force mrg_role update in the next call
+		return err // force mrg_role update in the next call
 	}
 
+	newMgrRole := standbyMgrStatus
+	if isActive {
+		newMgrRole = activeMgrStatus
+	}
 	// Normally, there should only be one mgr pod with the specific name daemonNameToUpdate. However,
 	// during transitions, there might be additional mgr pods shutting down. To handle this, the code
 	// updates the label mgrRoleLabelName on all mgr pods. If this update fails, the system rolls back
 	// the currently active manager (currActiveMgr). This way the next call will retry the update.
+	var podLabelUpdErr error
 	for i, pod := range pods.Items {
-
 		labels := pod.GetLabels()
-		cephDaemonId := labels[controller.DaemonIDLabel]
-		newMgrRole := standbyMgrStatus
-		if currActiveMgr == cephDaemonId {
-			newMgrRole = activeMgrStatus
-		}
-
 		currMgrRole, mgrHasLabel := labels[mgrRoleLabelName]
 		if !mgrHasLabel || currMgrRole != newMgrRole {
-
-			logger.Infof("updating mgr_role label value of daemon %s to '%s'. New active mgr is %s.", daemonNameToUpdate, newMgrRole, currActiveMgr)
+			logger.Infof("updating mgr_role label value of daemon %s to '%s'. New active mgr is %s.", daemonNameToUpdate, newMgrRole, daemonNameToUpdate)
 			labels[mgrRoleLabelName] = newMgrRole
 			pod.SetLabels(labels)
 			_, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Update(c.clusterInfo.Context, &pods.Items[i], metav1.UpdateOptions{})
 			if err != nil {
-				// In case of failure we report as 'active manager' the previous value, this way
-				// we force refreshing mgrRoleLabelName label next time this function is called
-				currActiveMgr = prevActiveMgr
-				logger.Warningf("cannot update the active mgr pod %q. err=%v", pods.Items[i].Name, err)
+				// don't return error from here. First try to update all pods from the list and reconcile services.
+				// return error later to update pods on next reconcile.
+				podLabelUpdErr = fmt.Errorf("cannot update the active mgr pod %q. err=%w", pods.Items[i].Name, err)
 			}
 		}
 	}
 
-	return currActiveMgr, c.reconcileServices()
+	err = c.reconcileServices()
+	if err != nil {
+		return fmt.Errorf("unable to reconcile services: %w", err)
+	}
+	if podLabelUpdErr != nil {
+		return podLabelUpdErr
+	}
+
+	return nil
 }
 
-func (c *Cluster) getActiveMgr() (string, error) {
+func (c *Cluster) GetActiveMgr() (string, error) {
 	mgrStat, err := cephclient.CephMgrStat(c.context, c.clusterInfo)
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get mgr stat for the active mgr")
@@ -313,7 +305,6 @@ func (c *Cluster) getActiveMgr() (string, error) {
 
 // reconcile the services,
 func (c *Cluster) reconcileServices() error {
-
 	if err := c.configureDashboardService(); err != nil {
 		return errors.Wrap(err, "failed to configure dashboard svc")
 	}
@@ -461,7 +452,6 @@ func (c *Cluster) restartMgrModule(name string) error {
 }
 
 func (c *Cluster) enableBalancerModule() error {
-
 	// This turns "on" the balancer
 	err := cephclient.MgrEnableModule(c.context, c.clusterInfo, balancerModuleName, false)
 	if err != nil {
