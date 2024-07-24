@@ -21,8 +21,8 @@ require (
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
-	k8s.io/api v0.30.2
-	k8s.io/apimachinery v0.30.2
+	k8s.io/api v0.30.3
+	k8s.io/apimachinery v0.30.3
 )
 
 require (
@@ -31,7 +31,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	k8s.io/client-go v0.30.2 // indirect
+	k8s.io/client-go v0.30.3 // indirect
 	k8s.io/utils v0.0.0-20240502163921-fe8a2dddb1d0 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
