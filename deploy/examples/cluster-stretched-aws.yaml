@@ -44,7 +44,7 @@ spec:
   mgr:
     count: 2
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.2
+    image: quay.io/ceph/ceph:v18.2.4
     allowUnsupported: true
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
