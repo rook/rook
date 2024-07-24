@@ -71,7 +71,7 @@ func NewCephManifests(settings *TestCephSettings) CephManifests {
 	switch settings.RookVersion {
 	case LocalBuildTag:
 		return &CephManifestsMaster{settings}
-	case Version1_13:
+	case Version1_14:
 		return &CephManifestsPreviousVersion{settings, &CephManifestsMaster{settings}}
 	}
 	panic(fmt.Errorf("unrecognized ceph manifest version: %s", settings.RookVersion))
@@ -237,15 +237,10 @@ spec:
     deviceFilter:  ` + getDeviceFilter() + `
     config:
       databaseSizeMB: "1024"
-`
-		// Append the storage settings if it's not an upgrade from 1.13 where the settings do not exist
-		if m.settings.RookVersion != Version1_13 {
-			clusterSpec += `
     fullRatio: 0.96
     backfillFullRatio: 0.91
     nearFullRatio: 0.88
 `
-		}
 	}
 
 	if m.settings.ConnectionsEncrypted {
