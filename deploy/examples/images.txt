@@ -1,5 +1,5 @@
  gcr.io/k8s-staging-sig-storage/objectstorage-sidecar:v20240513-v0.1.0-35-gefb3255
- quay.io/ceph/ceph:v18.2.2
+ quay.io/ceph/ceph:v18.2.4
  quay.io/ceph/cosi:v0.1.2
  quay.io/cephcsi/cephcsi:v3.11.0
  quay.io/csiaddons/k8s-sidecar:v0.8.0
