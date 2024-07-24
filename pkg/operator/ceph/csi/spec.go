@@ -129,6 +129,7 @@ var (
 	EnableRBD                 = false
 	EnableCephFS              = false
 	EnableNFS                 = false
+	enableCSIOperator         = false
 	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
 
@@ -777,6 +778,7 @@ func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, de
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete %q Driver Info", driverName)
 	}
+
 	return nil
 }
 
@@ -1091,4 +1093,8 @@ func getPrefixFromArg(arg string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func EnableCSIOperator() bool {
+	return enableCSIOperator && !IsHolderEnabled()
 }
