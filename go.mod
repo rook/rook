@@ -5,6 +5,7 @@ go 1.22.0
 toolchain go1.22.5
 
 replace (
+	github.com/ceph/ceph-csi-operator => github.com/nb-ohad/ceph-csi-operator v0.0.0-20240717220131-b903731f366a
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
 
@@ -18,6 +19,7 @@ require (
 	github.com/IBM/keyprotect-go-client v0.14.3
 	github.com/aws/aws-sdk-go v1.54.20
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
+	github.com/ceph/ceph-csi-operator v0.0.0-00010101000000-000000000000
 	github.com/ceph/go-ceph v0.28.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
 	github.com/csi-addons/kubernetes-csi-addons v0.8.0

@@ -21,8 +21,10 @@ import (
 	"context"
 	"fmt"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/coreos/pkg/capnslog"
 	addonsv1alpha1 "github.com/csi-addons/kubernetes-csi-addons/apis/csiaddons/v1alpha1"
+
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -196,6 +198,11 @@ func add(opManagerContext context.Context, mgr manager.Manager, r reconcile.Reco
 		}
 	} else {
 		logger.Info("hotplug orchestration disabled")
+	}
+
+	err = csiopv1a1.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		return err
 	}
 
 	return nil

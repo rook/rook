@@ -5,6 +5,7 @@ go 1.22.0
 toolchain go1.22.5
 
 replace (
+	github.com/ceph/ceph-csi-operator => github.com/nb-ohad/ceph-csi-operator v0.0.0-20240717220131-b903731f366a
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
 

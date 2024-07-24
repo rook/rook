@@ -28,11 +28,12 @@ import (
 	"sync"
 	"syscall"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/pkg/errors"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/osd/kms"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
@@ -46,8 +47,11 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookversion "github.com/rook/rook/pkg/version"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
@@ -57,7 +61,7 @@ const (
 var telemetryMutex sync.Mutex
 
 type cluster struct {
-	ClusterInfo        *client.ClusterInfo
+	ClusterInfo        *cephclient.ClusterInfo
 	context            *clusterd.Context
 	Namespace          string
 	Spec               *cephv1.ClusterSpec
@@ -75,7 +79,7 @@ func newCluster(ctx context.Context, c *cephv1.CephCluster, context *clusterd.Co
 		// at this phase of the cluster creation process, the identity components of the cluster are
 		// not yet established. we reserve this struct which is filled in as soon as the cluster's
 		// identity can be established.
-		ClusterInfo:        client.AdminClusterInfo(ctx, c.Namespace, c.Name),
+		ClusterInfo:        cephclient.AdminClusterInfo(ctx, c.Namespace, c.Name),
 		Namespace:          c.Namespace,
 		Spec:               &c.Spec,
 		clusterMetadata:    c.ObjectMeta,
@@ -230,8 +234,80 @@ func (c *ClusterController) initializeCluster(cluster *cluster) error {
 	cluster.mons.ClusterInfo = cluster.ClusterInfo
 	cluster.mons.ClusterInfo.SetName(c.namespacedName.Name)
 
+	// Skip the new CSI-operator creation when holder pod is enabled until multus support is added in the CSI operator
+	if csi.EnableCSIOperator && !csi.IsHolderEnabled() {
+		err = c.createCSIOpCephCluster(cluster.ClusterInfo, cluster)
+		if err != nil {
+			return errors.Wrap(err, "failed to configure csi operator")
+		}
+	}
+
 	// Start the monitoring if not already started
 	c.configureCephMonitoring(cluster, cluster.ClusterInfo)
+
+	return nil
+}
+
+func (c *ClusterController) createCSIOpCephCluster(clusterInfo *cephclient.ClusterInfo, cluster *cluster) error {
+
+	logger.Info("Creating ceph-CSI operator ceph cluster CR")
+	csiCephCluster := &csiopv1a1.CephCluster{}
+
+	csiCephCluster.Name = cluster.namespacedName.Name
+	csiCephCluster.Namespace = cluster.namespacedName.Namespace
+
+	err := c.createCSIOpCephClusterSpec(clusterInfo, cluster, &csiCephCluster.Spec)
+	if err != nil {
+		return errors.Wrap(err, "failed to set csi-operator operator spec")
+	}
+
+	err = c.client.Create(c.OpManagerCtx, csiCephCluster)
+	if err != nil {
+		if !kerrors.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed to create CSI-operator ceph cluster CR %s", csiCephCluster.Name)
+		}
+		err = c.client.Get(c.OpManagerCtx, types.NamespacedName{Name: csiCephCluster.Name, Namespace: csiCephCluster.Namespace}, csiCephCluster)
+		if err != nil {
+			return errors.Wrap(err, "failed to get csi-operator ceph cluster CR")
+		}
+		err := c.createCSIOpCephClusterSpec(clusterInfo, cluster, &csiCephCluster.Spec)
+		if err != nil {
+			return errors.Wrap(err, "failed to update csi-operator operator spec")
+		}
+		err = c.client.Update(c.OpManagerCtx, csiCephCluster)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update CSI-operator ceph cluster CR %s", csiCephCluster.Name)
+		}
+	}
+
+	logger.Info("Successfully created ceph-CSI operator ceph cluster CR")
+	return nil
+}
+
+func (c *ClusterController) createCSIOpCephClusterSpec(clusterInfo *cephclient.ClusterInfo, cluster *cluster, createCSIOpCephClusterSpec *csiopv1a1.CephClusterSpec) error {
+	if cluster.Spec.CSI.ReadAffinity.Enabled {
+		createCSIOpCephClusterSpec.ReadAffinity.CrushLocationLabels = cluster.Spec.CSI.ReadAffinity.CrushLocationLabels
+	}
+
+	cephRBDMirrorList := &cephv1.CephRBDMirrorList{}
+	err := c.client.List(c.OpManagerCtx, cephRBDMirrorList, &client.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	if len(cephRBDMirrorList.Items) == 0 {
+		logger.Debug("no ceph subvolumegroup found")
+	} else {
+		if cephRBDMirrorList.Items[0].DeletionTimestamp.IsZero() {
+			createCSIOpCephClusterSpec.RbdMirrorDaemonCount = cephRBDMirrorList.Items[0].Spec.Count
+		}
+	}
+
+	mons := sets.New[string]()
+	for _, mon := range clusterInfo.Monitors {
+		mons.Insert(mon.Endpoint)
+	}
+	createCSIOpCephClusterSpec.Monitors = sets.List(mons)
 
 	return nil
 }
@@ -342,7 +418,7 @@ func extractExitCode(err error) (int, bool) {
 
 func (c *cluster) createCrushRoot(newRoot string) error {
 	args := []string{"osd", "crush", "add-bucket", newRoot, "root"}
-	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
+	cephCmd := cephclient.NewCephCommand(c.context, c.ClusterInfo, args)
 	_, err := cephCmd.Run()
 	if err != nil {
 		// returns zero if the bucket exists already, so any error is fatal
@@ -354,7 +430,7 @@ func (c *cluster) createCrushRoot(newRoot string) error {
 
 func (c *cluster) replaceDefaultReplicationRule(newRoot string) error {
 	args := []string{"osd", "crush", "rule", "rm", "replicated_rule"}
-	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
+	cephCmd := cephclient.NewCephCommand(c.context, c.ClusterInfo, args)
 	_, err := cephCmd.Run()
 	if err != nil {
 		if code, ok := extractExitCode(err); ok && code == int(syscall.EBUSY) {
@@ -377,7 +453,7 @@ func (c *cluster) replaceDefaultReplicationRule(newRoot string) error {
 		"osd", "crush", "rule", "create-replicated",
 		"replicated_rule", newRoot, "host",
 	}
-	cephCmd = client.NewCephCommand(c.context, c.ClusterInfo, args)
+	cephCmd = cephclient.NewCephCommand(c.context, c.ClusterInfo, args)
 	_, err = cephCmd.Run()
 	if err != nil {
 		// returns zero if the rule exists already, so any error is fatal
@@ -389,7 +465,7 @@ func (c *cluster) replaceDefaultReplicationRule(newRoot string) error {
 
 func (c *cluster) removeDefaultCrushRoot() error {
 	args := []string{"osd", "crush", "rm", "default"}
-	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
+	cephCmd := cephclient.NewCephCommand(c.context, c.ClusterInfo, args)
 	_, err := cephCmd.Run()
 	if err != nil {
 		if code, ok := extractExitCode(err); ok {
@@ -479,7 +555,7 @@ func (c *cluster) postMonStartupActions() error {
 		return errors.Wrap(err, "failed to configure storage settings")
 	}
 
-	crushRoot := client.GetCrushRootFromSpec(c.Spec)
+	crushRoot := cephclient.GetCrushRootFromSpec(c.Spec)
 	if crushRoot != "default" {
 		// Remove the root=default and replicated_rule which are created by
 		// default. Note that RemoveDefaultCrushMap ignores some types of errors
@@ -501,7 +577,7 @@ func (c *cluster) configureStorageSettings() error {
 	if !c.shouldSetClusterFullSettings() {
 		return nil
 	}
-	osdDump, err := client.GetOSDDump(c.context, c.ClusterInfo)
+	osdDump, err := cephclient.GetOSDDump(c.context, c.ClusterInfo)
 	if err != nil {
 		return errors.Wrap(err, "failed to get osd dump for setting cluster full settings")
 	}
@@ -531,7 +607,7 @@ func (c *cluster) setClusterFullRatio(ratioCommand string, desiredRatio *float64
 	desiredStringVal := fmt.Sprintf("%.2f", *desiredRatio)
 	logger.Infof("updating %s from %.2f to %s", ratioCommand, actualRatio, desiredStringVal)
 	args := []string{"osd", ratioCommand, desiredStringVal}
-	cephCmd := client.NewCephCommand(c.context, c.ClusterInfo, args)
+	cephCmd := cephclient.NewCephCommand(c.context, c.ClusterInfo, args)
 	output, err := cephCmd.Run()
 	if err != nil {
 		return errors.Wrapf(err, "failed to update %s to %q. %s", ratioCommand, desiredStringVal, output)

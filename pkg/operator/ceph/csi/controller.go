@@ -178,6 +178,26 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		r.opConfig.Parameters = opConfig.Data
 	}
 
+	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
+	}
+
+	EnableCSIOperator, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_USE_CSI_OPERATOR", "false"))
+	if err != nil {
+		return reconcileResult, errors.Wrap(err, "unable to parse value for 'ROOK_USE_CSI_OPERATOR'")
+	}
+
+	// Skip the new CSI-operator creation when holder pod is enabled until multus support is added in the CSI operator
+	if EnableCSIOperator && !IsHolderEnabled() {
+		logger.Info("disabling csi-driver as `EnableCSIOperator` is `true`")
+		err := r.stopDrivers(serverVersion)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop csi Drivers")
+		}
+		return reconcile.Result{}, nil
+	}
+
 	// do not recocnile if csi driver is disabled
 	disableCSI, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_DISABLE_DRIVER", "false"))
 	if err != nil {
@@ -185,11 +205,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	} else if disableCSI {
 		logger.Info("ceph csi driver is disabled")
 		return reconcile.Result{}, nil
-	}
-
-	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
 	}
 
 	// See if there is a CephCluster

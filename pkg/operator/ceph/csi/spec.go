@@ -129,6 +129,7 @@ var (
 	EnableRBD                 = false
 	EnableCephFS              = false
 	EnableNFS                 = false
+	EnableCSIOperator         = false
 	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
 
