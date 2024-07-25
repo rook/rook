@@ -1117,6 +1117,10 @@ func (c *Cluster) saveMonConfig() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to create/update cephConnection")
 		}
+		err = csi.CreateDefaultClientProfile(c.context.Client, c.ClusterInfo, c.ClusterInfo.NamespacedName())
+		if err != nil {
+			return errors.Wrap(err, "failed to create/update default client profile")
+		}
 	}
 
 	return nil

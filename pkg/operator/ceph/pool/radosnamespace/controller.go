@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -100,6 +101,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes on the CephBlockPoolRadosNamespace CRD object
 	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBlockPoolRadosNamespace{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	if err != nil {
+		return err
+	}
+
+	err = csiopv1a1.AddToScheme(mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -256,6 +262,14 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	}
 
 	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
+
+	if csi.EnableCSIOperator() {
+		err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, cephBlockPoolRadosNamespacedName, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Name)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for RadosNamespace")
+		}
+	}
+
 	// Return and do not requeue
 	logger.Debugf("done reconciling cephBlockPoolRadosNamespace %q", namespacedName)
 	return reconcile.Result{}, nil
