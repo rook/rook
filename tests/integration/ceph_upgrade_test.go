@@ -105,11 +105,12 @@ func (s *UpgradeSuite) TestUpgradeHelm() {
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
-	s.baseSetup(useHelm, installer.Version1_14, initialCephVersion)
+	baseRookImage := installer.Version1_14
+	s.baseSetup(useHelm, baseRookImage, initialCephVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
-	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
 
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
@@ -183,12 +184,13 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
-	s.baseSetup(false, installer.LocalBuildTag, installer.QuincyVersion)
+	baseRookImage := installer.LocalBuildTag
+	s.baseSetup(false, baseRookImage, installer.QuincyVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.QuincyVersion
-	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
@@ -216,12 +218,13 @@ func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
-	s.baseSetup(false, installer.LocalBuildTag, installer.ReefVersion)
+	baseRookImage := installer.LocalBuildTag
+	s.baseSetup(false, baseRookImage, installer.ReefVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.ReefVersion
-	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
@@ -249,12 +252,13 @@ func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
-	s.baseSetup(false, installer.LocalBuildTag, installer.SquidVersion)
+	baseRookImage := installer.LocalBuildTag
+	s.baseSetup(false, baseRookImage, installer.SquidVersion)
 
 	objectUserID := "upgraded-user"
 	preFilename := "pre-upgrade-file"
 	s.settings.CephVersion = installer.SquidVersion
-	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(objectUserID, preFilename)
+	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
 	clusterInfo := client.AdminTestClusterInfo(s.namespace)
 	requireBlockImagesRemoved := false
 	defer func() {
@@ -281,7 +285,7 @@ func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }
 
-func (s *UpgradeSuite) deployClusterforUpgrade(objectUserID, preFilename string) (int, []string, []string) {
+func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preFilename string) (int, []string, []string) {
 	//
 	// Create block, object, and file storage before the upgrade
 	// The helm chart already created these though.
@@ -330,7 +334,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(objectUserID, preFilename string)
 	require.True(s.T(), created)
 
 	// verify that we're actually running the right pre-upgrade image
-	s.verifyOperatorImage(installer.Version1_14)
+	s.verifyOperatorImage(baseRookImage)
 
 	assert.NoError(s.T(), s.k8sh.WriteToPod("", rbdPodName, preFilename, simpleTestMessage))
 	assert.NoError(s.T(), s.k8sh.ReadFromPod("", rbdPodName, preFilename, simpleTestMessage))
