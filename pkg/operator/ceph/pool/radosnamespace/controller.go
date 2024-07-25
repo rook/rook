@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
@@ -34,6 +35,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -100,6 +102,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes on the CephBlockPoolRadosNamespace CRD object
 	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephBlockPoolRadosNamespace{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	if err != nil {
+		return err
+	}
+
+	err = csiopv1a1.AddToScheme(mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -256,6 +263,14 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	}
 
 	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
+
+	if csi.EnableCSIOperator && !csi.IsHolderEnabled() {
+		err = r.createCephCSIOpConfCRRadosNS(cephCluster)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for rados ns")
+		}
+	}
+
 	// Return and do not requeue
 	logger.Debugf("done reconciling cephBlockPoolRadosNamespace %q", namespacedName)
 	return reconcile.Result{}, nil
@@ -266,6 +281,46 @@ func getRadosNamespaceName(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRado
 		return cephBlockPoolRadosNamespace.Spec.Name
 	}
 	return cephBlockPoolRadosNamespace.Name
+}
+
+func (r *ReconcileCephBlockPoolRadosNamespace) createCephCSIOpConfCRRadosNS(cluster cephv1.CephCluster) error {
+
+	logger.Info("creating ceph-csi operator config cr for rados namespace")
+	cephRadosNamespaceList := &cephv1.CephBlockPoolRadosNamespaceList{}
+	err := r.client.List(r.opManagerContext, cephRadosNamespaceList, &client.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	if len(cephRadosNamespaceList.Items) == 0 {
+		logger.Debug("no cephRadosNamespace is found")
+	} else {
+		for _, radosns := range cephRadosNamespaceList.Items {
+			if !radosns.DeletionTimestamp.IsZero() {
+				logger.Debugf("ceph radosnamespace %q is being deleting", cluster.Namespace)
+				return nil
+			}
+
+			csiOpConfig := &csiopv1a1.Config{}
+			csiOpConfig.Name = fmt.Sprintf("ceph-csi-config-%s", radosns.Name)
+			csiOpConfig.Namespace = cluster.Namespace
+			csiOpConfig.Spec = csiopv1a1.ConfigSpec{
+				CephClusterRef: v1.LocalObjectReference{
+					Name: cluster.Name,
+				},
+				Rbd: &csiopv1a1.RbdConfigSpec{
+					RadosNamespace: radosns.Name,
+				},
+			}
+
+			err = r.client.Create(r.opManagerContext, csiOpConfig)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create CSI-operator config cr for RBD %s", csiOpConfig.Name)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (r *ReconcileCephBlockPoolRadosNamespace) updateClusterConfig(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace, cephCluster cephv1.CephCluster) error {

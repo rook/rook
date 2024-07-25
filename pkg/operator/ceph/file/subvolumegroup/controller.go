@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/pkg/errors"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
@@ -43,6 +44,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -102,6 +104,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes on the CephFilesystemSubVolumeGroup CRD object
 	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystemSubVolumeGroup{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	if err != nil {
+		return err
+	}
+
+	err = csiopv1a1.AddToScheme(mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -265,6 +272,15 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
+
+	// Skip the new CSI-operator creation when holder pod is enabled until multus support is added in the CSI operator
+	if csi.EnableCSIOperator && !csi.IsHolderEnabled() {
+		err = r.createCephCSIOpConfCRSubVolGrp(cephCluster)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subVolGrp ns")
+		}
+	}
+
 	// Return and do not requeue
 	logger.Debugf("done reconciling cephFilesystemSubVolumeGroup %q", namespacedName)
 	return reconcile.Result{}, nil
@@ -275,6 +291,45 @@ func getSubvolumeGroupName(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSu
 		return cephFilesystemSubVolumeGroup.Spec.Name
 	}
 	return cephFilesystemSubVolumeGroup.Name
+}
+
+func (r *ReconcileCephFilesystemSubVolumeGroup) createCephCSIOpConfCRSubVolGrp(cluster cephv1.CephCluster) error {
+
+	logger.Info("Creating ceph-csi operator config CR for subvolume group")
+	cephSubvolumeGroupList := &cephv1.CephFilesystemSubVolumeGroupList{}
+	err := r.client.List(r.opManagerContext, cephSubvolumeGroupList, &client.ListOptions{})
+	if err != nil {
+		return err
+	}
+
+	if len(cephSubvolumeGroupList.Items) == 0 {
+		logger.Debug("no ceph subvolumegroup found")
+	} else {
+		for _, cephsvg := range cephSubvolumeGroupList.Items {
+			if !cephsvg.DeletionTimestamp.IsZero() {
+				logger.Debugf("ceph subvolumegroup %q is being deleting", cluster.Namespace)
+				return nil
+			}
+
+			csiOpConfig := &csiopv1a1.Config{}
+			csiOpConfig.Name = fmt.Sprintf("ceph-csi-config-%s", cephsvg.Name)
+			csiOpConfig.Namespace = cluster.Namespace
+			csiOpConfig.Spec = csiopv1a1.ConfigSpec{
+				CephClusterRef: v1.LocalObjectReference{
+					Name: cluster.Name,
+				},
+				CephFs: &csiopv1a1.CephFsConfigSpec{
+					SubVolumeGroup: cephsvg.Name,
+				},
+			}
+
+			err = r.client.Create(r.opManagerContext, csiOpConfig)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create CSI-operator config cr for CRD %s", csiOpConfig.Name)
+			}
+		}
+	}
+	return nil
 }
 
 func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesystemSubVolumeGroup *cephv1.CephFilesystemSubVolumeGroup, cephCluster cephv1.CephCluster) error {
