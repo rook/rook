@@ -1,0 +1,358 @@
+/*
+Copyright 2024 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package csi
+
+import (
+	"fmt"
+	"reflect"
+	"strings"
+
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
+	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	v1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	k8scsiv1 "k8s.io/api/storage/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+)
+
+func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+
+	if EnableRBD {
+		logger.Info("Creating RBD driver resources")
+		err := r.createOrUpdateRBDDriverResource(cluster, clusterInfo)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", clusterInfo.Namespace)
+		}
+	}
+	if EnableCephFS {
+		logger.Info("Creating CephFS driver resources")
+		err := r.createOrUpdateCephFSDriverResource(cluster, clusterInfo)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", clusterInfo.Namespace)
+		}
+	}
+	if EnableNFS {
+		logger.Info("Creating NFS driver resources")
+		err := r.createOrUpdateNFSDriverResource(cluster, clusterInfo)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", clusterInfo.Namespace)
+		}
+	}
+
+	return nil
+}
+
+func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", clusterInfo.Namespace)
+	spec, err := r.generateDriverSpec(cluster.Name)
+	if err != nil {
+		return err
+	}
+
+	rbdDriver := &csiopv1a1.Driver{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: clusterInfo.Namespace,
+		},
+		Spec: spec,
+	}
+
+	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(r.opConfig.Parameters, rbdPluginResource)
+	rbdDriver.Spec.Liveness = &csiopv1a1.LivenessSpec{
+		MetricsPort: int(CSIParam.RBDLivenessMetricsPort),
+	}
+	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(r.opConfig.Parameters, rbdProvisionerResource)
+	rbdDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+		Type: v1.RollingUpdateDaemonSetStrategyType,
+	}
+
+	if CSIParam.CSIDomainLabels != "" {
+		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
+		rbdDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+			DomainLabels: domainLabels,
+		}
+	}
+
+	if CSIParam.RBDPluginUpdateStrategy == "OnDelete" {
+		rbdDriver.Spec.NodePlugin.UpdateStrategy.Type = v1.OnDeleteDaemonSetStrategyType
+	}
+
+	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create or update RDB driver resource %q", rbdDriver.Name)
+	}
+
+	return nil
+}
+
+func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", clusterInfo.Namespace)
+	spec, err := r.generateDriverSpec(cluster.Name)
+	if err != nil {
+		return err
+	}
+
+	cephFsDriver := &csiopv1a1.Driver{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: clusterInfo.Namespace,
+		},
+		Spec: spec,
+	}
+
+	cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.NoneSnapshotPolicy
+	if CSIParam.EnableVolumeGroupSnapshot {
+		cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.VolumeGroupSnapshotPolicy
+	}
+
+	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(r.opConfig.Parameters, cephFSPluginResource)
+	cephFsDriver.Spec.Liveness = &csiopv1a1.LivenessSpec{
+		MetricsPort: int(CSIParam.CephFSLivenessMetricsPort),
+	}
+
+	cephFsDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(r.opConfig.Parameters, cephFSProvisionerResource)
+	cephFsDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+		Type: v1.RollingUpdateDaemonSetStrategyType,
+	}
+
+	if CSIParam.CSIDomainLabels != "" {
+		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
+		cephFsDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+			DomainLabels: domainLabels,
+		}
+	}
+
+	if CSIParam.CephFSPluginUpdateStrategy == "OnDelete" {
+		cephFsDriver.Spec.NodePlugin.UpdateStrategy.Type = v1.OnDeleteDaemonSetStrategyType
+	}
+
+	err = r.createOrUpdateDriverResource(clusterInfo, cephFsDriver)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create or update cephFS driver resource %q", cephFsDriver.Name)
+	}
+
+	return nil
+}
+
+func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", clusterInfo.Namespace)
+	spec, err := r.generateDriverSpec(cluster.Name)
+	if err != nil {
+		return err
+	}
+
+	NFSDriver := &csiopv1a1.Driver{
+		TypeMeta: metav1.TypeMeta{},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      resourceName,
+			Namespace: clusterInfo.Namespace,
+		},
+		Spec: spec,
+	}
+
+	NFSDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(r.opConfig.Parameters, nfsPluginResource)
+
+	NFSDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(r.opConfig.Parameters, nfsProvisionerResource)
+	NFSDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+		Type: v1.RollingUpdateDaemonSetStrategyType,
+	}
+
+	if CSIParam.CSIDomainLabels != "" {
+		domainLabels := strings.Split(CSIParam.CSIDomainLabels, ",")
+		NFSDriver.Spec.NodePlugin.Topology = &csiopv1a1.TopologySpec{
+			DomainLabels: domainLabels,
+		}
+	}
+
+	if CSIParam.NFSPluginUpdateStrategy == "OnDelete" {
+		NFSDriver.Spec.NodePlugin.UpdateStrategy.Type = v1.OnDeleteDaemonSetStrategyType
+	}
+
+	err = r.createOrUpdateDriverResource(clusterInfo, NFSDriver)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create or update NFS driver resource %q", NFSDriver.Name)
+	}
+
+	return nil
+}
+
+func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1a1.Driver) error {
+	spec := driverResource.Spec
+
+	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: clusterInfo.Namespace}, driverResource)
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			err = r.client.Create(r.opManagerContext, driverResource)
+			if err != nil {
+				return errors.Wrapf(err, "failed to create CSI-operator driver CR %q", driverResource.Name)
+			}
+
+			logger.Infof("successfully created CSI driver cr %q", driverResource.Name)
+			return nil
+		}
+		return errors.Wrapf(err, "failed to get CSI-operator  driver CR %q", opConfigCRName)
+	}
+
+	driverResource.Spec = spec
+	err = r.client.Update(r.opManagerContext, driverResource)
+	if err != nil {
+		return errors.Wrapf(err, "failed to update CSI-operator driver CR %q", driverResource.Name)
+	}
+
+	logger.Infof("successfully updated CSI-operator driver resource %q", driverResource.Name)
+	return nil
+}
+
+func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverSpec, error) {
+	cephfsClientType := csiopv1a1.KernelCephFsClient
+	if CSIParam.ForceCephFSKernelClient == "false" {
+		cephfsClientType = csiopv1a1.AutoDetectCephFsClient
+	}
+	imageSetCmName, err := r.createImageSetConfigmap()
+	if err != nil {
+		return csiopv1a1.DriverSpec{}, errors.Wrapf(err, "failed to create ceph-CSI operator config ImageSetConfigmap for CR %s", opConfigCRName)
+	}
+
+	return csiopv1a1.DriverSpec{
+		Log: &csiopv1a1.LogSpec{
+			Verbosity: int(CSIParam.LogLevel),
+		},
+		ImageSet: &corev1.LocalObjectReference{
+			Name: imageSetCmName,
+		},
+		ClusterName:      &clusterName,
+		EnableMetadata:   &CSIParam.CSIEnableMetadata,
+		GenerateOMapInfo: &CSIParam.EnableOMAPGenerator,
+		FsGroupPolicy:    k8scsiv1.FileFSGroupPolicy,
+		NodePlugin: &csiopv1a1.NodePluginSpec{
+			PodCommonSpec: csiopv1a1.PodCommonSpec{
+				PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
+				Affinity: &corev1.Affinity{
+					NodeAffinity: getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{}),
+				},
+				Tolerations: getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{}),
+			},
+			Resources:              csiopv1a1.NodePluginResourcesSpec{},
+			KubeletDirPath:         CSIParam.KubeletDirPath,
+			EnableSeLinuxHostMount: &CSIParam.EnablePluginSelinuxHostMount,
+		},
+		ControllerPlugin: &csiopv1a1.ControllerPluginSpec{
+			PodCommonSpec: csiopv1a1.PodCommonSpec{
+				PrioritylClassName: &CSIParam.PluginPriorityClassName,
+				Affinity: &corev1.Affinity{
+					NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
+				},
+				Tolerations: getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{}),
+			},
+			Replicas:  &CSIParam.ProvisionerReplicas,
+			Resources: csiopv1a1.ControllerPluginResourcesSpec{},
+		},
+		DeployCsiAddons:  &CSIParam.EnableCSIAddonsSideCar,
+		CephFsClientType: cephfsClientType,
+	}, nil
+}
+
+func createDriverControllerPluginResources(opConfig map[string]string, key string) csiopv1a1.ControllerPluginResourcesSpec {
+	controllerPluginResources := csiopv1a1.ControllerPluginResourcesSpec{}
+	resource := getComputeResource(opConfig, key)
+
+	for _, r := range resource {
+		if !reflect.DeepEqual(r.Resource, corev1.ResourceRequirements{}) {
+			switch {
+			case strings.Contains(r.Name, "provisioner"):
+				controllerPluginResources.Provisioner = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "resizer"):
+				controllerPluginResources.Resizer = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "snapshotter"):
+				controllerPluginResources.Snapshotter = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "attacher"):
+				controllerPluginResources.Attacher = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "plugin"):
+				controllerPluginResources.Plugin = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "omap-generator"):
+				controllerPluginResources.OMapGenerator = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "liveness"):
+				controllerPluginResources.Liveness = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			case strings.Contains(r.Name, "addons"):
+				controllerPluginResources.Addons = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			}
+		}
+	}
+	return controllerPluginResources
+}
+
+func createDriverNodePluginResouces(opConfig map[string]string, key string) csiopv1a1.NodePluginResourcesSpec {
+	nodePluginResources := csiopv1a1.NodePluginResourcesSpec{}
+	resource := getComputeResource(opConfig, key)
+
+	for _, r := range resource {
+		if !reflect.DeepEqual(r.Resource, corev1.ResourceRequirements{}) {
+			if strings.Contains(r.Name, "registrar") {
+				nodePluginResources.Registrar = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			} else if strings.Contains(r.Name, "plugin") {
+				nodePluginResources.Plugin = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			} else if strings.Contains(r.Name, "liveness") {
+				nodePluginResources.Liveness = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			} else if strings.Contains(r.Name, "addons") {
+				nodePluginResources.Addons = &corev1.ResourceRequirements{
+					Limits:   r.Resource.Limits,
+					Requests: r.Resource.Requests,
+				}
+			}
+		}
+	}
+	return nodePluginResources
+}
