@@ -26,13 +26,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	netclient "github.com/k8snetworkplumbingwg/network-attachment-definition-client/pkg/client/clientset/versioned/typed/k8s.cni.cncf.io/v1"
 	"github.com/pkg/errors"
-	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/exec"
-	"github.com/rook/rook/pkg/util/flags"
-	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	zaplogfmt "github.com/sykesm/zap-logfmt"
@@ -44,8 +37,16 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/log"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/flags"
+	"github.com/rook/rook/pkg/version"
 )
 
 const (
@@ -89,15 +90,16 @@ func init() {
 		return false
 	})
 	logfmtEncoder := zaplogfmt.NewEncoder(uzap.NewProductionEncoderConfig())
-	logger := zap.New(
-		zap.Level(leveler),
-		zap.StacktraceLevel(stackTraceLeveler),
-		zap.UseDevMode(false),
-		zap.WriteTo(os.Stdout),
-		zap.Encoder(logfmtEncoder))
-	log.SetLogger(logger)
+	opts := zap.Options{
+		Development:     false,
+		Level:           leveler,
+		StacktraceLevel: stackTraceLeveler,
+		Encoder:         logfmtEncoder,
+		DestWriter:      os.Stdout,
+	}
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 	// To disable controller runtime logging, instead set the null logger:
-	//log.SetLogger(logr.New(log.NullLogSink{}))
+	// log.SetLogger(logr.New(log.NullLogSink{}))
 }
 
 // SetLogLevel set log level based on provided log option.
