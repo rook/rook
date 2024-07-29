@@ -679,7 +679,7 @@ type Module struct {
 
 type ModuleSettings struct {
 	// BalancerMode sets the `balancer` module with different modes like `upmap`, `crush-compact` etc
-	// +kubebuilder:validation:Enum="";crush-compat;upmap;upmap-read
+	// +kubebuilder:validation:Enum="";crush-compat;upmap;read;upmap-read
 	BalancerMode string `json:"balancerMode,omitempty"`
 }
 
