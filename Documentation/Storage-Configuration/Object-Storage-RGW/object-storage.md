@@ -50,7 +50,7 @@ spec:
       codingChunks: 1
   preservePoolsOnDelete: true
   gateway:
-    sslCertificateRef:
+    # sslCertificateRef:
     port: 80
     # securePort: 443
     instances: 1
@@ -159,7 +159,7 @@ spec:
     dataPoolName: rgw-data-pool
     preserveRadosNamespaceDataOnDelete: true
   gateway:
-    sslCertificateRef:
+    # sslCertificateRef:
     port: 80
     instances: 1
 ```
@@ -231,9 +231,27 @@ external-store                       Ready
 Any pod from your cluster can now access this endpoint:
 
 ```console
-$ curl 10.100.28.138:8080
+$ curl 192.168.39.182:8080
 <?xml version="1.0" encoding="UTF-8"?><ListAllMyBucketsResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Owner><ID>anonymous</ID><DisplayName></DisplayName></Owner><Buckets></Buckets></ListAllMyBucketsResult>
 ```
+
+## Object store endpoint
+
+The CephObjectStore resource `status.info` contains `endpoint` (and `secureEndpoint`) fields, which
+report the endpoint that can be used to access the object store as a client.
+
+Each object store also creates a Kubernetes service that can be used as a client endpoint from
+within the Kubernetes cluster. The DNS name of the service is
+`rook-ceph-rgw-<objectStoreName>.<objectStoreNamespace>.svc`. This service DNS name is the default
+`endpoint` (and `secureEndpoint`).
+
+For [external clusters](#connect-to-an-external-object-store), the default endpoints contain the
+first `spec.gateway.externalRgwEndpoint` instead of the service DNS name.
+
+Rook always uses the default endpoint to perform management operations against the object store.
+When TLS is enabled, the TLS certificate must always specify the default endpoint DNS name to allow
+secure management operations. TLS configuration specification can be found in object
+[gateway `securePort` documentation](../../CRDs/Object-Storage/ceph-object-store-crd.md#gateway-settings).
 
 ## Create a Bucket
 
@@ -488,6 +506,59 @@ To directly retrieve the secrets:
 ```console
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpath='{.data.AccessKey}' | base64 --decode
 kubectl -n rook-ceph get secret rook-ceph-object-user-my-store-my-user -o jsonpath='{.data.SecretKey}' | base64 --decode
+```
+
+## Virtual host-style Bucket Access
+
+The Ceph Object Gateway supports accessing buckets using
+[virtual host-style](https://docs.aws.amazon.com/AmazonS3/latest/userguide/VirtualHosting.html)
+addressing, which allows addressing buckets using the bucket name as a subdomain in the endpoint.
+
+AWS has deprecated the the alternative path-style addressing mode which is Rook and Ceph's default.
+As a result, many end-user applications have begun to remove path-style support entirely. Many
+production clusters will have to enable virtual host-style address.
+
+Virtual host-style addressing requires 2 things:
+
+1. An endpoint that supports [wildcard addressing](https://en.wikipedia.org/wiki/Wildcard_DNS_record)
+2. CephObjectStore [hosting](../../CRDs/Object-Storage/ceph-object-store-crd.md#hosting-settings) configuration.
+
+Wildcard addressing can be configured in myriad ways. Some options:
+
+- Kubernetes [ingress loadbalancer](https://kubernetes.io/docs/concepts/services-networking/ingress/#hostname-wildcards)
+- Openshift [DNS operator](https://docs.openshift.com/container-platform/latest/networking/dns-operator.html)
+
+The minimum recommended `hosting` configuration is exemplified below. It is important to ensure that
+Rook advertises the wildcard-addressable endpoint as a priority over the default. TLS is also
+recommended for security.
+
+```yaml
+spec:
+  ...
+  hosting:
+    advertiseEndpoint:
+      dnsName: my.wildcard.addressable.endpoint.com
+      port: 443
+      useTls: true
+```
+
+A more complex `hosting` configuration is exemplified below. In this example, two
+wildcard-addressable endpoints are available. One is a wildcard-addressable ingress service that is
+accessible to clients outside of the Kubernetes cluster (`s3.ingress.domain.com`). The other is a
+wildcard-addressable Kubernetes cluster service (`s3.rook-ceph.svc`). The cluster service is the
+preferred advertise endpoint because the internal service avoids the possibility of the ingress
+service's router being a bottleneck for S3 client operations.
+
+```yaml
+spec:
+  ...
+  hosting:
+    advertiseEndpoint:
+      dnsName: s3.rook-ceph.svc
+      port: 443
+      useTls: true
+  dnsNames:
+    - s3.ingress.domain.com
 ```
 
 ## Object Multisite

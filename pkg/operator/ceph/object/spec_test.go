@@ -914,6 +914,9 @@ func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
 			DataPathMap: data,
 		}
 	}
+
+	cephV18 := cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}
+
 	tests := []struct {
 		name            string
 		dnsNames        []string
@@ -923,18 +926,18 @@ func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
 		CustomEndpoints []string
 		wantErr         bool
 	}{
-		{"no dns names ceph v18", []string{}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
-		{"no dns names with zone ceph v18", []string{}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{}, false},
-		{"no dns names with zone and custom endpoints ceph v18", []string{}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
-		{"one dns name ceph v18", []string{"my.dns.name"}, "--rgw-dns-name=my.dns.name,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
-		{"multiple dns names ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
-		{"duplicate dns names ceph v18", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, false},
-		{"invalid dns name ceph v18", []string{"!my.invalid-dns.com"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, true},
-		{"mixed invalid and valid dns names ceph v18", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "", []string{}, true},
-		{"dns name with zone without custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{}, false},
-		{"dns name with zone with custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc,my.custom.endpoint1,my.custom.endpoint2", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
-		{"dns name with zone with custom invalid endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint:80", "http://!my.invalid-custom.endpoint:80"}, true},
-		{"dns name with zone with mixed invalid and valid dnsnames/custom endpoint ceph v18", []string{"my.dns.name", "!my.dns.name"}, "", cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80:80"}, true},
+		{"no dns names ceph v18", []string{}, "", cephV18, "", []string{}, false},
+		{"no dns names with zone ceph v18", []string{}, "", cephV18, "myzone", []string{}, false},
+		{"no dns names with zone and custom endpoints ceph v18", []string{}, "", cephV18, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
+		{"one dns name ceph v18", []string{"my.dns.name"}, "--rgw-dns-name=my.dns.name,rook-ceph-rgw-default.mycluster.svc", cephV18, "", []string{}, false},
+		{"multiple dns names ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephV18, "", []string{}, false},
+		{"duplicate dns names ceph v18", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephV18, "", []string{}, false},
+		{"invalid dns name ceph v18", []string{"!my.invalid-dns.com"}, "", cephV18, "", []string{}, true},
+		{"mixed invalid and valid dns names ceph v18", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephV18, "", []string{}, true},
+		{"dns name with zone without custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc", cephV18, "myzone", []string{}, false},
+		{"dns name with zone with custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc,my.custom.endpoint1,my.custom.endpoint2", cephV18, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
+		{"dns name with zone with custom invalid endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "", cephV18, "myzone", []string{"http://my.custom.endpoint:80", "http://!my.invalid-custom.endpoint:80"}, true},
+		{"dns name with zone with mixed invalid and valid dnsnames/custom endpoint ceph v18", []string{"my.dns.name", "!my.dns.name"}, "", cephV18, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80:80"}, true},
 		{"no dns names ceph v17", []string{}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, false},
 		{"one dns name ceph v17", []string{"my.dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
 		{"multiple dns names ceph v17", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
@@ -965,9 +968,95 @@ func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
 				assert.NoError(t, err)
 			}
 			assert.Equal(t, tt.expectedDNSArg, res)
-
 		})
 	}
+
+	t.Run("advertiseEndpoint http, no dnsNames", func(t *testing.T) {
+		c := setupTest("", cephV18, []string{}, []string{})
+		c.store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+				DnsName: "my.endpoint.com",
+				Port:    80,
+			},
+		}
+		res, err := c.addDNSNamesToRGWServer()
+		assert.NoError(t, err)
+		assert.Equal(t, "--rgw-dns-name=my.endpoint.com,rook-ceph-rgw-default.mycluster.svc", res)
+	})
+
+	t.Run("advertiseEndpoint https, no dnsNames", func(t *testing.T) {
+		c := setupTest("", cephV18, []string{}, []string{})
+		c.store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+				DnsName: "my.endpoint.com",
+				Port:    443,
+				UseTls:  true,
+			},
+		}
+		res, err := c.addDNSNamesToRGWServer()
+		assert.NoError(t, err)
+		assert.Equal(t, "--rgw-dns-name=my.endpoint.com,rook-ceph-rgw-default.mycluster.svc", res)
+	})
+
+	t.Run("advertiseEndpoint is svc", func(t *testing.T) {
+		c := setupTest("", cephV18, []string{}, []string{})
+		c.store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+				DnsName: "rook-ceph-rgw-default.mycluster.svc",
+				Port:    443,
+				UseTls:  true,
+			},
+		}
+		res, err := c.addDNSNamesToRGWServer()
+		assert.NoError(t, err)
+		// ensures duplicates are removed
+		assert.Equal(t, "--rgw-dns-name=rook-ceph-rgw-default.mycluster.svc", res)
+	})
+
+	t.Run("advertiseEndpoint https, no dnsNames, with zone custom endpoint", func(t *testing.T) {
+		c := setupTest("my-zone", cephV18, []string{}, []string{"multisite.endpoint.com"})
+		c.store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+				DnsName: "my.endpoint.com",
+				Port:    443,
+				UseTls:  true,
+			},
+		}
+		res, err := c.addDNSNamesToRGWServer()
+		assert.NoError(t, err)
+		assert.Equal(t, "--rgw-dns-name=my.endpoint.com,rook-ceph-rgw-default.mycluster.svc,multisite.endpoint.com", res)
+	})
+
+	t.Run("advertiseEndpoint https, with dnsNames, with zone custom endpoint", func(t *testing.T) {
+		c := setupTest("my-zone", cephV18, []string{}, []string{"multisite.endpoint.com"})
+		c.store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+				DnsName: "my.endpoint.com",
+				Port:    443,
+				UseTls:  true,
+			},
+			DNSNames: []string{"extra.endpoint.com", "extra.endpoint.net"},
+		}
+		res, err := c.addDNSNamesToRGWServer()
+		assert.NoError(t, err)
+		assert.Equal(t, "--rgw-dns-name=my.endpoint.com,extra.endpoint.com,extra.endpoint.net,rook-ceph-rgw-default.mycluster.svc,multisite.endpoint.com", res)
+	})
+
+	t.Run("advertiseEndpoint https, with dnsNames, with zone custom endpoint, duplicates", func(t *testing.T) {
+		c := setupTest("my-zone", cephV18, []string{}, []string{"extra.endpoint.com"})
+		c.store.Spec.Hosting = &cephv1.ObjectStoreHostingSpec{
+			AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+				DnsName: "my.endpoint.com",
+				Port:    443,
+				UseTls:  true,
+			},
+			DNSNames: []string{"my.endpoint.com", "extra.endpoint.com"},
+		}
+		res, err := c.addDNSNamesToRGWServer()
+		assert.NoError(t, err)
+		t.Log(res)
+		assert.Equal(t, "--rgw-dns-name=my.endpoint.com,extra.endpoint.com,rook-ceph-rgw-default.mycluster.svc", res)
+	})
 }
 
 func TestGetHostnameFromEndpoint(t *testing.T) {
