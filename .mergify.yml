@@ -15,49 +15,6 @@ pull_request_rules:
       comment:
         message: Hi @{{author}}, this pull request was opened against a release branch, is it expected? Normally patches should go in the master branch first and then be backported to release branches.
 
-  # release-1.10 branch
-  - name: automerge backport release-1.10
-    conditions:
-      - author=mergify[bot]
-      - base=release-1.10
-      - label!=do-not-merge
-      - "status-success=DCO"
-      - "check-success=canary"
-      - "check-success=unittests"
-      - "check-success=golangci-lint"
-      - "check-success=codegen"
-      - "check-success=codespell"
-      - "check-success=lint"
-      - "check-success=modcheck"
-      - "check-success=Shellcheck"
-      - "check-success=yaml-linter"
-      - "check-success=lint-test"
-      - "check-success=gen-rbac"
-      - "check-success=crds-gen"
-      - "check-success=pvc"
-      - "check-success=pvc-db"
-      - "check-success=pvc-db-wal"
-      - "check-success=encryption-pvc"
-      - "check-success=encryption-pvc-db"
-      - "check-success=encryption-pvc-db-wal"
-      - "check-success=encryption-pvc-kms-vault-token-auth"
-      - "check-success=encryption-pvc-kms-vault-k8s-auth"
-      - "check-success=lvm-pvc"
-      - "check-success=multi-cluster-mirroring"
-      - "check-success=rgw-multisite-testing"
-      - "check-success=TestCephSmokeSuite (v1.19.16)"
-      - "check-success=TestCephSmokeSuite (v1.25.0)"
-      - "check-success=TestCephHelmSuite (v1.19.16)"
-      - "check-success=TestCephHelmSuite (v1.25.0)"
-      - "check-success=TestCephMultiClusterDeploySuite (v1.25.0)"
-      - "check-success=TestCephUpgradeSuite (v1.19.16)"
-      - "check-success=TestCephUpgradeSuite (v1.25.0)"
-    actions:
-      merge:
-        method: merge
-      dismiss_reviews: {}
-      delete_head_branch: {}
-
   # release-1.11 branch
   - name: automerge backport release-1.11
     conditions:
@@ -275,14 +232,64 @@ pull_request_rules:
       dismiss_reviews: {}
       delete_head_branch: {}
 
-  # release-1.10 branch
-  - actions:
-      backport:
-        branches:
-          - release-1.10
+  # release-1.15 branch
+  - name: automerge backport release-1.15
     conditions:
-      - label=backport-release-1.10
-    name: backport release-1.10
+      - author=mergify[bot]
+      - base=release-1.15
+      - label!=do-not-merge
+      - "status-success=DCO"
+      - "check-success=linux-build-all (1.22)"
+      - "check-success=unittests"
+      - "check-success=golangci-lint"
+      - "check-success=codegen"
+      - "check-success=codespell"
+      - "check-success=lint"
+      - "check-success=modcheck"
+      - "check-success=Shellcheck"
+      - "check-success=yaml-linter"
+      - "check-success=lint-test"
+      - "check-success=gen-rbac"
+      - "check-success=crds-gen"
+      - "check-success=docs-check"
+      - "check-success=pylint"
+      - "check-success=canary-tests / canary (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / raw-disk-with-object (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / two-osds-in-device (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / osd-with-metadata-partition-device (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / osd-with-metadata-device (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / lvm (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / pvc (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / pvc-db (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / pvc-db-wal (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption-pvc (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption-pvc-db (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption-pvc-db-wal (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption-pvc-kms-vault-token-auth (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption-pvc-kms-vault-k8s-auth (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / lvm-pvc (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / multi-cluster-mirroring (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / rgw-multisite-testing (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / multus-cluster-network (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / csi-hostnetwork-disabled (quay.io/ceph/ceph:v18)"
+      - "check-success=TestCephSmokeSuite (v1.25.16)"
+      - "check-success=TestCephSmokeSuite (v1.30.0)"
+      - "check-success=TestCephHelmSuite (v1.25.16)"
+      - "check-success=TestCephHelmSuite (v1.30.0)"
+      - "check-success=TestCephMultiClusterDeploySuite (v1.30.0)"
+      - "check-success=TestCephObjectSuite (v1.25.16)"
+      - "check-success=TestCephObjectSuite (v1.30.0)"
+      - "check-success=TestCephUpgradeSuite (v1.25.16)"
+      - "check-success=TestCephUpgradeSuite (v1.30.0)"
+      - "check-success=TestHelmUpgradeSuite (v1.25.16)"
+      - "check-success=TestHelmUpgradeSuite (v1.30.0)"
+    actions:
+      merge:
+        method: merge
+      dismiss_reviews: {}
+      delete_head_branch: {}
 
   # release-1.11 branch
   - actions:
@@ -319,3 +326,12 @@ pull_request_rules:
     conditions:
       - label=backport-release-1.14
     name: backport release-1.14
+
+  # release-1.15 branch
+  - actions:
+      backport:
+        branches:
+          - release-1.15
+    conditions:
+      - label=backport-release-1.15
+    name: backport release-1.15
