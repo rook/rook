@@ -18,10 +18,12 @@ package object
 
 import (
 	"encoding/json"
+	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -29,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestExtractJson(t *testing.T) {
@@ -730,3 +733,146 @@ const secondPeriodUpdateWithChanges = `{
     "realm_name": "my-store",
     "realm_epoch": 3
 }`
+
+func TestGetAdminOpsEndpoint(t *testing.T) {
+	s := &cephv1.CephObjectStore{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-store",
+			Namespace: "my-ns",
+		},
+		Spec: cephv1.ObjectStoreSpec{
+			Gateway: cephv1.GatewaySpec{},
+			// configure hosting settings to ensure they don't affect admin ops endpoints
+			Hosting: &cephv1.ObjectStoreHostingSpec{
+				AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
+					DnsName: "should.not.appear",
+					Port:    7777,
+					UseTls:  false,
+				},
+				DNSNames: []string{"also.should.not.appear"},
+			},
+		},
+	}
+
+	t.Run("internal", func(t *testing.T) {
+		t.Run("port", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.Port = 8080
+			got, err := GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "http://rook-ceph-rgw-my-store.my-ns.svc:8080", got)
+		})
+
+		t.Run("securePort, no cert", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.SecurePort = 8443
+			got, err := GetAdminOpsEndpoint(s)
+			assert.Error(t, err)
+			assert.Equal(t, "", got)
+		})
+
+		t.Run("securePort", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.SecurePort = 8443
+			s.Spec.Gateway.SSLCertificateRef = "my-cert"
+			got, err := GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "https://rook-ceph-rgw-my-store.my-ns.svc:8443", got)
+		})
+
+		t.Run("port + securePort", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.Port = 8080
+			s.Spec.Gateway.SecurePort = 8443
+			s.Spec.Gateway.SSLCertificateRef = "my-cert"
+			got, err := GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "https://rook-ceph-rgw-my-store.my-ns.svc:8443", got)
+		})
+	})
+
+	t.Run("external", func(t *testing.T) {
+		t.Run("port", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
+				{IP: "192.168.1.1"},
+				{Hostname: "s3.host.com"},
+			}
+			s.Spec.Gateway.Port = 8080
+
+			// override rand src with known seed to keep tests stable
+			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
+
+			got, err := GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "http://192.168.1.1:8080", got)
+
+			got, err = GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "http://s3.host.com:8080", got)
+		})
+
+		t.Run("securePort, no cert", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
+				{IP: "192.168.1.1"},
+				{Hostname: "s3.host.com"},
+			}
+			s.Spec.Gateway.SecurePort = 8443
+
+			// override rand src with known seed to keep tests stable
+			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
+
+			got, err := GetAdminOpsEndpoint(s)
+			assert.Error(t, err)
+			assert.Equal(t, "", got)
+
+			got, err = GetAdminOpsEndpoint(s)
+			assert.Error(t, err)
+			assert.Equal(t, "", got)
+		})
+
+		t.Run("securePort", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
+				{IP: "192.168.1.1"},
+				{Hostname: "s3.host.com"},
+			}
+			s.Spec.Gateway.SecurePort = 8443
+			s.Spec.Gateway.SSLCertificateRef = "my-cert"
+
+			// override rand src with known seed to keep tests stable
+			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
+
+			got, err := GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "https://192.168.1.1:8443", got)
+
+			got, err = GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "https://s3.host.com:8443", got)
+		})
+
+		t.Run("port + securePort", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
+				{IP: "192.168.1.1"},
+				{Hostname: "s3.host.com"},
+			}
+			s.Spec.Gateway.Port = 8080
+			s.Spec.Gateway.SecurePort = 8443
+			s.Spec.Gateway.SSLCertificateRef = "my-cert"
+
+			// override rand src with known seed to keep tests stable
+			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
+
+			got, err := GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "https://192.168.1.1:8443", got)
+
+			got, err = GetAdminOpsEndpoint(s)
+			assert.NoError(t, err)
+			assert.Equal(t, "https://s3.host.com:8443", got)
+		})
+	})
+}

@@ -504,23 +504,21 @@ func (p *Provisioner) setObjectContext() error {
 
 // setObjectStoreDomainName sets the provisioner.storeDomainName and provisioner.port
 // must be called after setObjectStoreName and setObjectStoreNamespace
-func (p *Provisioner) setObjectStoreDomainName(sc *storagev1.StorageClass) error {
+func (p *Provisioner) setObjectStoreDomainNameAndPort(sc *storagev1.StorageClass) error {
 	// make sure the object store actually exists
 	store, err := p.getObjectStore()
 	if err != nil {
 		return err
 	}
-	p.storeDomainName = object.GetDomainName(store)
-	return nil
-}
 
-func (p *Provisioner) setObjectStorePort() error {
-	store, err := p.getObjectStore()
+	domainName, port, _, err := store.GetAdvertiseEndpoint()
 	if err != nil {
-		return errors.Wrap(err, "failed to get cephObjectStore")
+		return errors.Wrapf(err, `failed to get advertise endpoint for CephObjectStore "%s/%s"`, p.clusterInfo.Namespace, p.objectStoreName)
 	}
-	p.storePort, err = store.Spec.GetPort()
-	return err
+	p.storeDomainName = domainName
+	p.storePort = port
+
+	return nil
 }
 
 func (p *Provisioner) setObjectStoreName(sc *storagev1.StorageClass) {
@@ -560,11 +558,8 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 		}
 		// If no endpoint exists let's see if CephObjectStore exists
 	} else {
-		if err := p.setObjectStoreDomainName(sc); err != nil {
+		if err := p.setObjectStoreDomainNameAndPort(sc); err != nil {
 			return errors.Wrap(err, "failed to set object store domain name")
-		}
-		if err := p.setObjectStorePort(); err != nil {
-			return errors.Wrap(err, "failed to set object store port")
 		}
 	}
 
@@ -679,8 +674,10 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 		return errors.Wrap(err, "failed to retrieve rgw admin ops user")
 	}
 
-	// Build endpoint
-	s3endpoint := object.BuildDNSEndpoint(object.GetDomainName(cephObjectStore), p.storePort, cephObjectStore.Spec.IsTLSEnabled())
+	s3endpoint, err := object.GetAdminOpsEndpoint(cephObjectStore)
+	if err != nil {
+		return errors.Wrapf(err, "failed to retrieve admin ops endpoint")
+	}
 
 	// If DEBUG level is set we will mutate the HTTP client for printing request and response
 	if logger.LevelAt(capnslog.DEBUG) {

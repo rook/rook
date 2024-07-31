@@ -202,14 +202,7 @@ func TestEmptyPoolSpec(t *testing.T) {
 }
 
 func TestBuildDomainNameAndEndpoint(t *testing.T) {
-	s := &cephv1.CephObjectStore{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-store",
-			Namespace: "rook-ceph",
-		},
-	}
-	dns := GetDomainName(s)
-	assert.Equal(t, "rook-ceph-rgw-my-store.rook-ceph.svc", dns)
+	dns := "rook-ceph-rgw-my-store.rook-ceph.svc"
 
 	// non-secure endpoint
 	var port int32 = 80
