@@ -227,7 +227,7 @@ Object Storage API allows users to specify where bucket data will be stored duri
 
 In Ceph these data locations represented by Pools. Placement targets control which Pools are associated with a particular bucket. A bucket’s placement target is selected on creation, and cannot be modified (See [Ceph doc](https://docs.ceph.com/en/latest/radosgw/placement/#pool-placement-and-storage-classes)). Placement target can also define custom Storage classes to override data pool where object will be stored.
 
-Ceph administrator creates set of `index_pool`, `data_pool`, and `data_extra_pool` per each target placement. Select arbitrary names for target placements. For example `hot` and `cold`:
+Ceph administrator creates set of `index_pool`, `data_pool`, and optional `data_extra_pool` per each target placement. Selects arbitrary names for target placements. For example `fast` and `cold`:
 > [!NOTE]
 > `data_extra_pool` is for data that cannot use erasure coding. For example, multi-part uploads allow uploading a large object such as a movie in multiple parts. These parts must first be stored without erasure coding. So if `data_pool` is **not** erasure coded, then there is not need for `data_extra_pool`.
 
@@ -249,20 +249,20 @@ metadata:
   namespace: rook-ceph
 spec:
   ...
-# Bucket Data pool for hot storage
+# Bucket Data pool for fast storage
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: rgw-hot-data-pool
+  name: rgw-fast-data-pool
   namespace: rook-ceph
 spec:
   ...
 ---
-# Bucket index pool for hot storage
+# Bucket index pool for fast storage
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: rgw-hot-meta-pool
+  name: rgw-fast-meta-pool
   namespace: rook-ceph
 spec:
   ...
@@ -286,7 +286,7 @@ spec:
   ...
 ```
 
-If needed, create additional pool to use it in custom StorageClass, for example `GLACIER` and `REDUCED_REDUNDANCY`:
+If needed, create additional pool to use it in custom StorageClass, for example `GLACIER`:
 > [!NOTE]
 > Ceph allows arbitrary name for StorageClasses, however some clients/libs insist on AWS names so it is recommended to use one of the [valid x-amz-storage-class values](https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html#API_PutObject_RequestSyntax) for better compatibility:
 >
@@ -297,14 +297,6 @@ apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
   name: glacier-data-pool
-  namespace: rook-ceph
-spec:
-  ...
----
-apiVersion: ceph.rook.io/v1
-kind: CephBlockPool
-metadata:
-  name: reduced-data-pool
   namespace: rook-ceph
 spec:
   ...
@@ -340,32 +332,31 @@ spec:
         metadataPoolName: rgw-meta-pool         # [REQUIRED] results to rgw-meta-pool:<CephObjectStore.name>.index
         dataPoolName: rgw-data-pool             # [REQUIRED] results to rgw-data-pool:<CephObjectStore.name>.data
         dataNonECPoolName: ""                   # [OPTIONAL] results to rgw-data-pool:<CephObjectStore.name>.data.nonec
-        # [OPTIONAL] - Storage classes for cold placement target.
+        # [OPTIONAL] - Storage classes for default placement target.
+        # Any placement has default storage class named STANDARD pointing to dataPoolName.
+        # So stageClasses allows to define additional storage classes on top of STANDARD for given placement.
         storageClasses:
-          - name: GLACIER                       # [REQUIRED] StorageClass name. Can be arbitrary but it is better to use one of AWS x-amz-storage-class names.
-            dataPoolName: glacier-data-pool     # [REQUIRED] results to glacier-data-pool:<CephObjectStore.name>.glacier
+      # Pool placement target named "fast"
+      - name: "fast"
+        metadataPoolName: rgw-fast-meta-pool     # [REQUIRED] results to rgw-fast-meta-pool:<CephObjectStore.name>.fast.index
+        dataPoolName: rgw-fast-data-pool         # [REQUIRED] results to rgw-fast-data-pool:<CephObjectStore.name>.fast.data
+        dataNonECPoolName: ""                   # [OPTIONAL] results to rgw-fast-data-pool:<CephObjectStore.name>.fast.data.nonec
+        # [OPTIONAL] - Additional Storage classes for fast placement target. Provide alternatives to default STANDARD storage clsss.
+        # STANDARD storage class cannot be changed or removed and always points to placement dataPoolName to store object data.
+        storageClasses:
       # Pool placement target named "cold"
       - name: "cold"                            # [REQUIRED] - placement id. Can be arbitrary.
         metadataPoolName: rgw-cold-meta-pool    # [REQUIRED] results to rgw-cold-meta-pool:<CephObjectStore.name>.cold.index
         dataPoolName: rgw-cold-data-pool        # [REQUIRED] results to rgw-cold-data-pool:<CephObjectStore.name>.cold.data
         dataNonECPoolName: ""                   # [OPTIONAL] results to rgw-cold-data-pool:<CephObjectStore.name>.cold.data.nonec
-        # [OPTIONAL] - Storage classes for cold placement target.
+        # [OPTIONAL] - Additional Storage classes for cold placement target. Provides alternatives to default STANDARD storage clsss.
+        # STANDARD storage class cannot be changed or removed and always points to placement dataPoolName to store object data.
         storageClasses:
           - name: GLACIER                       # [REQUIRED] StorageClass name. Can be arbitrary but it is better to use one of AWS x-amz-storage-class names.
             dataPoolName: glacier-data-pool     # [REQUIRED] results to glacier-data-pool:<CephObjectStore.name>.glacier
-      # Pool placement target named "hot"
-      - name: "hot"
-        metadataPoolName: rgw-hot-meta-pool     # [REQUIRED] results to rgw-hot-meta-pool:<CephObjectStore.name>.hot.index
-        dataPoolName: rgw-hot-data-pool         # [REQUIRED] results to rgw-hot-data-pool:<CephObjectStore.name>.hot.data
-        dataNonECPoolName: ""                   # [OPTIONAL] results to rgw-hot-data-pool:<CephObjectStore.name>.hot.data.nonec
-        # [OPTIONAL] - Storage classes for hot placement target.
-        storageClasses:
-          - name: REDUCED_REDUNDANCY            # [REQUIRED] StorageClass name
-            dataPoolName: reduced-data-pool     # [REQUIRED] results to rgw-data-reduce-pool:<CephObjectStore.name>.reduced_redundancy
 ```
 
-Here we specified that pools `rgw-meta-pool` and `rgw-data-pool` will be used by default and StorageClass `GLACIER` can be used to override object data pool to `glacier-data-pool`.
-Then we also defined 2 additional bucket target placements: `hot` and `cold` along with their StorageClasses.
+Here we specified that pools `rgw-meta-pool` and `rgw-data-pool` will be used by default. We also added extra placements named `fast` and `cold` with corresponding data and metadata pools. We also introduced extra storage class `GLACIER` for `cold` placement, which can be used to override object data pool to `glacier-data-pool` within `cold` placement.
 
 Rook CephObjectStore controller reconciliation loop for target placements:
 
@@ -397,21 +388,21 @@ Rook CephObjectStore controller reconciliation loop for target placements:
                 "name": "default-placement",
                 "tags": [],
                 "storage_classes": [
-                    "STANDARD","GLACIER"
+                    "STANDARD"
                 ]
             }
             {
-                "name": "hot",
+                "name": "fast",
                 "tags": [],
                 "storage_classes": [
-                    "STANDARD","GLACIER"
+                    "STANDARD"
                 ]
             },
             {
                 "name": "cold",
                 "tags": [],
                 "storage_classes": [
-                    "STANDARD","REDUCED_REDUNDANCY"
+                    "STANDARD","GLACIER"
                 ]
             }
         ],
@@ -453,13 +444,23 @@ Rook CephObjectStore controller reconciliation loop for target placements:
                     "storage_classes": {
                         "STANDARD": {
                             "data_pool": "rgw-data-pool:<CephObjectStore.name>.data"
-                        },
-                        "GLACIER": {
-                            "data_pool": "glacier-data-pool:<CephObjectStore.name>.glacier"
                         }
-
                     },
                     "data_extra_pool": "rgw-data-pool:<CephObjectStore.name>.data.nonec",
+                    "index_type": 0,
+                    "inline_data": true
+                }
+            },
+            {
+                "key": "fast",
+                "val": {
+                    "index_pool": "rgw-cold-meta-pool:<CephObjectStore.name>.fast.index",
+                    "storage_classes": {
+                        "STANDARD": {
+                            "data_pool": "rgw-fast-data-pool:<CephObjectStore.name>.fast.data"
+                        },
+                    },
+                    "data_extra_pool": "rgw-fast-data-pool:<CephObjectStore.name>.fast.data.nonec",
                     "index_type": 0,
                     "inline_data": true
                 }
@@ -482,24 +483,6 @@ Rook CephObjectStore controller reconciliation loop for target placements:
                     "inline_data": true
                 }
             },
-            {
-                "key": "hot",
-                "val": {
-                    "index_pool": "rgw-cold-meta-pool:<CephObjectStore.name>.hot.index",
-                    "storage_classes": {
-                        "STANDARD": {
-                            "data_pool": "rgw-hot-data-pool:<CephObjectStore.name>.hot.data"
-                        },
-                        "REDUCED_REDUNDANCY": {
-                            "data_pool": "rgw-data-reduce-pool:<CephObjectStore.name>.reduced_redundancy"
-                        }
-
-                    },
-                    "data_extra_pool": "rgw-hot-data-pool:<CephObjectStore.name>.hot.data.nonec",
-                    "index_type": 0,
-                    "inline_data": true
-                }
-            }
         ],
         ...
     }
