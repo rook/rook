@@ -29,6 +29,8 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.19.1 // indirect
+	github.com/onsi/gomega v1.34.0 // indirect
 	github.com/rogpeppe/go-internal v1.12.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/client-go v0.30.3 // indirect
