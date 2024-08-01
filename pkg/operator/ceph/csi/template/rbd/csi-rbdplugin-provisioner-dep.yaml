@@ -38,9 +38,7 @@ spec:
             - "--extra-create-metadata=true"
             - "--prevent-volume-mode-conversion=true"
             - "--feature-gates=HonorPVReclaimPolicy=true"
-            {{ if .EnableCSITopology }}
-            - "--feature-gates=Topology=true"
-            {{ end }}
+            - "--feature-gates=Topology={{ .EnableCSITopology }}"
             {{ if .KubeApiBurst }}
             - "--kube-api-burst={{ .KubeApiBurst }}"
             {{ end }}
