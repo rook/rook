@@ -18,7 +18,6 @@ package object
 
 import (
 	"encoding/json"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -742,14 +741,9 @@ func TestGetAdminOpsEndpoint(t *testing.T) {
 		},
 		Spec: cephv1.ObjectStoreSpec{
 			Gateway: cephv1.GatewaySpec{},
-			// configure hosting settings to ensure they don't affect admin ops endpoints
 			Hosting: &cephv1.ObjectStoreHostingSpec{
-				AdvertiseEndpoint: &cephv1.ObjectEndpointSpec{
-					DnsName: "should.not.appear",
-					Port:    7777,
-					UseTls:  false,
-				},
-				DNSNames: []string{"also.should.not.appear"},
+				// dnsNames shouldn't affect admin ops endpoints
+				DNSNames: []string{"should.not.appear"},
 			},
 		},
 	}
@@ -800,16 +794,9 @@ func TestGetAdminOpsEndpoint(t *testing.T) {
 			}
 			s.Spec.Gateway.Port = 8080
 
-			// override rand src with known seed to keep tests stable
-			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
-
 			got, err := GetAdminOpsEndpoint(s)
 			assert.NoError(t, err)
 			assert.Equal(t, "http://192.168.1.1:8080", got)
-
-			got, err = GetAdminOpsEndpoint(s)
-			assert.NoError(t, err)
-			assert.Equal(t, "http://s3.host.com:8080", got)
 		})
 
 		t.Run("securePort, no cert", func(t *testing.T) {
@@ -820,14 +807,7 @@ func TestGetAdminOpsEndpoint(t *testing.T) {
 			}
 			s.Spec.Gateway.SecurePort = 8443
 
-			// override rand src with known seed to keep tests stable
-			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
-
 			got, err := GetAdminOpsEndpoint(s)
-			assert.Error(t, err)
-			assert.Equal(t, "", got)
-
-			got, err = GetAdminOpsEndpoint(s)
 			assert.Error(t, err)
 			assert.Equal(t, "", got)
 		})
@@ -841,16 +821,9 @@ func TestGetAdminOpsEndpoint(t *testing.T) {
 			s.Spec.Gateway.SecurePort = 8443
 			s.Spec.Gateway.SSLCertificateRef = "my-cert"
 
-			// override rand src with known seed to keep tests stable
-			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
-
 			got, err := GetAdminOpsEndpoint(s)
 			assert.NoError(t, err)
 			assert.Equal(t, "https://192.168.1.1:8443", got)
-
-			got, err = GetAdminOpsEndpoint(s)
-			assert.NoError(t, err)
-			assert.Equal(t, "https://s3.host.com:8443", got)
 		})
 
 		t.Run("port + securePort", func(t *testing.T) {
@@ -863,16 +836,31 @@ func TestGetAdminOpsEndpoint(t *testing.T) {
 			s.Spec.Gateway.SecurePort = 8443
 			s.Spec.Gateway.SSLCertificateRef = "my-cert"
 
-			// override rand src with known seed to keep tests stable
-			randSrc = rand.New(rand.NewSource(3)) //nolint:gosec // G404: cryptographically weak RNG is fine here
-
 			got, err := GetAdminOpsEndpoint(s)
 			assert.NoError(t, err)
 			assert.Equal(t, "https://192.168.1.1:8443", got)
+		})
+	})
 
-			got, err = GetAdminOpsEndpoint(s)
+	t.Run("advertise", func(t *testing.T) {
+		t.Run("port + securePort", func(t *testing.T) {
+			s := s.DeepCopy()
+			s.Spec.Gateway.ExternalRgwEndpoints = []cephv1.EndpointAddress{
+				{IP: "192.168.1.1"},
+				{Hostname: "s3.host.com"},
+			}
+			s.Spec.Gateway.Port = 8080
+			s.Spec.Gateway.SecurePort = 8443
+			s.Spec.Gateway.SSLCertificateRef = "my-cert"
+			s.Spec.Hosting.AdvertiseEndpoint = &cephv1.ObjectEndpointSpec{
+				DnsName: "advertise.me",
+				Port:    80,
+				UseTls:  false,
+			}
+
+			got, err := GetAdminOpsEndpoint(s)
 			assert.NoError(t, err)
-			assert.Equal(t, "https://s3.host.com:8443", got)
+			assert.Equal(t, "http://advertise.me:80", got)
 		})
 	})
 }
