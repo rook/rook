@@ -17,6 +17,8 @@ limitations under the License.
 package csi
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -28,30 +30,44 @@ import (
 	v1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	k8scsiv1 "k8s.io/api/storage/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
 
 	if EnableRBD {
 		logger.Info("Creating RBD driver resources")
-		err := r.createOrUpdateRBDDriverResource(cluster, clusterInfo)
+		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, RBDDriverName)
+		if err != nil {
+			return errors.Wrap(err, "failed to create update RBD driver for csi-operator driver CR ")
+		}
+		err = r.createOrUpdateRBDDriverResource(cluster, clusterInfo)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", clusterInfo.Namespace)
 		}
 	}
 	if EnableCephFS {
 		logger.Info("Creating CephFS driver resources")
-		err := r.createOrUpdateCephFSDriverResource(cluster, clusterInfo)
+		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, CephFSDriverName)
+		if err != nil {
+			return errors.Wrap(err, "failed to create update CephFS driver for csi-operator driver CR ")
+		}
+		err = r.createOrUpdateCephFSDriverResource(cluster, clusterInfo)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", clusterInfo.Namespace)
 		}
 	}
 	if EnableNFS {
 		logger.Info("Creating NFS driver resources")
-		err := r.createOrUpdateNFSDriverResource(cluster, clusterInfo)
+		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, NFSDriverName)
+		if err != nil {
+			return errors.Wrap(err, "failed to create update NFS driver for csi-operator driver CR ")
+		}
+		err = r.createOrUpdateNFSDriverResource(cluster, clusterInfo)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", clusterInfo.Namespace)
 		}
@@ -355,4 +371,41 @@ func createDriverNodePluginResouces(opConfig map[string]string, key string) csio
 		}
 	}
 	return nodePluginResources
+}
+
+// transferCSIDriverOwner update CSIDriver and returns the error if any
+func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, clusterInfo *cephclient.ClusterInfo, name string) error {
+
+	logger.Info("adding annotation to CSIDriver resource for csi-operator to own it")
+	csiDriver, err := r.context.Clientset.StorageV1().CSIDrivers().Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			logger.Debugf("%s CSIDriver not found; skipping ownership transfer.", name)
+			return nil
+		}
+	}
+
+	key := "csi.ceph.io/ownerref"
+	ownerObjKey := client.ObjectKeyFromObject(csiDriver)
+	val, err := json.Marshal(ownerObjKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal owner object key %q", ownerObjKey.Name)
+	}
+
+	annotations := csiDriver.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+		csiDriver.SetAnnotations(annotations)
+	}
+	if oldValue, exist := annotations[key]; !exist || oldValue != string(val) {
+		annotations[key] = string(val)
+	} else {
+		return nil
+	}
+	_, err = r.context.Clientset.StorageV1().CSIDrivers().Update(ctx, csiDriver, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update CSIDriver %s", name)
+	}
+
+	return nil
 }
