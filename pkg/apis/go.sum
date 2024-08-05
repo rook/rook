@@ -502,8 +502,8 @@ github.com/jstemmer/go-junit-report v0.0.0-20190106144839-af01ea7f8024/go.mod h1
 github.com/jstemmer/go-junit-report v0.9.1/go.mod h1:Brl9GWCQeLvo8nXZwPNNblvFj/XSXhF0NWZEnDohbsk=
 github.com/jtolds/gls v4.20.0+incompatible/go.mod h1:QJZ7F/aHp+rZTRtaJ1ow/lLfFfVYBRgL+9YlvaHOwJU=
 github.com/julienschmidt/httprouter v1.2.0/go.mod h1:SYymIcj16QtmaHHD7aYtjjsJG7VTCxuUUipMqKk8s4w=
-github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0 h1:47q2PIbDYHmOaqLxgGnvpLq96v9UKDsJfNW6j/KbfpQ=
-github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0/go.mod h1:KDX0bPKeuhMakcNzLf2sWXKPNZ30wH01bsY/KJZLxFY=
+github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.1 h1:n4FpoJ6aGDx8ULfya/C4ycrMDuPZlf7AtPyrT4+rIP4=
+github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.1/go.mod h1:CM7HAH5PNuIsqjMN0fGc1ydM74Uj+0VZFhob620nklw=
 github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvWXihfKN4Q=
 github.com/kisielk/errcheck v1.2.0/go.mod h1:/BMXB+zMLi60iA8Vv6Ksmxu/1UDYcXs4uQLJ+jE2L00=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=

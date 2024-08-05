@@ -16,7 +16,7 @@ replace (
 
 require (
 	github.com/hashicorp/vault/api v1.14.0
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.1
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
