@@ -492,6 +492,9 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["csinodes"]
+    verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["persistentvolumes"]
     verbs: ["get", "list", "watch", "create", "update", "delete", "patch"]
@@ -639,9 +642,6 @@ rules:
     verbs: ["create"]
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
-  - apiGroups: ["storage.k8s.io"]
-    resources: ["csinodes"]
     verbs: ["get", "list", "watch"]
 ---
 kind: ClusterRole
