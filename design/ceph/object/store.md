@@ -397,8 +397,19 @@ the HTTPS (`securePort`) endpoint. Because the advertised endpoint is primarily 
 resources internal to the Kubernetes cluster, this default should be sufficient for most users, and
 this is the behavior expected by users when `dnsNames` is not configured, so it should be familiar.
 
-When this feature is enabled, there is also ambiguity about which endpoint Rook should use for Admin
-Ops API communication. Some users have reported issues with Rook using a `dnsNames` endpoint
+When this feature is enabled, there should be no ambiguity about which endpoint Rook will use for
+Admin Ops API communication. As an HTTP server, RGW is only able to return a single TLS certificate
+to S3 clients ([more detail](https://github.com/rook/rook/issues/14530)). For maximum compatibility
+while TLS is enabled, Rook should connect to the same endpoint that users do. Internally, Rook will
+use the advertise endpoint as configured.
+
+Rook documentation will inform users that if TLS is enabled, they must give Rook a certificate that
+accepts the service endpoint. Alternately, if that is not possible, Rook will add an
+`insecureSkipTlsVerification` option to the CephObjectStore to allow users to provision a healthy
+CephObjectStore. This opens users up to machine-in-the-middle attacks, so users should be advised to
+only use it for test/proof-of-concept clusters, or to work around bugs temporarily.
+
+Some users have reported issues with Rook using a `dnsNames` endpoint
 (or `advertiseEndpoint`) when they wish to set up ingress certificates after Rook deployment. The
 obvious alternative is to have Rook always use the CephObjectStore service, but other users have
 expressed troubles creating certificates or CAs that allow the service endpoint in the past.
@@ -423,14 +434,6 @@ When Rook builds the `rgw_dns_names` list internally, Rook should remove any dup
 While Rook add endpoints to the list for safety and convenience, users might add the same endpoints,
 which Rook should not treat as a configuration bug. Rook should also ensure the list ordering is
 consistent between reconciles.
-
-In order to attempt to strike the best balance for everyone, and to provide the best clarity for
-users and Rook internally, Rook will always use the service endpoint for admin ops. Rook
-documentation must inform users that if TLS is enabled, they must give Rook a certificate that
-accepts the service endpoint. Alternately, if that is not possible, Rook will add an
-`insecureSkipTlsVerification` option to the CephObjectStore to allow users to provision a healthy
-CephObjectStore. This opens users up to machine-in-the-middle attacks, so users should be advised to
-only use it for test/proof-of-concept clusters, or to work around bugs temporarily.
 
 Rook can refer users to this Kubernetes doc for a suggested way that they can manage certificates
 in a Kubernetes cluster that work with Kubernetes services like the CephObjectStore service:
