@@ -15,8 +15,8 @@ replace (
 )
 
 require (
-	github.com/IBM/keyprotect-go-client v0.14.3
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/IBM/keyprotect-go-client v0.15.1
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/go-ceph v0.28.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
@@ -26,7 +26,7 @@ require (
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/vault/api v1.14.0
-	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.1
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
