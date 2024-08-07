@@ -109,7 +109,9 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 	}
 
 	if CSIParam.RBDPluginUpdateStrategy == "OnDelete" {
-		rbdDriver.Spec.NodePlugin.UpdateStrategy.Type = v1.OnDeleteDaemonSetStrategyType
+		rbdDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+			Type: v1.OnDeleteDaemonSetStrategyType,
+		}
 	}
 
 	err = r.createOrUpdateDriverResource(clusterInfo, rbdDriver)
@@ -158,8 +160,10 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		}
 	}
 
-	if CSIParam.CephFSPluginUpdateStrategy == "OnDelete" {
-		cephFsDriver.Spec.NodePlugin.UpdateStrategy.Type = v1.OnDeleteDaemonSetStrategyType
+	if CSIParam.RBDPluginUpdateStrategy == "OnDelete" {
+		cephFsDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+			Type: v1.OnDeleteDaemonSetStrategyType,
+		}
 	}
 
 	err = r.createOrUpdateDriverResource(clusterInfo, cephFsDriver)
@@ -200,8 +204,10 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		}
 	}
 
-	if CSIParam.NFSPluginUpdateStrategy == "OnDelete" {
-		NFSDriver.Spec.NodePlugin.UpdateStrategy.Type = v1.OnDeleteDaemonSetStrategyType
+	if CSIParam.RBDPluginUpdateStrategy == "OnDelete" {
+		NFSDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
+			Type: v1.OnDeleteDaemonSetStrategyType,
+		}
 	}
 
 	err = r.createOrUpdateDriverResource(clusterInfo, NFSDriver)

@@ -125,8 +125,10 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 	if !reflect.DeepEqual(cluster.Spec.Network, cephv1.NetworkSpec{}) {
 
 		if cluster.Spec.Network.Connections.Encryption.Enabled {
-			opConfig.Spec.DriverSpecDefaults.Encryption.ConfigMapRef = v1.LocalObjectReference{
-				Name: "rook-ceph-csi-kms-config",
+			opConfig.Spec.DriverSpecDefaults.Encryption = &csiopv1a1.EncryptionSpec{
+				ConfigMapRef: v1.LocalObjectReference{
+					Name: "rook-ceph-csi-kms-config",
+				},
 			}
 		}
 	}
