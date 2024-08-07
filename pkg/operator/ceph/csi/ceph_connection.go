@@ -73,7 +73,11 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 
 func generateCephConnSpec(c client.Client, clusterInfo *cephclient.ClusterInfo, csiClusterConnSpec csiopv1a1.CephConnectionSpec, clusterSpec cephv1.ClusterSpec) (csiopv1a1.CephConnectionSpec, error) {
 	if clusterSpec.CSI.ReadAffinity.Enabled {
-		csiClusterConnSpec.ReadAffinity.CrushLocationLabels = clusterSpec.CSI.ReadAffinity.CrushLocationLabels
+		csiClusterConnSpec = csiopv1a1.CephConnectionSpec{
+			ReadAffinity: &csiopv1a1.ReadAffinitySpec{
+				CrushLocationLabels: clusterSpec.CSI.ReadAffinity.CrushLocationLabels,
+			},
+		}
 	}
 
 	cephRBDMirrorList := &cephv1.CephRBDMirrorList{}
