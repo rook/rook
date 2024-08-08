@@ -23,28 +23,28 @@ import (
 	"reflect"
 
 	"github.com/ceph/go-ceph/rgw/admin"
-	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
-	"github.com/rook/rook/pkg/operator/ceph/reporting"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/tools/record"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	secret "github.com/rook/rook/pkg/operator/ceph/object/secret"
+	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 const (
@@ -280,8 +280,46 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	return reconcile.Result{}, *cephObjectStoreUser, nil
 }
 
+func (r *ReconcileObjectStoreUser) getUserDefinedSecret(u *cephv1.CephObjectStoreUser) ([]secret.Credential, bool, error) {
+	var credentialsStruct []secret.Credential
+	overwriteExistingCreds := false
+	if u.Spec.InputCredentials == nil {
+		return credentialsStruct, overwriteExistingCreds, nil
+	}
+	secretName := u.Spec.InputCredentials.SecretName
+	namspacedName := types.NamespacedName{Namespace: u.Namespace, Name: secretName}
+
+	cephObjectStoreUserSecret := &corev1.Secret{}
+	err := r.client.Get(r.clusterInfo.Context, namspacedName, cephObjectStoreUserSecret)
+	if err != nil {
+		if !kerrors.IsNotFound(err) {
+			return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "failed to get user cephobjectstoreuser secret %q", secretName)
+		}
+		logger.Debugf("no user secret %q provided for cephobjectstoreuser", secretName)
+
+	} else {
+		overwriteExistingCreds = true
+		credentialsStruct, err = secret.UnmarshalKeys(cephObjectStoreUserSecret.Data["Credentials"])
+		if err != nil {
+			return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "invalid cephobjectstoreuser secret %q format", secretName)
+		}
+		credentialsStruct, err = secret.ValidateCredentials(string(cephObjectStoreUserSecret.Data["AccessKey"]), string(cephObjectStoreUserSecret.Data["SecretKey"]), credentialsStruct)
+		if err != nil {
+			return credentialsStruct, overwriteExistingCreds, errors.Wrapf(err, "invalid cephobjectstoreuser secret %q values", secretName)
+		}
+	}
+
+	return credentialsStruct, overwriteExistingCreds, nil
+}
+
 func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {
-	err := r.createOrUpdateCephUser(cephObjectStoreUser)
+	// get the user defined k8s s3 keys if exists
+	creds, overwriteExistingCreds, err := r.getUserDefinedSecret(cephObjectStoreUser)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to user defined k8s s3 keys of object user %q", r.userConfig.ID)
+	}
+
+	err = r.createOrUpdateCephUser(cephObjectStoreUser, creds, overwriteExistingCreds)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
 	}
@@ -289,12 +327,51 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
+func (r *ReconcileObjectStoreUser) modifyObjectUserSecret(credentialsStruct []secret.Credential, user admin.User) error {
+	// update the userid on the credentials
+	usercredentialConfig := secret.UpdatecredentialsUserId(user.ID, user.DisplayName, credentialsStruct)
+	// if secret exists and source of truth is secret then use the user specified keys
+	r.userConfig.Keys = usercredentialConfig
+	// get and map all the secrets of the ceph user
+	credentialsExists := make(map[string]string)
+	for i := range user.Keys {
+		credentialsExists[user.Keys[i].AccessKey] = user.Keys[i].SecretKey
+	}
+	// add the new keys from the credentials array that are not already present in the ceph user
+	// addition and removal of keys can be done only one at a time
+	for _, cred := range usercredentialConfig {
+		// remove the key from the credentialsExists map if it already exists
+		if credentialsExists[cred.AccessKey] == cred.SecretKey {
+			credentialsExists[cred.AccessKey] = ""
+			continue
+		}
+		// add the key to the ceph user
+		_, err := r.objContext.AdminOpsClient.CreateKey(r.opManagerContext, cred)
+		if err != nil {
+			return errors.Wrapf(err, "failed to update ceph object user %q key", r.userConfig.ID)
+		}
+	}
+	// remove the keys from the ceph user that are not in the usercredentialConfig
+	for accessKey, secretKey := range credentialsExists {
+		if secretKey == "" {
+			continue
+		}
+		// remove the key to the ceph user
+		err := r.objContext.AdminOpsClient.RemoveKey(r.opManagerContext, admin.UserKeySpec{AccessKey: accessKey, SecretKey: secretKey, UID: user.ID, User: user.DisplayName})
+		if err != nil {
+			return errors.Wrapf(err, "failed to remove the ceph object user %q key", r.userConfig.ID)
+		}
+	}
+	return nil
+}
+
+func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, creds []secret.Credential, overwriteExistingCreds bool) error {
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
 	var err error
+
 	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, *r.userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
@@ -371,6 +448,14 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
 	r.userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
 	logger.Info(logCreateOrUpdate)
+
+	if overwriteExistingCreds {
+		err = r.modifyObjectUserSecret(creds, user)
+		if err != nil {
+			return errors.Wrapf(err, "failed to modify objectstoreuser %q secret, when the source-of-truth was secret", u.Name)
+		}
+		logger.Infof("updated objectstoreuser %q secret, when the source-of-truth was secret", u.Name)
+	}
 
 	return nil
 }
