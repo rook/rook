@@ -21,6 +21,7 @@ import (
 	"os"
 	"strconv"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,6 +43,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/version"
 )
 
 const (
@@ -119,6 +121,11 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler, opCon
 		return err
 	}
 
+	err = csiopv1a1.AddToScheme(mgr.GetScheme())
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -141,6 +148,7 @@ var reconcileSaveCSIDriverOptions = SaveCSIDriverOptions
 func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// reconcileResult is used to communicate the result of the reconciliation back to the caller
 	var reconcileResult reconcile.Result
+	var clusterNamespace string
 
 	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
 	if err != nil {
@@ -178,18 +186,22 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		r.opConfig.Parameters = opConfig.Data
 	}
 
+	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
+	}
+
+	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_USE_CSI_OPERATOR", "false"))
+	if err != nil {
+		return reconcileResult, errors.Wrap(err, "unable to parse value for 'ROOK_USE_CSI_OPERATOR'")
+	}
+
 	// do not recocnile if csi driver is disabled
 	disableCSI, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_DISABLE_DRIVER", "false"))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "unable to parse value for 'ROOK_CSI_DISABLE_DRIVER")
 	} else if disableCSI {
 		logger.Info("ceph csi driver is disabled")
-		return reconcile.Result{}, nil
-	}
-
-	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")
 	}
 
 	// See if there is a CephCluster
@@ -277,6 +289,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 		}
 		clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
+		clusterNamespace = clusterInfo.Namespace
 
 		// is holder enabled for this cluster?
 		thisHolderEnabled := (!csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()) && !csiDisableHolders
@@ -299,14 +312,55 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to update CSI driver options for cluster %q", cluster.Name)
 		}
+
+		// Skip the new CSI-operator creation when holder pod is enabled until multus support is added in the CSI operator
+		if EnableCSIOperator() {
+			logger.Info("disabling csi-driver since EnableCSIOperator is true")
+			err := r.stopDrivers(serverVersion)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to stop csi Drivers")
+			}
+			err = r.reconcileOperatorConfig(cluster, clusterInfo, serverVersion)
+			if err != nil {
+				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to reconcile csi-op config CR")
+			}
+			return reconcileResult, nil
+		} else {
+			r.deleteCSIOperatorResources(clusterNamespace, false)
+		}
 	}
 
-	err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
-	if err != nil {
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
+	if !EnableCSIOperator() {
+		r.deleteCSIOperatorResources(clusterNamespace, true)
+
+		err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
+		}
 	}
 
 	return reconcileResult, nil
+}
+
+func (r *ReconcileCSI) reconcileOperatorConfig(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo, serverVersion *version.Info) error {
+	if err := r.setParams(serverVersion); err != nil {
+		return errors.Wrapf(err, "failed to configure CSI parameters")
+	}
+
+	if err := validateCSIParam(); err != nil {
+		return errors.Wrapf(err, "failed to validate CSI parameters")
+	}
+
+	err := r.createOrUpdateOperatorConfig(cluster)
+	if err != nil {
+		return errors.Wrap(err, "failed to configure csi operator operator config cr")
+	}
+
+	err = r.createOrUpdateDriverResources(cluster, clusterInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to configure ceph-CSI operator drivers cr")
+	}
+	return nil
 }
 
 func (r *ReconcileCSI) setCSILogrotateParams(cephClustersItems []cephv1.CephCluster) {

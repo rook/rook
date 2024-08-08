@@ -25,6 +25,7 @@ import (
 	"syscall"
 	"time"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/pkg/errors"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
@@ -102,6 +103,11 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 
 	// Watch for changes on the CephFilesystemSubVolumeGroup CRD object
 	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephFilesystemSubVolumeGroup{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
+	if err != nil {
+		return err
+	}
+
+	err = csiopv1a1.AddToScheme(mgr.GetScheme())
 	if err != nil {
 		return err
 	}
@@ -265,6 +271,14 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) reconcile(request reconcile.Requ
 	}
 
 	r.updateStatus(observedGeneration, request.NamespacedName, cephv1.ConditionReady)
+
+	if csi.EnableCSIOperator() {
+		err = csi.CreateUpdateClientProfileSubVolumeGroup(r.clusterInfo.Context, r.client, r.clusterInfo, cephFilesystemNamespacedName, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Name)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for subVolGrp ns")
+		}
+	}
+
 	// Return and do not requeue
 	logger.Debugf("done reconciling cephFilesystemSubVolumeGroup %q", namespacedName)
 	return reconcile.Result{}, nil

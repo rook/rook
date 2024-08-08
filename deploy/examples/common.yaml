@@ -606,6 +606,18 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["get"]
+  - apiGroups: ["csi.ceph.io"]
+    resources: ["cephconnections"]
+    verbs: ["create", "delete", "get", "list", "update", "watch"]
+  - apiGroups: ["csi.ceph.io"]
+    resources: ["clientprofiles"]
+    verbs: ["create", "delete", "get", "list", "update", "watch"]
+  - apiGroups: ["csi.ceph.io"]
+    resources: ["operatorconfigs"]
+    verbs: ["create", "delete", "get", "list", "update", "watch"]
+  - apiGroups: ["csi.ceph.io"]
+    resources: ["drivers"]
+    verbs: ["create", "delete", "get", "list", "update", "watch"]
 ---
 # This is required by operator-sdk to map the cluster/clusterrolebindings with SA
 # otherwise operator-sdk will create a individual file for these.
