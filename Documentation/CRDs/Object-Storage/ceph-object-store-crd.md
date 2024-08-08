@@ -247,6 +247,8 @@ bucket access. This use case is discussed in more detail in
     For DNS names that support wildcards, do not include wildcards.
     E.g., use `mystore.example.com` instead of `*.mystore.example.com`.
 
+Please consider following points while setting this option. Domains added to `dnsNames` should listen to the same port mentioned in `CephObjectStoreSpec`. If the user specified both `port` and `securePort` in the `CephObjectStoreSpec`, then domains input into `dnsNames` must only specify `securePort`. If TLS is enabled with RGW, either TLS certificate include to verify the domains in `dnsNames` or user need to set `insecureSkipVerify` to true in the kubernetes secret.
+
 ## Runtime settings
 
 ### MIME types
