@@ -10497,6 +10497,41 @@ spec:
                   items:
                     type: string
                   type: array
+                auth:
+                  description: The authentication configuration
+                  properties:
+                    keystone:
+                      description: The spec for Keystone
+                      nullable: true
+                      properties:
+                        acceptedRoles:
+                          description: The roles requires to serve requests.
+                          items:
+                            type: string
+                          type: array
+                        implicitTenants:
+                          description: Create new users in their own tenants of the same name. Possible values are true, false, swift and s3. The latter have the effect of splitting the identity space such that only the indicated protocol will use implicit tenants.
+                          type: string
+                        revocationInterval:
+                          description: The number of seconds between token revocation checks.
+                          nullable: true
+                          type: integer
+                        serviceUserSecretName:
+                          description: The name of the secret containing the credentials for the service user account used by RGW. It has to be in the same namespace as the object store resource.
+                          type: string
+                        tokenCacheSize:
+                          description: The maximum number of entries in each Keystone token cache.
+                          nullable: true
+                          type: integer
+                        url:
+                          description: The URL for the Keystone server.
+                          type: string
+                      required:
+                        - acceptedRoles
+                        - serviceUserSecretName
+                        - url
+                      type: object
+                  type: object
                 dataPool:
                   description: The data pool settings
                   nullable: true
@@ -11873,6 +11908,40 @@ spec:
                 preservePoolsOnDelete:
                   description: Preserve pools on object store deletion
                   type: boolean
+                protocols:
+                  description: The protocol specification
+                  properties:
+                    s3:
+                      description: The spec for S3
+                      nullable: true
+                      properties:
+                        authUseKeystone:
+                          description: Whether to use Keystone for authentication. This option maps directly to the rgw_s3_auth_use_keystone option. Enabling it allows generating S3 credentials via an OpenStack API call, see the docs. If not given, the defaults of the corresponding RGW option apply.
+                          nullable: true
+                          type: boolean
+                        enabled:
+                          description: Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
+                          nullable: true
+                          type: boolean
+                      type: object
+                    swift:
+                      description: The spec for Swift
+                      nullable: true
+                      properties:
+                        accountInUrl:
+                          description: Whether or not the Swift account name should be included in the Swift API URL. If set to false (the default), then the Swift API will listen on a URL formed like http://host:port/<rgw_swift_url_prefix>/v1. If set to true, the Swift API URL will be http://host:port/<rgw_swift_url_prefix>/v1/AUTH_<account_name>. You must set this option to true (and update the Keystone service catalog) if you want radosgw to support publicly-readable containers and temporary URLs.
+                          nullable: true
+                          type: boolean
+                        urlPrefix:
+                          description: The URL prefix for the Swift API, to distinguish it from the S3 API endpoint. The default is swift, which makes the Swift API available at the URL http://host:port/swift/v1 (or http://host:port/swift/v1/AUTH_%(tenant_id)s if rgw swift account in url is enabled).
+                          nullable: true
+                          type: string
+                        versioningEnabled:
+                          description: Enables the Object Versioning of OpenStack Object Storage API. This allows clients to put the X-Versions-Location attribute on containers that should be versioned.
+                          nullable: true
+                          type: boolean
+                      type: object
+                  type: object
                 security:
                   description: Security represents security settings
                   nullable: true

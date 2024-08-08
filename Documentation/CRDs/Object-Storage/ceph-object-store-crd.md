@@ -96,6 +96,68 @@ When the `zone` section is set pools with the object stores name will not be cre
     This is useful for applications that need object store credentials to be created in their own namespace,
     where neither OBCs nor COSI is being used to create buckets. The default is empty.
 
+## Auth Settings
+
+The `auth`-section allows the configuration of authentication providers in addition to the regular authentication mechanism.
+
+Currently only OpenStack Keystone is supported.
+
+### Keystone Settings
+
+The keystone authentication can be configured in the `spec.auth.keystone` section of the CRD:
+
+```yaml
+spec:
+  [...]
+  auth:
+    keystone:
+      acceptedRoles:
+        - admin
+        - member
+        - service
+      implicitTenants: "swift"
+      revocationInterval: 1200
+      serviceUserSecretName: usersecret
+      tokenCacheSize: 1000
+      url: https://keystone.example-namespace.svc/
+  protocols:
+    swift:
+      accountInUrl: true
+      urlPrefix: /swift
+  [...]
+```
+
+Note: With this example configuration S3 is implicitly enabled even though it is not enabled in the `protocols` section.
+
+The following options can be configured in the `keystone`-section:
+
+* `acceptedRoles`: The OpenStack Keystone [roles](https://docs.openstack.org/keystone/latest/admin/cli-manage-projects-users-and-roles.html#roles-and-role-assignments) accepted by RGW when authenticating against Keystone.
+* `implicitTenants`: Indicates whether to use implicit tenants. This can be `true`, `false`, `swift` and `s3`. For more details see the Ceph RadosGW documentation on [multitenancy](https://docs.ceph.com/en/latest/radosgw/multitenancy/).
+* `revocationInterval`: The number of seconds between token revocation checks.
+* `serviceUserSecretName`: the name of the user secret containing the credentials for the admin user to use by rgw when communicating with Keystone. See [Object Store with Keystone and Swift](../../Storage-Configuration/Object-Storage-RGW/ceph-object-swift.md) for more details on what the secret must contain.
+* `tokenCacheSize`: specifies the maximum number of entries in each Keystone token cache.
+* `url`: The url of the Keystone API endpoint to use.
+
+The protocols section is divided into two parts:
+
+- a section to configure S3
+- a section to configure swift
+
+#### protocols/S3 settings
+
+In the `s3` section of the `protocols` section the following options can be configured:
+
+* `authKeystone`: Whether S3 should also authenticated using Keystone (`true`) or not (`false`). If set to `false` the default S3 auth will be used.
+* `enabled`: Whether to enable S3 (`true`) or not (`false`). The default is `true` even if the section is not listed at all! Please note that S3 should not be disabled in a [Ceph Multi Site configuration](https://docs.ceph.com/en/quincy/radosgw/multisite).
+
+#### protocols/swift settings
+
+In the `swift` section of the `protocols` section the following options can be configured:
+
+* `accountInUrl`: Whether or not the Swift account name should be included in the Swift API URL. If set to `false` (the default), the Swift API will listen on a URL formed like `http://host:port/<rgw_swift_url_prefix>/v1`. If set to `true`, the Swift API URL will be `http://host:port/<rgw_swift_url_prefix>/v1/AUTH_<account_name>`. This option must be set to `true` if radosgw should support publicly-readable containers and temporary URLs.
+* `urlPrefix`: The URL prefix for the Swift API, to distinguish it from the S3 API endpoint. The default is `swift`, which makes the Swift API available at the URL `http://host:port/swift/v1` (or `http://host:port/swift/v1/AUTH_%(tenant_id)s` if rgw swift account in url is enabled). "Warning: If you set this option to `/`, the S3 API is automatically disabled. It is not possible to operate radosgw with an urlPrefix of `/` and simultaneously support both the S3 and Swift APIs. [...]" [(see Ceph documentation on swift settings)](https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings).
+* `versioningEnabled`: If set to `true`, enables the Object Versioning of OpenStack Object Storage API. This allows clients to put the X-Versions-Location attribute on containers that should be versioned.
+
 ## Gateway Settings
 
 The gateway settings correspond to the RGW daemon settings.

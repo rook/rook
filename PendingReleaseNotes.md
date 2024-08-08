@@ -13,3 +13,4 @@ please update the `BucketClass` and `BucketAccessClass` for resolving refer [her
 
 - Added support for Ceph Squid (v19)
 - Allow updating the device class of OSDs, if `allowDeviceClassUpdate: true` is set
+- Support for keystone authentication for s3 and swift (see [#9088](https://github.com/rook/rook/issues/9088)).
