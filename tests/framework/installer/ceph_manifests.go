@@ -47,7 +47,7 @@ type CephManifests interface {
 	GetNFS(name string, daemonCount int) string
 	GetNFSPool() string
 	GetRBDMirror(name string, daemonCount int) string
-	GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string
+	GetObjectStore(name string, replicaCount, port int, tlsEnable bool, swiftAndKeystone bool) string
 	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
 	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string
 	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
@@ -464,35 +464,30 @@ spec:
     requireSafeReplicaSize: false`
 }
 
-func (m *CephManifestsMaster) GetObjectStore(name string, replicaCount, port int, tlsEnable bool) string {
-	if tlsEnable {
-		return `apiVersion: ceph.rook.io/v1
-kind: CephObjectStore
-metadata:
-  name: ` + name + `
-  namespace: ` + m.settings.Namespace + `
-spec:
-  metadataPool:
-    replicated:
-      size: 1
-      requireSafeReplicaSize: false
-    compressionMode: passive
-  dataPool:
-    replicated:
-      size: 1
-      requireSafeReplicaSize: false
-  gateway:
-    resources: null
-    securePort: ` + strconv.Itoa(port) + `
-    instances: ` + strconv.Itoa(replicaCount) + `
-    sslCertificateRef: ` + name + `
-`
+func (m *CephManifestsMaster) GetObjectStore(name string, replicaCount, port int, tlsEnable bool, swiftAndKeystone bool) string {
+	type Spec struct {
+		Name             string
+		TLS              bool
+		Port             int
+		ReplicaCount     int
+		SwiftAndKeystone bool
+		Manifests        *CephManifestsMaster
 	}
-	return `apiVersion: ceph.rook.io/v1
+
+	spec := Spec{
+		Name:             name,
+		TLS:              tlsEnable,
+		ReplicaCount:     replicaCount,
+		Port:             port,
+		SwiftAndKeystone: swiftAndKeystone,
+		Manifests:        m,
+	}
+
+	tmpl := `apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
 metadata:
-  name: ` + name + `
-  namespace: ` + m.settings.Namespace + `
+  name: {{ .Name }}
+  namespace: {{ .Manifests.Settings.Namespace }}
 spec:
   metadataPool:
     replicated:
@@ -503,11 +498,36 @@ spec:
     replicated:
       size: 1
       requireSafeReplicaSize: false
+  {{ if .SwiftAndKeystone }}
+  auth:
+    keystone:
+      acceptedRoles:
+        - admin
+        - member
+        - service
+      implicitTenants: "true"
+      revocationInterval: 1200
+      serviceUserSecretName: usersecret
+      tokenCacheSize: 1000
+      url: https://keystone.{{ .Manifests.Settings.Namespace }}.svc/
+  protocols:
+    swift:
+      accountInUrl: false
+      urlPrefix: foobar
+    s3:
+      enabled: true
+      authUseKeystone: true
+  {{ end }}
   gateway:
     resources: null
-    port: ` + strconv.Itoa(port) + `
-    instances: ` + strconv.Itoa(replicaCount) + `
-`
+    {{ if .TLS }}securePort: {{ .Port }}{{ else }}port: {{ .Port }}{{ end }}
+    instances: {{ .ReplicaCount }}
+    {{ if .SwiftAndKeystone }}
+    caBundleRef: keystone-bundle
+    {{ end }}
+    {{ if .TLS }}sslCertificateRef: {{ .Name }}{{ end }}`
+
+	return renderTemplate(tmpl, spec)
 }
 
 func (m *CephManifestsMaster) GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string {

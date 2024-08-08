@@ -365,7 +365,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Set access and secret key
-	if r.userConfig.Keys == nil {
+	if r.userConfig.Keys == nil || len(r.userConfig.Keys) == 0 {
 		r.userConfig.Keys = make([]admin.UserKeySpec, 1)
 	}
 	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
@@ -446,6 +446,7 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 	userConfig := admin.User{
 		ID:          user.Name,
 		DisplayName: displayName,
+		Keys:        make([]admin.UserKeySpec, 0),
 	}
 
 	defaultMaxBuckets := 1000

@@ -1473,6 +1473,14 @@ type ObjectStoreSpec struct {
 	// +nullable
 	Gateway GatewaySpec `json:"gateway"`
 
+	// The protocol specification
+	// +optional
+	Protocols ProtocolSpec `json:"protocols,omitempty"`
+
+	// The authentication configuration
+	// +optional
+	Auth AuthSpec `json:"auth,omitempty"`
+
 	// The multisite info
 	// +optional
 	// +nullable
@@ -1643,6 +1651,86 @@ type EndpointAddress struct {
 	// +optional
 	Hostname string `json:"hostname,omitempty" protobuf:"bytes,3,opt,name=hostname"`
 }
+
+// ProtocolSpec represents a Ceph Object Store protocol specification
+type ProtocolSpec struct {
+	// The spec for S3
+	// +optional
+	// +nullable
+	S3 *S3Spec `json:"s3,omitempty"`
+
+	// The spec for Swift
+	// +optional
+	// +nullable
+	Swift *SwiftSpec `json:"swift"`
+}
+
+// S3Spec represents Ceph Object Store specification for the S3 API
+type S3Spec struct {
+	// Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
+	// +nullable
+	// +optional
+	Enabled *bool `json:"enabled,omitempty"`
+	// Whether to use Keystone for authentication. This option maps directly to the rgw_s3_auth_use_keystone option. Enabling it allows generating S3 credentials via an OpenStack API call, see the docs. If not given, the defaults of the corresponding RGW option apply.
+	// +nullable
+	// +optional
+	AuthUseKeystone *bool `json:"authUseKeystone,omitempty"`
+}
+
+// SwiftSpec represents Ceph Object Store specification for the Swift API
+type SwiftSpec struct {
+	// Whether or not the Swift account name should be included in the Swift API URL. If set to false (the default), then the Swift API will listen on a URL formed like http://host:port/<rgw_swift_url_prefix>/v1. If set to true, the Swift API URL will be http://host:port/<rgw_swift_url_prefix>/v1/AUTH_<account_name>. You must set this option to true (and update the Keystone service catalog) if you want radosgw to support publicly-readable containers and temporary URLs.
+	// +nullable
+	// +optional
+	AccountInUrl *bool `json:"accountInUrl,omitempty"`
+	// The URL prefix for the Swift API, to distinguish it from the S3 API endpoint. The default is swift, which makes the Swift API available at the URL http://host:port/swift/v1 (or http://host:port/swift/v1/AUTH_%(tenant_id)s if rgw swift account in url is enabled).
+	// +nullable
+	// +optional
+	UrlPrefix *string `json:"urlPrefix,omitempty"`
+	// Enables the Object Versioning of OpenStack Object Storage API. This allows clients to put the X-Versions-Location attribute on containers that should be versioned.
+	// +nullable
+	// +optional
+	VersioningEnabled *bool `json:"versioningEnabled,omitempty"`
+}
+
+// AuthSpec represents the authentication protocol configuration of a Ceph Object Store Gateway
+type AuthSpec struct {
+	// The spec for Keystone
+	// +optional
+	// +nullable
+	Keystone *KeystoneSpec `json:"keystone,omitempty"`
+}
+
+// KeystoneSpec represents the Keystone authentication configuration of a Ceph Object Store Gateway
+type KeystoneSpec struct {
+	// The URL for the Keystone server.
+	Url string `json:"url"`
+	// The name of the secret containing the credentials for the service user account used by RGW. It has to be in the same namespace as the object store resource.
+	ServiceUserSecretName string `json:"serviceUserSecretName"`
+	// The roles requires to serve requests.
+	AcceptedRoles []string `json:"acceptedRoles"`
+	// Create new users in their own tenants of the same name. Possible values are true, false, swift and s3. The latter have the effect of splitting the identity space such that only the indicated protocol will use implicit tenants.
+	// +optional
+	ImplicitTenants ImplicitTenantSetting `json:"implicitTenants,omitempty"`
+	// The maximum number of entries in each Keystone token cache.
+	// +optional
+	// +nullable
+	TokenCacheSize *int `json:"tokenCacheSize,omitempty"`
+	// The number of seconds between token revocation checks.
+	// +optional
+	// +nullable
+	RevocationInterval *int `json:"revocationInterval,omitempty"`
+}
+
+type ImplicitTenantSetting string
+
+const (
+	ImplicitTenantSwift   ImplicitTenantSetting = "swift"
+	ImplicitTenantS3      ImplicitTenantSetting = "s3"
+	ImplicitTenantTrue    ImplicitTenantSetting = "true"
+	ImplicitTenantFalse   ImplicitTenantSetting = "false"
+	ImplicitTenantDefault ImplicitTenantSetting = ""
+)
 
 // ZoneSpec represents a Ceph Object Store Gateway Zone specification
 type ZoneSpec struct {

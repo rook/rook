@@ -2,7 +2,7 @@
 title: Object Storage Overview
 ---
 
-Object storage exposes an S3 API to the storage cluster for applications to put and get data.
+Object storage exposes an S3 API and or a [Swift API](https://developer.openstack.org/api-ref/object-store/index.html) to the storage cluster for applications to put and get data.
 
 ## Prerequisites
 
@@ -12,7 +12,7 @@ This guide assumes a Rook cluster as explained in the [Quickstart](../../Getting
 
 Rook can configure the Ceph Object Store for several different scenarios. See each linked section for the configuration details.
 
-1. Create a [local object store](#create-a-local-object-store) with dedicated Ceph pools. This option is recommended if a single object store is required, and is the simplest to get started.
+1. Create a [local object store](#create-a-local-object-store-with-s3) with dedicated Ceph pools. This option is recommended if a single object store is required, and is the simplest to get started.
 2. Create [one or more object stores with shared Ceph pools](#create-local-object-stores-with-shared-pools). This option is recommended when multiple object stores are required.
 3. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
 4. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
@@ -20,7 +20,11 @@ Rook can configure the Ceph Object Store for several different scenarios. See ea
 !!! note
     Updating the configuration of an object store between these types is not supported.
 
-### Create a Local Object Store
+Rook has the ability to either deploy an object store in Kubernetes or to connect to an external RGW service.
+Most commonly, the object store will be configured in Kubernetes by Rook.
+Alternatively see the [external section](#connect-to-an-external-object-store) to consume an existing Ceph cluster with [Rados Gateways](https://docs.ceph.com/en/quincy/radosgw/index.html) from Rook.
+
+### Create a Local Object Store with S3
 
 The below sample will create a `CephObjectStore` that starts the RGW service in the cluster with an S3 API.
 
@@ -584,3 +588,10 @@ Multisite is a feature of Ceph that allows object stores to replicate its data o
 Multisite also allows object stores to be independent and isolated from other object stores in a cluster.
 
 For more information on multisite please read the [ceph multisite overview](ceph-object-multisite.md) for how to run it.
+
+## Using Swift and Keystone
+
+It is possible to access an object store using the [Swift API](https://developer.openstack.org/api-ref/object-store/index.html).
+Using Swift requires the use of [OpenStack Keystone](https://docs.openstack.org/keystone/latest/) as an authentication provider.
+
+More information on the use of Swift and Keystone can be found in the document on [Object Store with Keystone and Swift](ceph-object-swift.md).
