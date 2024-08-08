@@ -187,6 +187,11 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return reconcile.Result{}, nil
 	}
 
+	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_USE_CSI_OPERATOR", "false"))
+	if err != nil {
+		return reconcileResult, errors.Wrap(err, "unable to parse value for 'ROOK_USE_CSI_OPERATOR'")
+	}
+
 	serverVersion, err := r.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get server version")

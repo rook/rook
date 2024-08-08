@@ -131,6 +131,7 @@ var (
 	EnableNFS                 = false
 	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
+	enableCSIOperator         = false
 
 	// driver names
 	CephFSDriverName string
@@ -1091,4 +1092,8 @@ func getPrefixFromArg(arg string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func EnableCSIOperator() bool {
+	return enableCSIOperator && !IsHolderEnabled()
 }
