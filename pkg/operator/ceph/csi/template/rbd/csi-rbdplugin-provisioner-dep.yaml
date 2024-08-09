@@ -149,6 +149,9 @@ spec:
             {{ if .CSIClusterName }}
             - "--clustername={{ .CSIClusterName }}"
             {{ end }}
+            {{- if .EnableCSITopology }}
+            - "--domainlabels={{ .EnableCSITopology }}"
+            {{- end }}
           env:
             - name: DRIVER_NAMESPACE
               valueFrom:
@@ -240,6 +243,9 @@ spec:
             {{ if .CSIClusterName }}
             - "--clustername={{ .CSIClusterName }}"
             {{ end }}
+            {{- if .EnableCSITopology }}
+            - "--enable-topology={{ .EnableCSITopology }}"
+            {{- end }}
           env:
             - name: POD_IP
               valueFrom:
