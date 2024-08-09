@@ -4,7 +4,7 @@
 
 image:
   # -- Image
-  repository: rook/ceph
+  repository: docker.io/rook/ceph
   # -- Image tag
   # @default -- `master`
   tag: v1.15.0-beta.0

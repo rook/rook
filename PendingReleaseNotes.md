@@ -25,3 +25,4 @@
 - CephObjectStore support for keystone authentication for S3 and Swift
     (see [#9088](https://github.com/rook/rook/issues/9088)).
 - Support K8s versions v1.26 through v1.31.
+- Use fully-qualified image names (`docker.io/rook/ceph`) in operator manifests and helm charts
