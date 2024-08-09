@@ -37,3 +37,9 @@ runs:
     - name: build rook
       shell: bash --noprofile --norc -eo pipefail -x {0}
       run: tests/scripts/github-action-helper.sh build_rook
+
+    - name: create csi-operator deployment, rbacs
+      shell: bash --noprofile --norc -eo pipefail -x {0}
+      run: |
+        kubectl create ns rook-ceph
+        kubectl create -f deploy/examples/csi-operator.yaml
