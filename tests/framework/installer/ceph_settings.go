@@ -80,6 +80,11 @@ func (s *TestCephSettings) readManifestFromGitHubWithClusterNamespace(filename, 
 	return replaceNamespaces(filename, manifest, s.OperatorNamespace, clusterNamespace)
 }
 
+func (s *TestCephSettings) replaceCSIOperatorSettings(csiNamespace, manifest string) string {
+	manifest = strings.ReplaceAll(manifest, `namespace: rook-ceph`, `namespace: `+csiNamespace)
+	return manifest
+}
+
 func (s *TestCephSettings) replaceOperatorSettings(manifest string) string {
 	manifest = strings.ReplaceAll(manifest, `ROOK_LOG_LEVEL: "INFO"`, `ROOK_LOG_LEVEL: "DEBUG"`)
 	manifest = strings.ReplaceAll(manifest, `# CSI_LOG_LEVEL: "0"`, `CSI_LOG_LEVEL: "5"`)
