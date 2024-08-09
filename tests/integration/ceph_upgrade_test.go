@@ -454,7 +454,7 @@ func (s *UpgradeSuite) upgradeToMaster() {
 	}
 
 	require.NoError(s.T(), s.installer.InstallCSIOperator())
-	require.NoError(s.T(), s.installer.SetOperatorSetting("ROOK_USE_CSI_OPERATOR", "false"))
+	require.NoError(s.T(), s.installer.SetOperatorSetting("ROOK_USE_CSI_OPERATOR", "true"))
 
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCRDs(s.k8sh)))
 

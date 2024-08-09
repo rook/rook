@@ -21,17 +21,17 @@ CSIADDONS_CRD_NAME="csiaddonsnodes.csiaddons.openshift.io"
 CSIADDONS_CONTAINER_NAME="csi-addons"
 
 function setup_csiaddons() {
-    echo "setting up csi-addons"
+  echo "setting up csi-addons"
 
-    echo "deploying controller"
-    kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/crds.yaml
-    kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/rbac.yaml
-    kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/setup-controller.yaml
+  echo "deploying controller"
+  kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/crds.yaml
+  kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/rbac.yaml
+  kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/$CSIADDONS_VERSION/setup-controller.yaml
 
-    echo "enabling csi-addons"
-    kubectl patch cm rook-ceph-operator-config -n rook-ceph --type merge -p '{"data":{"CSI_ENABLE_CSIADDONS":"true"}}'
+  echo "enabling csi-addons"
+  kubectl patch cm rook-ceph-operator-config -n rook-ceph --type merge -p '{"data":{"CSI_ENABLE_CSIADDONS":"true"}}'
 
-    echo "Successfully created CSI-Addons"
+  echo "Successfully created CSI-Addons"
 }
 
 function verify_crd_created() {
@@ -47,25 +47,24 @@ function verify_crd_created() {
 }
 
 function verify_container_in_pod_by_label() {
-    label=$1
-    pod=$(kubectl get pods -n rook-ceph -l "$label" -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
-    if ! [ -n "$pod" ]; then
-        echo "pod with label $label not found!"
-        exit 1
-    fi
+  label=$1
+  pod=$(kubectl get pods -n rook-ceph -l "$label" -o=jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' 2>/dev/null)
+  if ! [ -n "$pod" ]; then
+    echo "pod with label $label not found!"
+    exit 1
+  fi
 
-    container_status=$(kubectl get pod -n rook-ceph "$pod" -o=jsonpath="{.status.containerStatuses[?(@.name=='$CSIADDONS_CONTAINER_NAME')].ready}" 2>/dev/null)
-    if [ "$container_status" != "true" ]; then
-        echo "csi-addons container not found in $pod pod!"
-        exit 1
-    fi
-    echo "$CSIADDONS_CONTAINER_NAME container is running in $pod"
+  container_status=$(kubectl get pod -n rook-ceph "$pod" -o=jsonpath="{.status.containerStatuses[?(@.name=='$CSIADDONS_CONTAINER_NAME')].ready}" 2>/dev/null)
+  if [ "$container_status" != "true" ]; then
+    echo "csi-addons container not found in $pod pod!"
+    exit 1
+  fi
+  echo "$CSIADDONS_CONTAINER_NAME container is running in $pod"
 }
 
 function verify_container_is_running() {
-    verify_container_in_pod_by_label app=csi-rbdplugin
-    verify_container_in_pod_by_label app=csi-rbdplugin-provisioner
-    verify_container_in_pod_by_label app=csi-cephfsplugin-provisioner
+  verify_container_in_pod_by_label app=rook-ceph.rbd.csi.ceph.com-ctrlplugin
+  verify_container_in_pod_by_label app=rook-ceph.cephfs.csi.ceph.com-ctrlplugin
 }
 
 FUNCTION="$1"
