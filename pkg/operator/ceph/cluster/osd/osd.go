@@ -326,13 +326,57 @@ func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo)
 	}
 	logger.Debugf("post processing osd properties with %d actual osds from ceph osd df and %d existing osds found during reconcile", len(osdUsage.OSDNodes), len(desiredOSDs))
 	for _, actualOSD := range osdUsage.OSDNodes {
-		if desiredOSD, ok := desiredOSDs[actualOSD.ID]; ok {
-			if err := c.updateDeviceClassIfChanged(actualOSD.ID, desiredOSD.DeviceClass, actualOSD.DeviceClass); err != nil {
-				// Log the error and allow other updates to continue
-				logger.Error(err)
-			}
+		if err := c.resizeOsdCrushWeight(actualOSD); err != nil {
+			// Log the error and allow other updates to continue
+			logger.Errorf("failed to resize osd crush weight on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
+		}
+		desiredOSD, ok := desiredOSDs[actualOSD.ID]
+		if !ok {
+			continue
+		}
+		if err := c.updateDeviceClassIfChanged(actualOSD.ID, desiredOSD.DeviceClass, actualOSD.DeviceClass); err != nil {
+			// Log the error and allow other updates to continue
+			logger.Errorf("failed to update device class on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
 		}
 	}
+	return nil
+}
+
+func convertKibibytesToTebibytes(kib string) (float64, error) {
+	kibFloat, err := strconv.ParseFloat(kib, 64)
+	if err != nil {
+		return float64(0), errors.Wrap(err, "failed to convert string to float")
+	}
+	return kibFloat / float64(1024*1024*1024), nil
+}
+
+func (c *Cluster) resizeOsdCrushWeight(actualOSD cephclient.OSDNodeUsage) error {
+	if !c.spec.Storage.AllowOsdCrushWeightUpdate {
+		return nil
+	}
+	crushWeight, err := strconv.ParseFloat(actualOSD.CrushWeight.String(), 64)
+	if err != nil {
+		return errors.Wrapf(err, "failed converting string to float for osd.%d crush weight %q", actualOSD.ID, actualOSD.CrushWeight.String())
+	}
+	// actualOSD.KB is in KiB units
+	desiredOSDTiB, err := convertKibibytesToTebibytes(actualOSD.KB.String())
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert KiB to TiB for osd.%d crush weight %q", actualOSD.ID, actualOSD.KB.String())
+	}
+	// do not reweight if the desired crush weight is 0 or less than the current crush weight
+	if desiredOSDTiB == float64(0) || desiredOSDTiB <= crushWeight {
+		logger.Errorf("osd.%d desired crush weight %f less than actual crush weight %f or zero", actualOSD.ID, desiredOSDTiB, crushWeight)
+		return nil
+	}
+
+	actualOSDTiBString := fmt.Sprintf("%f", desiredOSDTiB)
+	logger.Infof("updating osd.%d crush weight to %q for cluster in namespace %q", actualOSD.ID, actualOSDTiBString, c.clusterInfo.Namespace)
+	args := []string{"osd", "crush", "reweight", fmt.Sprintf("osd.%d", actualOSD.ID), actualOSDTiBString}
+	buf, err := cephclient.NewCephCommand(c.context, c.clusterInfo, args).Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to reweight osd.%d for cluster in namespace %q from actual crush weight %f to desired crush weight %f: %s", actualOSD.ID, c.clusterInfo.Namespace, crushWeight, desiredOSDTiB, string(buf))
+	}
+
 	return nil
 }
 
