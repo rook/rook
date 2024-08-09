@@ -44,7 +44,7 @@ The following table lists the configurable parameters of the rook-operator chart
 
 {{ template "chart.valuesTable" . }}
 
-[^1]: `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage=;role=rook-example` or `storage=;` (_checks only for presence of key_)
+[^1]: `nodeAffinity` and `*NodeAffinity` options should have the format `"role=storage,rook; storage=ceph"` or `storage;role=rook-example` or `storage;` (_checks only for presence of key_)
 
 ### **Development Build**
 
