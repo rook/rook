@@ -128,7 +128,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
 
 	//
-	// Upgrade Rook from v1.13 to master
+	// Upgrade Rook from v1.14 to master
 	//
 	logger.Infof("*** UPGRADING ROOK FROM %s to master ***", installer.Version1_14)
 	s.gatherLogs(s.settings.OperatorNamespace, "_before_master_upgrade")
@@ -451,6 +451,9 @@ func (s *UpgradeSuite) upgradeToMaster() {
 		require.NoError(s.T(), err, "failed to upgrade the cluster chart")
 		return
 	}
+
+	require.NoError(s.T(), s.installer.InstallCSIOperator())
+	require.NoError(s.T(), s.installer.SetOperatorSetting("ROOK_USE_CSI_OPERATOR", "true"))
 
 	require.NoError(s.T(), s.k8sh.ResourceOperation("apply", s.installer.Manifests.GetCRDs(s.k8sh)))
 
