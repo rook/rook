@@ -30,6 +30,7 @@ type CephManifests interface {
 	Settings() *TestCephSettings
 	GetCRDs(k8shelper *utils.K8sHelper) string
 	GetCSINFSRBAC() string
+	GetCSIOperator() string
 	GetOperator() string
 	GetCommon() string
 	GetCommonExternal() string
@@ -97,6 +98,11 @@ func (m *CephManifestsMaster) GetOperator() string {
 		manifest = m.settings.readManifest("operator.yaml")
 	}
 	return m.settings.replaceOperatorSettings(manifest)
+}
+
+func (m *CephManifestsMaster) GetCSIOperator() string {
+	manifest := m.settings.readManifest("csi-operator.yaml")
+	return m.settings.replaceCSIOperatorSettings(m.settings.OperatorNamespace, manifest)
 }
 
 func (m *CephManifestsMaster) GetCommonExternal() string {
