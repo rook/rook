@@ -81,9 +81,6 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 	}
 
 	opConfig.Spec = csiopv1a1.OperatorConfigSpec{
-		Log: &csiopv1a1.OperatorLogSpec{
-			Verbosity: int(CSIParam.LogLevel),
-		},
 		DriverSpecDefaults: &csiopv1a1.DriverSpec{
 			Log: &csiopv1a1.LogSpec{
 				Verbosity: int(CSIParam.LogLevel),
