@@ -1057,7 +1057,11 @@ func (k8sh *K8sHelper) GetPV(name string) (*v1.PersistentVolume, error) {
 // IsPodInExpectedState waits for 90s for a pod to be an expected state
 // If the pod is in expected state within 90s true is returned,  if not false
 func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace string, state string) bool {
-	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
+	return k8sh.IsPodInExpectedStateWithLabel("app="+podNamePattern, namespace, state)
+}
+
+func (k8sh *K8sHelper) IsPodInExpectedStateWithLabel(label, namespace, state string) bool {
+	listOpts := metav1.ListOptions{LabelSelector: label}
 	ctx := context.TODO()
 	for i := 0; i < RetryLoop; i++ {
 		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(ctx, listOpts)
@@ -1069,7 +1073,7 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 			}
 		}
 
-		logger.Infof("waiting for pod with label app=%s in namespace %q to be in state %q...", podNamePattern, namespace, state)
+		logger.Infof("waiting for pod with label %s in namespace %q to be in state %q...", label, namespace, state)
 		time.Sleep(RetryInterval * time.Second)
 	}
 
