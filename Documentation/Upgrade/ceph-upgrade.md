@@ -24,13 +24,10 @@ until all the daemons have been updated.
 
 ## Supported Versions
 
-Rook v1.13 supports the following Ceph versions:
+Rook v1.15 supports the following Ceph versions:
 
 * Ceph Reef v18.2.0 or newer
 * Ceph Quincy v17.2.0 or newer
-
-Support for Ceph Pacific (16.2.x) is removed in Rook v1.13. Upgrade to Quincy or Reef before upgrading
-to Rook v1.13.
 
 !!! important
     When an update is requested, the operator will check Ceph's status,
