@@ -13,6 +13,9 @@ defaults:
     # reference: https://docs.github.com/en/actions/reference/workflow-syntax-for-github-actions#using-a-specific-shell
     shell: bash --noprofile --norc -eo pipefail -x {0}
 
+permissions:
+  contents: read
+
 # cancel the in-progress workflow when PR is refreshed.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || github.sha }}
