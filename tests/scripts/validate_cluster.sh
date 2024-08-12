@@ -106,7 +106,7 @@ function test_csi {
     echo $IS_POD_NETWORK
     echo $IS_MULTUS
     if [ -z "$IS_POD_NETWORK" ]; then
-      until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
+      until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c csi)" -eq 7 ]]; do
         echo "waiting for csi pods to be ready"
         sleep 5
       done

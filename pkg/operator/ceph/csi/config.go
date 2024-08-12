@@ -18,9 +18,11 @@ package csi
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/pkg/errors"
@@ -30,13 +32,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespacedName types.NamespacedName, clusterID, clusterName string) error {
+func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephBlockPoolRadosNamespacedName types.NamespacedName, clusterID, clusterName, operatorNamespace string) error {
 
 	logger.Info("creating ceph-csi clientProfile CR for rados namespace")
 
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
-	csiOpClientProfile.Namespace = cephBlockPoolRadosNamespacedName.Namespace
+	csiOpClientProfile.Namespace = operatorNamespace
 	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: clusterName,
@@ -73,18 +75,18 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 	return nil
 }
 
-func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemNamespacedName types.NamespacedName, clusterID, clusterName string) error {
+func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Client, clusterInfo *cephclient.ClusterInfo, cephFilesystemNamespacedName types.NamespacedName, clusterID, clusterName, operatorNamespace string) error {
 
 	logger.Info("Creating ceph-csi clientProfile CR for subvolume group")
 
-	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemNamespacedName, clusterID, clusterName)
+	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemNamespacedName, clusterID, clusterName, operatorNamespace)
 
-	err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference for clientProfile CR %q for subVolGrp", csiOpClientProfile.Name)
-	}
+	// err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "failed to set owner reference for clientProfile CR %q for subVolGrp", csiOpClientProfile.Name)
+	// }
 
-	err = c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+	err := c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			err = c.Create(ctx, csiOpClientProfile)
@@ -106,10 +108,10 @@ func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Clien
 	return nil
 }
 
-func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemNamespacedName types.NamespacedName, clusterID, clusterName string) *csiopv1a1.ClientProfile {
+func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemNamespacedName types.NamespacedName, clusterID, clusterName, operatorNamespace string) *csiopv1a1.ClientProfile {
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
-	csiOpClientProfile.Namespace = cephFilesystemNamespacedName.Namespace
+	csiOpClientProfile.Namespace = operatorNamespace
 	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: clusterName,
@@ -137,21 +139,22 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo, namespaced types.NamespacedName) error {
 	logger.Info("Creating ceph-csi clientProfile default CR")
 
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
-	csiOpClientProfile.Name = clusterInfo.Namespace
-	csiOpClientProfile.Namespace = clusterInfo.Namespace
+	csiOpClientProfile.Name = operatorNamespace
+	csiOpClientProfile.Namespace = operatorNamespace
 	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: namespaced.Name,
 		},
 	}
 
-	err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference for default clientProfile CR %q", csiOpClientProfile.Name)
-	}
+	// err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
+	// if err != nil {
+	// 	return errors.Wrapf(err, "failed to set owner reference for default clientProfile CR %q", csiOpClientProfile.Name)
+	// }
 
-	err = c.Get(clusterInfo.Context, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+	err := c.Get(clusterInfo.Context, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			err = c.Create(clusterInfo.Context, csiOpClientProfile)

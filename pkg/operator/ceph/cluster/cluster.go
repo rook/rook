@@ -452,7 +452,7 @@ func (c *cluster) preMonStartupActions(cephVersion cephver.CephVersion) error {
 // Basically, it is executed between the monitors and the manager sequence
 func (c *cluster) postMonStartupActions() error {
 	// Create CSI Kubernetes Secrets
-	if err := csi.CreateCSISecrets(c.context, c.ClusterInfo); err != nil {
+	if err := csi.CreateCSISecrets(c.context, c.context.Clientset, c.ClusterInfo); err != nil {
 		return errors.Wrap(err, "failed to create csi kubernetes secrets")
 	}
 

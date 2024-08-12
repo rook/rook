@@ -47,7 +47,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 		}
 		err = r.createOrUpdateRBDDriverResource(cluster, clusterInfo)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
 	if EnableCephFS {
@@ -58,7 +58,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 		}
 		err = r.createOrUpdateCephFSDriverResource(cluster, clusterInfo)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
 	if EnableNFS {
@@ -69,7 +69,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 		}
 		err = r.createOrUpdateNFSDriverResource(cluster, clusterInfo)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
 
@@ -77,7 +77,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 }
 
 func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", clusterInfo.Namespace)
+	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: clusterInfo.Namespace,
+			Namespace: r.opConfig.OperatorNamespace,
 		},
 		Spec: spec,
 	}
@@ -123,7 +123,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 }
 
 func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", clusterInfo.Namespace)
+	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: clusterInfo.Namespace,
+			Namespace: r.opConfig.OperatorNamespace,
 		},
 		Spec: spec,
 	}
@@ -175,7 +175,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 }
 
 func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", clusterInfo.Namespace)
+	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -185,7 +185,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: clusterInfo.Namespace,
+			Namespace: r.opConfig.OperatorNamespace,
 		},
 		Spec: spec,
 	}
@@ -221,7 +221,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1a1.Driver) error {
 	spec := driverResource.Spec
 
-	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: clusterInfo.Namespace}, driverResource)
+	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: r.opConfig.OperatorNamespace}, driverResource)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			err = r.client.Create(r.opManagerContext, driverResource)

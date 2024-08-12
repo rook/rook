@@ -17,13 +17,18 @@ limitations under the License.
 package csi
 
 import (
+	"context"
+	"os"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 //nolint:gosec // because of the word `Secret`
@@ -113,7 +118,7 @@ func cephCSIKeyringCephFSProvisionerCaps() []string {
 	}
 }
 
-func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey string, k *keyring.SecretStore) error {
+func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, clientset kubernetes.Interface, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey string, k *keyring.SecretStore) error {
 	csiRBDProvisionerSecrets := map[string][]byte{
 		// userID is expected for the rbd provisioner driver
 		"userID":  []byte("csi-rbd-provisioner"),
@@ -148,20 +153,20 @@ func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerS
 		s := &v1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
-				Namespace: clusterInfo.Namespace,
+				Namespace: os.Getenv(k8sutil.PodNamespaceEnvVar),
 			},
 			Data: secret,
 			Type: k8sutil.RookType,
 		}
-		err := clusterInfo.OwnerInfo.SetControllerReference(s)
-		if err != nil {
-			return errors.Wrapf(err, "failed to set owner reference to keyring secret %q", secretName)
-		}
+		// err := clusterInfo.OwnerInfo.SetControllerReference(s)
+		// if err != nil {
+		// 	return errors.Wrapf(err, "failed to set owner reference to keyring secret %q", secretName)
+		// }
 
 		// Create Kubernetes Secret
-		err = k.CreateSecret(s)
+		err := createSecret(clusterInfo.Context, clientset, s)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create kubernetes secret %q for cluster %q", s.Name, os.Getenv(k8sutil.PodNamespaceEnvVar))
 		}
 
 	}
@@ -170,8 +175,30 @@ func createOrUpdateCSISecret(clusterInfo *client.ClusterInfo, csiRBDProvisionerS
 	return nil
 }
 
+func createSecret(c context.Context, k kubernetes.Interface, secret *v1.Secret) error {
+	opNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	secretName := secret.ObjectMeta.Name
+	_, err := k.CoreV1().Secrets(opNamespace).Get(c, secretName, metav1.GetOptions{})
+	if err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Debugf("creating secret for %s", secretName)
+			if _, err := k.CoreV1().Secrets(opNamespace).Create(c, secret, metav1.CreateOptions{}); err != nil {
+				return errors.Wrapf(err, "failed to create secret for %s", secretName)
+			}
+			return nil
+		}
+		return errors.Wrapf(err, "failed to get secret for %s", secretName)
+	}
+
+	logger.Debugf("updating secret for %s", secretName)
+	if _, err := k.CoreV1().Secrets(opNamespace).Update(c, secret, metav1.UpdateOptions{}); err != nil {
+		return errors.Wrapf(err, "failed to update secret for %s", secretName)
+	}
+	return nil
+}
+
 // CreateCSISecrets creates all the Kubernetes CSI Secrets
-func CreateCSISecrets(context *clusterd.Context, clusterInfo *client.ClusterInfo) error {
+func CreateCSISecrets(context *clusterd.Context, clientset kubernetes.Interface, clusterInfo *client.ClusterInfo) error {
 	k := keyring.GetSecretStore(context, clusterInfo, clusterInfo.OwnerInfo)
 
 	// Create CSI RBD Provisioner Ceph key
@@ -199,7 +226,7 @@ func CreateCSISecrets(context *clusterd.Context, clusterInfo *client.ClusterInfo
 	}
 
 	// Create or update Kubernetes CSI secret
-	if err := createOrUpdateCSISecret(clusterInfo, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey, k); err != nil {
+	if err := createOrUpdateCSISecret(clusterInfo, clientset, csiRBDProvisionerSecretKey, csiRBDNodeSecretKey, csiCephFSProvisionerSecretKey, csiCephFSNodeSecretKey, k); err != nil {
 		return errors.Wrap(err, "failed to create kubernetes csi secret")
 	}
 

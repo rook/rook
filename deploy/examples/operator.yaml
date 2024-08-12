@@ -32,7 +32,7 @@ data:
   ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
 
   # Enable CSI Operator
-  ROOK_USE_CSI_OPERATOR: "false"
+  ROOK_USE_CSI_OPERATOR: "true"
   # Enable the CSI driver.
   # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
   ROOK_CSI_ENABLE_CEPHFS: "true"
