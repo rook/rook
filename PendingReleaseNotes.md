@@ -16,6 +16,7 @@
     `spec.hosting` configurations are set. Use the new `spec.hosting.advertiseEndpoint` config to
     define required behavior as
     [documented](../Storage-Configuration/Object-Storage-RGW/object-storage.md#object-store-endpoint).
+- Minimum version of Kubernetes supported is increased to K8s v1.26.
 
 ## Features
 
@@ -23,3 +24,4 @@
 - Allow updating the device class of OSDs, if `allowDeviceClassUpdate: true` is set
 - CephObjectStore support for keystone authentication for S3 and Swift
     (see [#9088](https://github.com/rook/rook/issues/9088)).
+- Support K8s versions v1.26 through v1.31.
