@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: take the issue
-        uses: bdougie/take-action@main
+        uses: bdougie/take-action@1439165ac45a7461c2d89a59952cd7d941964b87 # main
         with:
           message: Thanks for taking this issue! Let us know if you have any questions!
           trigger: /assign
