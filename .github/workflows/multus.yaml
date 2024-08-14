@@ -11,6 +11,7 @@ on:
       - cmd/rook/userfacing/**
       - pkg/daemon/multus/**
       - .github/workflows/multus.yaml
+      - tests/scripts/multus/**
 
 defaults:
   run:

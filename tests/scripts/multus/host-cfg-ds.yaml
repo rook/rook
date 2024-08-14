@@ -29,12 +29,12 @@ spec:
       terminationGracePeriodSeconds: 0 # allow updating/deleting immediately
       containers:
         - name: test
-          image: quay.io/ceph/ceph:v18
+          image: jonlabelle/network-tools
           env:
             - name: IFACE_NAME
               value: eth0 # IFACE_NAME
           command:
-            - bash
+            - sh
             - -x
             - -c
           args:
