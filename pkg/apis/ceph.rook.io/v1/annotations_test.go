@@ -58,8 +58,9 @@ func TestCephAnnotationsMerge(t *testing.T) {
 
 	// Merge with "all"
 	testAnnotations = AnnotationsSpec{
-		"all": {"allkey1": "allval1", "allkey2": "allval2"},
-		"mgr": {"mgrkey": "mgrval"},
+		"all":         {"allkey1": "allval1", "allkey2": "allval2"},
+		"mgr":         {"mgrkey": "mgrval"},
+		"cmdreporter": {"myversions": "detect"},
 	}
 	a = GetMonAnnotations(testAnnotations)
 	assert.Equal(t, "allval1", a["allkey1"])
@@ -70,6 +71,10 @@ func TestCephAnnotationsMerge(t *testing.T) {
 	assert.Equal(t, "allval1", a["allkey1"])
 	assert.Equal(t, "allval2", a["allkey2"])
 	assert.Equal(t, 3, len(a))
+	b := GetCmdReporterAnnotations(testAnnotations)
+	assert.Equal(t, "detect", b["myversions"])
+	assert.Equal(t, "allval1", b["allkey1"])
+	assert.Equal(t, "allval2", b["allkey2"])
 }
 
 func TestAnnotationsSpec(t *testing.T) {
