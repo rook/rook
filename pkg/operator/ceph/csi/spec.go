@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
@@ -129,6 +130,7 @@ var (
 	EnableRBD                 = false
 	EnableCephFS              = false
 	EnableNFS                 = false
+	enableCSIOperator         = false
 	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
 
@@ -726,8 +728,8 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 	CephFSDriverName = fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	NFSDriverName = fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 
-	if !EnableRBD {
-		logger.Info("CSI Ceph RBD driver disabled")
+	if !EnableRBD || EnableCSIOperator() {
+		logger.Debugf("either EnableRBD if `false` or EnableCSIOperator is `true`, `EnableRBD is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
 		err := r.deleteCSIDriverResources(ver, CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI Ceph RBD driver")
@@ -735,8 +737,8 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 		logger.Info("successfully removed CSI Ceph RBD driver")
 	}
 
-	if !EnableCephFS {
-		logger.Info("CSI CephFS driver disabled")
+	if !EnableCephFS || EnableCSIOperator() {
+		logger.Debugf("either EnableCephFS if `false` or EnableCSIOperator is `true`, `EnableCephFS is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
 		err := r.deleteCSIDriverResources(ver, CsiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI CephFS driver")
@@ -744,8 +746,8 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 		logger.Info("successfully removed CSI CephFS driver")
 	}
 
-	if !EnableNFS {
-		logger.Info("CSI NFS driver disabled")
+	if !EnableNFS || EnableCSIOperator() {
+		logger.Debugf("either EnableNFS if `false` or EnableCSIOperator is `true`, `EnableNFS is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
 		err := r.deleteCSIDriverResources(ver, CsiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI NFS driver")
@@ -754,6 +756,48 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 	}
 
 	return nil
+}
+
+func (r *ReconcileCSI) deleteCSIOperatorResources(clusterNamespace string, deleteOp bool) {
+	csiCephConnection := &csiopv1a1.CephConnection{}
+
+	err := r.client.DeleteAllOf(r.opManagerContext, csiCephConnection, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: clusterNamespace}})
+	if err != nil && !kerrors.IsNotFound(err) {
+		logger.Errorf("failed to delete CSI-operator Ceph Connection %q. %v", csiCephConnection.Name, err)
+	} else {
+		logger.Infof("deleted CSI-operator Ceph Connection %q", csiCephConnection.Name)
+	}
+
+	csiOpClientProfile := &csiopv1a1.ClientProfile{}
+	err = r.client.DeleteAllOf(r.opManagerContext, csiOpClientProfile, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: clusterNamespace}})
+	if err != nil && !kerrors.IsNotFound(err) {
+		logger.Errorf("failed to delete CSI-operator client profile %q. %v", csiOpClientProfile.Name, err)
+	} else {
+		logger.Infof("deleted CSI-operator client profile %q", csiOpClientProfile.Name)
+	}
+
+	err = r.deleteImageSetConfigMap()
+	if err != nil && !kerrors.IsNotFound(err) {
+		logger.Error("failed to delete imageSetConfigMap", err)
+	}
+
+	if deleteOp {
+		csiDriver := &csiopv1a1.Driver{}
+		err = r.client.DeleteAllOf(r.opManagerContext, csiDriver, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: r.opConfig.OperatorNamespace}})
+		if err != nil && !kerrors.IsNotFound(err) {
+			logger.Errorf("failed to delete CSI-operator driver config %q. %v", csiDriver.Name, err)
+		} else {
+			logger.Infof("deleted CSI-operator driver config %q", csiDriver.Name)
+		}
+
+		opConfig := &csiopv1a1.OperatorConfig{}
+		err = r.client.DeleteAllOf(r.opManagerContext, opConfig, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: r.opConfig.OperatorNamespace}})
+		if err != nil && !kerrors.IsNotFound(err) {
+			logger.Errorf("failed to delete CSI-operator operator config %q. %v", opConfig.Name, err)
+		} else {
+			logger.Infof("deleted CSI-operator operator config %q", opConfig.Name)
+		}
+	}
 }
 
 func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) error {
@@ -773,10 +817,13 @@ func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, de
 		return errors.Wrapf(err, "failed to delete the %q", service)
 	}
 
-	err = csiDriverobj.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, driverName)
-	if err != nil {
-		return errors.Wrapf(err, "failed to delete %q Driver Info", driverName)
+	if !EnableCSIOperator() {
+		err = csiDriverobj.deleteCSIDriverInfo(r.opManagerContext, r.context.Clientset, driverName)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete %q Driver Info", driverName)
+		}
 	}
+
 	return nil
 }
 
@@ -1091,4 +1138,8 @@ func getPrefixFromArg(arg string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+func EnableCSIOperator() bool {
+	return enableCSIOperator && !IsHolderEnabled()
 }
