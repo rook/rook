@@ -58,8 +58,9 @@ func TestCephLabelsMerge(t *testing.T) {
 
 	// Merge with "all"
 	testLabels = LabelsSpec{
-		"all": {"allkey1": "allval1", "allkey2": "allval2"},
-		"mgr": {"mgrkey": "mgrval"},
+		"all":         {"allkey1": "allval1", "allkey2": "allval2"},
+		"mgr":         {"mgrkey": "mgrval"},
+		"cmdreporter": {"detect": "myversion"},
 	}
 	a = GetMonLabels(testLabels)
 	assert.Equal(t, "allval1", a["allkey1"])
@@ -67,6 +68,11 @@ func TestCephLabelsMerge(t *testing.T) {
 	assert.Equal(t, 2, len(a))
 	a = GetMgrLabels(testLabels)
 	assert.Equal(t, "mgrval", a["mgrkey"])
+	assert.Equal(t, "allval1", a["allkey1"])
+	assert.Equal(t, "allval2", a["allkey2"])
+	assert.Equal(t, 3, len(a))
+	a = GetCmdReporterLabels(testLabels)
+	assert.Equal(t, "myversion", a["detect"])
 	assert.Equal(t, "allval1", a["allkey1"])
 	assert.Equal(t, "allval2", a["allkey2"])
 	assert.Equal(t, 3, len(a))
