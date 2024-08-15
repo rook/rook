@@ -49,7 +49,7 @@ const (
 	fsidSecretNameKey = "fsid"
 	MonSecretNameKey  = "mon-secret"
 	// AdminSecretName is the name of the admin secret
-	adminSecretNameKey = "admin-secret"
+	AdminSecretNameKey = "admin-secret"
 	CephUsernameKey    = "ceph-username"
 	CephUserSecretKey  = "ceph-secret"
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
@@ -129,7 +129,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 		if cephUsername, ok := secrets.Data[CephUsernameKey]; ok {
 			clusterInfo.CephCred.Username = string(cephUsername)
 			clusterInfo.CephCred.Secret = string(secrets.Data[CephUserSecretKey])
-		} else if adminSecretKey, ok := secrets.Data[adminSecretNameKey]; ok {
+		} else if adminSecretKey, ok := secrets.Data[AdminSecretNameKey]; ok {
 			clusterInfo.CephCred.Username = cephclient.AdminUsername
 			clusterInfo.CephCred.Secret = string(adminSecretKey)
 
@@ -168,12 +168,12 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	// Some people might want to give the admin key
 	// The necessary users/keys/secrets will be created by Rook
 	// This is also done to allow backward compatibility
-	if clusterInfo.CephCred.Username == cephclient.AdminUsername && clusterInfo.CephCred.Secret != adminSecretNameKey {
+	if clusterInfo.CephCred.Username == cephclient.AdminUsername && clusterInfo.CephCred.Secret != AdminSecretNameKey {
 		return clusterInfo, maxMonID, monMapping, nil
 	}
 
 	// If the admin secret is "admin-secret", look for the deprecated secret that has the external creds
-	if clusterInfo.CephCred.Secret == adminSecretNameKey {
+	if clusterInfo.CephCred.Secret == AdminSecretNameKey {
 		secret, err := clusterdContext.Clientset.CoreV1().Secrets(namespace).Get(context, OperatorCreds, metav1.GetOptions{})
 		if err != nil {
 			return nil, maxMonID, monMapping, err

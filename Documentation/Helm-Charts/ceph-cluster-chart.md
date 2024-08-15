@@ -74,6 +74,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `kubeVersion` | Optional override of the target kubernetes version | `nil` |
 | `monitoring.createPrometheusRules` | Whether to create the Prometheus rules for Ceph alerts | `false` |
 | `monitoring.enabled` | Enable Prometheus integration, will also create necessary RBAC rules to allow Operator to create ServiceMonitors. Monitoring requires Prometheus to be pre-installed | `false` |
+| `monitoring.metricsDisabled` | Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled | `false` |
 | `monitoring.prometheusRule.annotations` | Annotations applied to PrometheusRule | `{}` |
 | `monitoring.prometheusRule.labels` | Labels applied to PrometheusRule | `{}` |
 | `monitoring.rulesNamespaceOverride` | The namespace in which to create the prometheus rules, if different from the rook cluster namespace. If you have multiple rook-ceph clusters in the same k8s cluster, choose the same namespace (ideally, namespace with prometheus deployed) to set rulesNamespaceOverride for all the clusters. Otherwise, you will get duplicate alerts with multiple alert definitions. | `nil` |
