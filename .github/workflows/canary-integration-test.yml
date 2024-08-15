@@ -25,7 +25,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -332,7 +332,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -409,7 +409,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
       - name: consider debugging
@@ -458,7 +458,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -506,7 +506,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -562,7 +562,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -612,7 +612,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -667,7 +667,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -743,7 +743,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -795,7 +795,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -850,7 +850,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -918,7 +918,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -972,7 +972,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1036,7 +1036,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1122,7 +1122,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1188,7 +1188,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1245,7 +1245,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1504,7 +1504,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1532,7 +1532,7 @@ jobs:
       matrix:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1561,7 +1561,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
@@ -1571,7 +1571,7 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.22"
 
@@ -1649,7 +1649,7 @@ jobs:
         ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
