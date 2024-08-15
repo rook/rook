@@ -28,10 +28,10 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@v6.0.2
+      - uses: wagoid/commitlint-github-action@baa1b236f990293a1b2d94c19e41c2313a85e749 # v6.0.2
         with:
           configFile: "./.commitlintrc.json"
           helpURL: https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure
