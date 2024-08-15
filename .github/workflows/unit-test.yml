@@ -37,16 +37,16 @@ jobs:
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.22"
 
       - name: Setup jq
-        uses: dcarbone/install-jq-action@v2.1.0
+        uses: dcarbone/install-jq-action@8867ddb4788346d7c22b72ea2e2ffe4d514c7bcb # v2.1.0
         with:
           version: "${{ inputs.version }}"
 
