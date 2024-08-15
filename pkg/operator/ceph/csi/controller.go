@@ -58,6 +58,8 @@ type ReconcileCSI struct {
 	opManagerContext   context.Context
 	opConfig           opcontroller.OperatorConfig
 	clustersWithHolder []ClusterDetail
+	// the first cluster CR which will determine some settings for the csi driver
+	firstCephCluster *cephv1.ClusterSpec
 }
 
 // ClusterDetail is a struct that holds the information of a cluster, it knows its internals (like
@@ -274,6 +276,10 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		if !cluster.Spec.External.Enable && cluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
 			logger.Debugf("ceph cluster %q has cleanup policy, the cluster will soon go away, no need to reconcile the csi driver", cluster.Name)
 			return reconcile.Result{}, nil
+		}
+
+		if r.firstCephCluster == nil {
+			r.firstCephCluster = &cephClusters.Items[i].Spec
 		}
 
 		// Load cluster info for later use in updating the ceph-csi configmap

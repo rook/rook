@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -873,6 +874,10 @@ func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCS
 	job.Spec.Template.Spec.Tolerations = getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{})
 	job.Spec.Template.Spec.Affinity = &corev1.Affinity{
 		NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
+	}
+	if r.firstCephCluster != nil {
+		cephv1.GetCmdReporterAnnotations(r.firstCephCluster.Annotations).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
+		cephv1.GetCmdReporterLabels(r.firstCephCluster.Labels).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
 	}
 
 	stdout, _, retcode, err := versionReporter.Run(r.opManagerContext, timeout)
