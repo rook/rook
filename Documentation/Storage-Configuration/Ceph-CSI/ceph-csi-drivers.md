@@ -166,9 +166,9 @@ that the controller inspects and forwards to one or more CSI-Addons sidecars for
 Deploy the controller by running the following commands:
 
 ```console
-kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.8.0/crds.yaml
-kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.8.0/rbac.yaml
-kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.8.0/setup-controller.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.9.0/crds.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.9.0/rbac.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.9.0/setup-controller.yaml
 ```
 
 This creates the required CRDs and configures permissions.
@@ -196,24 +196,24 @@ Execute the following to enable the CSI-Addons sidecars:
 CSI-Addons supports the following operations:
 
 * Reclaim Space
-    * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacejob)
-    * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#reclaimspacecronjob)
-    * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
-    * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/reclaimspace.md#annotating-namespace)
+    * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/reclaimspace.md#reclaimspacejob)
+    * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/reclaimspace.md#reclaimspacecronjob)
+    * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+    * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/reclaimspace.md#annotating-namespace)
 * Network Fencing
-    * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/networkfence.md)
+    * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/networkfence.md)
 * Volume Replication
-    * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplicationclass.md)
-    * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.8.0/docs/volumereplication.md)
+    * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/volumereplicationclass.md)
+    * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.0/docs/volumereplication.md)
 
 ## Enable RBD and CephFS Encryption Support
 
 Ceph-CSI supports encrypting PersistentVolumeClaims (PVCs) for both RBD and CephFS.
 This can be achieved using LUKS for RBD and fscrypt for CephFS. More details on encrypting RBD PVCs can be found
-[here](https://github.com/ceph/ceph-csi/blob/v3.11.0/docs/deploy-rbd.md#encryption-for-rbd-volumes),
+[here](https://github.com/ceph/ceph-csi/blob/v3.12.0/docs/deploy-rbd.md#encryption-for-rbd-volumes),
 which includes a full list of supported encryption configurations.
-More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.11.0/docs/deploy-cephfs.md#cephfs-volume-encryption).
-A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.11.0/examples/kms/vault/kms-config.yaml).
+More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.0/docs/deploy-cephfs.md#cephfs-volume-encryption).
+A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.0/examples/kms/vault/kms-config.yaml).
 
 !!! note
     Not all KMS are compatible with fscrypt. Generally, KMS that either store secrets to use directly (like Vault)
