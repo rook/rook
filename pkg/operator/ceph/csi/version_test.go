@@ -23,13 +23,14 @@ import (
 )
 
 var (
-	testMinVersion   = CephCSIVersion{3, 10, 0}
+	testMinVersion   = CephCSIVersion{3, 11, 0}
 	testReleaseV390  = CephCSIVersion{3, 9, 0}
 	testReleaseV391  = CephCSIVersion{3, 9, 1}
 	testreleasev310  = CephCSIVersion{3, 10, 0}
 	testReleaseV3101 = CephCSIVersion{3, 10, 1}
 	testReleaseV3102 = CephCSIVersion{3, 10, 2}
 	testReleaseV3110 = CephCSIVersion{3, 11, 0}
+	testReleaseV3120 = CephCSIVersion{3, 12, 0}
 
 	testVersionUnsupported = CephCSIVersion{4, 0, 0}
 )
@@ -68,6 +69,10 @@ func TestIsAtLeast(t *testing.T) {
 	ret = testReleaseV3110.isAtLeast(&testReleaseV3110)
 	assert.Equal(t, true, ret)
 
+	// Test for 3.12.0
+	ret = testReleaseV3120.isAtLeast(&testReleaseV3120)
+	assert.Equal(t, true, ret)
+
 }
 
 func TestSupported(t *testing.T) {
@@ -86,12 +91,15 @@ func TestSupported(t *testing.T) {
 	assert.Equal(t, false, ret)
 
 	ret = testreleasev310.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testReleaseV3101.Supported()
-	assert.Equal(t, true, ret)
+	assert.Equal(t, false, ret)
 
 	ret = testReleaseV3110.Supported()
+	assert.Equal(t, true, ret)
+
+	ret = testReleaseV3120.Supported()
 	assert.Equal(t, true, ret)
 }
 
