@@ -32,4 +32,5 @@ const (
 	KeyCrashCollector  KeyType = "crashcollector"
 	KeyClusterMetadata KeyType = "clusterMetadata"
 	KeyCephExporter    KeyType = "exporter"
+	KeyCmdReporter     KeyType = "cmdreporter"
 )

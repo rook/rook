@@ -264,6 +264,8 @@ func discoverAddressRanges(
 	job.Spec.Template.Annotations = map[string]string{
 		nadv1.NetworkAttachmentAnnot: netSelectionValue,
 	}
+	cephv1.GetCmdReporterAnnotations(clusterSpec.Annotations).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
+	cephv1.GetCmdReporterLabels(clusterSpec.Labels).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
 
 	// use osd placement for net canaries b/c osd pods are present on both public and cluster nets
 	cephv1.GetOSDPlacement(clusterSpec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)

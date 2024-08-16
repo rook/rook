@@ -7482,6 +7482,8 @@ string
 <td></td>
 </tr><tr><td><p>&#34;clusterMetadata&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;cmdreporter&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;crashcollector&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;dashboard&#34;</p></td>

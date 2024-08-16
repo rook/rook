@@ -194,9 +194,14 @@ spec:
   annotations:
   #   all:
   #   mon:
+  #   mgr:
   #   osd:
+  #   exporter:
+  #   crashcollector:
   #   cleanup:
   #   prepareosd:
+  # cmdreporter is for jobs to detect ceph and csi versions, and check network status
+  #   cmdreporter:
   # clusterMetadata annotations will be applied to only `rook-ceph-mon-endpoints` configmap and the `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets.
   # And clusterMetadata annotations will not be merged with `all` annotations.
   #    clusterMetadata:
