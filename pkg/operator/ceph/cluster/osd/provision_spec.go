@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
 	v1 "k8s.io/api/core/v1"
@@ -154,7 +155,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		},
 		RestartPolicy:     restart,
 		Volumes:           volumes,
-		HostNetwork:       c.spec.Network.IsHost(),
+		HostNetwork:       opcontroller.EnforceHostNetwork(),
 		PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 		SchedulerName:     osdProps.schedulerName,
 	}
