@@ -284,7 +284,7 @@ func Test_getImage(t *testing.T) {
 			args: args{
 				data:         map[string]string{},
 				settingName:  "ROOK_CSI_CEPH_IMAGE",
-				defaultImage: "quay.io/cephcsi/cephcsi:v3.11.0",
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.12.0",
 			},
 			want: DefaultCSIPluginImage,
 		},

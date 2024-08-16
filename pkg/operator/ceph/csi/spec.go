@@ -150,13 +150,13 @@ var (
 // manually challenging.
 var (
 	// image names
-	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.11.0"
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.12.0"
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.1"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v4.0.1"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.5.1"
 	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v7.0.2"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.10.1"
-	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.8.0"
+	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.9.0"
 
 	// image pull policy
 	DefaultCSIImagePullPolicy = string(corev1.PullIfNotPresent)
