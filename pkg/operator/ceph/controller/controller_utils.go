@@ -50,7 +50,9 @@ type ClusterHealth struct {
 
 const (
 	// OperatorSettingConfigMapName refers to ConfigMap that configures rook ceph operator
-	OperatorSettingConfigMapName string = "rook-ceph-operator-config"
+	OperatorSettingConfigMapName   string = "rook-ceph-operator-config"
+	enforceHostNetworkSettingName  string = "ROOK_ENFORCE_HOST_NETWORK"
+	enforceHostNetworkDefaultValue string = "false"
 
 	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
 	// This typically is raised when the operator has not finished initializing
@@ -116,6 +118,21 @@ func LoopDevicesAllowed() bool {
 	return loopDevicesAllowed
 }
 
+func SetEnforceHostNetwork(data map[string]string) {
+	strval := k8sutil.GetValue(data, enforceHostNetworkSettingName, enforceHostNetworkDefaultValue)
+	val, err := strconv.ParseBool(strval)
+	if err != nil {
+		logger.Warningf("failed to parse value %q for %q. assuming false value", strval, enforceHostNetworkSettingName)
+		cephv1.SetEnforceHostNetwork(false)
+		return
+	}
+	cephv1.SetEnforceHostNetwork(val)
+}
+
+func EnforceHostNetwork() bool {
+	return cephv1.EnforceHostNetwork()
+}
+
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.
 func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, controllerName string) bool {
 	// Get a list of all the keys causing the HEALTH_ERR status.
@@ -153,7 +170,6 @@ func IsReadyToReconcile(ctx context.Context, c client.Client, namespacedName typ
 		return cephCluster, false, cephClusterExists, WaitForRequeueIfCephClusterNotReady
 	}
 	cephCluster = clusterList.Items[0]
-
 	// If the cluster has a cleanup policy to destroy the cluster and it has been marked for deletion, treat it as if it does not exist
 	if cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() && !cephCluster.DeletionTimestamp.IsZero() {
 		logger.Infof("%q: CephCluster has a destructive cleanup policy, allowing %q to be deleted", controllerName, namespacedName)
