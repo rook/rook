@@ -95,7 +95,7 @@ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integra
 
     ```console
     export TEST_ENV_NAME=openshift
-    export TEST_STORAGE_CLASS=gp2
+    export TEST_STORAGE_CLASS=gp2-csi
     export TEST_BASE_DIR=/tmp
     ```
 

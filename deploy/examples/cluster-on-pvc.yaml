@@ -28,7 +28,7 @@ spec:
     # size appropriate for monitor data will be used.
     volumeClaimTemplate:
       spec:
-        storageClassName: gp2
+        storageClassName: gp2-csi
         resources:
           requests:
             storage: 10Gi
@@ -64,7 +64,7 @@ spec:
         portable: true
         # Certain storage class in the Cloud are slow
         # Rook can configure the OSD running on PVC to accommodate that by tuning some of the Ceph internal
-        # Currently, "gp2" has been identified as such
+        # Currently, "gp2-csi" has been identified as such
         tuneDeviceClass: true
         # Certain storage class in the Cloud are fast
         # Rook can configure the OSD running on PVC to accommodate that by tuning some of the Ceph internal
@@ -132,7 +132,7 @@ spec:
                 requests:
                   storage: 10Gi
               # IMPORTANT: Change the storage class depending on your environment
-              storageClassName: gp2
+              storageClassName: gp2-csi
               volumeMode: Block
               accessModes:
                 - ReadWriteOnce

@@ -8,7 +8,7 @@ in clusters where a local PV provisioner is available.
 
 ## AWS Storage Example
 
-In this example, the mon and OSD volumes are provisioned from the AWS `gp2` storage class. This storage class can be replaced by any storage class that provides `file` mode (for mons) and `block` mode (for OSDs).
+In this example, the mon and OSD volumes are provisioned from the AWS `gp2-csi` storage class. This storage class can be replaced by any storage class that provides `file` mode (for mons) and `block` mode (for OSDs).
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -25,7 +25,7 @@ spec:
     allowMultiplePerNode: false
     volumeClaimTemplate:
       spec:
-        storageClassName: gp2
+        storageClassName: gp2-csi
         resources:
           requests:
             storage: 10Gi
@@ -42,8 +42,8 @@ spec:
           resources:
             requests:
               storage: 10Gi
-          # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2)
-          storageClassName: gp2
+          # IMPORTANT: Change the storage class depending on your environment (e.g. local-storage, gp2-csi)
+          storageClassName: gp2-csi
           volumeMode: Block
           accessModes:
             - ReadWriteOnce
