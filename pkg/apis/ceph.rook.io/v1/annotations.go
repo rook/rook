@@ -72,6 +72,11 @@ func GetCephExporterAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyCephExporter)
 }
 
+// GetCmdReporterAnnotations returns the Annotations for jobs detecting versions
+func GetCmdReporterAnnotations(a AnnotationsSpec) Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyCmdReporter)
+}
+
 func GetClusterMetadataAnnotations(a AnnotationsSpec) Annotations {
 	return a[KeyClusterMetadata]
 }
