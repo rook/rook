@@ -25,6 +25,9 @@ data:
   # The logging level for the operator: ERROR | WARNING | INFO | DEBUG
   ROOK_LOG_LEVEL: "INFO"
 
+  # The address for the operator's controller-runtime metrics. 0 is disabled. :8080 serves metrics on port 8080.
+  ROOK_OPERATOR_METRICS_BIND_ADDRESS: "0"
+
   # Allow using loop devices for osds in test clusters.
   ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
 
