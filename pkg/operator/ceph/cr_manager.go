@@ -44,6 +44,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/ceph/pool/radosnamespace"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -142,14 +143,18 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 		}
 	}
 
+	metricsBindAddress, err := k8sutil.GetOperatorSetting(context, o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_OPERATOR_METRICS_BIND_ADDRESS", "0")
+	if err != nil {
+		mgrErrorCh <- errors.Wrap(err, "failed to get configmap value `ROOK_OPERATOR_METRICS_BIND_ADDRESS`.")
+		return
+	}
 	skipNameValidation := true
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
 		Metrics: metricsserver.Options{
-			// BindAddress is the bind address for controller runtime metrics server default is 8080. Since we don't use the
-			// controller runtime metrics server, we need to set the bind address 0 so that port 8080 is available.
-			BindAddress: "0",
+			// BindAddress is the bind address for controller runtime metrics server. Defaulted to "0" which is off.
+			BindAddress: metricsBindAddress,
 		},
 		Scheme: scheme,
 		Controller: config.Controller{
