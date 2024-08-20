@@ -326,13 +326,24 @@ func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo)
 	}
 	logger.Debugf("post processing osd properties with %d actual osds from ceph osd df and %d existing osds found during reconcile", len(osdUsage.OSDNodes), len(desiredOSDs))
 	for _, actualOSD := range osdUsage.OSDNodes {
-		if desiredOSD, ok := desiredOSDs[actualOSD.ID]; ok {
-			if err := c.updateDeviceClassIfChanged(actualOSD.ID, desiredOSD.DeviceClass, actualOSD.DeviceClass); err != nil {
+		if c.spec.Storage.AllowOsdCrushWeightUpdate {
+			_, err := cephclient.ResizeOsdCrushWeight(actualOSD, c.context, c.clusterInfo)
+			if err != nil {
 				// Log the error and allow other updates to continue
-				logger.Error(err)
+				logger.Errorf("failed to resize osd crush weight on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
 			}
 		}
+
+		desiredOSD, ok := desiredOSDs[actualOSD.ID]
+		if !ok {
+			continue
+		}
+		if err := c.updateDeviceClassIfChanged(actualOSD.ID, desiredOSD.DeviceClass, actualOSD.DeviceClass); err != nil {
+			// Log the error and allow other updates to continue
+			logger.Errorf("failed to update device class on cluster in namespace %s: %v", c.clusterInfo.Namespace, err)
+		}
 	}
+
 	return nil
 }
 

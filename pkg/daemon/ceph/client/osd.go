@@ -18,6 +18,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -42,7 +43,7 @@ type OSDNodeUsage struct {
 	CrushWeight json.Number `json:"crush_weight"`
 	Depth       json.Number `json:"depth"`
 	Reweight    json.Number `json:"reweight"`
-	KB          json.Number `json:"kb"`
+	KB          json.Number `json:"kb"` // KB is in KiB units
 	UsedKB      json.Number `json:"kb_used"`
 	AvailKB     json.Number `json:"kb_avail"`
 	Utilization json.Number `json:"utilization"`
@@ -218,6 +219,48 @@ func GetOSDUsage(context *clusterd.Context, clusterInfo *ClusterInfo) (*OSDUsage
 	}
 
 	return &osdUsage, nil
+}
+
+func convertKibibytesToTebibytes(kib string) (float64, error) {
+	kibFloat, err := strconv.ParseFloat(kib, 64)
+	if err != nil {
+		return float64(0), errors.Wrap(err, "failed to convert string to float")
+	}
+	return kibFloat / float64(1024*1024*1024), nil
+}
+
+func ResizeOsdCrushWeight(actualOSD OSDNodeUsage, ctx *clusterd.Context, clusterInfo *ClusterInfo) (bool, error) {
+	currentCrushWeight, err := strconv.ParseFloat(actualOSD.CrushWeight.String(), 64)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed converting string to float for osd.%d crush weight %q", actualOSD.ID, actualOSD.CrushWeight.String())
+	}
+	// actualOSD.KB is in KiB units
+	calculatedCrushWeight, err := convertKibibytesToTebibytes(actualOSD.KB.String())
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to convert KiB to TiB for osd.%d crush weight %q", actualOSD.ID, actualOSD.KB.String())
+	}
+
+	// do not reweight if the calculated crush weight is 0 or less than equal to actualCrushWeight or there percentage resize is less than 1 percent
+	if calculatedCrushWeight == float64(0) {
+		logger.Debugf("osd size is 0 for osd.%d, not resizing the crush weights", actualOSD.ID)
+		return false, nil
+	} else if calculatedCrushWeight <= currentCrushWeight {
+		logger.Debugf("calculatedCrushWeight %f is less then current currentCrushWeight %f for osd.%d, not resizing the crush weights", calculatedCrushWeight, currentCrushWeight, actualOSD.ID)
+		return false, nil
+	} else if math.Abs(((calculatedCrushWeight - currentCrushWeight) / currentCrushWeight)) <= 0.01 {
+		logger.Debugf("calculatedCrushWeight %f is less then 1 percent increased from currentCrushWeight %f for osd.%d, not resizing the crush weights", calculatedCrushWeight, currentCrushWeight, actualOSD.ID)
+		return false, nil
+	}
+
+	calculatedCrushWeightString := fmt.Sprintf("%f", calculatedCrushWeight)
+	logger.Infof("updating osd.%d crush weight to %q for cluster in namespace %q", actualOSD.ID, calculatedCrushWeightString, clusterInfo.Namespace)
+	args := []string{"osd", "crush", "reweight", fmt.Sprintf("osd.%d", actualOSD.ID), calculatedCrushWeightString}
+	buf, err := NewCephCommand(ctx, clusterInfo, args).Run()
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to reweight osd.%d for cluster in namespace %q from actual crush weight %f to calculated crush weight %f: %s", actualOSD.ID, clusterInfo.Namespace, currentCrushWeight, calculatedCrushWeight, string(buf))
+	}
+
+	return true, nil
 }
 
 func SetDeviceClass(context *clusterd.Context, clusterInfo *ClusterInfo, osdID int, deviceClass string) error {
