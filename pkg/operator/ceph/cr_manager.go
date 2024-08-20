@@ -50,6 +50,7 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -141,6 +142,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 		}
 	}
 
+	skipNameValidation := true
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
@@ -150,6 +152,9 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 			BindAddress: "0",
 		},
 		Scheme: scheme,
+		Controller: config.Controller{
+			SkipNameValidation: &skipNameValidation,
+		},
 	}
 
 	if o.config.NamespaceToWatch != "" {
