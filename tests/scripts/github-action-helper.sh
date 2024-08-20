@@ -204,7 +204,7 @@ function build_rook() {
   tests/scripts/validate_modified_files.sh build
   docker images
   if [[ "$build_type" == "build" ]]; then
-    docker tag "$(docker images | awk '/build-/ {print $1}')" rook/ceph:local-build
+    docker tag "$(docker images | awk '/build-/ {print $1}')" docker.io/rook/ceph:local-build
   fi
 }
 
@@ -246,7 +246,7 @@ function create_cluster_prerequisites() {
 function deploy_manifest_with_local_build() {
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' $1
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
-    sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
+    sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" $1
   fi
   if [[ "$ALLOW_LOOP_DEVICES" = "true" ]]; then
     sed -i "s|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"false\"|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"true\"|g" $1
@@ -640,7 +640,7 @@ function test_multus_connections() {
 
 function create_operator_toolbox() {
   cd deploy/examples
-  sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" toolbox-operator-image.yaml
+  sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" toolbox-operator-image.yaml
   kubectl create -f toolbox-operator-image.yaml
 }
 
