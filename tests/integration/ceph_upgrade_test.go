@@ -380,7 +380,7 @@ func (s *UpgradeSuite) verifyOperatorImage(expectedImage string) {
 	// verify that the operator spec is updated
 	version, err := k8sutil.GetDeploymentImage(context.TODO(), s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.NoError(s.T(), err)
-	assert.Contains(s.T(), version, "rook/ceph:"+expectedImage)
+	assert.Contains(s.T(), "docker.io/rook/ceph:"+expectedImage, version)
 }
 
 func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
