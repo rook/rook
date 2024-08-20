@@ -25,7 +25,7 @@ spec:
       serviceAccountName: rook-ceph-default
       containers:
         - name: rook-ceph-tools-operator-image
-          image: rook/ceph:master
+          image: docker.io/rook/ceph:master
           command:
             - /bin/bash
             - -c
