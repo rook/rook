@@ -29,6 +29,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -158,7 +159,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
-	assert.Nil(t, svc)
+	assert.Equal(t, svc, &v1.Service{})
 
 	// Set the port to something over 1024 and confirm the port and targetPort are the same
 	c.spec.Dashboard.Enabled = true

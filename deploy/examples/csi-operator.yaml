@@ -14475,13 +14475,13 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: ceph-csi-operator-cephfs-ctrlplugin-sa
+  name: ceph-csi-cephfs-ctrlplugin-sa
   namespace: rook-ceph
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: ceph-csi-operator-cephfs-nodeplugin-sa
+  name: ceph-csi-cephfs-nodeplugin-sa
   namespace: rook-ceph
 ---
 apiVersion: v1
@@ -14490,37 +14490,37 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-controller-manager
+  name: ceph-csi-controller-manager
   namespace: rook-ceph
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: ceph-csi-operator-nfs-ctrlplugin-sa
+  name: ceph-csi-nfs-ctrlplugin-sa
   namespace: rook-ceph
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: ceph-csi-operator-nfs-nodeplugin-sa
+  name: ceph-csi-nfs-nodeplugin-sa
   namespace: rook-ceph
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: ceph-csi-operator-rbd-ctrlplugin-sa
+  name: ceph-csi-rbd-ctrlplugin-sa
   namespace: rook-ceph
 ---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: ceph-csi-operator-rbd-nodeplugin-sa
+  name: ceph-csi-rbd-nodeplugin-sa
   namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: ceph-csi-operator-cephfs-ctrlplugin-r
+  name: ceph-csi-cephfs-ctrlplugin-r
   namespace: rook-ceph
 rules:
   - apiGroups:
@@ -14547,7 +14547,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-leader-election-role
+  name: ceph-csi-leader-election-role
   namespace: rook-ceph
 rules:
   - apiGroups:
@@ -14585,7 +14585,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: ceph-csi-operator-rbd-ctrlplugin-r
+  name: ceph-csi-rbd-ctrlplugin-r
   namespace: rook-ceph
 rules:
   - apiGroups:
@@ -14609,7 +14609,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: ceph-csi-operator-rbd-nodeplugin-r
+  name: ceph-csi-rbd-nodeplugin-r
   namespace: rook-ceph
 rules:
   - apiGroups:
@@ -14625,7 +14625,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-cephconnection-viewer-role
+  name: ceph-csi-cephconnection-viewer-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14648,7 +14648,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-cephconnections-editor-role
+  name: ceph-csi-cephconnections-editor-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14672,7 +14672,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-cephfs-ctrlplugin-cr
+  name: ceph-csi-cephfs-ctrlplugin-cr
 rules:
   - apiGroups:
       - ""
@@ -14777,7 +14777,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-cephfs-nodeplugin-cr
+  name: ceph-csi-cephfs-nodeplugin-cr
 rules:
   - apiGroups:
       - ""
@@ -14816,7 +14816,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-clientprofile-viewer-role
+  name: ceph-csi-clientprofile-viewer-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14839,7 +14839,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-clientprofilemapping-editor-role
+  name: ceph-csi-clientprofilemapping-editor-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14866,7 +14866,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-clientprofilemapping-viewer-role
+  name: ceph-csi-clientprofilemapping-viewer-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14889,7 +14889,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-clientprofiles-editor-role
+  name: ceph-csi-clientprofiles-editor-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14916,7 +14916,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-driver-editor-role
+  name: ceph-csi-driver-editor-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14943,7 +14943,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-driver-viewer-role
+  name: ceph-csi-driver-viewer-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -14963,7 +14963,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-manager-role
+  name: ceph-csi-manager-role
 rules:
   - apiGroups:
       - ""
@@ -15128,7 +15128,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-metrics-reader
+  name: ceph-csi-metrics-reader
 rules:
   - nonResourceURLs:
       - /metrics
@@ -15138,7 +15138,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-nfs-ctrlplugin-cr
+  name: ceph-csi-nfs-ctrlplugin-cr
 rules:
   - apiGroups:
       - ""
@@ -15271,7 +15271,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-nfs-nodeplugin-cr
+  name: ceph-csi-nfs-nodeplugin-cr
 rules:
   - apiGroups:
       - ""
@@ -15286,7 +15286,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-operatorconfig-editor-role
+  name: ceph-csi-operatorconfig-editor-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -15313,7 +15313,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-operatorconfig-viewer-role
+  name: ceph-csi-operatorconfig-viewer-role
 rules:
   - apiGroups:
       - csi.ceph.io
@@ -15336,7 +15336,7 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-proxy-role
+  name: ceph-csi-proxy-role
 rules:
   - apiGroups:
       - authentication.k8s.io
@@ -15354,7 +15354,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-rbd-ctrlplugin-cr
+  name: ceph-csi-rbd-ctrlplugin-cr
 rules:
   - apiGroups:
       - ""
@@ -15510,7 +15510,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: ceph-csi-operator-rbd-nodeplugin-cr
+  name: ceph-csi-rbd-nodeplugin-cr
 rules:
   - apiGroups:
       - ""
@@ -15561,15 +15561,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: ceph-csi-operator-cephfs-ctrlplugin-rb
+  name: ceph-csi-cephfs-ctrlplugin-rb
   namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ceph-csi-operator-cephfs-ctrlplugin-r
+  name: ceph-csi-cephfs-ctrlplugin-r
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-cephfs-ctrlplugin-sa
+    name: ceph-csi-cephfs-ctrlplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -15578,69 +15578,69 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-leader-election-rolebinding
+  name: ceph-csi-leader-election-rolebinding
   namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ceph-csi-operator-leader-election-role
+  name: ceph-csi-leader-election-role
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-controller-manager
+    name: ceph-csi-controller-manager
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: ceph-csi-operator-rbd-ctrlplugin-rb
+  name: ceph-csi-rbd-ctrlplugin-rb
   namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ceph-csi-operator-rbd-ctrlplugin-r
+  name: ceph-csi-rbd-ctrlplugin-r
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-rbd-ctrlplugin-sa
+    name: ceph-csi-rbd-ctrlplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: ceph-csi-operator-rbd-nodeplugin-rb
+  name: ceph-csi-rbd-nodeplugin-rb
   namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: ceph-csi-operator-rbd-nodeplugin-r
+  name: ceph-csi-rbd-nodeplugin-r
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-rbd-nodeplugin-sa
+    name: ceph-csi-rbd-nodeplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ceph-csi-operator-cephfs-ctrlplugin-crb
+  name: ceph-csi-cephfs-ctrlplugin-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-cephfs-ctrlplugin-cr
+  name: ceph-csi-cephfs-ctrlplugin-cr
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-cephfs-ctrlplugin-sa
+    name: ceph-csi-cephfs-ctrlplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ceph-csi-operator-cephfs-nodeplugin-crb
+  name: ceph-csi-cephfs-nodeplugin-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-cephfs-nodeplugin-cr
+  name: ceph-csi-cephfs-nodeplugin-cr
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-cephfs-nodeplugin-sa
+    name: ceph-csi-cephfs-nodeplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -15649,39 +15649,39 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-manager-rolebinding
+  name: ceph-csi-manager-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-manager-role
+  name: ceph-csi-manager-role
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-controller-manager
+    name: ceph-csi-controller-manager
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ceph-csi-operator-nfs-ctrlplugin-crb
+  name: ceph-csi-nfs-ctrlplugin-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-nfs-ctrlplugin-cr
+  name: ceph-csi-nfs-ctrlplugin-cr
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-nfs-ctrlplugin-sa
+    name: ceph-csi-nfs-ctrlplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ceph-csi-operator-nfs-nodeplugin-crb
+  name: ceph-csi-nfs-nodeplugin-crb
 roleRef:
   kind: ClusterRole
-  name: ceph-csi-operator-nfs-nodeplugin-cr
+  name: ceph-csi-nfs-nodeplugin-cr
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-nfs-nodeplugin-sa
+    name: ceph-csi-nfs-nodeplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -15690,40 +15690,40 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
-  name: ceph-csi-operator-proxy-rolebinding
+  name: ceph-csi-proxy-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-proxy-role
+  name: ceph-csi-proxy-role
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-controller-manager
+    name: ceph-csi-controller-manager
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ceph-csi-operator-rbd-ctrlplugin-crb
+  name: ceph-csi-rbd-ctrlplugin-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-rbd-ctrlplugin-cr
+  name: ceph-csi-rbd-ctrlplugin-cr
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-rbd-ctrlplugin-sa
+    name: ceph-csi-rbd-ctrlplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: ceph-csi-operator-rbd-nodeplugin-crb
+  name: ceph-csi-rbd-nodeplugin-crb
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: ceph-csi-operator-rbd-nodeplugin-cr
+  name: ceph-csi-rbd-nodeplugin-cr
 subjects:
   - kind: ServiceAccount
-    name: ceph-csi-operator-rbd-nodeplugin-sa
+    name: ceph-csi-rbd-nodeplugin-sa
     namespace: rook-ceph
 ---
 apiVersion: v1
@@ -15733,7 +15733,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
     control-plane: controller-manager
-  name: ceph-csi-operator-controller-manager-metrics-service
+  name: ceph-csi-controller-manager-metrics-service
   namespace: rook-ceph
 spec:
   ports:
@@ -15751,7 +15751,7 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
     app.kubernetes.io/name: ceph-csi-operator
     control-plane: controller-manager
-  name: ceph-csi-operator-controller-manager
+  name: ceph-csi-controller-manager
   namespace: rook-ceph
 spec:
   replicas: 1
@@ -15801,8 +15801,8 @@ spec:
                 fieldRef:
                   fieldPath: metadata.namespace
             - name: CSI_SERVICE_ACCOUNT_PREFIX
-              value: ceph-csi-operator-
-          image: quay.io/cephcsi/ceph-csi-operator:v0.1.0
+              value: ceph-csi-
+          image: quay.io/cephcsi/ceph-csi-operator:latest
           livenessProbe:
             httpGet:
               path: /healthz
@@ -15831,5 +15831,5 @@ spec:
             readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: ceph-csi-operator-controller-manager
+      serviceAccountName: ceph-csi-controller-manager
       terminationGracePeriodSeconds: 10
