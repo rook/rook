@@ -92,7 +92,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image:           "myimage",
-					AdditionalFiles: []SSSDSidecarAdditionalFile{},
+					AdditionalFiles: AdditionalVolumeMounts{},
 				},
 			}),
 			isOkay},
@@ -100,7 +100,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
-					AdditionalFiles: []SSSDSidecarAdditionalFile{
+					AdditionalFiles: AdditionalVolumeMounts{
 						{SubPath: "one", VolumeSource: configMapVolumeSource},
 						{SubPath: "two", VolumeSource: configMapVolumeSource},
 						{SubPath: "three", VolumeSource: configMapVolumeSource},
@@ -112,7 +112,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
-					AdditionalFiles: []SSSDSidecarAdditionalFile{
+					AdditionalFiles: AdditionalVolumeMounts{
 						{SubPath: "one", VolumeSource: configMapVolumeSource},
 						{SubPath: "", VolumeSource: configMapVolumeSource},
 						{SubPath: "three", VolumeSource: configMapVolumeSource},
@@ -124,7 +124,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
-					AdditionalFiles: []SSSDSidecarAdditionalFile{
+					AdditionalFiles: AdditionalVolumeMounts{
 						{SubPath: "one", VolumeSource: configMapVolumeSource},
 						{SubPath: "two", VolumeSource: configMapVolumeSource},
 						{SubPath: "one", VolumeSource: configMapVolumeSource},
@@ -136,7 +136,7 @@ func TestNFSSecuritySpec_Validate(t *testing.T) {
 			withSSSD(&SSSDSpec{
 				Sidecar: &SSSDSidecar{
 					Image: "myimage",
-					AdditionalFiles: []SSSDSidecarAdditionalFile{
+					AdditionalFiles: AdditionalVolumeMounts{
 						{SubPath: "one", VolumeSource: configMapVolumeSource},
 						{SubPath: "", VolumeSource: &ConfigFileVolumeSource{}},
 						{SubPath: "three", VolumeSource: configMapVolumeSource},
