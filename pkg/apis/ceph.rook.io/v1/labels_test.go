@@ -236,3 +236,83 @@ func TestLabelsMerge(t *testing.T) {
 	var empty Labels
 	assert.Equal(t, map[string]string(testLabelsPart3), map[string]string(empty.Merge(testLabelsPart3)))
 }
+
+func TestToValidDNSLabel(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"empty string", "", ""},
+		{"single dash", "-", ""},
+		{"multiple dashes", "----", ""},
+		{"lc a", "a", "a"},
+		{"lc z", "z", "z"},
+		{"lc alphabet", "abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz"},
+		{"UC A", "A", "a"},
+		{"UC Z", "Z", "z"},
+		{"UC ALPHABET", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz"},
+		{"mixed case AlPhAbEt", "AbCdEfGhIjKlMnOpQrStUvWxYz", "abcdefghijklmnopqrstuvwxyz"},
+		{"single 0", "0", "d0"},
+		{"single 9", "9", "d9"},
+		{"single 1", "1", "d1"},
+		{"numbers", "01234567890", "d01234567890"},
+		{"letters with numbers", "1a0b1c2d3e4f5g6h7i8j9k0", "d1a0b1c2d3e4f5g6h7i8j9k0"},
+		{"single / symbol", "/", ""},
+		{"single : symbol", ":", ""},
+		{"single . symbol", ".", ""},
+		{"bunch of symbols", "`~!@#$%^&*()_+-={}[]\\|;':\",.<>/?", ""},
+		{"alphabet with symbols",
+			"a~b!c@d#e$f^g&h*i(j)k_l-m+n+o[p]q{r}s|t:u;v'w<x,y>z", "a-b-c-d-e-f-g-h-i-j-k-l-m-n-o-p-q-r-s-t-u-v-w-x-y-z"},
+		{"multiple symbols between letters", "a//b//c", "a-b-c"},
+		{"symbol before", "/a/b/c", "a-b-c"},
+		{"symbol after", "a/b/c/", "a-b-c"},
+		{"symbols before and after", "/a/b/c/", "a-b-c"},
+		{"multiple symbols before after between", "//a//b//c//", "a-b-c"},
+		{"mix of all tests except length", "//1a//B-c/d_f/../00-thing.ini/", "d1a-b-c-d-f-00-thing-ini"},
+		{"too long input -> middle trim",
+			"qwertyuiopqwertyuiopqwertyuiopaaqwertyuiopqwertyuiopqwertyuiopaa",
+			"qwertyuiopqwertyuiopqwertyuiop--wertyuiopqwertyuiopqwertyuiopaa"},
+		{"too long input but symbols allow for no middle trim",
+			"/qwertyuiopqwerty/uiopqwertyuiop//qwertyuiopqwerty/uiopqwertyuiop/",
+			"qwertyuiopqwerty-uiopqwertyuiop-qwertyuiopqwerty-uiopqwertyuiop"},
+		{"max allowed length but starts with number -> middle trim",
+			"123qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop",
+			"d123qwertyuiopqwertyuiopqwerty--pqwertyuiopqwertyuiopqwertyuiop"},
+		{"max allowed length ok",
+			"qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop123",
+			"qwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiopqwertyuiop123"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ToValidDNSLabel(tt.input))
+		})
+	}
+}
+
+func Test_cutMiddle(t *testing.T) {
+	// not an exported function, so don't bother with extreme cases like 0, 1, 2, or 3 len inputs
+	t.Run("len 8 -> 6", func(t *testing.T) {
+		assert.Equal(t, "ab--gh", cutMiddle("abcdefgh", 6))
+	})
+	t.Run("len 9 -> 6", func(t *testing.T) {
+		assert.Equal(t, "ab--hi", cutMiddle("abcdefghi", 6))
+	})
+	t.Run("len 9 -> 7", func(t *testing.T) {
+		assert.Equal(t, "ab--ghi", cutMiddle("abcdefghi", 7))
+	})
+	t.Run("len 10 -> 10", func(t *testing.T) {
+		assert.Equal(t, "qwertyuiop", cutMiddle("qwertyuiop", 10))
+	})
+	// below is what we really want to test
+	t.Run("len 63 -> 63", func(t *testing.T) {
+		assert.Equal(t,
+			"qwertyuiopqwertyuiopqwertyuiop12qwertyuiopqwertyuiopqwertyuiop1",
+			cutMiddle("qwertyuiopqwertyuiopqwertyuiop12qwertyuiopqwertyuiopqwertyuiop1", 63))
+	})
+	t.Run("len 64 -> 63", func(t *testing.T) {
+		assert.Equal(t,
+			"qwertyuiopqwertyuiopqwertyuiop--wertyuiopqwertyuiopqwertyuiop12",
+			cutMiddle("qwertyuiopqwertyuiopqwertyuiop12qwertyuiopqwertyuiopqwertyuiop12", 63))
+	})
+}
