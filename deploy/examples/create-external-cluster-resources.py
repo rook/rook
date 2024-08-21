@@ -1568,7 +1568,12 @@ class RadosJSON:
                 # python treats flag-name as flag_name internally, so converting back to flag-name,
                 # so we can get those values from config file
                 argValue = arg.replace("_", "-")
-                if argValue != "config-file":
+                # do not add the config-file flag and also not add the boolean flags which are set to False
+                # because config.ini file treats boolean flags as True always
+                if (
+                    argValue != "config-file"
+                    and getattr(self._arg_parser, arg) != False
+                ):
                     argument += f"{argValue} = {str(getattr(self._arg_parser, arg))}\n"
         return argument
 
