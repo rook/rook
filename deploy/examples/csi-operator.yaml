@@ -15802,7 +15802,7 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_SERVICE_ACCOUNT_PREFIX
               value: ceph-csi-
-          image: quay.io/cephcsi/ceph-csi-operator:latest
+          image: quay.io/cephcsi/ceph-csi-operator:v0.1.0
           livenessProbe:
             httpGet:
               path: /healthz
