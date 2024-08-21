@@ -113,7 +113,11 @@ setup_minikube_env() {
     echo "Setting up minikube env for profile '$ROOK_PROFILE_NAME' (using $minikube_driver driver)"
     $MINIKUBE delete
     $MINIKUBE start --disk-size="$MINIKUBE_DISK_SIZE" --extra-disks="$MINIKUBE_EXTRA_DISKS" --driver "$minikube_driver" -n "$MINIKUBE_NODES" $ROOK_MINIKUBE_EXTRA_ARGS
-    eval "$($MINIKUBE docker-env)"
+    if [ "$MINIKUBE_NODES" -eq 1 ]; then
+        eval "$($MINIKUBE docker-env)"
+    elif [ "$MINIKUBE_NODES" -gt 1 ]; then
+        $MINIKUBE addons enable registry
+    fi
 }
 
 create_rook_cluster() {
