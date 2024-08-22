@@ -239,7 +239,7 @@ var fakeMultiPeerCephBlockPool = cephv1.CephBlockPool{
 }
 
 func saveMockDataInTempFile(data, filePattern string) error {
-	matches, _ := filepath.Glob(fmt.Sprintf("/tmp/%s*", filePattern))
+	matches, _ := filepath.Glob(fmt.Sprintf("%s/%s*", os.TempDir(), filePattern))
 	for _, m := range matches {
 		file, err := os.OpenFile(m, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
