@@ -6,6 +6,10 @@ OUTFILE="cli-test.log"
 
 kubectl create namespace "$NAMESPACE"
 
+# create the expected serviceaccount in the namespace
+# in Minikube/KinD, the tool needs no special permissions, so just the SA is fine
+kubectl create serviceaccount rook-ceph-system --namespace "$NAMESPACE"
+
 ./rook --log-level DEBUG multus validation run \
   --namespace "$NAMESPACE" \
   --public-network default/public-net \
