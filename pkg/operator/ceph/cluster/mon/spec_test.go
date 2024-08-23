@@ -256,3 +256,69 @@ func TestRequiredDuringScheduling(t *testing.T) {
 	testRequiredDuringScheduling(t, true, true, true)
 	testRequiredDuringScheduling(t, false, true, false)
 }
+
+func TestGetFailureDomainLabel(t *testing.T) {
+	type args struct {
+		spec cephv1.ClusterSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "stretch",
+			args: args{
+				spec: cephv1.ClusterSpec{
+					Mon: cephv1.MonSpec{
+						Count: 3,
+						StretchCluster: &cephv1.StretchClusterSpec{
+							FailureDomainLabel: "topology.kubernetes.io/region",
+							Zones: []cephv1.MonZoneSpec{
+								{Name: "eu-central-1"},
+								{Name: "eu-central-2"},
+								{Name: "eu-central-3"},
+							},
+						},
+					},
+				},
+			},
+			want: "topology.kubernetes.io/region",
+		},
+		{
+			name: "zones",
+			args: args{
+				spec: cephv1.ClusterSpec{
+					Mon: cephv1.MonSpec{
+						Count:              3,
+						FailureDomainLabel: "topology.kubernetes.io/zone",
+						Zones: []cephv1.MonZoneSpec{
+							{Name: "eu-central-1a"},
+							{Name: "eu-central-1b"},
+							{Name: "eu-central-1c"},
+						},
+					},
+				},
+			},
+			want: "topology.kubernetes.io/zone",
+		},
+		{
+			name: "default",
+			args: args{
+				spec: cephv1.ClusterSpec{
+					Mon: cephv1.MonSpec{
+						Count: 3,
+					},
+				},
+			},
+			want: "topology.kubernetes.io/zone",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := GetFailureDomainLabel(tt.args.spec); got != tt.want {
+				t.Errorf("GetFailureDomainLabel() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
