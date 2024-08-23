@@ -231,39 +231,6 @@ spec:
 
 Multisite configuration must be cleaned up by hand. Deleting a realm/zone group/zone CR will not delete the underlying Ceph realm, zone group, zone, or the pools associated with a zone.
 
-### Realm Deletion
-
-Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
-
-When the ceph-object-realm resource is deleted or modified, the realm is not deleted from the Ceph cluster. Realm deletion must be done via the toolbox.
-
-#### Deleting a Realm
-
-The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
-
-The following command, run via the toolbox, deletes the realm.
-
-```console
-radosgw-admin realm delete --rgw-realm=realm-a
-```
-
-### Zone Group Deletion
-
-Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
-
-When the ceph-object-zone group resource is deleted or modified, the zone group is not deleted from the Ceph cluster. Zone Group deletion must be done through the toolbox.
-
-#### Deleting a Zone Group
-
-The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
-
-The following command, run via the toolbox, deletes the zone group.
-
-```console
-radosgw-admin zonegroup delete --rgw-realm=realm-a --rgw-zonegroup=zone-group-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a
-```
-
 ### Deleting and Reconfiguring the Ceph Object Zone
 
 Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
@@ -275,9 +242,9 @@ When the ceph-object-zone resource is deleted or modified, the zone is not delet
 The Rook toolbox can change the master zone in a zone group.
 
 ```console
-radosgw-admin zone modify --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a --master
-radosgw-admin zonegroup modify --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --master
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin zone modify --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a --master
+radosgw-admin zonegroup modify --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --master
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
 ```
 
 #### Deleting Zone
@@ -288,8 +255,8 @@ There are two scenarios possible when deleting a zone.
 The following commands, run via the toolbox, deletes the zone if there is only one zone in the zone group.
 
 ```console
-radosgw-admin zone delete --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin zone delete --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
 ```
 
 In the other scenario, there are more than one zones in a zone group.
@@ -301,10 +268,10 @@ Please read the following [documentation](https://docs.ceph.com/docs/master/rado
 The following commands, run via toolboxes, remove the zone from the zone group first, then delete the zone.
 
 ```console
-radosgw-admin zonegroup rm --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
-radosgw-admin zone delete --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
-radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zone-group-a --rgw-zone=zone-a
+radosgw-admin zonegroup rm --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
+radosgw-admin zone delete --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a --rgw-zone=zone-a
 ```
 
 When a zone is deleted, the pools for that zone are not deleted.
@@ -343,6 +310,39 @@ kubectl delete -f object-store.yaml
 ```
 
 Removing object store(s) from the master zone of the master zone group should be done with caution. When all of these object-stores are deleted the period cannot be updated and that realm cannot be pulled.
+
+### Zone Group Deletion
+
+Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
+
+When the ceph-object-zone group resource is deleted or modified, the zone group is not deleted from the Ceph cluster. Zone Group deletion must be done through the toolbox.
+
+#### Deleting a Zone Group
+
+The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
+
+The following command, run via the toolbox, deletes the zone group.
+
+```console
+radosgw-admin zonegroup delete --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a
+radosgw-admin period update --commit --rgw-realm=realm-a --rgw-zonegroup=zonegroup-a
+```
+
+### Realm Deletion
+
+Changes made to the resource's configuration or deletion of the resource are not reflected on the Ceph cluster.
+
+When the ceph-object-realm resource is deleted or modified, the realm is not deleted from the Ceph cluster. Realm deletion must be done via the toolbox.
+
+#### Deleting a Realm
+
+The Rook toolbox can modify the Ceph Multisite state via the radosgw-admin command.
+
+The following command, run via the toolbox, deletes the realm.
+
+```console
+radosgw-admin realm rm --rgw-realm=realm-a
+```
 
 ## Configure an Existing Object Store for Multisite
 
