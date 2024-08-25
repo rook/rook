@@ -72,9 +72,9 @@ supplementalGroups:
 # The type of volumes which are mounted to csi pods
 volumes:
   - configMap
-  - projected
   - emptyDir
   - hostPath
+  - projected
 users:
   # A user needs to be added for each rook service account.
   - system:serviceaccount:{{ .Release.Namespace }}:rook-csi-rbd-plugin-sa
