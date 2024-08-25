@@ -83,9 +83,9 @@ supplementalGroups:
 # The type of volumes which are mounted to csi pods
 volumes:
   - configMap
-  - projected
   - emptyDir
   - hostPath
+  - projected
 users:
   # A user needs to be added for each rook service account.
   # This assumes running in the default sample "rook-ceph" namespace.
