@@ -91,7 +91,7 @@ The overall source code layout is summarized:
 ```text
 rook
 ├── build                         # build makefiles and logic to build, publish and release all Rook artifacts
-├── cluster
+├── deploy
 │   ├── charts                    # Helm charts
 │   │   └── rook-ceph
 │   │   └── rook-ceph-cluster
@@ -112,11 +112,14 @@ rook
 │   ├── clusterd
 │   ├── daemon                    # daemons for configuring ceph
 │   │   ├── ceph
-│   │   └── discover
+│   │   ├── discover
+│   │   ├── multus
+│   │   └── util
 │   ├── operator                  # all reconcile logic and custom controllers
 │   │   ├── ceph
 │   │   ├── discover
 │   │   ├── k8sutil
+│   │   └── test
 │   ├── util
 │   └── version
 └── tests
