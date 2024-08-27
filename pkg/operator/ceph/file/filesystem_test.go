@@ -73,6 +73,26 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
 }
 
+func TestHasDuplicatePoolNames(t *testing.T) {
+	// PoolSpec with no duplicates
+	fs := &cephv1.CephFilesystem{
+		Spec: cephv1.FilesystemSpec{
+			DataPools: []cephv1.NamedPoolSpec{
+				{Name: "pool1"},
+				{Name: "pool2"},
+			},
+		},
+	}
+
+	result := hasDuplicatePoolNames(fs.Spec.DataPools)
+	assert.False(t, result)
+
+	// add duplicate pool name in the spec.
+	fs.Spec.DataPools = append(fs.Spec.DataPools, cephv1.NamedPoolSpec{Name: "pool1"})
+	result = hasDuplicatePoolNames(fs.Spec.DataPools)
+	assert.True(t, result)
+}
+
 func TestGenerateDataPoolNames(t *testing.T) {
 	fs := &Filesystem{Name: "fake", Namespace: "fake"}
 	fsSpec := cephv1.FilesystemSpec{
