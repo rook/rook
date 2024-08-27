@@ -64,7 +64,7 @@ spec:
     deviceFilter: sdb
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=rook-node' and
-  # the OSDs would specifically only be created on nodes labeled with roke=rook-osd-node.
+  # the OSDs would specifically only be created on nodes labeled with 'role=rook-osd-node'.
   placement:
     all:
       nodeAffinity:
