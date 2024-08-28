@@ -676,6 +676,50 @@ func TestMonVolumeClaimTemplate(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveExtraMonDeployments(t *testing.T) {
+	namespace := "ns"
+	context, err := newTestStartCluster(t, namespace)
+	assert.NoError(t, err)
+	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+
+	// Nothing to remove when the mons match the deployment
+	mons := []*monConfig{
+		{ResourceName: "rook-ceph-mon-a", DaemonName: "a"},
+	}
+	deployments := []apps.Deployment{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "rook-ceph-mon-a",
+				Labels: map[string]string{"ceph_daemon_id": "a"},
+			},
+		},
+	}
+	c.spec.Mon.Count = 1
+	removed := c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "", removed)
+
+	// Remove an extra mon deployment
+	deployments = append(deployments, apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "rook-ceph-mon-b",
+			Labels: map[string]string{"ceph_daemon_id": "b"},
+		}})
+	removed = c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "b", removed)
+
+	// Nothing to remove when there are not enough deployments for the expected mons
+	mons = []*monConfig{
+		{ResourceName: "rook-ceph-mon-a", DaemonName: "a"},
+		{ResourceName: "rook-ceph-mon-b", DaemonName: "b"},
+		{ResourceName: "rook-ceph-mon-c", DaemonName: "c"},
+	}
+	c.spec.Mon.Count = 3
+	removed = c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "", removed)
+}
+
 func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 	generalSC := "generalSC"
 	zoneSC := "zoneSC"
