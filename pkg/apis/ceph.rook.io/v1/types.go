@@ -1637,6 +1637,12 @@ type GatewaySpec struct {
 	// +nullable
 	// +optional
 	DashboardEnabled *bool `json:"dashboardEnabled,omitempty"`
+
+	// AdditionalVolumeMounts allows additional volumes to be mounted to the RGW pod.
+	// The root directory for each additional volume mount is `/var/rgw`.
+	// Example: for an additional mount at subPath `ldap`, mounted from a secret that has key
+	// `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
+	AdditionalVolumeMounts AdditionalVolumeMounts `json:"additionalVolumeMounts,omitempty"`
 }
 
 // EndpointAddress is a tuple that describes a single IP address or host name. This is a subset of
@@ -2477,9 +2483,10 @@ type SSSDSidecar struct {
 	SSSDConfigFile SSSDSidecarConfigFile `json:"sssdConfigFile"`
 
 	// AdditionalFiles defines any number of additional files that should be mounted into the SSSD
-	// sidecar. These files may be referenced by the sssd.conf config file.
+	// sidecar with a directory root of `/etc/sssd/rook-additional/`.
+	// These files may be referenced by the sssd.conf config file.
 	// +optional
-	AdditionalFiles []SSSDSidecarAdditionalFile `json:"additionalFiles,omitempty"`
+	AdditionalFiles AdditionalVolumeMounts `json:"additionalFiles,omitempty"`
 
 	// Resources allow specifying resource requests/limits on the SSSD sidecar container.
 	// +optional
@@ -2507,11 +2514,13 @@ type SSSDSidecarConfigFile struct {
 	VolumeSource *ConfigFileVolumeSource `json:"volumeSource,omitempty"`
 }
 
-// SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
-// configuration should come from and are made available.
-type SSSDSidecarAdditionalFile struct {
-	// SubPath defines the sub-path in `/etc/sssd/rook-additional/` where the additional file(s)
-	// will be placed. Each subPath definition must be unique and must not contain ':'.
+// AdditionalVolumeMount represents the source from where additional files in pod containers
+// should come from and what subdirectory they are made available in.
+type AdditionalVolumeMount struct {
+	// SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
+	// be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
+	// This is not the same as the Kubernetes `subPath` volume mount option.
+	// Each subPath definition must be unique and must not contain ':'.
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
 	// +kubebuilder:validation:Pattern=`^[^:]+$`
@@ -2520,11 +2529,13 @@ type SSSDSidecarAdditionalFile struct {
 	// VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
 	// additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
 	// ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
-	// SSSD sidecar container in the `/etc/sssd/rook-additional/<subPath>` directory.
-	// Be aware that some files may need to have a specific file mode like 0600 due to requirements
-	// by SSSD for some files. For example, CA or TLS certificates.
+	// container `<directory-root>/<subPath>` directory.
+	// Be aware that some files may need to have a specific file mode like 0600 due to application
+	// requirements. For example, CA or TLS certificates.
 	VolumeSource *ConfigFileVolumeSource `json:"volumeSource"`
 }
+
+type AdditionalVolumeMounts []AdditionalVolumeMount
 
 // NetworkSpec for Ceph includes backward compatibility code
 // +kubebuilder:validation:XValidation:message="at least one network selector must be specified when using multus",rule="!has(self.provider) || (self.provider != 'multus' || (self.provider == 'multus' && size(self.selectors) > 0))"

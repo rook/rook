@@ -260,6 +260,34 @@ func TestSSLPodSpec(t *testing.T) {
 
 	assert.True(t, s.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)
+
+	// add user-defined volume mount
+	c.store.Spec.Gateway.AdditionalVolumeMounts = cephv1.AdditionalVolumeMounts{
+		{
+			SubPath: "ldap",
+			VolumeSource: &cephv1.ConfigFileVolumeSource{
+				Secret: &v1.SecretVolumeSource{
+					SecretName: "my-rgw-ldap-secret",
+				},
+			},
+		},
+	}
+	s, err = c.makeRGWPodSpec(rgwConfig)
+	assert.NoError(t, err)
+	podTemplate = cephtest.NewPodTemplateSpecTester(t, &s) // checks that vols have corresponding mounts
+	podTemplate.RunFullSuite(cephconfig.RgwType, "default", "rook-ceph-rgw", "mycluster", "quay.io/ceph/ceph:myversion",
+		"200", "100", "1337", "500", /* resources */
+		"my-priority-class", "default", "cephobjectstores.ceph.rook.io", "ceph-rgw")
+	assert.True(t, hasSecretVolWithName(s.Spec.Volumes, "my-rgw-ldap-secret"))
+}
+
+func hasSecretVolWithName(vols []v1.Volume, secretName string) bool {
+	for _, v := range vols {
+		if v.Secret != nil && v.Secret.SecretName == secretName {
+			return true
+		}
+	}
+	return false
 }
 
 func TestValidateSpec(t *testing.T) {
