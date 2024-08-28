@@ -37,8 +37,6 @@ jobs:
         with:
           go-version: "1.22"
 
-      - name: run crds-gen
-        run: GOPATH=$(go env GOPATH) make crds
-
       - name: validate crds-gen
-        run: tests/scripts/validate_modified_files.sh crd
+        run: GOPATH=$(go env GOPATH) make check.crds
+
