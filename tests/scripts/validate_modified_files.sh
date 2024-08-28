@@ -9,6 +9,7 @@ MOD_ERR="changes found by mod.check. You may need to run make clean"
 CRD_ERR="changes found by 'make crds'. please run 'make crds' locally and update your PR"
 BUILD_ERR="changes found by make build', please commit your go.sum or other changed files"
 HELM_ERR="changes found by 'make gen-rbac'. please run 'make gen-rbac' locally and update your PR"
+DOCS_ERR="changes found by 'make docs'. please run 'make docs' locally and update your PR"
 
 #############
 # FUNCTIONS #
@@ -29,6 +30,9 @@ function validate(){
 # MAIN #
 ########
 case "$1" in
+  docs)
+    validate "$DOCS_ERR"
+  ;;
   codegen)
     validate "$CODEGEN_ERR"
   ;;
@@ -45,6 +49,6 @@ case "$1" in
     validate "$HELM_ERR"
   ;;
   *)
-    echo $"Usage: $0 {codegen|modcheck|crd|build|gen-rbac}"
+    echo $"Usage: $0 {docs|codegen|modcheck|crd|build|gen-rbac}"
     exit 1
 esac

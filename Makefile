@@ -207,12 +207,9 @@ check-helm-docs:
 	echo "Please run 'make helm-docs' locally, commit the updated docs, and push the change. See https://rook.io/docs/rook/latest/Contributing/documentation/#making-docs" ; \
 	exit 2 ; \
 	};
-check-docs:
+check.docs:
 	@$(MAKE) docs
-	@git diff --exit-code || { \
-	echo "Please run 'make docs' locally, commit the updated docs, and push the change." ; \
-	exit 2 ; \
-	};
+	@tests/scripts/validate_modified_files.sh docs
 
 
 docs-preview: ## Preview the documentation through mkdocs
