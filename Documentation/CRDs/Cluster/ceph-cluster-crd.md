@@ -559,6 +559,8 @@ You can set priority class names for Rook components for the list of key value p
 * `mon`: Set priority class names for Mons. Examples default to system-node-critical.
 * `osd`: Set priority class names for OSDs. Examples default to system-node-critical.
 * `crashcollector`: Set priority class names for crashcollectors.
+* `exporter`: Set priority class names for exporters.
+* `cleanup`: Set priority class names for cleanup Jobs.
 
 The specific component keys will act as overrides to `all`.
 
