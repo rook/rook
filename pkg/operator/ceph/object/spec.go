@@ -254,6 +254,10 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		}
 	}
 
+	addVols, addMounts := c.store.Spec.Gateway.AdditionalVolumeMounts.GenerateVolumesAndMounts("/var/rgw/")
+	podTemplateSpec.Spec.Volumes = append(podTemplateSpec.Spec.Volumes, addVols...)
+	podTemplateSpec.Spec.Containers[0].VolumeMounts = append(podTemplateSpec.Spec.Containers[0].VolumeMounts, addMounts...)
+
 	return podTemplateSpec, nil
 }
 

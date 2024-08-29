@@ -2578,6 +2578,61 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AdditionalVolumeMount">AdditionalVolumeMount
+</h3>
+<div>
+<p>AdditionalVolumeMount represents the source from where additional files in pod containers
+should come from and what subdirectory they are made available in.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>subPath</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
+be mounted. All files/keys in the volume source&rsquo;s volume will be mounted to the subdirectory.
+This is not the same as the Kubernetes <code>subPath</code> volume mount option.
+Each subPath definition must be unique and must not contain &lsquo;:&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>volumeSource</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
+ConfigFileVolumeSource
+</a>
+</em>
+</td>
+<td>
+<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
+ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
+container <code>&lt;directory-root&gt;/&lt;subPath&gt;</code> directory.
+Be aware that some files may need to have a specific file mode like 0600 due to application
+requirements. For example, CA or TLS certificates.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.AdditionalVolumeMounts">AdditionalVolumeMounts
+(<code>[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.AdditionalVolumeMount</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.SSSDSidecar">SSSDSidecar</a>)
+</p>
+<div>
+</div>
 <h3 id="ceph.rook.io/v1.AddressRangesSpec">AddressRangesSpec
 </h3>
 <p>
@@ -5089,7 +5144,7 @@ blocking deletion.</p>
 <h3 id="ceph.rook.io/v1.ConfigFileVolumeSource">ConfigFileVolumeSource
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles</a>, <a href="#ceph.rook.io/v1.KerberosKeytabFile">KerberosKeytabFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarAdditionalFile">SSSDSidecarAdditionalFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">SSSDSidecarConfigFile</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AdditionalVolumeMount">AdditionalVolumeMount</a>, <a href="#ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles</a>, <a href="#ceph.rook.io/v1.KerberosKeytabFile">KerberosKeytabFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">SSSDSidecarConfigFile</a>)
 </p>
 <div>
 <p>Represents the source of a volume to mount.
@@ -6956,6 +7011,22 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether rgw dashboard is enabled for the rgw daemon. If not set, the rgw dashboard will be enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>additionalVolumeMounts</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AdditionalVolumeMounts">
+AdditionalVolumeMounts
+</a>
+</em>
+</td>
+<td>
+<p>AdditionalVolumeMounts allows additional volumes to be mounted to the RGW pod.
+The root directory for each additional volume mount is <code>/var/rgw</code>.
+Example: for an additional mount at subPath <code>ldap</code>, mounted from a secret that has key
+<code>bindpass.secret</code>, the file would reside at <code>/var/rgw/ldap/bindpass.secret</code>.</p>
 </td>
 </tr>
 </tbody>
@@ -11452,15 +11523,16 @@ securely add the file via annotations on the CephNFS spec (passed to the NFS ser
 <td>
 <code>additionalFiles</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.SSSDSidecarAdditionalFile">
-[]SSSDSidecarAdditionalFile
+<a href="#ceph.rook.io/v1.AdditionalVolumeMounts">
+AdditionalVolumeMounts
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
 <p>AdditionalFiles defines any number of additional files that should be mounted into the SSSD
-sidecar. These files may be referenced by the sssd.conf config file.</p>
+sidecar with a directory root of <code>/etc/sssd/rook-additional/</code>.
+These files may be referenced by the sssd.conf config file.</p>
 </td>
 </tr>
 <tr>
@@ -11489,55 +11561,6 @@ int
 <p>DebugLevel sets the debug level for SSSD. If unset or set to 0, Rook does nothing. Otherwise,
 this may be a value between 1 and 10. See SSSD docs for more info:
 <a href="https://sssd.io/troubleshooting/basics.html#sssd-debug-logs">https://sssd.io/troubleshooting/basics.html#sssd-debug-logs</a></p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.SSSDSidecarAdditionalFile">SSSDSidecarAdditionalFile
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.SSSDSidecar">SSSDSidecar</a>)
-</p>
-<div>
-<p>SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
-configuration should come from and are made available.</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>subPath</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>SubPath defines the sub-path in <code>/etc/sssd/rook-additional/</code> where the additional file(s)
-will be placed. Each subPath definition must be unique and must not contain &lsquo;:&rsquo;.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>volumeSource</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
-ConfigFileVolumeSource
-</a>
-</em>
-</td>
-<td>
-<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
-additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
-ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
-SSSD sidecar container in the <code>/etc/sssd/rook-additional/&lt;subPath&gt;</code> directory.
-Be aware that some files may need to have a specific file mode like 0600 due to requirements
-by SSSD for some files. For example, CA or TLS certificates.</p>
 </td>
 </tr>
 </tbody>
