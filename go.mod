@@ -21,7 +21,7 @@ require (
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20240819112305-88e6db254d6c
 	github.com/ceph/go-ceph v0.29.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
-	github.com/csi-addons/kubernetes-csi-addons v0.9.0
+	github.com/csi-addons/kubernetes-csi-addons v0.9.1
 	github.com/gemalto/kmip-go v0.0.10
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.6.0
