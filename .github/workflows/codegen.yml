@@ -38,8 +38,5 @@ jobs:
         with:
           go-version: "1.22"
 
-      - name: run codegen
-        run: GOPATH=$(go env GOPATH) make codegen
-
       - name: validate codegen
-        run: tests/scripts/validate_modified_files.sh codegen
+        run: GOPATH=$(go env GOPATH) make check.codegen
