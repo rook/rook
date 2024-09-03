@@ -213,8 +213,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/csi-addons/kubernetes-csi-addons v0.9.0 h1:Hhb44WcrxtbzmpLY+uqX+DBWCI6HgA/rwQMPyvsyCc8=
-github.com/csi-addons/kubernetes-csi-addons v0.9.0/go.mod h1:/YROZDdEi1N/1Ls9rdU5W2VNjm8MK7HHApl8W4Sqt9s=
+github.com/csi-addons/kubernetes-csi-addons v0.9.1 h1:2m8/Pls7Ws3ld1zr/w6lL6BWwsXqqLg2JnW0jP8AX6I=
+github.com/csi-addons/kubernetes-csi-addons v0.9.1/go.mod h1:32kTa/Ngp7hMK2GEjx+Zk8yfKupR5WG4JG+oRzkM1TM=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
