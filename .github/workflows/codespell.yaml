@@ -34,7 +34,8 @@ jobs:
           # in other places, so ignore the file itself assuming it is correct
           # crds.yaml, resources.yaml: CRD files are fully generated from content we control (should
           # be flagged elsewhere) and content we don't control (can't fix easily), so ignore
-          skip: .git,*.png,*.jpg,*.svg,*.sum,./LICENSE,./deploy/examples/crds.yaml,./deploy/charts/rook-ceph/templates/resources.yaml,./deploy/examples/csi-operator.yaml
+          # *Dashboard.jjson: Grafana dashboards that are generated via exporting them from Grafana.
+          skip: .git,*.png,*.jpg,*.svg,*.sum,./LICENSE,./deploy/examples/crds.yaml,./deploy/charts/rook-ceph/templates/resources.yaml,./deploy/examples/csi-operator.yaml,*Dashboard.json
           # aks: Amazon Kubernetes Service
           # keyserver: flag to apt-key
           # atleast: codespell wants to flag any 'AtLeast' method
