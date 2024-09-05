@@ -64,11 +64,13 @@ var (
 )
 
 type osdInfoBlock struct {
-	CephFsid string `json:"ceph_fsid"`
-	Device   string `json:"device"`
-	OsdID    int    `json:"osd_id"`
-	OsdUUID  string `json:"osd_uuid"`
-	Type     string `json:"type"`
+	CephFsid  string `json:"ceph_fsid"`
+	Device    string `json:"device"`
+	DeviceDb  string `json:"device_db"`
+	DeviceWal string `json:"device_wal"`
+	OsdID     int    `json:"osd_id"`
+	OsdUUID   string `json:"osd_uuid"`
+	Type      string `json:"type"`
 }
 
 type osdInfo struct {
@@ -993,6 +995,8 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 	// blockPath represents the path of the OSD block
 	// it can be the one passed from the function's call or discovered by the c-v list command
 	var blockPath string
+	var blockMetadataPath string
+	var blockWalPath string
 
 	// If block is passed, check if it's an encrypted device, this is needed to get the correct
 	// device path and populate the OSDInfo for that OSD
@@ -1123,8 +1127,12 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		// If no block is specified let's take the one we discovered
 		if setDevicePathFromList {
 			blockPath = osdInfo.Device
+			blockMetadataPath = osdInfo.DeviceDb
+			blockWalPath = osdInfo.DeviceWal
 		} else {
 			blockPath = block
+			blockMetadataPath = metadataBlock
+			blockWalPath = walBlock
 		}
 
 		osdStore := osdInfo.Type
@@ -1139,8 +1147,8 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			// Thus in the activation sequence we might activate the wrong OSD and have OSDInfo messed up
 			// Hence, let's use the PVC name instead which will always remain consistent
 			BlockPath:     blockPath,
-			MetadataPath:  metadataBlock,
-			WalPath:       walBlock,
+			MetadataPath:  blockMetadataPath,
+			WalPath:       blockWalPath,
 			SkipLVRelease: true,
 			LVBackedPV:    lvBackedPV,
 			CVMode:        cvMode,
