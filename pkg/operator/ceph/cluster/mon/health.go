@@ -730,20 +730,6 @@ func (c *Cluster) removeMonWithOptionalQuorum(daemonName string, shouldRemoveFro
 	}
 	logger.Infof("ensuring removal of unhealthy monitor %s", daemonName)
 
-	resourceName := resourceName(daemonName)
-
-	// Remove the mon pod if it is still there
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Infof("dead mon %s was already gone", resourceName)
-		} else {
-			logger.Errorf("failed to remove dead mon deployment %q. %v", resourceName, err)
-		}
-	}
-
 	// Remove the bad monitor from quorum
 	if shouldRemoveFromQuorum {
 		if err := c.removeMonitorFromQuorum(daemonName); err != nil {
@@ -751,10 +737,33 @@ func (c *Cluster) removeMonWithOptionalQuorum(daemonName string, shouldRemoveFro
 		}
 	}
 	delete(c.ClusterInfo.Monitors, daemonName)
-
 	delete(c.mapping.Schedule, daemonName)
 
+	if err := c.saveMonConfig(); err != nil {
+		return errors.Wrapf(err, "failed to save mon config after failing over mon %s", daemonName)
+	}
+
+	// Update cluster-wide RBD bootstrap peer token since Monitors have changed
+	_, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.ClusterInfo.NamespacedName().Name, Namespace: c.Namespace}}, c.ownerInfo)
+	if err != nil {
+		return errors.Wrap(err, "failed to update cluster rbd bootstrap peer token")
+	}
+
+	// When the mon is removed from quorum, it is possible that the operator will be restarted
+	// before the mon pod is deleted. In this case, the operator will need to delete the mon
+	// during the next reconcile. If the reconcile finds an extra mon pod, it will be removed
+	// at that later reconcile. Thus, we delete the mon pod last during the failover
+	// and in case the failover is interrupted, the operator can detect the resources to finish the cleanup.
+	c.removeMonResources(daemonName)
+	return nil
+}
+
+func (c *Cluster) removeMonResources(daemonName string) {
 	// Remove the service endpoint
+	resourceName := resourceName(daemonName)
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Infof("dead mon service %s was already gone", resourceName)
@@ -772,17 +781,14 @@ func (c *Cluster) removeMonWithOptionalQuorum(daemonName string, shouldRemoveFro
 		}
 	}
 
-	if err := c.saveMonConfig(); err != nil {
-		return errors.Wrapf(err, "failed to save mon config after failing over mon %s", daemonName)
+	// Remove the mon pod if it is still there
+	if err := c.context.Clientset.AppsV1().Deployments(c.Namespace).Delete(c.ClusterInfo.Context, resourceName, *options); err != nil {
+		if kerrors.IsNotFound(err) {
+			logger.Infof("dead mon %s was already gone", resourceName)
+		} else {
+			logger.Errorf("failed to remove dead mon deployment %q. %v", resourceName, err)
+		}
 	}
-
-	// Update cluster-wide RBD bootstrap peer token since Monitors have changed
-	_, err := controller.CreateBootstrapPeerSecret(c.context, c.ClusterInfo, &cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Name: c.ClusterInfo.NamespacedName().Name, Namespace: c.Namespace}}, c.ownerInfo)
-	if err != nil {
-		return errors.Wrap(err, "failed to update cluster rbd bootstrap peer token")
-	}
-
-	return nil
 }
 
 func (c *Cluster) removeMonitorFromQuorum(name string) error {
