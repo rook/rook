@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -83,6 +84,7 @@ func createCOSIPodSpec(cephCOSIDriver *cephv1.CephCOSIDriver) (corev1.PodTemplat
 	cosiSideCarContainer := createCOSISideCarContainer(cephCOSIDriver)
 
 	podSpec := corev1.PodSpec{
+		HostNetwork: opcontroller.EnforceHostNetwork(),
 		Containers: []corev1.Container{
 			cosiDriverContainer,
 			cosiSideCarContainer,

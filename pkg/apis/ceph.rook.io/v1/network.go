@@ -27,6 +27,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+// enforceHostNetwork is a private package variable that can be set via the rook-operator-config
+// setting "ROOK_ENFORCE_HOST_NETWORK". when set to "true", it lets rook create all pods with host network enabled.
+// This can be used, for example, to run Rook in k8s clusters with no CNI where host networking is required
+var enforceHostNetwork bool = false
+
 // IsMultus get whether to use multus network provider
 func (n *NetworkSpec) IsMultus() bool {
 	return n.Provider == NetworkProviderMultus
@@ -40,7 +45,7 @@ func (n *NetworkSpec) IsMultus() bool {
 // together with an empty or unset network provider has the same effect as
 // network.Provider set to "host"
 func (n *NetworkSpec) IsHost() bool {
-	return (n.HostNetwork && n.Provider == NetworkProviderDefault) || n.Provider == NetworkProviderHost
+	return enforceHostNetwork || (n.HostNetwork && n.Provider == NetworkProviderDefault) || n.Provider == NetworkProviderHost
 }
 
 func ValidateNetworkSpec(clusterNamespace string, spec NetworkSpec) error {
@@ -62,7 +67,7 @@ func ValidateNetworkSpec(clusterNamespace string, spec NetworkSpec) error {
 
 	if !spec.AddressRanges.IsEmpty() {
 		if !spec.IsMultus() && !spec.IsHost() {
-			// TODO: be sure to update docs that AddressRanges can be specified for host networking  as
+			// TODO: be sure to update docs that AddressRanges can be specified for host networking as
 			// well as multus so that the override configmap doesn't need to be set
 			return errors.Errorf("network ranges can only be specified for %q and %q network providers", NetworkProviderHost, NetworkProviderMultus)
 		}
@@ -180,4 +185,12 @@ func (l *CIDRList) String() string {
 		sl = append(sl, string(c))
 	}
 	return strings.Join(sl, ", ")
+}
+
+func SetEnforceHostNetwork(val bool) {
+	enforceHostNetwork = val
+}
+
+func EnforceHostNetwork() bool {
+	return enforceHostNetwork
 }
