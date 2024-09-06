@@ -441,12 +441,19 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to set endpoint", err)
 		}
 
+		err = ValidateObjectStorePoolsConfig(cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool, cephObjectStore.Spec.SharedPools)
+		if err != nil {
+			return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "invalid pool configuration", err)
+		}
 		// Reconcile Pool Creation
 		if !cephObjectStore.Spec.IsMultisite() {
 			logger.Info("reconciling object store pools")
-			err = ConfigurePools(objContext, r.clusterSpec, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool, cephObjectStore.Spec.SharedPools)
-			if err != nil {
-				return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to create object pools", err)
+
+			if IsNeedToCreateObjectStorePools(cephObjectStore.Spec.SharedPools) {
+				err = CreateObjectStorePools(objContext, r.clusterSpec, cephObjectStore.Spec.MetadataPool, cephObjectStore.Spec.DataPool)
+				if err != nil {
+					return r.setFailedStatus(k8sutil.ObservedGenerationNotAvailable, namespacedName, "failed to create object pools", err)
+				}
 			}
 		}
 

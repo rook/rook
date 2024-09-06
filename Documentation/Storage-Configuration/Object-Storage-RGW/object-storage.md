@@ -14,8 +14,9 @@ Rook can configure the Ceph Object Store for several different scenarios. See ea
 
 1. Create a [local object store](#create-a-local-object-store-with-s3) with dedicated Ceph pools. This option is recommended if a single object store is required, and is the simplest to get started.
 2. Create [one or more object stores with shared Ceph pools](#create-local-object-stores-with-shared-pools). This option is recommended when multiple object stores are required.
-3. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
-4. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
+3. Create [one or more object stores with pool placement targets and storage classes](#create-local-object-stores-with-pool-placements). This configuration allows Rook to provide different object placement options to object store clients.
+4. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
+5. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
 
 !!! note
     Updating the configuration of an object store between these types is not supported.
@@ -187,6 +188,83 @@ provided: `object-a.yaml` and `object-b.yaml`.
 To consume the object store, continue below in the section to [Create a bucket](#create-a-bucket).
 Modify the default example object store name from `my-store` to the alternate name of the object store
 such as `store-a` in this example.
+
+### Create Local Object Store(s) with pool placements
+
+!!! attention
+    This feature is experimental.
+
+This section contains a guide on how to configure [RGW's pool placement and storage classes](https://docs.ceph.com/en/reef/radosgw/placement/) with Rook.
+
+Object Storage API allows users to override where bucket data will be stored during bucket creation. With `<LocationConstraint>` parameter in S3 API and `X-Storage-Policy` header in SWIFT. Similarly, users can override where object data will be stored by setting `X-Amz-Storage-Class` and `X-Object-Storage-Class` during object creation.
+
+To enable this feature, configure `poolPlacements` representing a list of possible bucket data locations.  
+Each `poolPlacement` must have:
+
+* a **unique** `name` to refer to it in `<LocationConstraint>` or `X-Storage-Policy`. A placement with reserved name `default` will be used by default if no location constraint is provided.
+* `dataPoolName` and `metadataPoolName` representing object data and metadata locations. In Rook, these data locations are backed by `CephBlockPool`. `poolPlacements` and `storageClasses` specs refer pools by name. This means that all pools should be defined in advance. Similarly to [sharedPools](#create-local-object-stores-with-shared-pools), the same pool can be reused across multiple ObjectStores and/or poolPlacements/storageClasses because of RADOS namespaces. Here, each pool will be namespaced with `<object store name>.<placement name>.<pool type>` key.
+* **optional** `dataNonECPoolName` - extra pool for data that cannot use erasure coding (ex: multi-part uploads). If not set, `metadataPoolName` will be used.
+* **optional** list of placement `storageClasses`. Classes defined per placement, which means that even classes of `default` placement will be available only within this placement and not others. Each placement will automatically have default storage class named `STANDARD`. `STANDARD` class always points to placement `dataPoolName` and cannot be removed or redefined. Each storage class must have:
+    * `name` (unique within placement). RGW allows arbitrary name for StorageClasses, however some clients/libs insist on AWS names so it is recommended to use one of the valid `x-amz-storage-class` values for better compatibility: `STANDARD | REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE`. See [AWS docs](https://aws.amazon.com/s3/storage-classes/).
+    * `dataPoolName` - overrides placement data pool when this class is selected by user.
+
+Example: Configure `CephObjectStore` with `default` placement pointing to `us` pools and placement `europe` pointing to pools in corresponding geographies. These geographical locations are only an example. Placement name can be arbitrary and could reflect the backing pool's replication factor, device class, or failure domain. This example also  defines storage class `REDUCED_REDUNDANCY` for each placement.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: my-store
+  namespace: rook-ceph
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  sharedPools:
+    poolPlacements:
+    - name: default
+      metadataPoolName: "us-data-pool"
+      dataPoolName: "us-meta-pool"
+      storageClasses:
+      - name: REDUCED_REDUNDANCY
+        dataPoolName: "us-reduced-pool"
+    - name: europe
+      metadataPoolName: "eu-meta-pool"
+      dataPoolName: "eu-data-pool"
+      storageClasses:
+      - name: REDUCED_REDUNDANCY
+        dataPoolName: "eu-reduced-pool"
+```
+
+S3 clients can direct objects into the pools defined in the above. The example below uses the [s5cmd](https://github.com/peak/s5cmd) CLI tool which is pre-installed in the toolbox pod:
+
+```shell
+# make bucket without location constraint -> will use "us"
+s5cmd mb s3://bucket1
+
+# put object to bucket1 without storage class -> end up in "us-data-pool"
+s5cmd put obj s3://bucket1/obj
+
+# put object to bucket1 with  "STANDARD" storage class -> end up in "us-data-pool"
+s5cmd put obj s3://bucket1/obj --storage-class=STANDARD
+
+# put object to bucket1 with "REDUCED_REDUNDANCY" storage class -> end up in "us-reduced-pool"
+s5cmd put obj s3://bucket1/obj --storage-class=REDUCED_REDUNDANCY
+
+
+# make bucket with location constraint europe
+s5cmd mb s3://bucket2 --region=my-store:europe
+
+# put object to bucket2 without storage class -> end up in "eu-data-pool"
+s5cmd put obj s3://bucket2/obj
+
+# put object to bucket2 with  "STANDARD" storage class -> end up in "eu-data-pool"
+s5cmd put obj s3://bucket2/obj --storage-class=STANDARD
+
+# put object to bucket2 with "REDUCED_REDUNDANCY" storage class -> end up in "eu-reduced-pool"
+s5cmd put obj s3://bucket2/obj --storage-class=REDUCED_REDUNDANCY
+
+```
 
 ### Connect to an External Object Store
 

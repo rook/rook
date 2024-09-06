@@ -289,15 +289,21 @@ func (r *ReconcileObjectZone) createorUpdateCephZone(zone *cephv1.CephObjectZone
 func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zone *cephv1.CephObjectZone, realmName string, zoneIsMaster bool) error {
 	// create pools for zone
 	logger.Debugf("creating pools ceph zone %q", zone.Name)
+	err := object.ValidateObjectStorePoolsConfig(zone.Spec.MetadataPool, zone.Spec.DataPool, zone.Spec.SharedPools)
+	if err != nil {
+		return fmt.Errorf("invalid zone pools config: %w", err)
+	}
+	if object.IsNeedToCreateObjectStorePools(zone.Spec.SharedPools) {
+		err = object.CreateObjectStorePools(objContext, r.clusterSpec, zone.Spec.MetadataPool, zone.Spec.DataPool)
+		if err != nil {
+			return fmt.Errorf("unable to create pools for zone: %w", err)
+		}
+		logger.Debugf("created pools ceph zone %q", zone.Name)
+	}
+
 	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
-
-	err := object.ConfigurePools(objContext, r.clusterSpec, zone.Spec.MetadataPool, zone.Spec.DataPool, zone.Spec.SharedPools)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create pools for zone %v", zone.Name)
-	}
-	logger.Debugf("created pools ceph zone %q", zone.Name)
 
 	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, realmName, zone.Namespace)
 	if err != nil {
@@ -324,6 +330,12 @@ func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zon
 	err = object.ConfigureSharedPoolsForZone(objContext, zone.Spec.SharedPools)
 	if err != nil {
 		return errors.Wrapf(err, "failed to configure rados namespaces for zone")
+	}
+
+	// Commit rgw zone config changes
+	err = object.CommitConfigChanges(objContext)
+	if err != nil {
+		return errors.Wrapf(err, "failed to commit zone config changes")
 	}
 
 	return nil
@@ -412,6 +424,7 @@ func (r *ReconcileObjectZone) updateStatus(observedGeneration int64, name types.
 	}
 	logger.Debugf("object zone %q status updated to %q", name, status)
 }
+
 func (r *ReconcileObjectZone) deleteZone(objContext *object.Context) error {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	//	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", objContext.ZoneGroup)
@@ -481,6 +494,7 @@ func decodePoolPrefixfromZone(data string) (string, error) {
 	s := strings.Split(domain.DomainRoot, ".rgw.")
 	return s[0], err
 }
+
 func (r *ReconcileObjectZone) deleteCephObjectZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
 	logger.Debugf("deleting zone CR %q", zone.Name)
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)

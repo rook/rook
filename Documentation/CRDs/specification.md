@@ -9418,6 +9418,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The metadata pool used for creating RADOS namespaces in the object store</p>
 </td>
 </tr>
@@ -9429,6 +9430,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The data pool used for creating RADOS namespaces in the object store</p>
 </td>
 </tr>
@@ -9442,6 +9444,28 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether the RADOS namespaces should be preserved on deletion of the object store</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>poolPlacements</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PoolPlacementSpec">
+[]PoolPlacementSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PoolPlacements control which Pools are associated with a particular RGW bucket.
+Once PoolPlacements are defined, RGW client will be able to associate pool
+with ObjectStore bucket by providing &ldquo;<LocationConstraint>&rdquo; during s3 bucket creation
+or &ldquo;X-Storage-Policy&rdquo; header during swift container creation.
+See: <a href="https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets">https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets</a>
+PoolPlacement with name: &ldquo;default&rdquo; will be used as a default pool if no option
+is provided during bucket creation.
+If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.</p>
 </td>
 </tr>
 </tbody>
@@ -10624,6 +10648,49 @@ the triple <key,value,effect> using the matching operator <operator></p>
 <div>
 <p>PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD</p>
 </div>
+<h3 id="ceph.rook.io/v1.PlacementStorageClassSpec">PlacementStorageClassSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolPlacementSpec">PoolPlacementSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+however most clients/libs insist on AWS names so it is recommended to use
+one of the valid x-amz-storage-class values for better compatibility:
+REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+See AWS docs: <a href="https://aws.amazon.com/de/s3/storage-classes/">https://aws.amazon.com/de/s3/storage-classes/</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>DataPoolName is the data pool used to store ObjectStore objects data.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.PoolMirroringInfo">PoolMirroringInfo
 </h3>
 <p>
@@ -10776,6 +10843,85 @@ StatesSpec
 <td>
 <em>(Optional)</em>
 <p>States is the various state for all mirrored images</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.PoolPlacementSpec">PoolPlacementSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectSharedPoolsSpec">ObjectSharedPoolsSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Pool placement name. Name can be arbitrary. Placement with name &ldquo;default&rdquo; will be used as default.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>metadataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The metadata pool used to store ObjectStore bucket index.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The data pool used to store ObjectStore objects data.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataNonECPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClasses</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PlacementStorageClassSpec">
+[]PlacementStorageClassSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageClasses can be selected by user to override dataPoolName during object creation.
+Each placement has default STANDARD StorageClass pointing to dataPoolName.
+This list allows defining additional StorageClasses on top of default STANDARD storage class.</p>
 </td>
 </tr>
 </tbody>

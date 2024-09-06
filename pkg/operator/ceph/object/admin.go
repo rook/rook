@@ -48,6 +48,14 @@ type Context struct {
 	Zone        string
 }
 
+func (c *Context) nsName() string {
+	if c.clusterInfo == nil {
+		logger.Infof("unable to get namespaced name for rgw %s", c.Name)
+		return c.Name
+	}
+	return fmt.Sprintf("%s/%s", c.clusterInfo.Namespace, c.Name)
+}
+
 // AdminOpsContext holds the object store context as well as information for connecting to the admin
 // ops API.
 type AdminOpsContext struct {
@@ -101,9 +109,7 @@ const (
 	rgwAdminOpsUserCaps       = "buckets=*;users=*;usage=read;metadata=read;zone=read"
 )
 
-var (
-	rgwAdminOpsUserDisplayName = "RGW Admin Ops User"
-)
+var rgwAdminOpsUserDisplayName = "RGW Admin Ops User"
 
 // NewContext creates a new object store context.
 func NewContext(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, name string) *Context {
