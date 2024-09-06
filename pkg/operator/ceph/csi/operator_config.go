@@ -176,20 +176,3 @@ func (r *ReconcileCSI) createImageSetConfigmap() (string, error) {
 
 	return cm.Name, nil
 }
-
-func (r *ReconcileCSI) deleteImageSetConfigMap() error {
-	cm := &v1.ConfigMap{}
-	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: cm.Name, Namespace: r.opConfig.OperatorNamespace}, cm)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			return nil
-		}
-	}
-	err = r.client.Delete(r.opManagerContext, cm)
-	if nil != err {
-		return errors.Wrapf(err, "failed to delete imageSet configMap %v", cm.Name)
-	}
-	logger.Infof("deleted imageSet configMap %q", cm.Name)
-
-	return nil
-}
