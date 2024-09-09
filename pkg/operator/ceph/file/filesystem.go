@@ -144,6 +144,14 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 	if len(f.Spec.DataPools) == 0 {
 		return nil
 	}
+
+	// Ensure duplicate pool names are not present in the spec.
+	if len(f.Spec.DataPools) > 1 {
+		if hasDuplicatePoolNames(f.Spec.DataPools) {
+			return errors.New("duplicate pool names in the data pool spec")
+		}
+	}
+
 	if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &f.Spec.MetadataPool); err != nil {
 		return errors.Wrap(err, "invalid metadata pool")
 	}
@@ -155,6 +163,21 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 	}
 
 	return nil
+}
+
+func hasDuplicatePoolNames(poolSpecList []cephv1.NamedPoolSpec) bool {
+	poolNames := make(map[string]struct{})
+	for _, poolSpec := range poolSpecList {
+		if poolSpec.Name != "" {
+			if _, has := poolNames[poolSpec.Name]; has {
+				logger.Errorf("duplicate pool name %q in the data pool spec", poolSpec.Name)
+				return true
+			}
+			poolNames[poolSpec.Name] = struct{}{}
+		}
+	}
+
+	return false
 }
 
 // newFS creates a new instance of the file (MDS) service
