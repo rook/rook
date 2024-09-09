@@ -21,7 +21,7 @@ jobs:
           fetch-depth: 0
 
       - name: run Snyk to check for code vulnerabilities
-        uses: snyk/actions/golang@9213221444c2dc9e8b2502c1e857c26d851e84a7 # master
+        uses: snyk/actions/golang@cdb760004ba9ea4d525f2e043745dfe85bb9077e # master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
           GOFLAGS: "-buildvcs=false"
