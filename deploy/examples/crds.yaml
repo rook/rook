@@ -12307,12 +12307,72 @@ spec:
                       x-kubernetes-validations:
                         - message: object store shared metadata pool is immutable
                           rule: self == oldSelf
+                    poolPlacements:
+                      description: |-
+                        PoolPlacements control which Pools are associated with a particular RGW bucket.
+                        Once PoolPlacements are defined, RGW client will be able to associate pool
+                        with ObjectStore bucket by providing "<LocationConstraint>" during s3 bucket creation
+                        or "X-Storage-Policy" header during swift container creation.
+                        See: https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets
+                        PoolPlacement with name: "default" will be used as a default pool if no option
+                        is provided during bucket creation.
+                        If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+                        If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
+                      items:
+                        properties:
+                          dataNonECPoolName:
+                            description: |-
+                              The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+                              If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+                            type: string
+                          dataPoolName:
+                            description: The data pool used to store ObjectStore objects data.
+                            minLength: 1
+                            type: string
+                          metadataPoolName:
+                            description: The metadata pool used to store ObjectStore bucket index.
+                            minLength: 1
+                            type: string
+                          name:
+                            description: Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
+                            minLength: 1
+                            pattern: ^[a-zA-Z0-9._/-]+$
+                            type: string
+                          storageClasses:
+                            description: |-
+                              StorageClasses can be selected by user to override dataPoolName during object creation.
+                              Each placement has default STANDARD StorageClass pointing to dataPoolName.
+                              This list allows defining additional StorageClasses on top of default STANDARD storage class.
+                            items:
+                              properties:
+                                dataPoolName:
+                                  description: DataPoolName is the data pool used to store ObjectStore objects data.
+                                  minLength: 1
+                                  type: string
+                                name:
+                                  description: |-
+                                    Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+                                    however most clients/libs insist on AWS names so it is recommended to use
+                                    one of the valid x-amz-storage-class values for better compatibility:
+                                    REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+                                    See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
+                                  minLength: 1
+                                  pattern: ^[a-zA-Z0-9._/-]+$
+                                  type: string
+                              required:
+                                - dataPoolName
+                                - name
+                              type: object
+                            type: array
+                        required:
+                          - dataPoolName
+                          - metadataPoolName
+                          - name
+                        type: object
+                      type: array
                     preserveRadosNamespaceDataOnDelete:
                       description: Whether the RADOS namespaces should be preserved on deletion of the object store
                       type: boolean
-                  required:
-                    - dataPoolName
-                    - metadataPoolName
                   type: object
                 zone:
                   description: The multisite info
@@ -13166,12 +13226,72 @@ spec:
                       x-kubernetes-validations:
                         - message: object store shared metadata pool is immutable
                           rule: self == oldSelf
+                    poolPlacements:
+                      description: |-
+                        PoolPlacements control which Pools are associated with a particular RGW bucket.
+                        Once PoolPlacements are defined, RGW client will be able to associate pool
+                        with ObjectStore bucket by providing "<LocationConstraint>" during s3 bucket creation
+                        or "X-Storage-Policy" header during swift container creation.
+                        See: https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets
+                        PoolPlacement with name: "default" will be used as a default pool if no option
+                        is provided during bucket creation.
+                        If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+                        If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
+                      items:
+                        properties:
+                          dataNonECPoolName:
+                            description: |-
+                              The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+                              If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+                            type: string
+                          dataPoolName:
+                            description: The data pool used to store ObjectStore objects data.
+                            minLength: 1
+                            type: string
+                          metadataPoolName:
+                            description: The metadata pool used to store ObjectStore bucket index.
+                            minLength: 1
+                            type: string
+                          name:
+                            description: Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
+                            minLength: 1
+                            pattern: ^[a-zA-Z0-9._/-]+$
+                            type: string
+                          storageClasses:
+                            description: |-
+                              StorageClasses can be selected by user to override dataPoolName during object creation.
+                              Each placement has default STANDARD StorageClass pointing to dataPoolName.
+                              This list allows defining additional StorageClasses on top of default STANDARD storage class.
+                            items:
+                              properties:
+                                dataPoolName:
+                                  description: DataPoolName is the data pool used to store ObjectStore objects data.
+                                  minLength: 1
+                                  type: string
+                                name:
+                                  description: |-
+                                    Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+                                    however most clients/libs insist on AWS names so it is recommended to use
+                                    one of the valid x-amz-storage-class values for better compatibility:
+                                    REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+                                    See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
+                                  minLength: 1
+                                  pattern: ^[a-zA-Z0-9._/-]+$
+                                  type: string
+                              required:
+                                - dataPoolName
+                                - name
+                              type: object
+                            type: array
+                        required:
+                          - dataPoolName
+                          - metadataPoolName
+                          - name
+                        type: object
+                      type: array
                     preserveRadosNamespaceDataOnDelete:
                       description: Whether the RADOS namespaces should be preserved on deletion of the object store
                       type: boolean
-                  required:
-                    - dataPoolName
-                    - metadataPoolName
                   type: object
                 zoneGroup:
                   description: The display name for the ceph users
