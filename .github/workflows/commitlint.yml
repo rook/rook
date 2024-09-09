@@ -31,7 +31,7 @@ jobs:
       - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4.1.7
         with:
           fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@a2bc521d745b1ba127ee2f8b02d6afaa4eed035c # v6.1.1
+      - uses: wagoid/commitlint-github-action@3d28780bbf0365e29b144e272b2121204d5be5f3 # v6.1.2
         with:
           configFile: "./.commitlintrc.json"
           helpURL: https://rook.io/docs/rook/latest/Contributing/development-flow/#commit-structure
