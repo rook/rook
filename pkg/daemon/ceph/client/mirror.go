@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -50,8 +51,9 @@ type Images struct {
 }
 
 var (
-	rbdMirrorPeerCaps      = []string{"mon", "profile rbd-mirror-peer", "osd", "profile rbd"}
-	rbdMirrorPeerKeyringID = "rbd-mirror-peer"
+	rbdMirrorPeerCaps                     = []string{"mon", "profile rbd-mirror-peer", "osd", "profile rbd"}
+	rbdMirrorPeerKeyringID                = "rbd-mirror-peer"
+	radosNamespaceMirroringMinimumVersion = cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}
 )
 
 // ImportRBDMirrorBootstrapPeer add a mirror peer in the rbd-mirror configuration
@@ -278,8 +280,8 @@ func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	return nil
 }
 
-func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
-	logger.Info("resetting current snapshot schedules")
+func EnableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool string, snapshotSchedules []cephv1.SnapshotScheduleSpec) error {
+	logger.Info("resetting current snapshot schedules in cluster namespace %q", clusterInfo.Namespace)
 	// Reset any existing schedules
 	err := removeSnapshotSchedules(context, clusterInfo, pool)
 	if err != nil {
@@ -287,8 +289,8 @@ func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo
 	}
 
 	// Enable all the snap schedules
-	for _, snapSchedule := range pool.Mirroring.SnapshotSchedules {
-		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, pool.Name)
+	for _, snapSchedule := range snapshotSchedules {
+		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, pool)
 		if err != nil {
 			return errors.Wrap(err, "failed to enable snapshot schedule")
 		}
@@ -298,16 +300,16 @@ func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo
 }
 
 // removeSnapshotSchedules removes all the existing snapshot schedules
-func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
+func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool string) error {
 	// Get the list of existing snapshot schedule
-	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, pool.Name)
+	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, pool)
 	if err != nil {
 		return errors.Wrap(err, "failed to list snapshot schedule(s)")
 	}
 
 	// Remove each schedule
 	for _, existingSnapshotSchedule := range existingSnapshotSchedules {
-		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, pool.Name)
+		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, pool)
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove snapshot schedule %v", existingSnapshotSchedule)
 		}
@@ -360,6 +362,45 @@ func ListSnapshotSchedulesRecursively(context *clusterd.Context, clusterInfo *Cl
 
 	logger.Debugf("successfully recursively listed snapshot schedules for pool %q", poolName)
 	return snapshotSchedulesRecursive, nil
+}
+
+// EnableRBDRadosNamespaceMirroring enables rbd mirroring on a rados namespace.
+func EnableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolAndRadosNamespaceName string, remoteNamespace *string, mode string) error {
+	logger.Infof("enable mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+
+	// remove the check when the min supported version is 20.0.0
+	if !clusterInfo.CephVersion.IsAtLeast(radosNamespaceMirroringMinimumVersion) {
+		return errors.Errorf("ceph version %q does not support mirroring in rados namespace %q with --remote-namespace flag, supported version are v20 and above.", clusterInfo.CephVersion.String(), poolAndRadosNamespaceName)
+	}
+
+	args := []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode}
+	if remoteNamespace != nil {
+		args = []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode, "--remote-namespace", *remoteNamespace}
+	}
+
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to enable mirroring in rados namespace %s with mode %s. %s", poolAndRadosNamespaceName, mode, output)
+	}
+
+	logger.Infof("successfully enabled mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+	return nil
+}
+
+func DisableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolAndRadosNamespaceName string) error {
+	logger.Infof("disable mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+	args := []string{"mirror", "pool", "disable", poolAndRadosNamespaceName}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to disable mirroring in rados namespace %s. %s", poolAndRadosNamespaceName, output)
+	}
+
+	logger.Infof("successfully disabled mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+	return nil
 }
 
 /*

@@ -341,9 +341,9 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		// If not mirrored there is no Status Info field to fulfil
 	} else {
 		// disable mirroring
-		err := r.disableMirroring(poolSpec.Name)
+		err = r.disableMirroring(poolSpec.Name)
 		if err != nil {
-			logger.Warningf("failed to disable mirroring on pool %q. %v", poolSpec.Name, err)
+			logger.Warningf("failed to disable mirroring on pool %q running in ceph cluster namespace %q. %v", poolSpec.Name, r.clusterInfo.Namespace, err)
 		}
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
@@ -508,6 +508,18 @@ func (r *ReconcileCephBlockPool) disableMirroring(pool string) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool)
 	}
+	if mirrorInfo.Mode == "disabled" {
+		return nil
+	}
+
+	mirroringEnabled, err := r.isAnyRadosNamespaceMirrored(pool)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if any rados namespace is mirrored")
+	}
+	if mirroringEnabled {
+		logger.Debugf("disabling mirroring on pool %q is not possible. There are mirrored rados namespaces in the pool running in ceph cluster namespace %q", pool, r.clusterInfo.Namespace)
+		return errors.New("mirroring must be disabled in all radosnamespaces in the pool before disabling mirroring in the pool")
+	}
 
 	if mirrorInfo.Mode == "image" {
 		mirroredPools, err := cephclient.GetMirroredPoolImages(r.context, r.clusterInfo, pool)
@@ -541,4 +553,28 @@ func (r *ReconcileCephBlockPool) disableMirroring(pool string) error {
 	logger.Infof("successfully disabled mirroring on the pool %q", pool)
 
 	return nil
+}
+
+func (r *ReconcileCephBlockPool) isAnyRadosNamespaceMirrored(poolName string) (bool, error) {
+	logger.Debugf("list rados namespace in pool %q running in ceph cluster namespace %q", poolName, r.clusterInfo.Namespace)
+
+	list, err := cephclient.ListRadosNamespacesInPool(r.context, r.clusterInfo, poolName)
+	if err != nil {
+		return false, errors.Wrapf(err, "failed to list rados namespace in pool %q", poolName)
+	}
+	logger.Debugf("rados namespace list %v in pool %q running in ceph cluster namespace %q", list, poolName, r.clusterInfo.Namespace)
+
+	for _, namespace := range list {
+		poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", poolName, namespace)
+		mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
+		if err != nil {
+			return false, errors.Wrapf(err, "failed to get mirroring info for the rados namespace %q", poolAndRadosNamespaceName)
+		}
+		logger.Debugf("mirroring info for the rados namespace %q running in ceph cluster namespace %q: %v", poolAndRadosNamespaceName, r.clusterInfo.Namespace, mirrorInfo)
+		if mirrorInfo.Mode != "disabled" {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }

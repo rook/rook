@@ -331,7 +331,7 @@ func TestRemoveSnapshotSchedules(t *testing.T) {
 			},
 		},
 	}
-	err := removeSnapshotSchedules(context, AdminTestClusterInfo("mycluster"), pool)
+	err := removeSnapshotSchedules(context, AdminTestClusterInfo("mycluster"), pool.Name)
 	assert.NoError(t, err)
 }
 

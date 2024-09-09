@@ -25,7 +25,10 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	"github.com/rook/rook/pkg/clusterd"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+	"github.com/rook/rook/pkg/operator/ceph/version"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -36,6 +39,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -99,6 +103,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		scheme:           s,
 		context:          c,
 		opManagerContext: ctx,
+		opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 	}
 
 	// Mock request to simulate Reconcile() being called on an event for a
@@ -114,6 +119,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespace,
 			Namespace: namespace,
+		},
+		Spec: cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image:           "ceph/ceph:v14.2.9",
+				ImagePullPolicy: v1.PullIfNotPresent,
+			},
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
@@ -138,7 +149,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		// Create a fake client to mock API calls.
 		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
-		r = &ReconcileCephBlockPoolRadosNamespace{client: cl, scheme: s, context: c, opManagerContext: context.TODO()}
+		r = &ReconcileCephBlockPoolRadosNamespace{client: cl, scheme: s, context: c, opManagerContext: context.TODO(), opConfig: opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"}}
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
 		assert.True(t, res.Requeue)
@@ -195,6 +206,9 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 				if args[0] == "namespace" && args[1] == "create" {
 					return "", nil
 				}
+				if args[0] == "mirror" && args[1] == "pool" {
+					return `{"mode":"disabled"}`, nil
+				}
 
 				return "", nil
 			},
@@ -208,6 +222,10 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			scheme:           s,
 			context:          c,
 			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
 		}
 
 		// Enable CSI
@@ -254,6 +272,10 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			scheme:           s,
 			context:          c,
 			opManagerContext: ctx,
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
 		}
 
 		// Enable CSI
@@ -280,6 +302,320 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		assert.NotEmpty(t, cm.Data[csi.ConfigKey])
 		assert.Contains(t, cm.Data[csi.ConfigKey], "clusterID")
 		assert.Contains(t, cm.Data[csi.ConfigKey], name)
+		cephCluster.Spec.External.Enable = false
+	})
+
+	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring disabled", func(t *testing.T) {
+		remoteNamespace := ""
+		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
+			RemoteNamespace: &remoteNamespace,
+			Mode:            "image",
+		}
+		objects := []runtime.Object{
+			cephBlockPoolRadosNamespace,
+			cephCluster,
+			cephBlockPool,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" {
+					return `{"mode":""}`, nil
+				}
+
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
+		r = &ReconcileCephBlockPoolRadosNamespace{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.False(t, res.Requeue)
+	})
+
+	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled but empty rados namespace", func(t *testing.T) {
+		remoteNamespace := ""
+		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
+			RemoteNamespace: &remoteNamespace,
+			Mode:            "image",
+		}
+		cephBlockPool.Spec.Mirroring.Enabled = true
+		objects := []runtime.Object{
+			cephBlockPoolRadosNamespace,
+			cephCluster,
+			cephBlockPool,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" {
+					return `{"mode":""}`, nil
+				}
+
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
+		r = &ReconcileCephBlockPoolRadosNamespace{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.False(t, res.Requeue)
+	})
+
+	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and non empty rados namespace but less ceph version", func(t *testing.T) {
+		remoteNamespace := "test-1"
+		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
+			RemoteNamespace: &remoteNamespace,
+			Mode:            "image",
+		}
+		cephBlockPool.Spec.Mirroring.Enabled = true
+		objects := []runtime.Object{
+			cephBlockPoolRadosNamespace,
+			cephCluster,
+			cephBlockPool,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "enable" {
+					assert.Equal(t, cephBlockPoolRadosNamespace.Spec.Mirroring.RemoteNamespace, args[6])
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return `{}`, nil
+				}
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
+		r = &ReconcileCephBlockPoolRadosNamespace{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+		assert.False(t, res.Requeue)
+	})
+
+	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and non empty rados namespace and correct ceph version", func(t *testing.T) {
+		remoteNamespace := "test-1"
+		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
+			RemoteNamespace: &remoteNamespace,
+			Mode:            "image",
+		}
+		cephBlockPool.Spec.Mirroring.Enabled = true
+		objects := []runtime.Object{
+			cephBlockPoolRadosNamespace,
+			cephCluster,
+			cephBlockPool,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "enable" {
+					assert.Equal(t, *cephBlockPoolRadosNamespace.Spec.Mirroring.RemoteNamespace, args[6])
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return `{}`, nil
+				}
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
+		r = &ReconcileCephBlockPoolRadosNamespace{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = r.client.Get(ctx, req.NamespacedName, cephBlockPoolRadosNamespace)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
+		assert.NotEmpty(t, cephBlockPoolRadosNamespace.Status.Info["clusterID"])
+	})
+
+	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and no remote rados namespace and correct ceph version", func(t *testing.T) {
+		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
+			Mode: "image",
+		}
+		cephBlockPool.Spec.Mirroring.Enabled = true
+		objects := []runtime.Object{
+			cephBlockPoolRadosNamespace,
+			cephCluster,
+			cephBlockPool,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "enable" {
+					assert.Equal(t, string(cephBlockPoolRadosNamespace.Spec.Mirroring.Mode), args[4])
+					return "", nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return `{}`, nil
+				}
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
+		r = &ReconcileCephBlockPoolRadosNamespace{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = r.client.Get(ctx, req.NamespacedName, cephBlockPoolRadosNamespace)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
+		assert.NotEmpty(t, cephBlockPoolRadosNamespace.Status.Info["clusterID"])
+	})
+
+	t.Run("test rbd rados namespace mirroring disabled", func(t *testing.T) {
+		cephBlockPoolRadosNamespace.Spec.Mirroring = nil
+
+		objects := []runtime.Object{
+			cephBlockPoolRadosNamespace,
+			cephCluster,
+			cephBlockPool,
+		}
+		// Create a fake client to mock API calls.
+		cl = fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+		c.Client = cl
+		executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" && args[1] == "create" {
+					return "", nil
+				}
+				// set mode = image as it was enabled earlier
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return `{"mode":"image"}`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "status" {
+					return `{"images":[]}`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "peer" {
+					return `{}`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "disable" {
+					assert.Equal(t, cephBlockPool.Name+"/"+cephBlockPoolRadosNamespace.Name, args[3])
+					return `{}`, nil
+				}
+				return "", nil
+			},
+		}
+		c.Executor = executor
+
+		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
+		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
+		r = &ReconcileCephBlockPoolRadosNamespace{
+			client:           cl,
+			scheme:           s,
+			context:          c,
+			opManagerContext: context.TODO(),
+			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+		}
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.NoError(t, err)
+		assert.False(t, res.Requeue)
+
+		err = r.client.Get(context.TODO(), req.NamespacedName, cephBlockPoolRadosNamespace)
+		assert.NoError(t, err)
+		assert.Equal(t, cephv1.ConditionReady, cephBlockPoolRadosNamespace.Status.Phase)
 	})
 }
 
