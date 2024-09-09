@@ -31,8 +31,8 @@ require (
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
-	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.76.0
-	github.com/prometheus-operator/prometheus-operator/pkg/client v0.76.0
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.76.1
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.76.1
 	github.com/rook/rook/pkg/apis v0.0.0-20231204200402-5287527732f7
 	github.com/sethvargo/go-password v0.3.1
 	github.com/spf13/cobra v1.8.1
