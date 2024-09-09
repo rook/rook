@@ -150,7 +150,6 @@ var reconcileSaveCSIDriverOptions = SaveCSIDriverOptions
 func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, error) {
 	// reconcileResult is used to communicate the result of the reconciliation back to the caller
 	var reconcileResult reconcile.Result
-	var clusterNamespace string
 
 	ownerRef, err := k8sutil.GetDeploymentOwnerReference(r.opManagerContext, r.context.Clientset, os.Getenv(k8sutil.PodNameEnvVar), r.opConfig.OperatorNamespace)
 	if err != nil {
@@ -295,7 +294,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 		}
 		clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
-		clusterNamespace = clusterInfo.Namespace
 
 		// is holder enabled for this cluster?
 		thisHolderEnabled := (!csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()) && !csiDisableHolders
@@ -331,13 +329,10 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 				return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to reconcile csi-op config CR")
 			}
 			return reconcileResult, nil
-		} else {
-			r.deleteCSIOperatorResources(clusterNamespace, false)
 		}
 	}
 
 	if !EnableCSIOperator() {
-		r.deleteCSIOperatorResources(clusterNamespace, true)
 
 		err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
 		if err != nil {
