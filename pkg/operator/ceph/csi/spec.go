@@ -42,7 +42,6 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 
-	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
 )
 
@@ -760,48 +759,6 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 	}
 
 	return nil
-}
-
-func (r *ReconcileCSI) deleteCSIOperatorResources(clusterNamespace string, deleteOp bool) {
-	csiCephConnection := &csiopv1a1.CephConnection{}
-
-	err := r.client.DeleteAllOf(r.opManagerContext, csiCephConnection, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: clusterNamespace}})
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Errorf("failed to delete CSI-operator Ceph Connection %q. %v", csiCephConnection.Name, err)
-	} else {
-		logger.Infof("deleted CSI-operator Ceph Connection %q", csiCephConnection.Name)
-	}
-
-	csiOpClientProfile := &csiopv1a1.ClientProfile{}
-	err = r.client.DeleteAllOf(r.opManagerContext, csiOpClientProfile, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: clusterNamespace}})
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Errorf("failed to delete CSI-operator client profile %q. %v", csiOpClientProfile.Name, err)
-	} else {
-		logger.Infof("deleted CSI-operator client profile %q", csiOpClientProfile.Name)
-	}
-
-	err = r.deleteImageSetConfigMap()
-	if err != nil && !kerrors.IsNotFound(err) {
-		logger.Error("failed to delete imageSetConfigMap", err)
-	}
-
-	if deleteOp {
-		csiDriver := &csiopv1a1.Driver{}
-		err = r.client.DeleteAllOf(r.opManagerContext, csiDriver, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: r.opConfig.OperatorNamespace}})
-		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete CSI-operator driver config %q. %v", csiDriver.Name, err)
-		} else {
-			logger.Infof("deleted CSI-operator driver config %q", csiDriver.Name)
-		}
-
-		opConfig := &csiopv1a1.OperatorConfig{}
-		err = r.client.DeleteAllOf(r.opManagerContext, opConfig, &client.DeleteAllOfOptions{ListOptions: client.ListOptions{Namespace: r.opConfig.OperatorNamespace}})
-		if err != nil && !kerrors.IsNotFound(err) {
-			logger.Errorf("failed to delete CSI-operator operator config %q. %v", opConfig.Name, err)
-		} else {
-			logger.Infof("deleted CSI-operator operator config %q", opConfig.Name)
-		}
-	}
 }
 
 func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) error {
