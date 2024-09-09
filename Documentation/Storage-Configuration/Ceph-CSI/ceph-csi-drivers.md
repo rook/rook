@@ -200,11 +200,18 @@ CSI-Addons supports the following operations:
     * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#reclaimspacecronjob)
     * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#annotating-perstentvolumeclaims)
     * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#annotating-namespace)
+    * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#annotating-storageclass)
 * Network Fencing
     * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/networkfence.md)
 * Volume Replication
     * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/volumereplicationclass.md)
     * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/volumereplication.md)
+* Key Rotation Job for PV encryption
+    * [Creating EncryptionKeyRotationJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#encryptionkeyrotationjob)
+    * [Creating EncryptionKeyRotationCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#encryptionkeyrotationcronjob)
+    * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#annotating-persistentvolumeclaims)
+    * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#annotating-namespace)
+    * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#annotating-storageclass)
 
 ## Enable RBD and CephFS Encryption Support
 
