@@ -43,7 +43,7 @@ jobs:
             !Documentation/Helm-Charts
 
       - name: Check helm-docs
-        run: make check-helm-docs
+        run: make check.helm-docs
       - name: Check docs
         run: make check.docs
       - name: Install mkdocs and dependencies
