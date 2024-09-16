@@ -406,6 +406,20 @@ type MonitoringSpec struct {
 	// Interval determines prometheus scrape interval
 	// +optional
 	Interval *metav1.Duration `json:"interval,omitempty"`
+
+	// Ceph exporter configuration
+	// +optional
+	Exporter *CephExporterSpec `json:"exporter,omitempty"`
+}
+
+type CephExporterSpec struct {
+	// Only performance counters greater than or equal to this option are fetched
+	// +kubebuilder:default=5
+	PerfCountersPrioLimit int64 `json:"perfCountersPrioLimit,omitempty"`
+
+	// Time to wait before sending requests again to exporter server (seconds)
+	// +kubebuilder:default=5
+	StatsPeriodSeconds int64 `json:"statsPeriodSeconds,omitempty"`
 }
 
 // ClusterStatus represents the status of a Ceph cluster
