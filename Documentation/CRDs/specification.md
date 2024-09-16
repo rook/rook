@@ -3686,6 +3686,45 @@ map[string]int
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.CephExporterSpec">CephExporterSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonitoringSpec">MonitoringSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>perfCountersPrioLimit</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>Only performance counters greater than or equal to this option are fetched</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>statsPeriodSeconds</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>Time to wait before sending requests again to exporter server (seconds)</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.CephFilesystemStatus">CephFilesystemStatus
 </h3>
 <p>
@@ -8525,6 +8564,20 @@ Kubernetes meta/v1.Duration
 <td>
 <em>(Optional)</em>
 <p>Interval determines prometheus scrape interval</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>exporter</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephExporterSpec">
+CephExporterSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ceph exporter configuration</p>
 </td>
 </tr>
 </tbody>

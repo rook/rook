@@ -2341,6 +2341,20 @@ spec:
                         Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
                         types must exist or the creation will fail. Default is false.
                       type: boolean
+                    exporter:
+                      description: Ceph exporter configuration
+                      properties:
+                        perfCountersPrioLimit:
+                          default: 5
+                          description: Only performance counters greater than or equal to this option are fetched
+                          format: int64
+                          type: integer
+                        statsPeriodSeconds:
+                          default: 5
+                          description: Time to wait before sending requests again to exporter server (seconds)
+                          format: int64
+                          type: integer
+                      type: object
                     externalMgrEndpoints:
                       description: ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
                       items:
