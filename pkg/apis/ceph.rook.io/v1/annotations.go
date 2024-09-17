@@ -77,6 +77,11 @@ func GetCmdReporterAnnotations(a AnnotationsSpec) Annotations {
 	return mergeAllAnnotationsWithKey(a, KeyCmdReporter)
 }
 
+// GetCrashCollectorAnnotations returns the Annotations for the crash collector
+func GetCrashCollectorAnnotations(a AnnotationsSpec) Annotations {
+	return mergeAllAnnotationsWithKey(a, KeyCrashCollector)
+}
+
 func GetClusterMetadataAnnotations(a AnnotationsSpec) Annotations {
 	return a[KeyClusterMetadata]
 }
