@@ -96,8 +96,8 @@ class DummyRados(object):
             """{"dashboard":"https://ceph-dashboard:8443/","prometheus":"http://ceph-dashboard-db:9283/"}"""
         )
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command quorum_status", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}"""
-        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index"}}]"""
+            """{"caps": ["mon", "allow r, allow command quorum_status", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index", "mds", "allow *"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}"""
+        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r, allow command quorum_status","osd":"profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow x pool=default.rgw.buckets.index","mds":"allow *"}}]"""
         self.cmd_output_map[
             """{"caps": ["mon", "profile rbd, allow command 'osd blocklist'", "osd", "profile rbd"], "entity": "client.csi-rbd-node", "format": "json", "prefix": "auth get-or-create"}"""
         ] = """[{"entity":"client.csi-rbd-node","key":"AQBOgrNeHbK1AxAAubYBeV8S1U/GPzq5SVeq6g==","caps":{"mon":"profile rbd, allow command 'osd blocklist'","osd":"profile rbd"}}]"""
@@ -108,20 +108,20 @@ class DummyRados(object):
             """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs *=*", "mds", "allow rw"], "entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get-or-create"}"""
         ] = """[{"entity":"client.csi-cephfs-node","key":"AQBOgrNeENunKxAAPCmgE7R6G8DcXnaJ1F32qg==","caps":{"mds":"allow rw","mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs *=*"}}]"""
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}"""
-        ] = """[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=*"}}]"""
+            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*", "mds", "allow *"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get-or-create"}"""
+        ] = """[{"entity":"client.csi-cephfs-provisioner","key":"AQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=*","mds":"allow *"}}]"""
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner-openshift-storage", "format": "json", "prefix": "auth get-or-create"}"""
-        ] = """[{"entity":"client.csi-cephfs-provisioner-openshift-storage","key":"BQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=*"}}]"""
+            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*", "mds", "allow *"], "entity": "client.csi-cephfs-provisioner-openshift-storage", "format": "json", "prefix": "auth get-or-create"}"""
+        ] = """[{"entity":"client.csi-cephfs-provisioner-openshift-storage","key":"BQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=*", "mds":"allow *"}}]"""
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=myfs"], "entity": "client.csi-cephfs-provisioner-openshift-storage-myfs", "format": "json", "prefix": "auth get-or-create"}"""
-        ] = """[{"entity":"client.csi-cephfs-provisioner-openshift-storage-myfs","key":"CQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=myfs"}}]"""
+            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=myfs", "mds", "allow *"], "entity": "client.csi-cephfs-provisioner-openshift-storage-myfs", "format": "json", "prefix": "auth get-or-create"}"""
+        ] = """[{"entity":"client.csi-cephfs-provisioner-openshift-storage-myfs","key":"CQBOgrNeAFgcGBAAvGqKOAD0D3xxmVY0R912dg==","caps":{"mgr":"allow rw","mon":"allow r, allow command 'osd blocklist'","osd":"allow rw tag cephfs metadata=myfs","mds":"allow *"}}]"""
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}"""
-        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]"""
+            """{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index", "mds", "allow *"], "entity": "client.healthchecker", "format": "json", "prefix": "auth get-or-create"}"""
+        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index","mds":"allow *"}}]"""
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}"""
-        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSRKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]"""
+            """{"caps": ["mon", "allow r, allow command quorum_status, allow command version", "mgr", "allow command config", "osd", "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index", "mds", "allow *"], "entity": "client.healthchecker", "format": "json", "prefix": "auth caps"}"""
+        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSRKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index","mds":"allow *"}}]"""
         self.cmd_output_map["""{"format": "json", "prefix": "mgr services"}"""] = (
             """{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}"""
         )
@@ -130,7 +130,7 @@ class DummyRados(object):
         ] = """{"dashboard": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:7000/", "prometheus": "http://rook-ceph-mgr-a-57cf9f84bc-f4jnl:9283/"}"""
         self.cmd_output_map[
             """{"entity": "client.healthchecker", "format": "json", "prefix": "auth get"}"""
-        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index"}}]"""
+        ] = """[{"entity":"client.healthchecker","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon": "allow r, allow command quorum_status, allow command version", "mgr": "allow command config", "osd": "profile rbd-read-only, allow rwx pool=default.rgw.meta, allow r pool=.rgw.root, allow rw pool=default.rgw.control, allow rx pool=default.rgw.log, allow x pool=default.rgw.buckets.index","mds":"allow *"}}]"""
         self.cmd_output_map[
             """{"entity": "client.csi-cephfs-node", "format": "json", "prefix": "auth get"}"""
         ] = """[]"""
@@ -151,10 +151,10 @@ class DummyRados(object):
         ] = """[]"""
         self.cmd_output_map[
             """{"entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth get"}"""
-        ] = """[{"entity":"client.csi-cephfs-provisioner","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r", "mgr":"allow rw", "osd":"allow rw tag cephfs metadata=*"}}]"""
+        ] = """[{"entity":"client.csi-cephfs-provisioner","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r", "mgr":"allow rw", "osd":"allow rw tag cephfs metadata=*","mds":"allow *"}}]"""
         self.cmd_output_map[
-            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth caps"}"""
-        ] = """[{"entity":"client.csi-cephfs-provisioner","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r,  allow command 'osd blocklist'", "mgr":"allow rw", "osd":"allow rw tag cephfs metadata=*"}}]"""
+            """{"caps": ["mon", "allow r, allow command 'osd blocklist'", "mgr", "allow rw", "osd", "allow rw tag cephfs metadata=*", "mds", "allow *"], "entity": "client.csi-cephfs-provisioner", "format": "json", "prefix": "auth caps"}"""
+        ] = """[{"entity":"client.csi-cephfs-provisioner","key":"AQDFkbNeft5bFRAATndLNUSEKruozxiZi3lrdA==","caps":{"mon":"allow r,  allow command 'osd blocklist'", "mgr":"allow rw", "osd":"allow rw tag cephfs metadata=*","mds":"allow *"}}]"""
         self.cmd_output_map['{"format": "json", "prefix": "status"}'] = ceph_status_str
 
     def shutdown(self):
@@ -868,6 +868,7 @@ class RadosJSON:
             "mon": "allow r, allow command 'osd blocklist'",
             "mgr": "allow rw",
             "osd": "allow rw tag cephfs metadata=*",
+            "mds": "allow *",
         }
         if self._arg_parser.restricted_auth_permission:
             k8s_cluster_name = self._arg_parser.k8s_cluster_name
@@ -1017,6 +1018,7 @@ class RadosJSON:
             "mon": "allow r, allow command quorum_status, allow command version",
             "mgr": "allow command config",
             "osd": f"profile rbd-read-only, allow rwx pool={self._arg_parser.rgw_pool_prefix}.rgw.meta, allow r pool=.rgw.root, allow rw pool={self._arg_parser.rgw_pool_prefix}.rgw.control, allow rx pool={self._arg_parser.rgw_pool_prefix}.rgw.log, allow x pool={self._arg_parser.rgw_pool_prefix}.rgw.buckets.index",
+            "mds": "allow *",
         }
 
         return caps, entity
