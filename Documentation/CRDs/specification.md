@@ -1127,8 +1127,13 @@ FilesystemSpec
 <td>
 <code>metadataPool</code><br/>
 <em>
+<<<<<<< HEAD
 <a href="#ceph.rook.io/v1.NamedPoolSpec">
 NamedPoolSpec
+=======
+<a href="#ceph.rook.io/v1.PoolSpec">
+PoolSpec
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 </a>
 </em>
 </td>
@@ -1151,6 +1156,7 @@ NamedPoolSpec
 </tr>
 <tr>
 <td>
+<<<<<<< HEAD
 <code>preservePoolNames</code><br/>
 <em>
 bool
@@ -1163,6 +1169,8 @@ bool
 </tr>
 <tr>
 <td>
+=======
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 <code>preservePoolsOnDelete</code><br/>
 <em>
 bool
@@ -6594,8 +6602,13 @@ FilesystemSnapshotScheduleStatusRetention
 <td>
 <code>metadataPool</code><br/>
 <em>
+<<<<<<< HEAD
 <a href="#ceph.rook.io/v1.NamedPoolSpec">
 NamedPoolSpec
+=======
+<a href="#ceph.rook.io/v1.PoolSpec">
+PoolSpec
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 </a>
 </em>
 </td>
@@ -6618,6 +6631,7 @@ NamedPoolSpec
 </tr>
 <tr>
 <td>
+<<<<<<< HEAD
 <code>preservePoolNames</code><br/>
 <em>
 bool
@@ -6630,6 +6644,8 @@ bool
 </tr>
 <tr>
 <td>
+=======
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 <code>preservePoolsOnDelete</code><br/>
 <em>
 bool
@@ -11171,7 +11187,11 @@ This list allows defining additional StorageClasses on top of default STANDARD s
 <h3 id="ceph.rook.io/v1.PoolSpec">PoolSpec
 </h3>
 <p>
+<<<<<<< HEAD
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.NamedBlockPoolSpec">NamedBlockPoolSpec</a>, <a href="#ceph.rook.io/v1.NamedPoolSpec">NamedPoolSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
+=======
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemSpec">FilesystemSpec</a>, <a href="#ceph.rook.io/v1.NamedBlockPoolSpec">NamedBlockPoolSpec</a>, <a href="#ceph.rook.io/v1.NamedPoolSpec">NamedPoolSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 </p>
 <div>
 <p>PoolSpec represents the spec of ceph pool</p>

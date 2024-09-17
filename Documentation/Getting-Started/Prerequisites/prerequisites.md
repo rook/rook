@@ -7,7 +7,11 @@ and Rook is granted the required privileges (see below for more information).
 
 ## Kubernetes Version
 
+<<<<<<< HEAD
 Kubernetes versions **v1.27** through **v1.31** are supported.
+=======
+Kubernetes versions **v1.26** through **v1.31** are supported.
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 
 ## CPU Architecture
 

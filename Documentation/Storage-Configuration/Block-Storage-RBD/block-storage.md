@@ -93,10 +93,17 @@ reclaimPolicy: Delete
 allowVolumeExpansion: true
 ```
 
+<<<<<<< HEAD
 If you've deployed the Rook operator in a namespace other than `rook-ceph`,
 change the prefix in the provisioner to match the namespace you used. For
 example, if the Rook operator is running in the namespace `my-namespace` the
 provisioner value should be `my-namespace.rbd.csi.ceph.com`.
+=======
+If you've deployed the Rook operator in a namespace other than "rook-ceph",
+change the prefix in the provisioner to match the namespace
+you used. For example, if the Rook operator is running in the namespace "my-namespace" the
+provisioner value should be "my-namespace.rbd.csi.ceph.com".
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 
 Create the storage class.
 

@@ -52,7 +52,11 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	}
 	poolCount += len(cephFilesystemList.Items)
 	for _, cephFilesystem := range cephFilesystemList.Items {
+<<<<<<< HEAD
 		poolSpecs = append(poolSpecs, cephFilesystem.Spec.MetadataPool.PoolSpec)
+=======
+		poolSpecs = append(poolSpecs, cephFilesystem.Spec.MetadataPool)
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 		for _, pool := range cephFilesystem.Spec.DataPools {
 			poolSpecs = append(poolSpecs, pool.PoolSpec)
 		}

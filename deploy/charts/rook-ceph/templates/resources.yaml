@@ -7220,9 +7220,12 @@ spec:
                             type: object
                           type: array
                       type: object
+<<<<<<< HEAD
                     name:
                       description: Name of the pool
                       type: string
+=======
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
                     parameters:
                       additionalProperties:
                         type: string
@@ -8255,9 +8258,12 @@ spec:
                 preserveFilesystemOnDelete:
                   description: Preserve the fs in the cluster on CephFilesystem CR deletion. Setting this to true automatically implies PreservePoolsOnDelete is true.
                   type: boolean
+<<<<<<< HEAD
                 preservePoolNames:
                   description: Preserve pool names as specified
                   type: boolean
+=======
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
                 preservePoolsOnDelete:
                   description: Preserve pools on filesystem deletion
                   type: boolean

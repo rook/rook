@@ -152,6 +152,7 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 		}
 	}
 
+<<<<<<< HEAD
 	localMetadataPoolSpec := f.Spec.MetadataPool.PoolSpec
 	if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localMetadataPoolSpec); err != nil {
 		return errors.Wrap(err, "invalid metadata pool")
@@ -159,6 +160,14 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 	for _, p := range f.Spec.DataPools {
 		localPoolSpec := p.PoolSpec
 		if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localPoolSpec); err != nil {
+=======
+	if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &f.Spec.MetadataPool); err != nil {
+		return errors.Wrap(err, "invalid metadata pool")
+	}
+	for _, p := range f.Spec.DataPools {
+		localpoolSpec := p.PoolSpec
+		if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localpoolSpec); err != nil {
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 			return errors.Wrap(err, "Invalid data pool")
 		}
 	}
@@ -191,10 +200,19 @@ func newFS(name, namespace string) *Filesystem {
 
 // createOrUpdatePools function sets the sizes for MetadataPool and dataPool
 func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
+<<<<<<< HEAD
 	metadataPool := spec.MetadataPool
 	metadataPool.Application = cephfsApplication
 	metadataPool.Name = generateMetaDataPoolName(f.Name, &spec)
 
+=======
+	// generating the metadata pool's name
+	metadataPool := cephv1.NamedPoolSpec{
+		Name:     GenerateMetaDataPoolName(f.Name),
+		PoolSpec: spec.MetadataPool,
+	}
+	metadataPool.Application = cephfsApplication
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 	err := cephclient.CreatePool(context, clusterInfo, clusterSpec, &metadataPool)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPool.Name)
@@ -263,10 +281,18 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		reversedPoolMap[value] = key
 	}
 
+<<<<<<< HEAD
 	metadataPool := spec.MetadataPool
 	metadataPool.Application = cephfsApplication
 	metadataPool.Name = generateMetaDataPoolName(f.Name, &spec)
 
+=======
+	spec.MetadataPool.Application = cephfsApplication
+	metadataPool := cephv1.NamedPoolSpec{
+		Name:     GenerateMetaDataPoolName(f.Name),
+		PoolSpec: spec.MetadataPool,
+	}
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 	if _, poolFound := reversedPoolMap[metadataPool.Name]; !poolFound {
 		err = cephclient.CreatePool(context, clusterInfo, clusterSpec, &metadataPool)
 		if err != nil {
@@ -318,6 +344,7 @@ func downFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterIn
 // or get predefined name from spec
 func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 	var dataPoolNames []string
+<<<<<<< HEAD
 
 	for i, pool := range spec.DataPools {
 		poolName := ""
@@ -333,11 +360,23 @@ func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 		dataPoolNames = append(dataPoolNames, poolName)
 	}
 
+=======
+	for i, pool := range spec.DataPools {
+		poolName := ""
+		if pool.Name == "" {
+			poolName = fmt.Sprintf("%s-%s%d", f.Name, dataPoolSuffix, i)
+		} else {
+			poolName = fmt.Sprintf("%s-%s", f.Name, pool.Name)
+		}
+		dataPoolNames = append(dataPoolNames, poolName)
+	}
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 	return dataPoolNames
 }
 
 // GenerateMetaDataPoolName generates MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
 func GenerateMetaDataPoolName(fsName string) string {
+<<<<<<< HEAD
 	return generateMetaDataPoolName(fsName, nil)
 }
 
@@ -354,4 +393,7 @@ func generateMetaDataPoolName(fsName string, spec *cephv1.FilesystemSpec) string
 	}
 
 	return poolName
+=======
+	return fmt.Sprintf("%s-%s", fsName, metaDataPoolSuffix)
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 }

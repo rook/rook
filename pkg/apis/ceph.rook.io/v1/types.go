@@ -1174,16 +1174,23 @@ type CephFilesystemList struct {
 type FilesystemSpec struct {
 	// The metadata pool settings
 	// +nullable
+<<<<<<< HEAD
 	MetadataPool NamedPoolSpec `json:"metadataPool"`
+=======
+	MetadataPool PoolSpec `json:"metadataPool"`
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 
 	// The data pool settings, with optional predefined pool name.
 	// +nullable
 	DataPools []NamedPoolSpec `json:"dataPools"`
 
+<<<<<<< HEAD
 	// Preserve pool names as specified
 	// +optional
 	PreservePoolNames bool `json:"preservePoolNames,omitempty"`
 
+=======
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 	// Preserve pools on filesystem deletion
 	// +optional
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete,omitempty"`

@@ -63,7 +63,11 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing metadata pool
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
+<<<<<<< HEAD
 	fs.Spec.MetadataPool.PoolSpec = p
+=======
+	fs.Spec.MetadataPool = p
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 
 	// missing mds count
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
@@ -112,6 +116,7 @@ func TestGenerateDataPoolNames(t *testing.T) {
 	assert.Equal(t, expectedNames, names)
 }
 
+<<<<<<< HEAD
 func TestPreservePoolNames(t *testing.T) {
 	fs := &Filesystem{Name: "fake", Namespace: "fake"}
 	fsSpec := cephv1.FilesystemSpec{
@@ -132,6 +137,8 @@ func TestPreservePoolNames(t *testing.T) {
 	assert.Equal(t, expectedNames, names)
 }
 
+=======
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 func isBasePoolOperation(fsName, command string, args []string) bool {
 	if reflect.DeepEqual(args[0:7], []string{"osd", "pool", "create", fsName + "-metadata", "0", "replicated", fsName + "-metadata"}) {
 		return true
@@ -345,9 +352,13 @@ func fsTest(fsName string) cephv1.CephFilesystem {
 	return cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
+<<<<<<< HEAD
 			MetadataPool: cephv1.NamedPoolSpec{
 				PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
 			},
+=======
+			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+>>>>>>> 67cd211 (osd: enable encryption as day-2 operation)
 			DataPools: []cephv1.NamedPoolSpec{
 				{
 					PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
