@@ -1760,3 +1760,88 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+
+  osd-migration:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "tests/manifests/test-cluster-on-pvc-encrypted.yaml" "${{ github.event.inputs.ceph-image }}"
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+      - name: prepare loop devices for osds
+        run: |
+          tests/scripts/github-action-helper.sh prepare_loop_devices 1
+
+      - name: create cluster prerequisites
+        run: |
+          export BLOCK="/dev/$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          tests/scripts/localPathPV.sh "$BLOCK"
+          tests/scripts/loopDevicePV.sh 1
+          tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: deploy cluster
+        run: |
+          yq write -i deploy/examples/operator.yaml "data.ROOK_CEPH_ALLOW_LOOP_DEVICES" --style=double "true"
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
+          kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
+
+      - name: wait for prepare pod
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
+
+      - name: wait for ceph to be ready
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+
+      - name: enable encryption
+        run: |
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" true
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.migration.confirmation" yes-really-migrate-osds
+          kubectl apply -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+
+      - name: verify-migration
+        run: |
+          # wait until osd is destroyed
+          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -nE 'destroyed'; do echo 'waiting for ceph osd 0 to be in destroyed state'; sleep 1; done"
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+           # confirm that migrated OSD has same ID
+          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.0'; do echo 'waiting for ceph osd 0 to be created again'; sleep 1; done"
+
+      - name: disable encryption
+        run: |
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].encrypted" false
+          yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.migration.confirmation" yes-really-migrate-osds
+          kubectl apply -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+
+      - name: verify-migration
+        run: |
+          # wait until osd is destroyed
+          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -nE 'destroyed'; do echo 'waiting for ceph osd 0 to be in destroyed state'; sleep 1; done"
+          tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
+          # confirm that migrated OSD has same ID
+          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.0'; do echo 'waiting for ceph osd 0 to be created again'; sleep 1; done"
+
+      - name: check-ownerreferences
+        run: tests/scripts/github-action-helper.sh check_ownerreferences
