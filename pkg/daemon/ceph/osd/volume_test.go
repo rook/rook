@@ -1574,7 +1574,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition when osd is prepared with existing osd ID
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDReplaceInfo{ID: 3, Path: "/dev/sda"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}, DeviceInfo: &sys.LocalDisk{RealPath: "/dev/sda"}},
@@ -1596,7 +1596,7 @@ func TestInitializeBlockPVC(t *testing.T) {
 	assert.Equal(t, "", walBlockPath)
 
 	// Test for condition that --osd-id is not passed for the devices that don't match the OSD to be replaced.
-	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDReplaceInfo{ID: 3, Path: "/dev/sda"}}
+	a = &OsdAgent{clusterInfo: clusterInfo, nodeName: "node1", storeConfig: config.StoreConfig{StoreType: "bluestore"}, replaceOSD: &oposd.OSDInfo{ID: 3, BlockPath: "/dev/sda"}}
 	devices = &DeviceOsdMapping{
 		Entries: map[string]*DeviceOsdIDEntry{
 			"data": {Data: -1, Metadata: nil, Config: DesiredDevice{Name: "/mnt/set1-data-0-rpf2k"}, DeviceInfo: &sys.LocalDisk{RealPath: "/dev/sdb"}},
