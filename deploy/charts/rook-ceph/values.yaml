@@ -537,7 +537,7 @@ csi:
     # -- CSIAddons sidecar image repository
     repository: quay.io/csiaddons/k8s-sidecar
     # -- CSIAddons sidecar image tag
-    tag: v0.9.1
+    tag: v0.10.0
 
   nfs:
     # -- Enable the nfs csi driver
