@@ -1,8 +1,8 @@
 module github.com/rook/rook/pkg/apis
 
-go 1.22.0
+go 1.22.6
 
-toolchain go1.22.5
+toolchain go1.22.7
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
@@ -32,6 +32,8 @@ require (
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/onsi/ginkgo/v2 v2.20.2 // indirect
+	github.com/onsi/gomega v1.34.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	k8s.io/client-go v0.31.1 // indirect
