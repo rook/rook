@@ -42,8 +42,8 @@ const (
 	monitoringPath                   = "/etc/ceph-monitoring/"
 	serviceMonitorFile               = "exporter-service-monitor.yaml"
 	sockDir                          = "/run/ceph"
-	perfCountersPrioLimit            = "5"
-	statsPeriod                      = "5"
+	defaultPrioLimit                 = "5"
+	defaultStatsPeriod               = "5"
 	DefaultMetricsPort        uint16 = 9926
 	exporterServiceMetricName        = "ceph-exporter-http-metrics"
 	exporterKeyringUsername          = "client.ceph-exporter"
@@ -179,10 +179,15 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	exporterEnvVar := generateExporterEnvVar()
 	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), exporterEnvVar)
 
+	prioLimit, statsPeriod := defaultPrioLimit, defaultStatsPeriod
+	if cephCluster.Spec.Monitoring.Exporter != nil {
+		prioLimit = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit))
+		statsPeriod = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds))
+	}
 	args := []string{
 		"--sock-dir", sockDir,
 		"--port", strconv.Itoa(int(DefaultMetricsPort)),
-		"--prio-limit", perfCountersPrioLimit,
+		"--prio-limit", prioLimit,
 		"--stats-period", statsPeriod,
 	}
 
