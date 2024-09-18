@@ -178,8 +178,3 @@ kubectl delete -f deploy/examples/csi/cephfs/pvc-restore.yaml
 kubectl delete -f deploy/examples/csi/cephfs/snapshot.yaml
 kubectl delete -f deploy/examples/csi/cephfs/snapshotclass.yaml
 ```
-
-## Limitations
-
-- There is a limit of 400 snapshots per cephFS filesystem.
-- The PVC cannot be deleted if it has snapshots. make sure all the snapshots on the PVC are deleted before you delete the PVC.
