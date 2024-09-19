@@ -124,6 +124,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 				ServiceAccountName: k8sutil.DefaultServiceAccount,
 			},
 		}
+		cephv1.GetCrashCollectorAnnotations(cephCluster.Spec.Annotations).ApplyToObjectMeta(&deploy.Spec.Template.ObjectMeta)
 
 		return nil
 	}
