@@ -1,3 +1,7 @@
 nav:
     - external-cluster.md
+    - provider-export.md
+    - consumer-import.md
+    - upgrade-external.md
+    - advance-external.md
     - topology-for-external-mode.md
