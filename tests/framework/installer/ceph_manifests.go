@@ -332,7 +332,7 @@ provisioner: ` + m.settings.OperatorNamespace + `.rbd.csi.ceph.com
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
   pool: ` + poolName + `
-  clusterID: ` + m.settings.OperatorNamespace + `
+  clusterID: ` + m.settings.Namespace + `
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node

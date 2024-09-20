@@ -109,10 +109,6 @@ func (s *SmokeSuite) TearDownSuite() {
 	s.installer.UninstallRook()
 }
 
-func (s *SmokeSuite) TestCephNFS_SmokeTest() {
-	runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
-}
-
 func (s *SmokeSuite) TestBlockStorage_SmokeTest() {
 	runBlockCSITest(s.helper, s.k8sh, &s.Suite, s.settings.Namespace)
 }
@@ -135,6 +131,10 @@ func (s *SmokeSuite) TestObjectStorage_SmokeTest() {
 // Test to make sure all rook components are installed and Running
 func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 	checkIfRookClusterIsInstalled(&s.Suite, s.k8sh, s.settings.OperatorNamespace, s.settings.Namespace, 3)
+}
+
+func (s *SmokeSuite) TestCephNFS_SmokeTest() {
+	runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
 }
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
