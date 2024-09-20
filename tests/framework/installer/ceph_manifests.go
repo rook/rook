@@ -358,9 +358,9 @@ parameters:
   fsName: ` + fsName + `
   pool: ` + fsName + `-data0
   csi.storage.k8s.io/provisioner-secret-name: ` + csiCephFSProvisionerSecret + `
-  csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/node-stage-secret-name: ` + csiCephFSNodeSecret + `
-  csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.OperatorNamespace + `
 `
 	if m.settings.ConnectionsEncrypted {
 		// Encryption with kernel version <= 5.11 requires 'mounter: fuse'. For kernel version >= 5.12, it requires 'mounter: kernel'.
@@ -387,9 +387,9 @@ parameters:
   server: ` + server + `
   pool: ` + fsName + `-data0
   csi.storage.k8s.io/provisioner-secret-name: ` + csiCephFSProvisionerSecret + `
-  csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/node-stage-secret-name: ` + csiCephFSNodeSecret + `
-  csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/node-stage-secret-namespace: ` + m.settings.OperatorNamespace + `
 mountOptions:
   - "nolock"
 `
@@ -414,7 +414,7 @@ deletionPolicy: ` + reclaimPolicy + `
 parameters:
   clusterID: ` + m.settings.Namespace + `
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
-  csi.storage.k8s.io/snapshotter-secret-namespace: ` + m.settings.Namespace + `
+  csi.storage.k8s.io/snapshotter-secret-namespace: ` + m.settings.OperatorNamespace + `
 `
 }
 
