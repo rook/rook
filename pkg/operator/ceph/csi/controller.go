@@ -332,8 +332,7 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		}
 	}
 
-	if !EnableCSIOperator() {
-
+	if !disableCSI && !EnableCSIOperator() {
 		err = r.validateAndConfigureDrivers(serverVersion, ownerInfo)
 		if err != nil {
 			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to configure ceph csi")
