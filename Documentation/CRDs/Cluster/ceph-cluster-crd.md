@@ -825,9 +825,6 @@ set the `allowUninstallWithVolumes` to true under `spec.CleanupPolicy`.
 
 ## Ceph Config
 
-!!! attention
-    This feature is experimental.
-
 The Ceph config options are applied after the MONs are all in quorum and running.
 To set Ceph config options, you can add them to your `CephCluster` spec as shown below.
 See the [Ceph config reference](https://docs.ceph.com/en/latest/rados/configuration/general-config-ref/)
@@ -847,6 +844,17 @@ spec:
     "osd.*":
       osd_max_scrubs: "10"
 ```
+
+The Rook operator will actively apply these values, whereas the
+[ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration/#custom-cephconf-settings)
+only take effect after the Ceph daemon pods are restarted.
+
+If both these `cephConfig` and [ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration/#custom-cephconf-settings)
+are applied, the `cephConfig` settings will take higher precedence if there is an overlap.
+
+If Ceph settings need to be applied to mons before quorum is initially created, the
+[ceph.conf settings](../../Storage-Configuration/Advanced/ceph-configuration/#custom-cephconf-settings)
+should be used instead.
 
 !!! warning
     Rook performs no direct validation on these config options, so the validity of the settings is the
