@@ -381,7 +381,7 @@ func createPool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	}
 	// create the pool
 	logger.Infof("creating pool %q in namespace %q", p.Name, clusterInfo.Namespace)
-	if err := cephclient.CreatePool(context, clusterInfo, clusterSpec, *p); err != nil {
+	if err := cephclient.CreatePool(context, clusterInfo, clusterSpec, p); err != nil {
 		return errors.Wrapf(err, "failed to configure pool %q", p.Name)
 	}
 
