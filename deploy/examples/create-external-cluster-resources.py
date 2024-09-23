@@ -1740,6 +1740,8 @@ class RadosJSON:
                     err = "Please provide all the RGW multisite parameters or none of them"
                     sys.stderr.write(err)
 
+        self.out_map["ScriptConfiguration"] = self.get_script_configuration_data()
+
     def gen_shell_out(self):
         self._gen_output_map()
         shOutIO = StringIO()
@@ -1749,6 +1751,28 @@ class RadosJSON:
         shOut = shOutIO.getvalue()
         shOutIO.close()
         return shOut
+
+    def get_script_configuration_data(self):
+        # TBD: add non-secured data keys
+        non_secured_data_keys = [
+            "K8S_CLUSTER_NAME",
+            "ROOK_EXTERNAL_CEPH_MON_DATA",
+            "MONITORING_ENDPOINT",
+            "MONITORING_ENDPOINT_PORT",
+            "RADOS_NAMESPACE",
+            "RBD_POOL_NAME",
+            "RBD_METADATA_EC_POOL_NAME",
+            "TOPOLOGY_POOLS",
+            "TOPOLOGY_FAILURE_DOMAIN_LABEL",
+            "TOPOLOGY_FAILURE_DOMAIN_VALUES",
+            "RGW_ENDPOINT",
+        ]
+
+        script_configutation_data = f"[ScriptConfigutation]\n"
+        for key in non_secured_data_keys:
+            script_configutation_data += f"{key} = {self.out_map[key]}\n"
+
+        return f'"{script_configutation_data}"'
 
     def gen_json_out(self):
         self._gen_output_map()
@@ -2007,6 +2031,16 @@ class RadosJSON:
                     "data": {
                         "cert": self.out_map["RGW_TLS_CERT"],
                     },
+                }
+            )
+
+        # add script configuration data
+        if self.out_map["ScriptConfiguration"]:
+            json_out.append(
+                {
+                    "name": "rook-ceph-external-script-configutation-data",
+                    "kind": "ConfigMap",
+                    "data": self.out_map["ScriptConfiguration"],
                 }
             )
 
