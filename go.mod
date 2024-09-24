@@ -1,6 +1,6 @@
 module github.com/rook/rook
 
-go 1.22.6
+go 1.22.5
 
 toolchain go1.22.7
 
@@ -18,10 +18,10 @@ require (
 	github.com/IBM/keyprotect-go-client v0.15.1
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20240819112305-88e6db254d6c
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20240918113437-f3030b0ac9f4
 	github.com/ceph/go-ceph v0.29.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
-	github.com/csi-addons/kubernetes-csi-addons v0.10.0
+	github.com/csi-addons/kubernetes-csi-addons v0.10.1-0.20240924092040-c11db0b867a1
 	github.com/gemalto/kmip-go v0.0.10
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.6.0

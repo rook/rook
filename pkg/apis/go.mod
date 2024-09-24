@@ -1,6 +1,6 @@
 module github.com/rook/rook/pkg/apis
 
-go 1.22.6
+go 1.22.5
 
 toolchain go1.22.7
 
