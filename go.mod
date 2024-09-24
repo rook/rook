@@ -1,8 +1,6 @@
 module github.com/rook/rook
 
-go 1.22.0
-
-toolchain go1.22.5
+go 1.22.5
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
@@ -16,12 +14,12 @@ replace (
 
 require (
 	github.com/IBM/keyprotect-go-client v0.14.3
-	github.com/aws/aws-sdk-go v1.55.3
+	github.com/aws/aws-sdk-go v1.55.5
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20240819112305-88e6db254d6c
-	github.com/ceph/go-ceph v0.28.0
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20240918113437-f3030b0ac9f4
+	github.com/ceph/go-ceph v0.29.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
-	github.com/csi-addons/kubernetes-csi-addons v0.9.1
+	github.com/csi-addons/kubernetes-csi-addons v0.10.1-0.20240924092040-c11db0b867a1
 	github.com/gemalto/kmip-go v0.0.10
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.6.0
@@ -45,11 +43,11 @@ require (
 	golang.org/x/sync v0.8.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.31.0
+	k8s.io/api v0.31.1
 	k8s.io/apiextensions-apiserver v0.31.0
-	k8s.io/apimachinery v0.31.0
+	k8s.io/apimachinery v0.31.1
 	k8s.io/cli-runtime v0.30.3
-	k8s.io/client-go v0.31.0
+	k8s.io/client-go v0.31.1
 	k8s.io/cloud-provider v0.30.3
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.0
@@ -152,8 +150,8 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/crypto v0.26.0 // indirect
 	golang.org/x/net v0.28.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
-	golang.org/x/sys v0.23.0 // indirect
+	golang.org/x/oauth2 v0.22.0 // indirect
+	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
