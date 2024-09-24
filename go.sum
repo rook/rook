@@ -165,8 +165,8 @@ github.com/cenkalti/backoff/v3 v3.2.2/go.mod h1:cIeZDE3IrqwwJl6VUwCN6trj1oXrTS4r
 github.com/cenkalti/backoff/v4 v4.3.0 h1:MyRJ/UdXutAwSAT+s3wNd7MfTIcy71VQueUuFK343L8=
 github.com/cenkalti/backoff/v4 v4.3.0/go.mod h1:Y3VNntkOUPxTVeUxJ/G5vcM//AlwfmyYozVcomhLiZE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
-github.com/ceph/ceph-csi-operator/api v0.0.0-20240819112305-88e6db254d6c h1:JOhwt7+iM18pm9s9zAhAKGRJm615AdIaKklbUd7Z8So=
-github.com/ceph/ceph-csi-operator/api v0.0.0-20240819112305-88e6db254d6c/go.mod h1:odEUoarG26wXBCC2l4O4nMWhAz6VTKr2FRkv9yELgi8=
+github.com/ceph/ceph-csi-operator/api v0.0.0-20240918113437-f3030b0ac9f4 h1:VYmHuPxEeiZ9jusRzgGybte2ByOUxAD0btQ0Wvac4VA=
+github.com/ceph/ceph-csi-operator/api v0.0.0-20240918113437-f3030b0ac9f4/go.mod h1:odEUoarG26wXBCC2l4O4nMWhAz6VTKr2FRkv9yELgi8=
 github.com/ceph/ceph-csi/api v0.0.0-20231227104434-06f9a98b7a83 h1:xWhLO5MR+diAsZoOcPe0zVe+JcJrqMaVbScShye6pXw=
 github.com/ceph/ceph-csi/api v0.0.0-20231227104434-06f9a98b7a83/go.mod h1:ZSvtS90FCB/becFi/rjy85sSw1igchaWZfUigxN9FxY=
 github.com/ceph/go-ceph v0.29.0 h1:pJQY+++PyY2FMP0ffVaE7FbIdivemBPCu4MWr4S8CtI=
@@ -214,8 +214,8 @@ github.com/creack/pty v1.1.7/go.mod h1:lj5s0c3V2DBrqTV7llrYr5NG6My20zk30Fl46Y7Do
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/csi-addons/kubernetes-csi-addons v0.10.0 h1:bBc6nb1oROz4RLhqoLFNeGymk2jIRXcx7LvAup9+3Jg=
-github.com/csi-addons/kubernetes-csi-addons v0.10.0/go.mod h1:nqi369YuYMIdysBbHjtYJcWFpcxujPot1HS6tnNWBV4=
+github.com/csi-addons/kubernetes-csi-addons v0.10.1-0.20240924092040-c11db0b867a1 h1:9mh79gS8O8uO5okZ2DhFO0LSrhpVXd9R9DLvbnh2He4=
+github.com/csi-addons/kubernetes-csi-addons v0.10.1-0.20240924092040-c11db0b867a1/go.mod h1:LeY7UYm8nEBCG1RcJG0DHmJbva0ILmtp+kcegxRuHhc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
