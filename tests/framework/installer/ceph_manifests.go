@@ -274,7 +274,7 @@ metadata:
 driver: ` + m.settings.OperatorNamespace + `.rbd.csi.ceph.com
 deletionPolicy: ` + reclaimPolicy + `
 parameters:
-  clusterID: ` + m.settings.Namespace + `
+  clusterID: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/snapshotter-secret-namespace: ` + m.settings.Namespace + `
 `
@@ -290,7 +290,7 @@ metadata:
 driver: ` + m.settings.OperatorNamespace + `.cephfs.csi.ceph.com
 deletionPolicy: ` + reclaimPolicy + `
 parameters:
-  clusterID: ` + m.settings.Namespace + `
+  clusterID: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
   csi.storage.k8s.io/snapshotter-secret-namespace: ` + m.settings.Namespace + `
 `
@@ -332,7 +332,7 @@ provisioner: ` + m.settings.OperatorNamespace + `.rbd.csi.ceph.com
 reclaimPolicy: ` + reclaimPolicy + `
 parameters:
   pool: ` + poolName + `
-  clusterID: ` + m.settings.Namespace + `
+  clusterID: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/provisioner-secret-name: rook-csi-rbd-provisioner
   csi.storage.k8s.io/provisioner-secret-namespace: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/node-stage-secret-name: rook-csi-rbd-node
@@ -354,7 +354,7 @@ metadata:
   name: ` + storageClassName + `
 provisioner: ` + m.settings.OperatorNamespace + `.cephfs.csi.ceph.com
 parameters:
-  clusterID: ` + m.settings.Namespace + `
+  clusterID: ` + m.settings.OperatorNamespace + `
   fsName: ` + fsName + `
   pool: ` + fsName + `-data0
   csi.storage.k8s.io/provisioner-secret-name: ` + csiCephFSProvisionerSecret + `
@@ -381,7 +381,7 @@ metadata:
   name: ` + storageClassName + `
 provisioner: ` + m.settings.OperatorNamespace + `.nfs.csi.ceph.com
 parameters:
-  clusterID: ` + m.settings.Namespace + `
+  clusterID: ` + m.settings.OperatorNamespace + `
   fsName: ` + fsName + `
   nfsCluster: ` + nfsClusterName + `
   server: ` + server + `
@@ -412,7 +412,7 @@ metadata:
 driver: ` + m.settings.OperatorNamespace + `.nfs.csi.ceph.com
 deletionPolicy: ` + reclaimPolicy + `
 parameters:
-  clusterID: ` + m.settings.Namespace + `
+  clusterID: ` + m.settings.OperatorNamespace + `
   csi.storage.k8s.io/snapshotter-secret-name: rook-csi-cephfs-provisioner
   csi.storage.k8s.io/snapshotter-secret-namespace: ` + m.settings.OperatorNamespace + `
 `

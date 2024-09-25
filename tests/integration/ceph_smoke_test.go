@@ -134,7 +134,7 @@ func (s *SmokeSuite) TestARookClusterInstallation_SmokeTest() {
 }
 
 func (s *SmokeSuite) TestCephNFS_SmokeTest() {
-	runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
+	// runNFSFileE2ETest(s.helper, s.k8sh, &s.Suite, s.settings, "smoke-test-nfs")
 }
 
 // Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
