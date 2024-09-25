@@ -767,6 +767,9 @@ func ConfigurePools(context *Context, cluster *cephv1.ClusterSpec, metadataPool,
 		if len(missingPools) > 0 {
 			return fmt.Errorf("CR store pools are missing: %v", missingPools)
 		}
+
+		// pools exist, nothing to do
+		return nil
 	}
 
 	// get the default PG count for rgw metadata pools
