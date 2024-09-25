@@ -104,7 +104,7 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 	case "squid-devel":
 		return SquidDevelVersion
 	default:
-		return SquidDevelVersion
+		return ReefDevelVersion
 	}
 }
 

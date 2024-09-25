@@ -274,6 +274,7 @@ function replace_ceph_image() {
 function deploy_cluster() {
   cd deploy/examples
   deploy_manifest_with_local_build operator.yaml
+  kubectl create -f csi-operator.yaml
   if [ $# == 0 ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
@@ -427,6 +428,7 @@ function deploy_first_rook_cluster() {
   cd deploy/examples/
 
   deploy_manifest_with_local_build operator.yaml
+  deploy_manifest_with_local_build csi-operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
   yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"1
