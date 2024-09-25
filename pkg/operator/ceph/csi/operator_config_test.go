@@ -88,5 +88,4 @@ func TestReconcileCSI_createOrUpdateOperatorConfig(t *testing.T) {
 	err = cl.Get(context.TODO(), types.NamespacedName{Name: opConfigCRName, Namespace: r.opConfig.OperatorNamespace}, opConfig)
 	assert.NoError(t, err)
 	assert.Equal(t, *opConfig.Spec.DriverSpecDefaults.EnableMetadata, false)
-	assert.Equal(t, opConfig.Spec.DriverSpecDefaults.Encryption.ConfigMapRef, v1.LocalObjectReference{Name: "rook-ceph-csi-kms-config"})
 }

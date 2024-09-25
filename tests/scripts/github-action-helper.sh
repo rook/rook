@@ -293,6 +293,7 @@ function deploy_cluster() {
   cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
+  kubectl create -f csi-operator.yaml
 
   if [ $# == 0 ]; then
     sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
@@ -460,6 +461,7 @@ function deploy_first_rook_cluster() {
   cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
+  deploy_manifest_with_local_build csi-operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
   yq w -i -d0 cluster-test.yaml spec.storage.useAllDevices false
   yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"1
@@ -766,7 +768,7 @@ function test_object_separate_pools() {
     done
     if [[ "$found" == false ]]; then
       echo "Live pool $l is not an expected pool"
-      errors=$((errors+1))
+      errors=$((errors + 1))
     fi
   done
 
