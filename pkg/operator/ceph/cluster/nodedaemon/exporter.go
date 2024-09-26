@@ -77,6 +77,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 			Namespace: cephCluster.GetNamespace(),
 		},
 	}
+	deploy.Spec.RevisionHistoryLimit = controller.RevisionHistoryLimit()
 	err := controllerutil.SetControllerReference(&cephCluster, deploy, r.scheme)
 	if err != nil {
 		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of ceph-exporter deployment %q", deploy.Name)
