@@ -117,6 +117,7 @@ func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment
 			Labels:    getLabels(c.store.Name, c.store.Namespace, true),
 		},
 		Spec: apps.DeploymentSpec{
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: getLabels(c.store.Name, c.store.Namespace, false),
 			},

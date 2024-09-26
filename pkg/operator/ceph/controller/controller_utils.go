@@ -54,6 +54,9 @@ const (
 	enforceHostNetworkSettingName  string = "ROOK_ENFORCE_HOST_NETWORK"
 	enforceHostNetworkDefaultValue string = "false"
 
+	revisionHistoryLimitSettingName  string = "ROOK_REVISION_HISTORY_LIMIT"
+	revisionHistoryLimitDefaultValue string = ""
+
 	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
 	// This typically is raised when the operator has not finished initializing
 	UninitializedCephConfigError = "error calling conf_read_file"
@@ -86,7 +89,8 @@ var (
 	OperatorCephBaseImageVersion string
 
 	// loopDevicesAllowed indicates whether loop devices are allowed to be used
-	loopDevicesAllowed = false
+	loopDevicesAllowed          = false
+	revisionHistoryLimit *int32 = nil
 )
 
 func DiscoveryDaemonEnabled(data map[string]string) bool {
@@ -131,6 +135,26 @@ func SetEnforceHostNetwork(data map[string]string) {
 
 func EnforceHostNetwork() bool {
 	return cephv1.EnforceHostNetwork()
+}
+
+func SetRevisionHistoryLimit(data map[string]string) {
+	strval := k8sutil.GetValue(data, revisionHistoryLimitSettingName, revisionHistoryLimitDefaultValue)
+	if strval != "" {
+		numval, err := strconv.ParseInt(strval, 10, 32)
+		if err != nil {
+			logger.Warningf("failed to parse value %q for %q. assuming default value.", strval, revisionHistoryLimitSettingName)
+			revisionHistoryLimit = nil
+			return
+
+		}
+		limit := int32(numval)
+		revisionHistoryLimit = &limit
+	}
+
+}
+
+func RevisionHistoryLimit() *int32 {
+	return revisionHistoryLimit
 }
 
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.

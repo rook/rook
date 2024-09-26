@@ -102,6 +102,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 			Labels: getLabels(),
 		},
 		Spec: apps.DaemonSetSpec{
+			RevisionHistoryLimit: opcontroller.RevisionHistoryLimit(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": discoverDaemonsetName,

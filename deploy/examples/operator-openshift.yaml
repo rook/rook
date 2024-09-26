@@ -638,6 +638,8 @@ data:
 
   # (Optional) QPS to use while communicating with the kubernetes apiserver.
   # CSI_KUBE_API_QPS: "5.0"
+  # RevisionHistoryLimit value for all deployments created by rook.
+  # ROOK_REVISION_HISTORY_LIMIT: "3"
 ---
 # The deployment for the rook operator
 # OLM: BEGIN OPERATOR DEPLOYMENT

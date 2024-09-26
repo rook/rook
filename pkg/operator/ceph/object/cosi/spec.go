@@ -43,7 +43,6 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 	replica := int32(1)
 	minReadySeconds := int32(30)
 	progressDeadlineSeconds := int32(600)
-	revisionHistoryLimit := int32(3)
 
 	cephcosidriverDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -52,7 +51,8 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 			Labels:    getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replica,
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
+			Replicas:             &replica,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
 			},
@@ -60,7 +60,6 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 			Strategy:                strategy,
 			MinReadySeconds:         minReadySeconds,
 			ProgressDeadlineSeconds: &progressDeadlineSeconds,
-			RevisionHistoryLimit:    &revisionHistoryLimit,
 		},
 	}
 
