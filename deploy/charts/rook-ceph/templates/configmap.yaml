@@ -260,3 +260,4 @@ data:
 {{- if .Values.csi.kubeApiQPS }}
   CSI_KUBE_API_QPS: {{ .Values.csi.kubeApiQPS | quote }}
 {{- end }}
+{{ .Values.configExtra | nindent 2 }}
