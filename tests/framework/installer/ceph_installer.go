@@ -49,7 +49,7 @@ const (
 	// test with the current development versions
 	quincyDevelTestImage = "quay.io/ceph/daemon-base:latest-quincy-devel"
 	reefDevelTestImage   = "quay.io/ceph/daemon-base:latest-reef-devel"
-	squidDevelTestImage  = "quay.io/ceph/daemon-base:latest-squid-devel"
+	squidDevelTestImage  = "quay.io/ceph/ceph:v19.2.0"
 	// test with the latest Ceph main image
 	mainTestImage      = "quay.io/ceph/daemon-base:latest-main-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
