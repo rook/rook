@@ -754,6 +754,43 @@ function radosgw-admin() {
   toolbox radosgw-admin "$@"
 }
 
+function test_object_with_cephblockpools_extra_pools() {
+  expected_pools=(
+    .mgr
+    .rgw.root
+    object-with-cephblockpools.rgw.control
+    object-with-cephblockpools.rgw.meta
+    object-with-cephblockpools.rgw.log
+    object-with-cephblockpools.rgw.buckets.index
+    object-with-cephblockpools.rgw.buckets.non-ec
+    object-with-cephblockpools.rgw.otp
+    object-with-cephblockpools.rgw.buckets.data
+  )
+
+  output=$(ceph osd pool ls)
+  readarray -t live_pools < <(printf '%s' "$output")
+
+  errors=0
+  for l in "${live_pools[@]}"; do
+    found=false
+    for e in "${expected_pools[@]}"; do
+      if [[ "$l" == "$e" ]]; then
+        found=true
+        break
+      fi
+    done
+    if [[ "$found" == false ]]; then
+      echo "Live pool $l is not an expected pool"
+      errors=$((errors+1))
+    fi
+  done
+
+  if [[ $errors -gt 0 ]]; then
+    echo "Found $errors errors"
+    exit $errors
+  fi
+}
+
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
 # call the function with the remainder of the user-provided args
