@@ -38,6 +38,8 @@ spec:
           # This is necessary for the Bidirectional mount propagation
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           image: {{ .CSIPluginImage }}
           command:
             - "/bin/sh"
