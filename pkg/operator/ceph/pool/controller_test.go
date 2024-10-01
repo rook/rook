@@ -52,6 +52,18 @@ func TestCreatePool(t *testing.T) {
 	enabledMgrApp := false
 	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
 	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {
+			logger.Infof("CommandTimeout: %s %v", command, args)
+			if command == "rbd" {
+				if args[0] == "pool" && args[1] == "init" {
+					// assert that `rbd pool init` is only run when application is set to `rbd`
+					assert.Equal(t, "rbd", p.Application)
+					assert.Equal(t, p.Name, args[2])
+					return "{}", nil
+				}
+			}
+			return "", nil
+		},
 		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" {
@@ -69,6 +81,7 @@ func TestCreatePool(t *testing.T) {
 							assert.Equal(t, ".mgr", args[4])
 							assert.Equal(t, "mgr", args[5])
 						} else {
+							fmt.Printf("pool - %v", args)
 							assert.Fail(t, fmt.Sprintf("invalid pool %q", args[4]))
 						}
 					}
@@ -79,14 +92,12 @@ func TestCreatePool(t *testing.T) {
 					return "{}", nil
 				} else if args[0] == "mirror" && args[2] == "disable" {
 					return "", nil
-				} else {
-					assert.Equal(t, []string{"pool", "init", p.Name}, args[0:3])
 				}
-
 			}
 			return "", nil
 		},
 	}
+
 	context := &clusterd.Context{Executor: executor}
 
 	clusterSpec := &cephv1.ClusterSpec{Storage: cephv1.StorageScopeSpec{Config: map[string]string{cephclient.CrushRootConfigKey: "cluster-crush-root"}}}
@@ -95,6 +106,8 @@ func TestCreatePool(t *testing.T) {
 		p.Name = "replicapool"
 		p.Replicated.Size = 1
 		p.Replicated.RequireSafeReplicaSize = false
+		// reset the application name
+		p.Application = ""
 		err := createPool(context, clusterInfo, clusterSpec, p)
 		assert.Nil(t, err)
 		assert.False(t, enabledMetricsApp)
@@ -102,6 +115,8 @@ func TestCreatePool(t *testing.T) {
 
 	t.Run("built-in mgr pool", func(t *testing.T) {
 		p.Name = ".mgr"
+		// reset the application name
+		p.Application = ""
 		err := createPool(context, clusterInfo, clusterSpec, p)
 		assert.Nil(t, err)
 		assert.True(t, enabledMgrApp)
@@ -112,6 +127,8 @@ func TestCreatePool(t *testing.T) {
 		p.Replicated.Size = 0
 		p.ErasureCoded.CodingChunks = 1
 		p.ErasureCoded.DataChunks = 2
+		// reset the application name
+		p.Application = ""
 		err := createPool(context, clusterInfo, clusterSpec, p)
 		assert.Nil(t, err)
 	})

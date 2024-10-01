@@ -1116,7 +1116,7 @@ func createRGWPool(ctx *Context, cluster *cephv1.ClusterSpec, poolSpec cephv1.Po
 		Name:     poolName(ctx.Name, requestedName),
 		PoolSpec: poolSpec,
 	}
-	if err := cephclient.CreatePoolWithPGs(ctx.Context, ctx.clusterInfo, cluster, pool, pgCount); err != nil {
+	if err := cephclient.CreatePoolWithPGs(ctx.Context, ctx.clusterInfo, cluster, &pool, pgCount); err != nil {
 		return errors.Wrapf(err, "failed to create pool %q", pool.Name)
 	}
 	// Set the pg_num_min if not the default so the autoscaler won't immediately increase the pg count

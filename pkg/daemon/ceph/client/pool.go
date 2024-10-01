@@ -178,11 +178,11 @@ func ParsePoolDetails(in []byte) (CephStoragePoolDetails, error) {
 	return poolDetails, nil
 }
 
-func CreatePool(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec) error {
+func CreatePool(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool *cephv1.NamedPoolSpec) error {
 	return CreatePoolWithPGs(context, clusterInfo, clusterSpec, pool, DefaultPGCount)
 }
 
-func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool cephv1.NamedPoolSpec, pgCount string) error {
+func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clusterSpec *cephv1.ClusterSpec, pool *cephv1.NamedPoolSpec, pgCount string) error {
 	if pool.Name == "" {
 		return errors.New("pool name must be specified")
 	}
@@ -196,7 +196,7 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 	}
 
 	if pool.IsReplicated() {
-		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, pool, pgCount)
+		return createReplicatedPoolForApp(context, clusterInfo, clusterSpec, *pool, pgCount)
 	}
 
 	if !pool.IsErasureCoded() {
@@ -215,7 +215,7 @@ func CreatePoolWithPGs(context *clusterd.Context, clusterInfo *ClusterInfo, clus
 		context,
 		clusterInfo,
 		ecProfileName,
-		pool,
+		*pool,
 		pgCount,
 		true /* enableECOverwrite */)
 }
