@@ -254,6 +254,8 @@ spec:
           {{ if and .Privileged .CSILogRotation }}
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           {{ end }}
           volumeMounts:
             - name: socket-dir
