@@ -20,6 +20,8 @@ set -xeEo pipefail
 # VARIABLES #
 #############
 
+REPO_DIR="$(readlink -f -- "${BASH_SOURCE%/*}/../..")"
+
 function find_extra_block_dev() {
   # shellcheck disable=SC2005 # redirect doesn't work with sudo, so use echo
   echo "$(sudo lsblk)" >/dev/stderr # print lsblk output to stderr for debugging in case of future errors
@@ -257,6 +259,7 @@ function deploy_manifest_with_local_build() {
 
 # Deploy toolbox with same ceph version as the cluster-test for ci
 function deploy_toolbox() {
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
   kubectl create -f toolbox.yaml
 }
@@ -271,9 +274,15 @@ function replace_ceph_image() {
   sed -i "s|image: .*ceph/ceph:.*|image: ${ceph_image}|g" "${file}"
 }
 
+# Deploy the operator, a CephCluster, and the toolbox. This is intended to be a
+# minimal deployment generic enough to be used by most canary tests. Each
+# canary test should be installing its own set of resources as a job step or
+# using dedicated helper functions.
 function deploy_cluster() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
+
   deploy_manifest_with_local_build operator.yaml
+
   if [ $# == 0 ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
@@ -281,8 +290,8 @@ function deploy_cluster() {
   elif [ "$1" = "osd_with_metadata_device" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_partition_device" ]; then
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name ${BLOCK}2
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice ${BLOCK}1
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name "${BLOCK}2"
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice "${BLOCK}1"
   elif [ "$1" = "encryption" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then
@@ -294,13 +303,28 @@ function deploy_cluster() {
     echo "invalid argument: $*" >&2
     exit 1
   fi
+
   # enable monitoring
   yq w -i -d0 cluster-test.yaml spec.monitoring.enabled true
   kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
   kubectl create -f monitoring/rbac.yaml
 
-  # create the cluster resources
   kubectl create -f cluster-test.yaml
+
+  deploy_toolbox
+}
+
+# These resources were extracted from the original deploy_cluster(), which was
+# deploying a smorgasbord of resources used by multiple canary tests.
+#
+# Use of this function is discouraged. Existing users should migrate away and
+# deploy only the necessary resources for the test scenario in their own job
+# steps.
+#
+# The addition of new resources this function is forbidden!
+function deploy_all_additional_resources_on_cluster() {
+  cd "${REPO_DIR}/deploy/examples"
+
   kubectl create -f object-shared-pools-test.yaml
   kubectl create -f object-a.yaml
   kubectl create -f object-b.yaml
@@ -312,7 +336,6 @@ function deploy_cluster() {
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
   kubectl create -f subvolumegroup.yaml
-  deploy_toolbox
 }
 
 function deploy_csi_hostnetwork_disabled_cluster() {

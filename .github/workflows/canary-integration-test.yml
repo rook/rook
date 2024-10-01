@@ -49,7 +49,9 @@ jobs:
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: setup csi-addons
         run: tests/scripts/csiaddons.sh setup_csiaddons
@@ -364,6 +366,7 @@ jobs:
         run: |
           export ALLOW_LOOP_DEVICES=true
           tests/scripts/github-action-helper.sh deploy_cluster loop
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
           tests/scripts/github-action-helper.sh create_operator_toolbox
 
       - name: wait for prepare pod
@@ -433,7 +436,9 @@ jobs:
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
@@ -482,6 +487,7 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_partition_device
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -537,7 +543,9 @@ jobs:
           tests/scripts/github-action-helper.sh create_LV_on_disk $(sudo losetup --find --show test-rook.img)
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -587,7 +595,9 @@ jobs:
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster encryption
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster encryption
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster encryption
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -642,7 +652,9 @@ jobs:
           tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster lvm
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster lvm
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
