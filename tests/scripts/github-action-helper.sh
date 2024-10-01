@@ -738,6 +738,22 @@ function install_minikube_with_none_driver() {
   minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
 }
 
+function toolbox() {
+  kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
+}
+
+function ceph() {
+  toolbox ceph "$@"
+}
+
+function rbd() {
+  toolbox rbd "$@"
+}
+
+function radosgw-admin() {
+  toolbox radosgw-admin "$@"
+}
+
 FUNCTION="$1"
 shift # remove function arg now that we've recorded it
 # call the function with the remainder of the user-provided args
