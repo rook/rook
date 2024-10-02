@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -46,7 +47,8 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 
 	ns := "test"
 	c.Namespace = ns
-	c.SetName("testcluster")
+	c.SetName(c.Namespace)
+	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
 	c.NamespacedName()
 	clusterName := "testClusterName"
 	cephBlockPoolRadosNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephBlockPoolRadosNames"}

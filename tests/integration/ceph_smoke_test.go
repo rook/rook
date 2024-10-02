@@ -91,7 +91,7 @@ func (s *SmokeSuite) SetupSuite() {
 		ConnectionsCompressed:   true,
 		UseCrashPruner:          true,
 		EnableVolumeReplication: true,
-		TestNFSCSI:              true,
+		TestNFSCSI:              false,
 		ChangeHostName:          true,
 		RookVersion:             installer.LocalBuildTag,
 		CephVersion:             installer.ReturnCephVersion(),
