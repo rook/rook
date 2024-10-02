@@ -2180,6 +2180,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The metadata pool settings</p>
 </td>
 </tr>
@@ -2193,6 +2194,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The data pool settings</p>
 </td>
 </tr>
@@ -10343,6 +10345,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The metadata pool settings</p>
 </td>
 </tr>
@@ -10356,6 +10359,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The data pool settings</p>
 </td>
 </tr>

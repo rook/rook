@@ -2068,10 +2068,12 @@ type ObjectZoneSpec struct {
 	ZoneGroup string `json:"zoneGroup"`
 
 	// The metadata pool settings
+	// +optional
 	// +nullable
 	MetadataPool PoolSpec `json:"metadataPool"`
 
 	// The data pool settings
+	// +optional
 	// +nullable
 	DataPool PoolSpec `json:"dataPool"`
 
