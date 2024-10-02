@@ -633,6 +633,9 @@ discover:
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false
 
+# -- Whether to create all Rook pods to run on the host network, for example in environments where a CNI is not enabled
+enforceHostNetwork: false
+
 # -- Disable automatic orchestration when new devices are discovered.
 disableDeviceHotplug: false
 

@@ -149,6 +149,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `discoveryDaemonInterval` | Set the discovery daemon device discovery interval (default to 60m) | `"60m"` |
 | `enableDiscoveryDaemon` | Enable discovery daemon | `false` |
 | `enableOBCWatchOperatorNamespace` | Whether the OBC provisioner should watch on the operator namespace or not, if not the namespace of the cluster will be used | `true` |
+| `enforceHostNetwork` | Whether to create all Rook pods to run on the host network, for example in environments where a CNI is not enabled | `false` |
 | `hostpathRequiresPrivileged` | Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions. | `false` |
 | `image.pullPolicy` | Image pull policy | `"IfNotPresent"` |
 | `image.repository` | Image | `"docker.io/rook/ceph"` |

@@ -57,6 +57,8 @@ func (h *CephInstaller) configureRookOperatorViaHelm(upgrade bool) error {
 		"enableDiscoveryDaemon": h.settings.EnableDiscovery,
 		"image":                 map[string]interface{}{"tag": h.settings.RookVersion},
 		"monitoring":            map[string]interface{}{"enabled": true},
+		"revisionHistoryLimit":  "3",
+		"enforceHostNetwork":    "false",
 	}
 	values["csi"] = map[string]interface{}{
 		"csiRBDProvisionerResource":    nil,
