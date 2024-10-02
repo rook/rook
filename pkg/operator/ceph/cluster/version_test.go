@@ -37,7 +37,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions := []byte(`
 	{
 		"mon": {
-			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1,
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
 			"ceph version 18.1.0 (4be78cea2b4ae54a27b1049cffa1208df48bffae) reef (stable)": 2
 		}
 	}`)
@@ -53,7 +53,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
-			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1,
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
 			"ceph version 18.1.0 (4be78cea2b4ae54a27b1049cffa1208df48bffae) reef (stable)": 2
 		}
 	}`)
@@ -69,7 +69,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions3 cephv1.CephDaemonsVersions
@@ -82,11 +82,11 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 4 test - spec version is higher than running cluster --> we upgrade
-	fakeImageVersion = cephver.Quincy
+	fakeImageVersion = cephver.Squid
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
-			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 		}
 	}`)
 	var dummyRunningVersions4 cephv1.CephDaemonsVersions
@@ -98,12 +98,12 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 5 test - spec version and running cluster versions are identical --> we upgrade
-	fakeImageVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 0,
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions5 cephv1.CephDaemonsVersions
@@ -115,12 +115,12 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.False(t, m)
 
 	// 6 test - spec version and running cluster have different commit ID
-	fakeImageVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 0, Build: 139,
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0, Build: 139,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions6 cephv1.CephDaemonsVersions
@@ -132,12 +132,12 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 7 test - spec version and running cluster have same commit ID
-	fakeImageVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 0,
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions7 cephv1.CephDaemonsVersions
@@ -154,16 +154,14 @@ func TestMinVersion(t *testing.T) {
 	c.Spec.CephVersion.AllowUnsupported = true
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
-	// All versions less than 16.2.0 or invalid tag are invalid
-	v := &cephver.CephVersion{Major: 16, Minor: 1, Extra: 999}
+	// All versions less than 18.2.0 or invalid tag are invalid
+	v := &cephver.CephVersion{Major: 18, Minor: 1, Extra: 999}
 	assert.Error(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 15, Minor: 2, Extra: 11}
+	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 11}
 	assert.Error(t, c.validateCephVersion(v))
 
-	// All versions at least 17.2.0 are valid
-	v = &cephver.CephVersion{Major: 17, Minor: 2}
-	assert.NoError(t, c.validateCephVersion(v))
-	v = &cephver.CephVersion{Major: 18}
+	// All versions at least 18.2.0 are valid
+	v = &cephver.CephVersion{Major: 18, Minor: 2}
 	assert.NoError(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 19}
 	assert.NoError(t, c.validateCephVersion(v))
@@ -174,12 +172,8 @@ func TestSupportedVersion(t *testing.T) {
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
 	// lower version is not supported
-	v := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
+	v := &cephver.CephVersion{Major: 17, Minor: 2, Extra: 7}
 	assert.Error(t, c.validateCephVersion(v))
-
-	// Quincy is supported
-	v = &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
-	assert.NoError(t, c.validateCephVersion(v))
 
 	// Reef is supported
 	v = &cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}

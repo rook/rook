@@ -31,8 +31,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/config"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -73,8 +71,7 @@ var (
 	dataPoolName = "rgw.buckets.data"
 
 	// An user with system privileges for dashboard service
-	DashboardUser                = "dashboard-admin"
-	rgwPgNumRemovedQuincyVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}
+	DashboardUser = "dashboard-admin"
 )
 
 type idType struct {
@@ -760,20 +757,7 @@ func CreateObjectStorePools(context *Context, cluster *cephv1.ClusterSpec, metad
 		}
 	}
 
-	// get the default PG count for rgw metadata pools
-	var err error
-	var metadataPoolPGs string
-	if rgwRadosPGNumIsNew(context.clusterInfo.CephVersion) {
-		metadataPoolPGs = rgwRadosPoolPgNum
-	} else {
-		metadataPoolPGs, err = config.GetMonStore(context.Context, context.clusterInfo).Get("mon.", "rgw_rados_pool_pg_num_min")
-	}
-	if err != nil {
-		logger.Warningf("failed to adjust the PG count for rgw metadata pools. using the general default. %v", err)
-		metadataPoolPGs = cephclient.DefaultPGCount
-	}
-
-	if err := createSimilarPools(context, append(metadataPools, rootPool), cluster, metadataPool, metadataPoolPGs); err != nil {
+	if err := createSimilarPools(context, append(metadataPools, rootPool), cluster, metadataPool, rgwRadosPoolPgNum); err != nil {
 		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
@@ -1067,12 +1051,6 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 	}
 
 	return nil
-}
-
-// Check if this is a recent release of ceph where the legacy rgw_rados_pool_pg_num_min
-// is no longer available.
-func rgwRadosPGNumIsNew(cephVer cephver.CephVersion) bool {
-	return cephVer.IsAtLeast(rgwPgNumRemovedQuincyVersion)
 }
 
 // configurePoolsConcurrently checks if operator pod resources are set or not

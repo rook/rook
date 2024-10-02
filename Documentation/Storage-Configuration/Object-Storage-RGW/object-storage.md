@@ -23,7 +23,7 @@ Rook can configure the Ceph Object Store for several different scenarios. See ea
 
 Rook has the ability to either deploy an object store in Kubernetes or to connect to an external RGW service.
 Most commonly, the object store will be configured in Kubernetes by Rook.
-Alternatively see the [external section](#connect-to-an-external-object-store) to consume an existing Ceph cluster with [Rados Gateways](https://docs.ceph.com/en/quincy/radosgw/index.html) from Rook.
+Alternatively see the [external section](#connect-to-an-external-object-store) to consume an existing Ceph cluster with [Rados Gateways](https://docs.ceph.com/en/latest/radosgw/index.html) from Rook.
 
 ### Create a Local Object Store with S3
 
@@ -198,7 +198,7 @@ This section contains a guide on how to configure [RGW's pool placement and stor
 
 Object Storage API allows users to override where bucket data will be stored during bucket creation. With `<LocationConstraint>` parameter in S3 API and `X-Storage-Policy` header in SWIFT. Similarly, users can override where object data will be stored by setting `X-Amz-Storage-Class` and `X-Object-Storage-Class` during object creation.
 
-To enable this feature, configure `poolPlacements` representing a list of possible bucket data locations.  
+To enable this feature, configure `poolPlacements` representing a list of possible bucket data locations.
 Each `poolPlacement` must have:
 
 * a **unique** `name` to refer to it in `<LocationConstraint>` or `X-Storage-Policy`. A placement with reserved name `default` will be used by default if no location constraint is provided.

@@ -8892,7 +8892,7 @@ map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.CephNetworkType]string
 networks when the &ldquo;multus&rdquo; network provider is used. This config section is not used for
 other network providers.</p>
 <p>Valid keys are &ldquo;public&rdquo; and &ldquo;cluster&rdquo;. Refer to Ceph networking documentation for more:
-<a href="https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/">https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/</a></p>
+<a href="https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/">https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/</a></p>
 <p>Refer to Multus network annotation documentation for help selecting values:
 <a href="https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation">https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation</a></p>
 <p>Rook will make a best-effort attempt to automatically detect CIDR address ranges for given
@@ -9574,8 +9574,7 @@ The object store&rsquo;s advertiseEndpoint and Kubernetes service endpoint, plus
 Each DNS name must be valid according RFC-1123.
 If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
 wildcard itself in the list of hostnames.
-E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.
-The feature is supported only for Ceph v18 and later versions.</p>
+E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.</p>
 </td>
 </tr>
 </tbody>
@@ -10169,7 +10168,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api</a></p>
+<p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api</a></p>
 </td>
 </tr>
 <tr>

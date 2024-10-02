@@ -65,7 +65,6 @@ const (
 	bluestoreBlockName    = "block"
 	bluestoreMetadataName = "block.db"
 	bluestoreWalName      = "block.wal"
-	tempEtcCephDir        = "/etc/temp-ceph"
 	osdPortv1             = 6801
 	osdPortv2             = 6800
 )
@@ -105,35 +104,11 @@ set -o nounset # fail if variables are unset
 set -o xtrace
 
 OSD_ID="$ROOK_OSD_ID"
-CEPH_FSID=%s
 OSD_UUID=%s
 OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
 DEVICE="$%s"
-
-# "ceph.conf" must have the "fsid" global configuration to activate encrypted OSDs
-# after the following Ceph's PR is merged.
-# https://github.com/ceph/ceph/commit/25655e5a8829e001adf467511a6bde8142b0a575
-# This limitation will be removed later. After that, we can remove this
-# fsid injection code. Probably a good time is when to remove Quincy support.
-# https://github.com/rook/rook/pull/10333#discussion_r892817877
-cp --no-preserve=mode /etc/temp-ceph/ceph.conf /etc/ceph/ceph.conf
-python3 -c "
-import configparser
-
-config = configparser.ConfigParser()
-config.read('/etc/ceph/ceph.conf')
-
-if not config.has_section('global'):
-    config['global'] = {}
-
-if not config.has_option('global','fsid'):
-    config['global']['fsid'] = '$CEPH_FSID'
-
-with open('/etc/ceph/ceph.conf', 'w') as configfile:
-    config.write(configfile)
-"
 
 # create new keyring
 ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
@@ -894,7 +869,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 	volMounts := []v1.VolumeMount{
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
-		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: tempEtcCephDir},
+		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
 		adminKeyringVolMount,
 	}
 
@@ -908,7 +883,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDOnNodeCode, c.clusterInfo.FSID, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
+			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,

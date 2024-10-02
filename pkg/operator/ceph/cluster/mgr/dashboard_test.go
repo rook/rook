@@ -114,7 +114,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "myns",
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		OwnerInfo:   ownerInfo,
 		Context:     ctx,
 	}

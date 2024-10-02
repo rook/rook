@@ -49,7 +49,7 @@ func TestReconcileCephNFS_createConfigMap(t *testing.T) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
-			CephVersion: cephver.Quincy,
+			CephVersion: cephver.Squid,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
@@ -154,7 +154,7 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
-			CephVersion: cephver.Quincy,
+			CephVersion: cephver.Squid,
 			Context:     context.TODO(),
 			Namespace:   ns,
 		},

@@ -40,10 +40,8 @@ const (
 
 var (
 	// Minimum supported version
-	Minimum = CephVersion{17, 2, 0, 0, ""}
+	Minimum = CephVersion{18, 2, 0, 0, ""}
 
-	// Quincy Ceph version
-	Quincy = CephVersion{17, 0, 0, 0, ""}
 	// Reef Ceph version
 	Reef = CephVersion{18, 0, 0, 0, ""}
 	// Squid ceph version
@@ -52,7 +50,7 @@ var (
 	Tentacle = CephVersion{20, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
-	supportedVersions = []CephVersion{Quincy, Reef, Squid}
+	supportedVersions = []CephVersion{Reef, Squid}
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions []CephVersion
@@ -86,8 +84,6 @@ func (v *CephVersion) CephVersionFormatted() string {
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
-	case Quincy.Major:
-		return "quincy"
 	case Reef.Major:
 		return "reef"
 	case Squid.Major:
@@ -169,11 +165,6 @@ func (v *CephVersion) isExactly(other CephVersion) bool {
 	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
 }
 
-// IsQuincy checks if the Ceph version is Quincy
-func (v *CephVersion) IsQuincy() bool {
-	return v.isRelease(Quincy)
-}
-
 // IsReef checks if the Ceph version is Reef
 func (v *CephVersion) IsReef() bool {
 	return v.isRelease(Reef)
@@ -225,11 +216,6 @@ func (v *CephVersion) IsAtLeastSquid() bool {
 // IsAtLeastReef checks that the Ceph version is at least Reef
 func (v *CephVersion) IsAtLeastReef() bool {
 	return v.IsAtLeast(Reef)
-}
-
-// IsAtLeastQuincy checks that the Ceph version is at least Quincy
-func (v *CephVersion) IsAtLeastQuincy() bool {
-	return v.IsAtLeast(Quincy)
 }
 
 // IsIdentical checks if Ceph versions are identical

@@ -105,7 +105,7 @@ python3 create-external-cluster-resources.py --cephfs-filesystem-name <filesyste
 ### RGW Multisite
 
 Pass the `--rgw-realm-name`, `--rgw-zonegroup-name` and `--rgw-zone-name` flags to create the admin ops user in a master zone, zonegroup and realm.
-See the [Multisite doc](https://docs.ceph.com/en/quincy/radosgw/multisite/#configuring-a-master-zone) for creating a zone, zonegroup and realm.
+See the [Multisite doc](https://docs.ceph.com/en/latest/radosgw/multisite/#configuring-a-master-zone) for creating a zone, zonegroup and realm.
 
 ```console
 python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --format bash --rgw-endpoint <rgw_endpoint> --rgw-realm-name <rgw_realm_name>> --rgw-zonegroup-name <rgw_zonegroup_name> --rgw-zone-name <rgw_zone_name>>

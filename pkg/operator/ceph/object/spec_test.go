@@ -82,7 +82,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := clienttest.CreateTestClusterInfo(1)
-	info.CephVersion = cephver.Quincy
+	info.CephVersion = cephver.Squid
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 
 	c := &clusterConfig{
@@ -150,7 +150,7 @@ func TestSSLPodSpec(t *testing.T) {
 	}
 	store.Spec.Gateway.PriorityClassName = "my-priority-class"
 	info := clienttest.CreateTestClusterInfo(1)
-	info.CephVersion = cephver.Quincy
+	info.CephVersion = cephver.Squid
 	info.Namespace = store.Namespace
 	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
 	store.Spec.Gateway.SecurePort = 443
@@ -161,7 +161,7 @@ func TestSSLPodSpec(t *testing.T) {
 		context:     context,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -560,7 +560,7 @@ func TestCheckRGWSSES3Enabled(t *testing.T) {
 			store:       store,
 			clusterInfo: &client.ClusterInfo{Context: ctx, CephVersion: cephver.CephVersion{Major: 17, Minor: 2, Extra: 3}},
 			clusterSpec: &cephv1.ClusterSpec{
-				CephVersion:     cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17"},
+				CephVersion:     cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19"},
 				DataDirHostPath: "/var/lib/rook",
 			},
 		}
@@ -758,7 +758,7 @@ func TestAWSServerSideEncryption(t *testing.T) {
 		context:     context,
 		rookVersion: "rook/rook:myversion",
 		clusterSpec: &cephv1.ClusterSpec{
-			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v17.3"},
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19.3"},
 			Network: cephv1.NetworkSpec{
 				HostNetwork: true,
 			},
@@ -966,12 +966,12 @@ func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
 		{"dns name with zone with custom endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "--rgw-dns-name=my.dns.name1,my.dns.name2,rook-ceph-rgw-default.mycluster.svc,my.custom.endpoint1,my.custom.endpoint2", cephV18, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},
 		{"dns name with zone with custom invalid endpoints ceph v18", []string{"my.dns.name1", "my.dns.name2"}, "", cephV18, "myzone", []string{"http://my.custom.endpoint:80", "http://!my.invalid-custom.endpoint:80"}, true},
 		{"dns name with zone with mixed invalid and valid dnsnames/custom endpoint ceph v18", []string{"my.dns.name", "!my.dns.name"}, "", cephV18, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80:80"}, true},
-		{"no dns names ceph v17", []string{}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, false},
-		{"one dns name ceph v17", []string{"my.dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
-		{"multiple dns names ceph v17", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
-		{"duplicate dns names ceph v17", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
-		{"invalid dns name ceph v17", []string{"!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
-		{"mixed invalid and valid dns names ceph v17", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"no dns names ceph v19", []string{}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, false},
+		{"one dns name ceph v19", []string{"my.dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"multiple dns names ceph v19", []string{"my.dns.name1", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"duplicate dns names ceph v19", []string{"my.dns.name1", "my.dns.name2", "my.dns.name2"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"invalid dns name ceph v19", []string{"!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
+		{"mixed invalid and valid dns names ceph v19", []string{"my.dns.name", "!my.invalid-dns.name"}, "", cephver.CephVersion{Major: 17, Minor: 0, Extra: 0}, "", []string{}, true},
 		{"no dns names ceph v19", []string{}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "", []string{}, false},
 		{"no dns names with zone ceph v19", []string{}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{}, false},
 		{"no dns names with zone and custom endpoints ceph v19", []string{}, "", cephver.CephVersion{Major: 19, Minor: 0, Extra: 0}, "myzone", []string{"http://my.custom.endpoint1:80", "http://my.custom.endpoint2:80"}, false},

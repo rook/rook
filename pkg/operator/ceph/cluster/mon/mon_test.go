@@ -190,7 +190,7 @@ func TestStartMonPods(t *testing.T) {
 	}
 
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	// test annotations
@@ -201,7 +201,7 @@ func TestStartMonPods(t *testing.T) {
 	validateStart(t, c)
 
 	// starting again should be a no-op
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	validateStart(t, c)
@@ -215,7 +215,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized())
 
@@ -225,7 +225,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized())
 
@@ -243,7 +243,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized())
 
@@ -255,7 +255,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized(), info)
 

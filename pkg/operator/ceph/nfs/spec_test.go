@@ -71,11 +71,11 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNFS, daemonConfig) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
-			CephVersion: cephver.Quincy,
+			CephVersion: cephver.Squid,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
-				Image: "quay.io/ceph/ceph:v17",
+				Image: "quay.io/ceph/ceph:v19",
 			},
 		},
 	}

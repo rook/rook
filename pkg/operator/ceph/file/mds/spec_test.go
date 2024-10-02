@@ -60,7 +60,7 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		FSID:        "myfsid",
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 	}
 	clientset := testop.New(t, 1)
 

@@ -224,7 +224,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 					versionStr, _ := json.Marshal(
 						map[string]map[string]int{
 							"mds": {
-								"ceph version 17.0.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
+								"ceph version 19.0.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) squid (stable)": 2,
 							},
 						})
 					return string(versionStr), nil
@@ -307,7 +307,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				versionStr, _ := json.Marshal(
 					map[string]map[string]int{
 						"mds": {
-							"ceph version 17.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
+							"ceph version 19.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) squid (stable)": 2,
 						},
 					})
 				return string(versionStr), nil
@@ -361,7 +361,7 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Quincy, Context: ctx}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Squid, Context: ctx}
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 
 	t.Run("start basic filesystem", func(t *testing.T) {
@@ -405,7 +405,7 @@ func TestCreateFilesystem(t *testing.T) {
 	})
 
 	t.Run("multi filesystem creation should succeed", func(t *testing.T) {
-		clusterInfo.CephVersion = version.Quincy
+		clusterInfo.CephVersion = version.Squid
 		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 		assert.NoError(t, err)
 	})
@@ -427,7 +427,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
-	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Quincy, Context: ctx}
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Squid, Context: ctx}
 
 	// start a basic cluster for upgrade
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -438,7 +438,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// do upgrade
-	clusterInfo.CephVersion = version.Quincy
+	clusterInfo.CephVersion = version.Squid
 	context = &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
@@ -473,56 +473,81 @@ func TestUpgradeFilesystem(t *testing.T) {
 		},
 	}
 	createdFsResponse, _ := json.Marshal(mdsmap)
-	firstGet := false
+
+	// actual version
+	clusterInfo.CephVersion = version.Squid
+	// mocked version to cause an error different from the actual version
+	mockedVersionStr, _ := json.Marshal(
+		map[string]map[string]int{
+			"mds": {
+				"ceph version 18.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) reef (stable)": 2,
+			},
+		})
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
-		if contains(args, "fs") && contains(args, "get") {
-			if firstGet {
-				firstGet = false
-				return "", errors.New("fs doesn't exist")
+		if contains(args, "fs") {
+			if contains(args, "get") {
+				return string(createdFsResponse), nil
+			} else if contains(args, "ls") {
+				return "[]", nil
+			} else if contains(args, "dump") {
+				return `{"standbys":[], "filesystems":[]}`, nil
+			} else if contains(args, "subvolumegroup") {
+				return "[]", nil
 			}
-			return string(createdFsResponse), nil
-		} else if contains(args, "fs") && contains(args, "ls") {
-			return "[]", nil
-		} else if contains(args, "fs") && contains(args, "dump") {
-			return `{"standbys":[], "filesystems":[]}`, nil
-		} else if contains(args, "osd") && contains(args, "lspools") {
-			return "[]", nil
-		} else if contains(args, "mds") && contains(args, "fail") {
+		}
+		if contains(args, "osd") {
+			if contains(args, "lspools") {
+				return "[]", nil
+			}
+			if contains(args, "pool") && contains(args, "application") {
+				if contains(args, "get") {
+					return `{"":{}}`, nil
+				}
+				return "[]", nil
+			}
+			if reflect.DeepEqual(args[1:3], []string{"pool", "get"}) {
+				return "", errors.New("test pool does not exist yet")
+			}
+		}
+		if contains(args, "mds") && contains(args, "fail") {
 			return "", errors.New("fail mds failed")
-		} else if isBasePoolOperation(fsName, command, args) {
+		}
+		if isBasePoolOperation(fsName, command, args) {
 			return "", nil
-		} else if reflect.DeepEqual(args[0:5], []string{"fs", "new", fsName, fsName + "-metadata", fsName + "-data0"}) {
+		}
+		if reflect.DeepEqual(args[0:5], []string{"fs", "new", fsName, fsName + "-metadata", fsName + "-data0"}) {
 			return "", nil
-		} else if contains(args, "auth") && contains(args, "get-or-create-key") {
-			return "{\"key\":\"mysecurekey\"}", nil
-		} else if contains(args, "auth") && contains(args, "del") {
-			return "", nil
-		} else if contains(args, "config") && contains(args, "mds_cache_memory_limit") {
-			return "", nil
-		} else if contains(args, "set") && contains(args, "max_mds") {
-			return "", nil
-		} else if contains(args, "set") && contains(args, "allow_standby_replay") {
-			return "", nil
-		} else if contains(args, "config") && contains(args, "mds_join_fs") {
-			return "", nil
-		} else if contains(args, "config") && contains(args, "get") {
-			return "{}", nil
-		} else if reflect.DeepEqual(args[0:3], []string{"osd", "pool", "get"}) {
-			return "", errors.New("test pool does not exist yet")
-		} else if contains(args, "versions") {
-			versionStr, _ := json.Marshal(
-				map[string]map[string]int{
-					"mds": {
-						"ceph version 17.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
-					},
-				})
-			return string(versionStr), nil
+		}
+		if contains(args, "auth") {
+			if contains(args, "get-or-create-key") {
+				return "{\"key\":\"mysecurekey\"}", nil
+			} else if contains(args, "auth") && contains(args, "del") {
+				return "", nil
+			}
+		}
+		if contains(args, "config") {
+			if contains(args, "mds_cache_memory_limit") {
+				return "", nil
+			} else if contains(args, "mds_join_fs") {
+				return "", nil
+			} else if contains(args, "get") {
+				return "{}", nil
+			}
+		}
+		if contains(args, "set") {
+			if contains(args, "max_mds") {
+				return "", nil
+			} else if contains(args, "allow_standby_replay") {
+				return "", nil
+			}
+		}
+		if contains(args, "versions") {
+			return string(mockedVersionStr), nil
 		}
 		assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
 		return "", nil
 	}
 	// do upgrade
-	clusterInfo.CephVersion = version.Reef
 	context = &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
