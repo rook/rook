@@ -191,6 +191,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here
 	replicas := int32(1)
 	deployment.Spec = apps.DeploymentSpec{
+		RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 		Selector: &metav1.LabelSelector{
 			MatchLabels: getLabels(nfs, cfg.ID, false),
 		},

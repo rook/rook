@@ -108,6 +108,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deplo
 	}
 	replicaCount := int32(1)
 	d.Spec = apps.DeploymentSpec{
+		RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 		Selector: &metav1.LabelSelector{
 			MatchLabels: c.getLabels(monConfig, canary, false),
 		},
