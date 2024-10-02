@@ -1,0 +1,50 @@
+#####################################################################
+# Create an two object stores with the same set of pre-created pools
+#  kubectl create -f two-object-one-zone-test.yaml
+#####################################################################
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: two-object-one-zone
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: two-object-one-zone
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: two-object-one-zone
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: object-separate-pools
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: two-object-one-zone
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: two-object-one-zone-alpha
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: object-separate-pools
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: two-object-one-zone-beta
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: object-separate-pools
