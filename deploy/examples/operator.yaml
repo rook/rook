@@ -568,6 +568,10 @@ data:
 
   # (Optional) QPS to use while communicating with the kubernetes apiserver.
   # CSI_KUBE_API_QPS: "5.0"
+
+  # Whether to create all Rook pods to run on the host network, for example in environments where a CNI is not enabled
+  ROOK_ENFORCE_HOST_NETWORK: "false"
+
   # RevisionHistoryLimit value for all deployments created by rook.
   # ROOK_REVISION_HISTORY_LIMIT: "3"
 ---
