@@ -215,7 +215,7 @@ function build_rook_all() {
 }
 
 function validate_yaml() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
 
   # create the volume replication CRDs
@@ -242,7 +242,7 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  (cd deploy/examples && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
+  (cd "${REPO_DIR}/deploy/examples" && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
 }
 
 function deploy_manifest_with_local_build() {
@@ -340,7 +340,7 @@ function deploy_all_additional_resources_on_cluster() {
 
 function deploy_csi_hostnetwork_disabled_cluster() {
   create_cluster_prerequisites
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   if [ $# == 0 ]; then
@@ -447,7 +447,7 @@ function deploy_first_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
   export BLOCK="/dev/${DEVICE_NAME}"
   create_cluster_prerequisites
-  cd deploy/examples/
+  cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
@@ -460,7 +460,7 @@ function deploy_first_rook_cluster() {
 function deploy_second_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
   export BLOCK="/dev/${DEVICE_NAME}"
-  cd deploy/examples/
+  cd "${REPO_DIR}/deploy/examples"
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
   yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"2
@@ -584,7 +584,7 @@ function test_multisite_object_replication() {
   local cluster_2_ip
   cluster_2_ip=$(get_clusterip rook-ceph-secondary rook-ceph-rgw-zone-b-multisite-store)
 
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   cat <<-EOF >s3cfg
 	[default]
 	host_bucket = no.way
@@ -643,7 +643,7 @@ EOF
 }
 
 function deploy_multus_cluster() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   deploy_toolbox
@@ -662,7 +662,7 @@ function test_multus_connections() {
 }
 
 function create_operator_toolbox() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" toolbox-operator-image.yaml
   kubectl create -f toolbox-operator-image.yaml
 }
@@ -689,7 +689,7 @@ EOF
 }
 
 function test_csi_rbd_workload {
-  cd deploy/examples/csi/rbd
+  cd "${REPO_DIR}/deploy/examples/csi/rbd"
   sed -i 's|size: 3|size: 1|g' storageclass.yaml
   sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
   kubectl create -f storageclass.yaml
@@ -704,7 +704,7 @@ function test_csi_rbd_workload {
 }
 
 function test_csi_cephfs_workload {
-  cd deploy/examples/csi/cephfs
+  cd "${REPO_DIR}/deploy/examples/csi/cephfs"
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   kubectl create -f pod.yaml
@@ -717,7 +717,7 @@ function test_csi_cephfs_workload {
 }
 
 function test_csi_nfs_workload {
-  cd deploy/examples/csi/nfs
+  cd "${REPO_DIR}/deploy/examples/csi/nfs"
   sed -i "s|#- debug|- nolock|" storageclass.yaml
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
