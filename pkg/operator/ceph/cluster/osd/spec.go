@@ -713,6 +713,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 					OsdIdLabelKey:       fmt.Sprintf("%d", osd.ID),
 				},
 			},
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 			Strategy: apps.DeploymentStrategy{
 				Type: apps.RecreateDeploymentStrategyType,
 			},

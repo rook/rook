@@ -94,8 +94,9 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 			Selector: &metav1.LabelSelector{
 				MatchLabels: c.podLabels(mdsConfig, false),
 			},
-			Template: podSpec,
-			Replicas: &replicas,
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
+			Template:             podSpec,
+			Replicas:             &replicas,
 			Strategy: apps.DeploymentStrategy{
 				Type: apps.RecreateDeploymentStrategyType,
 			},
