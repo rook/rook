@@ -148,7 +148,7 @@ The protocols section is divided into two parts:
 In the `s3` section of the `protocols` section the following options can be configured:
 
 * `authKeystone`: Whether S3 should also authenticated using Keystone (`true`) or not (`false`). If set to `false` the default S3 auth will be used.
-* `enabled`: Whether to enable S3 (`true`) or not (`false`). The default is `true` even if the section is not listed at all! Please note that S3 should not be disabled in a [Ceph Multi Site configuration](https://docs.ceph.com/en/quincy/radosgw/multisite).
+* `enabled`: Whether to enable S3 (`true`) or not (`false`). The default is `true` even if the section is not listed at all! Please note that S3 should not be disabled in a [Ceph Multi Site configuration](https://docs.ceph.com/en/latest/radosgw/multisite).
 
 #### protocols/swift settings
 
@@ -332,9 +332,7 @@ vault kv put rook/<mybucketkey> key=$(openssl rand -base64 32) # kv engine
 vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 ```
 
-* TLS authentication with custom certificates between Vault and CephObjectStore RGWs are supported from ceph v16.2.6 onwards
 * `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
-* `AWS-SSE:S3` requires Ceph Quincy v17.2.3 or later.
 
 ## Deleting a CephObjectStore
 

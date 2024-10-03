@@ -591,7 +591,7 @@ func osdIntegrationTestExecutor(t *testing.T, clientset *fake.Clientset, namespa
 			}
 			if args[0] == "versions" {
 				// the update deploy code only cares about the mons from the ceph version command results
-				v := `{"mon":{"ceph version 17.2.1 (somehash) quincy (stable)":3}}`
+				v := `{"mon":{"ceph version 19.2.1 (somehash) squid (stable)":3}}`
 				return v, nil
 			}
 			return "", errors.Errorf("unexpected ceph command %q", args)

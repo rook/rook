@@ -26,11 +26,6 @@ users stored in LDAP can be associated with NFS users and vice versa.
 mapping from a  number of sources including LDAP, Active Directory, and FreeIPA. Currently, only
 LDAP has been tested.
 
-!!! attention
-    The Ceph container image must have the `sssd-client` package installed to support SSSD. This
-    package is included in `quay.io/ceph/ceph` in v17.2.4 and newer. For older Ceph versions you may
-    build your own Ceph image which adds `RUN yum install sssd-client && yum clean all`.
-
 #### SSSD configuration
 
 SSSD requires a configuration file in order to configure its connection to the user ID mapping

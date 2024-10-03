@@ -118,7 +118,7 @@ func TestStart(t *testing.T) {
 	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -201,7 +201,7 @@ func TestAddRemoveNode(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		Context:     ctx,
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -425,7 +425,7 @@ func TestPostReconcileUpdateOSDProperties(t *testing.T) {
 	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -475,7 +475,7 @@ func TestAddNodeFailure(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns-add-remove",
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("testcluster")
@@ -1085,7 +1085,7 @@ func TestValidateOSDSettings(t *testing.T) {
 	namespace := "ns"
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("rook-ceph-test")

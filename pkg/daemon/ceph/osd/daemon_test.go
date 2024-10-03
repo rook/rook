@@ -382,8 +382,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "loop0", RealPath: "/dev/loop0", Type: sys.LoopType},
 	}
 
-	version := cephver.Quincy
-
 	// select all devices, including nvme01 for metadata
 	pvcBackedOSD := false
 	agent := &OsdAgent{
@@ -392,7 +390,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		pvcBacked:      pvcBackedOSD,
 		clusterInfo:    &cephclient.ClusterInfo{},
 	}
-	agent.clusterInfo.CephVersion = version
 	mapping, err := getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 7, len(mapping.Entries))
@@ -536,19 +533,8 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealPath: "/dev/sda"},
 	}
 
-	// loop device: Ceph version is too old
-	agent.pvcBacked = false
-	agent.devices = []DesiredDevice{{Name: "loop0"}}
-	mapping, err = getAvailableDevices(context, agent)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(mapping.Entries))
-
 	// loop device: specify a loop device
-	agent.clusterInfo.CephVersion = cephver.CephVersion{
-		Major: 17,
-		Minor: 2,
-		Extra: 4,
-	}
+	agent.clusterInfo.CephVersion = cephver.Squid
 	agent.pvcBacked = false
 	agent.devices = []DesiredDevice{{Name: "loop0"}}
 	mapping, err = getAvailableDevices(context, agent)
@@ -574,7 +560,6 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
-	agent.clusterInfo.CephVersion = cephver.Quincy
 }
 
 func TestGetVolumeGroupName(t *testing.T) {

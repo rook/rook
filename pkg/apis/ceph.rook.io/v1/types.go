@@ -1863,7 +1863,6 @@ type ObjectStoreHostingSpec struct {
 	// If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
 	// wildcard itself in the list of hostnames.
 	// E.g., use "mystore.example.com" instead of "*.mystore.example.com".
-	// The feature is supported only for Ceph v18 and later versions.
 	// +optional
 	DNSNames []string `json:"dnsNames,omitempty"`
 }
@@ -1985,7 +1984,7 @@ type ObjectUserCapSpec struct {
 	Info string `json:"info,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
-	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api
 	AMZCache string `json:"amz-cache,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
@@ -2627,7 +2626,7 @@ type NetworkSpec struct {
 	// other network providers.
 	//
 	// Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
-	// https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
+	// https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/
 	//
 	// Refer to Multus network annotation documentation for help selecting values:
 	// https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation

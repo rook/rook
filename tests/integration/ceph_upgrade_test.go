@@ -97,11 +97,11 @@ func (s *UpgradeSuite) baseSetup(useHelm bool, initialRookVersion string, initia
 }
 
 func (s *UpgradeSuite) TestUpgradeRook() {
-	s.testUpgrade(false, installer.QuincyVersion)
+	s.testUpgrade(false, installer.ReefVersion)
 }
 
 func (s *UpgradeSuite) TestUpgradeHelm() {
-	s.testUpgrade(true, installer.QuincyVersion)
+	s.testUpgrade(true, installer.ReefVersion)
 }
 
 func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersionSpec) {
@@ -159,17 +159,6 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	}
 
 	//
-	// Upgrade from quincy to reef
-	//
-	logger.Infof("*** UPGRADING CEPH FROM QUINCY TO REEF ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_reef_upgrade")
-	s.upgradeCephVersion(installer.ReefVersion.Image, numOSDs)
-	// Verify reading and writing to the test clients
-	newFile = "post-reef-upgrade-file"
-	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from quincy to reef")
-
-	//
 	// Upgrade from reef to squid
 	//
 	logger.Infof("*** UPGRADING CEPH FROM REEF TO SQUID ***")
@@ -179,40 +168,6 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	newFile = "post-squid-upgrade-file"
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from reef to squid")
-
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
-}
-
-func (s *UpgradeSuite) TestUpgradeCephToQuincyDevel() {
-	baseRookImage := installer.LocalBuildTag
-	s.baseSetup(false, baseRookImage, installer.QuincyVersion)
-
-	objectUserID := "upgraded-user"
-	preFilename := "pre-upgrade-file"
-	s.settings.CephVersion = installer.QuincyVersion
-	numOSDs, rbdFilesToRead, cephfsFilesToRead := s.deployClusterforUpgrade(baseRookImage, objectUserID, preFilename)
-	clusterInfo := client.AdminTestClusterInfo(s.namespace)
-	requireBlockImagesRemoved := false
-	defer func() {
-		blockTestDataCleanUp(s.helper, s.k8sh, &s.Suite, clusterInfo, installer.BlockPoolName, installer.BlockPoolSCName, blockName, rbdPodName, requireBlockImagesRemoved)
-		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
-		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
-		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
-		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
-		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete")
-		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
-	}()
-
-	//
-	// Upgrade from quincy to quincy devel
-	//
-	logger.Infof("*** UPGRADING CEPH FROM QUINCY STABLE TO QUINCY DEVEL ***")
-	s.gatherLogs(s.settings.OperatorNamespace, "_before_quincy_upgrade")
-	s.upgradeCephVersion(installer.QuincyDevelVersion.Image, numOSDs)
-	// Verify reading and writing to the test clients
-	newFile := "post-quincy-upgrade-file"
-	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
-	logger.Infof("Verified upgrade from quincy stable to quincy devel")
 
 	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
 }

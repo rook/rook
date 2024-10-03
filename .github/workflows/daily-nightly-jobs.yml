@@ -110,46 +110,6 @@ jobs:
         if: always()
         run: sudo rm -rf /usr/bin/yq
 
-  smoke-suite-quincy-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
-
-      - name: TestCephSmokeSuite
-        run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -run TestCephSmokeSuite github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="smoke-ns"
-          export OPERATOR_NAMESPACE="smoke-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
-        if: failure()
-        with:
-          name: ceph-smoke-suite-quincy-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
   smoke-suite-reef-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
@@ -268,46 +228,6 @@ jobs:
         if: failure()
         with:
           name: ceph-smoke-suite-master-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
-  object-suite-quincy-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
-
-      - name: TestCephObjectSuite
-        run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          SKIP_CLEANUP_POLICY=false CEPH_SUITE_VERSION="quincy-devel" go test -v -timeout 1800s -failfast -run TestCephObjectSuite github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="object-ns"
-          export OPERATOR_NAMESPACE="object-ns-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
-        if: failure()
-        with:
-          name: ceph-object-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
   object-suite-ceph-main:
@@ -431,49 +351,9 @@ jobs:
           name: ceph-upgrade-suite-reef-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
-  upgrade-from-quincy-stable-to-quincy-devel:
-    if: github.repository == 'rook/rook'
-    runs-on: ubuntu-22.04
-    steps:
-      - name: checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/integration-test-config-latest-k8s
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          kubernetes-version: "1.28.4"
-
-      - name: TestCephUpgradeSuite
-        run: |
-          export DEVICE_FILTER=$(tests/scripts/github-action-helper.sh find_extra_block_dev)
-          go test -v -timeout 1800s -failfast -run TestCephUpgradeSuite/TestUpgradeCephToQuincyDevel github.com/rook/rook/tests/integration
-
-      - name: collect common logs
-        if: always()
-        run: |
-          export LOG_DIR="/home/runner/work/rook/rook/tests/integration/_output/tests/"
-          export CLUSTER_NAMESPACE="upgrade"
-          export OPERATOR_NAMESPACE="upgrade-system"
-          tests/scripts/collect-logs.sh
-
-      - name: Artifact
-        uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4.4.0
-        if: failure()
-        with:
-          name: ceph-upgrade-suite-quincy-artifact
-          path: /home/runner/work/rook/rook/tests/integration/_output/tests/
-
   canary-tests:
     if: github.repository == 'rook/rook'
     uses: ./.github/workflows/canary-integration-test.yml
     with:
-      ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-quincy-devel", "quay.io/ceph/daemon-base:latest-reef-devel", "quay.io/ceph/daemon-base:latest-squid-devel"]'
+      ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-reef-devel", "quay.io/ceph/daemon-base:latest-squid-devel"]'
     secrets: inherit

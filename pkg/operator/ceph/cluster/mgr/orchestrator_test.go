@@ -59,7 +59,7 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 
 	clusterInfo := &cephclient.ClusterInfo{
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		Context:     context.TODO(),
 	}
 	context := &clusterd.Context{Executor: executor}

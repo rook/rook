@@ -29,7 +29,6 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/version"
 	optest "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -162,7 +161,6 @@ func TestConfigureHealthSettings(t *testing.T) {
 		context:     &clusterd.Context{},
 		clusterInfo: cephclient.AdminTestClusterInfo("ns"),
 	}
-	c.clusterInfo.CephVersion = version.Quincy
 	setGlobalIDReclaim := false
 	c.context.Executor = &exectest.MockExecutor{
 		MockExecuteCommandWithTimeout: func(timeout time.Duration, command string, args ...string) (string, error) {

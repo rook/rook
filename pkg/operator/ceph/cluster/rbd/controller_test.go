@@ -47,7 +47,7 @@ const (
 	dummyVersionsRaw       = `
 	{
 		"mon": {
-			"ceph version 17.2.1 (0000000000000000000000000000000000) quincy (stable)": 3
+			"ceph version 19.2.1 (0000000000000000000000000000000000) squid (stable)": 3
 		}
 	}`
 )
