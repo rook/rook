@@ -49,7 +49,9 @@ jobs:
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: setup csi-addons
         run: tests/scripts/csiaddons.sh setup_csiaddons
@@ -364,6 +366,7 @@ jobs:
         run: |
           export ALLOW_LOOP_DEVICES=true
           tests/scripts/github-action-helper.sh deploy_cluster loop
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
           tests/scripts/github-action-helper.sh create_operator_toolbox
 
       - name: wait for prepare pod
@@ -433,7 +436,9 @@ jobs:
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster two_osds_in_device
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
@@ -482,6 +487,7 @@ jobs:
       - name: deploy cluster
         run: |
           tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_partition_device
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -537,7 +543,9 @@ jobs:
           tests/scripts/github-action-helper.sh create_LV_on_disk $(sudo losetup --find --show test-rook.img)
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster osd_with_metadata_device
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -587,7 +595,9 @@ jobs:
           tests/scripts/create-bluestore-partitions.sh --disk "$BLOCK" --wipe-only
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster encryption
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster encryption
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster encryption
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -642,7 +652,9 @@ jobs:
           tests/scripts/github-action-helper.sh create_LV_on_disk $BLOCK
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster lvm
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster lvm
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
       - name: wait for prepare pod
         run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
@@ -1692,6 +1704,56 @@ jobs:
 
       - name: test ceph-csi-nfs plugin restart
         run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
+
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: ${{ github.job }}-${{ matrix.ceph-image }}
+
+  object-with-cephblockpools:
+    runs-on: ubuntu-22.04
+    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
+    strategy:
+      matrix:
+        ceph-image: ${{ fromJson(inputs.ceph_images) }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
+        with:
+          fetch-depth: 0
+
+      - name: consider debugging
+        uses: ./.github/workflows/tmate_debug
+        with:
+          use-tmate: ${{ secrets.USE_TMATE }}
+
+      - name: setup cluster resources
+        uses: ./.github/workflows/canary-test-config
+
+      - name: set Ceph version in CephCluster manifest
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+
+      - name: validate-yaml
+        run: tests/scripts/github-action-helper.sh validate_yaml
+
+      - name: use local disk and create partitions for osds
+        run: |
+          tests/scripts/github-action-helper.sh use_local_disk
+          tests/scripts/github-action-helper.sh create_partitions_for_osds
+
+      - name: deploy cluster
+        run: tests/scripts/github-action-helper.sh deploy_cluster
+
+      - name: create CephBlockPool(s) and CephObjectStore
+        shell: bash --noprofile --norc -eo pipefail -x {0}
+        run: kubectl create -f deploy/examples/object-with-cephblockpools-test.yaml
+
+      - name: wait for CephObjectStore to be ready
+        run: tests/scripts/validate_cluster.sh rgw object-with-cephblockpools
+
+      - name: check for pools created by RGW that are unexpected
+        run: tests/scripts/github-action-helper.sh test_object_with_cephblockpools_extra_pools
 
       - name: collect common logs
         if: always()
