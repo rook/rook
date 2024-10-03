@@ -7,7 +7,7 @@ image:
   repository: docker.io/rook/ceph
   # -- Image tag
   # @default -- `master`
-  tag: v1.15.2
+  tag: v1.15.3
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -640,7 +640,7 @@ enforceHostNetwork: false
 disableDeviceHotplug: false
 
 # -- The revision history limit for all pods created by Rook. If blank, the K8s default is 10.
-revisionHistoryLimit: 
+revisionHistoryLimit:
 
 # -- Blacklist certain disks according to the regex provided.
 discoverDaemonUdev:
