@@ -13203,8 +13203,6 @@ spec:
                   description: The display name for the ceph users
                   type: string
               required:
-                - dataPool
-                - metadataPool
                 - zoneGroup
               type: object
             status:
