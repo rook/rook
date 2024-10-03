@@ -20,6 +20,8 @@ set -xeEo pipefail
 # VARIABLES #
 #############
 
+REPO_DIR="$(readlink -f -- "${BASH_SOURCE%/*}/../..")"
+
 function find_extra_block_dev() {
   # shellcheck disable=SC2005 # redirect doesn't work with sudo, so use echo
   echo "$(sudo lsblk)" >/dev/stderr # print lsblk output to stderr for debugging in case of future errors
@@ -213,7 +215,7 @@ function build_rook_all() {
 }
 
 function validate_yaml() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
 
   # create the volume replication CRDs
@@ -240,7 +242,7 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  (cd deploy/examples && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
+  (cd "${REPO_DIR}/deploy/examples" && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
 }
 
 function deploy_manifest_with_local_build() {
@@ -257,6 +259,7 @@ function deploy_manifest_with_local_build() {
 
 # Deploy toolbox with same ceph version as the cluster-test for ci
 function deploy_toolbox() {
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
   kubectl create -f toolbox.yaml
 }
@@ -271,9 +274,15 @@ function replace_ceph_image() {
   sed -i "s|image: .*ceph/ceph:.*|image: ${ceph_image}|g" "${file}"
 }
 
+# Deploy the operator, a CephCluster, and the toolbox. This is intended to be a
+# minimal deployment generic enough to be used by most canary tests. Each
+# canary test should be installing its own set of resources as a job step or
+# using dedicated helper functions.
 function deploy_cluster() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
+
   deploy_manifest_with_local_build operator.yaml
+
   if [ $# == 0 ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
@@ -281,8 +290,8 @@ function deploy_cluster() {
   elif [ "$1" = "osd_with_metadata_device" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_partition_device" ]; then
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name ${BLOCK}2
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice ${BLOCK}1
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name "${BLOCK}2"
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice "${BLOCK}1"
   elif [ "$1" = "encryption" ]; then
     sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then
@@ -294,13 +303,28 @@ function deploy_cluster() {
     echo "invalid argument: $*" >&2
     exit 1
   fi
+
   # enable monitoring
   yq w -i -d0 cluster-test.yaml spec.monitoring.enabled true
   kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
   kubectl create -f monitoring/rbac.yaml
 
-  # create the cluster resources
   kubectl create -f cluster-test.yaml
+
+  deploy_toolbox
+}
+
+# These resources were extracted from the original deploy_cluster(), which was
+# deploying a smorgasbord of resources used by multiple canary tests.
+#
+# Use of this function is discouraged. Existing users should migrate away and
+# deploy only the necessary resources for the test scenario in their own job
+# steps.
+#
+# The addition of new resources this function is forbidden!
+function deploy_all_additional_resources_on_cluster() {
+  cd "${REPO_DIR}/deploy/examples"
+
   kubectl create -f object-shared-pools-test.yaml
   kubectl create -f object-a.yaml
   kubectl create -f object-b.yaml
@@ -312,12 +336,11 @@ function deploy_cluster() {
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
   kubectl create -f subvolumegroup.yaml
-  deploy_toolbox
 }
 
 function deploy_csi_hostnetwork_disabled_cluster() {
   create_cluster_prerequisites
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   if [ $# == 0 ]; then
@@ -424,7 +447,7 @@ function deploy_first_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
   export BLOCK="/dev/${DEVICE_NAME}"
   create_cluster_prerequisites
-  cd deploy/examples/
+  cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
@@ -437,7 +460,7 @@ function deploy_first_rook_cluster() {
 function deploy_second_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
   export BLOCK="/dev/${DEVICE_NAME}"
-  cd deploy/examples/
+  cd "${REPO_DIR}/deploy/examples"
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
   yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"2
@@ -561,7 +584,7 @@ function test_multisite_object_replication() {
   local cluster_2_ip
   cluster_2_ip=$(get_clusterip rook-ceph-secondary rook-ceph-rgw-zone-b-multisite-store)
 
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   cat <<-EOF >s3cfg
 	[default]
 	host_bucket = no.way
@@ -620,7 +643,7 @@ EOF
 }
 
 function deploy_multus_cluster() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   deploy_toolbox
@@ -639,7 +662,7 @@ function test_multus_connections() {
 }
 
 function create_operator_toolbox() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" toolbox-operator-image.yaml
   kubectl create -f toolbox-operator-image.yaml
 }
@@ -666,7 +689,7 @@ EOF
 }
 
 function test_csi_rbd_workload {
-  cd deploy/examples/csi/rbd
+  cd "${REPO_DIR}/deploy/examples/csi/rbd"
   sed -i 's|size: 3|size: 1|g' storageclass.yaml
   sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
   kubectl create -f storageclass.yaml
@@ -681,7 +704,7 @@ function test_csi_rbd_workload {
 }
 
 function test_csi_cephfs_workload {
-  cd deploy/examples/csi/cephfs
+  cd "${REPO_DIR}/deploy/examples/csi/cephfs"
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   kubectl create -f pod.yaml
@@ -694,7 +717,7 @@ function test_csi_cephfs_workload {
 }
 
 function test_csi_nfs_workload {
-  cd deploy/examples/csi/nfs
+  cd "${REPO_DIR}/deploy/examples/csi/nfs"
   sed -i "s|#- debug|- nolock|" storageclass.yaml
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
@@ -736,6 +759,59 @@ function install_minikube_with_none_driver() {
 
   export MINIKUBE_HOME=$HOME CHANGE_MINIKUBE_NONE_USER=true KUBECONFIG=$HOME/.kube/config
   minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
+}
+
+function toolbox() {
+  kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
+}
+
+function ceph() {
+  toolbox ceph "$@"
+}
+
+function rbd() {
+  toolbox rbd "$@"
+}
+
+function radosgw-admin() {
+  toolbox radosgw-admin "$@"
+}
+
+function test_object_with_cephblockpools_extra_pools() {
+  expected_pools=(
+    .mgr
+    .rgw.root
+    object-with-cephblockpools.rgw.control
+    object-with-cephblockpools.rgw.meta
+    object-with-cephblockpools.rgw.log
+    object-with-cephblockpools.rgw.buckets.index
+    object-with-cephblockpools.rgw.buckets.non-ec
+    object-with-cephblockpools.rgw.otp
+    object-with-cephblockpools.rgw.buckets.data
+  )
+
+  output=$(ceph osd pool ls)
+  readarray -t live_pools < <(printf '%s' "$output")
+
+  errors=0
+  for l in "${live_pools[@]}"; do
+    found=false
+    for e in "${expected_pools[@]}"; do
+      if [[ "$l" == "$e" ]]; then
+        found=true
+        break
+      fi
+    done
+    if [[ "$found" == false ]]; then
+      echo "Live pool $l is not an expected pool"
+      errors=$((errors+1))
+    fi
+  done
+
+  if [[ $errors -gt 0 ]]; then
+    echo "Found $errors errors"
+    exit $errors
+  fi
 }
 
 FUNCTION="$1"
