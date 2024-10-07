@@ -21,6 +21,14 @@ set -xeEo pipefail
 #############
 
 REPO_DIR="$(readlink -f -- "${BASH_SOURCE%/*}/../..")"
+NETWORK_ERROR="connection reset by peer"
+SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
+INTERNAL_ERROR="INTERNAL_ERROR"
+INTERNAL_SERVER_ERROR="500 Internal Server Error"
+
+#############
+# FUNCTIONS #
+#############
 
 function find_extra_block_dev() {
   # shellcheck disable=SC2005 # redirect doesn't work with sudo, so use echo
@@ -37,19 +45,19 @@ function find_extra_block_dev() {
   echo "$extra_dev"                                                       # output of function
 }
 
-: "${BLOCK:=$(find_extra_block_dev)}"
-# by definition, in this file, BLOCK should only contain the "sdX" portion of the block device name
-# some external scripts export BLOCK as the full "/dev/sdX" path, which this script must handle
-BLOCK="$(basename $BLOCK)"
+function block_dev() {
+  declare -g DEFAULT_BLOCK_DEV
+  : "${DEFAULT_BLOCK_DEV:=/dev/$(block_dev_basename)}"
 
-NETWORK_ERROR="connection reset by peer"
-SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
-INTERNAL_ERROR="INTERNAL_ERROR"
-INTERNAL_SERVER_ERROR="500 Internal Server Error"
+  echo "$DEFAULT_BLOCK_DEV"
+}
 
-#############
-# FUNCTIONS #
-#############
+function block_dev_basename() {
+  declare -g DEFAULT_BLOCK_DEV_BASENAME
+  : "${DEFAULT_BLOCK_DEV_BASENAME:=$(find_extra_block_dev)}"
+
+  echo "$DEFAULT_BLOCK_DEV_BASENAME"
+}
 
 function install_deps() {
   sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
@@ -79,7 +87,7 @@ function prepare_loop_devices() {
 }
 
 function use_local_disk() {
-  BLOCK_DATA_PART="/dev/${BLOCK}1"
+  BLOCK_DATA_PART="$(block_dev)1"
   sudo apt purge snapd -y
   sudo dmsetup version || true
   sudo swapoff --all --verbose
@@ -89,9 +97,9 @@ function use_local_disk() {
     sudo wipefs --all --force "$BLOCK_DATA_PART"
   else
     # it's the hosted runner!
-    sudo sgdisk --zap-all -- "/dev/${BLOCK}"
-    sudo dd if=/dev/zero of="/dev/${BLOCK}" bs=1M count=10 oflag=direct,dsync
-    sudo parted -s "/dev/${BLOCK}" mklabel gpt
+    sudo sgdisk --zap-all -- "$(block_dev)"
+    sudo dd if=/dev/zero of="$(block_dev)" bs=1M count=10 oflag=direct,dsync
+    sudo parted -s "$(block_dev)" mklabel gpt
   fi
   sudo lsblk
 }
@@ -103,7 +111,7 @@ function use_local_disk_for_integration_test() {
   sudo umount /mnt
   sudo sed -i.bak '/\/mnt/d' /etc/fstab
   # search for the device since it keeps changing between sda and sdb
-  PARTITION="/dev/${BLOCK}1"
+  PARTITION="$(block_dev)1"
   sudo wipefs --all --force "$PARTITION"
   sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
   sudo lsblk --bytes
@@ -112,7 +120,7 @@ function use_local_disk_for_integration_test() {
   # for more details see: https://github.com/rook/rook/issues/7405
   echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
   # for below, see: https://access.redhat.com/solutions/1465913
-  echo "ACTION==\"add|change\", KERNEL==\"${BLOCK}\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
+  echo "ACTION==\"add|change\", KERNEL==\"$(block_dev_basename)\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
   # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
   # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
   # during OSD provisioning.
@@ -120,31 +128,31 @@ function use_local_disk_for_integration_test() {
   sudo udevadm trigger || true
   time sudo udevadm settle || true
   sudo partprobe || true
-  sudo lsblk --noheadings --pairs "/dev/${BLOCK}" || true
-  sudo sgdisk --print "/dev/${BLOCK}" || true
-  sudo udevadm info --query=property "/dev/${BLOCK}" || true
+  sudo lsblk --noheadings --pairs "$(block_dev)" || true
+  sudo sgdisk --print "$(block_dev)" || true
+  sudo udevadm info --query=property "$(block_dev)" || true
   sudo lsblk --noheadings --pairs "${PARTITION}" || true
   journalctl -o short-precise --dmesg | tail -40 || true
   cat /etc/fstab || true
 }
 
 function create_partitions_for_osds() {
-  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --osd-count 2
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --osd-count 2
   sudo lsblk
 }
 
 function create_bluestore_partitions_and_pvcs() {
-  BLOCK_PART="/dev/$BLOCK"2
-  DB_PART="/dev/$BLOCK"1
-  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --bluestore-type block.db --osd-count 1
+  BLOCK_PART="$(block_dev)2"
+  DB_PART="$(block_dev)1"
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --bluestore-type block.db --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
 }
 
 function create_bluestore_partitions_and_pvcs_for_wal() {
-  BLOCK_PART="/dev/$BLOCK"3
-  DB_PART="/dev/$BLOCK"1
-  WAL_PART="/dev/$BLOCK"2
-  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --bluestore-type block.wal --osd-count 1
+  BLOCK_PART="$(block_dev)3"
+  DB_PART="$(block_dev)1"
+  WAL_PART="$(block_dev)2"
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --bluestore-type block.wal --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
 }
 
@@ -284,21 +292,21 @@ function deploy_cluster() {
   deploy_manifest_with_local_build operator.yaml
 
   if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_partition_device" ]; then
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name "${BLOCK}2"
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice "${BLOCK}1"
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name "$(block_dev_basename)2"
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice "$(block_dev_basename)1"
   elif [ "$1" = "encryption" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then
     sed -i "s|#deviceFilter:|devices:\n      - name: \"/dev/test-rook-vg/test-rook-lv\"|g" cluster-test.yaml
   elif [ "$1" = "loop" ]; then
     # add both /dev/sdX1 and loop device to test them at the same time
-    sed -i "s|#deviceFilter:|devices:\n      - name: \"${BLOCK}\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|devices:\n      - name: \"$(block_dev_basename)\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
   else
     echo "invalid argument: $*" >&2
     exit 1
@@ -344,11 +352,11 @@ function deploy_csi_hostnetwork_disabled_cluster() {
   sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   fi
   kubectl create -f nfs-test.yaml
   kubectl create -f cluster-test.yaml
@@ -445,7 +453,6 @@ function create_LV_on_disk() {
 
 function deploy_first_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-  export BLOCK="/dev/${DEVICE_NAME}"
   create_cluster_prerequisites
   cd "${REPO_DIR}/deploy/examples"
 
@@ -459,7 +466,6 @@ function deploy_first_rook_cluster() {
 
 function deploy_second_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-  export BLOCK="/dev/${DEVICE_NAME}"
   cd "${REPO_DIR}/deploy/examples"
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
@@ -647,7 +653,7 @@ function deploy_multus_cluster() {
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   deploy_toolbox
-  sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-multus-test.yaml
+  sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-multus-test.yaml
   kubectl create -f cluster-multus-test.yaml
   kubectl create -f filesystem-test.yaml
   kubectl create -f nfs-test.yaml
