@@ -718,6 +718,24 @@ func TestRemoveExtraMonDeployments(t *testing.T) {
 	c.spec.Mon.Count = 3
 	removed = c.checkForExtraMonResources(mons, deployments)
 	assert.Equal(t, "", removed)
+
+	// Do not remove a mon when it was during failover and only a single mon is in the list, even if extra deployments exist
+	mons = []*monConfig{
+		{ResourceName: "rook-ceph-mon-d", DaemonName: "d"},
+	}
+	deployments = append(deployments, apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "rook-ceph-mon-c",
+			Labels: map[string]string{"ceph_daemon_id": "c"},
+		}})
+	deployments = append(deployments, apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "rook-ceph-mon-d",
+			Labels: map[string]string{"ceph_daemon_id": "d"},
+		}})
+	c.spec.Mon.Count = 3
+	removed = c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "", removed)
 }
 
 func TestStretchMonVolumeClaimTemplate(t *testing.T) {
