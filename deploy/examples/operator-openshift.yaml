@@ -139,11 +139,6 @@ data:
   # there is significant drop in read/write performance.
   # CSI_ENABLE_HOST_NETWORK: "true"
 
-  # Deprecation note: Rook uses "holder" pods to allow CSI to connect to the multus public network
-  # without needing hosts to the network. Holder pods are being removed. See issue for details:
-  # https://github.com/rook/rook/issues/13055. New Rook deployments should set this to "true".
-  CSI_DISABLE_HOLDER_PODS: "true"
-
   # Set logging level for cephCSI containers maintained by the cephCSI.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"

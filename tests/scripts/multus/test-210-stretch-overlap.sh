@@ -15,7 +15,7 @@ sed \
   -e "s|namespace:.*|namespace: $NAMESPACE|" \
   -e 's|publicNetwork:.*|publicNetwork: "default/public-net"|' \
   -e 's|clusterNetwork:.*|clusterNetwork: "default/cluster-net"|' \
-  tests/scripts/multus/stretch.yaml >"$CONFFILE"
+  tests/scripts/multus/validation/stretch.yaml >"$CONFFILE"
 cat "$CONFFILE"
 
 # Nodes do not yet have taints, which means worker and storage node type pods should overlap

@@ -272,7 +272,7 @@ pull_request_rules:
       - "check-success=canary-tests / multi-cluster-mirroring (quay.io/ceph/ceph:v18)"
       - "check-success=canary-tests / rgw-multisite-testing (quay.io/ceph/ceph:v18)"
       - "check-success=canary-tests / encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v18)"
-      - "check-success=canary-tests / multus-cluster-network (quay.io/ceph/ceph:v18)"
+      - "check-success=canary-tests / multus-cluster-network (quay.io/ceph/ceph:v18)" # note: changed name for 1.16 (multus-public-and-cluster)
       - "check-success=canary-tests / csi-hostnetwork-disabled (quay.io/ceph/ceph:v18)"
       - "check-success=TestCephSmokeSuite (v1.26.15)"
       - "check-success=TestCephSmokeSuite (v1.31.0)"

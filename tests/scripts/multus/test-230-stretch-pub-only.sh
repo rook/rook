@@ -17,7 +17,7 @@ sed \
   -e "s|namespace:.*|namespace: $NAMESPACE|" \
   -e 's|publicNetwork:.*|publicNetwork: "default/public-net"|' \
   -e 's|clusterNetwork:.*|clusterNetwork: ""|' \
-  tests/scripts/multus/stretch.yaml >"$CONFFILE"
+  tests/scripts/multus/validation/stretch.yaml >"$CONFFILE"
 cat "$CONFFILE"
 
 ./rook --log-level DEBUG multus validation run --config "$CONFFILE" 2>&1 | tee "$OUTFILE"

@@ -324,13 +324,10 @@ func TestGetRookPodsOnNode(t *testing.T) {
 		{"app": "rook-ceph-osd"},
 		{"app": "csi-rbdplugin-provisioner"},
 		{"app": "csi-rbdplugin"},
-		{"app": "csi-rbdplugin-holder"},
 		{"app": "csi-cephfsplugin-provisioner"},
 		{"app": "csi-cephfsplugin"},
-		{"app": "csi-cephfsplugin-holder"},
 		{"app": "csi-nfsplugin-provisioner"},
 		{"app": "csi-nfsplugin"},
-		{"app": "csi-nfsplugin-holder"},
 		{"app": "rook-ceph-operator"},
 		{"app": "rook-ceph-crashcollector"},
 		{"app": "rook-ceph-mgr"},
@@ -366,7 +363,7 @@ func TestGetRookPodsOnNode(t *testing.T) {
 	pods, err := c.getRookPodsOnNode("node0")
 	assert.NoError(t, err)
 	// A pod is having two matching labels and its returned only once
-	assert.Equal(t, 17, len(pods))
+	assert.Equal(t, 14, len(pods))
 
 	podNames := []string{}
 	for _, pod := range pods {
