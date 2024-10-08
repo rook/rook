@@ -264,12 +264,10 @@ func TestCephCSIController(t *testing.T) {
 
 		ds, err := c.Clientset.AppsV1().DaemonSets(namespace).List(ctx, metav1.ListOptions{})
 		assert.NoError(t, err)
-		assert.Equal(t, 4, len(ds.Items), ds)
+		assert.Equal(t, 2, len(ds.Items), ds)
 		assert.Equal(t, "csi-cephfsplugin", ds.Items[0].Name)
-		assert.Equal(t, "csi-cephfsplugin-holder-rook-ceph", ds.Items[1].Name)
-		assert.Equal(t, "csi-rbdplugin", ds.Items[2].Name)
-		assert.Equal(t, "csi-rbdplugin-holder-rook-ceph", ds.Items[3].Name)
-		assert.Equal(t, `[{"name":"public-net","namespace":"rook-ceph"}]`, ds.Items[1].Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"], ds.Items[1].Spec.Template.Annotations)
+		assert.Equal(t, "csi-rbdplugin", ds.Items[1].Name)
+		assert.Equal(t, ``, ds.Items[1].Spec.Template.Annotations["k8s.v1.cni.cncf.io/networks"], ds.Items[1].Spec.Template.Annotations)
 
 		assert.Equal(t, []string{namespace}, saveCSIDriverOptionsCalledForClusterNS)
 	})

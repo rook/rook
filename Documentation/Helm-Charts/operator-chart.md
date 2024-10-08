@@ -84,7 +84,6 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.csiRBDPluginVolumeMount` | The volume mounts of the CephCSI RBD plugin DaemonSet | `nil` |
 | `csi.csiRBDProvisionerResource` | CEPH CSI RBD provisioner resource requirement list csi-omap-generator resources will be applied only if `enableOMAPGenerator` is set to `true` | see values.yaml |
 | `csi.disableCsiDriver` | Disable the CSI driver. | `"false"` |
-| `csi.disableHolderPods` | Deprecation note: Rook uses "holder" pods to allow CSI to connect to the multus public network without needing hosts to the network. Holder pods are being removed. See issue for details: https://github.com/rook/rook/issues/13055. New Rook deployments should set this to "true". | `true` |
 | `csi.enableCSIEncryption` | Enable Ceph CSI PVC encryption support | `false` |
 | `csi.enableCSIHostNetwork` | Enable host networking for CSI CephFS and RBD nodeplugins. This may be necessary in some network configurations where the SDN does not provide access to an external cluster or there is significant drop in read/write performance | `true` |
 | `csi.enableCephfsDriver` | Enable Ceph CSI CephFS driver | `true` |

@@ -49,22 +49,12 @@ those releases.
     official releases. Builds from the master branch can have functionality changed or removed at any
     time without compatibility support and without prior notice.
 
-## Breaking changes in v1.15
+## Breaking changes in v1.16
 
-* Rook has deprecated CSI network "holder" pods.
-    If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, see the
-    [detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
-    to disable them. This deprecation process is required before upgrading to the future Rook v1.16.
-
-* Ceph COSI driver images have been updated. This impacts existing COSI Buckets, BucketClaims, and
-    BucketAccesses. Update existing clusters following the guide
-    [here](https://github.com/rook/rook/discussions/14297).
-
-* CephObjectStore, CephObjectStoreUser, and OBC endpoint behavior has changed when CephObjectStore
-    `spec.hosting` configurations are set. Use the new `spec.hosting.advertiseEndpoint` config to
-    define required behavior as
-    [documented](../Storage-Configuration/Object-Storage-RGW/object-storage.md#object-store-endpoint).
-
+* Rook fully deprecated CSI "holder" pods in Rook v1.16. Any Rook v1.15 CephCluster with
+    `csi-*plugin-holder-*` pods present in the Rook operator namespace must follow holder pod
+    removal migration steps outlined in
+    [v1.15 documentation](https://rook.io/docs/rook/v1.15/CRDs/Cluster/network-providers/?h=depre#holder-pod-deprecation).
 
 ## Considerations
 
@@ -110,10 +100,6 @@ Also update optional resources like Prometheus monitoring noted more fully in th
 
 If Rook is installed via the Helm chart, Helm will handle some details of the upgrade itself.
 The upgrade steps in this guide will clarify what Helm handles automatically.
-
-!!! important
-    If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, set the new
-    config `csi.disableHolderPods: false` in the values.yaml before upgrading to v1.15.
 
 The `rook-ceph` helm chart upgrade performs the Rook upgrade.
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](./ceph-upgrade.md) if the Ceph image is updated.
@@ -262,10 +248,3 @@ This cluster is finished:
 At this point, the Rook operator should be running version `rook/ceph:v1.15.0`.
 
 Verify the CephCluster health using the [health verification doc](health-verification.md).
-
-### **6. Disable holder pods**
-
-Rook has deprecated CSI network "holder" pods. If there are pods named
-`csi-*plugin-holder-*` in the Rook operator namespace, see the
-[detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
-to disable them. This deprecation process is required before upgrading to the future Rook v1.16.
