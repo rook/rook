@@ -619,6 +619,8 @@ function deploy_multus() {
     -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
     -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
 
+  kubectl apply -f ${REPO_DIR}/tests/scripts/multus/host-cfg-ds.yaml
+
   # create the rook-ceph namespace if it doesn't exist, the NAD will go in this namespace
   kubectl create namespace rook-ceph || true
 

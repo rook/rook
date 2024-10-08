@@ -250,16 +250,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 	}
 	CustomCSICephConfigExists = exists
 
-	csiHostNetworkEnabled, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true"))
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to parse value for 'CSI_ENABLE_HOST_NETWORK'")
-	}
-
-	csiDisableHolders, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_DISABLE_HOLDER_PODS", "false"))
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to parse value for 'CSI_DISABLE_HOLDER_PODS'")
-	}
-
 	// begin each reconcile with the assumption that holder pods won't be deployed
 	// the loop below will determine with each reconcile if they need deployed
 	// without this, holder pods won't be removed unless the operator is restarted
@@ -294,21 +284,6 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to load cluster info for cluster %q", cluster.Name)
 		}
 		clusterInfo.OwnerInfo = k8sutil.NewOwnerInfo(&cephClusters.Items[i], r.scheme)
-
-		// is holder enabled for this cluster?
-		thisHolderEnabled := (!csiHostNetworkEnabled || cluster.Spec.Network.IsMultus()) && !csiDisableHolders
-
-		// Do we have a multus cluster or csi host network disabled?
-		// If so deploy the plugin holder with the fsid attached
-		if thisHolderEnabled {
-			logger.Debugf("cluster %q: deploying the ceph-csi plugin holder", cluster.Name)
-			r.clustersWithHolder = append(r.clustersWithHolder, ClusterDetail{cluster: &cephClusters.Items[i], clusterInfo: clusterInfo})
-
-			// holder pods are enabled globally if any cluster needs a holder pod
-			holderEnabled = true
-		} else {
-			logger.Debugf("cluster %q: not deploying the ceph-csi plugin holder", request.NamespacedName)
-		}
 
 		// if holder pods were disabled, the controller needs to update the configmap for each
 		// cephcluster to remove the net namespace file path
