@@ -121,6 +121,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 				HostNetwork:        cephCluster.Spec.Network.IsHost(),
 				Volumes:            volumes,
 				PriorityClassName:  cephv1.GetCrashCollectorPriorityClassName(cephCluster.Spec.PriorityClassNames),
+				SecurityContext:    &corev1.PodSecurityContext{},
 				ServiceAccountName: k8sutil.DefaultServiceAccount,
 			},
 		}
