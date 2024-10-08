@@ -774,6 +774,7 @@ spec:
 * `rgwopslog`: Set resource requests/limits for the rgw-ops-log sidecar container.
 
 ### Accessing RGW Operations Logs
+
 Once enabled, logs can be accessed through a sidecar container named rgw-ops-log that collects the operations logs. Use the following command to view the logs:
 
 ```sh

@@ -813,7 +813,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 	}
 }
 
-// rgw operations will be log
+// rgw operations will be logged in sidecar rgw-ops-log
 func RgwOpsLogContainer(daemonID, ns string, c cephv1.ClusterSpec, rgwOpsLogResources v1.ResourceRequirements) *v1.Container {
 
 	// Generate ops log file name based on daemon ID

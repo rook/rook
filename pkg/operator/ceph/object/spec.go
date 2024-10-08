@@ -156,13 +156,12 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 	}
 
 	if c.store.Spec.RgwOpsLogEnabled != nil {
-		// If the rgw ops logs are enabled we add the side-car container
+		// If the rgw ops logs are enabled we add the side-car container named rgw-ops-log
 		if *c.store.Spec.RgwOpsLogEnabled {
 			monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 			if err := monStore.Set("client"+rgwConfig.DaemonID, "rgw_enable_ops_log", "true"); err != nil {
 				logger.Error(err, "failed to apply logging configuration for rgw ops log")
 			}
-			logger.Debug("rgw ops log is enabled now, creating side-car for it...")
 			shareProcessNamespace := true
 			podSpec.ShareProcessNamespace = &shareProcessNamespace
 			podSpec.Containers = append(podSpec.Containers, *controller.RgwOpsLogContainer(getDaemonName(rgwConfig), c.clusterInfo.Namespace, *c.clusterSpec, c.store.Spec.RgwOpsLog))
