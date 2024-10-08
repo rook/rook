@@ -144,6 +144,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 				Volumes:                       volumes,
 				PriorityClassName:             cephv1.GetCephExporterPriorityClassName(cephCluster.Spec.PriorityClassNames),
 				TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+				SecurityContext:               &corev1.PodSecurityContext{},
 				ServiceAccountName:            k8sutil.DefaultServiceAccount,
 			},
 		}
