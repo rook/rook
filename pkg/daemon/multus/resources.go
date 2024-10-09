@@ -386,12 +386,11 @@ func (vt *ValidationTest) cleanUpTestResources() (string, error) {
 	ctx := context.Background()
 
 	// delete the config object in the foreground so we wait until all validation test resources are
-	// gone before stopping, and do it now because there's no need to wait for just a test
-	var gracePeriodZero int64 = 0
+	// gone before stopping
 	deleteForeground := meta.DeletePropagationForeground
 	delOpts := meta.DeleteOptions{
-		PropagationPolicy:  &deleteForeground,
-		GracePeriodSeconds: &gracePeriodZero,
+		PropagationPolicy: &deleteForeground,
+		// GracePeriodSeconds // leave at default; do not force delete, which can exhaust CNI IPAM addresses
 	}
 	err := vt.Clientset.CoreV1().ConfigMaps(vt.Namespace).Delete(ctx, ownerConfigMapName, delOpts)
 	if err != nil {
