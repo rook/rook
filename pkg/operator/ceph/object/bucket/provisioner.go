@@ -56,8 +56,10 @@ type Provisioner struct {
 }
 
 type additionalConfigSpec struct {
-	maxObjects *int64
-	maxSize    *int64
+	maxObjects       *int64
+	maxSize          *int64
+	bucketMaxObjects *int64
+	bucketMaxSize    *int64
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -581,32 +583,67 @@ func (p *Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
 	}
-	currentQuota := objectUser.UserQuota
+	currentUserQuota := objectUser.UserQuota
+
+	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get bucket %q info", p.bucketName)
+	}
+	currentBucketQuota := bucket.BucketQuota
 
 	// enable or disable quota for user
-	quotaEnabled := (additionalConfig.maxObjects != nil) || (additionalConfig.maxSize != nil)
+	userQuotaEnabled := (additionalConfig.maxObjects != nil) || (additionalConfig.maxSize != nil)
 
-	var needSync bool
+	var needUserSync bool
 
-	if *currentQuota.Enabled != quotaEnabled {
-		needSync = true
+	if *currentUserQuota.Enabled != userQuotaEnabled {
+		needUserSync = true
 	}
-	if (currentQuota.MaxObjects != nil) && (additionalConfig.maxObjects != nil) && (*currentQuota.MaxObjects != *additionalConfig.maxObjects) {
-		needSync = true
+	if (currentUserQuota.MaxObjects != nil) && (additionalConfig.maxObjects != nil) && (*currentUserQuota.MaxObjects != *additionalConfig.maxObjects) {
+		needUserSync = true
 	}
-	if (currentQuota.MaxSize != nil) && (additionalConfig.maxSize != nil) && (*currentQuota.MaxSize != *additionalConfig.maxSize) {
-		needSync = true
+	if (currentUserQuota.MaxSize != nil) && (additionalConfig.maxSize != nil) && (*currentUserQuota.MaxSize != *additionalConfig.maxSize) {
+		needUserSync = true
 	}
 
-	if needSync {
+	if needUserSync {
 		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{
 			UID:        p.cephUserName,
-			Enabled:    &quotaEnabled,
+			Enabled:    &userQuotaEnabled,
 			MaxObjects: additionalConfig.maxObjects,
 			MaxSize:    additionalConfig.maxSize,
 		})
 		if err != nil {
-			return errors.Wrapf(err, "failed to set user %q quota enabled=%v for obc", p.cephUserName, quotaEnabled)
+			return errors.Wrapf(err, "failed to set user %q quota enabled=%v for obc", p.cephUserName, userQuotaEnabled)
+		}
+	}
+
+	// enable or disable quota for bucket
+	bucketQuotaEnabled := (additionalConfig.bucketMaxObjects != nil) || (additionalConfig.bucketMaxSize != nil)
+
+	var needBucketSync bool
+
+	if *currentBucketQuota.Enabled != bucketQuotaEnabled {
+		needBucketSync = true
+	}
+	if (currentBucketQuota.MaxObjects != nil) && (additionalConfig.bucketMaxObjects != nil) && (*currentBucketQuota.MaxObjects != *additionalConfig.bucketMaxObjects) {
+		needBucketSync = true
+	}
+	if (currentBucketQuota.MaxSize != nil) && (additionalConfig.bucketMaxSize != nil) && (*currentBucketQuota.MaxSize != *additionalConfig.bucketMaxSize) {
+		needBucketSync = true
+	}
+
+	if needBucketSync {
+		err = p.adminOpsClient.SetIndividualBucketQuota(p.clusterInfo.Context, admin.QuotaSpec{
+			UID:        p.cephUserName,
+			Bucket:     p.bucketName,
+			QuotaType:  "bucket",
+			Enabled:    &bucketQuotaEnabled,
+			MaxObjects: additionalConfig.bucketMaxObjects,
+			MaxSize:    additionalConfig.bucketMaxSize,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to set bucket %q quota enabled=%v for obc", p.bucketName, bucketQuotaEnabled)
 		}
 	}
 
