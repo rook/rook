@@ -29,7 +29,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	storagev1 "k8s.io/api/storage/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
@@ -54,6 +53,11 @@ type Provisioner struct {
 	tlsCert              []byte
 	insecureTLS          bool
 	adminOpsClient       *admin.API
+}
+
+type additionalConfigSpec struct {
+	maxObjects *int64
+	maxSize    *int64
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -568,73 +572,45 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 
 // Check for additional options mentioned in OBC and set them accordingly
 func (p *Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error {
-	var maxObjectsInt64 int64 = -1
-	var maxSizeInt64 int64 = -1
-	var err error
-	var quotaEnabled bool
-
-	maxObjects := MaxObjectQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
-	if maxObjects != "" {
-		quotaEnabled = true
-
-		maxObjectsInt64, err = toInt64(maxObjects)
-		if err != nil {
-			return errors.Wrapf(err, "failed to parse maxObjects quota for user %q", p.cephUserName)
-		}
-	}
-
-	maxSize := MaxSizeQuota(options.ObjectBucketClaim.Spec.AdditionalConfig)
-	if maxSize != "" {
-		quotaEnabled = true
-
-		maxSizeInt64, err = toInt64(maxSize)
-		if err != nil {
-			return errors.Wrapf(err, "failed to parse maxSize quota for user %q", p.cephUserName)
-		}
+	additionalConfig, err := additionalConfigSpecFromMap(options.ObjectBucketClaim.Spec.AdditionalConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to process additionalConfig")
 	}
 
 	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName})
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch user %q", p.cephUserName)
 	}
+	currentQuota := objectUser.UserQuota
 
 	// enable or disable quota for user
-	if *objectUser.UserQuota.Enabled != quotaEnabled {
-		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, Enabled: &quotaEnabled})
+	quotaEnabled := (additionalConfig.maxObjects != nil) || (additionalConfig.maxSize != nil)
+
+	var needSync bool
+
+	if *currentQuota.Enabled != quotaEnabled {
+		needSync = true
+	}
+	if (currentQuota.MaxObjects != nil) && (additionalConfig.maxObjects != nil) && (*currentQuota.MaxObjects != *additionalConfig.maxObjects) {
+		needSync = true
+	}
+	if (currentQuota.MaxSize != nil) && (additionalConfig.maxSize != nil) && (*currentQuota.MaxSize != *additionalConfig.maxSize) {
+		needSync = true
+	}
+
+	if needSync {
+		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{
+			UID:        p.cephUserName,
+			Enabled:    &quotaEnabled,
+			MaxObjects: additionalConfig.maxObjects,
+			MaxSize:    additionalConfig.maxSize,
+		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to set user %q quota enabled=%v for obc", p.cephUserName, quotaEnabled)
 		}
 	}
 
-	if !quotaEnabled {
-		// no need to process anything else if quotas are disabled
-		return nil
-	}
-
-	if *objectUser.UserQuota.MaxObjects != maxObjectsInt64 {
-		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxObjects: &maxObjectsInt64})
-		if err != nil {
-			return errors.Wrapf(err, "failed to set MaxObjects=%v to user %q", maxObjectsInt64, p.cephUserName)
-		}
-	}
-
-	if objectUser.UserQuota.MaxSize != &maxSizeInt64 {
-		err = p.adminOpsClient.SetUserQuota(p.clusterInfo.Context, admin.QuotaSpec{UID: p.cephUserName, MaxSize: &maxSizeInt64})
-		if err != nil {
-			return errors.Wrapf(err, "failed to set MaxSize=%v to user %q", maxSizeInt64, p.cephUserName)
-		}
-	}
-
 	return nil
-}
-
-func toInt64(maxSize string) (int64, error) {
-	maxSizeInt, err := resource.ParseQuantity(maxSize)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to parse quantity")
-	}
-
-	return maxSizeInt.Value(), nil
 }
 
 func (p *Provisioner) setTlsCaCert() error {
