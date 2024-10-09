@@ -482,6 +482,12 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		Privileged:             &privileged,
 		RunAsUser:              &runAsUser,
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{},
+			Drop: []v1.Capability{
+				"NET_RAW",
+			},
+		},
 	}
 
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
@@ -912,6 +918,9 @@ func getBlockDevMapperContext() *v1.SecurityContext {
 		Capabilities: &v1.Capabilities{
 			Add: []v1.Capability{
 				"MKNOD",
+			},
+			Drop: []v1.Capability{
+				"NET_RAW",
 			},
 		},
 		Privileged: &privileged,

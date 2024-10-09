@@ -209,6 +209,7 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+              add: []
               drop: ["ALL"]
           {{ end }}
           volumeMounts:
@@ -267,6 +268,7 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+              add: []
               drop: ["ALL"]
           {{ end }}
           volumeMounts:

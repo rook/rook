@@ -33,6 +33,7 @@ spec:
           # created by privileged CSI driver container.
           securityContext:
             capabilities:
+              add: []
               drop: ["ALL"]
             privileged: true
           image: {{ .RegistrarImage }}
