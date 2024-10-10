@@ -16,7 +16,7 @@ python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --
 * `--alias-rbd-data-pool-name`: Provides an alias for the  RBD data pool name, necessary if a special character is present in the pool name such as a period or underscore
 * `--rgw-endpoint`: (optional) The RADOS Gateway endpoint in the format `<IP>:<PORT>` or `<FQDN>:<PORT>`.
 * `--rgw-pool-prefix`: (optional) The prefix of the RGW pools. If not specified, the default prefix is `default`
-* `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate file path
+* `--rgw-tls-cert-path`: (optional) RADOS Gateway endpoint TLS certificate (or intermediate signing certificate) file path
 * `--rgw-skip-tls`: (optional) Ignore TLS certification validation when a self-signed certificate is provided (NOT RECOMMENDED)
 * `--rbd-metadata-ec-pool-name`: (optional) Provides the name of erasure coded RBD metadata pool, used for creating ECRBDStorageClass.
 * `--monitoring-endpoint`: (optional) Ceph Manager prometheus exporter endpoints (comma separated list of IP entries of active and standby mgrs)
