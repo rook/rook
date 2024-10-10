@@ -39,6 +39,7 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+              add: []
               drop: ["ALL"]
           image: {{ .CSIPluginImage }}
           command:

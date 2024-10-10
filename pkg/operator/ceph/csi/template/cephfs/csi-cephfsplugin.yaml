@@ -38,6 +38,7 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+              add: []
               drop: ["ALL"]
           image: {{ .RegistrarImage }}
           imagePullPolicy: {{ .ImagePullPolicy }}
@@ -143,6 +144,7 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+              add: []
               drop: ["ALL"]
           image: {{ .CSIPluginImage }}
           args:

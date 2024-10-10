@@ -729,6 +729,12 @@ func PodSecurityContext() *v1.SecurityContext {
 
 	return &v1.SecurityContext{
 		Privileged: &privileged,
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{},
+			Drop: []v1.Capability{
+				"NET_RAW",
+			},
+		},
 	}
 }
 
@@ -754,6 +760,12 @@ func PrivilegedContext(runAsRoot bool) *v1.SecurityContext {
 		sec.RunAsUser = &rootUser
 	}
 
+	sec.Capabilities = &v1.Capabilities{
+		Add: []v1.Capability{},
+		Drop: []v1.Capability{
+			"NET_RAW",
+		},
+	}
 	return sec
 }
 
