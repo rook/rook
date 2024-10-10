@@ -1073,6 +1073,7 @@ jobs:
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
           yq merge --inplace --arrays append tests/manifests/test-object.yaml tests/manifests/test-kms-vault-spec-token-auth.yaml
           yq write -i tests/manifests/test-object.yaml "spec.security.kms.connectionDetails.VAULT_BACKEND_PATH" rook/ver2
           kubectl create -f tests/manifests/test-object.yaml
@@ -1092,6 +1093,9 @@ jobs:
         run: |
           tests/scripts/deploy-validate-vault.sh validate_osd
           sudo lsblk
+
+      - name: wait and verify key rotation
+        run: tests/scripts/deploy-validate-vault.sh validate_key_rotation rook/ver1
 
       - name: validate rgw vault kv
         run: |
@@ -1158,6 +1162,7 @@ jobs:
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].count" 2
           yq write -i tests/manifests/test-cluster-on-pvc-encrypted.yaml "spec.storage.storageClassDeviceSets[0].volumeClaimTemplates[0].spec.resources.requests.storage" 6Gi
           kubectl create -f tests/manifests/test-cluster-on-pvc-encrypted.yaml
+          kubectl patch -n rook-ceph cephcluster rook-ceph --type merge -p '{"spec":{"security":{"keyRotation":{"enabled": true, "schedule":"*/1 * * * *"}}}}'
           tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/toolbox.yaml
 
       - name: wait for prepare pod
@@ -1173,6 +1178,9 @@ jobs:
         run: |
           tests/scripts/deploy-validate-vault.sh validate_osd
           sudo lsblk
+
+      - name: wait and verify key rotation
+        run: KUBERNETES_AUTH=true tests/scripts/deploy-validate-vault.sh validate_key_rotation rook/ver1
 
       - name: collect common logs
         if: always()
