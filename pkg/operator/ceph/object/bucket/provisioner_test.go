@@ -112,29 +112,30 @@ func TestPopulateDomainAndPort(t *testing.T) {
 	assert.Equal(t, "rook-ceph-rgw-test-store.ns.svc", p.storeDomainName)
 }
 
-func TestMaxSizeToInt64(t *testing.T) {
-	type args struct {
-		maxSize string
-	}
+func TestQuanityToInt64(t *testing.T) {
 	tests := []struct {
 		name    string
-		args    args
-		want    int64
+		input   string
+		want    *int64
 		wantErr bool
 	}{
-		{"invalid size", args{maxSize: "foo"}, 0, true},
-		{"2gb size is invalid", args{maxSize: "2g"}, 0, true},
-		{"2G size is valid", args{maxSize: "2G"}, 2000000000, false},
+		{"foo is invalid", "foo", nil, true},
+		{"2gb size is invalid", "2g", nil, true},
+		{"2G size is valid", "2G", &(&struct{ i int64 }{2000000000}).i, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := toInt64(tt.args.maxSize)
+			got, err := quanityToInt64(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("maxSizeToInt64() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("quanityToInt64() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("maxSizeToInt64() = %v, want %v", got, tt.want)
+			if got != nil && tt.want != nil && *got != *tt.want {
+				t.Errorf("quanityToInt64() = %v, want %v", *got, *tt.want)
+			} else if got != nil && tt.want == nil {
+				t.Errorf("quanityToInt64() = %v, want %v", *got, tt.want)
+			} else if got == nil && tt.want != nil {
+				t.Errorf("quanityToInt64() = %v, want %v", got, *tt.want)
 			}
 		})
 	}
@@ -343,6 +344,26 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		// there is only one time max-objects is set, and it's to the right value
 		assert.NotEmpty(t, putWithValue(`max-objects=3`, putValsSeen))
 		assert.Equal(t, 1, numberOfPutsWithValue(`max-objects`, putValsSeen))
+	})
+}
+
+func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
+	t.Run("does not fail on empty map", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{}, *spec)
+	})
+
+	t.Run("maxObjects field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"maxObjects": "2"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{maxObjects: &(&struct{ i int64 }{2}).i}, *spec)
+	})
+
+	t.Run("maxSize field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"maxSize": "3"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{maxSize: &(&struct{ i int64 }{3}).i}, *spec)
 	})
 }
 
