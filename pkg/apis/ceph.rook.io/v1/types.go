@@ -3041,6 +3041,9 @@ type StorageScopeSpec struct {
 	// +nullable
 	// +optional
 	StorageClassDeviceSets []StorageClassDeviceSet `json:"storageClassDeviceSets,omitempty"`
+	// Migration handles the OSD migration
+	// +optional
+	Migration Migration `json:"migration,omitempty"`
 	// +optional
 	Store OSDStore `json:"store,omitempty"`
 	// +optional
@@ -3077,6 +3080,15 @@ type StorageScopeSpec struct {
 	// The default is false since data rebalancing can cause temporary cluster slowdown.
 	// +optional
 	AllowOsdCrushWeightUpdate bool `json:"allowOsdCrushWeightUpdate,omitempty"`
+}
+
+// Migration handles the OSD migration
+type Migration struct {
+	// A user confirmation to migrate the OSDs. It destroys each OSD one at a time, cleans up the backing disk
+	// and prepares OSD with same ID on that disk
+	// +optional
+	// +kubebuilder:validation:Pattern=`^$|^yes-really-migrate-osds$`
+	Confirmation string `json:"confirmation,omitempty"`
 }
 
 // OSDStore is the backend storage type used for creating the OSDs
