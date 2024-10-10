@@ -339,9 +339,15 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// Set Progressing status, we are done reconciling, the health check go routine will update the status
 	updateStatus(r.opManagerContext, observedGeneration, r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore))
 
+	// since objectstore is ready, now create cosi user
+	res, err := r.reconcileCOSIUser(cephObjectStore)
+	if err != nil {
+		logger.Error("failed to create COSI user")
+	}
+
 	// Return and do not requeue
 	logger.Debug("done reconciling")
-	return reconcile.Result{}, *cephObjectStore, nil
+	return res, *cephObjectStore, err
 }
 
 func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
@@ -483,8 +489,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 
 	}
 
-	// Create COSI user and secret
-	return r.reconcileCOSIUser(cephObjectStore)
+	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileCephObjectStore) retrieveMultisiteZone(store *cephv1.CephObjectStore, zoneGroupName string, realmName string) (reconcile.Result, error) {
@@ -548,35 +553,76 @@ func (r *ReconcileCephObjectStore) getMultisiteResourceNames(cephObjectStore *ce
 
 func (r *ReconcileCephObjectStore) reconcileCOSIUser(cephObjectStore *cephv1.CephObjectStore) (reconcile.Result, error) {
 	// Create COSI user and secret
-	userConfig := generateCOSIUserConfig()
-	var user admin.User
+	cosiUserConfig := generateCOSIUserConfig()
+	var cosiUser admin.User
 
 	// Create COSI user
 	objCtx, err := NewMultisiteContext(r.context, r.clusterInfo, cephObjectStore)
+
+	logger.Debugf("creating cosi user object %q for object store %q", cosiUserConfig.ID, objCtx.Name)
+
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to get object context")
 	}
 
-	adminOpsCtx, err := newMultisiteAdminOpsCtxFunc(objCtx, &cephObjectStore.Spec)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrapf(err, "failed to get admin ops API context")
-	}
+	if cephObjectStore.Spec.IsExternal() {
+		adminOpsCtx, err := newMultisiteAdminOpsCtxFunc(objCtx, &cephObjectStore.Spec)
+		if err != nil {
+			return reconcile.Result{}, errors.Wrapf(err, "failed to get admin ops API context")
+		}
 
-	user, err = adminOpsCtx.AdminOpsClient.GetUser(r.opManagerContext, *userConfig)
-	if err != nil {
-		if errors.Is(err, admin.ErrNoSuchUser) {
-			logger.Infof("creating COSI user %q", userConfig.ID)
-			user, err = adminOpsCtx.AdminOpsClient.CreateUser(r.opManagerContext, *userConfig)
-			if err != nil {
-				return reconcile.Result{}, errors.Wrapf(err, "failed to create COSI user %q", userConfig.ID)
+		cosiUser, err = adminOpsCtx.AdminOpsClient.GetUser(r.opManagerContext, *cosiUserConfig)
+		if err != nil {
+			if errors.Is(err, admin.ErrNoSuchUser) {
+				cosiUser, err = adminOpsCtx.AdminOpsClient.CreateUser(r.opManagerContext, *cosiUserConfig)
+				if err != nil {
+					return reconcile.Result{}, errors.Wrapf(err, "failed to create COSI user %q", cosiUserConfig.ID)
+				}
+			} else {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to get COSI user %q", cosiUserConfig.ID)
 			}
-		} else {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to get COSI user %q", userConfig.ID)
+		}
+	} else {
+		// Fetch the cosi user locally
+		userConfig := ObjectUser{
+			UserID:      cosiUserConfig.ID,
+			DisplayName: &cosiUserConfig.DisplayName,
+		}
+
+		forceUserCreation := false
+		// If the cluster where we are running the rgw user create for the admin ops user is configured
+		// as a secondary cluster the gateway will error out with:
+		// 		Please run the command on master zone. Performing this operation on non-master zone leads to
+		// 		inconsistent metadata between zones
+		// It is safe to force it since the creation will return that the user already exists since it
+		// has been created by the primary cluster. In this case, we simply read the user details.
+		if cephObjectStore.Spec.IsMultisite() {
+			forceUserCreation = true
+		}
+
+		user, rgwerr, err := CreateUser(objCtx, userConfig, forceUserCreation)
+		if err != nil {
+			if rgwerr == ErrorCodeFileExists {
+				user, _, err = GetUser(objCtx, userConfig.UserID)
+				if err != nil {
+					return reconcile.Result{}, errors.Wrapf(err, "failed to get details from ceph object user %q for object store %q", userConfig.UserID, objCtx.Name)
+				}
+			} else {
+				return reconcile.Result{}, errors.Wrapf(err, "failed to create object user %q. error code %d for object store %q", userConfig.UserID, rgwerr, objCtx.Name)
+			}
+		}
+		cosiUser.ID = user.UserID
+		cosiUser.DisplayName = *user.DisplayName
+		cosiUser.Keys = []admin.UserKeySpec{
+			{
+				AccessKey: *user.AccessKey,
+				SecretKey: *user.SecretKey,
+			},
 		}
 	}
 
 	// Create COSI user secret
-	return ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStore, &user, objCtx.Endpoint, cephObjectStore.Namespace, cephObjectStore.Name, cephObjectStore.Spec.Gateway.SSLCertificateRef)
+	return ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStore, &cosiUser, objCtx.Endpoint, cephObjectStore.Namespace, cephObjectStore.Name, cephObjectStore.Spec.Gateway.SSLCertificateRef)
 }
 
 func generateCOSIUserConfig() *admin.User {
