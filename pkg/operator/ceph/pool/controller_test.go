@@ -562,6 +562,66 @@ func TestCephBlockPoolController(t *testing.T) {
 	})
 }
 
+func TestIsAnyRadosNamespaceMirrored(t *testing.T) {
+	pool := "test"
+	object := []runtime.Object{}
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	executor := &exectest.MockExecutor{}
+	c := &clusterd.Context{
+		Executor:      executor,
+		Clientset:     testop.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
+	}
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r := &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:  context.TODO(),
+		recorder:          record.NewFakeRecorder(5),
+		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
+	}
+
+	t.Run("rados namespace mirroring enabled", func(t *testing.T) {
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" {
+					assert.Equal(t, pool, args[2])
+					return `[{"name":"abc"},{"name":"abc1"},{"name":"abc3"}]`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return "{}", nil
+				}
+				return "", nil
+			},
+		}
+		enabled, err := r.isAnyRadosNamespaceMirrored(pool)
+		assert.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("rados namespace mirroring disabled", func(t *testing.T) {
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" {
+					assert.Equal(t, pool, args[2])
+					return `[]`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return "{}", nil
+				}
+				return "", nil
+			},
+		}
+		enabled, err := r.isAnyRadosNamespaceMirrored(pool)
+		assert.NoError(t, err)
+		assert.False(t, enabled)
+	})
+}
+
 func TestConfigureRBDStats(t *testing.T) {
 	var (
 		s         = runtime.NewScheme()

@@ -3167,6 +3167,20 @@ string
 the CephBlockPool CR.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>mirroring</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroring">
+RadosNamespaceMirroring
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3224,6 +3238,20 @@ string
 <td>
 <p>BlockPoolName is the name of Ceph BlockPool. Typically it&rsquo;s the name of
 the CephBlockPool CR.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mirroring</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroring">
+RadosNamespaceMirroring
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
 </td>
 </tr>
 </tbody>
@@ -11491,6 +11519,86 @@ optional</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceSpec">CephBlockPoolRadosNamespaceSpec</a>)
+</p>
+<div>
+<p>RadosNamespaceMirroring represents the mirroring configuration of CephBlockPoolRadosNamespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>remoteNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mode</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroringMode">
+RadosNamespaceMirroringMode
+</a>
+</em>
+</td>
+<td>
+<p>Mode is the mirroring mode; either pool or image</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotSchedules</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SnapshotScheduleSpec">
+[]SnapshotScheduleSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SnapshotSchedules is the scheduling of snapshot for mirrored images</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.RadosNamespaceMirroringMode">RadosNamespaceMirroringMode
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring</a>)
+</p>
+<div>
+<p>RadosNamespaceMirroringMode represents the mode of the RadosNamespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;image&#34;</p></td>
+<td><p>RadosNamespaceMirroringModeImage represents the image mode</p>
+</td>
+</tr><tr><td><p>&#34;pool&#34;</p></td>
+<td><p>RadosNamespaceMirroringModePool represents the pool mode</p>
+</td>
+</tr></tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ReadAffinitySpec">ReadAffinitySpec
 </h3>
 <p>
@@ -12155,7 +12263,7 @@ string
 <h3 id="ceph.rook.io/v1.SnapshotScheduleSpec">SnapshotScheduleSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FSMirroringSpec">FSMirroringSpec</a>, <a href="#ceph.rook.io/v1.MirroringSpec">MirroringSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FSMirroringSpec">FSMirroringSpec</a>, <a href="#ceph.rook.io/v1.MirroringSpec">MirroringSpec</a>, <a href="#ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring</a>)
 </p>
 <div>
 <p>SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool</p>

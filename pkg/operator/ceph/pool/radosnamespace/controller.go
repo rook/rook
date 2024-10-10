@@ -57,6 +57,8 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
 var poolNamespace = reflect.TypeOf(cephv1.CephBlockPoolRadosNamespace{}).Name()
 
+var detectCephVersion = opcontroller.DetectCephVersion
+
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
 	Kind:       poolNamespace,
@@ -181,7 +183,21 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo.Context = r.opManagerContext
-
+	cephversion, err := detectCephVersion(
+		r.opManagerContext,
+		r.opConfig.Image,
+		cephBlockPoolRadosNamespace.Namespace,
+		controllerName,
+		k8sutil.NewOwnerInfo(cephBlockPoolRadosNamespace, r.scheme),
+		r.context.Clientset,
+		&cephCluster.Spec,
+	)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to detect ceph version")
+	}
+	if cephversion != nil {
+		r.clusterInfo.CephVersion = *cephversion
+	}
 	// DELETE: the CR was deleted
 	if !cephBlockPoolRadosNamespace.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("delete cephBlockPoolRadosNamespace %q", namespacedName)
@@ -230,11 +246,12 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	// Build the NamespacedName to fetch the CephBlockPool and make sure it exists, if not we cannot
 	// create the rados namespace
 	cephBlockPool := &cephv1.CephBlockPool{}
-	cephBlockPoolRadosNamespacedName := types.NamespacedName{Name: cephBlockPoolRadosNamespace.Spec.BlockPoolName, Namespace: request.Namespace}
-	err = r.client.Get(r.opManagerContext, cephBlockPoolRadosNamespacedName, cephBlockPool)
+	pool := cephBlockPoolRadosNamespace.Spec.BlockPoolName
+	cephBlockPoolNamespacedName := types.NamespacedName{Name: pool, Namespace: request.Namespace}
+	err = r.client.Get(r.opManagerContext, cephBlockPoolNamespacedName, cephBlockPool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			return reconcile.Result{}, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", cephBlockPoolRadosNamespace.Spec.BlockPoolName, cephBlockPoolRadosNamespace.Name)
+			return reconcile.Result{}, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", pool, cephBlockPoolRadosNamespace.Name)
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, errors.Wrap(err, "failed to get cephBlockPoolRadosNamespace")
@@ -243,7 +260,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 	// If the cephBlockPool is not ready to accept commands, we should wait for it to be ready
 	if cephBlockPool.Status.Phase != cephv1.ConditionReady {
 		// We know the CR is present so it should a matter of second for it to become ready
-		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", cephBlockPoolRadosNamespace.Spec.BlockPoolName, cephBlockPoolRadosNamespace.Name)
+		return reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}, errors.Wrapf(err, "failed to fetch ceph blockpool %q, cannot create rados namespace %q", pool, cephBlockPoolRadosNamespace.Name)
 	}
 	// Create or Update rados namespace
 	err = r.createOrUpdateRadosNamespace(cephBlockPoolRadosNamespace)
@@ -261,10 +278,15 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, errors.Wrap(err, "failed to save cluster config")
 	}
 
+	err = r.reconcileMirroring(cephBlockPoolRadosNamespace, cephBlockPool)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
 	r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
 
 	if csi.EnableCSIOperator() {
-		err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, cephBlockPoolRadosNamespacedName, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Name)
+		err = csi.CreateUpdateClientProfileRadosNamespace(r.clusterInfo.Context, r.client, r.clusterInfo, cephBlockPoolNamespacedName, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Name)
 		if err != nil {
 			return reconcile.Result{}, errors.Wrap(err, "failed to create ceph csi-op config CR for RadosNamespace")
 		}
@@ -378,7 +400,7 @@ func buildClusterID(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamesp
 }
 
 func (r *ReconcileCephBlockPoolRadosNamespace) cleanup(radosNamespace *cephv1.CephBlockPoolRadosNamespace, cephCluster *cephv1.CephCluster) error {
-	logger.Infof("starting cleanup of the ceph resources for radosNamesapce %q in namespace %q", radosNamespace.Name, radosNamespace.Namespace)
+	logger.Infof("starting cleanup of the ceph resources for radosNamespace %q in namespace %q", radosNamespace.Name, radosNamespace.Namespace)
 	cleanupConfig := map[string]string{
 		opcontroller.CephBlockPoolNameEnv:           radosNamespace.Spec.BlockPoolName,
 		opcontroller.CephBlockPoolRadosNamespaceEnv: getRadosNamespaceName(radosNamespace),
@@ -387,7 +409,56 @@ func (r *ReconcileCephBlockPoolRadosNamespace) cleanup(radosNamespace *cephv1.Ce
 	jobName := k8sutil.TruncateNodeNameForJob("cleanup-radosnamespace-%s", fmt.Sprintf("%s-%s", radosNamespace.Spec.BlockPoolName, radosNamespace.Name))
 	err := cleanup.StartJob(r.clusterInfo.Context, r.context.Clientset, jobName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to run clean up job to clean the ceph resources in radosNamesapce %q", radosNamespace.Name)
+		return errors.Wrapf(err, "failed to run clean up job to clean the ceph resources in radosNamespace %q", radosNamespace.Name)
+	}
+	return nil
+}
+
+func checkBlockPoolMirroring(cephBlockPool *cephv1.CephBlockPool) bool {
+	return !(cephBlockPool.Spec.Mirroring.Enabled)
+}
+
+func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace, cephBlockPool *cephv1.CephBlockPool) error {
+	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPool.Name, getRadosNamespaceName(cephBlockPoolRadosNamespace))
+	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mirroring info for the radosnamespace %q", poolAndRadosNamespaceName)
+	}
+
+	if cephBlockPoolRadosNamespace.Spec.Mirroring != nil {
+		mirroringDisabled := checkBlockPoolMirroring(cephBlockPool)
+		if mirroringDisabled {
+			return errors.Errorf("mirroring is disabled for block pool %q, cannot enable mirroring for radosnamespace %q", cephBlockPool.Name, poolAndRadosNamespaceName)
+		}
+
+		err = cephclient.EnableRBDRadosNamespaceMirroring(r.context, r.clusterInfo, poolAndRadosNamespaceName, cephBlockPoolRadosNamespace.Spec.Mirroring.RemoteNamespace, string(cephBlockPoolRadosNamespace.Spec.Mirroring.Mode))
+		if err != nil {
+			return errors.Wrap(err, "failed to enable rbd rados namespace mirroring")
+		}
+
+		// Schedule snapshots
+		err = cephclient.EnableSnapshotSchedules(r.context, r.clusterInfo, poolAndRadosNamespaceName, cephBlockPoolRadosNamespace.Spec.Mirroring.SnapshotSchedules)
+		if err != nil {
+			return errors.Wrapf(err, "failed to enable snapshot scheduling for rbd rados namespace %q", poolAndRadosNamespaceName)
+		}
+	}
+
+	if cephBlockPoolRadosNamespace.Spec.Mirroring == nil && mirrorInfo.Mode != "disabled" {
+		if mirrorInfo.Mode == "image" {
+			mirroredPools, err := cephclient.GetMirroredPoolImages(r.context, r.clusterInfo, poolAndRadosNamespaceName)
+			if err != nil {
+				return errors.Wrapf(err, "failed to list mirrored images for radosnamespace %q", poolAndRadosNamespaceName)
+			}
+
+			if len(*mirroredPools.Images) > 0 {
+				return errors.Errorf("there are images in the radosnamespace %q. Please manually disable mirroring for each image", poolAndRadosNamespaceName)
+			}
+		}
+
+		err = cephclient.DisableRBDRadosNamespaceMirroring(r.context, r.clusterInfo, poolAndRadosNamespaceName)
+		if err != nil {
+			return errors.Wrap(err, "failed to disable rbd rados namespace mirroring")
+		}
 	}
 	return nil
 }

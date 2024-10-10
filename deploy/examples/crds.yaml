@@ -63,6 +63,38 @@ spec:
                   x-kubernetes-validations:
                     - message: blockPoolName is immutable
                       rule: self == oldSelf
+                mirroring:
+                  description: Mirroring configuration of CephBlockPoolRadosNamespace
+                  properties:
+                    mode:
+                      description: Mode is the mirroring mode; either pool or image
+                      enum:
+                        - ""
+                        - pool
+                        - image
+                      type: string
+                    remoteNamespace:
+                      description: RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
+                      type: string
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the scheduling of snapshot for mirrored images
+                      items:
+                        description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
+                        properties:
+                          interval:
+                            description: Interval represent the periodicity of the snapshot.
+                            type: string
+                          path:
+                            description: Path is the path to snapshot, only valid for CephFS
+                            type: string
+                          startTime:
+                            description: StartTime indicates when to start the snapshot
+                            type: string
+                        type: object
+                      type: array
+                  required:
+                    - mode
+                  type: object
                 name:
                   description: The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
                   type: string

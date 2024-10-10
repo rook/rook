@@ -104,3 +104,37 @@ func DeleteRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	logger.Infof("successfully deleted rados namespace %s/%s in k8s namespace %q", poolName, namespaceName, clusterInfo.Namespace)
 	return nil
 }
+
+// ListRadosNamespacesInPool lists the rados namespaces in a pool
+func ListRadosNamespacesInPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) ([]string, error) {
+	// Build command
+	args := []string{"namespace", "list", poolName}
+	// sample output: [{"name":"abc"},{"name":"abc1"},{"name":"abc3"}]
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = true
+
+	// Run command
+	buf, err := cmd.Run()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to retrieve rados namespaces on pool %q. %s", poolName, string(buf))
+	}
+
+	type radosNamespace struct {
+		Name string `json:"name,omitempty"`
+	}
+
+	// Unmarshal JSON into Go struct
+	var namespaces []radosNamespace
+
+	if err := json.Unmarshal([]byte(buf), &namespaces); err != nil {
+		return nil, errors.Wrap(err, "failed to unmarshal rados namespaces list response")
+	}
+
+	logger.Debugf("successfully listed rados namespaces for pool %q running in ceph cluster namespace %q", poolName, clusterInfo.Namespace)
+
+	var namespacesList []string
+	for _, namespace := range namespaces {
+		namespacesList = append(namespacesList, namespace.Name)
+	}
+	return namespacesList, nil
+}
