@@ -88,6 +88,7 @@ func createCOSIPodSpec(cephCOSIDriver *cephv1.CephCOSIDriver) (corev1.PodTemplat
 			cosiDriverContainer,
 			cosiSideCarContainer,
 		},
+		SecurityContext:    &corev1.PodSecurityContext{},
 		ServiceAccountName: DefaultServiceAccountName,
 		Volumes: []corev1.Volume{
 			{Name: cosiSocketVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},

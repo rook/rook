@@ -110,6 +110,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 			RestartPolicy:      corev1.RestartPolicyNever,
 			HostNetwork:        cephCluster.Spec.Network.IsHost(),
 			Volumes:            volumes,
+			SecurityContext:    &corev1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}

@@ -631,8 +631,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 					WorkingDir:      opconfig.VarLogCephDir,
 				},
 			},
-			Volumes:       volumes,
-			SchedulerName: osdProps.schedulerName,
+			Volumes:         volumes,
+			SecurityContext: &v1.PodSecurityContext{},
+			SchedulerName:   osdProps.schedulerName,
 		},
 	}
 

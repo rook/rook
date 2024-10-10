@@ -161,6 +161,7 @@ func (c *Cluster) getKeyRotationPodTemplateSpec(osdProps osdProperties, osd OSDI
 			HostNetwork:       c.spec.Network.IsHost(),
 			PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 			SchedulerName:     osdProps.schedulerName,
+			SecurityContext:   &v1.PodSecurityContext{},
 		},
 	}
 	if c.spec.Network.IsHost() {

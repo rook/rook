@@ -177,6 +177,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 					},
 					HostNetwork:       opcontroller.EnforceHostNetwork(),
 					PriorityClassName: k8sutil.GetValue(data, discoverDaemonsetPriorityClassNameEnv, ""),
+					SecurityContext:   &v1.PodSecurityContext{},
 				},
 			},
 		},

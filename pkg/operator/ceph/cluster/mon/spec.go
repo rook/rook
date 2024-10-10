@@ -190,6 +190,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		Volumes:            controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		HostNetwork:        monConfig.UseHostNetwork,
 		PriorityClassName:  cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		SecurityContext:    &corev1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 
