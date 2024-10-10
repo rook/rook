@@ -1,0 +1,158 @@
+#####################################################################
+# Create an two object stores with the same set of pre-created pools
+#  kubectl create -f two-object-one-zone-test.yaml
+#####################################################################
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: two-object-one-zone
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: rgw.root
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  name: .rgw.root
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.control
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.meta
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.log
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.buckets.index
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.buckets.non-ec
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.otp
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: two-object-one-zone.rgw.buckets.data
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: two-object-one-zone
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: two-object-one-zone
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: two-object-one-zone
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: two-object-one-zone
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: two-object-one-zone
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: two-object-one-zone-alpha
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: two-object-one-zone
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: two-object-one-zone-beta
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: two-object-one-zone
