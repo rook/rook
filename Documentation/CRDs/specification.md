@@ -1847,6 +1847,32 @@ GatewaySpec
 </tr>
 <tr>
 <td>
+<code>rgwOpsLogEnabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enable RGW Ops Logs for S3 in a sidecar named rgw-ops-log</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rgwopslog</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RgwOpsLog represents the way to specify resource requirements for the rgw-ops-log sidecar</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>protocols</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ProtocolSpec">
@@ -9736,6 +9762,32 @@ GatewaySpec
 <td>
 <em>(Optional)</em>
 <p>The rgw pod info</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rgwOpsLogEnabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enable RGW Ops Logs for S3 in a sidecar named rgw-ops-log</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>rgwopslog</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RgwOpsLog represents the way to specify resource requirements for the rgw-ops-log sidecar</p>
 </td>
 </tr>
 <tr>

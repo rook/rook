@@ -1487,6 +1487,14 @@ type ObjectStoreSpec struct {
 	// +nullable
 	Gateway GatewaySpec `json:"gateway"`
 
+	// Enable RGW Ops Logs for S3 in a sidecar named rgw-ops-log
+	// +optional
+	RgwOpsLogEnabled *bool `json:"rgwOpsLogEnabled,omitempty"`
+
+	// RgwOpsLog represents the way to specify resource requirements for the rgw-ops-log sidecar
+	// +optional
+	RgwOpsLog v1.ResourceRequirements `json:"rgwopslog,omitempty"`
+
 	// The protocol specification
 	// +optional
 	Protocols ProtocolSpec `json:"protocols,omitempty"`
