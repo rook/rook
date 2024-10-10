@@ -377,7 +377,7 @@ class RadosJSON:
             "--rgw-tls-cert-path",
             default="",
             required=False,
-            help="RADOS Gateway endpoint TLS certificate",
+            help="RADOS Gateway endpoint TLS certificate (or intermediate signing certificate)",
         )
         output_group.add_argument(
             "--rgw-skip-tls",

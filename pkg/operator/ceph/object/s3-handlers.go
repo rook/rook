@@ -199,12 +199,18 @@ func (s *S3Agent) DeleteObjectInBucket(bucketname string, key string) (bool, err
 
 func BuildTransportTLS(tlsCert []byte, insecure bool) *http.Transport {
 	//nolint:gosec // is enabled only for testing
-	tlsConfig := &tls.Config{MinVersion: tls.VersionTLS12, InsecureSkipVerify: insecure}
-	if len(tlsCert) > 0 {
-		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(tlsCert)
-		tlsConfig.RootCAs = caCertPool
+	tlsConfig := &tls.Config{InsecureSkipVerify: insecure}
+	var caCertPool *x509.CertPool
+	var err error
+	caCertPool, err = x509.SystemCertPool()
+	if err != nil {
+		logger.Warningf("failed to load system cert pool; continuing without loading system certs")
+		caCertPool = x509.NewCertPool() // start with empty cert pool instead
 	}
+	if len(tlsCert) > 0 {
+		caCertPool.AppendCertsFromPEM(tlsCert)
+	}
+	tlsConfig.RootCAs = caCertPool
 
 	return &http.Transport{
 		TLSClientConfig: tlsConfig,
