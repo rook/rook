@@ -21,7 +21,6 @@ import (
 	_ "embed"
 	"fmt"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -30,7 +29,6 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
@@ -38,7 +36,6 @@ import (
 	k8scsi "k8s.io/api/storage/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 
@@ -968,7 +965,7 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 		},
 	}
 
-	netNamespaceFilePath := generateNetNamespaceFilePath(CSIParam.KubeletDirPath, driver.fullName, c.cluster.Namespace)
+	netNamespaceFilePath := ""
 	if driver.name == RBDDriverShortName {
 		clusterConfigEntry.RBD.NetNamespaceFilePath = netNamespaceFilePath
 	}
@@ -986,43 +983,6 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 		return errors.Wrapf(err, "failed to save cluster config for csi holder %q", driver.fullName)
 	}
 	return nil
-}
-
-func GenerateNetNamespaceFilePath(ctx context.Context, client client.Client, clusterNamespace, opNamespace, driverName string) (string, error) {
-	var driverSuffix string
-	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: opNamespace}
-	opConfig := &corev1.ConfigMap{}
-	err := client.Get(ctx, opNamespaceName, opConfig)
-	if err != nil && !kerrors.IsNotFound(err) {
-		return "", errors.Wrap(err, "failed to get operator's configmap")
-	}
-
-	// net namespace file path is empty string if holder pods are disabled
-	csiDisableHolders, err := strconv.ParseBool(k8sutil.GetValue(opConfig.Data, "CSI_DISABLE_HOLDER_PODS", "false"))
-	if err != nil {
-		return "", errors.Wrap(err, "failed to parse value for 'CSI_DISABLE_HOLDER_PODS'")
-	}
-	if csiDisableHolders {
-		return "", nil
-	}
-
-	switch driverName {
-	case RBDDriverShortName:
-		driverSuffix = rbdDriverSuffix
-	case CephFSDriverShortName:
-		driverSuffix = cephFSDriverSuffix
-	default:
-		return "", errors.Errorf("unsupported driver name %q", driverName)
-	}
-
-	kubeletDirPath := k8sutil.GetValue(opConfig.Data, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
-	driverFullName := fmt.Sprintf("%s.%s", opNamespace, driverSuffix)
-
-	return generateNetNamespaceFilePath(kubeletDirPath, driverFullName, clusterNamespace), nil
-}
-
-func generateNetNamespaceFilePath(kubeletDirPath, driverFullName, clusterNamespace string) string {
-	return fmt.Sprintf("%s/plugins/%s/%s.net.ns", kubeletDirPath, driverFullName, clusterNamespace)
 }
 
 func validateCSIDriverNamePrefix(ctx context.Context, clientset kubernetes.Interface, namespace, driverNamePrefix string) error {
