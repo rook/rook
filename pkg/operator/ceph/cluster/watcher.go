@@ -90,9 +90,9 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 	cluster := c.getCephCluster()
 
 	// Continue reconcile in case of failure too since we don't want to block other node reconcile
-	if err := c.handleNodeFailure(ctx, cluster, node); err != nil {
-		logger.Errorf("failed to handle node failure. %v", err)
-	}
+	// if err := c.handleNodeFailure(ctx, cluster, node); err != nil {
+	// 	logger.Errorf("failed to handle node failure. %v", err)
+	// }
 
 	// skip reconcile if node is already checked in a previous reconcile
 	if nodesCheckedForReconcile.Has(node.Name) {
