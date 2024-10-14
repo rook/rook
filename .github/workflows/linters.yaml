@@ -61,4 +61,4 @@ jobs:
         run: pylint $(git ls-files '*.py') -E
 
       - name: Setup black for py
-        uses: psf/black@b965c2a5026f8ba399283ba3e01898b012853c79 # stable
+        uses: psf/black@1b2427a2b785cc4aac97c19bb4b9a0de063f9547 # stable
