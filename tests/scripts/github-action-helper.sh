@@ -476,23 +476,28 @@ function deploy_second_rook_cluster() {
   deploy_toolbox
 }
 
-function wait_for_rgw() {
-  for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --no-headers --field-selector=status.phase=Running | wc -l)" -ge 1 ]; then
-      echo "rgw pod is found"
-      break
+function wait_for() {
+  local kind=${1?kind is required}
+  local name=${2?resource name is required}
+  local ns=${3:-rook-ceph}
+  local timeout=${4:-120}
+  local status=${5:-Ready}
+
+  local start_time="${SECONDS}"
+  local elapsed_time=0
+  while [[ $elapsed_time -lt $timeout ]]; do
+    if [[ "$(kubectl -n "$ns" get "$kind" "$name" -o 'jsonpath={..status.phase}')" == "$status" ]]; then
+      echo "${kind}/${name} in ${ns} is ${status} -  elapsed time ${elapsed_time}s"
+      return 0
     fi
-    echo "waiting for rgw pods"
+
+    elapsed_time=$((SECONDS - start_time))
+    echo "waiting for ${kind}/${name} in ${ns} to be ${status} - elapsed time ${elapsed_time}s"
     sleep 5
   done
-  for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ]; then
-      echo "rgw is ready"
-      break
-    fi
-    echo "waiting for rgw becomes ready"
-    sleep 5
-  done
+
+  echo "timed out waiting for ${kind}/${name} in ${ns} to be ${status} - elapsed time ${elapsed_time}s " >&2
+  exit 1
 }
 
 function verify_operator_log_message() {
@@ -561,7 +566,7 @@ function write_object_read_from_replica_cluster() {
   # a direct sub-shell.
   S3CMD_ERROR=0
   (
-    sleep 60
+    sleep 300
     kill -s SIGUSR1 $$
   ) 2>/dev/null &
   trap "{ S3CMD_ERROR=1; break; }" SIGUSR1
