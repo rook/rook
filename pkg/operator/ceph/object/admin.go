@@ -106,7 +106,7 @@ const (
 	RGWAdminOpsUserSecretName = "rgw-admin-ops-user"
 	rgwAdminOpsUserAccessKey  = "accessKey"
 	rgwAdminOpsUserSecretKey  = "secretKey"
-	rgwAdminOpsUserCaps       = "buckets=*;users=*;usage=read;metadata=read;zone=read"
+	rgwAdminOpsUserCaps       = "buckets=*;users=read;usage=read;metadata=read;zone=read"
 )
 
 var rgwAdminOpsUserDisplayName = "RGW Admin Ops User"
