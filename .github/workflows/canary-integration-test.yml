@@ -1632,74 +1632,106 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
 
-  multus-cluster-network:
+  multus-public-and-cluster:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    strategy:
-      matrix:
-        ceph-image: ${{ fromJson(inputs.ceph_images) }}
     steps:
       - name: checkout
         uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
         with:
           fetch-depth: 0
 
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
       - name: setup golang
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.22"
 
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-
       - name: set Ceph version in CephCluster manifest
-        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-multus-test.yaml" "${{ github.event.inputs.ceph-image }}"
 
       - name: install deps
         shell: bash --noprofile --norc -eo pipefail -x {0}
         run: tests/scripts/github-action-helper.sh install_deps
 
+      # Use KinD instead of Minikube because GH Action runners don't allow iface changes
+      - name: Create KinD Cluster
+        uses: helm/kind-action@0025e74a8c7512023d06dc019c617aa3cf561fde # v1.10.0
+        with:
+          # config: # would like for this test to be 2+ nodes, but KinD runs out of disk space
+          cluster_name: kind
+
+      - name: consider debugging
+        if: runner.debug || contains(github.event.pull_request.labels.*.name, 'debug-ci')
+        run: |
+          # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
+          if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ inputs.use-tmate }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
+            echo USE_TMATE=1 >> $GITHUB_ENV
+          fi
+
+      - name: set up tmate session for debugging
+        if: env.USE_TMATE
+        uses: mxschmitt/action-tmate@v3
+        with:
+          limit-access-to-actor: false
+          detached: true
+
       - name: print k8s cluster status
-        shell: bash --noprofile --norc -eo pipefail -x {0}
         run: tests/scripts/github-action-helper.sh print_k8s_cluster_status
 
-      - name: build rook
-        shell: bash --noprofile --norc -eo pipefail -x {0}
-        run: tests/scripts/github-action-helper.sh build_rook
+      - name: Setup multus
+        run: ./tests/scripts/multus/setup-multus.sh
 
-      - name: allow holder pod deployment
-        run: sed -i "s|CSI_DISABLE_HOLDER_PODS|# CSI_DISABLE_HOLDER_PODS|g" "deploy/examples/operator.yaml"
+      - name: Set up multus prerequisite host routing
+        run: kubectl create -f tests/scripts/multus/host-cfg-ds.yaml
 
-      - name: validate-yaml
-        run: tests/scripts/github-action-helper.sh validate_yaml
+      - name: create cluster prerequisites
+        run: tests/scripts/github-action-helper.sh create_cluster_prerequisites
+
+      - name: Install public and cluster NADs in rook-ceph namespace
+        run: kubectl create -f tests/scripts/multus/rook-ceph-public-cluster-nads.yaml
 
       - name: use local disk and create partitions for osds
         run: |
           tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
+          # there is something about the kind environment that makes partition 2 of partitioned disk
+          # appear like it isn't a block device, so use the whole disk
+          # tests/scripts/github-action-helper.sh create_partitions_for_osds
 
-      - name: deploy multus
-        run: tests/scripts/github-action-helper.sh deploy_multus
+      - name: build rook
+        run: tests/scripts/github-action-helper.sh build_rook
 
-      - name: deploy multus cluster
-        run: tests/scripts/github-action-helper.sh deploy_multus_cluster
+      - name: push rook image to kind cluster
+        run: kind load docker-image docker.io/rook/ceph:local-build
+
+      - name: deploy cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_manifest_with_local_build deploy/examples/operator.yaml
+
+          # export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          # yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.useAllNodes" false
+          # yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.useAllDevices" false
+          # yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.nodes[0].name" "kind-worker"
+          # yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.nodes[0].devices[0].name" "${BLOCK}1"
+          # yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.nodes[1].name" "kind-worker2"
+          # yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.nodes[1].devices[0].name" "${BLOCK}2"
+
+          export BLOCK="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
+          yq write -i deploy/examples/cluster-multus-test.yaml "spec.storage.deviceFilter" "${BLOCK}"
+          kubectl create -f deploy/examples/cluster-multus-test.yaml
+
+          tests/scripts/github-action-helper.sh create_operator_toolbox
+
+          kubectl create -f deploy/examples/filesystem-test.yaml
+          kubectl create -f deploy/examples/nfs-test.yaml
 
       - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
+        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 1
 
       - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
-      - name: wait for ceph-csi configmap to be updated with network namespace
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 1
 
       - name: wait for cephnfs to be ready
-        run: IS_POD_NETWORK=true IS_MULTUS=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
+        run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready nfs 1
 
       - name: check multus connections
         run: tests/scripts/github-action-helper.sh test_multus_connections
@@ -1719,64 +1751,6 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
           additional-namespace: kube-system
-
-  csi-hostnetwork-disabled:
-    runs-on: ubuntu-22.04
-    if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
-    strategy:
-      matrix:
-        ceph-image: ${{ fromJson(inputs.ceph_images) }}
-    steps:
-      - name: checkout
-        uses: actions/checkout@d632683dd7b4114ad314bca15554477dd762a938 # v4.2.0
-        with:
-          fetch-depth: 0
-
-      - name: consider debugging
-        uses: ./.github/workflows/tmate_debug
-        with:
-          use-tmate: ${{ secrets.USE_TMATE }}
-
-      - name: setup cluster resources
-        uses: ./.github/workflows/canary-test-config
-
-      - name: allow holder pod deployment
-        run: sed -i "s|CSI_DISABLE_HOLDER_PODS|# CSI_DISABLE_HOLDER_PODS|g" "deploy/examples/operator.yaml"
-
-      - name: set Ceph version in CephCluster manifest
-        run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
-
-      - name: use local disk and create partitions for osds
-        run: |
-          tests/scripts/github-action-helper.sh use_local_disk
-          tests/scripts/github-action-helper.sh create_partitions_for_osds
-
-      - name: deploy CSI hostNetworking disabled cluster
-        run: tests/scripts/github-action-helper.sh deploy_csi_hostnetwork_disabled_cluster
-
-      - name: wait for prepare pod
-        run: tests/scripts/github-action-helper.sh wait_for_prepare_pod 2
-
-      - name: wait for ceph to be ready
-        run: IS_POD_NETWORK=true tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready osd 2
-
-      - name: wait for ceph-csi configmap to be updated with network namespace
-        run: tests/scripts/github-action-helper.sh wait_for_ceph_csi_configmap_to_be_updated
-
-      - name: test ceph-csi-rbd plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_rbd_workload
-
-      - name: test ceph-csi-cephfs plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_cephfs_workload
-
-      - name: test ceph-csi-nfs plugin restart
-        run: tests/scripts/github-action-helper.sh test_csi_nfs_workload
-
-      - name: collect common logs
-        if: always()
-        uses: ./.github/workflows/collect-logs
-        with:
-          name: ${{ github.job }}-${{ matrix.ceph-image }}
 
   object-with-cephblockpools:
     runs-on: ubuntu-22.04
