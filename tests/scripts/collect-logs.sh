@@ -47,7 +47,7 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   # secret need `-oyaml` to read the content instead of `describe` since secrets `describe` will be encrypted.
   # so keeping it in a different block.
   for secret in $(kubectl -n "$NAMESPACE" get secrets -o jsonpath='{.items[*].metadata.name}'); do
-    kubectl -n "$NAMESPACE" get -o yaml secret "$secret" >"${NS_DIR}"/secret-describe--"$secret".txt
+    kubectl -n "$NAMESPACE" get -o yaml secret "$secret" >"${NS_DIR}"/secret-get--"$secret".txt
   done
 
   # describe every one of the custom resources in the namespace since all should be rook-related and
