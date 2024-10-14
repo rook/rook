@@ -80,6 +80,7 @@ jobs:
           yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
           yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
           tests/scripts/github-action-helper.sh deploy_cluster
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
           # there are no package for arm64 nfs-ganesha
           kubectl delete -f deploy/examples/nfs-test.yaml
 
