@@ -3,6 +3,8 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: cephfs-pvc
+  # Use this with the example `groupsnapshotclass.yaml`.
+  # Not needed if the volume group snapshots are not required.
   labels:
     group: snapshot-test
 spec:
