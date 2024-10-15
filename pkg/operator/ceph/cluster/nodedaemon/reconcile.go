@@ -59,10 +59,6 @@ var (
 	waitForRequeueIfSecretNotCreated = reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
 )
 
-const (
-	MinVersionForCronV1 = "1.21.0"
-)
-
 // ReconcileNode reconciles ReplicaSets
 type ReconcileNode struct {
 	// client can be used to retrieve objects from the APIServer.
@@ -223,7 +219,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 
-		if err := r.reconcileCrashPruner(namespace, cephCluster, cephVersion); err != nil {
+		if err := r.reconcileCrashPruner(namespace, cephCluster); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
