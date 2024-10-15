@@ -11831,6 +11831,19 @@ securely add the file via annotations on the CephNFS spec (passed to the NFS ser
 </tr>
 <tr>
 <td>
+<code>alternatesssdconfigfile</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">
+SSSDSidecarConfigFile
+</a>
+</em>
+</td>
+<td>
+<p>AlternateSSDConfigFile for ci test purposes only</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>additionalFiles</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.AdditionalVolumeMounts">
