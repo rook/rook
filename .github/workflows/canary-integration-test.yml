@@ -1398,6 +1398,27 @@ jobs:
         run: |
           timeout 60 sh -c 'until [ "$(kubectl get cm -n rook-ceph rook-ceph-csi-mapping-config  -o jsonpath='{.data.csi-mapping-config-json}' | grep -c "rook-ceph-secondary")" -eq 1 ]; do echo "waiting for rook-ceph-csi-mapping-config to be created with cluster ID mappings" && sleep 1; done'
 
+      - name: create replicated mirrored rados namespace on cluster 1
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace1
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace2
+          kubectl create -f radosnamespace-mirrored.yaml
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph get CephBlockPoolRadosNamespace namespace1 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace1 to be created on cluster 1" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+
+      - name: create replicated mirrored rados namespace on cluster 2
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace2
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace1
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph-secondary
+          kubectl create -f radosnamespace-mirrored.yaml
+          timeout 180 sh -c 'until [ "$(kubectl -n rook-ceph get CephBlockPoolRadosNamespace namespace2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace2 to be created on cluster 2" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace-a
+
       - name: create replicated mirrored filesystem on cluster 1
         run: |
           PRIMARY_YAML=deploy/examples/filesystem-test-primary.yaml
