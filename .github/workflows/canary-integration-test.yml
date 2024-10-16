@@ -1438,6 +1438,71 @@ jobs:
         run: |
           timeout 60 sh -c 'until [ "$(kubectl get cm -n rook-ceph rook-ceph-csi-mapping-config  -o jsonpath='{.data.csi-mapping-config-json}' | grep -c "rook-ceph-secondary")" -eq 1 ]; do echo "waiting for rook-ceph-csi-mapping-config to be created with cluster ID mappings" && sleep 1; done'
 
+      - name: replace operator and cluster images for rados namespace mirroring
+        run: |
+          kubectl -n rook-ceph patch deployment rook-ceph-operator --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "quay.io/paarora/rook-ceph:v614"}]'
+          kubectl -n rook-ceph patch cephcluster my-cluster --type='merge' -p '{"spec": {"cephVersion": {"image": "quay.io/paarora/rook-ceph:v609"}}}'
+          kubectl -n rook-ceph-secondary patch cephcluster my-cluster --type='merge' -p '{"spec": {"cephVersion": {"image": "quay.io/paarora/rook-ceph:v609"}}}'
+          sleep 10
+
+      - name: create mirrored rados namespace on cluster 1
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace1
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace2
+          kubectl create -f radosnamespace-mirrored.yaml
+          timeout 250 sh -c 'until [ "$(kubectl -n rook-ceph get CephBlockPoolRadosNamespace namespace1 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace1 to be created on cluster 1" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+
+      - name: create mirrored rados namespace on cluster 2
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace2
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace1
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph-secondary
+          kubectl create -f radosnamespace-mirrored.yaml
+          timeout 250 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get CephBlockPoolRadosNamespace namespace2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace2 to be created on cluster 2" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph
+          yq w -i radosnamespace-mirrored.yaml spec.mirroring.remoteNamespace namespace-a
+
+      - name: create images in the radosnamespace
+        run: |
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -ti -- rbd create replicapool/namespace1/testrn -s 1G
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd mirror image enable replicapool/namespace1/testrn snapshot
+          kubectl exec -n rook-ceph deploy/rook-ceph-tools -t -- rbd info replicapool/namespace1/testrn
+
+      - name: verify image has been mirrored for radosnamespace namespace1
+        run: |
+          # let's wait a bit for the image to be present
+          timeout 120 sh -c 'until [ "$(kubectl exec -n rook-ceph-secondary deploy/rook-ceph-tools -t -- rbd ls replicapool/namespace2 |grep -c testrn)" -eq 1 ]; do echo "waiting for image to be mirrored in pool replicapool and remote-namespace namespace2" && sleep 1; done'
+
+      - name: disable mirrored rados namespace on cluster 1
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace1
+          yq w -i radosnamespace-mirrored.yaml del(.spec.mirroring)
+          kubectl apply -f radosnamespace-mirrored.yaml
+          timeout 250 sh -c 'until [ "$(kubectl -n rook-ceph get CephBlockPoolRadosNamespace namespace1 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace1 to be created on cluster 1" && sleep 1; done'
+
+      - name: disable mirrored rados namespace on cluster 2
+        run: |
+          cd deploy/examples/
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace2
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph-secondary
+          kubectl apply -f radosnamespace-mirrored.yaml
+          timeout 250 sh -c 'until [ "$(kubectl -n rook-ceph-secondary get CephBlockPoolRadosNamespace namespace2 -o jsonpath='{.status.phase}'|grep -c "Ready")" -eq 1 ]; do echo "waiting for radosNamespace namespace2 to be created on cluster 2" && sleep 1; done'
+          yq w -i radosnamespace-mirrored.yaml metadata.name namespace-a
+          yq w -i radosnamespace-mirrored.yaml metadata.namespace rook-ceph
+          yq w -i radosnamespace-mirrored.yaml '.spec.mirroring = { remoteNamespace: "namespace-a", mode: "image", snapshotSchedules: { interval: "24h", startTime: "14:00:00-05:00" } }'
+
+      - name: replace back the operator and cluster images after rados namespace mirroring
+        run: |
+          kubectl -n rook-ceph patch deployment rook-ceph-operator --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "docker.io/rook/ceph:master"}]'
+          kubectl -n rook-ceph patch cephcluster my-cluster --type='merge' -p '{"spec": {"cephVersion": {"image": "quay.io/ceph/ceph:v19"}}}'
+          kubectl -n rook-ceph-secondary patch cephcluster my-cluster --type='merge' -p '{"spec": {"cephVersion": {"image": "quay.io/ceph/ceph:v19"}}}'
+          sleep 10
+
       - name: create replicated mirrored filesystem on cluster 1
         run: |
           PRIMARY_YAML=deploy/examples/filesystem-test-primary.yaml
