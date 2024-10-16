@@ -177,7 +177,8 @@ func isCephPod(labels map[string]string, podName string) bool {
 	// will be empty since the monitors don't exist yet
 	isCanaryPod := strings.Contains(podName, "-canary-")
 	isCrashCollectorPod := strings.Contains(podName, "-crashcollector-")
-	if ok && !isCanaryPod && !isCrashCollectorPod {
+	isExporterPod := strings.Contains(podName, "-exporter-")
+	if ok && !isCanaryPod && !isCrashCollectorPod && !isExporterPod {
 		logger.Debugf("%q is a ceph pod!", podName)
 		return true
 	}
