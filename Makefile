@@ -211,6 +211,11 @@ check.docs:
 	@$(MAKE) docs
 	@tests/scripts/validate_modified_files.sh docs
 
+check.crds: crds
+	@tests/scripts/validate_modified_files.sh crd
+
+check.codegen: codegen
+	@tests/scripts/validate_modified_files.sh codegen
 
 docs-preview: ## Preview the documentation through mkdocs
 	mkdocs serve
