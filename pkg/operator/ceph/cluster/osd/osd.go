@@ -294,7 +294,7 @@ func (c *Cluster) Start() error {
 	}
 
 	if c.spec.Storage.Store.UpdateStore == OSDStoreUpdateConfirmation {
-		delOpts := &k8sutil.DeleteOptions{MustDelete: true, WaitOptions: k8sutil.WaitOptions{Wait: true}}
+		delOpts := &k8sutil.DeleteOptions{WaitOptions: k8sutil.WaitOptions{Wait: true}}
 		err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
