@@ -1740,6 +1740,8 @@ class RadosJSON:
                     err = "Please provide all the RGW multisite parameters or none of them"
                     sys.stderr.write(err)
 
+        self.out_map["INITIAL_DATA"] = self.gen_initial_data()
+
     def gen_shell_out(self):
         self._gen_output_map()
         shOutIO = StringIO()
@@ -1749,6 +1751,27 @@ class RadosJSON:
         shOut = shOutIO.getvalue()
         shOutIO.close()
         return shOut
+
+    def gen_initial_data(self):
+        # TBD: add non-secured data keys
+        non_secured_data_keys = [
+            "ROOK_EXTERNAL_CEPH_MON_DATA",
+            "MONITORING_ENDPOINT",
+            "MONITORING_ENDPOINT_PORT",
+            "RADOS_NAMESPACE",
+            "RBD_POOL_NAME",
+            "RBD_METADATA_EC_POOL_NAME",
+            "TOPOLOGY_POOLS",
+            "TOPOLOGY_FAILURE_DOMAIN_LABEL",
+            "TOPOLOGY_FAILURE_DOMAIN_VALUES",
+            "RGW_ENDPOINT"
+        ]
+
+        initial_data = f"[InitialData]\n"
+        for key in non_secured_data_keys:
+            initial_data += f"{key} = {self.out_map[key]}\n"
+
+        return f'"{initial_data}"'
 
     def gen_json_out(self):
         self._gen_output_map()
@@ -2009,6 +2032,14 @@ class RadosJSON:
                     },
                 }
             )
+
+        # add initial data
+        if self.out_map["INITIAL_DATA"]:
+            json_out.append({
+                "name": "rook-ceph-external-intial-data",
+                "kind": "ConfigMap",
+                "data": self.out_map["INITIAL_DATA"]
+        })
 
         return json.dumps(json_out) + LINESEP
 
