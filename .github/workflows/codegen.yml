@@ -41,5 +41,12 @@ jobs:
       - name: run codegen
         run: GOPATH=$(go env GOPATH) make codegen
 
+
       - name: validate codegen
         run: tests/scripts/validate_modified_files.sh codegen
+
+      - name: check if there are modified files
+        run: git status| cat 
+      - name: check generated file
+        run:  cat pkg/apis/ceph.rook.io/v1/zz_generated.deepcopy.go
+
