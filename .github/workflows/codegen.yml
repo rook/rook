@@ -29,14 +29,21 @@ jobs:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: setup golang
+        uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
+        with:
+          go-version: "1.22"
+      - name: Debug golang
+      run: |
+          echo "DEBUG: pwd: $(pwd)"
+          echo "DEBUG: GOPATH: ${GOPATH}"
+
       - name: checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
         with:
           fetch-depth: 0
+          path: $(go env GOPATH)/github.com/rook/rook
 
-      - uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
-        with:
-          go-version: "1.22"
 
       - name: run codegen
         run: GOPATH=$(go env GOPATH) make codegen
@@ -46,7 +53,6 @@ jobs:
         run: tests/scripts/validate_modified_files.sh codegen
 
       - name: check if there are modified files
-        run: git status| cat 
+        run: git status| cat
       - name: check generated file
-        run:  cat pkg/apis/ceph.rook.io/v1/zz_generated.deepcopy.go
-
+        run: cat pkg/apis/ceph.rook.io/v1/zz_generated.deepcopy.go

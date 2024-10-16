@@ -36,7 +36,7 @@ bash ${CODE_GENERATOR}/generate-groups.sh \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
-    --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
+    --output-base "${output_base_dir}" \
     --go-header-file "${scriptdir}/boilerplate.go.txt"
 
 # run code client,lister,informer generation
@@ -45,6 +45,6 @@ bash ${CODE_GENERATOR}/generate-groups.sh \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
-    --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
+    --output-base "${output_base_dir}" \
     --go-header-file "${scriptdir}/boilerplate.go.txt" \
     --plural-exceptions "CephNFS:CephNFSes" \
