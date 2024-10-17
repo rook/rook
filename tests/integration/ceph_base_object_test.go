@@ -58,8 +58,8 @@ var (
 	ObjectKey4             = "rookObj4"
 	contentType            = "plain/text"
 	obcName                = "smoke-delete-bucket"
-	maxObject              = "2"
-	newMaxObject           = "3"
+	maxObjects             = "2"
+	newMaxObjects          = "3"
 	bucketStorageClassName = "rook-smoke-delete-bucket"
 	maxBucket              = 1
 	maxSize                = "100000"
@@ -241,10 +241,10 @@ func createCephObjectUser(
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool) {
 
-	maxObjectInt, err := strconv.Atoi(maxObject)
+	maxObjectsInt, err := strconv.Atoi(maxObjects)
 	assert.Nil(s.T(), err)
 	logger.Infof("creating CephObjectStore user %q for store %q in namespace %q", userID, storeName, namespace)
-	cosuErr := helper.ObjectUserClient.Create(userID, userdisplayname, storeName, userCap, maxSize, maxBucket, maxObjectInt)
+	cosuErr := helper.ObjectUserClient.Create(userID, userdisplayname, storeName, userCap, maxSize, maxBucket, maxObjectsInt)
 	assert.Nil(s.T(), cosuErr)
 	logger.Infof("Waiting 5 seconds for the object user %q to be created", userID)
 	time.Sleep(5 * time.Second)
@@ -278,12 +278,12 @@ func checkCephObjectUser(
 	}
 	if checkQuotaAndCaps {
 		// following fields in CephObjectStoreUser CRD doesn't exist before Rook v1.7.3
-		maxObjectInt, err := strconv.Atoi(maxObject)
+		maxObjectsInt, err := strconv.Atoi(maxObjects)
 		assert.Nil(s.T(), err)
 		maxSizeInt, err := strconv.Atoi(maxSize)
 		assert.Nil(s.T(), err)
 		assert.Equal(s.T(), maxBucket, userInfo.MaxBuckets)
-		assert.Equal(s.T(), int64(maxObjectInt), *userInfo.UserQuota.MaxObjects)
+		assert.Equal(s.T(), int64(maxObjectsInt), *userInfo.UserQuota.MaxObjects)
 		assert.Equal(s.T(), int64(maxSizeInt), *userInfo.UserQuota.MaxSize)
 		assert.Equal(s.T(), userCap, userInfo.Caps[0].Perm)
 	}

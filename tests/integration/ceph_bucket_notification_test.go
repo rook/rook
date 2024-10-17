@@ -380,7 +380,8 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 			assert.Nil(t, err)
 		})
 		t.Run("delete ObjectBucketClaim: reverse-obc", func(t *testing.T) {
-			err = helper.BucketClient.DeleteObc(reverseOBCName, bucketStorageClassName, reverseBucketName, maxObject, true)
+			additionalConfig := map[string]string{"maxObjects": maxObjects}
+			err = helper.BucketClient.DeleteObc(reverseOBCName, bucketStorageClassName, reverseBucketName, additionalConfig, true)
 			assert.Nil(t, err)
 			logger.Info("Checking to see if the obc, secret, and cm have all been deleted")
 			for i = 0; i < 4 && !helper.BucketClient.CheckOBC(reverseOBCName, "deleted"); i++ {
@@ -405,7 +406,8 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 
 	t.Run("delete ObjectBucketClaim", func(t *testing.T) {
 		i := 0
-		dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
+		additionalConfig := map[string]string{"maxObjects": maxObjects}
+		dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, additionalConfig, true)
 		assert.Nil(t, dobcErr)
 		logger.Info("Checking to see if the obc, secret, and cm have all been deleted")
 		for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "deleted"); i++ {
