@@ -43,6 +43,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName:  rbdMirror.Spec.PriorityClassName,
+			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}

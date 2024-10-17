@@ -129,6 +129,7 @@ func (c *ResourceCleanup) jobTemplateSpec() v1.PodTemplateSpec {
 			Volumes:            volumes,
 			RestartPolicy:      v1.RestartPolicyOnFailure,
 			PriorityClassName:  cephv1.GetCleanupPriorityClassName(c.cluster.Spec.PriorityClassNames),
+			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
