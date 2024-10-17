@@ -605,6 +605,13 @@ cephObjectStores:
         # sslCertificateRef:
         instances: 1
         priorityClassName: system-cluster-critical
+      # rgwOpsLogEnabled: true
+      # rgwopslog:
+      #   limits:
+      #     memory: "60Mi"
+      #   requests:
+      #     cpu: "100m"
+      #     memory: "60Mi"
     storageClass:
       enabled: true
       name: ceph-bucket
