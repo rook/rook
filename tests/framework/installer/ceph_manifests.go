@@ -50,7 +50,7 @@ type CephManifests interface {
 	GetObjectStore(name string, replicaCount, port int, tlsEnable bool, swiftAndKeystone bool) string
 	GetObjectStoreUser(name, displayName, store, usercaps, maxsize string, maxbuckets, maxobjects int) string
 	GetBucketStorageClass(storeName, storageClassName, reclaimPolicy string) string
-	GetOBC(obcName, storageClassName, bucketName string, maxObject string, createBucket bool) string
+	GetOBC(obcName, storageClassName, bucketName string, additionalConfig map[string]string, createBucket bool) string
 	GetOBCNotification(obcName, storageClassName, bucketName string, notificationName string, createBucket bool) string
 	GetBucketNotification(notificationName string, topicName string) string
 	GetBucketTopic(topicName string, storeName string, httpEndpointService string) string
@@ -563,20 +563,39 @@ parameters:
 }
 
 // GetOBC returns the manifest to create object bucket claim
-func (m *CephManifestsMaster) GetOBC(claimName string, storageClassName string, objectBucketName string, maxObject string, varBucketName bool) string {
+func (m *CephManifestsMaster) GetOBC(claimName, storageClassName, objectBucketName string, additionalConfig map[string]string, varBucketName bool) string {
 	bucketParameter := "generateBucketName"
 	if varBucketName {
 		bucketParameter = "bucketName"
 	}
-	return `apiVersion: objectbucket.io/v1alpha1
+
+	spec := struct {
+		ClaimName        string
+		BucketParameter  string
+		ObjectBucketName string
+		StorageClassName string
+		AdditionalConfig map[string]string
+	}{
+		ClaimName:        claimName,
+		BucketParameter:  bucketParameter,
+		ObjectBucketName: objectBucketName,
+		StorageClassName: storageClassName,
+		AdditionalConfig: additionalConfig,
+	}
+
+	tmpl := `apiVersion: objectbucket.io/v1alpha1
 kind: ObjectBucketClaim
 metadata:
-  name: ` + claimName + `
+  name: {{ .ClaimName }}
 spec:
-  ` + bucketParameter + `: ` + objectBucketName + `
-  storageClassName: ` + storageClassName + `
+  {{ .BucketParameter }}: {{ .ObjectBucketName }}
+  storageClassName: {{ .StorageClassName }}
   additionalConfig:
-    maxObjects: "` + maxObject + `"`
+{{- range $key, $value := .AdditionalConfig }}
+    {{ $key }}: "{{ $value }}"
+{{- end }}`
+
+	return renderTemplate(tmpl, spec)
 }
 
 // GetOBCNotification returns the manifest to create object bucket claim

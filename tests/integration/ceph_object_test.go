@@ -19,7 +19,6 @@ package integration
 import (
 	"context"
 	"encoding/json"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"testing"
 	"time"
 
@@ -32,6 +31,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -186,7 +186,8 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		logger.Infof("create OBC %q with storageclass %q - using reclaim policy 'delete' so buckets don't block deletion", obcName, bucketStorageClassName)
 		cobErr := helper.BucketClient.CreateBucketStorageClass(namespace, storeName, bucketStorageClassName, "Delete")
 		assert.Nil(t, cobErr)
-		cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
+		additionalConfig := map[string]string{"maxObjects": maxObjects}
+		cobcErr := helper.BucketClient.CreateObc(obcName, bucketStorageClassName, bucketname, additionalConfig, true)
 		assert.Nil(t, cobcErr)
 		created := utils.Retry(20, 2*time.Second, "OBC is created", func() bool {
 			return helper.BucketClient.CheckOBC(obcName, "bound")
@@ -245,10 +246,11 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		})
 
 		t.Run("update quota limits", func(t *testing.T) {
-			poErr := helper.BucketClient.UpdateObc(obcName, bucketStorageClassName, bucketname, newMaxObject, true)
+			additionalConfig := map[string]string{"maxObjects": newMaxObjects}
+			poErr := helper.BucketClient.UpdateObc(obcName, bucketStorageClassName, bucketname, additionalConfig, true)
 			assert.Nil(t, poErr)
 			updated := utils.Retry(20, 2*time.Second, "OBC is updated", func() bool {
-				return helper.BucketClient.CheckOBMaxObject(obcName, newMaxObject)
+				return helper.BucketClient.CheckOBMaxObject(obcName, newMaxObjects)
 			})
 			assert.True(t, updated)
 			logger.Infof("Testing the updated object limit")
@@ -320,7 +322,8 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 
 	t.Run("delete OBC", func(t *testing.T) {
 		i := 0
-		dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, maxObject, true)
+		additionalConfig := map[string]string{"maxObjects": maxObjects}
+		dobcErr := helper.BucketClient.DeleteObc(obcName, bucketStorageClassName, bucketname, additionalConfig, true)
 		assert.Nil(t, dobcErr)
 		logger.Info("Checking to see if the obc, secret, and cm have all been deleted")
 		for i = 0; i < 4 && !helper.BucketClient.CheckOBC(obcName, "deleted"); i++ {

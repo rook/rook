@@ -148,8 +148,8 @@ func (m *CephManifestsPreviousVersion) GetBucketStorageClass(storeName, storageC
 }
 
 // GetOBC returns the manifest to create object bucket claim
-func (m *CephManifestsPreviousVersion) GetOBC(claimName, storageClassName, objectBucketName, maxObject string, varBucketName bool) string {
-	return m.latest.GetOBC(claimName, storageClassName, objectBucketName, maxObject, varBucketName)
+func (m *CephManifestsPreviousVersion) GetOBC(claimName, storageClassName, objectBucketName string, additionalConfig map[string]string, varBucketName bool) string {
+	return m.latest.GetOBC(claimName, storageClassName, objectBucketName, additionalConfig, varBucketName)
 }
 
 // GetOBCNotification returns the manifest to create object bucket claim
