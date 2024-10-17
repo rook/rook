@@ -301,6 +301,7 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 			*cmdReporterContainer,
 		},
 		RestartPolicy:      v1.RestartPolicyOnFailure,
+		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 	copyBinsVol, _ := copyBinariesVolAndMount()

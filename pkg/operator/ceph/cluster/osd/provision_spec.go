@@ -157,6 +157,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 		HostNetwork:       c.spec.Network.IsHost(),
 		PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 		SchedulerName:     osdProps.schedulerName,
+		SecurityContext:   &v1.PodSecurityContext{},
 	}
 	if c.spec.Network.IsHost() {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet

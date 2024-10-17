@@ -22,6 +22,7 @@ spec:
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
+      securityContext: {}
       serviceAccountName: rook-csi-cephfs-plugin-sa
       hostNetwork: {{ .EnableCSIHostNetwork }}
       {{ if .PluginPriorityClassName }}

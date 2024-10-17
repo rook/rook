@@ -149,6 +149,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		// connecting to the krb server. give all ganesha servers the same hostname so they can all
 		// use the same krb credentials to auth
 		Hostname:           fmt.Sprintf("%s-%s", nfs.Namespace, nfs.Name),
+		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 	// Replace default unreachable node toleration

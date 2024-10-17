@@ -17,6 +17,7 @@ spec:
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
+      securityContext: {}
       serviceAccountName: rook-csi-nfs-plugin-sa
       hostNetwork: {{ .EnableCSIHostNetwork }}
       {{ if .PluginPriorityClassName }}

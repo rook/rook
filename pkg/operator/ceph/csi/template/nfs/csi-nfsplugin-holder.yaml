@@ -29,6 +29,7 @@ spec:
     spec:
       # HostPID is needed to expose the correct process ID network namespace and not the process namespace
       hostPID: true
+      securityContext: {}
       serviceAccountName: rook-csi-nfs-plugin-sa
       {{ if .PluginPriorityClassName }}
       priorityClassName: {{ .PluginPriorityClassName }}
