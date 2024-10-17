@@ -302,6 +302,7 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 			*cmdReporterContainer,
 		},
 		RestartPolicy:      v1.RestartPolicyOnFailure,
+		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 		HostNetwork:        cephv1.EnforceHostNetwork(),
 	}
