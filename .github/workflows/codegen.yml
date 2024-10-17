@@ -29,24 +29,51 @@ jobs:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
+      - name: Debug dirs
+        run: |
+            echo "DEBUG: pwd: $(pwd)"
+            ls -l -a 
+
       - name: setup golang
         uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32 # v5.0.2
         with:
           go-version: "1.22"
       - name: Debug golang
-      run: |
-          echo "DEBUG: pwd: $(pwd)"
-          echo "DEBUG: GOPATH: ${GOPATH}"
+        run: |
+            echo "DEBUG: pwd: $(pwd)"
+       
+            echo "DEBUG: GOPATH: $(go env GOPATH)"
+            ls -l -a 
 
+      - name: prepare checkout
+        run: |
+            mkdir -p  $(go env GOPATH)/src/github.com/rook/rook
+            cd $(go env GOPATH)/src/github.com/rook/
+            echo "DEBUG: pwd: $(pwd)"
       - name: checkout
         uses: actions/checkout@eef61447b9ff4aafe5dcd4e0bbf5d482be7e7871 # v4.2.1
         with:
           fetch-depth: 0
-          path: $(go env GOPATH)/github.com/rook/rook
+          path: $(go env GOPATH)/src/github.com/rook/rook
+      - name: post-process checkout
+        run: |
+           rmdir   $(go env GOPATH)/src/github.com/rook/rook
+           echo "DEBUG: pwd: $(pwd)"
+           cd ..
+           echo "DEBUG: pwd: $(pwd)"
+           mv rook $(go env GOPATH)/src/github.com/rook
+      - name: Debug checkout
+        run: |
+            cd $(go env GOPATH)/src/github.com/rook/rook
+            echo "DEBUG: pwd: $(pwd)"
+             git log --oneline | head -5 
+
 
 
       - name: run codegen
-        run: GOPATH=$(go env GOPATH) make codegen
+        run: |
+            cd $(go env GOPATH)/src/github.com/rook/rook
+            GOPATH=$(go env GOPATH) make codegen
 
 
       - name: validate codegen
@@ -54,5 +81,5 @@ jobs:
 
       - name: check if there are modified files
         run: git status| cat
-      - name: check generated file
+      - name: check expected generated file
         run: cat pkg/apis/ceph.rook.io/v1/zz_generated.deepcopy.go
