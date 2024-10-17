@@ -2556,6 +2556,8 @@ type SSSDSidecar struct {
 	// securely add the file via annotations on the CephNFS spec (passed to the NFS server pods).
 	// +optional
 	SSSDConfigFile SSSDSidecarConfigFile `json:"sssdConfigFile"`
+	// AlternateSSDConfigFile for ci test purposes only
+	AlternateSSSDConfigFile SSSDSidecarConfigFile `json:"alternatesssdconfigfile"`
 
 	// AdditionalFiles defines any number of additional files that should be mounted into the SSSD
 	// sidecar with a directory root of `/etc/sssd/rook-additional/`.

@@ -4459,6 +4459,7 @@ func (in *S3Spec) DeepCopy() *S3Spec {
 func (in *SSSDSidecar) DeepCopyInto(out *SSSDSidecar) {
 	*out = *in
 	in.SSSDConfigFile.DeepCopyInto(&out.SSSDConfigFile)
+	in.AlternateSSSDConfigFile.DeepCopyInto(&out.AlternateSSSDConfigFile)
 	if in.AdditionalFiles != nil {
 		in, out := &in.AdditionalFiles, &out.AdditionalFiles
 		*out = make(AdditionalVolumeMounts, len(*in))
