@@ -47,28 +47,28 @@ func (b *BucketOperation) DeleteBucketStorageClass(namespace string, storeName s
 	return err
 }
 
-func (b *BucketOperation) CreateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("create", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
+func (b *BucketOperation) CreateObc(obcName, storageClassName, bucketName string, additionalConfig map[string]string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("create", b.manifests.GetOBC(obcName, storageClassName, bucketName, additionalConfig, createBucket))
 }
 
 func (b *BucketOperation) CreateObcNotification(obcName string, storageClassName string, bucketName string, notification string, createBucket bool) error {
 	return b.k8sh.ResourceOperation("create", b.manifests.GetOBCNotification(obcName, storageClassName, bucketName, notification, createBucket))
 }
 
-func (b *BucketOperation) DeleteObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
+func (b *BucketOperation) DeleteObc(obcName, storageClassName, bucketName string, additionalConfig map[string]string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("delete", b.manifests.GetOBC(obcName, storageClassName, bucketName, additionalConfig, createBucket))
 }
 
-func (b *BucketOperation) UpdateObc(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
+func (b *BucketOperation) UpdateObc(obcName, storageClassName, bucketName string, additionalConfig map[string]string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, additionalConfig, createBucket))
 }
 
 func (b *BucketOperation) UpdateObcNotificationAdd(obcName string, storageClassName string, bucketName string, notification string, createBucket bool) error {
 	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBCNotification(obcName, storageClassName, bucketName, notification, createBucket))
 }
 
-func (b *BucketOperation) UpdateObcNotificationRemove(obcName string, storageClassName string, bucketName string, maxObject string, createBucket bool) error {
-	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, maxObject, createBucket))
+func (b *BucketOperation) UpdateObcNotificationRemove(obcName, storageClassName, bucketName string, additionalConfig map[string]string, createBucket bool) error {
+	return b.k8sh.ResourceOperation("apply", b.manifests.GetOBC(obcName, storageClassName, bucketName, additionalConfig, createBucket))
 }
 
 // CheckOBC, returns true if the obc, secret and configmap are all in the "check" state,
