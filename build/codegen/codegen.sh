@@ -17,6 +17,14 @@
 GROUP_VERSIONS="ceph.rook.io:v1"
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+output_base_dir="${scriptdir}/../../../../.."
+
+echo "DEBUG: output base dir: $(cd ${output_base_dir} && pwd)"
+
+echo "DEBUG: CODE_GENERATOR: ${CODE_GENERATOR}"
+echo "DEBUG: CODE_GENERATOR_VERSION: ${CODE_GENERATOR_VERSION}"
+echo "DEBUG: GOPATH: $(go env GOPATH)"
+
 
 # CODE GENERATION
 # we run deepcopy and client,lister,informer generations separately so we can use the flag "--plural-exceptions"
