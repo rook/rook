@@ -1,17 +1,7 @@
-##########################################################
-# Create an object store using pre-created pools
-#  kubectl create -f object-with-cephblockpools-test.yaml
-##########################################################
----
-apiVersion: ceph.rook.io/v1
-kind: CephObjectStore
-metadata:
-  name: object-with-cephblockpools
-  namespace: rook-ceph # namespace:cluster
-spec:
-  gateway:
-    port: 80
-    instances: 1
+##########################################################################
+# Pre-create the pools for the an object store with custom configuration.
+#  kubectl create -f object-separate-pools-test.yaml
+##########################################################################
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
@@ -32,7 +22,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.control
+  name: object-separate-pools.rgw.control
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw
@@ -47,7 +37,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.meta
+  name: object-separate-pools.rgw.meta
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw
@@ -62,7 +52,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.log
+  name: object-separate-pools.rgw.log
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw
@@ -77,7 +67,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.buckets.index
+  name: object-separate-pools.rgw.buckets.index
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw
@@ -92,7 +82,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.buckets.non-ec
+  name: object-separate-pools.rgw.buckets.non-ec
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw
@@ -107,7 +97,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.otp
+  name: object-separate-pools.rgw.otp
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw
@@ -122,7 +112,7 @@ spec:
 apiVersion: ceph.rook.io/v1
 kind: CephBlockPool
 metadata:
-  name: object-with-cephblockpools.rgw.buckets.data
+  name: object-separate-pools.rgw.buckets.data
   namespace: rook-ceph # namespace:cluster
 spec:
   application: rgw

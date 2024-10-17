@@ -788,17 +788,17 @@ function radosgw-admin() {
   toolbox radosgw-admin "$@"
 }
 
-function test_object_with_cephblockpools_extra_pools() {
+function test_object_separate_pools() {
   expected_pools=(
     .mgr
     .rgw.root
-    object-with-cephblockpools.rgw.control
-    object-with-cephblockpools.rgw.meta
-    object-with-cephblockpools.rgw.log
-    object-with-cephblockpools.rgw.buckets.index
-    object-with-cephblockpools.rgw.buckets.non-ec
-    object-with-cephblockpools.rgw.otp
-    object-with-cephblockpools.rgw.buckets.data
+    object-separate-pools.rgw.control
+    object-separate-pools.rgw.meta
+    object-separate-pools.rgw.log
+    object-separate-pools.rgw.buckets.index
+    object-separate-pools.rgw.buckets.non-ec
+    object-separate-pools.rgw.otp
+    object-separate-pools.rgw.buckets.data
   )
 
   output=$(ceph osd pool ls)
