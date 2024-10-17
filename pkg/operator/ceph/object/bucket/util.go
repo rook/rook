@@ -27,6 +27,7 @@ import (
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
@@ -87,12 +88,25 @@ func (p *Provisioner) getObjectStore() (*cephv1.CephObjectStore, error) {
 	return store, err
 }
 
-func MaxObjectQuota(AdditionalConfig map[string]string) string {
-	return AdditionalConfig["maxObjects"]
-}
+func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpec, error) {
+	var err error
+	spec := additionalConfigSpec{}
 
-func MaxSizeQuota(AdditionalConfig map[string]string) string {
-	return AdditionalConfig["maxSize"]
+	if _, ok := config["maxObjects"]; ok {
+		spec.maxObjects, err = quanityToInt64(config["maxObjects"])
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse maxObjects quota")
+		}
+	}
+
+	if _, ok := config["maxSize"]; ok {
+		spec.maxSize, err = quanityToInt64(config["maxSize"])
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse maxSize quota")
+		}
+	}
+
+	return &spec, nil
 }
 
 func GetObjectStoreNameFromBucket(ob *bktv1alpha1.ObjectBucket) (types.NamespacedName, error) {
@@ -127,4 +141,15 @@ func getNSNameFromAdditionalState(state map[string]string) (types.NamespacedName
 		return types.NamespacedName{}, fmt.Errorf("failed to get %q from OB additional state: %v", ObjectStoreNamespace, state)
 	}
 	return types.NamespacedName{Name: name, Namespace: namespace}, nil
+}
+
+func quanityToInt64(qty string) (*int64, error) {
+	n, err := resource.ParseQuantity(qty)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to parse %q as a quantity", qty)
+	}
+
+	value := n.Value()
+
+	return &value, nil
 }
