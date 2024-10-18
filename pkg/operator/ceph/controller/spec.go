@@ -813,6 +813,30 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec) *v1.Contai
 	}
 }
 
+// rgw operations will be logged in sidecar rgw-ops-log
+func RgwOpsLogContainer(daemonID, ns string, c cephv1.ClusterSpec, rgwOpsLogResources v1.ResourceRequirements) *v1.Container {
+
+	// Generate ops log file name based on daemon ID
+	opsLogFile := fmt.Sprintf("ops-log-%s.log", daemonID)
+
+	return &v1.Container{
+		Name: "rgw-ops-log",
+		Command: []string{
+			"/bin/bash",
+			"-m", // Terminal job control, allows job to be terminated by SIGTERM
+			"-c", // Command to run
+			fmt.Sprintf("tail -n+1 -F %s", path.Join(config.VarLogCephDir, opsLogFile)),
+		},
+		Image:           c.CephVersion.Image,
+		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
+		VolumeMounts:    DaemonVolumeMounts(config.NewDatalessDaemonDataPathMap(ns, c.DataDirHostPath), "", c.DataDirHostPath),
+		SecurityContext: PodSecurityContext(),
+		Resources:       rgwOpsLogResources,
+		// We need a TTY for the bash job control (enabled by -m)
+		TTY: true,
+	}
+}
+
 // CreateExternalMetricsEndpoints creates external metric endpoint
 func createExternalMetricsEndpoints(namespace string, monitoringSpec cephv1.MonitoringSpec, ownerInfo *k8sutil.OwnerInfo) (*v1.Endpoints, error) {
 	labels := AppLabels("rook-ceph-mgr", namespace)
