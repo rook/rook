@@ -51,6 +51,16 @@ func getObjProperty[T string | map[string]interface{} | []interface{}](obj map[s
 //	// will replace "foo" with "bar" and return "foo"
 //	setObjProperty(obj,"bar","a","b")
 func setObjProperty[T string | []string | map[string]interface{} | []interface{}](obj map[string]interface{}, val T, path ...string) (T, error) {
+	return setObjPropertyCommon(false, obj, val, path...)
+}
+
+// setObjPropertyIfExists - helper function to manipulate JSON Objects.
+// sets new value to json object nested field only if it is already exists in json and returns previous value.
+func setObjPropertyIfExists[T string | []string | map[string]interface{} | []interface{}](obj map[string]interface{}, val T, path ...string) (T, error) {
+	return setObjPropertyCommon(true, obj, val, path...)
+}
+
+func setObjPropertyCommon[T string | []string | map[string]interface{} | []interface{}](shouldExist bool, obj map[string]interface{}, val T, path ...string) (T, error) {
 	var prev T
 	if len(path) == 0 {
 		return prev, fmt.Errorf("json property path is empty")
@@ -60,6 +70,10 @@ func setObjProperty[T string | []string | map[string]interface{} | []interface{}
 		if last {
 			// last path segment: set result and return prev value
 			prevVal, ok := obj[p]
+			if shouldExist && !ok {
+				// not exists:
+				return prev, fmt.Errorf("json property %q not exists", strings.Join(path, "."))
+			}
 			if ok {
 				prevRes, ok := prevVal.(T)
 				if ok {

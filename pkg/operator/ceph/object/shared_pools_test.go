@@ -997,6 +997,74 @@ func Test_adjustZoneDefaultPools(t *testing.T) {
 			wantChanged: true,
 			wantErr:     false,
 		},
+		{
+			name: "v19 shared pool set",
+			args: args{
+				beforeJSON: `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "topics_pool": "TopicsPool",
+    "account_pool": "AccountPool",
+    "group_pool": "GroupPool",
+    "domain_root": "DomainRoot",
+    "control_pool": "ControlPool",
+    "gc_pool": "GcPool",
+    "lc_pool": "LcPool",
+    "log_pool": "LogPool",
+    "intent_log_pool": "IntentLogPool",
+    "usage_log_pool": "UsageLogPool",
+    "roles_pool": "RolesPool",
+    "reshard_pool": "ReshardPool",
+    "user_keys_pool": "UserKeysPool",
+    "user_email_pool": "UserEmailPool",
+    "user_swift_pool": "UserSwiftPool",
+    "user_uid_pool": "UserUIDPool",
+    "otp_pool": "OtpPool",
+    "notif_pool": "NotifPool",
+    "system_key": {
+        "access_key": "AccessKey",
+        "secret_key": "SecretKey"
+    },
+    "placement_pools": [],
+    "realm_id": "29e28253-be54-4581-90dd-206020d2fcdd"
+}`,
+				spec: cephv1.ObjectSharedPoolsSpec{
+					MetadataPoolName:                   "meta-pool",
+					DataPoolName:                       "data-pool",
+					PreserveRadosNamespaceDataOnDelete: false,
+				},
+			},
+			wantJSON: `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "topics_pool": "meta-pool:test.meta.topics",
+    "account_pool": "meta-pool:test.meta.account",
+    "group_pool": "meta-pool:test.meta.group",
+    "domain_root": "meta-pool:test.meta.root",
+    "control_pool": "meta-pool:test.control",
+    "gc_pool": "meta-pool:test.log.gc",
+    "lc_pool": "meta-pool:test.log.lc",
+    "log_pool": "meta-pool:test.log",
+    "intent_log_pool": "meta-pool:test.log.intent",
+    "usage_log_pool": "meta-pool:test.log.usage",
+    "roles_pool": "meta-pool:test.meta.roles",
+    "reshard_pool": "meta-pool:test.log.reshard",
+    "user_keys_pool": "meta-pool:test.meta.users.keys",
+    "user_email_pool": "meta-pool:test.meta.users.email",
+    "user_swift_pool": "meta-pool:test.meta.users.swift",
+    "user_uid_pool": "meta-pool:test.meta.users.uid",
+    "otp_pool": "meta-pool:test.otp",
+    "notif_pool": "meta-pool:test.log.notif",
+    "system_key": {
+      "access_key": "AccessKey",
+      "secret_key": "SecretKey"
+    },
+    "placement_pools": [],
+    "realm_id": "29e28253-be54-4581-90dd-206020d2fcdd"
+}`,
+			wantChanged: true,
+			wantErr:     false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
