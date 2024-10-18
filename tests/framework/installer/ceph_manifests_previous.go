@@ -45,6 +45,10 @@ func (m *CephManifestsPreviousVersion) GetCSINFSRBAC() string {
 	return m.settings.readManifestFromGitHub("/csi/nfs/rbac.yaml")
 }
 
+func (m *CephManifestsPreviousVersion) GetCSIOperator() string {
+	return "not-supported"
+}
+
 // GetRookOperator returns rook Operator manifest
 func (m *CephManifestsPreviousVersion) GetOperator() string {
 	var manifest string
