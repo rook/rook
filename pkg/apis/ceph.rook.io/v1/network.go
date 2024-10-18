@@ -32,7 +32,7 @@ import (
 // This can be used, for example, to run Rook in k8s clusters with no CNI where host networking is required
 var enforceHostNetwork bool = false
 
-// IsMultus get whether to use multus network provider
+// IsMultus get whether to use the multus network provider
 func (n *NetworkSpec) IsMultus() bool {
 	return n.Provider == NetworkProviderMultus
 }
