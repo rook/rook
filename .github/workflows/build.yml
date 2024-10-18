@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   macos-build:
-    runs-on: macos-12
+    runs-on: macos-latest
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     steps:
       - name: checkout
