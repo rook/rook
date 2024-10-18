@@ -1778,7 +1778,7 @@ jobs:
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
 
-  object-with-cephblockpools:
+  two-object-one-zone:
     runs-on: ubuntu-22.04
     if: "!contains(github.event.pull_request.labels.*.name, 'skip-ci')"
     strategy:
@@ -1810,17 +1810,25 @@ jobs:
           tests/scripts/github-action-helper.sh create_partitions_for_osds
 
       - name: deploy cluster
-        run: tests/scripts/github-action-helper.sh deploy_cluster
+        run: |
+          tests/scripts/github-action-helper.sh deploy_cluster
+          tests/scripts/github-action-helper.sh wait_for cephcluster my-cluster rook-ceph
 
-      - name: create CephBlockPool(s) and CephObjectStore
+      - name: create CephBlockPool(s), CephObjectZone, and CephObjectStore(s)
         shell: bash --noprofile --norc -eo pipefail -x {0}
-        run: kubectl create -f deploy/examples/object-with-cephblockpools-test.yaml
-
-      - name: wait for CephObjectStore to be ready
-        run: tests/scripts/validate_cluster.sh rgw object-with-cephblockpools
+        run: |
+          kubectl create -f deploy/examples/object-separate-pools-test.yaml
+          kubectl create -f deploy/examples/two-object-one-zone-test.yaml
+          tests/scripts/github-action-helper.sh wait_for cephobjectzone object-separate-pools rook-ceph 600
+          tests/scripts/github-action-helper.sh wait_for cephobjectstore two-object-one-zone-alpha rook-ceph 600
+          tests/scripts/github-action-helper.sh wait_for cephobjectstore two-object-one-zone-beta rook-ceph 600
 
       - name: check for pools created by RGW that are unexpected
-        run: tests/scripts/github-action-helper.sh test_object_with_cephblockpools_extra_pools
+        run: tests/scripts/github-action-helper.sh test_object_separate_pools
+
+      - name: verify that only one zone exists
+        run: |
+          [[ $(tests/scripts/github-action-helper.sh radosgw-admin zone list | jq '.zones | length') == "1" ]]
 
       - name: collect common logs
         if: always()
