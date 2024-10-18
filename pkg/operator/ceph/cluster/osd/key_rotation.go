@@ -94,6 +94,12 @@ func (c *Cluster) getKeyRotationContainer(osdProps osdProperties, volumeMounts [
 			RunAsUser:              &runAsUser,
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{},
+				Drop: []v1.Capability{
+					"NET_RAW",
+				},
+			},
 		},
 		Resources: osdProps.resources,
 	}
