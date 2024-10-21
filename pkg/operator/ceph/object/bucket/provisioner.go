@@ -54,6 +54,7 @@ type Provisioner struct {
 	tlsCert              []byte
 	insecureTLS          bool
 	adminOpsClient       *admin.API
+	s3Agent              *object.S3Agent
 }
 
 type additionalConfigSpec struct {
@@ -95,12 +96,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	var s3svc *object.S3Agent
-	if p.insecureTLS {
-		s3svc, err = object.NewInsecureS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-	} else {
-		s3svc, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-	}
+	err = p.setS3Agent()
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +112,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		// if bucket already exists, this returns error: TooManyBuckets because we set the quota
 		// below. If it already exists, assume we are good to go
 		logger.Debugf("creating bucket %q", p.bucketName)
-		err = s3svc.CreateBucket(p.bucketName)
+		err = p.s3Agent.CreateBucket(p.bucketName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		}
@@ -172,29 +168,13 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, err
 	}
 
-	// get the bucket's owner via the bucket metadata
-	stats, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get bucket %q stats", p.bucketName)
-	}
-
-	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: stats.Owner})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
-	}
-
-	var s3svc *object.S3Agent
-	if p.insecureTLS {
-		s3svc, err = object.NewInsecureS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-	} else {
-		s3svc, err = object.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-	}
+	err = p.setS3Agent()
 	if err != nil {
 		return nil, err
 	}
 
 	// if the policy does not exist, we'll create a new and append the statement to it
-	policy, err := s3svc.GetBucketPolicy(p.bucketName)
+	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() != "NoSuchBucketPolicy" {
@@ -215,7 +195,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	} else {
 		policy = policy.ModifyBucketPolicy(*statement)
 	}
-	out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+	out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 
 	logger.Infof("PutBucketPolicy output: %v", out)
 	if err != nil {
@@ -280,19 +260,17 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 
-		var s3svc *object.S3Agent
-		if p.insecureTLS {
-			s3svc, err = object.NewInsecureS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-		} else {
-			s3svc, err = object.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-		}
+		p.accessKeyID = user.Keys[0].AccessKey
+		p.secretAccessKey = user.Keys[0].SecretKey
+
+		err = p.setS3Agent()
 		if err != nil {
 			return err
 		}
 
 		// Ignore cases where there is no bucket policy. This may have occurred if an error ended a Grant()
 		// call before the policy was attached to the bucket
-		policy, err := s3svc.GetBucketPolicy(p.bucketName)
+		policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchBucketPolicy" {
 				policy = nil
@@ -317,7 +295,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			} else {
 				policy = policy.ModifyBucketPolicy(*statement)
 			}
-			out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 			logger.Infof("PutBucketPolicy output: %v", out)
 			if err != nil {
 				return errors.Wrap(err, "failed to update policy")
@@ -329,7 +307,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
-			_, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			_, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 			if err != nil {
 				return err
 			}
@@ -750,6 +728,21 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 		if err != nil {
 			return errors.Wrap(err, "failed to build admin ops API connection")
 		}
+	}
+
+	return nil
+}
+
+func (p *Provisioner) setS3Agent() error {
+	var err error
+
+	if p.insecureTLS {
+		p.s3Agent, err = object.NewInsecureS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
+	} else {
+		p.s3Agent, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
+	}
+	if err != nil {
+		return err
 	}
 
 	return nil
