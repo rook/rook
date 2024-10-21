@@ -65,6 +65,7 @@ func (c *Cluster) makeDeployment(mdsConfig *mdsConfig, fsNamespacedname types.Na
 			Volumes:            controller.DaemonVolumes(mdsConfig.DataPathMap, mdsConfig.ResourceName, c.clusterSpec.DataDirHostPath),
 			HostNetwork:        c.clusterSpec.Network.IsHost(),
 			PriorityClassName:  c.fs.Spec.MetadataServer.PriorityClassName,
+			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
