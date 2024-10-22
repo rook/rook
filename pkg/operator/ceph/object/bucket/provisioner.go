@@ -158,13 +158,6 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	// restrict creation of new buckets in rgw
-	restrictBucketCreation := 0
-	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &restrictBucketCreation})
-	if err != nil {
-		return nil, err
-	}
-
 	// get the bucket's owner via the bucket metadata
 	stats, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
 	if err != nil {
