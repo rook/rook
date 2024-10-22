@@ -25,9 +25,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ceph/go-ceph/rgw/admin"
-	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
-	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -44,6 +46,44 @@ const (
 	userPath   = "rgw.test/admin/user"
 	bucketPath = "rgw.test/admin/bucket"
 )
+
+type mockRoundTripper struct {
+	t         *testing.T
+	getResult *map[string]string
+	getSeen   *map[string][]string
+	putSeen   *map[string][]string
+}
+
+func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	path := req.URL.Path
+
+	m.t.Logf("HTTP %s %s: %s %s", req.URL.Host, req.Method, path, req.URL.RawQuery)
+
+	statusCode := 200
+	if _, ok := (*m.getResult)[path]; !ok {
+		// path not configured
+		statusCode = 500
+	}
+	responseBody := []byte(`[]`)
+
+	switch method := req.Method; method {
+	case http.MethodGet:
+		(*m.getSeen)[path] = append((*m.getSeen)[path], req.URL.RawQuery)
+		responseBody = []byte((*m.getResult)[path])
+	case http.MethodPut:
+		if (*m.putSeen)[path] == nil {
+			(*m.putSeen)[path] = []string{}
+		}
+		(*m.putSeen)[path] = append((*m.putSeen)[path], req.URL.RawQuery)
+	default:
+		panic(fmt.Sprintf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, path))
+	}
+
+	return &http.Response{
+		StatusCode: statusCode,
+		Body:       io.NopCloser(bytes.NewReader(responseBody)),
+	}, nil
+}
 
 func TestPopulateDomainAndPort(t *testing.T) {
 	ctx := context.TODO()
@@ -185,12 +225,31 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		adminClient, err := admin.New("rgw.test", "accesskey", "secretkey", mockClient)
 		assert.NoError(t, err)
 
+		sess, err := session.NewSession(&aws.Config{
+			Credentials:      credentials.NewStaticCredentials("foo", "bar", ""),
+			Endpoint:         aws.String("rgw.test"),
+			Region:           aws.String("us-east-1"),
+			S3ForcePathStyle: aws.Bool(true),
+			HTTPClient: &http.Client{
+				Transport: &mockRoundTripper{
+					t:         t,
+					getResult: getResult,
+					getSeen:   getSeen,
+					putSeen:   putSeen,
+				},
+			},
+		})
+		assert.NoError(t, err)
+
 		p := &Provisioner{
 			clusterInfo: &client.ClusterInfo{
 				Context: context.Background(),
 			},
 			cephUserName:   "bob",
 			adminOpsClient: adminClient,
+			s3Agent: &object.S3Agent{
+				Client: s3.New(sess),
+			},
 		}
 
 		return p
@@ -207,13 +266,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{},
-				},
-			},
-		})
+		err := p.setAdditionalSettings(&additionalConfigSpec{})
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -236,13 +289,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{},
-				},
-			},
-		})
+		err := p.setAdditionalSettings(&additionalConfigSpec{})
 		assert.NoError(t, err)
 
 		assert.Len(t, getSeen[userPath], 1)
@@ -267,14 +314,8 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"maxSize": "2",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			maxSize: aws.Int64(2),
 		})
 		assert.NoError(t, err)
 
@@ -300,14 +341,8 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"maxObjects": "2",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			maxObjects: aws.Int64(2),
 		})
 		assert.NoError(t, err)
 
@@ -333,15 +368,9 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"maxObjects": "2",
-						"maxSize":    "3",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			maxObjects: aws.Int64(2),
+			maxSize:    aws.Int64(3),
 		})
 		assert.NoError(t, err)
 
@@ -368,15 +397,9 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"maxObjects": "12",
-						"maxSize":    "13",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			maxObjects: aws.Int64(12),
+			maxSize:    aws.Int64(13),
 		})
 		assert.NoError(t, err)
 
@@ -403,14 +426,8 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"bucketMaxObjects": "4",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			bucketMaxObjects: aws.Int64(4),
 		})
 		assert.NoError(t, err)
 
@@ -436,14 +453,8 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"bucketMaxSize": "5",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			bucketMaxSize: aws.Int64(5),
 		})
 		assert.NoError(t, err)
 
@@ -469,15 +480,9 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
 		p.setBucketName("bob")
 
-		err := p.setAdditionalSettings(&apibkt.BucketOptions{
-			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
-				Spec: v1alpha1.ObjectBucketClaimSpec{
-					AdditionalConfig: map[string]string{
-						"bucketMaxObjects": "14",
-						"bucketMaxSize":    "15",
-					},
-				},
-			},
+		err := p.setAdditionalSettings(&additionalConfigSpec{
+			bucketMaxObjects: aws.Int64(14),
+			bucketMaxSize:    aws.Int64(15),
 		})
 		assert.NoError(t, err)
 
