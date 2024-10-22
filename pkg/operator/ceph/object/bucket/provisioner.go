@@ -735,15 +735,6 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 
 func (p *Provisioner) setS3Agent() error {
 	var err error
-
-	if p.insecureTLS {
-		p.s3Agent, err = object.NewInsecureS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-	} else {
-		p.s3Agent, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
+	p.s3Agent, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert, p.insecureTLS, nil)
+	return err
 }
