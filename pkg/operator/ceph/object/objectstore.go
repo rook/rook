@@ -903,18 +903,37 @@ func adjustZoneDefaultPools(zone map[string]interface{}, spec cephv1.ObjectShare
 		"user_uid_pool":   ".meta.users.uid",
 		"otp_pool":        ".otp",
 		"notif_pool":      ".log.notif",
+		"topics_pool":     ".meta.topics",  // introduced in Ceph v19
+		"account_pool":    ".meta.account", // introduced in Ceph v19
+		"group_pool":      ".meta.group",   // introduced in Ceph v19
 	}
 	for pool, nsSuffix := range zonePoolNSSuffix {
 		// replace rgw internal index pools with namespaced metadata pool
 		namespacedPool := defaultMetaPool + nsSuffix
-		prev, err := setObjProperty(zone, namespacedPool, pool)
+		prev, err := updateObjProperty(zone, namespacedPool, pool)
 		if err != nil {
-			return nil, fmt.Errorf("unable to set pool %s for zone %s: %w", pool, name, err)
+			logger.Infof("unable to apply rados namespace to shared pool: %v", err)
 		}
 		if namespacedPool != prev {
 			logger.Debugf("update shared pool %s for zone %s: %s -> %s", pool, name, prev, namespacedPool)
 		}
 	}
+
+	// check for unknown pool properties in zone json
+	for field, val := range zone {
+		if _, ok := val.(string); !ok {
+			// not a string property
+			continue
+		}
+		if !strings.HasSuffix(field, "_pool") {
+			// not a pool property
+			continue
+		}
+		if _, ok := zonePoolNSSuffix[field]; !ok {
+			logger.Warningf("zone config %q contains unknown pool %q", name, field)
+		}
+	}
+
 	return zone, nil
 }
 
