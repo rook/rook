@@ -95,7 +95,7 @@ func (c *mirrorChecker) checkMirroringHealth() error {
 	}
 
 	// Check mirroring info
-	mirrorInfo, err := cephclient.GetPoolMirroringInfo(c.context, c.clusterInfo, c.poolSpec.Name)
+	mirrorInfo, err := cephclient.GetPoolRadosNamespaceMirroringInfo(c.context, c.clusterInfo, c.poolSpec.Name)
 	if err != nil {
 		c.updateStatusMirroring(nil, nil, nil, err.Error())
 	}
@@ -111,7 +111,7 @@ func (c *mirrorChecker) checkMirroringHealth() error {
 	}
 
 	// On success
-	c.updateStatusMirroring(mirrorStatus.Summary, mirrorInfo, snapSchedStatus, "")
+	c.updateStatusMirroring(mirrorStatus, mirrorInfo, snapSchedStatus, "")
 
 	return nil
 }

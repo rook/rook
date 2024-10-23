@@ -504,7 +504,7 @@ func (r *ReconcileCephBlockPool) cancelMirrorMonitoring(cephBlockPool *cephv1.Ce
 }
 
 func (r *ReconcileCephBlockPool) disableMirroring(pool string) error {
-	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, pool)
+	mirrorInfo, err := cephclient.GetPoolRadosNamespaceMirroringInfo(r.context, r.clusterInfo, pool)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mirroring info for the pool %q", pool)
 	}
@@ -566,7 +566,7 @@ func (r *ReconcileCephBlockPool) isAnyRadosNamespaceMirrored(poolName string) (b
 
 	for _, namespace := range list {
 		poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", poolName, namespace)
-		mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
+		mirrorInfo, err := cephclient.GetPoolRadosNamespaceMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
 		if err != nil {
 			return false, errors.Wrapf(err, "failed to get mirroring info for the rados namespace %q", poolAndRadosNamespaceName)
 		}

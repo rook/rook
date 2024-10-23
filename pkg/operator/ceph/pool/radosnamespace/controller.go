@@ -420,7 +420,7 @@ func checkBlockPoolMirroring(cephBlockPool *cephv1.CephBlockPool) bool {
 
 func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolRadosNamespace *cephv1.CephBlockPoolRadosNamespace, cephBlockPool *cephv1.CephBlockPool) error {
 	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPool.Name, getRadosNamespaceName(cephBlockPoolRadosNamespace))
-	mirrorInfo, err := cephclient.GetPoolMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
+	mirrorInfo, err := cephclient.GetPoolRadosNamespaceMirroringInfo(r.context, r.clusterInfo, poolAndRadosNamespaceName)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get mirroring info for the radosnamespace %q", poolAndRadosNamespaceName)
 	}
