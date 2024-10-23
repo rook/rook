@@ -26,7 +26,7 @@ import (
 )
 
 func TestToCustomResourceStatus(t *testing.T) {
-	mirroringStatus := &cephv1.PoolRadosNamespaceMirroringStatusSummarySpec{}
+	mirroringStatus := &cephv1.MirroringStatusSummarySpec{}
 	mirroringStatus.Health = "HEALTH_OK"
 	mirroringInfo := &cephv1.PoolRadosNamespaceMirroringInfo{
 		Mode:     "pool",

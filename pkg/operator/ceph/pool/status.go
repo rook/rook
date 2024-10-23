@@ -60,7 +60,7 @@ func updateStatus(ctx context.Context, client client.Client, poolName types.Name
 }
 
 // updateStatusBucket updates an object with a given status
-func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolRadosNamespaceMirroringStatusSummarySpec, mirrorInfo *cephv1.PoolRadosNamespaceMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
+func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.MirroringStatusSummarySpec, mirrorInfo *cephv1.PoolRadosNamespaceMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
 	blockPool := &cephv1.CephBlockPool{}
 	if err := c.client.Get(c.clusterInfo.Context, c.namespacedName, blockPool); err != nil {
 		if kerrors.IsNotFound(err) {
@@ -84,7 +84,7 @@ func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolRadosName
 	logger.Debugf("ceph block pool %q mirroring status updated", c.namespacedName.Name)
 }
 
-func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephv1.PoolRadosNamespaceMirroringStatusSummarySpec,
+func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroringStatus *cephv1.MirroringStatusSummarySpec,
 	currentInfo *cephv1.MirroringInfoSpec, mirroringInfo *cephv1.PoolRadosNamespaceMirroringInfo,
 	currentSnapSchedStatus *cephv1.SnapshotScheduleStatusSpec, snapSchedStatus []cephv1.SnapshotSchedulesSpec,
 	details string) (*cephv1.MirroringStatusSpec, *cephv1.MirroringInfoSpec, *cephv1.SnapshotScheduleStatusSpec) {

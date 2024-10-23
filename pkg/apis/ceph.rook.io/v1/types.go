@@ -865,7 +865,7 @@ type CephBlockPoolStatus struct {
 type MirroringStatusSpec struct {
 	// PoolRadosNamespaceMirroringStatus is the mirroring status of a pool
 	// +optional
-	PoolRadosNamespaceMirroringStatus *PoolRadosNamespaceMirroringStatusSummarySpec `json:",inline"`
+	PoolRadosNamespaceMirroringStatus *MirroringStatusSummarySpec `json:",inline"`
 	// LastChecked is the last time time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
@@ -877,8 +877,8 @@ type MirroringStatusSpec struct {
 	Details string `json:"details,omitempty"`
 }
 
-// PoolRadosNamespaceMirroringStatusSummarySpec is the summary output of the command
-type PoolRadosNamespaceMirroringStatusSummarySpec struct {
+// MirroringStatusSummarySpec is the summary output of the command
+type MirroringStatusSummarySpec struct {
 	// Health is the mirroring health
 	// +optional
 	Health string `json:"health,omitempty"`

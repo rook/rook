@@ -67,12 +67,19 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephBlockPoolRadosNamespace reconciles a CephBlockPoolRadosNamespace object
 type ReconcileCephBlockPoolRadosNamespace struct {
-	client           client.Client
-	scheme           *runtime.Scheme
-	context          *clusterd.Context
-	clusterInfo      *cephclient.ClusterInfo
-	opManagerContext context.Context
-	opConfig         opcontroller.OperatorConfig
+	client                 client.Client
+	scheme                 *runtime.Scheme
+	context                *clusterd.Context
+	clusterInfo            *cephclient.ClusterInfo
+	radosNamespaceContexts map[string]*radosNamespacelHealth
+	opManagerContext       context.Context
+	opConfig               opcontroller.OperatorConfig
+}
+
+type radosNamespacelHealth struct {
+	internalCtx    context.Context
+	internalCancel context.CancelFunc
+	started        bool
 }
 
 // Add creates a new CephBlockPoolRadosNamespace Controller and adds it to the
@@ -85,11 +92,12 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephBlockPoolRadosNamespace{
-		client:           mgr.GetClient(),
-		scheme:           mgr.GetScheme(),
-		context:          context,
-		opManagerContext: opManagerContext,
-		opConfig:         opConfig,
+		client:                 mgr.GetClient(),
+		scheme:                 mgr.GetScheme(),
+		context:                context,
+		radosNamespaceContexts: make(map[string]*radosNamespacelHealth),
+		opManagerContext:       opManagerContext,
+		opConfig:               opConfig,
 	}
 }
 
@@ -425,6 +433,19 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		return errors.Wrapf(err, "failed to get mirroring info for the radosnamespace %q", poolAndRadosNamespaceName)
 	}
 
+	// Initialize the channel for radosNamespace
+	// This allows us to track multiple radosNamespace in the same namespace
+	radosNamespaceChannelKey := radosNamespaceChannelKeyName(cephBlockPool.Namespace, poolAndRadosNamespaceName)
+	_, radosNamespaceContextsExists := r.radosNamespaceContexts[radosNamespaceChannelKey]
+	if !radosNamespaceContextsExists {
+		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
+		r.radosNamespaceContexts[radosNamespaceChannelKey] = &radosNamespacelHealth{
+			internalCtx:    internalCtx,
+			internalCancel: internalCancel,
+		}
+	}
+	// checker := newMirrorChecker(r.context, r.client, r.clusterInfo, types.NamespacedName{Name: cephBlockPoolRadosNamespace.Name, Namespace: cephBlockPoolRadosNamespace.Namespace}, &cephBlockPoolRadosNamespace.Spec)
+
 	if cephBlockPoolRadosNamespace.Spec.Mirroring != nil {
 		mirroringDisabled := checkBlockPoolMirroring(cephBlockPool)
 		if mirroringDisabled {
@@ -441,6 +462,20 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		if err != nil {
 			return errors.Wrapf(err, "failed to enable snapshot scheduling for rbd rados namespace %q", poolAndRadosNamespaceName)
 		}
+
+		// Run the goroutine to update the mirroring status
+		// use the monitoring settings from the cephBlockPool CR
+		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+			logger.Debugf("starting mirror monitoring for radosnamespace %q", poolAndRadosNamespaceName)
+			// Start monitoring of the radosNamespace
+			if r.radosNamespaceContexts[radosNamespaceChannelKey].started {
+				logger.Debug("pool monitoring go routine already running!")
+			} else {
+				// go checker.checkMirroring(r.radosNamespaceContexts[radosNamespaceChannelKey].internalCtx)
+				r.radosNamespaceContexts[radosNamespaceChannelKey].started = true
+			}
+		}
+
 	}
 
 	if cephBlockPoolRadosNamespace.Spec.Mirroring == nil && mirrorInfo.Mode != "disabled" {
@@ -461,4 +496,8 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		}
 	}
 	return nil
+}
+
+func radosNamespaceChannelKeyName(poolAndRadosNamespaceName, namespace string) string {
+	return types.NamespacedName{Namespace: namespace, Name: poolAndRadosNamespaceName}.String()
 }

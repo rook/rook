@@ -165,7 +165,7 @@ func RemoveClusterPeer(context *clusterd.Context, clusterInfo *ClusterInfo, pool
 }
 
 // GetPoolMirroringStatus prints the pool mirroring status
-func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolRadosNamespaceMirroringStatusSummarySpec, error) {
+func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.MirroringStatusSummarySpec, error) {
 	logger.Debugf("retrieving mirroring pool %q status", poolName)
 
 	// Build command
@@ -179,7 +179,7 @@ func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo,
 		return nil, errors.Wrapf(err, "failed to retrieve mirroring pool %q status", poolName)
 	}
 
-	var poolMirroringStatus cephv1.PoolRadosNamespaceMirroringStatusSummarySpec
+	var poolMirroringStatus cephv1.MirroringStatusSummarySpec
 	if err := json.Unmarshal([]byte(buf), &poolMirroringStatus); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal mirror pool status response")
 	}

@@ -8256,8 +8256,8 @@ MirroringPeerSpec
 <td>
 <code>PoolRadosNamespaceMirroringStatus</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.PoolRadosNamespaceMirroringStatusSummarySpec">
-PoolRadosNamespaceMirroringStatusSummarySpec
+<a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">
+MirroringStatusSummarySpec
 </a>
 </em>
 </td>
@@ -10949,13 +10949,13 @@ string
 </tr>
 </tbody>
 </table>
-<h3 id="ceph.rook.io/v1.PoolRadosNamespaceMirroringStatusSummarySpec">PoolRadosNamespaceMirroringStatusSummarySpec
+<h3 id="ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec
 </h3>
 <p>
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec</a>)
 </p>
 <div>
-<p>PoolRadosNamespaceMirroringStatusSummarySpec is the summary output of the command</p>
+<p>MirroringStatusSummarySpec is the summary output of the command</p>
 </div>
 <table>
 <thead>
@@ -12460,7 +12460,7 @@ string
 <h3 id="ceph.rook.io/v1.StatesSpec">StatesSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolRadosNamespaceMirroringStatusSummarySpec">PoolRadosNamespaceMirroringStatusSummarySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec</a>)
 </p>
 <div>
 <p>StatesSpec are rbd images mirroring state</p>
