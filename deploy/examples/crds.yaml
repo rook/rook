@@ -112,9 +112,142 @@ spec:
                     type: string
                   nullable: true
                   type: object
+                mirroringInfo:
+                  description: MirroringInfoSpec is the status of the pool/radosnamespace mirroring
+                  properties:
+                    details:
+                      type: string
+                    lastChanged:
+                      type: string
+                    lastChecked:
+                      type: string
+                    mode:
+                      description: Mode is the mirroring mode
+                      type: string
+                    peers:
+                      description: Peers are the list of peer sites connected to that cluster
+                      items:
+                        description: PeersSpec contains peer details
+                        properties:
+                          client_name:
+                            description: ClientName is the CephX user used to connect to the peer
+                            type: string
+                          direction:
+                            description: Direction is the peer mirroring direction
+                            type: string
+                          mirror_uuid:
+                            description: MirrorUUID is the mirror UUID
+                            type: string
+                          site_name:
+                            description: SiteName is the current site name
+                            type: string
+                          uuid:
+                            description: UUID is the peer UUID
+                            type: string
+                        type: object
+                      type: array
+                    site_name:
+                      description: SiteName is the current site name
+                      type: string
+                  type: object
+                mirroringStatus:
+                  description: MirroringStatusSpec is the status of the pool/radosNamespace mirroring
+                  properties:
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                    summary:
+                      description: Summary is the mirroring status summary
+                      properties:
+                        daemon_health:
+                          description: DaemonHealth is the health of the mirroring daemon
+                          type: string
+                        health:
+                          description: Health is the mirroring health
+                          type: string
+                        image_health:
+                          description: ImageHealth is the health of the mirrored image
+                          type: string
+                        states:
+                          description: States is the various state for all mirrored images
+                          nullable: true
+                          properties:
+                            error:
+                              description: Error is when the mirroring state is errored
+                              type: integer
+                            replaying:
+                              description: Replaying is when the replay of the mirroring journal is on-going
+                              type: integer
+                            starting_replay:
+                              description: StartingReplay is when the replay of the mirroring journal starts
+                              type: integer
+                            stopped:
+                              description: Stopped is when the mirroring state is stopped
+                              type: integer
+                            stopping_replay:
+                              description: StopReplaying is when the replay of the mirroring journal stops
+                              type: integer
+                            syncing:
+                              description: Syncing is when the image is syncing
+                              type: integer
+                            unknown:
+                              description: Unknown is when the mirroring state is unknown
+                              type: integer
+                          type: object
+                      type: object
+                  type: object
                 phase:
                   description: ConditionType represent a resource's status
                   type: string
+                snapshotScheduleStatus:
+                  description: SnapshotScheduleStatusSpec is the status of the snapshot schedule
+                  properties:
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the list of snapshots scheduled
+                      items:
+                        description: SnapshotSchedulesSpec is the list of snapshot scheduled for images in a pool
+                        properties:
+                          image:
+                            description: Image is the mirrored image
+                            type: string
+                          items:
+                            description: Items is the list schedules times for a given snapshot
+                            items:
+                              description: SnapshotSchedule is a schedule
+                              properties:
+                                interval:
+                                  description: Interval is the interval in which snapshots will be taken
+                                  type: string
+                                start_time:
+                                  description: StartTime is the snapshot starting time
+                                  type: string
+                              type: object
+                            type: array
+                          namespace:
+                            description: Namespace is the RADOS namespace the image is part of
+                            type: string
+                          pool:
+                            description: Pool is the pool name
+                            type: string
+                        type: object
+                      nullable: true
+                      type: array
+                  type: object
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
@@ -407,7 +540,7 @@ spec:
                   nullable: true
                   type: object
                 mirroringInfo:
-                  description: MirroringInfoSpec is the status of the pool mirroring
+                  description: MirroringInfoSpec is the status of the pool/radosnamespace mirroring
                   properties:
                     details:
                       type: string
@@ -445,7 +578,7 @@ spec:
                       type: string
                   type: object
                 mirroringStatus:
-                  description: MirroringStatusSpec is the status of the pool mirroring
+                  description: MirroringStatusSpec is the status of the pool/radosNamespace mirroring
                   properties:
                     details:
                       description: Details contains potential status errors

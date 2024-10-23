@@ -3297,6 +3297,45 @@ map[string]string
 <em>(Optional)</em>
 </td>
 </tr>
+<tr>
+<td>
+<code>mirroringStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringStatusSpec">
+MirroringStatusSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>mirroringInfo</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringInfoSpec">
+MirroringInfoSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotScheduleStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SnapshotScheduleStatusSpec">
+SnapshotScheduleStatusSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus
@@ -8030,13 +8069,13 @@ HealthCheckSpec
 </tr>
 </tbody>
 </table>
-<h3 id="ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec
+<h3 id="ceph.rook.io/v1.MirroringInfo">MirroringInfo
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec</a>)
 </p>
 <div>
-<p>MirroringInfoSpec is the status of the pool mirroring</p>
+<p>MirroringInfo is the mirroring info of a given pool/radosnamespace</p>
 </div>
 <table>
 <thead>
@@ -8048,16 +8087,72 @@ HealthCheckSpec
 <tbody>
 <tr>
 <td>
-<code>PoolMirroringInfo</code><br/>
+<code>mode</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.PoolMirroringInfo">
-PoolMirroringInfo
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mode is the mirroring mode</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>site_name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SiteName is the current site name</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>peers</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PeersSpec">
+[]PeersSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Peers are the list of peer sites connected to that cluster</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+</p>
+<div>
+<p>MirroringInfoSpec is the status of the pool/radosnamespace mirroring</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>MirroringInfo</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringInfo">
+MirroringInfo
 </a>
 </em>
 </td>
 <td>
 <p>
-(Members of <code>PoolMirroringInfo</code> are embedded into this type.)
+(Members of <code>MirroringInfo</code> are embedded into this type.)
 </p>
 <em>(Optional)</em>
 </td>
@@ -8197,13 +8292,13 @@ MirroringPeerSpec
 </tr>
 </tbody>
 </table>
-<h3 id="ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec
+<h3 id="ceph.rook.io/v1.MirroringStatus">MirroringStatus
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec</a>)
 </p>
 <div>
-<p>MirroringStatusSpec is the status of the pool mirroring</p>
+<p>MirroringStatus is the pool/radosNamespace mirror status</p>
 </div>
 <table>
 <thead>
@@ -8215,19 +8310,51 @@ MirroringPeerSpec
 <tbody>
 <tr>
 <td>
-<code>PoolMirroringStatus</code><br/>
+<code>summary</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.PoolMirroringStatus">
-PoolMirroringStatus
+<a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">
+MirroringStatusSummarySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Summary is the mirroring status summary</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+</p>
+<div>
+<p>MirroringStatusSpec is the status of the pool/radosNamespace mirroring</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>MirroringStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringStatus">
+MirroringStatus
 </a>
 </em>
 </td>
 <td>
 <p>
-(Members of <code>PoolMirroringStatus</code> are embedded into this type.)
+(Members of <code>MirroringStatus</code> are embedded into this type.)
 </p>
 <em>(Optional)</em>
-<p>PoolMirroringStatus is the mirroring status of a pool</p>
+<p>MirroringStatus is the mirroring status of a pool/radosNamespace</p>
 </td>
 </tr>
 <tr>
@@ -8264,6 +8391,74 @@ string
 <td>
 <em>(Optional)</em>
 <p>Details contains potential status errors</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatus">MirroringStatus</a>)
+</p>
+<div>
+<p>MirroringStatusSummarySpec is the summary output of the command</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Health is the mirroring health</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>daemon_health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DaemonHealth is the health of the mirroring daemon</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>image_health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImageHealth is the health of the mirrored image</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>states</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.StatesSpec">
+StatesSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>States is the various state for all mirrored images</p>
 </td>
 </tr>
 </tbody>
@@ -10560,7 +10755,7 @@ int
 <h3 id="ceph.rook.io/v1.PeersSpec">PeersSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolMirroringInfo">PoolMirroringInfo</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringInfo">MirroringInfo</a>)
 </p>
 <div>
 <p>PeersSpec contains peer details</p>
@@ -10771,162 +10966,6 @@ string
 </td>
 <td>
 <p>DataPoolName is the data pool used to store ObjectStore objects data.</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.PoolMirroringInfo">PoolMirroringInfo
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec</a>)
-</p>
-<div>
-<p>PoolMirroringInfo is the mirroring info of a given pool</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>mode</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Mode is the mirroring mode</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>site_name</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>SiteName is the current site name</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>peers</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.PeersSpec">
-[]PeersSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Peers are the list of peer sites connected to that cluster</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.PoolMirroringStatus">PoolMirroringStatus
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec</a>)
-</p>
-<div>
-<p>PoolMirroringStatus is the pool mirror status</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>summary</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.PoolMirroringStatusSummarySpec">
-PoolMirroringStatusSummarySpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Summary is the mirroring status summary</p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.PoolMirroringStatusSummarySpec">PoolMirroringStatusSummarySpec
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolMirroringStatus">PoolMirroringStatus</a>)
-</p>
-<div>
-<p>PoolMirroringStatusSummarySpec is the summary output of the command</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>health</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>Health is the mirroring health</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>daemon_health</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>DaemonHealth is the health of the mirroring daemon</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>image_health</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>ImageHealth is the health of the mirrored image</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>states</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.StatesSpec">
-StatesSpec
-</a>
-</em>
-</td>
-<td>
-<em>(Optional)</em>
-<p>States is the various state for all mirrored images</p>
 </td>
 </tr>
 </tbody>
@@ -12317,7 +12356,7 @@ string
 <h3 id="ceph.rook.io/v1.SnapshotScheduleStatusSpec">SnapshotScheduleStatusSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
 </p>
 <div>
 <p>SnapshotScheduleStatusSpec is the status of the snapshot schedule</p>
@@ -12453,7 +12492,7 @@ string
 <h3 id="ceph.rook.io/v1.StatesSpec">StatesSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolMirroringStatusSummarySpec">PoolMirroringStatusSummarySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec</a>)
 </p>
 <div>
 <p>StatesSpec are rbd images mirroring state</p>
