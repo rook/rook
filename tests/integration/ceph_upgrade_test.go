@@ -119,7 +119,8 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
-		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
+		additionalConfig := map[string]string{"maxObjects": maxObjects}
+		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, additionalConfig, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
 		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
@@ -187,7 +188,8 @@ func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
 		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
-		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
+		additionalConfig := map[string]string{"maxObjects": maxObjects}
+		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, additionalConfig, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
 		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
@@ -221,7 +223,8 @@ func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
 		cleanupFilesystemConsumer(s.helper, s.k8sh, &s.Suite, s.namespace, filePodName)
 		cleanupFilesystem(s.helper, s.k8sh, &s.Suite, s.namespace, installer.FilesystemName)
 		_ = s.helper.ObjectUserClient.Delete(s.namespace, objectUserID)
-		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, maxObject, false)
+		additionalConfig := map[string]string{"maxObjects": maxObjects}
+		_ = s.helper.BucketClient.DeleteObc(obcName, installer.ObjectStoreSCName, bucketPrefix, additionalConfig, false)
 		_ = s.helper.BucketClient.DeleteBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreSCName, "Delete")
 		objectStoreCleanUp(&s.Suite, s.helper, s.k8sh, s.settings.Namespace, installer.ObjectStoreName)
 	}()
@@ -279,7 +282,8 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 	logger.Info("Initializing object bucket claim before the upgrade")
 	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete")
 	require.Nil(s.T(), cobErr)
-	cobcErr := s.helper.BucketClient.CreateObc(obcName, installer.ObjectStoreName, bucketPrefix, maxObject, false)
+	additionalConfig := map[string]string{"maxObjects": maxObjects}
+	cobcErr := s.helper.BucketClient.CreateObc(obcName, installer.ObjectStoreName, bucketPrefix, additionalConfig, false)
 	require.Nil(s.T(), cobcErr)
 
 	created := utils.Retry(12, 2*time.Second, "OBC is created", func() bool {
