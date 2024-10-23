@@ -106,6 +106,20 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 		}
 	}
 
+	if _, ok := config["bucketMaxObjects"]; ok {
+		spec.bucketMaxObjects, err = quanityToInt64(config["bucketMaxObjects"])
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse bucketMaxObjects quota")
+		}
+	}
+
+	if _, ok := config["bucketMaxSize"]; ok {
+		spec.bucketMaxSize, err = quanityToInt64(config["bucketMaxSize"])
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse bucketMaxSize quota")
+		}
+	}
+
 	return &spec, nil
 }
 
