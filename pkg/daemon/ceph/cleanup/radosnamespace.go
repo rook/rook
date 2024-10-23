@@ -17,6 +17,8 @@ limitations under the License.
 package cleanup
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -26,46 +28,67 @@ import (
 func RadosNamespaceCleanup(context *clusterd.Context, clusterInfo *client.ClusterInfo, poolName, radosNamespace string) error {
 	logger.Infof("starting clean up of CephBlockPoolRadosNamespace %q resources in cephblockpool %q", radosNamespace, poolName)
 
+	err := cleanupImages(context, clusterInfo, poolName, radosNamespace)
+	if err != nil {
+		logger.Errorf("failed to clean up CephBlockPoolRadosNamespace %q resources in cephblockpool %q", radosNamespace, poolName)
+		return err
+	}
+
+	logger.Infof("successfully cleaned up CephBlockPoolRadosNamespace %q resources in cephblockpool %q", radosNamespace, poolName)
+	return nil
+}
+
+func cleanupImages(context *clusterd.Context, clusterInfo *client.ClusterInfo, poolName, radosNamespace string) error {
+	msg := fmt.Sprintf("cephblockpool %q", poolName)
+	if radosNamespace != "" {
+		msg = fmt.Sprintf("%s in rados namespace %q", msg, radosNamespace)
+	}
 	images, err := cephclient.ListImagesInRadosNamespace(context, clusterInfo, poolName, radosNamespace)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list images in cephblockpool %q in rados namespace %q", poolName, radosNamespace)
+		return errors.Wrapf(err, "failed to list images in %s", msg)
 	}
 
 	var retErr error
 	for _, image := range images {
 		snaps, err := cephclient.ListSnapshotsInRadosNamespace(context, clusterInfo, poolName, image.Name, radosNamespace)
 		if err != nil {
-			retErr = errors.Wrapf(err, "failed to list snapshots for the image %q in cephblockpool %q in rados namespace %q.", image.Name, poolName, radosNamespace)
+			retErr = errors.Wrapf(err, "failed to list snapshots for the image %q in %s", image.Name, msg)
 			logger.Error(retErr)
 		}
 
 		for _, snap := range snaps {
 			err := cephclient.DeleteSnapshotInRadosNamespace(context, clusterInfo, poolName, image.Name, snap.Name, radosNamespace)
 			if err != nil {
-				retErr = errors.Wrapf(err, "failed to delete snapshot %q of the image %q in cephblockpool %q in rados namespace %q.", snap.Name, image.Name, poolName, radosNamespace)
+				retErr = errors.Wrapf(err, "failed to delete snapshot %q of the image %q in %s", snap.Name, image.Name, msg)
 				logger.Error(retErr)
 			} else {
-				logger.Infof("successfully deleted snapshot %q of image %q in cephblockpool %q in rados namespace %q", snap.Name, image.Name, poolName, radosNamespace)
+				logger.Infof("successfully deleted snapshot %q of image %q in %s", snap.Name, image.Name, msg)
 			}
 		}
 
 		err = cephclient.MoveImageToTrashInRadosNamespace(context, clusterInfo, poolName, image.Name, radosNamespace)
 		if err != nil {
-			retErr = errors.Wrapf(err, "failed to move image %q to trash in cephblockpool %q in rados namespace %q.", image.Name, poolName, radosNamespace)
+			retErr = errors.Wrapf(err, "failed to move image %q to trash in %s", image.Name, msg)
 			logger.Error(retErr)
 		}
 		err = cephclient.DeleteImageFromTrashInRadosNamespace(context, clusterInfo, poolName, image.ID, radosNamespace)
 		if err != nil {
-			retErr = errors.Wrapf(err, "failed to add task to remove image %q from trash in cephblockpool %q in rados namespace %q.", image.Name, poolName, radosNamespace)
+			retErr = errors.Wrapf(err, "failed to add task to remove image %q from trash in %s", image.Name, msg)
 			logger.Error(retErr)
 		}
 	}
+	return retErr
+}
 
-	if retErr != nil {
-		logger.Errorf("failed to clean up CephBlockPoolRadosNamespace %q resources in cephblockpool %q", radosNamespace, poolName)
-		return retErr
+func BlockPoolCleanup(context *clusterd.Context, clusterInfo *client.ClusterInfo, poolName string) error {
+	logger.Infof("starting clean up of CephBlockPool %q resource", poolName)
+
+	err := cleanupImages(context, clusterInfo, poolName, "")
+	if err != nil {
+		logger.Errorf("failed to clean up CephBlockPool %q resource", poolName)
+		return err
 	}
 
-	logger.Infof("successfully cleaned up CephBlockPoolRadosNamespace %q resources in cephblockpool %q", radosNamespace, poolName)
+	logger.Infof("successfully cleaned up CephBlockPool %q resource", poolName)
 	return nil
 }

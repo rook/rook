@@ -76,6 +76,7 @@ type ReconcileCephBlockPool struct {
 	blockPoolContexts map[string]*blockPoolHealth
 	opManagerContext  context.Context
 	recorder          record.EventRecorder
+	opConfig          opcontroller.OperatorConfig
 }
 
 type blockPoolHealth struct {
@@ -87,11 +88,11 @@ type blockPoolHealth struct {
 // Add creates a new CephBlockPool Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) error {
-	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext))
+	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
-func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context) reconcile.Reconciler {
+func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephBlockPool{
 		client:            mgr.GetClient(),
 		scheme:            mgr.GetScheme(),
@@ -99,6 +100,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 		blockPoolContexts: make(map[string]*blockPoolHealth),
 		opManagerContext:  opManagerContext,
 		recorder:          mgr.GetEventRecorderFor("rook-" + controllerName),
+		opConfig:          opConfig,
 	}
 }
 
@@ -245,6 +247,12 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		logger.Infof("deleting pool %q", poolSpec.Name)
 		err = deletePool(r.context, clusterInfo, &poolSpec)
 		if err != nil {
+			if opcontroller.ForceDeleteRequested(cephBlockPool.GetAnnotations()) {
+				cleanupErr := r.cleanup(cephBlockPool, &cephCluster)
+				if cleanupErr != nil {
+					return reconcile.Result{}, *cephBlockPool, errors.Wrapf(cleanupErr, "failed to create clean up job for ceph blockpool %q", cephBlockPool.Name)
+				}
+			}
 			return opcontroller.ImmediateRetryResult, *cephBlockPool, errors.Wrapf(err, "failed to delete pool %q. ", cephBlockPool.Name)
 		}
 
@@ -371,6 +379,20 @@ func (r *ReconcileCephBlockPool) reconcileCreatePool(clusterInfo *cephclient.Clu
 
 	// Let's return here so that on the initial creation we don't check for update right away
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileCephBlockPool) cleanup(cephblockpool *cephv1.CephBlockPool, cephCluster *cephv1.CephCluster) error {
+	logger.Infof("starting cleanup of the ceph resources for CephBlockPool %q in k8s namespace %q", cephblockpool.Name, cephblockpool.Namespace)
+	cleanupConfig := map[string]string{
+		opcontroller.CephBlockPoolNameEnv: cephblockpool.Name,
+	}
+	cleanup := opcontroller.NewResourceCleanup(cephblockpool, cephCluster, r.opConfig.Image, cleanupConfig)
+	jobName := k8sutil.TruncateNodeNameForJob("cleanup-cephblockpool-%s", cephblockpool.Name)
+	err := cleanup.StartJob(r.clusterInfo.Context, r.context.Clientset, jobName)
+	if err != nil {
+		return errors.Wrapf(err, "failed to run clean up job to clean the cephblockpool %q", cephblockpool.Name)
+	}
+	return nil
 }
 
 // Create the pool
