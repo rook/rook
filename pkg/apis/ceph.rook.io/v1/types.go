@@ -61,6 +61,8 @@ type CephClusterHealthCheckSpec struct {
 	// +nullable
 	DaemonHealth DaemonHealthSpec `json:"daemonHealth,omitempty"`
 	// LivenessProbe allows changing the livenessProbe configuration for a given daemon
+	// AlternateSSDConfigFile for ci test purposes only
+	AlternateSSSDConfigFile SSSDSidecarConfigFile `json:"alternatesssdconfigfile"`
 	// +optional
 	LivenessProbe map[KeyType]*ProbeSpec `json:"livenessProbe,omitempty"`
 	// StartupProbe allows changing the startupProbe configuration for a given daemon
