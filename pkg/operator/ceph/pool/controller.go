@@ -444,7 +444,7 @@ func removeDuplicates(slice []string) []string {
 }
 
 func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deletedPool string) error {
-	logger.Debug("configuring RBD per-image IO statistics collection")
+	logger.Debug("configuring RBD per-image IO statistics collection odedviner")
 	namespaceListOpt := client.InNamespace(clusterInfo.Namespace)
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
 	var enableStatsForCephBlockPools []string
@@ -456,27 +456,27 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 		if cephBlockPool.GetDeletionTimestamp() == nil && cephBlockPool.Spec.EnableRBDStats {
 			// add to list of CephBlockPool with enableRBDStats set to true and not marked for deletion
 			enableStatsForCephBlockPools = append(enableStatsForCephBlockPools, cephBlockPool.ToNamedPoolSpec().Name)
+			logger.Infof("enableStatsForCephBlockPools_1=%q ", enableStatsForCephBlockPools)
 		}
 	}
 	enableStatsForCephBlockPools = remove(enableStatsForCephBlockPools, deletedPool)
+	logger.Infof("enableStatsForCephBlockPools_2=%q ", enableStatsForCephBlockPools)
 	monStore := config.GetMonStore(clusterContext, clusterInfo)
 	// Check for existing rbd stats pools
 	existingRBDStatsPools, e := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
 	if e != nil {
 		return errors.Wrapf(e, "failed to get rbd_stats_pools")
 	}
-
-	existingRBDStatsPoolsList := strings.Split(existingRBDStatsPools, ",")
-	enableStatsForPools := append(enableStatsForCephBlockPools, existingRBDStatsPoolsList...)
-	enableStatsForPools = removeDuplicates(enableStatsForPools)
-
-	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
-
-	if len(enableStatsForPools) == 0 {
+	logger.Infof("existingRBDStatsPools= %q", existingRBDStatsPools)
+	poolNames := strings.Trim(strings.Join(enableStatsForCephBlockPools, ","), ",")
+	logger.Infof("poolNames=%q ", poolNames)
+	if len(poolNames) == 0 {
+		logger.Infof("poolNames_1=%q ", poolNames)
 		err = monStore.Delete("mgr", "mgr/prometheus/rbd_stats_pools")
 	} else {
 		// appending existing rbd stats pools if any
-		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", strings.Trim(strings.Join(enableStatsForPools, ","), ","))
+		logger.Infof("poolNames_2=%q ", poolNames)
+		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", poolNames)
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
