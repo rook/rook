@@ -85,7 +85,10 @@ func ListImagesInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterI
 // ListSnapshotsInRadosNamespace lists all the snapshots created for an image in a cephblockpool in a given rados namespace
 func ListSnapshotsInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, imageName, namespace string) ([]CephBlockImageSnapshot, error) {
 	snapshots := []CephBlockImageSnapshot{}
-	args := []string{"snap", "ls", getImageSpec(imageName, poolName), "--namespace", namespace}
+	args := []string{"snap", "ls", getImageSpec(imageName, poolName)}
+	if namespace != "" {
+		args = append(args, "--namespace", namespace)
+	}
 	cmd := NewRBDCommand(context, clusterInfo, args)
 	cmd.JsonOutput = true
 	buf, err := cmd.Run()
@@ -101,7 +104,10 @@ func ListSnapshotsInRadosNamespace(context *clusterd.Context, clusterInfo *Clust
 
 // DeleteSnapshotInRadosNamespace deletes a image snapshot created in block pool in a given rados namespace
 func DeleteSnapshotInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, imageName, snapshot, namespace string) error {
-	args := []string{"snap", "rm", getImageSnapshotSpec(poolName, imageName, snapshot), "--namespace", namespace}
+	args := []string{"snap", "rm", getImageSnapshotSpec(poolName, imageName, snapshot)}
+	if namespace != "" {
+		args = append(args, "--namespace", namespace)
+	}
 	cmd := NewRBDCommand(context, clusterInfo, args)
 	_, err := cmd.Run()
 	if err != nil {
@@ -112,7 +118,10 @@ func DeleteSnapshotInRadosNamespace(context *clusterd.Context, clusterInfo *Clus
 
 // MoveImageToTrashInRadosNamespace moves the cephblockpool image to trash in the rados namespace
 func MoveImageToTrashInRadosNamespace(context *clusterd.Context, clusterInfo *ClusterInfo, poolName, imageName, namespace string) error {
-	args := []string{"trash", "mv", getImageSpec(imageName, poolName), "--namespace", namespace}
+	args := []string{"trash", "mv", getImageSpec(imageName, poolName)}
+	if namespace != "" {
+		args = append(args, "--namespace", namespace)
+	}
 	cmd := NewRBDCommand(context, clusterInfo, args)
 	_, err := cmd.Run()
 	if err != nil {
@@ -268,8 +277,12 @@ func getImageSpec(name, poolName string) string {
 }
 
 func getImageSpecInRadosNamespace(poolName, namespace, imageID string) string {
+	if namespace == "" {
+		return fmt.Sprintf("%s/%s", poolName, imageID)
+	}
 	return fmt.Sprintf("%s/%s/%s", poolName, namespace, imageID)
 }
+
 func getImageSnapshotSpec(poolName, imageName, snapshot string) string {
 	return fmt.Sprintf("%s/%s@%s", poolName, imageName, snapshot)
 }
