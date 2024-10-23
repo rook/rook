@@ -10959,6 +10959,17 @@ string
 </tr>
 <tr>
 <td>
+<code>default</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Sets given placement as default. Only one placement in the list can be marked as default.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>metadataPoolName</code><br/>
 <em>
 string

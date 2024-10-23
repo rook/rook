@@ -800,7 +800,8 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	if err != nil {
 		return err
 	}
-	zoneGroupUpdated, err := adjustZoneGroupPlacementTargets(zoneGroupConfig, zoneUpdated)
+	defaultPlacement := getDefaultPlacementName(sharedPools)
+	zoneGroupUpdated, err := adjustZoneGroupPlacementTargets(zoneGroupConfig, zoneUpdated, defaultPlacement)
 	if err != nil {
 		return err
 	}
@@ -1401,10 +1402,10 @@ func ValidateObjectStorePoolsConfig(metadataPool, dataPool cephv1.PoolSpec, shar
 		return err
 	}
 	if !EmptyPool(dataPool) && sharedPools.DataPoolName != "" {
-		return fmt.Errorf("invalidObjStorePoolCofig: object store dataPool and sharedPools.dataPool=%s are mutually exclusive. Only one of them can be set.", sharedPools.DataPoolName)
+		return fmt.Errorf("invalidObjStorePoolConfig: object store dataPool and sharedPools.dataPool=%s are mutually exclusive. Only one of them can be set.", sharedPools.DataPoolName)
 	}
 	if !EmptyPool(metadataPool) && sharedPools.MetadataPoolName != "" {
-		return fmt.Errorf("invalidObjStorePoolCofig: object store metadataPool and sharedPools.metadataPool=%s are mutually exclusive. Only one of them can be set.", sharedPools.MetadataPoolName)
+		return fmt.Errorf("invalidObjStorePoolConfig: object store metadataPool and sharedPools.metadataPool=%s are mutually exclusive. Only one of them can be set.", sharedPools.MetadataPoolName)
 	}
 	return nil
 }
