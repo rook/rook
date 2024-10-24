@@ -25,6 +25,13 @@ spec:
     enabled: true
   network:
     provider: multus
+    addressRanges:
+      public:
+        - "192.168.20.0/30"
+        - "192.168.25.0/24"
+      cluster:
+        - "192.168.21.0/24"
+        - "192.168.26.0/24"
     selectors:
       public: public-net
       cluster: cluster-net
