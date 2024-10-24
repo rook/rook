@@ -44,12 +44,5 @@ jobs:
           mkdir -p $(go env GOPATH)/src/github.com/rook/rook/
           cp -R . $(go env GOPATH)/src/github.com/rook/rook/
 
-      - name: run codegen
-        run: |
-          cd $(go env GOPATH)/src/github.com/rook/rook
-          GOPATH=$(go env GOPATH) make codegen
-
       - name: validate codegen
-        run: |
-          cd $(go env GOPATH)/src/github.com/rook/rook
-          tests/scripts/validate_modified_files.sh codegen
+        run: GOPATH=$(go env GOPATH) make check.codegen
