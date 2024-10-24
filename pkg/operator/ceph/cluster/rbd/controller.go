@@ -83,7 +83,7 @@ type ReconcileCephRBDMirror struct {
 
 // peerSpec represents peer details
 type peerSpec struct {
-	info      *cephv1.PoolMirroringInfo
+	info      *cephv1.PoolRadosNamespaceMirroringInfo
 	poolName  string
 	direction string
 }

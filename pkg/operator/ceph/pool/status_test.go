@@ -26,9 +26,9 @@ import (
 )
 
 func TestToCustomResourceStatus(t *testing.T) {
-	mirroringStatus := &cephv1.PoolMirroringStatusSummarySpec{}
+	mirroringStatus := &cephv1.MirroringStatusSummarySpec{}
 	mirroringStatus.Health = "HEALTH_OK"
-	mirroringInfo := &cephv1.PoolMirroringInfo{
+	mirroringInfo := &cephv1.PoolRadosNamespaceMirroringInfo{
 		Mode:     "pool",
 		SiteName: "rook-ceph-emea",
 		Peers: []cephv1.PeersSpec{
@@ -39,8 +39,8 @@ func TestToCustomResourceStatus(t *testing.T) {
 	// Test 1: Empty so it's disabled
 	{
 		newMirroringStatus, newMirroringInfo, _ := toCustomResourceStatus(&cephv1.MirroringStatusSpec{}, mirroringStatus, &cephv1.MirroringInfoSpec{}, mirroringInfo, &cephv1.SnapshotScheduleStatusSpec{}, []cephv1.SnapshotSchedulesSpec{}, "")
-		assert.NotEmpty(t, newMirroringStatus.Summary)
-		assert.Equal(t, "HEALTH_OK", newMirroringStatus.Summary.Health)
+		assert.NotEmpty(t, newMirroringStatus.PoolRadosNamespaceMirroringStatus)
+		assert.Equal(t, "HEALTH_OK", newMirroringStatus.PoolRadosNamespaceMirroringStatus.Health)
 		assert.Equal(t, "pool", newMirroringInfo.Mode)
 	}
 
@@ -53,8 +53,8 @@ func TestToCustomResourceStatus(t *testing.T) {
 			},
 		}
 		newMirroringStatus, newMirroringInfo, newSnapshotScheduleStatus := toCustomResourceStatus(&cephv1.MirroringStatusSpec{}, mirroringStatus, &cephv1.MirroringInfoSpec{}, mirroringInfo, &cephv1.SnapshotScheduleStatusSpec{}, snapSchedStatus, "")
-		assert.NotEmpty(t, newMirroringStatus.Summary)
-		assert.Equal(t, "HEALTH_OK", newMirroringStatus.Summary.Health)
+		assert.NotEmpty(t, newMirroringStatus.PoolRadosNamespaceMirroringStatus)
+		assert.Equal(t, "HEALTH_OK", newMirroringStatus.PoolRadosNamespaceMirroringStatus.Health)
 		assert.NotEmpty(t, newMirroringInfo.Mode, "pool")
 		assert.NotEmpty(t, newSnapshotScheduleStatus)
 	}

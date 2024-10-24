@@ -861,11 +861,11 @@ type CephBlockPoolStatus struct {
 	Conditions         []Condition `json:"conditions,omitempty"`
 }
 
-// MirroringStatusSpec is the status of the pool mirroring
+// MirroringStatusSpec is the status of the pool/radosNamespace mirroring
 type MirroringStatusSpec struct {
-	// PoolMirroringStatus is the mirroring status of a pool
+	// PoolRadosNamespaceMirroringStatus is the mirroring status of a pool
 	// +optional
-	PoolMirroringStatus `json:",inline"`
+	PoolRadosNamespaceMirroringStatus *MirroringStatusSummarySpec `json:",inline"`
 	// LastChecked is the last time time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
@@ -877,15 +877,8 @@ type MirroringStatusSpec struct {
 	Details string `json:"details,omitempty"`
 }
 
-// PoolMirroringStatus is the pool mirror status
-type PoolMirroringStatus struct {
-	// Summary is the mirroring status summary
-	// +optional
-	Summary *PoolMirroringStatusSummarySpec `json:"summary,omitempty"`
-}
-
-// PoolMirroringStatusSummarySpec is the summary output of the command
-type PoolMirroringStatusSummarySpec struct {
+// MirroringStatusSummarySpec is the summary output of the command
+type MirroringStatusSummarySpec struct {
 	// Health is the mirroring health
 	// +optional
 	Health string `json:"health,omitempty"`
@@ -929,7 +922,7 @@ type StatesSpec struct {
 // MirroringInfoSpec is the status of the pool mirroring
 type MirroringInfoSpec struct {
 	// +optional
-	*PoolMirroringInfo `json:",inline"`
+	*PoolRadosNamespaceMirroringInfo `json:",inline"`
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
 	// +optional
@@ -938,8 +931,8 @@ type MirroringInfoSpec struct {
 	Details string `json:"details,omitempty"`
 }
 
-// PoolMirroringInfo is the mirroring info of a given pool
-type PoolMirroringInfo struct {
+// PoolRadosNamespaceMirroringInfo is the mirroring info of a given pool
+type PoolRadosNamespaceMirroringInfo struct {
 	// Mode is the mirroring mode
 	// +optional
 	Mode string `json:"mode,omitempty"`
@@ -3386,6 +3379,12 @@ type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+	// +optional
+	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
+	// +optional
+	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
+	// +optional
+	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
 }
 
 // Represents the source of a volume to mount.

@@ -165,7 +165,7 @@ func RemoveClusterPeer(context *clusterd.Context, clusterInfo *ClusterInfo, pool
 }
 
 // GetPoolMirroringStatus prints the pool mirroring status
-func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolMirroringStatus, error) {
+func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.MirroringStatusSummarySpec, error) {
 	logger.Debugf("retrieving mirroring pool %q status", poolName)
 
 	// Build command
@@ -179,7 +179,7 @@ func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo,
 		return nil, errors.Wrapf(err, "failed to retrieve mirroring pool %q status", poolName)
 	}
 
-	var poolMirroringStatus cephv1.PoolMirroringStatus
+	var poolMirroringStatus cephv1.MirroringStatusSummarySpec
 	if err := json.Unmarshal([]byte(buf), &poolMirroringStatus); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal mirror pool status response")
 	}
@@ -211,7 +211,7 @@ func GetMirroredPoolImages(context *clusterd.Context, clusterInfo *ClusterInfo, 
 }
 
 // GetPoolMirroringInfo  prints the pool mirroring information
-func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolMirroringInfo, error) {
+func GetPoolRadosNamespaceMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolRadosNamespaceMirroringInfo, error) {
 	logger.Debugf("retrieving mirroring pool %q info", poolName)
 
 	// Build command
@@ -226,7 +226,7 @@ func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	}
 
 	// Unmarshal JSON into Go struct
-	var poolMirroringInfo cephv1.PoolMirroringInfo
+	var poolMirroringInfo cephv1.PoolRadosNamespaceMirroringInfo
 	if err := json.Unmarshal(buf, &poolMirroringInfo); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal mirror pool info response")
 	}
@@ -280,17 +280,17 @@ func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	return nil
 }
 
-func EnableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool string, snapshotSchedules []cephv1.SnapshotScheduleSpec) error {
+func EnableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolRadosNamespaceName string, snapshotSchedules []cephv1.SnapshotScheduleSpec) error {
 	logger.Info("resetting current snapshot schedules in cluster namespace %q", clusterInfo.Namespace)
 	// Reset any existing schedules
-	err := removeSnapshotSchedules(context, clusterInfo, pool)
+	err := removeSnapshotSchedules(context, clusterInfo, poolRadosNamespaceName)
 	if err != nil {
 		logger.Errorf("failed to remove snapshot schedules. %v", err)
 	}
 
 	// Enable all the snap schedules
 	for _, snapSchedule := range snapshotSchedules {
-		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, pool)
+		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, poolRadosNamespaceName)
 		if err != nil {
 			return errors.Wrap(err, "failed to enable snapshot schedule")
 		}

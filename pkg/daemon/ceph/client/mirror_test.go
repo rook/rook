@@ -98,8 +98,8 @@ func TestGetPoolMirroringStatus(t *testing.T) {
 
 	poolMirrorStatus, err := GetPoolMirroringStatus(context, AdminTestClusterInfo("mycluster"), pool)
 	assert.NoError(t, err)
-	assert.Equal(t, "WARNING", poolMirrorStatus.Summary.Health)
-	assert.Equal(t, "OK", poolMirrorStatus.Summary.DaemonHealth)
+	assert.Equal(t, "WARNING", poolMirrorStatus.Health)
+	assert.Equal(t, "OK", poolMirrorStatus.DaemonHealth)
 }
 
 func TestGetMirroredPoolImages(t *testing.T) {
@@ -175,7 +175,7 @@ func TestGetPoolMirroringInfo(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
-	poolMirrorInfo, err := GetPoolMirroringInfo(context, AdminTestClusterInfo("mycluster"), pool)
+	poolMirrorInfo, err := GetPoolRadosNamespaceMirroringInfo(context, AdminTestClusterInfo("mycluster"), pool)
 	assert.NoError(t, err)
 	assert.Equal(t, "image", poolMirrorInfo.Mode)
 	assert.Equal(t, 1, len(poolMirrorInfo.Peers))

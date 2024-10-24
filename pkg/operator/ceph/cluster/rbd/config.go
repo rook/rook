@@ -117,7 +117,7 @@ func (r *ReconcileCephRBDMirror) addPeer(peerSecret string, data map[string][]by
 	}
 
 	// Now the bootstrap peer has been added so we can hydrate the pool mirror info
-	poolMirrorInfo, err := client.GetPoolMirroringInfo(r.context, r.clusterInfo, r.peers[peerSecret].poolName)
+	poolMirrorInfo, err := client.GetPoolRadosNamespaceMirroringInfo(r.context, r.clusterInfo, r.peers[peerSecret].poolName)
 	if err != nil {
 		return errors.Wrap(err, "failed to get pool mirror information")
 	}
