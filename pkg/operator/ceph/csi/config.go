@@ -20,6 +20,7 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"strings"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -129,6 +130,13 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 // CreateDefaultClientProfile creates a default client profile for csi-operator to connect driver
 func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo, namespaced types.NamespacedName) error {
 	logger.Info("Creating ceph-csi clientProfile default CR")
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("HIT A PANIC WHEN CREATING DEFAULT CLIENT PROFILE: %+v", r)
+			logger.Errorf("Stack trace:")
+			logger.Errorf(string(debug.Stack()))
+		}
+	}()
 
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	csiOpClientProfile.Name = clusterInfo.Namespace
