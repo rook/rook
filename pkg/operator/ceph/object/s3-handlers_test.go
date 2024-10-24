@@ -53,7 +53,7 @@ func TestNewS3Agent(t *testing.T) {
 		insecure := true
 		s3Agent, err := newS3Agent(accessKey, secretKey, endpoint, debug, nil, insecure)
 		assert.NoError(t, err)
-		assert.Nil(t, s3Agent.Client.Config.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs)
+		assert.NotNil(t, s3Agent.Client.Config.HTTPClient.Transport.(*http.Transport).TLSClientConfig.RootCAs) // still includes sys certs
 		assert.True(t, s3Agent.Client.Config.HTTPClient.Transport.(*http.Transport).TLSClientConfig.InsecureSkipVerify)
 		assert.False(t, *s3Agent.Client.Config.DisableSSL)
 	})
