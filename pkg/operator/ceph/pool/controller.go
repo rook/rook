@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -441,35 +442,61 @@ func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	return nil
 }
 
-// remove removes any element from a list
-func remove(list []string, s string) []string {
-	for i, v := range list {
-		if v == s {
-			list = append(list[:i], list[i+1:]...)
+// generateStatsPoolList combines existingStatsPools and rookStatsPools, removes items in removePools,
+// removes duplicates, ensures no empty strings, and returns a comma-separated string in a deterministic order.
+func generateStatsPoolList(existingStatsPools []string, rookStatsPools []string, removePools []string) string {
+	// Create a map to keep track of pools that should be removed
+	removeMap := make(map[string]struct{})
+	for _, pool := range removePools {
+		if pool != "" {
+			removeMap[pool] = struct{}{}
 		}
 	}
 
-	return list
+	// Create a list to store unique pools
+	poolList := []string{}
+
+	// Helper function to add a pool if it's not in removeMap and not already in the list
+	addUniquePool := func(pool string) {
+		if pool != "" {
+			// Check if the pool should be removed or already exists in poolList
+			if _, exists := removeMap[pool]; !exists && !contains(poolList, pool) {
+				poolList = append(poolList, pool)
+			}
+		}
+	}
+
+	// Add pools from existingStatsPools and rookStatsPools
+	for _, pool := range existingStatsPools {
+		addUniquePool(pool)
+	}
+	for _, pool := range rookStatsPools {
+		addUniquePool(pool)
+	}
+
+	// Sort the list to ensure deterministic output
+	sort.Strings(poolList)
+
+	// Return the result as a comma-separated string
+	return strings.Join(poolList, ",")
 }
 
-// Remove duplicate entries from slice
-func removeDuplicates(slice []string) []string {
-	inResult := make(map[string]bool)
-	var result []string
-	for _, str := range slice {
-		if _, ok := inResult[str]; !ok {
-			inResult[str] = true
-			result = append(result, str)
+// Helper function to check if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
 		}
 	}
-	return result
+	return false
 }
 
 func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deletedPool string) error {
 	logger.Debug("configuring RBD per-image IO statistics collection")
 	namespaceListOpt := client.InNamespace(clusterInfo.Namespace)
 	cephBlockPoolList := &cephv1.CephBlockPoolList{}
-	var enableStatsForCephBlockPools []string
+	var rookStatsPools []string
+	var removePools []string
 	err := clusterContext.Client.List(clusterInfo.Context, cephBlockPoolList, namespaceListOpt)
 	if err != nil {
 		return errors.Wrap(err, "failed to retrieve list of CephBlockPool")
@@ -477,28 +504,32 @@ func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient
 	for _, cephBlockPool := range cephBlockPoolList.Items {
 		if cephBlockPool.GetDeletionTimestamp() == nil && cephBlockPool.Spec.EnableRBDStats {
 			// add to list of CephBlockPool with enableRBDStats set to true and not marked for deletion
-			enableStatsForCephBlockPools = append(enableStatsForCephBlockPools, cephBlockPool.ToNamedPoolSpec().Name)
+			rookStatsPools = append(rookStatsPools, cephBlockPool.ToNamedPoolSpec().Name)
+		} else {
+			removePools = append(removePools, cephBlockPool.ToNamedPoolSpec().Name)
 		}
 	}
-	enableStatsForCephBlockPools = remove(enableStatsForCephBlockPools, deletedPool)
+	if deletedPool != "" {
+		removePools = append(removePools, deletedPool)
+	}
 	monStore := config.GetMonStore(clusterContext, clusterInfo)
 	// Check for existing rbd stats pools
-	existingRBDStatsPools, e := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
+	existingStatsPools, e := monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
 	if e != nil {
 		return errors.Wrapf(e, "failed to get rbd_stats_pools")
 	}
-
-	existingRBDStatsPoolsList := strings.Split(existingRBDStatsPools, ",")
-	enableStatsForPools := append(enableStatsForCephBlockPools, existingRBDStatsPoolsList...)
-	enableStatsForPools = removeDuplicates(enableStatsForPools)
-
+	existingStatsPoolsList := strings.Split(existingStatsPools, ",")
+	// existingStatsPoolsList = []string{"p1","p2","p3", "p5"}
+	// rookStatsPools =[]string{"p2","p3","p4", "p1","p6", "p3","p7"}
+	// removePools = []string{"p1","p3"}
+	enableStatsForPools := generateStatsPoolList(existingStatsPoolsList, rookStatsPools, removePools)
+	logger.Infof("enableStatsForPools=%q ", enableStatsForPools)
 	logger.Debugf("RBD per-image IO statistics will be collected for pools: %v", enableStatsForPools)
-
 	if len(enableStatsForPools) == 0 {
 		err = monStore.Delete("mgr", "mgr/prometheus/rbd_stats_pools")
 	} else {
 		// appending existing rbd stats pools if any
-		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", strings.Trim(strings.Join(enableStatsForPools, ","), ","))
+		err = monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", enableStatsForPools)
 	}
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable rbd_stats_pools")
