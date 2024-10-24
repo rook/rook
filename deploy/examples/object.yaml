@@ -116,6 +116,7 @@ spec:
       disabled: false
     readinessProbe:
       disabled: false
+  # rgwOpsLogEnabled: true
   # hosting:
   #   The list of subdomain names for virtual hosting of buckets.
   #   dnsNames:

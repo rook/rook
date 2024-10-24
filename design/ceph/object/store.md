@@ -712,3 +712,73 @@ For external CephCephObjectStores (i.e., when `spec.gateway.externalRgwEndpoints
 vhost-style addressing should be configured on the host cluster, and `hosting.dnsNames` is
 irrelevant. The default `advertiseEndpoint` for external CephObjectStores is the first entry in the
 `spec.gateway.externalRgwEndpoints` list, which users should be able to override if desired.
+
+### RGW Operations Logging
+
+If you want to have the ops log available for enhanced observality of the operations, you'd have to set `rgwOpsLogEnabled` this will set the [configuration for enabling ops logs to Ceph](https://docs.ceph.com/en/latest/radosgw/config-ref/#confval-rgw_enable_ops_log).
+
+```yaml
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+  preservePoolsOnDelete: false
+  gateway:
+    port: 80
+    # securePort: 443
+    instances: 1
+  rgwOpsLogEnabled: true
+```
+When enabled we make it accessible to you using a sidecar `rgw-ops-log` you can then access the logs using:
+
+```sh
+# k logs rook-ceph-rgw-my-store-a-59d48474d9-jv7ps -c rgw-ops-log -nrook-ceph
+```
+
+## Enabling RGW Operations Log for Observability
+
+To capture and analyze detailed RADOS Gateway (RGW) operations such as reads, writes, and metadata accesses, you need to enable the `rgwOpsLogEnabled` setting in Ceph. This feature is useful for monitoring, auditing, debugging, and improving observability.
+For more details on configuring and managing RGW operations logs, please refer to the official Ceph documentation on [rgw_enable_ops_log](https://docs.ceph.com/en/latest/radosgw/config-ref/#confval-rgw_enable_ops_log).
+
+### Configuration Steps
+
+To enable RGW operations logging, add the `rgwOpsLogEnabled` setting to your Object's specification. Below is an example configuration in YAML for a Rook-Ceph deployment:
+
+```yaml
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+  preservePoolsOnDelete: false
+  gateway:
+    port: 80
+    # securePort: 443
+    instances: 1
+  rgwOpsLogEnabled: true
+  rgwopslog:
+    limits:
+      memory: "60Mi"
+    requests:
+      cpu: "100m"
+      memory: "60Mi"
+
+```
+
+* `rgwOpsLogEnabled: true`: This parameter enables the operations log feature in RGW, this creates the sidecar container as rgw-ops-log container.
+* `rgwopslog`: Set resource requests/limits for the rgw-ops-log sidecar container.
+
+### Accessing RGW Operations Logs
+
+Once enabled, logs can be accessed through a sidecar container named rgw-ops-log that collects the operations logs. Use the following command to view the logs:
+
+```sh
+kubectl logs rook-ceph-rgw-my-store-a-59d48474d9-jv7ps -c rgw-ops-log -n rook-ceph
+```
+
+* `-c rgw-ops-log`: This flag specifies the container to fetch logs from, which in this case is the sidecar collecting RGW operations logs.
