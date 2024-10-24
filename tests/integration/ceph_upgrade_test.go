@@ -340,7 +340,7 @@ func (s *UpgradeSuite) verifyOperatorImage(expectedImage string) {
 
 func (s *UpgradeSuite) verifyRookUpgrade(numOSDs int) {
 	// Get some info about the currently deployed mons to determine later if they are all updated
-	monDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon")
+	monDepList, err := k8sutil.GetDeployments(context.TODO(), s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon,mon_daemon=true")
 	require.NoError(s.T(), err)
 	require.Equal(s.T(), s.settings.Mons, len(monDepList.Items), monDepList.Items)
 
