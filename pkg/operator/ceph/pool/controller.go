@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"sort"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -419,38 +420,53 @@ func deletePool(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, 
 	return nil
 }
 
-// generateStatsPoolList combines existingStatsPools and rookStatsPools, removes items in removePools, removes duplicates, ensures no empty strings, and returns a comma-separated string.
+// generateStatsPoolList combines existingStatsPools and rookStatsPools, removes items in removePools,
+// removes duplicates, ensures no empty strings, and returns a comma-separated string in a deterministic order.
 func generateStatsPoolList(existingStatsPools []string, rookStatsPools []string, removePools []string) string {
-	// Create a set to store unique pools
-	poolSet := make(map[string]struct{})
-
-	// Add existingStatsPools and rookStatsPools to the set, checking for empty strings
-	for _, pool := range existingStatsPools {
-		if pool != "" {
-			poolSet[pool] = struct{}{}
-		}
-	}
-	for _, pool := range rookStatsPools {
-		if pool != "" {
-			poolSet[pool] = struct{}{}
-		}
-	}
-
-	// Remove pools present in removePools, checking for empty strings
+	// Create a map to keep track of pools that should be removed
+	removeMap := make(map[string]struct{})
 	for _, pool := range removePools {
 		if pool != "" {
-			delete(poolSet, pool)
+			removeMap[pool] = struct{}{}
 		}
 	}
 
-	// Convert the set back to a slice
-	result := make([]string, 0, len(poolSet))
-	for pool := range poolSet {
-		result = append(result, pool)
+	// Create a list to store unique pools
+	poolList := []string{}
+
+	// Helper function to add a pool if it's not in removeMap and not already in the list
+	addUniquePool := func(pool string) {
+		if pool != "" {
+			// Check if the pool should be removed or already exists in poolList
+			if _, exists := removeMap[pool]; !exists && !contains(poolList, pool) {
+				poolList = append(poolList, pool)
+			}
+		}
 	}
 
+	// Add pools from existingStatsPools and rookStatsPools
+	for _, pool := range existingStatsPools {
+		addUniquePool(pool)
+	}
+	for _, pool := range rookStatsPools {
+		addUniquePool(pool)
+	}
+
+	// Sort the list to ensure deterministic output
+	sort.Strings(poolList)
+
 	// Return the result as a comma-separated string
-	return strings.Join(result, ",")
+	return strings.Join(poolList, ",")
+}
+
+// Helper function to check if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
+	return false
 }
 
 func configureRBDStats(clusterContext *clusterd.Context, clusterInfo *cephclient.ClusterInfo, deletedPool string) error {
