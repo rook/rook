@@ -143,10 +143,10 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.Equal(t, corev1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, "my-priority-class", deployment.Spec.Template.Spec.PriorityClassName)
 	if devMountNeeded && len(dataDir) > 0 {
-		assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if devMountNeeded && len(dataDir) == 0 {
-		assert.Equal(t, 9, len(deployment.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 10, len(deployment.Spec.Template.Spec.Volumes))
 	}
 	if !devMountNeeded && len(dataDir) > 0 {
 		assert.Equal(t, 1, len(deployment.Spec.Template.Spec.Volumes))
@@ -164,7 +164,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	initCont := deployment.Spec.Template.Spec.InitContainers[0]
 	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
 	assert.Equal(t, "activate", initCont.Name)
-	assert.Equal(t, 4, len(initCont.VolumeMounts))
+	assert.Equal(t, 5, len(initCont.VolumeMounts))
 	initCont = deployment.Spec.Template.Spec.InitContainers[1]
 	assert.Equal(t, "quay.io/ceph/ceph:v15", initCont.Image)
 	assert.Equal(t, "expand-bluefs", initCont.Name)

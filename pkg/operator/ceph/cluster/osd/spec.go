@@ -867,10 +867,13 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 
 	adminKeyringVol, adminKeyringVolMount := cephkey.Volume().Admin(), cephkey.VolumeMount().Admin()
 	volume = append(volume, adminKeyringVol)
+	udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
+	volume = append(volume, udevVolume)
 	volMounts := []v1.VolumeMount{
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
+		{Name: "udev", MountPath: "/run/udev"},
 		adminKeyringVolMount,
 	}
 
