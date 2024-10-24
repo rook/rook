@@ -3,7 +3,7 @@ apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
   name: public-net
-  namespace: default
+  namespace: rook-ceph
   labels:
   annotations:
 spec:
@@ -22,13 +22,11 @@ spec:
       }
     }
 ---
-# IPv6 address here (with IPv4 above) makes this unsuitable for CephCluster use, but it is okay for
-# testing validation tool
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:
   name: cluster-net
-  namespace: default
+  namespace: rook-ceph
   labels:
   annotations:
 spec:
@@ -40,6 +38,6 @@ spec:
       "mode": "bridge",
       "ipam": {
         "type": "whereabouts",
-        "range": "fc00::/96"
+        "range": "192.168.21.0/24"
       }
     }

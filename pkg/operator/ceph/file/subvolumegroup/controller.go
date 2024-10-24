@@ -311,15 +311,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 		},
 	}
 
-	// If the cluster has Multus enabled we need to append the network namespace of the driver's
-	// holder DaemonSet in the csi configmap
-	if cephCluster.Spec.Network.IsMultus() {
-		netNamespaceFilePath, err := csi.GenerateNetNamespaceFilePath(r.opManagerContext, r.client, cephCluster.Namespace, r.opConfig.OperatorNamespace, csi.CephFSDriverShortName)
-		if err != nil {
-			return errors.Wrap(err, "failed to generate cephfs net namespace file path")
-		}
-		csiClusterConfigEntry.CephFS.NetNamespaceFilePath = netNamespaceFilePath
-	}
+	csiClusterConfigEntry.CephFS.NetNamespaceFilePath = ""
 
 	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, &csiClusterConfigEntry)
 	if err != nil {

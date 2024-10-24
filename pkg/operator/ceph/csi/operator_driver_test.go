@@ -48,7 +48,6 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 		opConfig: opcontroller.OperatorConfig{
 			OperatorNamespace: "test",
 		},
-		clustersWithHolder: []ClusterDetail{},
 	}
 	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{
