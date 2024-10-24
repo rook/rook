@@ -47,6 +47,8 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 	labels[monClusterAttr] = c.Namespace
 	if canary {
 		labels["mon_canary"] = "true"
+	} else {
+		labels["mon_daemon"] = "true"
 	}
 	if includeNewLabels {
 		monVolumeClaimTemplate := c.monVolumeClaimTemplate(monConfig)
