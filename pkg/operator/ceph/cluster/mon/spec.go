@@ -58,6 +58,9 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 		if monConfig.Zone != "" {
 			labels["zone"] = monConfig.Zone
 		}
+		if !canary {
+			labels["mon_daemon"] = "true"
+		}
 	}
 
 	return labels
