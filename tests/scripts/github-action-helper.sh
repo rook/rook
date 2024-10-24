@@ -677,8 +677,8 @@ function test_csi_rbd_workload {
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
-  kubectl -n rook-ceph logs ds/csi-rbdplugin -c csi-rbdplugin
-  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-rbdplugin --field-selector=status.phase=Running -o name)"
+  kubectl -n rook-ceph logs ds/rook-ceph.rbd.csi.ceph.com-nodeplugin -c csi-rbdplugin
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.rbd.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
   kubectl exec -t pod/csirbd-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csirbd-demo-pod -- ls -alh /var/lib/www/html/
 }
@@ -690,8 +690,8 @@ function test_csi_cephfs_workload {
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
-  kubectl -n rook-ceph logs ds/csi-cephfsplugin -c csi-cephfsplugin
-  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-cephfsplugin --field-selector=status.phase=Running -o name)"
+  kubectl -n rook-ceph logs ds/rook-ceph.cephfs.csi.ceph.com-nodeplugin -c csi-cephfsplugin
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.cephfs.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
   kubectl exec -t pod/csicephfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csicephfs-demo-pod -- ls -alh /var/lib/www/html/
 }
@@ -704,7 +704,7 @@ function test_csi_nfs_workload {
   kubectl create -f pod.yaml
   timeout 90 sh -c 'until kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test bs=1M count=1; do echo "waiting for test pod to be ready" && sleep 1; done'
   kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test oflag=direct bs=1M count=1
-  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=csi-nfsplugin --field-selector=status.phase=Running -o name)"
+  kubectl -n rook-ceph delete "$(kubectl -n rook-ceph get pod --selector=app=rook-ceph.nfs.csi.ceph.com-nodeplugin --field-selector=status.phase=Running -o name)"
   kubectl exec -t pod/csinfs-demo-pod -- dd if=/dev/random of=/var/lib/www/html/test1 oflag=direct bs=1M count=1
   kubectl exec -t pod/csinfs-demo-pod -- ls -alh /var/lib/www/html/
 }
