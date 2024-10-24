@@ -273,8 +273,8 @@ function deploy_toolbox() {
 }
 
 function replace_ceph_image() {
-  local file="$1"  # parameter 1: the file in which to replace the ceph image
-  local ceph_image="${2?ceph_image is required}"  # parameter 2: the new ceph image to use
+  local file="$1"                                # parameter 1: the file in which to replace the ceph image
+  local ceph_image="${2?ceph_image is required}" # parameter 2: the new ceph image to use
 
   # check for ceph_image being an empty string
   if [ -z "$ceph_image" ]; then
@@ -642,7 +642,7 @@ metadata:
   labels:
   annotations:
 spec:
-  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.20.0/24" } }'
+  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts",  "ipRanges": [{"range": "192.168.100.0/24"}, {"range": "192.168.101.0/24"}] } }'
 ---
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
@@ -652,7 +652,7 @@ metadata:
   labels:
   annotations:
 spec:
-  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.21.0/24" } }'
+  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.200.0/24" } }'
 EOF
 }
 
@@ -670,9 +670,9 @@ function deploy_multus_cluster() {
 function test_multus_connections() {
   EXEC='kubectl -n rook-ceph exec -t deploy/rook-ceph-tools -- ceph --connect-timeout 10'
   # each OSD should exist on both public and cluster network
-  $EXEC osd dump | grep osd.0 | grep "192.168.20." | grep "192.168.21."
+  $EXEC osd dump | grep osd.0 | grep "192.168.100." | grep "192.168.200."
   # MDSes should exist on public network and NOT on cluster network
-  $EXEC fs dump | grep myfs-a | grep "192.168.20." | grep -v "192.168.21."
+  $EXEC fs dump | grep myfs-a | grep "192.168.100." | grep -v "192.168.200."
 }
 
 function create_operator_toolbox() {
@@ -818,7 +818,7 @@ function test_object_separate_pools() {
     done
     if [[ "$found" == false ]]; then
       echo "Live pool $l is not an expected pool"
-      errors=$((errors+1))
+      errors=$((errors + 1))
     fi
   done
 
