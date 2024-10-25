@@ -201,14 +201,15 @@ Object Storage API allows users to override where bucket data will be stored dur
 To enable this feature, configure `poolPlacements` representing a list of possible bucket data locations.
 Each `poolPlacement` must have:
 
-* a **unique** `name` to refer to it in `<LocationConstraint>` or `X-Storage-Policy`. A placement with reserved name `default` will be used by default if no location constraint is provided.
+* a **unique** `name` to refer to it in `<LocationConstraint>` or `X-Storage-Policy`. Name `default-placement` is reserved and can be used **only** if placement also marked as `default`.
+* **optional** `default` flag to use given placement by default, meaning that it will be used if no location constraint is provided. Only one placement in the list can be marked as default.
 * `dataPoolName` and `metadataPoolName` representing object data and metadata locations. In Rook, these data locations are backed by `CephBlockPool`. `poolPlacements` and `storageClasses` specs refer pools by name. This means that all pools should be defined in advance. Similarly to [sharedPools](#create-local-object-stores-with-shared-pools), the same pool can be reused across multiple ObjectStores and/or poolPlacements/storageClasses because of RADOS namespaces. Here, each pool will be namespaced with `<object store name>.<placement name>.<pool type>` key.
 * **optional** `dataNonECPoolName` - extra pool for data that cannot use erasure coding (ex: multi-part uploads). If not set, `metadataPoolName` will be used.
 * **optional** list of placement `storageClasses`. Classes defined per placement, which means that even classes of `default` placement will be available only within this placement and not others. Each placement will automatically have default storage class named `STANDARD`. `STANDARD` class always points to placement `dataPoolName` and cannot be removed or redefined. Each storage class must have:
     * `name` (unique within placement). RGW allows arbitrary name for StorageClasses, however some clients/libs insist on AWS names so it is recommended to use one of the valid `x-amz-storage-class` values for better compatibility: `STANDARD | REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE`. See [AWS docs](https://aws.amazon.com/s3/storage-classes/).
     * `dataPoolName` - overrides placement data pool when this class is selected by user.
 
-Example: Configure `CephObjectStore` with `default` placement pointing to `us` pools and placement `europe` pointing to pools in corresponding geographies. These geographical locations are only an example. Placement name can be arbitrary and could reflect the backing pool's replication factor, device class, or failure domain. This example also  defines storage class `REDUCED_REDUNDANCY` for each placement.
+Example: Configure `CephObjectStore` with `default` placement `us` pools and placement `europe` pointing to pools in corresponding geographies. These geographical locations are only an example. Placement name can be arbitrary and could reflect the backing pool's replication factor, device class, or failure domain. This example also  defines storage class `REDUCED_REDUNDANCY` for each placement.
 
 ```yaml
 apiVersion: ceph.rook.io/v1
@@ -222,7 +223,8 @@ spec:
     instances: 1
   sharedPools:
     poolPlacements:
-    - name: default
+    - name: us
+      default: true
       metadataPoolName: "us-data-pool"
       dataPoolName: "us-meta-pool"
       storageClasses:

@@ -24,6 +24,7 @@ func Test_validatePoolPlacements(t *testing.T) {
 				placements: []cephv1.PoolPlacementSpec{
 					{
 						Name:              "name1",
+						Default:           true,
 						MetadataPoolName:  "", // handled by CRD validation
 						DataPoolName:      "", // handled by CRD validation
 						DataNonECPoolName: "", // handled by CRD validation
@@ -31,6 +32,7 @@ func Test_validatePoolPlacements(t *testing.T) {
 					},
 					{
 						Name:              "name2",
+						Default:           false,
 						MetadataPoolName:  "", // handled by CRD validation
 						DataPoolName:      "", // handled by CRD validation
 						DataNonECPoolName: "", // handled by CRD validation
@@ -61,6 +63,78 @@ func Test_validatePoolPlacements(t *testing.T) {
 				},
 			},
 			wantErr: true,
+		},
+		{
+			name: "invalid: more than one default placement",
+			args: args{
+				placements: []cephv1.PoolPlacementSpec{
+					{
+						Name:              "one",
+						Default:           true,
+						MetadataPoolName:  "", // handled by CRD validation
+						DataPoolName:      "", // handled by CRD validation
+						DataNonECPoolName: "", // handled by CRD validation
+						StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+					},
+					{
+						Name:              "two",
+						Default:           true,
+						MetadataPoolName:  "", // handled by CRD validation
+						DataPoolName:      "", // handled by CRD validation
+						DataNonECPoolName: "", // handled by CRD validation
+						StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid: non-default placement with reserved name",
+			args: args{
+				placements: []cephv1.PoolPlacementSpec{
+					{
+						Name:              defaultPlacementCephConfigName,
+						Default:           false,
+						MetadataPoolName:  "", // handled by CRD validation
+						DataPoolName:      "", // handled by CRD validation
+						DataNonECPoolName: "", // handled by CRD validation
+						StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+					},
+					{
+						Name:              "two",
+						Default:           true,
+						MetadataPoolName:  "", // handled by CRD validation
+						DataPoolName:      "", // handled by CRD validation
+						DataNonECPoolName: "", // handled by CRD validation
+						StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+					},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid: default placement with reserved name",
+			args: args{
+				placements: []cephv1.PoolPlacementSpec{
+					{
+						Name:              defaultPlacementCephConfigName,
+						Default:           true,
+						MetadataPoolName:  "", // handled by CRD validation
+						DataPoolName:      "", // handled by CRD validation
+						DataNonECPoolName: "", // handled by CRD validation
+						StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+					},
+					{
+						Name:              "two",
+						Default:           false,
+						MetadataPoolName:  "", // handled by CRD validation
+						DataPoolName:      "", // handled by CRD validation
+						DataNonECPoolName: "", // handled by CRD validation
+						StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+					},
+				},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
@@ -165,7 +239,8 @@ func TestIsNeedToCreateObjectStorePools(t *testing.T) {
 					PreserveRadosNamespaceDataOnDelete: false,
 					PoolPlacements: []cephv1.PoolPlacementSpec{
 						{
-							Name:              "default",
+							Name:              "name",
+							Default:           true,
 							MetadataPoolName:  "", // handled by CRD validation
 							DataPoolName:      "", // handled by CRD validation
 							DataNonECPoolName: "", // handled by CRD validation
@@ -221,7 +296,8 @@ func TestIsNeedToCreateObjectStorePools(t *testing.T) {
 					PreserveRadosNamespaceDataOnDelete: false,
 					PoolPlacements: []cephv1.PoolPlacementSpec{
 						{
-							Name:              "fast",
+							Name:              "default",
+							Default:           false,
 							MetadataPoolName:  "", // handled by CRD validation
 							DataPoolName:      "", // handled by CRD validation
 							DataNonECPoolName: "", // handled by CRD validation
@@ -267,7 +343,8 @@ func Test_getDefaultMetadataPool(t *testing.T) {
 							StorageClasses:    []cephv1.PlacementStorageClassSpec{},
 						},
 						{
-							Name:              defaultPlacementName,
+							Name:              "some_name_2",
+							Default:           true,
 							MetadataPoolName:  "meta2",
 							DataPoolName:      "data2",
 							DataNonECPoolName: "data-non-ec2",
@@ -294,7 +371,8 @@ func Test_getDefaultMetadataPool(t *testing.T) {
 							StorageClasses:    []cephv1.PlacementStorageClassSpec{},
 						},
 						{
-							Name:              defaultPlacementName,
+							Name:              "some_name_2",
+							Default:           true,
 							MetadataPoolName:  "meta2",
 							DataPoolName:      "data2",
 							DataNonECPoolName: "data-non-ec2",
@@ -314,7 +392,8 @@ func Test_getDefaultMetadataPool(t *testing.T) {
 					PreserveRadosNamespaceDataOnDelete: false,
 					PoolPlacements: []cephv1.PoolPlacementSpec{
 						{
-							Name:              "some_name",
+							Name:              "default",
+							Default:           false,
 							MetadataPoolName:  "meta1",
 							DataPoolName:      "data1",
 							DataNonECPoolName: "data-non-ec1",
@@ -334,7 +413,8 @@ func Test_getDefaultMetadataPool(t *testing.T) {
 					PreserveRadosNamespaceDataOnDelete: false,
 					PoolPlacements: []cephv1.PoolPlacementSpec{
 						{
-							Name:              "some_name",
+							Name:              "default",
+							Default:           false,
 							MetadataPoolName:  "meta1",
 							DataPoolName:      "data1",
 							DataNonECPoolName: "data-non-ec1",
@@ -369,7 +449,8 @@ func Test_toZonePlacementPool(t *testing.T) {
 			name: "map default placement without non-ec to config",
 			args: args{
 				spec: cephv1.PoolPlacementSpec{
-					Name:              defaultPlacementName,
+					Name:              defaultPlacementCephConfigName,
+					Default:           true,
 					MetadataPoolName:  "meta",
 					DataPoolName:      "data",
 					DataNonECPoolName: "",
@@ -385,11 +466,11 @@ func Test_toZonePlacementPool(t *testing.T) {
 			want: ZonePlacementPool{
 				Key: defaultPlacementCephConfigName,
 				Val: ZonePlacementPoolVal{
-					DataExtraPool: "meta:ns.data.non-ec",
-					IndexPool:     "meta:ns.index",
+					DataExtraPool: "meta:ns.default-placement.data.non-ec",
+					IndexPool:     "meta:ns.default-placement.index",
 					StorageClasses: map[string]ZonePlacementStorageClass{
 						defaultPlacementStorageClass: {
-							DataPool: "data:ns.data",
+							DataPool: "data:ns.default-placement.data",
 						},
 						"REDUCED_REDUNDANCY": {
 							DataPool: "reduced:ns.REDUCED_REDUNDANCY",
@@ -403,7 +484,8 @@ func Test_toZonePlacementPool(t *testing.T) {
 			name: "map default placement to config",
 			args: args{
 				spec: cephv1.PoolPlacementSpec{
-					Name:              defaultPlacementName,
+					Name:              "fast",
+					Default:           true,
 					MetadataPoolName:  "meta",
 					DataPoolName:      "data",
 					DataNonECPoolName: "repl",
@@ -417,42 +499,16 @@ func Test_toZonePlacementPool(t *testing.T) {
 				ns: "ns",
 			},
 			want: ZonePlacementPool{
-				Key: defaultPlacementCephConfigName,
+				Key: "fast",
 				Val: ZonePlacementPoolVal{
-					DataExtraPool: "repl:ns.data.non-ec",
-					IndexPool:     "meta:ns.index",
+					DataExtraPool: "repl:ns.fast.data.non-ec",
+					IndexPool:     "meta:ns.fast.index",
 					StorageClasses: map[string]ZonePlacementStorageClass{
 						defaultPlacementStorageClass: {
-							DataPool: "data:ns.data",
+							DataPool: "data:ns.fast.data",
 						},
 						"REDUCED_REDUNDANCY": {
 							DataPool: "reduced:ns.REDUCED_REDUNDANCY",
-						},
-					},
-					InlineData: true,
-				},
-			},
-		},
-		{
-			name: "map default placement without extra SC to config",
-			args: args{
-				spec: cephv1.PoolPlacementSpec{
-					Name:              defaultPlacementName,
-					MetadataPoolName:  "meta",
-					DataPoolName:      "data",
-					DataNonECPoolName: "repl",
-					StorageClasses:    []cephv1.PlacementStorageClassSpec{},
-				},
-				ns: "ns",
-			},
-			want: ZonePlacementPool{
-				Key: defaultPlacementCephConfigName,
-				Val: ZonePlacementPoolVal{
-					DataExtraPool: "repl:ns.data.non-ec",
-					IndexPool:     "meta:ns.index",
-					StorageClasses: map[string]ZonePlacementStorageClass{
-						defaultPlacementStorageClass: {
-							DataPool: "data:ns.data",
 						},
 					},
 					InlineData: true,
@@ -464,6 +520,7 @@ func Test_toZonePlacementPool(t *testing.T) {
 			args: args{
 				spec: cephv1.PoolPlacementSpec{
 					Name:              "placement",
+					Default:           false,
 					MetadataPoolName:  "meta",
 					DataPoolName:      "data",
 					DataNonECPoolName: "",
@@ -498,6 +555,7 @@ func Test_toZonePlacementPool(t *testing.T) {
 			args: args{
 				spec: cephv1.PoolPlacementSpec{
 					Name:              "placement",
+					Default:           false,
 					MetadataPoolName:  "meta",
 					DataPoolName:      "data",
 					DataNonECPoolName: "repl",
@@ -580,7 +638,8 @@ func Test_toZonePlacementPools(t *testing.T) {
 					PreserveRadosNamespaceDataOnDelete: false,
 					PoolPlacements: []cephv1.PoolPlacementSpec{
 						{
-							Name:              defaultPlacementName,
+							Name:              "some_name",
+							Default:           true,
 							MetadataPoolName:  "meta1",
 							DataPoolName:      "data1",
 							DataNonECPoolName: "data-non-ec",
@@ -596,14 +655,14 @@ func Test_toZonePlacementPools(t *testing.T) {
 				ns: "rgw-instance",
 			},
 			want: map[string]ZonePlacementPool{
-				defaultPlacementCephConfigName: {
-					Key: defaultPlacementCephConfigName,
+				"some_name": {
+					Key: "some_name",
 					Val: ZonePlacementPoolVal{
-						DataExtraPool: "data-non-ec:rgw-instance.data.non-ec",
-						IndexPool:     "meta1:rgw-instance.index",
+						DataExtraPool: "data-non-ec:rgw-instance.some_name.data.non-ec",
+						IndexPool:     "meta1:rgw-instance.some_name.index",
 						StorageClasses: map[string]ZonePlacementStorageClass{
 							defaultPlacementStorageClass: {
-								DataPool: "data1:rgw-instance.data",
+								DataPool: "data1:rgw-instance.some_name.data",
 							},
 							"REDUCED_REDUNDANCY": {
 								DataPool: "reduced:rgw-instance.REDUCED_REDUNDANCY",
@@ -962,7 +1021,8 @@ func Test_adjustZoneDefaultPools(t *testing.T) {
 					PreserveRadosNamespaceDataOnDelete: false,
 					PoolPlacements: []cephv1.PoolPlacementSpec{
 						{
-							Name:             defaultPlacementName,
+							Name:             "some_name",
+							Default:          true,
 							MetadataPoolName: "meta-pool",
 							DataPoolName:     "data-pool",
 						},
@@ -1418,8 +1478,9 @@ func Test_adjustZonePlacementPools(t *testing.T) {
 
 func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 	type args struct {
-		zone        string
-		groupBefore string
+		zone             string
+		groupBefore      string
+		defaultPlacement string
 	}
 	tests := []struct {
 		name        string
@@ -1431,6 +1492,7 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 		{
 			name: "nothing changed",
 			args: args{
+				defaultPlacement: defaultPlacementCephConfigName,
 				groupBefore: `{
     "id": "610c9e3d-19e7-40b0-9f88-03319c4bc65a",
     "name": "test",
@@ -1492,6 +1554,7 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 		{
 			name: "default changed",
 			args: args{
+				defaultPlacement: defaultPlacementCephConfigName,
 				groupBefore: `{
     "id": "610c9e3d-19e7-40b0-9f88-03319c4bc65a",
     "name": "test",
@@ -1553,6 +1616,7 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 		{
 			name: "storage class added",
 			args: args{
+				defaultPlacement: defaultPlacementCephConfigName,
 				groupBefore: `{
     "id": "610c9e3d-19e7-40b0-9f88-03319c4bc65a",
     "name": "test",
@@ -1617,6 +1681,7 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 		{
 			name: "placement added",
 			args: args{
+				defaultPlacement: defaultPlacementCephConfigName,
 				groupBefore: `{
     "id": "610c9e3d-19e7-40b0-9f88-03319c4bc65a",
     "name": "test",
@@ -1697,6 +1762,7 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 		{
 			name: "placement and sc removed",
 			args: args{
+				defaultPlacement: defaultPlacementCephConfigName,
 				groupBefore: `{
     "id": "610c9e3d-19e7-40b0-9f88-03319c4bc65a",
     "name": "test",
@@ -1769,7 +1835,7 @@ func Test_adjustZoneGroupPlacementTargets(t *testing.T) {
 			srcGroup := map[string]interface{}{}
 			err = json.Unmarshal([]byte(tt.args.groupBefore), &srcGroup)
 			assert.NoError(t, err)
-			changedGroup, err := adjustZoneGroupPlacementTargets(srcGroup, zj)
+			changedGroup, err := adjustZoneGroupPlacementTargets(srcGroup, zj, tt.args.defaultPlacement)
 
 			orig := map[string]interface{}{}
 			jErr := json.Unmarshal([]byte(tt.args.groupBefore), &orig)
@@ -1865,6 +1931,79 @@ func Test_createPlacementTargetsFromZonePoolPlacements(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("createPlacementTargetsFromZonePoolPlacements() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getDefaultPlacementName(t *testing.T) {
+	type args struct {
+		spec cephv1.ObjectSharedPoolsSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "no default placement set in spec",
+			args: args{
+				spec: cephv1.ObjectSharedPoolsSpec{
+					PoolPlacements: []cephv1.PoolPlacementSpec{
+						{
+							Name:    "one",
+							Default: false,
+						},
+						{
+							Name:    "two",
+							Default: false,
+						},
+					},
+				},
+			},
+			want: defaultPlacementCephConfigName,
+		},
+		{
+			name: "first placement set as defaultu in spec",
+			args: args{
+				spec: cephv1.ObjectSharedPoolsSpec{
+					PoolPlacements: []cephv1.PoolPlacementSpec{
+						{
+							Name:    "one",
+							Default: true,
+						},
+						{
+							Name:    "two",
+							Default: false,
+						},
+					},
+				},
+			},
+			want: "one",
+		},
+		{
+			name: "second placement set as default in spec",
+			args: args{
+				spec: cephv1.ObjectSharedPoolsSpec{
+					PoolPlacements: []cephv1.PoolPlacementSpec{
+						{
+							Name:    "one",
+							Default: false,
+						},
+						{
+							Name:    "two",
+							Default: true,
+						},
+					},
+				},
+			},
+			want: "two",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getDefaultPlacementName(tt.args.spec); got != tt.want {
+				t.Errorf("getDefaultPlacementName() = %v, want %v", got, tt.want)
 			}
 		})
 	}
