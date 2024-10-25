@@ -1639,6 +1639,7 @@ jobs:
           ibm-service-api-key: ${{ secrets.IBM_SERVICE_API_KEY }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: ${{ github.job }}-${{ matrix.ceph-image }}
+          ceph-image: ${{ matrix.ceph-image }}
 
   multus-public-and-cluster:
     runs-on: ubuntu-22.04
