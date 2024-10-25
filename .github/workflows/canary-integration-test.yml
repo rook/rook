@@ -54,6 +54,10 @@ jobs:
           tests/scripts/github-action-helper.sh deploy_cluster
           tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
 
+      - name: start v18 toolbox
+        # the v18 toolbox appears needed for the external script unit tests due to some python dependencies missing in v19
+        run: tests/scripts/github-action-helper.sh deploy_toolbox_v18
+
       - name: setup csi-addons
         run: tests/scripts/csiaddons.sh setup_csiaddons
 
@@ -133,7 +137,13 @@ jobs:
 
       - name: run external script create-external-cluster-resources.py unit tests
         run: |
-          kubectl -n rook-ceph exec $(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[0].metadata.name}') -- python3 -m unittest /etc/ceph/create-external-cluster-resources-tests.py
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools-v18 -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
+          kubectl -n rook-ceph cp tests/external-cluster/ceph-status-out $toolbox:/etc/ceph/test-data/
+          kubectl -n rook-ceph cp tests/external-cluster/external-config.ini $toolbox:/etc/ceph/
+          kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
+          kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
+          kubectl -n rook-ceph exec $toolbox -- python3 -m unittest /etc/ceph/create-external-cluster-resources-tests.py
 
       - name: wait for the subvolumegroup to be created
         run: |
