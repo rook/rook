@@ -10,6 +10,9 @@ inputs:
   artifact-name:
     description: the name of the artifact where logs will be stored
     required: true
+  ceph-image:
+    description: the name of ceph image
+    required: true
 
 runs:
   using: "composite"
@@ -27,7 +30,7 @@ runs:
 
     - name: set Ceph version in CephCluster manifest
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ github.event.inputs.ceph-image }}"
+      run: tests/scripts/github-action-helper.sh replace_ceph_image  "deploy/examples/cluster-test.yaml" "${{ inputs.ceph-image }}"
 
     - name: use local disk and create partitions for osds
       shell: bash --noprofile --norc -eo pipefail -x {0}
