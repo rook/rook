@@ -37,14 +37,14 @@ spec:
         - name: us-east-2c
     volumeClaimTemplate:
       spec:
-        storageClassName: gp2
+        storageClassName: gp2-csi
         resources:
           requests:
             storage: 10Gi
   mgr:
     count: 2
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.2
+    image: quay.io/ceph/ceph:v18.2.4
     allowUnsupported: true
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
@@ -85,7 +85,7 @@ spec:
               resources:
                 requests:
                   storage: 10Gi
-              storageClassName: gp2
+              storageClassName: gp2-csi
               volumeMode: Block
               accessModes:
                 - ReadWriteOnce
@@ -118,7 +118,7 @@ spec:
               resources:
                 requests:
                   storage: 10Gi
-              storageClassName: gp2
+              storageClassName: gp2-csi
               volumeMode: Block
               accessModes:
                 - ReadWriteOnce

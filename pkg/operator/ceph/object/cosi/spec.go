@@ -20,6 +20,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +43,6 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 	replica := int32(1)
 	minReadySeconds := int32(30)
 	progressDeadlineSeconds := int32(600)
-	revisionHistoryLimit := int32(3)
 
 	cephcosidriverDeployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -51,7 +51,8 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 			Labels:    getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: &replica,
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
+			Replicas:             &replica,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: getCOSILabels(cephCOSIDriver.Name, cephCOSIDriver.Namespace),
 			},
@@ -59,7 +60,6 @@ func createCephCOSIDriverDeployment(cephCOSIDriver *cephv1.CephCOSIDriver) (*app
 			Strategy:                strategy,
 			MinReadySeconds:         minReadySeconds,
 			ProgressDeadlineSeconds: &progressDeadlineSeconds,
-			RevisionHistoryLimit:    &revisionHistoryLimit,
 		},
 	}
 
@@ -83,10 +83,12 @@ func createCOSIPodSpec(cephCOSIDriver *cephv1.CephCOSIDriver) (corev1.PodTemplat
 	cosiSideCarContainer := createCOSISideCarContainer(cephCOSIDriver)
 
 	podSpec := corev1.PodSpec{
+		HostNetwork: opcontroller.EnforceHostNetwork(),
 		Containers: []corev1.Container{
 			cosiDriverContainer,
 			cosiSideCarContainer,
 		},
+		SecurityContext:    &corev1.PodSecurityContext{},
 		ServiceAccountName: DefaultServiceAccountName,
 		Volumes: []corev1.Volume{
 			{Name: cosiSocketVolumeName, VolumeSource: corev1.VolumeSource{EmptyDir: &corev1.EmptyDirVolumeSource{}}},

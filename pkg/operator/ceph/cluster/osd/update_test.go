@@ -175,11 +175,11 @@ func Test_updateExistingOSDs(t *testing.T) {
 	}
 
 	// simple wrappers to allow us to count how many OSDs on nodes/PVCs are identified
-	deploymentOnNodeFunc = func(c *Cluster, osd OSDInfo, nodeName string, config *provisionConfig) (*appsv1.Deployment, error) {
+	deploymentOnNodeFunc = func(c *Cluster, osd *OSDInfo, nodeName string, config *provisionConfig) (*appsv1.Deployment, error) {
 		osdsOnNodes = append(osdsOnNodes, osd.ID)
 		return deploymentOnNode(c, osd, nodeName, config)
 	}
-	deploymentOnPVCFunc = func(c *Cluster, osd OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
+	deploymentOnPVCFunc = func(c *Cluster, osd *OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
 		osdsOnPVCs = append(osdsOnPVCs, osd.ID)
 		return deploymentOnPVC(c, osd, pvcName, config)
 	}
@@ -557,7 +557,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -589,7 +589,7 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 		// osd.1 and 3 in another namespace (another Rook cluster)
 		clusterInfo2 := &cephclient.ClusterInfo{
 			Namespace:   "other-namespace",
-			CephVersion: cephver.Quincy,
+			CephVersion: cephver.Squid,
 		}
 		clusterInfo2.SetName("other-cluster")
 		clusterInfo2.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

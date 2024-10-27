@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	k8sutil "github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 
@@ -101,6 +102,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 			Labels: getLabels(),
 		},
 		Spec: apps.DaemonSetSpec{
+			RevisionHistoryLimit: opcontroller.RevisionHistoryLimit(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
 					"app": discoverDaemonsetName,
@@ -173,8 +175,9 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 							},
 						},
 					},
-					HostNetwork:       false,
+					HostNetwork:       opcontroller.EnforceHostNetwork(),
 					PriorityClassName: k8sutil.GetValue(data, discoverDaemonsetPriorityClassNameEnv, ""),
+					SecurityContext:   &v1.PodSecurityContext{},
 				},
 			},
 		},

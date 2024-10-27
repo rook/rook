@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 	"testing"
 	"time"
 
@@ -189,35 +190,76 @@ func TestActiveMgrLabels(t *testing.T) {
 	validateStart(t, c)
 
 	mgrNames := []string{"a", "b"}
-	for i := 0; i < c.spec.Mgr.Count; i++ {
+	for i := 0; i < len(mgrNames); i++ {
 		// Simulate the Mgr pod having been created
 		daemonName := mgrNames[i]
 		mgrPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("rook-ceph-mgr-%s", daemonName),
-			Labels: map[string]string{k8sutil.AppAttr: "rook-ceph-mgr",
+			Labels: map[string]string{
+				k8sutil.AppAttr:  "rook-ceph-mgr",
 				"instance":       daemonName,
 				"ceph_daemon_id": daemonName,
 				"mgr":            daemonName,
-				"rook_cluster":   "ns"}}}
+				"rook_cluster":   "ns",
+			},
+		}}
 		_, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).Create(c.clusterInfo.Context, mgrPod, metav1.CreateOptions{})
 		assert.NoError(t, err)
 	}
+	mgrA, mgrB := mgrNames[0], mgrNames[1]
 
-	for i := 0; i < c.spec.Mgr.Count; i++ {
-		daemonName := mgrNames[i]
-		_, err := c.context.Clientset.AppsV1().Deployments(c.clusterInfo.Namespace).Get(context.TODO(), fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
-		assert.NoError(t, err)
-		_, err = c.UpdateActiveMgrLabel(daemonName, "")
-		assert.NoError(t, err)
-		pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"})
-		assert.NoError(t, err)
-		assert.Contains(t, pods.Items[i].Labels, "mgr_role")
-		if daemonName == "a" {
-			assert.Equal(t, pods.Items[i].Labels["mgr_role"], "active")
-		} else if daemonName == "b" {
-			assert.Equal(t, pods.Items[i].Labels["mgr_role"], "standby")
-		}
-	}
+	err = c.SetMgrRoleLabel(mgrA, true)
+	assert.NoError(t, err, "set mgr a to active")
+	err = c.SetMgrRoleLabel(mgrB, false)
+	assert.NoError(t, err, "set mgr b to standby")
+
+	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"})
+	assert.NoError(t, err, "lookup all mgr pods")
+	assert.Len(t, pods.Items, 2)
+	sort.Slice(pods.Items, func(i, j int) bool {
+		// sort pods by name, so pod for mgrA will be 0 and for B - 1.
+		return pods.Items[i].GetName() < pods.Items[j].GetName()
+	})
+
+	assert.Equal(t, pods.Items[0].Labels["mgr"], mgrA)
+	assert.Equal(t, pods.Items[0].Labels["mgr_role"], "active", "mgr a is active")
+
+	assert.Equal(t, pods.Items[1].Labels["mgr"], mgrB)
+	assert.Equal(t, pods.Items[1].Labels["mgr_role"], "standby", "mgr b is standby")
+
+	err = c.SetMgrRoleLabel(mgrA, false)
+	assert.NoError(t, err, "set mgr a to standby")
+
+	pods, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"})
+	assert.NoError(t, err, "lookup all mgr pods")
+	assert.Len(t, pods.Items, 2)
+	sort.Slice(pods.Items, func(i, j int) bool {
+		// sort pods by name, so pod for mgrA will be 0 and for B - 1.
+		return pods.Items[i].GetName() < pods.Items[j].GetName()
+	})
+
+	assert.Equal(t, pods.Items[0].Labels["mgr"], mgrA)
+	assert.Equal(t, pods.Items[0].Labels["mgr_role"], "standby", "mgr a is now standby")
+
+	assert.Equal(t, pods.Items[1].Labels["mgr"], mgrB)
+	assert.Equal(t, pods.Items[1].Labels["mgr_role"], "standby", "mgr b is still standby")
+
+	err = c.SetMgrRoleLabel(mgrB, true)
+	assert.NoError(t, err, "set mgr b to active")
+
+	pods, err = c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{LabelSelector: "app=rook-ceph-mgr"})
+	assert.NoError(t, err, "lookup all mgr pods")
+	assert.Len(t, pods.Items, 2)
+	sort.Slice(pods.Items, func(i, j int) bool {
+		// sort pods by name, so pod for mgrA will be 0 and for B - 1.
+		return pods.Items[i].GetName() < pods.Items[j].GetName()
+	})
+
+	assert.Equal(t, pods.Items[0].Labels["mgr"], mgrA)
+	assert.Equal(t, pods.Items[0].Labels["mgr_role"], "standby", "mgr a is still standby")
+
+	assert.Equal(t, pods.Items[1].Labels["mgr"], mgrB)
+	assert.Equal(t, pods.Items[1].Labels["mgr_role"], "active", "mgr b is now active")
 
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 }

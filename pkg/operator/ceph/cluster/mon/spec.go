@@ -58,6 +58,9 @@ func (c *Cluster) getLabels(monConfig *monConfig, canary, includeNewLabels bool)
 		if monConfig.Zone != "" {
 			labels["zone"] = monConfig.Zone
 		}
+		if !canary {
+			labels["mon_daemon"] = "true"
+		}
 	}
 
 	return labels
@@ -79,7 +82,7 @@ func GetFailureDomainLabel(spec cephv1.ClusterSpec) string {
 	}
 
 	if spec.ZonesRequired() && spec.Mon.FailureDomainLabel != "" {
-		return spec.Mon.StretchCluster.FailureDomainLabel
+		return spec.Mon.FailureDomainLabel
 	}
 	// The default topology label is for a zone
 	return corev1.LabelZoneFailureDomainStable
@@ -108,6 +111,7 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, canary bool) (*apps.Deplo
 	}
 	replicaCount := int32(1)
 	d.Spec = apps.DeploymentSpec{
+		RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 		Selector: &metav1.LabelSelector{
 			MatchLabels: c.getLabels(monConfig, canary, false),
 		},
@@ -189,6 +193,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, canary bool) (*corev1.Pod, er
 		Volumes:            controller.DaemonVolumesBase(monConfig.DataPathMap, keyringStoreName, c.spec.DataDirHostPath),
 		HostNetwork:        monConfig.UseHostNetwork,
 		PriorityClassName:  cephv1.GetMonPriorityClassName(c.spec.PriorityClassNames),
+		SecurityContext:    &corev1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 

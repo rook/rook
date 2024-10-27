@@ -65,7 +65,6 @@ const (
 	bluestoreBlockName    = "block"
 	bluestoreMetadataName = "block.db"
 	bluestoreWalName      = "block.wal"
-	tempEtcCephDir        = "/etc/temp-ceph"
 	osdPortv1             = 6801
 	osdPortv2             = 6800
 )
@@ -105,35 +104,11 @@ set -o nounset # fail if variables are unset
 set -o xtrace
 
 OSD_ID="$ROOK_OSD_ID"
-CEPH_FSID=%s
 OSD_UUID=%s
 OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
 CV_MODE=%s
 DEVICE="$%s"
-
-# "ceph.conf" must have the "fsid" global configuration to activate encrypted OSDs
-# after the following Ceph's PR is merged.
-# https://github.com/ceph/ceph/commit/25655e5a8829e001adf467511a6bde8142b0a575
-# This limitation will be removed later. After that, we can remove this
-# fsid injection code. Probably a good time is when to remove Quincy support.
-# https://github.com/rook/rook/pull/10333#discussion_r892817877
-cp --no-preserve=mode /etc/temp-ceph/ceph.conf /etc/ceph/ceph.conf
-python3 -c "
-import configparser
-
-config = configparser.ConfigParser()
-config.read('/etc/ceph/ceph.conf')
-
-if not config.has_section('global'):
-    config['global'] = {}
-
-if not config.has_option('global','fsid'):
-    config['global']['fsid'] = '$CEPH_FSID'
-
-with open('/etc/ceph/ceph.conf', 'w') as configfile:
-    config.write(configfile)
-"
 
 # create new keyring
 ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
@@ -319,7 +294,7 @@ func deploymentName(osdID int) string {
 	return fmt.Sprintf(osdAppNameFmt, osdID)
 }
 
-func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
+func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	deploymentName := deploymentName(osd.ID)
 	replicaCount := int32(1)
 	volumeMounts := controller.CephVolumeMounts(provisionConfig.DataPathMap, false)
@@ -337,6 +312,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// This property is used for both PVC and non-PVC use case
 	if osd.CVMode == "" {
 		return nil, errors.Errorf("failed to generate deployment for OSD %d. required CVMode is not specified for this OSD", osd.ID)
+	}
+
+	if c.spec.Storage.AllowDeviceClassUpdate && osdProps.storeConfig.DeviceClass != "" && osdProps.storeConfig.DeviceClass != osd.DeviceClass {
+		logger.Infof("The device class for osd %d is changing from %q to %q", osd.ID, osd.DeviceClass, osdProps.storeConfig.DeviceClass)
+		osd.DeviceClass = osdProps.storeConfig.DeviceClass
 	}
 
 	dataDir := k8sutil.DataDir
@@ -507,10 +487,10 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
 	hostIPC := osdProps.storeConfig.EncryptedDevice || osdProps.encrypted
 
-	osdLabels := c.getOSDLabels(osd, failureDomainValue, osdProps.portable)
+	osdLabels := c.getOSDLabels(*osd, failureDomainValue, osdProps.portable)
 
 	if osd.ExportService {
-		osdService, err := c.createOSDService(osd, osdLabels)
+		osdService, err := c.createOSDService(*osd, osdLabels)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to configure osd service for osd.%d", osd.ID)
 		}
@@ -598,11 +578,11 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 		// so that it can pick the already mounted/activated osd metadata path
 		// This container will activate the OSD and place the activated files into an empty dir
 		// The empty dir will be shared by the "activate-osd" pod and the "osd" main pod
-		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd, osdProps)
+		activateOSDVolume, activateOSDContainer := c.getActivateOSDInitContainer(c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, *osd, osdProps)
 		volumes = append(volumes, activateOSDVolume...)
 		volumeMounts = append(volumeMounts, activateOSDContainer.VolumeMounts[0])
 		initContainers = append(initContainers, *activateOSDContainer)
-		initContainers = append(initContainers, c.getExpandInitContainer(osdProps, c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, osd))
+		initContainers = append(initContainers, c.getExpandInitContainer(osdProps, c.spec.DataDirHostPath, c.clusterInfo.Namespace, osdID, *osd))
 	}
 
 	// Doing a chown in a post start lifecycle hook does not reliably complete before the OSD
@@ -651,8 +631,9 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					WorkingDir:      opconfig.VarLogCephDir,
 				},
 			},
-			Volumes:       volumes,
-			SchedulerName: osdProps.schedulerName,
+			Volumes:         volumes,
+			SecurityContext: &v1.PodSecurityContext{},
+			SchedulerName:   osdProps.schedulerName,
 		},
 	}
 
@@ -708,6 +689,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 					OsdIdLabelKey:       fmt.Sprintf("%d", osd.ID),
 				},
 			},
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 			Strategy: apps.DeploymentStrategy{
 				Type: apps.RecreateDeploymentStrategyType,
 			},
@@ -734,7 +716,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd OSDInfo, provisionC
 	}
 	if osdProps.portable {
 		// portable OSDs must have affinity to the topology where the osd prepare job was executed
-		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, osd); err != nil {
+		if err := applyTopologyAffinity(&deployment.Spec.Template.Spec, *osd); err != nil {
 			return nil, err
 		}
 	} else {
@@ -885,10 +867,13 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 
 	adminKeyringVol, adminKeyringVolMount := cephkey.Volume().Admin(), cephkey.VolumeMount().Admin()
 	volume = append(volume, adminKeyringVol)
+	udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
+	volume = append(volume, udevVolume)
 	volMounts := []v1.VolumeMount{
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
-		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: tempEtcCephDir},
+		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
+		{Name: "udev", MountPath: "/run/udev"},
 		adminKeyringVolMount,
 	}
 
@@ -902,7 +887,7 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Command: []string{
 			"/bin/bash",
 			"-c",
-			fmt.Sprintf(activateOSDOnNodeCode, c.clusterInfo.FSID, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
+			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,

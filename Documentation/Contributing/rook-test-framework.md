@@ -56,7 +56,7 @@ See [environment.go](/tests/framework/installer/environment.go) for the availabl
 Set the following variables:
 
 ```console
-export TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/linux-amd64/helm
+export TEST_HELM_PATH=/tmp/rook-tests-scripts-helm/helm
 export TEST_BASE_DIR=WORKING_DIR
 export TEST_SCRATCH_DEVICE=/dev/vdb
 ```
@@ -95,7 +95,7 @@ go test -v -timeout 1800s -run CephSmokeSuite github.com/rook/rook/tests/integra
 
     ```console
     export TEST_ENV_NAME=openshift
-    export TEST_STORAGE_CLASS=gp2
+    export TEST_STORAGE_CLASS=gp2-csi
     export TEST_BASE_DIR=/tmp
     ```
 

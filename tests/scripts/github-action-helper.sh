@@ -20,6 +20,16 @@ set -xeEo pipefail
 # VARIABLES #
 #############
 
+REPO_DIR="$(readlink -f -- "${BASH_SOURCE%/*}/../..")"
+NETWORK_ERROR="connection reset by peer"
+SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
+INTERNAL_ERROR="INTERNAL_ERROR"
+INTERNAL_SERVER_ERROR="500 Internal Server Error"
+
+#############
+# FUNCTIONS #
+#############
+
 function find_extra_block_dev() {
   # shellcheck disable=SC2005 # redirect doesn't work with sudo, so use echo
   echo "$(sudo lsblk)" >/dev/stderr # print lsblk output to stderr for debugging in case of future errors
@@ -30,24 +40,24 @@ function find_extra_block_dev() {
   boot_dev="$(sudo lsblk --noheading --list --output MOUNTPOINT,PKNAME | grep boot | awk '{print $2}')"
   echo "  == find_extra_block_dev(): boot_dev='$boot_dev'" >/dev/stderr # debug in case of future errors
   # --nodeps ignores partitions
-  extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | grep -v loop | grep -v "$boot_dev" | head -1)"
+  extra_dev="$(sudo lsblk --noheading --list --nodeps --output KNAME | egrep -v "($boot_dev|loop|nbd)" | head -1)"
   echo "  == find_extra_block_dev(): extra_dev='$extra_dev'" >/dev/stderr # debug in case of future errors
   echo "$extra_dev"                                                       # output of function
 }
 
-: "${BLOCK:=$(find_extra_block_dev)}"
-# by definition, in this file, BLOCK should only contain the "sdX" portion of the block device name
-# some external scripts export BLOCK as the full "/dev/sdX" path, which this script must handle
-BLOCK="$(basename $BLOCK)"
+function block_dev() {
+  declare -g DEFAULT_BLOCK_DEV
+  : "${DEFAULT_BLOCK_DEV:=/dev/$(block_dev_basename)}"
 
-NETWORK_ERROR="connection reset by peer"
-SERVICE_UNAVAILABLE_ERROR="Service Unavailable"
-INTERNAL_ERROR="INTERNAL_ERROR"
-INTERNAL_SERVER_ERROR="500 Internal Server Error"
+  echo "$DEFAULT_BLOCK_DEV"
+}
 
-#############
-# FUNCTIONS #
-#############
+function block_dev_basename() {
+  declare -g DEFAULT_BLOCK_DEV_BASENAME
+  : "${DEFAULT_BLOCK_DEV_BASENAME:=$(find_extra_block_dev)}"
+
+  echo "$DEFAULT_BLOCK_DEV_BASENAME"
+}
 
 function install_deps() {
   sudo wget https://github.com/mikefarah/yq/releases/download/3.4.1/yq_linux_amd64 -O /usr/local/bin/yq
@@ -77,7 +87,7 @@ function prepare_loop_devices() {
 }
 
 function use_local_disk() {
-  BLOCK_DATA_PART="/dev/${BLOCK}1"
+  BLOCK_DATA_PART="$(block_dev)1"
   sudo apt purge snapd -y
   sudo dmsetup version || true
   sudo swapoff --all --verbose
@@ -87,9 +97,9 @@ function use_local_disk() {
     sudo wipefs --all --force "$BLOCK_DATA_PART"
   else
     # it's the hosted runner!
-    sudo sgdisk --zap-all -- "/dev/${BLOCK}"
-    sudo dd if=/dev/zero of="/dev/${BLOCK}" bs=1M count=10 oflag=direct,dsync
-    sudo parted -s "/dev/${BLOCK}" mklabel gpt
+    sudo sgdisk --zap-all -- "$(block_dev)"
+    sudo dd if=/dev/zero of="$(block_dev)" bs=1M count=10 oflag=direct,dsync
+    sudo parted -s "$(block_dev)" mklabel gpt
   fi
   sudo lsblk
 }
@@ -101,7 +111,7 @@ function use_local_disk_for_integration_test() {
   sudo umount /mnt
   sudo sed -i.bak '/\/mnt/d' /etc/fstab
   # search for the device since it keeps changing between sda and sdb
-  PARTITION="/dev/${BLOCK}1"
+  PARTITION="$(block_dev)1"
   sudo wipefs --all --force "$PARTITION"
   sudo dd if=/dev/zero of="${PARTITION}" bs=1M count=1
   sudo lsblk --bytes
@@ -110,7 +120,7 @@ function use_local_disk_for_integration_test() {
   # for more details see: https://github.com/rook/rook/issues/7405
   echo "SUBSYSTEM==\"block\", ATTR{size}==\"29356032\", ACTION==\"add\", RUN+=\"/bin/chown 167:167 $PARTITION\"" | sudo tee -a /etc/udev/rules.d/01-rook.rules
   # for below, see: https://access.redhat.com/solutions/1465913
-  echo "ACTION==\"add|change\", KERNEL==\"${BLOCK}\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
+  echo "ACTION==\"add|change\", KERNEL==\"$(block_dev_basename)\", OPTIONS:=\"nowatch\"" | sudo tee -a /etc/udev/rules.d/99-z-rook-nowatch.rules
   # The partition is still getting reloaded occasionally during operation. See https://github.com/rook/rook/issues/8975
   # Try issuing some disk-inspection commands to jog the system so it won't reload the partitions
   # during OSD provisioning.
@@ -118,31 +128,31 @@ function use_local_disk_for_integration_test() {
   sudo udevadm trigger || true
   time sudo udevadm settle || true
   sudo partprobe || true
-  sudo lsblk --noheadings --pairs "/dev/${BLOCK}" || true
-  sudo sgdisk --print "/dev/${BLOCK}" || true
-  sudo udevadm info --query=property "/dev/${BLOCK}" || true
+  sudo lsblk --noheadings --pairs "$(block_dev)" || true
+  sudo sgdisk --print "$(block_dev)" || true
+  sudo udevadm info --query=property "$(block_dev)" || true
   sudo lsblk --noheadings --pairs "${PARTITION}" || true
   journalctl -o short-precise --dmesg | tail -40 || true
   cat /etc/fstab || true
 }
 
 function create_partitions_for_osds() {
-  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --osd-count 2
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --osd-count 2
   sudo lsblk
 }
 
 function create_bluestore_partitions_and_pvcs() {
-  BLOCK_PART="/dev/$BLOCK"2
-  DB_PART="/dev/$BLOCK"1
-  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --bluestore-type block.db --osd-count 1
+  BLOCK_PART="$(block_dev)2"
+  DB_PART="$(block_dev)1"
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --bluestore-type block.db --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART"
 }
 
 function create_bluestore_partitions_and_pvcs_for_wal() {
-  BLOCK_PART="/dev/$BLOCK"3
-  DB_PART="/dev/$BLOCK"1
-  WAL_PART="/dev/$BLOCK"2
-  tests/scripts/create-bluestore-partitions.sh --disk "/dev/$BLOCK" --bluestore-type block.wal --osd-count 1
+  BLOCK_PART="$(block_dev)3"
+  DB_PART="$(block_dev)1"
+  WAL_PART="$(block_dev)2"
+  tests/scripts/create-bluestore-partitions.sh --disk "$(block_dev)" --bluestore-type block.wal --osd-count 1
   tests/scripts/localPathPV.sh "$BLOCK_PART" "$DB_PART" "$WAL_PART"
 }
 
@@ -204,7 +214,7 @@ function build_rook() {
   tests/scripts/validate_modified_files.sh build
   docker images
   if [[ "$build_type" == "build" ]]; then
-    docker tag "$(docker images | awk '/build-/ {print $1}')" rook/ceph:local-build
+    docker tag "$(docker images | awk '/build-/ {print $1}')" docker.io/rook/ceph:local-build
   fi
 }
 
@@ -213,7 +223,7 @@ function build_rook_all() {
 }
 
 function validate_yaml() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml
 
   # create the volume replication CRDs
@@ -240,13 +250,13 @@ function validate_yaml() {
 
 function create_cluster_prerequisites() {
   # this might be called from another function that has already done a cd
-  (cd deploy/examples && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
+  (cd "${REPO_DIR}/deploy/examples" && kubectl create -f crds.yaml -f common.yaml -f csi/nfs/rbac.yaml)
 }
 
 function deploy_manifest_with_local_build() {
   sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' $1
   if [[ "$USE_LOCAL_BUILD" != "false" ]]; then
-    sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" $1
+    sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" $1
   fi
   if [[ "$ALLOW_LOOP_DEVICES" = "true" ]]; then
     sed -i "s|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"false\"|ROOK_CEPH_ALLOW_LOOP_DEVICES: \"true\"|g" $1
@@ -257,50 +267,75 @@ function deploy_manifest_with_local_build() {
 
 # Deploy toolbox with same ceph version as the cluster-test for ci
 function deploy_toolbox() {
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/image: quay\.io\/ceph\/ceph:.*/image: quay.io\/ceph\/ceph:v18/' toolbox.yaml
   kubectl create -f toolbox.yaml
 }
 
 function replace_ceph_image() {
-  local file="$1"           # parameter 1: the file in which to replace the ceph image
-  local ceph_image="${2:-}" # parameter 2: the new ceph image to use
-  if [[ -z ${ceph_image} ]]; then
-    echo "No Ceph image given. Not adjusting manifests."
-    return 0
+  local file="$1"  # parameter 1: the file in which to replace the ceph image
+  local ceph_image="${2?ceph_image is required}"  # parameter 2: the new ceph image to use
+
+  # check for ceph_image being an empty string
+  if [ -z "$ceph_image" ]; then
+    echo "ceph_image may not be an empty string"
+    exit 1
   fi
+
   sed -i "s|image: .*ceph/ceph:.*|image: ${ceph_image}|g" "${file}"
 }
 
+# Deploy the operator, a CephCluster, and the toolbox. This is intended to be a
+# minimal deployment generic enough to be used by most canary tests. Each
+# canary test should be installing its own set of resources as a job step or
+# using dedicated helper functions.
 function deploy_cluster() {
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
+
   deploy_manifest_with_local_build operator.yaml
+
   if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_partition_device" ]; then
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name ${BLOCK}2
-    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice ${BLOCK}1
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].name "$(block_dev_basename)2"
+    yq w -i -d0 cluster-test.yaml spec.storage.devices[0].config.metadataDevice "$(block_dev_basename)1"
   elif [ "$1" = "encryption" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      encryptedDevice: \"true\"|g" cluster-test.yaml
   elif [ "$1" = "lvm" ]; then
     sed -i "s|#deviceFilter:|devices:\n      - name: \"/dev/test-rook-vg/test-rook-lv\"|g" cluster-test.yaml
   elif [ "$1" = "loop" ]; then
     # add both /dev/sdX1 and loop device to test them at the same time
-    sed -i "s|#deviceFilter:|devices:\n      - name: \"${BLOCK}\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|devices:\n      - name: \"$(block_dev_basename)\"\n      - name: \"/dev/loop1\"|g" cluster-test.yaml
   else
     echo "invalid argument: $*" >&2
     exit 1
   fi
+
   # enable monitoring
   yq w -i -d0 cluster-test.yaml spec.monitoring.enabled true
   kubectl create -f https://raw.githubusercontent.com/coreos/prometheus-operator/v0.71.1/bundle.yaml
   kubectl create -f monitoring/rbac.yaml
 
-  # create the cluster resources
   kubectl create -f cluster-test.yaml
+
+  deploy_toolbox
+}
+
+# These resources were extracted from the original deploy_cluster(), which was
+# deploying a smorgasbord of resources used by multiple canary tests.
+#
+# Use of this function is discouraged. Existing users should migrate away and
+# deploy only the necessary resources for the test scenario in their own job
+# steps.
+#
+# The addition of new resources this function is forbidden!
+function deploy_all_additional_resources_on_cluster() {
+  cd "${REPO_DIR}/deploy/examples"
+
   kubectl create -f object-shared-pools-test.yaml
   kubectl create -f object-a.yaml
   kubectl create -f object-b.yaml
@@ -312,20 +347,19 @@ function deploy_cluster() {
   kubectl create -f filesystem-mirror.yaml
   kubectl create -f nfs-test.yaml
   kubectl create -f subvolumegroup.yaml
-  deploy_toolbox
 }
 
 function deploy_csi_hostnetwork_disabled_cluster() {
   create_cluster_prerequisites
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   sed -i 's/.*CSI_ENABLE_HOST_NETWORK:.*/  CSI_ENABLE_HOST_NETWORK: \"false\"/g' operator.yaml
   deploy_manifest_with_local_build operator.yaml
   if [ $# == 0 ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)|g" cluster-test.yaml
   elif [ "$1" = "two_osds_in_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      osdsPerDevice: \"2\"|g" cluster-test.yaml
   elif [ "$1" = "osd_with_metadata_device" ]; then
-    sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
+    sed -i "s|#deviceFilter:|deviceFilter: $(block_dev_basename)\n    config:\n      metadataDevice: /dev/test-rook-vg/test-rook-lv|g" cluster-test.yaml
   fi
   kubectl create -f nfs-test.yaml
   kubectl create -f cluster-test.yaml
@@ -422,9 +456,8 @@ function create_LV_on_disk() {
 
 function deploy_first_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-  export BLOCK="/dev/${DEVICE_NAME}"
   create_cluster_prerequisites
-  cd deploy/examples/
+  cd "${REPO_DIR}/deploy/examples"
 
   deploy_manifest_with_local_build operator.yaml
   yq w -i -d0 cluster-test.yaml spec.dashboard.enabled false
@@ -436,8 +469,7 @@ function deploy_first_rook_cluster() {
 
 function deploy_second_rook_cluster() {
   DEVICE_NAME="$(tests/scripts/github-action-helper.sh find_extra_block_dev)"
-  export BLOCK="/dev/${DEVICE_NAME}"
-  cd deploy/examples/
+  cd "${REPO_DIR}/deploy/examples"
   NAMESPACE=rook-ceph-secondary envsubst <common-second-cluster.yaml | kubectl create -f -
   sed -i 's/namespace: rook-ceph/namespace: rook-ceph-secondary/g' cluster-test.yaml
   yq w -i -d0 cluster-test.yaml spec.storage.deviceFilter "${DEVICE_NAME}"2
@@ -447,23 +479,28 @@ function deploy_second_rook_cluster() {
   deploy_toolbox
 }
 
-function wait_for_rgw() {
-  for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get pod -l app=rook-ceph-rgw --no-headers --field-selector=status.phase=Running | wc -l)" -ge 1 ]; then
-      echo "rgw pod is found"
-      break
+function wait_for() {
+  local kind=${1?kind is required}
+  local name=${2?resource name is required}
+  local ns=${3:-rook-ceph}
+  local timeout=${4:-120}
+  local status=${5:-Ready}
+
+  local start_time="${SECONDS}"
+  local elapsed_time=0
+  while [[ $elapsed_time -lt $timeout ]]; do
+    if [[ "$(kubectl -n "$ns" get "$kind" "$name" -o 'jsonpath={..status.phase}')" == "$status" ]]; then
+      echo "${kind}/${name} in ${ns} is ${status} -  elapsed time ${elapsed_time}s"
+      return 0
     fi
-    echo "waiting for rgw pods"
+
+    elapsed_time=$((SECONDS - start_time))
+    echo "waiting for ${kind}/${name} in ${ns} to be ${status} - elapsed time ${elapsed_time}s"
     sleep 5
   done
-  for _ in {1..120}; do
-    if [ "$(kubectl -n "$1" get deployment -l app=rook-ceph-rgw -o yaml | yq read - 'items[0].status.readyReplicas')" -ge 1 ]; then
-      echo "rgw is ready"
-      break
-    fi
-    echo "waiting for rgw becomes ready"
-    sleep 5
-  done
+
+  echo "timed out waiting for ${kind}/${name} in ${ns} to be ${status} - elapsed time ${elapsed_time}s " >&2
+  exit 1
 }
 
 function verify_operator_log_message() {
@@ -532,7 +569,7 @@ function write_object_read_from_replica_cluster() {
   # a direct sub-shell.
   S3CMD_ERROR=0
   (
-    sleep 60
+    sleep 300
     kill -s SIGUSR1 $$
   ) 2>/dev/null &
   trap "{ S3CMD_ERROR=1; break; }" SIGUSR1
@@ -561,7 +598,7 @@ function test_multisite_object_replication() {
   local cluster_2_ip
   cluster_2_ip=$(get_clusterip rook-ceph-secondary rook-ceph-rgw-zone-b-multisite-store)
 
-  cd deploy/examples
+  cd "${REPO_DIR}/deploy/examples"
   cat <<-EOF >s3cfg
 	[default]
 	host_bucket = no.way
@@ -578,58 +615,6 @@ function create_helm_tag() {
   docker tag "${build_image}" "rook/ceph:${helm_tag}"
 }
 
-function deploy_multus() {
-  # download the multus daemonset, and remove mem and cpu limits that cause it to crash on minikube
-  curl https://raw.githubusercontent.com/k8snetworkplumbingwg/multus-cni/master/deployments/multus-daemonset-thick.yml |
-    sed -e 's/cpu: /# cpu: /g' -e 's/memory: /# memory: /g' |
-    kubectl apply -f -
-
-  # install whereabouts
-  kubectl apply \
-    -f https://raw.githubusercontent.com/k8snetworkplumbingwg/whereabouts/master/doc/crds/daemonset-install.yaml \
-    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_ippools.yaml \
-    -f https://github.com/k8snetworkplumbingwg/whereabouts/raw/master/doc/crds/whereabouts.cni.cncf.io_overlappingrangeipreservations.yaml
-
-  # create the rook-ceph namespace if it doesn't exist, the NAD will go in this namespace
-  kubectl create namespace rook-ceph || true
-
-  # install network attachment definitions
-  IFACE="eth0" # the runner has eth0 so we don't need any heuristics to find the interface
-  kubectl apply -f - <<EOF
----
-apiVersion: k8s.cni.cncf.io/v1
-kind: NetworkAttachmentDefinition
-metadata:
-  name: public-net
-  namespace: rook-ceph
-  labels:
-  annotations:
-spec:
-  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.20.0/24" } }'
----
-apiVersion: k8s.cni.cncf.io/v1
-kind: NetworkAttachmentDefinition
-metadata:
-  name: cluster-net
-  namespace: rook-ceph
-  labels:
-  annotations:
-spec:
-  config: '{ "cniVersion": "0.3.0", "type": "macvlan", "master": "$IFACE", "mode": "bridge", "ipam": { "type": "whereabouts", "range": "192.168.21.0/24" } }'
-EOF
-}
-
-function deploy_multus_cluster() {
-  cd deploy/examples
-  sed -i 's/.*ROOK_CSI_ENABLE_NFS:.*/  ROOK_CSI_ENABLE_NFS: \"true\"/g' operator.yaml
-  deploy_manifest_with_local_build operator.yaml
-  deploy_toolbox
-  sed -i "s|#deviceFilter:|deviceFilter: ${BLOCK/\/dev\//}|g" cluster-multus-test.yaml
-  kubectl create -f cluster-multus-test.yaml
-  kubectl create -f filesystem-test.yaml
-  kubectl create -f nfs-test.yaml
-}
-
 function test_multus_connections() {
   EXEC='kubectl -n rook-ceph exec -t deploy/rook-ceph-tools -- ceph --connect-timeout 10'
   # each OSD should exist on both public and cluster network
@@ -639,8 +624,8 @@ function test_multus_connections() {
 }
 
 function create_operator_toolbox() {
-  cd deploy/examples
-  sed -i "s|image: rook/ceph:.*|image: rook/ceph:local-build|g" toolbox-operator-image.yaml
+  cd "${REPO_DIR}/deploy/examples"
+  sed -i "s|image: docker.io/rook/ceph:.*|image: docker.io/rook/ceph:local-build|g" toolbox-operator-image.yaml
   kubectl create -f toolbox-operator-image.yaml
 }
 
@@ -666,7 +651,7 @@ EOF
 }
 
 function test_csi_rbd_workload {
-  cd deploy/examples/csi/rbd
+  cd "${REPO_DIR}/deploy/examples/csi/rbd"
   sed -i 's|size: 3|size: 1|g' storageclass.yaml
   sed -i 's|requireSafeReplicaSize: true|requireSafeReplicaSize: false|g' storageclass.yaml
   kubectl create -f storageclass.yaml
@@ -681,7 +666,7 @@ function test_csi_rbd_workload {
 }
 
 function test_csi_cephfs_workload {
-  cd deploy/examples/csi/cephfs
+  cd "${REPO_DIR}/deploy/examples/csi/cephfs"
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
   kubectl create -f pod.yaml
@@ -694,7 +679,7 @@ function test_csi_cephfs_workload {
 }
 
 function test_csi_nfs_workload {
-  cd deploy/examples/csi/nfs
+  cd "${REPO_DIR}/deploy/examples/csi/nfs"
   sed -i "s|#- debug|- nolock|" storageclass.yaml
   kubectl create -f storageclass.yaml
   kubectl create -f pvc.yaml
@@ -707,8 +692,8 @@ function test_csi_nfs_workload {
 }
 
 function install_minikube_with_none_driver() {
-  CRICTL_VERSION="v1.30.0"
-  MINIKUBE_VERSION="v1.32.0"
+  CRICTL_VERSION="v1.31.1"
+  MINIKUBE_VERSION="v1.34.0"
 
   sudo apt update
   sudo apt install -y conntrack socat
@@ -716,16 +701,16 @@ function install_minikube_with_none_driver() {
   sudo dpkg -i minikube_latest_amd64.deb
   rm -f minikube_latest_amd64.deb
 
-  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.9/cri-dockerd_0.3.9.3-0.ubuntu-focal_amd64.deb
-  sudo dpkg -i cri-dockerd_0.3.9.3-0.ubuntu-focal_amd64.deb
-  rm -f cri-dockerd_0.3.9.3-0.ubuntu-focal_amd64.deb
+  curl -LO https://github.com/Mirantis/cri-dockerd/releases/download/v0.3.15/cri-dockerd_0.3.15.3-0.ubuntu-focal_amd64.deb
+  sudo dpkg -i cri-dockerd_0.3.15.3-0.ubuntu-focal_amd64.deb
+  rm -f cri-dockerd_0.3.15.3-0.ubuntu-focal_amd64.deb
 
   wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$CRICTL_VERSION/crictl-$CRICTL_VERSION-linux-amd64.tar.gz
   sudo tar zxvf crictl-$CRICTL_VERSION-linux-amd64.tar.gz -C /usr/local/bin
   rm -f crictl-$CRICTL_VERSION-linux-amd64.tar.gz
   sudo sysctl fs.protected_regular=0
 
-  CNI_PLUGIN_VERSION="v1.4.0"
+  CNI_PLUGIN_VERSION="v1.5.1"
   CNI_PLUGIN_TAR="cni-plugins-linux-amd64-$CNI_PLUGIN_VERSION.tgz" # change arch if not on amd64
   CNI_PLUGIN_INSTALL_DIR="/opt/cni/bin"
 
@@ -735,7 +720,60 @@ function install_minikube_with_none_driver() {
   rm "$CNI_PLUGIN_TAR"
 
   export MINIKUBE_HOME=$HOME CHANGE_MINIKUBE_NONE_USER=true KUBECONFIG=$HOME/.kube/config
-  sudo -E minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
+  minikube start --kubernetes-version="$1" --driver=none --memory 6g --cpus=2 --addons ingress --cni=calico
+}
+
+function toolbox() {
+  kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
+}
+
+function ceph() {
+  toolbox ceph "$@"
+}
+
+function rbd() {
+  toolbox rbd "$@"
+}
+
+function radosgw-admin() {
+  toolbox radosgw-admin "$@"
+}
+
+function test_object_separate_pools() {
+  expected_pools=(
+    .mgr
+    .rgw.root
+    object-separate-pools.rgw.control
+    object-separate-pools.rgw.meta
+    object-separate-pools.rgw.log
+    object-separate-pools.rgw.buckets.index
+    object-separate-pools.rgw.buckets.non-ec
+    object-separate-pools.rgw.otp
+    object-separate-pools.rgw.buckets.data
+  )
+
+  output=$(ceph osd pool ls)
+  readarray -t live_pools < <(printf '%s' "$output")
+
+  errors=0
+  for l in "${live_pools[@]}"; do
+    found=false
+    for e in "${expected_pools[@]}"; do
+      if [[ "$l" == "$e" ]]; then
+        found=true
+        break
+      fi
+    done
+    if [[ "$found" == false ]]; then
+      echo "Live pool $l is not an expected pool"
+      errors=$((errors+1))
+    fi
+  done
+
+  if [[ $errors -gt 0 ]]; then
+    echo "Found $errors errors"
+    exit $errors
+  fi
 }
 
 FUNCTION="$1"

@@ -38,7 +38,7 @@ func testCOSIDriver(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sH
 		assert.NoError(t, err, "failed to create COSI controller")
 	})
 
-	createCephObjectStore(s.T(), helper, k8sh, cephinstaller, namespace, objectStoreCOSI, 1, false)
+	createCephObjectStore(s.T(), helper, k8sh, cephinstaller, namespace, objectStoreCOSI, 1, false, false)
 
 	t.Run("Creating CephCOSIDriver CRD", func(t *testing.T) {
 		err := helper.COSIClient.CreateCOSI()

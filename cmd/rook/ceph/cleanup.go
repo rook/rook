@@ -62,28 +62,35 @@ var cleanUpRadosNamespaceCmd = &cobra.Command{
 	Short: "Starts the cleanup process for a CephBlockPoolRadosNamespace",
 }
 
+var cleanUpBlockPoolCmd = &cobra.Command{
+	// the subcommand matches CRD kind of the custom resource to be cleaned up
+	Use:   "CephBlockPool",
+	Short: "Starts the cleanup process for a CephBlockPool",
+}
+
 func init() {
-	cleanUpCmd.Flags().StringVar(&dataDirHostPath, "data-dir-host-path", "", "dataDirHostPath on the node")
-	cleanUpCmd.Flags().StringVar(&namespaceDir, "namespace-dir", "", "dataDirHostPath on the node")
+	cleanUpHostCmd.Flags().StringVar(&dataDirHostPath, "data-dir-host-path", "", "dataDirHostPath on the node")
+	cleanUpHostCmd.Flags().StringVar(&namespaceDir, "namespace-dir", "", "dataDirHostPath on the node")
 	cleanUpHostCmd.Flags().StringVar(&monSecret, "mon-secret", "", "monitor secret from the keyring")
 	cleanUpHostCmd.Flags().StringVar(&clusterFSID, "cluster-fsid", "", "ceph cluster fsid")
 	cleanUpHostCmd.Flags().StringVar(&sanitizeMethod, "sanitize-method", string(cephv1.SanitizeMethodQuick), "sanitize method to use (metadata or data)")
 	cleanUpHostCmd.Flags().StringVar(&sanitizeDataSource, "sanitize-data-source", string(cephv1.SanitizeDataSourceZero), "data source to sanitize the disk (zero or random)")
 	cleanUpHostCmd.Flags().Int32Var(&sanitizeIteration, "sanitize-iteration", 1, "overwrite N times the disk")
-	flags.SetFlagsFromEnv(cleanUpHostCmd.Flags(), rook.RookEnvVarPrefix)
 
+	flags.SetFlagsFromEnv(cleanUpHostCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(cleanUpSubVolumeGroupCmd.Flags(), rook.RookEnvVarPrefix)
 
-	cleanUpCmd.AddCommand(cleanUpHostCmd, cleanUpSubVolumeGroupCmd, cleanUpRadosNamespaceCmd)
+	cleanUpCmd.AddCommand(cleanUpHostCmd, cleanUpSubVolumeGroupCmd, cleanUpRadosNamespaceCmd, cleanUpBlockPoolCmd)
 
 	cleanUpHostCmd.RunE = startHostCleanUp
 	cleanUpSubVolumeGroupCmd.RunE = startSubVolumeGroupCleanUp
 	cleanUpRadosNamespaceCmd.RunE = startRadosNamespaceCleanup
+	cleanUpBlockPoolCmd.RunE = startBlockPoolCleanup
 }
 
 func startHostCleanUp(cmd *cobra.Command, args []string) error {
 	rook.SetLogLevel()
-	rook.LogStartupInfo(cleanUpCmd.Flags())
+	rook.LogStartupInfo(cleanUpHostCmd.Flags())
 
 	ctx := cmd.Context()
 
@@ -170,6 +177,28 @@ func startRadosNamespaceCleanup(cmd *cobra.Command, args []string) error {
 	err := cleanup.RadosNamespaceCleanup(context, clusterInfo, poolName, radosNamespace)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to cleanup cephBlockPoolRadosNamespace %q resources in the pool %q. %v", radosNamespace, poolName, err))
+	}
+
+	return nil
+}
+
+func startBlockPoolCleanup(cmd *cobra.Command, args []string) error {
+	rook.SetLogLevel()
+	rook.LogStartupInfo(cleanUpRadosNamespaceCmd.Flags())
+
+	ctx := cmd.Context()
+	context := createContext()
+	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	clusterInfo := client.AdminClusterInfo(ctx, namespace, "")
+
+	poolName := os.Getenv(opcontroller.CephBlockPoolNameEnv)
+	if poolName == "" {
+		rook.TerminateFatal(fmt.Errorf("cephblockpool name is not available in the pod environment variables"))
+	}
+
+	err := cleanup.BlockPoolCleanup(context, clusterInfo, poolName)
+	if err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to cleanup cephBlockPool %q resource %v", poolName, err))
 	}
 
 	return nil

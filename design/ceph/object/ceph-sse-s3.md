@@ -9,8 +9,6 @@ AWS server side encryption SSE-S3 support for RGW
 ## Summary
 The S3 protocol supports three different types of [server side encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/serv-side-encryption.html): SSE-C, SSE-KMS and SSE-S3. For the last two RGW server need to configure with external services such as [vault](https://www.vaultproject.io/). Currently Rook configure RGW with `SSE-KMS` options to handle the S3 requests with the `sse:kms` header. Recently the support for handling the `sse:s3` was added to RGW, so Rook will now provide the option to configure RGW with `sse:s3`.
 
-The `sse:s3` is supported only from Ceph v17 an onwards, so this feature can only be enabled for Quincy or newer.
-
 ### Goals
 Configure RGW with `SSE-S3` options, so that RGW can handle request with `sse:s3` headers.
 

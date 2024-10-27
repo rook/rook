@@ -89,16 +89,16 @@ func (c *Cluster) configureDashboardModules() error {
 		return nil
 	}
 
-	err := c.initializeSecureDashboard()
+	secureRequiresRestart, err := c.initializeSecureDashboard()
 	if err != nil {
 		return errors.Wrap(err, "failed to initialize dashboard")
 	}
 
-	hasChanged, err := c.configureDashboardModuleSettings()
+	configChanged, err := c.configureDashboardModuleSettings()
 	if err != nil {
 		return err
 	}
-	if hasChanged {
+	if secureRequiresRestart || configChanged {
 		logger.Info("dashboard config has changed. restarting the dashboard module")
 		return c.restartMgrModule(dashboardModuleName)
 	}
@@ -199,38 +199,46 @@ func (c *Cluster) configureDashboardModuleSettings() (bool, error) {
 	return hasChanged, nil
 }
 
-func (c *Cluster) initializeSecureDashboard() error {
+func (c *Cluster) initializeSecureDashboard() (bool, error) {
 	// we need to wait a short period after enabling the module before we can call the `ceph dashboard` commands.
 	time.Sleep(dashboardInitWaitTime)
+	restartNeeded := false
 
 	password, err := c.getOrGenerateDashboardPassword()
 	if err != nil {
-		return errors.Wrap(err, "failed to generate a password for the ceph dashboard")
+		return restartNeeded, errors.Wrap(err, "failed to generate a password for the ceph dashboard")
 	}
 
 	if c.spec.Dashboard.SSL {
 		alreadyCreated, err := c.createSelfSignedCert()
 		if err != nil {
-			return errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
+			return restartNeeded, errors.Wrap(err, "failed to create a self signed cert for the ceph dashboard")
 		}
-		if alreadyCreated {
-			return nil
-		}
-		if err := c.restartMgrModule(dashboardModuleName); err != nil {
-			logger.Warningf("failed to restart dashboard after generating ssl cert. %v", err)
+		if !alreadyCreated {
+			restartNeeded = true
 		}
 	}
 
 	if err := c.setLoginCredentials(password); err != nil {
-		return errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
+		return restartNeeded, errors.Wrap(err, "failed to set login credentials for the ceph dashboard")
 	}
 
-	return nil
+	return restartNeeded, nil
 }
 
 func (c *Cluster) createSelfSignedCert() (bool, error) {
+
+	// Check if the cert already exists
+	args := []string{"config-key", "get", "mgr/dashboard/crt"}
+	output, err := client.NewCephCommand(c.context, c.clusterInfo, args).RunWithTimeout(exec.CephCommandsTimeout)
+	if err == nil && len(output) > 0 {
+		logger.Info("dashboard is already initialized with a cert")
+		return true, nil
+	}
+	logger.Debugf("dashboard cert does not appear to exist. err=%v", err)
+
 	// create a self-signed cert for the https connections
-	args := []string{"dashboard", "create-self-signed-cert"}
+	args = []string{"dashboard", "create-self-signed-cert"}
 
 	// retry a few times in the case that the mgr module is not ready to accept commands
 	for i := 0; i < 5; i++ {
@@ -242,20 +250,19 @@ func (c *Cluster) createSelfSignedCert() (bool, error) {
 		if err != nil {
 			exitCode, parsed := c.exitCode(err)
 			if parsed {
-				if exitCode == certAlreadyConfiguredErrorCode {
-					logger.Info("dashboard is already initialized with a cert")
-					return true, nil
-				}
 				if exitCode == invalidArgErrorCode {
 					logger.Info("dashboard module is not ready yet. trying again")
 					time.Sleep(dashboardInitWaitTime)
 					continue
 				}
+			} else {
+				return false, errors.Wrap(err, "failed to create self signed cert on mgr")
 			}
-			return false, errors.Wrap(err, "failed to create self signed cert on mgr")
 		}
-		break
+		logger.Info("dashboard cert created")
+		return false, nil
 	}
+	logger.Info("dashboard cert creation exceeded retries")
 	return false, nil
 }
 

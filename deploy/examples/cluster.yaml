@@ -16,14 +16,14 @@ metadata:
 spec:
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw).
-    # v17 is Quincy, v18 is Reef.
-    # RECOMMENDATION: In production, use a specific version tag instead of the general v17 flag, which pulls the latest release and could result in different
+    # v18 is Reef, v19 is Squid
+    # RECOMMENDATION: In production, use a specific version tag instead of the general v19 flag, which pulls the latest release and could result in different
     # versions running within the cluster. See tags available at https://hub.docker.com/r/ceph/ceph/tags/.
-    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v18.2.2-20240311
+    # If you want to be more precise, you can always use a timestamp tag such as quay.io/ceph/ceph:v18.2.4-20240724
     # This tag might not contain a new Ceph version, just security fixes from the underlying operating system, which will reduce vulnerabilities
-    image: quay.io/ceph/ceph:v18.2.2
-    # Whether to allow unsupported versions of Ceph. Currently `quincy` and `reef` are supported.
-    # Future versions such as `squid` (v19) would require this to be set to `true`.
+    image: quay.io/ceph/ceph:v18.2.4
+    # Whether to allow unsupported versions of Ceph. Currently Reef and Squid are supported.
+    # Future versions such as Tentacle (v20) would require this to be set to `true`.
     # Do not set to true in production.
     allowUnsupported: false
   # The path on the host where configuration files will be persisted. Must be specified.
@@ -85,6 +85,15 @@ spec:
     # Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
     # If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
     metricsDisabled: false
+    # Ceph exporter metrics config.
+    exporter:
+      # Specifies which performance counters are exported.
+      # Corresponds to --prio-limit Ceph exporter flag
+      # 0 - all counters are exported
+      perfCountersPrioLimit: 5
+      # Time to wait before sending requests again to exporter server (seconds)
+      # Corresponds to --stats-period Ceph exporter flag
+      statsPeriodSeconds: 5
   network:
     connections:
       # Whether to encrypt the data in transit across the wire to prevent eavesdropping the data on the network.
@@ -194,9 +203,14 @@ spec:
   annotations:
   #   all:
   #   mon:
+  #   mgr:
   #   osd:
+  #   exporter:
+  #   crashcollector:
   #   cleanup:
   #   prepareosd:
+  # cmdreporter is for jobs to detect ceph and csi versions, and check network status
+  #   cmdreporter:
   # clusterMetadata annotations will be applied to only `rook-ceph-mon-endpoints` configmap and the `rook-ceph-mon` and `rook-ceph-admin-keyring` secrets.
   # And clusterMetadata annotations will not be merged with `all` annotations.
   #    clusterMetadata:
@@ -255,6 +269,9 @@ spec:
       # databaseSizeMB: "1024" # uncomment if the disks are smaller than 100 GB
       # osdsPerDevice: "1" # this value can be overridden at the node or device level
       # encryptedDevice: "true" # the default value for this option is "false"
+      # deviceClass: "myclass" # specify a device class for OSDs in the cluster
+    allowDeviceClassUpdate: false # whether to allow changing the device class of an OSD after it is created
+    allowOsdCrushWeightUpdate: false # whether to allow resizing the OSD crush weight after osd pvc is increased
     # Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
     # nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
     # nodes:
@@ -305,7 +322,7 @@ spec:
     cephfs:
       # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options.
       # kernelMountOptions: ""
-      # Set CephFS Fuse mount options to use https://docs.ceph.com/en/quincy/man/8/ceph-fuse/#options.
+      # Set CephFS Fuse mount options to use https://docs.ceph.com/en/latest/man/8/ceph-fuse/#options.
       # fuseMountOptions: ""
 
   # healthChecks

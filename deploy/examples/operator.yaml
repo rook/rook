@@ -25,9 +25,14 @@ data:
   # The logging level for the operator: ERROR | WARNING | INFO | DEBUG
   ROOK_LOG_LEVEL: "INFO"
 
+  # The address for the operator's controller-runtime metrics. 0 is disabled. :8080 serves metrics on port 8080.
+  ROOK_OPERATOR_METRICS_BIND_ADDRESS: "0"
+
   # Allow using loop devices for osds in test clusters.
   ROOK_CEPH_ALLOW_LOOP_DEVICES: "false"
 
+  # Enable CSI Operator
+  ROOK_USE_CSI_OPERATOR: "false"
   # Enable the CSI driver.
   # To run the non-default version of the CSI driver, see the override-able image properties in operator.yaml
   ROOK_CSI_ENABLE_CEPHFS: "true"
@@ -45,11 +50,6 @@ data:
   # in some network configurations where the SDN does not provide access to an external cluster or
   # there is significant drop in read/write performance.
   # CSI_ENABLE_HOST_NETWORK: "true"
-
-  # Deprecation note: Rook uses "holder" pods to allow CSI to connect to the multus public network
-  # without needing hosts to the network. Holder pods are being removed. See issue for details:
-  # https://github.com/rook/rook/issues/13055. New Rook deployments should set this to "true".
-  CSI_DISABLE_HOLDER_PODS: "true"
 
   # Set to true to enable adding volume metadata on the CephFS subvolume and RBD images.
   # Not all users might be interested in getting volume/snapshot details as metadata on CephFS subvolume and RBD images.
@@ -122,12 +122,12 @@ data:
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
-  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.11.0"
-  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.10.1"
-  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.10.1"
-  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v4.0.1"
-  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v7.0.2"
-  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.5.1"
+  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.12.2"
+  # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1"
+  # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.11.1"
+  # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1"
+  # ROOK_CSI_SNAPSHOTTER_IMAGE: "registry.k8s.io/sig-storage/csi-snapshotter:v8.0.1"
+  # ROOK_CSI_ATTACHER_IMAGE: "registry.k8s.io/sig-storage/csi-attacher:v4.6.1"
 
   # To indicate the image pull policy to be applied to all the containers in the csi driver pods.
   # ROOK_CSI_IMAGE_PULL_POLICY: "IfNotPresent"
@@ -503,7 +503,7 @@ data:
   CSI_ENABLE_CSIADDONS: "false"
   # Enable watch for faster recovery from rbd rwo node loss
   ROOK_WATCH_FOR_NODE_FAILURE: "true"
-  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.8.0"
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.10.0"
   # The CSI GRPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 
@@ -557,6 +557,18 @@ data:
   #       requests:
   #         cpu: 100m
   #         memory: 128Mi
+
+  # (Optional) Burst to use while communicating with the kubernetes apiserver.
+  # CSI_KUBE_API_BURST: "10"
+
+  # (Optional) QPS to use while communicating with the kubernetes apiserver.
+  # CSI_KUBE_API_QPS: "5.0"
+
+  # Whether to create all Rook pods to run on the host network, for example in environments where a CNI is not enabled
+  ROOK_ENFORCE_HOST_NETWORK: "false"
+
+  # RevisionHistoryLimit value for all deployments created by rook.
+  # ROOK_REVISION_HISTORY_LIMIT: "3"
 ---
 # OLM: BEGIN OPERATOR DEPLOYMENT
 apiVersion: apps/v1
@@ -591,7 +603,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
-          image: rook/ceph:master
+          image: docker.io/rook/ceph:master
           args: ["ceph", "operator"]
           securityContext:
             runAsNonRoot: true

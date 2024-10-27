@@ -17,6 +17,7 @@ spec:
         {{ $key }}: "{{ $value }}"
         {{ end }}
     spec:
+      securityContext: {}
       serviceAccountName: rook-csi-rbd-provisioner-sa
       {{ if .ProvisionerPriorityClassName }}
       priorityClassName: {{ .ProvisionerPriorityClassName }}
@@ -38,8 +39,12 @@ spec:
             - "--extra-create-metadata=true"
             - "--prevent-volume-mode-conversion=true"
             - "--feature-gates=HonorPVReclaimPolicy=true"
-            {{ if .EnableCSITopology }}
-            - "--feature-gates=Topology=true"
+            - "--feature-gates=Topology={{ .EnableCSITopology }}"
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
             {{ end }}
           env:
             - name: ADDRESS
@@ -61,6 +66,12 @@ spec:
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--handle-volume-inuse-error=false"
             - "--feature-gates=RecoverVolumeExpansionFailure=true"
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
+            {{ end }}
           env:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
@@ -81,6 +92,12 @@ spec:
             - "--leader-election-renew-deadline={{ .LeaderElectionRenewDeadline }}"
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--default-fstype=ext4"
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
+            {{ end }}
           env:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
@@ -104,6 +121,12 @@ spec:
             - "--extra-create-metadata=true"
             {{ if .VolumeGroupSnapshotSupported }}
             - "--enable-volume-group-snapshots={{ .EnableVolumeGroupSnapshot }}"
+            {{ end }}
+            {{ if .KubeApiBurst }}
+            - "--kube-api-burst={{ .KubeApiBurst }}"
+            {{ end }}
+            {{ if .KubeApiQPS }}
+            - "--kube-api-qps={{ .KubeApiQPS }}"
             {{ end }}
           env:
             - name: ADDRESS
@@ -185,6 +208,8 @@ spec:
           {{ if and .Privileged .CSILogRotation }}
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           {{ end }}
           volumeMounts:
             - name: socket-dir
@@ -241,6 +266,8 @@ spec:
           {{ if and .Privileged .CSILogRotation }}
           securityContext:
             privileged: true
+            capabilities:
+              drop: ["ALL"]
           {{ end }}
           volumeMounts:
             - name: socket-dir

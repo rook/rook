@@ -333,5 +333,27 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableVolumeGroupSnapshot = false
 	}
 
+	kubeApiBurst := k8sutil.GetValue(r.opConfig.Parameters, "CSI_KUBE_API_BURST", "")
+	CSIParam.KubeApiBurst = 0
+	if kubeApiBurst != "" {
+		k, err := strconv.ParseUint(kubeApiBurst, 10, 16)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_KUBE_API_BURST. %v", err)
+		} else {
+			CSIParam.KubeApiBurst = uint16(k)
+		}
+	}
+
+	kubeApiQPS := k8sutil.GetValue(r.opConfig.Parameters, "CSI_KUBE_API_QPS", "")
+	CSIParam.KubeApiQPS = 0
+	if kubeApiQPS != "" {
+		k, err := strconv.ParseFloat(kubeApiQPS, 32)
+		if err != nil {
+			logger.Errorf("failed to parse CSI_KUBE_API_QPS. %v", err)
+		} else {
+			CSIParam.KubeApiQPS = float32(k)
+		}
+	}
+
 	return nil
 }

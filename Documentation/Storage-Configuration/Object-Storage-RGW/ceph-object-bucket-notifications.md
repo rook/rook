@@ -79,7 +79,7 @@ spec:
 8. `http` (optional) hold the spec for an HTTP endpoint. The format of the URI would be: `http[s]://<fqdn>[:<port>][/<resource>]`
     + port defaults to: 80/443 for HTTP/S accordingly
 9. `disableVerifySSL` indicates whether the RGW is going to verify the SSL certificate of the HTTP server in case HTTPS is used ("false" by default)
-10. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). Supported for Ceph Quincy (v17) or newer ("false" by default)
+10. `sendCloudEvents`: (optional) send the notifications with the [CloudEvents header](https://github.com/cloudevents/spec/blob/main/cloudevents/adapters/aws-s3.md). ("false" by default)
 11. `amqp` (optional) hold the spec for an AMQP endpoint. The format of the URI would be: `amqp[s]://[<user>:<password>@]<fqdn>[:<port>][/<vhost>]`
     + port defaults to: 5672/5671 for AMQP/S accordingly
     + user/password defaults to: guest/guest

@@ -93,7 +93,7 @@ type LocalDisk struct {
 	Type string `json:"type"`
 	// Rotational is the boolean whether the device is rotational: true for hdd, false for ssd and nvme
 	Rotational bool `json:"rotational"`
-	// ReadOnly is the boolean whether the device is readonly
+	// Readonly is the boolean whether the device is readonly
 	Readonly bool `json:"readOnly"`
 	// Partitions is a partition slice
 	Partitions []Partition

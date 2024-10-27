@@ -21,7 +21,7 @@ The `security` section contains settings related to encryption of the cluster.
         * `schedule`: the schedule, written in [cron format](https://en.wikipedia.org/wiki/Cron), with which key rotation [CronJob](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) is created, default value is `"@weekly"`.
 
 !!! note
-    Currently key rotation is only supported for the default type, where the Key Encryption Keys are stored in a Kubernetes Secret.
+    Currently key rotation is supported when the Key Encryption Keys are stored in a Kubernetes Secret or Vault KMS.
 
 Supported KMS providers:
 

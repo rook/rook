@@ -50,12 +50,19 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 - `blockPoolName`: The metadata name of the CephBlockPool CR where the rados namespace will be created.
 
+- `mirroring`: Sets up mirroring of the rados namespace (requires Ceph v20 or newer)
+    - `mode`: mirroring mode to run, possible values are "pool" or "image" (required). Refer to the [mirroring modes Ceph documentation](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#enable-mirroring) for more details
+    - `remoteNamespace`: Name of the rados namespace on the peer cluster where the namespace should get mirrored. The default is the same rados namespace.
+    - `snapshotSchedules`: schedule(s) snapshot at the **rados namespace** level. It is an array and one or more schedules are supported.
+        - `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
+        - `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
+
 ## Creating a Storage Class
 
 Once the RADOS namespace is created, an RBD-based StorageClass can be created to
 create PVs in this RADOS namespace. For this purpose, the `clusterID` value from the
 CephBlockPoolRadosNamespace status needs to be put into the `clusterID` field of the StorageClass
-spec. 
+spec.
 
 Extract the clusterID from the CephBlockPoolRadosNamespace CR:
 
@@ -80,4 +87,46 @@ parameters:
   clusterID: 80fc4f4bacc064be641633e6ed25ba7e
   pool: replicapool
   ...
+```
+
+### Mirroring
+
+First, enable mirroring for the parent CephBlockPool.
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  replicated:
+    size: 3
+  mirroring:
+    enabled: true
+    mode: image
+    # schedule(s) of snapshot
+    snapshotSchedules:
+      - interval: 24h # daily snapshots
+        startTime: 14:00:00-05:00
+```
+
+Second, configure the rados namespace CRD with the mirroring:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPoolRadosNamespace
+metadata:
+  name: namespace-a
+  namespace: rook-ceph # namespace:cluster
+spec:
+  # The name of the CephBlockPool CR where the namespace is created.
+  blockPoolName: replicapool
+  mirroring:
+    mode: image
+    remoteNamespace: namespace-a # default is the same as the local rados namespace
+    # schedule(s) of snapshot
+    snapshotSchedules:
+      - interval: 24h # daily snapshots
+        startTime: 14:00:00-05:00
 ```

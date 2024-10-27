@@ -127,7 +127,7 @@ type PolicyStatement struct {
 	Sid string `json:"Sid"`
 	// Effect determines whether the Action(s) are 'Allow'ed or 'Deny'ed.
 	Effect effect `json:"Effect"`
-	// Principle is/are the Ceph user names affected by this PolicyStatement
+	// Principal is/are the Ceph user names affected by this PolicyStatement
 	// Must be in the format of 'arn:aws:iam:::user/<ceph-user>'
 	Principal map[string][]string `json:"Principal"`
 	// Action is a list of s3:* actions

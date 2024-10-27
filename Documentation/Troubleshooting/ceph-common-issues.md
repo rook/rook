@@ -67,6 +67,9 @@ title: Ceph Common Issues
     - [Symptoms](#symptoms-11)
     - [Investigation](#investigation-7)
     - [Solution](#solution-12)
+- [The cluster is in an unhealthy state or fails to configure when LimitNOFILE=infinity in containerd](#the-cluster-is-in-an-unhealthy-state-or-fails-to-configure-when-limitnofileinfinity-in-containerd)
+    - [Symptoms](#symptoms-12)
+    - [Solution](#solution-13)
 
 
 Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending on the configuration of Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
@@ -774,3 +777,36 @@ data: {}
 ```
 
 If the ConfigMap exists, remove any keys that you wish to configure through the environment.
+
+## The cluster is in an unhealthy state or fails to configure when LimitNOFILE=infinity in containerd
+
+### Symptoms
+
+When trying to create a new deployment, Ceph mons keep crashing and the cluster fails to configure or remains in an unhealthy state. The nodes' CPUs are stuck at 100%.
+
+```console
+NAME        DATADIRHOSTPATH   MONCOUNT   AGE    PHASE   MESSAGE                                    HEALTH       EXTERNAL   FSID
+rook-ceph   /var/lib/rook      3         4m6s   Ready   Failed to configure ceph cluster           HEALTH_ERR
+```
+
+### Solution
+
+Before systemd v240, systemd would leave `fs.nr_open` as-is because it had no mechanism to set a safe upper limit for it. The kernel hard-coded value for the default number of max open files is **1048576**. Starting from systemd v240, when `LimitNOFILE=infinity` is specified in the containerd.service configuration, this value will typically be set to **~1073741816** (INT_MAX for x86_64 divided by two).
+
+To fix this, set LimitNOFILE in the systemd service configuration to **1048576**.
+
+Create an override.conf file with the new LimitNOFILE value:
+
+```console
+$ vim /etc/systemd/system/containerd.service.d/override.conf
+[Service]
+LimitNOFILE=1048576
+```
+
+Reload systemd manager configuration, restart containerd and restart all monitors deployments:
+
+```console
+$ systemctl daemon-reload
+$ systemctl restart containerd
+$ kubectl rollout restart deployment rook-ceph-mon-a rook-ceph-mon-b rook-ceph-mon-c -n rook-ceph
+```

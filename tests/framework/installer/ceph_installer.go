@@ -43,11 +43,11 @@ import (
 
 const (
 	// test with the latest releases
-	quincyTestImage = "quay.io/ceph/ceph:v17"
-	reefTestImage   = "quay.io/ceph/ceph:v18"
+	reefTestImage  = "quay.io/ceph/ceph:v18"
+	squidTestImage = "quay.io/ceph/ceph:v19"
 	// test with the current development versions
-	quincyDevelTestImage = "quay.io/ceph/daemon-base:latest-quincy-devel"
-	reefDevelTestImage   = "quay.io/ceph/daemon-base:latest-reef-devel"
+	reefDevelTestImage  = "quay.io/ceph/daemon-base:latest-reef-devel"
+	squidDevelTestImage = "quay.io/ceph/daemon-base:latest-squid-devel"
 	// test with the latest Ceph main image
 	mainTestImage      = "quay.io/ceph/daemon-base:latest-main-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
@@ -67,10 +67,10 @@ mon compact on start = true
 )
 
 var (
-	QuincyVersion                = cephv1.CephVersionSpec{Image: quincyTestImage}
-	QuincyDevelVersion           = cephv1.CephVersionSpec{Image: quincyDevelTestImage}
 	ReefVersion                  = cephv1.CephVersionSpec{Image: reefTestImage}
 	ReefDevelVersion             = cephv1.CephVersionSpec{Image: reefDevelTestImage}
+	SquidVersion                 = cephv1.CephVersionSpec{Image: squidTestImage}
+	SquidDevelVersion            = cephv1.CephVersionSpec{Image: squidDevelTestImage}
 	MainVersion                  = cephv1.CephVersionSpec{Image: mainTestImage, AllowUnsupported: true}
 	volumeReplicationBaseURL     = fmt.Sprintf("https://raw.githubusercontent.com/csi-addons/kubernetes-csi-addons/%s/config/crd/bases/", volumeReplicationVersion)
 	volumeReplicationCRDURL      = volumeReplicationBaseURL + "replication.storage.openshift.io_volumereplications.yaml"
@@ -93,12 +93,12 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 	switch os.Getenv("CEPH_SUITE_VERSION") {
 	case "main":
 		return MainVersion
-	case "quincy-devel":
-		return QuincyDevelVersion
 	case "reef-devel":
 		return ReefDevelVersion
+	case "squid-devel":
+		return SquidDevelVersion
 	default:
-		return ReefDevelVersion
+		return SquidDevelVersion
 	}
 }
 
@@ -265,7 +265,12 @@ func (h *CephInstaller) CreateCephCluster() error {
 }
 
 func (h *CephInstaller) waitForCluster() error {
-	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-mon", h.settings.Namespace, h.settings.Mons); err != nil {
+	monWaitLabel := "app=rook-ceph-mon,mon_daemon=true"
+	if h.Manifests.Settings().RookVersion == Version1_14 {
+		// TODO: Remove this when upgrade test is from v1.15 since v1.14 does not have the mon_daemon label
+		monWaitLabel = "app=rook-ceph-mon"
+	}
+	if err := h.k8shelper.WaitForPodCount(monWaitLabel, h.settings.Namespace, h.settings.Mons); err != nil {
 		return err
 	}
 

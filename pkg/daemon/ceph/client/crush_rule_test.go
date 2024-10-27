@@ -56,7 +56,7 @@ func TestBuildCrushSteps(t *testing.T) {
 	assert.Equal(t, 4, len(steps))
 	assert.Equal(t, cephv1.DefaultCRUSHRoot, steps[0].ItemName)
 	assert.Equal(t, "datacenter", steps[1].Type)
-	assert.Equal(t, uint(2), steps[2].Number)
+	assert.Equal(t, 2, steps[2].Number)
 }
 
 func TestCompileCRUSHMap(t *testing.T) {

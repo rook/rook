@@ -179,21 +179,29 @@ func (s *DiskSanitizer) executeSanitizeCommand(osdInfo oposd.OSDInfo, wg *sync.W
 	// On return, notify the WaitGroup that we’re done
 	defer wg.Done()
 
-	output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredUtility, s.buildShredArgs(osdInfo.BlockPath)...)
-	if err != nil {
-		logger.Errorf("failed to sanitize osd disk %q. %s. %v", osdInfo.BlockPath, output, err)
-	}
+	for _, device := range []string{osdInfo.BlockPath, osdInfo.MetadataPath, osdInfo.WalPath} {
+		if device == "" {
+			continue
+		}
 
-	logger.Infof("%s\n", output)
-	logger.Infof("successfully sanitized osd disk %q", osdInfo.BlockPath)
+		output, err := s.context.Executor.ExecuteCommandWithCombinedOutput(shredUtility, s.buildShredArgs(device)...)
 
-	// If the device is encrypted let's close it after sanitizing its content
-	if osdInfo.Encrypted {
-		err := osd.CloseEncryptedDevice(s.context, osdInfo.BlockPath)
+		logger.Infof("%s\n", output)
+
 		if err != nil {
-			logger.Errorf("failed to close encrypted osd disk %q. %v", osdInfo.BlockPath, err)
+			logger.Errorf("failed to sanitize osd disk %q. %s. %v", device, output, err)
 		} else {
-			logger.Infof("successfully closed encrypted osd disk %q", osdInfo.BlockPath)
+			logger.Infof("successfully sanitized osd disk %q", device)
+		}
+
+		// If the device is encrypted let's close it after sanitizing its content
+		if osdInfo.Encrypted {
+			err := osd.CloseEncryptedDevice(s.context, device)
+			if err != nil {
+				logger.Errorf("failed to close encrypted osd disk %q. %v", device, err)
+			} else {
+				logger.Infof("successfully closed encrypted osd disk %q", device)
+			}
 		}
 	}
 }

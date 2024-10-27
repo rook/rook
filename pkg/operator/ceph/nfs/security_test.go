@@ -47,11 +47,11 @@ func mockReconcile() *ReconcileCephNFS {
 	return &ReconcileCephNFS{
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
-			CephVersion: cephver.Quincy,
+			CephVersion: cephver.Squid,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
-				Image: "quay.io/ceph/ceph:v17",
+				Image: "quay.io/ceph/ceph:v19",
 			},
 		},
 	}
@@ -191,7 +191,7 @@ func TestReconcileCephNFS_addSecurityConfigsToPod(t *testing.T) {
 		nss := containerByName(pod.InitContainers, "generate-nsswitch-conf")
 		assert.NotEmpty(t, nss)
 		// container should have CLUSTER image and resources from SERVER spec
-		assert.Equal(t, "quay.io/ceph/ceph:v17", nss.Image)
+		assert.Equal(t, "quay.io/ceph/ceph:v19", nss.Image)
 		nssTester := optest.NewContainersSpecTester(t, []v1.Container{nss})
 		nssTester.AssertResourceSpec(optest.ResourceLimitExpectations{
 			CPUResourceLimit:      "3000",
@@ -308,7 +308,7 @@ func TestReconcileCephNFS_addSecurityConfigsToPod(t *testing.T) {
 		nss := containerByName(pod.InitContainers, "generate-nsswitch-conf")
 		assert.NotEmpty(t, nss)
 		// container should have CLUSTER image and resources from SERVER spec
-		assert.Equal(t, "quay.io/ceph/ceph:v17", nss.Image)
+		assert.Equal(t, "quay.io/ceph/ceph:v19", nss.Image)
 		nssTester := optest.NewContainersSpecTester(t, []v1.Container{nss})
 		nssTester.AssertResourceSpec(optest.ResourceLimitExpectations{
 			CPUResourceLimit:      "3000",

@@ -42,8 +42,9 @@ import (
 )
 
 const (
+	rgwPrefix = "rook-ceph-rgw"
 	//nolint:gosec // since this is not leaking any hardcoded credentials, it's just the secret name
-	objectTLSSecretName = "rook-ceph-rgw-tls-test-store-csr"
+	objectTLSSecretName = rgwPrefix + "-tls-test-store-csr"
 )
 
 var (
@@ -66,47 +67,51 @@ var (
 )
 
 // Test Object StoreCreation on Rook that was installed via helm
-func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool) {
+func runObjectE2ETestLite(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, deleteStore bool, enableTLS bool, swiftAndKeystone bool) {
 	andDeleting := ""
 	if deleteStore {
 		andDeleting = "and deleting"
 	}
 	logger.Infof("test creating %s object store %q in namespace %q", andDeleting, storeName, namespace)
 
-	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS)
+	createCephObjectStore(t, helper, k8sh, installer, namespace, storeName, replicaSize, enableTLS, swiftAndKeystone)
 
 	if deleteStore {
 		t.Run("delete object store", func(t *testing.T) {
 			deleteObjectStore(t, k8sh, namespace, storeName)
 			assertObjectStoreDeletion(t, k8sh, namespace, storeName)
 		})
+		// remove user secret
 	}
 }
 
+func RgwServiceName(storeName string) string {
+	return rgwPrefix + "-" + storeName
+}
+
 // create a CephObjectStore and wait for it to report ready status
-func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool) {
+func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, namespace, storeName string, replicaSize int, tlsEnable bool, swiftAndKeystone bool) {
 	logger.Infof("Create Object Store %q with replica count %d", storeName, replicaSize)
-	rgwServiceName := "rook-ceph-rgw-" + storeName
 	if tlsEnable {
 		t.Run("generate TLS certs", func(t *testing.T) {
-			generateRgwTlsCertSecret(t, helper, k8sh, namespace, storeName, rgwServiceName)
+			generateRgwTlsCertSecret(t, helper, k8sh, namespace, storeName, RgwServiceName(storeName))
 		})
 	}
 	t.Run("create CephObjectStore", func(t *testing.T) {
-		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable)
+		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable, swiftAndKeystone)
 		assert.Nil(t, err)
 	})
 
 	t.Run("wait for RGWs to be running", func(t *testing.T) {
 		// check that ObjectStore is created
 		logger.Infof("Check that RGW pods are Running")
-		for i := 0; i < 24 && k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, 1, "Running") == false; i++ {
+		for i := 0; i < 24 && k8sh.CheckPodCountAndState(rgwPrefix, namespace, 1, "Running") == false; i++ {
 			logger.Infof("(%d) RGW pod check sleeping for 5 seconds ...", i)
 			time.Sleep(5 * time.Second)
 		}
-		assert.True(t, k8sh.CheckPodCountAndState("rook-ceph-rgw", namespace, replicaSize, "Running"))
+		assert.True(t, k8sh.CheckPodCountAndState(rgwPrefix, namespace, replicaSize, "Running"))
 		logger.Info("RGW pods are running")
-		assert.NoError(t, k8sh.WaitForLabeledDeploymentsToBeReady("app=rook-ceph-rgw", namespace))
+		assert.NoError(t, k8sh.WaitForLabeledDeploymentsToBeReady("app="+rgwPrefix, namespace))
 		logger.Infof("Object store %q created successfully", storeName)
 	})
 
@@ -148,7 +153,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 
 	t.Run("verify RGW liveness probes show healthy", func(t *testing.T) {
 		err := wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 90*time.Second, true, func(ctx context.Context) (done bool, err error) {
-			deployName := "rook-ceph-rgw-" + storeName + "-a"
+			deployName := RgwServiceName(storeName) + "-a"
 			d, err := k8sh.Clientset.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
 			if err != nil {
 				logger.Infof("waiting for rgw deployment %q to be ready; failed to get deployment: %v", deployName, err)
@@ -164,7 +169,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 	})
 
 	t.Run("verify RGW service is up", func(t *testing.T) {
-		assert.True(t, k8sh.IsServiceUp("rook-ceph-rgw-"+storeName, namespace))
+		assert.True(t, k8sh.IsServiceUp(RgwServiceName(storeName), namespace))
 	})
 
 	t.Run("check if the dashboard-admin user exists in all existing object stores", func(t *testing.T) {

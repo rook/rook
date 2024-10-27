@@ -1060,7 +1060,48 @@ func (c *Cluster) startDeployments(mons []*monConfig, requireAllInQuorum bool) e
 			requireAllInQuorum = true
 		}
 	}
-	return c.waitForMonsToJoin(mons, requireAllInQuorum)
+	err = c.waitForMonsToJoin(mons, requireAllInQuorum)
+
+	// Check for the rare case of an extra mon deployment that needs to be cleaned up
+	c.checkForExtraMonResources(mons, deployments.Items)
+	return err
+}
+
+func (c *Cluster) checkForExtraMonResources(mons []*monConfig, deployments []apps.Deployment) string {
+	// If there are fewer mon deployments than the desired count, no need to remove an extra.
+	if len(deployments) <= c.spec.Mon.Count || len(deployments) <= len(mons) {
+		logger.Debug("no extra mon deployments to remove")
+		return ""
+	}
+	// If there are fewer mons in the list than expected, either new mons are being created for
+	// a new cluster, or a mon failover is in progress and the list of mons only
+	// includes the single mon that was just started
+	if len(mons) < c.spec.Mon.Count {
+		logger.Debug("new cluster or mon failover in progress, not checking for extra mon deployments")
+		return ""
+	}
+
+	// If there are more deployments than expected mons from the ceph quorum,
+	// find the extra mon deployment and clean it up.
+	logger.Infof("there is an extra mon deployment that is not needed and not in quorum")
+	for _, deploy := range deployments {
+		monName := deploy.Labels[controller.DaemonIDLabel]
+		found := false
+		// Search for the mon in the list of mons expected in quorum
+		for _, monDaemon := range mons {
+			if monName == monDaemon.DaemonName {
+				found = true
+				break
+			}
+		}
+		if !found {
+			logger.Infof("deleting extra mon deployment %q", deploy.Name)
+			c.removeMonResources(monName)
+			return monName
+		}
+	}
+
+	return ""
 }
 
 func (c *Cluster) waitForMonsToJoin(mons []*monConfig, requireAllInQuorum bool) error {
@@ -1110,6 +1151,17 @@ func (c *Cluster) saveMonConfig() error {
 	clusterId := c.Namespace // cluster id is same as cluster namespace for CephClusters
 	if err := csi.SaveClusterConfig(c.context.Clientset, clusterId, c.Namespace, c.ClusterInfo, csiConfigEntry); err != nil {
 		return errors.Wrap(err, "failed to update csi cluster config")
+	}
+
+	if csi.EnableCSIOperator() && len(c.ClusterInfo.Monitors) > 0 {
+		err := csi.CreateUpdateCephConnection(c.context.Client, c.ClusterInfo, c.spec)
+		if err != nil {
+			return errors.Wrap(err, "failed to create/update cephConnection")
+		}
+		err = csi.CreateDefaultClientProfile(c.context.Client, c.ClusterInfo, c.ClusterInfo.NamespacedName())
+		if err != nil {
+			return errors.Wrap(err, "failed to create/update default client profile")
+		}
 	}
 
 	return nil

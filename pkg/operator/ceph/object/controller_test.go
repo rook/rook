@@ -149,7 +149,7 @@ const (
 	dummyVersionsRaw          = `
 	{
 		"mon": {
-			"ceph version 17.2.1 (0000000000000000) quincy (stable)": 3
+			"ceph version 19.2.1 (0000000000000000) squid (stable)": 3
 		}
 	}`
 	//nolint:gosec // only test values, not a real secret
@@ -1049,22 +1049,22 @@ func TestDiffVersions(t *testing.T) {
 			if args[0] == "versions" {
 				return `{
     "mon": {
-        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 3
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 3
     },
     "mgr": {
-        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 1
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 1
     },
     "osd": {
-        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 3
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 3
     },
     "mds": {
-        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 2
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 2
     },
     "rgw": {
-        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 1
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 1
     },
     "overall": {
-        "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 10
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 10
     }
 }`, nil
 			}
@@ -1074,7 +1074,7 @@ func TestDiffVersions(t *testing.T) {
 	c := &clusterd.Context{Executor: executor}
 
 	// desiredCephVersion comes from DetectCephVersion() (ceph --version) which uses ExtractCephVersion()
-	desiredCephVersion, err := cephver.ExtractCephVersion("ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)")
+	desiredCephVersion, err := cephver.ExtractCephVersion("ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)")
 	assert.NoError(t, err)
 
 	// runningCephVersion comes from LeastUptodateDaemonVersion()

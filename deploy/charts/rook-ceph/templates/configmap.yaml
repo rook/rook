@@ -9,6 +9,9 @@ data:
   ROOK_LOG_LEVEL: {{ .Values.logLevel | quote }}
   ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS: {{ .Values.cephCommandsTimeoutSeconds | quote }}
   ROOK_OBC_WATCH_OPERATOR_NAMESPACE: {{ .Values.enableOBCWatchOperatorNamespace | quote }}
+{{- if .Values.operatorMetricsBindAddress }}
+  ROOK_OPERATOR_METRICS_BIND_ADDRESS: {{ .Values.operatorMetricsBindAddress | quote }}
+{{- end }}
 {{- if .Values.obcProvisionerNamePrefix }}
   ROOK_OBC_PROVISIONER_NAME_PREFIX: {{ .Values.obcProvisionerNamePrefix | quote }}
 {{- end }}
@@ -17,6 +20,13 @@ data:
 {{- if .Values.discoverDaemonUdev }}
   DISCOVER_DAEMON_UDEV_BLACKLIST: {{ .Values.discoverDaemonUdev | quote }}
 {{- end }}
+{{- if .Values.revisionHistoryLimit }}
+  ROOK_REVISION_HISTORY_LIMIT: {{ .Values.revisionHistoryLimit | quote }}
+{{- end }}
+{{- if .Values.enforceHostNetwork }}
+  ROOK_ENFORCE_HOST_NETWORK: {{ .Values.enforceHostNetwork | quote }}
+{{- end }}
+
 {{- if .Values.csi }}
   ROOK_CSI_ENABLE_RBD: {{ .Values.csi.enableRbdDriver | quote }}
   ROOK_CSI_ENABLE_CEPHFS: {{ .Values.csi.enableCephfsDriver | quote }}
@@ -28,7 +38,6 @@ data:
   CSI_ENABLE_ENCRYPTION: {{ .Values.csi.enableCSIEncryption | quote }}
   CSI_ENABLE_OMAP_GENERATOR: {{ .Values.csi.enableOMAPGenerator | quote }}
   CSI_ENABLE_HOST_NETWORK: {{ .Values.csi.enableCSIHostNetwork | quote }}
-  CSI_DISABLE_HOLDER_PODS: {{ .Values.csi.disableHolderPods | quote }}
   CSI_ENABLE_METADATA: {{ .Values.csi.enableMetadata | quote }}
   CSI_ENABLE_VOLUME_GROUP_SNAPSHOT: {{ .Values.csi.enableVolumeGroupSnapshot | quote }}
 {{- if .Values.csi.csiDriverNamePrefix }}
@@ -250,4 +259,10 @@ data:
   CSI_CEPHFS_ATTACH_REQUIRED: {{ .Values.csi.cephFSAttachRequired | quote }}
   CSI_RBD_ATTACH_REQUIRED: {{ .Values.csi.rbdAttachRequired | quote }}
   CSI_NFS_ATTACH_REQUIRED: {{ .Values.csi.nfsAttachRequired | quote }}
+{{- end }}
+{{- if .Values.csi.kubeApiBurst }}
+  CSI_KUBE_API_BURST: {{ .Values.csi.kubeApiBurst | quote }}
+{{- end }}
+{{- if .Values.csi.kubeApiQPS }}
+  CSI_KUBE_API_QPS: {{ .Values.csi.kubeApiQPS | quote }}
 {{- end }}

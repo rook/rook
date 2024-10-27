@@ -86,7 +86,7 @@ func TestHostNetworkSameNode(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.Error(t, err)
 }
 
@@ -104,7 +104,7 @@ func TestPodMemory(t *testing.T) {
 	c := newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	// Test REQUEST == LIMIT
@@ -120,7 +120,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	// Test LIMIT != REQUEST but obviously LIMIT > REQUEST
@@ -136,7 +136,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	// Test valid case where pod resource is set appropriately
@@ -152,7 +152,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	// Test no resources were specified on the pod
@@ -160,7 +160,7 @@ func TestPodMemory(t *testing.T) {
 	c = newCluster(context, namespace, true, r)
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 }

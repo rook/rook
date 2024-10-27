@@ -59,11 +59,6 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) map[string]strin
 		"mon allow pool size one": "true",
 	}
 
-	// Every release before Quincy will enable PG auto repair on Bluestore OSDs
-	if !cephVersion.IsAtLeastQuincy() {
-		overrides["osd scrub auto repair"] = "true"
-	}
-
 	return overrides
 }
 

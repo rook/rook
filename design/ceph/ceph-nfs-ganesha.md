@@ -218,9 +218,7 @@ Directory, and FreeIPA.
 Prototype information detailed on Rook blog:
 https://blog.rook.io/prototyping-an-nfs-connection-to-ldap-using-sssd-7c27f624f1a4
 
-NFS-Ganesha (via libraries within its container) is the client to SSSD. As of Ceph v17.2.3, the Ceph
-container image does not have the `sssd-client` package installed which is required for supporting
-SSSD. It is available starting from Ceph v17.2.4.
+NFS-Ganesha (via libraries within its container) is the client to SSSD.
 
 The following directories must be shared between SSSD and the NFS-Ganesha container:
 - `/var/lib/sss/pipes`: this directory holds the sockets used to communicate between client and SSSD

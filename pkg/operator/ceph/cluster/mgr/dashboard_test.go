@@ -29,6 +29,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -113,7 +114,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "myns",
-		CephVersion: cephver.Quincy,
+		CephVersion: cephver.Squid,
 		OwnerInfo:   ownerInfo,
 		Context:     ctx,
 	}
@@ -136,8 +137,8 @@ func TestStartSecureDashboard(t *testing.T) {
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
 	// the dashboard is enabled once with the new dashboard and modules
-	assert.Equal(t, 3, enables)
-	assert.Equal(t, 2, disables)
+	assert.Equal(t, 2, enables)
+	assert.Equal(t, 1, disables)
 	assert.Equal(t, 2, moduleRetries)
 
 	svc, err := c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
@@ -152,13 +153,13 @@ func TestStartSecureDashboard(t *testing.T) {
 	assert.Nil(t, err)
 	err = c.configureDashboardModules()
 	assert.NoError(t, err)
-	assert.Equal(t, 3, enables)
-	assert.Equal(t, 3, disables)
+	assert.Equal(t, 2, enables)
+	assert.Equal(t, 2, disables)
 
 	svc, err = c.context.Clientset.CoreV1().Services(clusterInfo.Namespace).Get(ctx, "rook-ceph-mgr-dashboard", metav1.GetOptions{})
 	assert.NotNil(t, err)
 	assert.True(t, kerrors.IsNotFound(err))
-	assert.Nil(t, svc)
+	assert.Equal(t, svc, &v1.Service{})
 
 	// Set the port to something over 1024 and confirm the port and targetPort are the same
 	c.spec.Dashboard.Enabled = true

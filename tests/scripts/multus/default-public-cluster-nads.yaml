@@ -22,6 +22,8 @@ spec:
       }
     }
 ---
+# IPv6 address here (with IPv4 above) makes this unsuitable for CephCluster use, but it is okay for
+# testing validation tool
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:

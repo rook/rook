@@ -25,6 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/util"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	batch "k8s.io/api/batch/v1"
@@ -301,7 +302,9 @@ func (cr *cmdReporterCfg) initJobSpec() (*batch.Job, error) {
 			*cmdReporterContainer,
 		},
 		RestartPolicy:      v1.RestartPolicyOnFailure,
+		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
+		HostNetwork:        cephv1.EnforceHostNetwork(),
 	}
 	copyBinsVol, _ := copyBinariesVolAndMount()
 	podSpec.Volumes = []v1.Volume{copyBinsVol}

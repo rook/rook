@@ -48,6 +48,14 @@ type Context struct {
 	Zone        string
 }
 
+func (c *Context) nsName() string {
+	if c.clusterInfo == nil {
+		logger.Infof("unable to get namespaced name for rgw %s", c.Name)
+		return c.Name
+	}
+	return fmt.Sprintf("%s/%s", c.clusterInfo.Namespace, c.Name)
+}
+
 // AdminOpsContext holds the object store context as well as information for connecting to the admin
 // ops API.
 type AdminOpsContext struct {
@@ -101,9 +109,7 @@ const (
 	rgwAdminOpsUserCaps       = "buckets=*;users=*;usage=read;metadata=read;zone=read"
 )
 
-var (
-	rgwAdminOpsUserDisplayName = "RGW Admin Ops User"
-)
+var rgwAdminOpsUserDisplayName = "RGW Admin Ops User"
 
 // NewContext creates a new object store context.
 func NewContext(context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, name string) *Context {
@@ -116,7 +122,7 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 	objContext := NewContext(context, clusterInfo, store.Name)
 	objContext.UID = string(store.UID)
 
-	if err := UpdateEndpoint(objContext, store); err != nil {
+	if err := UpdateEndpointForAdminOps(objContext, store); err != nil {
 		return nil, err
 	}
 
@@ -131,16 +137,26 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 	return objContext, nil
 }
 
-// UpdateEndpoint updates an object.Context using the latest info from the CephObjectStore spec
-func UpdateEndpoint(objContext *Context, store *cephv1.CephObjectStore) error {
-	nsName := fmt.Sprintf("%s/%s", objContext.clusterInfo.Namespace, objContext.Name)
+// GetAdminOpsEndpoint returns an endpoint that can be used to perform RGW admin ops
+func GetAdminOpsEndpoint(s *cephv1.CephObjectStore) (string, error) {
+	nsName := fmt.Sprintf("%s/%s", s.Namespace, s.Name)
 
-	port, err := store.Spec.GetPort()
+	// advertise endpoint should be most likely to have a valid cert, so use it for admin ops
+	endpoint, err := s.GetAdvertiseEndpointUrl()
 	if err != nil {
-		return errors.Wrapf(err, "failed to get port for object store %q", nsName)
+		return "", errors.Wrapf(err, "failed to get advertise endpoint for object store %q", nsName)
 	}
-	objContext.Endpoint = BuildDNSEndpoint(GetDomainName(store), port, store.Spec.IsTLSEnabled())
+	return endpoint, nil
+}
 
+// UpdateEndpointForAdminOps updates the object.Context endpoint with the latest admin ops endpoint
+// for the CephObjectStore.
+func UpdateEndpointForAdminOps(objContext *Context, store *cephv1.CephObjectStore) error {
+	endpoint, err := GetAdminOpsEndpoint(store)
+	if err != nil {
+		return err
+	}
+	objContext.Endpoint = endpoint
 	return nil
 }
 

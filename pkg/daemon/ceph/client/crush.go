@@ -75,7 +75,7 @@ type ruleSpec struct {
 
 type stepSpec struct {
 	Operation string `json:"op"`
-	Number    uint   `json:"num"`
+	Number    int    `json:"num"`
 	Item      int    `json:"item"`
 	ItemName  string `json:"item_name"`
 	Type      string `json:"type"`

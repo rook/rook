@@ -135,6 +135,10 @@ external-cluster-console # rbd mirror pool peer bootstrap import <token file pat
 
 See the official rbd mirror documentation on [how to add a bootstrap peer](https://docs.ceph.com/docs/master/rbd/rbd-mirroring/#bootstrap-peers).
 
+!!! note
+    Disabling mirroring for the CephBlockPool requires disabling mirroring on all the
+    CephBlockPoolRadosNamespaces present underneath.
+
 ### Data spread across subdomains
 
 Imagine the following topology with datacenters containing racks and then hosts:

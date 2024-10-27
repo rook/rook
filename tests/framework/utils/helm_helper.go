@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -99,11 +100,21 @@ func (h *HelmHelper) InstallLocalHelmChart(upgrade bool, namespace, chart string
 		cmdArgs = append(cmdArgs, "--namespace", namespace)
 	}
 
-	err = h.installChart(cmdArgs, values)
-	if err != nil {
-		return fmt.Errorf("failed to install local helm chart %s with in namespace: %v, err=%v", chart, namespace, err)
+	var lastErr error
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		err = h.installChart(cmdArgs, values)
+		if err != nil {
+			lastErr = fmt.Errorf("failed to install local helm chart %s with in namespace: %v, err=%v", chart, namespace, err)
+			logger.Error(lastErr)
+			time.Sleep(time.Second)
+			continue
+		}
+		logger.Infof("helm chart %q installed successfully after %d attempt(s)", chart, i+1)
+		return nil
 	}
-	return nil
+	logger.Errorf("failed to install helm chart %s after %d attempts", chart, maxRetries)
+	return lastErr
 }
 
 func (h *HelmHelper) InstallVersionedChart(namespace, chart, version string, values map[string]interface{}) error {

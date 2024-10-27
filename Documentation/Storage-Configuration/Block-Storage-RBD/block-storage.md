@@ -196,8 +196,6 @@ The erasure coded pool must be set as the `dataPool` parameter in
 
 If a node goes down where a pod is running where a RBD RWO volume is mounted, the volume cannot automatically be mounted on another node. The node must be guaranteed to be offline before the volume can be mounted on another node.
 
-!!! Note
-    These instructions are for clusters with Kubernetes version 1.26 or greater. For K8s 1.25 or older, see the [manual steps in the CSI troubleshooting guide](../../Troubleshooting/ceph-csi-common-issues.md#node-loss) to recover from the node loss.
 
 ### Configure CSI-Addons
 
@@ -205,6 +203,11 @@ Deploy csi-addons controller and enable `csi-addons` sidecar as mentioned in the
 
 
 ### Handling Node Loss
+
+!!! warning
+    Automated node loss handling is currently disabled, please refer to the [manual steps](../../Troubleshooting/ceph-csi-common-issues.md#node-loss) to recover from the node loss.
+    We are actively working on a new design for this feature.
+    For more details see the [tracking issue](https://github.com/rook/rook/issues/14832).
 
 When a node is confirmed to be down, add the following taints to the node:
 

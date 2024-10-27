@@ -149,6 +149,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 		// connecting to the krb server. give all ganesha servers the same hostname so they can all
 		// use the same krb credentials to auth
 		Hostname:           fmt.Sprintf("%s-%s", nfs.Namespace, nfs.Name),
+		SecurityContext:    &v1.PodSecurityContext{},
 		ServiceAccountName: k8sutil.DefaultServiceAccount,
 	}
 	// Replace default unreachable node toleration
@@ -191,6 +192,7 @@ func (r *ReconcileCephNFS) makeDeployment(nfs *cephv1.CephNFS, cfg daemonConfig)
 	// Multiple replicas of the nfs service would be handled by creating a service and a new deployment for each one, rather than increasing the pod count here
 	replicas := int32(1)
 	deployment.Spec = apps.DeploymentSpec{
+		RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 		Selector: &metav1.LabelSelector{
 			MatchLabels: getLabels(nfs, cfg.ID, false),
 		},

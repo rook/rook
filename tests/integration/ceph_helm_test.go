@@ -70,7 +70,7 @@ func (h *HelmSuite) SetupSuite() {
 		ChangeHostName:       true,
 		ConnectionsEncrypted: true,
 		RookVersion:          installer.LocalBuildTag,
-		CephVersion:          installer.QuincyVersion,
+		CephVersion:          installer.ReefVersion,
 	}
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)
@@ -105,5 +105,5 @@ func (h *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 func (h *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	deleteStore := true
 	tls := false
-	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls)
+	runObjectE2ETestLite(h.T(), h.helper, h.k8shelper, h.installer, h.settings.Namespace, "default", 3, deleteStore, tls, false)
 }

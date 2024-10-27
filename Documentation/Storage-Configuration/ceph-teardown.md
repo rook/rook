@@ -205,3 +205,4 @@ This cleanup is supported only for the following custom resources:
 | --------                             | ------- |
 | CephFilesystemSubVolumeGroup         | CSI stored RADOS OMAP details for pvc/volumesnapshots, subvolume snapshots, subvolume clones, subvolumes |
 | CephBlockPoolRadosNamespace          | Images and snapshots in the RADOS namespace|
+| CephBlockPool                        | Images and snapshots in the BlockPool|

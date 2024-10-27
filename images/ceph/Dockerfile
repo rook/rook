@@ -19,12 +19,10 @@ FROM BASEIMAGE
 ARG S5CMD_VERSION
 ARG S5CMD_ARCH
 
-# 'ip' tool must be installed for Multus. It's present in the base image today, but it will likely
-# be removed in the future. Doing a 'dnf install' sometimes breaks CI when centos repos go down or
-# have other package build errors. In order to make sure Rook CI catches the eventual removal and
-# also limit Rook CI breakage due to centos breakage, simply check that 'ip' is present.
-# Eventually: dnf install -y --repo baseos --setopt=install_weak_deps=False iproute && dnf clean all
-RUN which ip
+# 'ip' tool must be installed for Multus.
+# Doing a 'dnf install' sometimes breaks CI when centos repos go down or have other package build errors.
+RUN dnf install -y --repo baseos --setopt=install_weak_deps=False iproute && dnf clean all
+
 
 # Install the s5cmd package to interact with s3 gateway
 RUN curl --fail -sSL -o /s5cmd.tar.gz https://github.com/peak/s5cmd/releases/download/v${S5CMD_VERSION}/s5cmd_${S5CMD_VERSION}_${S5CMD_ARCH}.tar.gz && \

@@ -28,6 +28,12 @@ command:
 image: {{ .CSIPluginImage }}
 imagePullPolicy: IfNotPresent
 name: log-collector
+{{ if .Privileged }}
+securityContext:
+  privileged: true
+  capabilities:
+    drop: ["ALL"]
+{{ end }}
 volumeMounts:
   - mountPath: {{ .CsiLogRootPath }}/logrotate-config/{{ .CsiComponentName }}
     name: csi-logs-logrotate

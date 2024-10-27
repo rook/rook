@@ -22,7 +22,7 @@ metadata:
 spec:
   cephVersion:
     # see the "Cluster Settings" section below for more details on which image of ceph to run
-    image: quay.io/ceph/ceph:v18.2.2
+    image: quay.io/ceph/ceph:v18.2.4
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -49,7 +49,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.2
+    image: quay.io/ceph/ceph:v18.2.4
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
@@ -64,7 +64,7 @@ spec:
     deviceFilter: sdb
   # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
   # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=rook-node' and
-  # the OSDs would specifically only be created on nodes labeled with roke=rook-osd-node.
+  # the OSDs would specifically only be created on nodes labeled with 'role=rook-osd-node'.
   placement:
     all:
       nodeAffinity:
@@ -101,7 +101,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.2
+    image: quay.io/ceph/ceph:v18.2.4
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3

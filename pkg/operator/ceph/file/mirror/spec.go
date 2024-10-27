@@ -46,6 +46,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName:  fsMirror.Spec.PriorityClassName,
+			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
@@ -79,6 +80,7 @@ func (r *ReconcileFilesystemMirror) makeDeployment(daemonConfig *daemonConfig, f
 			Annotations: fsMirror.Spec.Annotations,
 			Labels:      controller.CephDaemonAppLabels(AppName, fsMirror.Namespace, config.FilesystemMirrorType, userID, fsMirror.Name, "cephfilesystemmirrors.ceph.rook.io", true)},
 		Spec: apps.DeploymentSpec{
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podSpec.Labels,
 			},

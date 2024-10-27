@@ -44,12 +44,14 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/object/zonegroup"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/ceph/pool/radosnamespace"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 )
@@ -102,13 +104,13 @@ var AddToManagerFuncs = []func(manager.Manager, *clusterd.Context, context.Conte
 // AddToManager adds all the registered controllers to the passed manager.
 // each controller package will have an Add method listed in AddToManagerFuncs
 // which will setup all the necessary watch
-func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, opManagerContext context.Context) error {
+func (o *Operator) addToManager(m manager.Manager, c *controllerconfig.Context, opManagerContext context.Context, opconfig opcontroller.OperatorConfig) error {
 	if c == nil {
 		return errors.New("nil context passed")
 	}
 
 	// Run CephCluster CR
-	if err := cluster.Add(m, c.ClusterdContext, o.clusterController, opManagerContext); err != nil {
+	if err := cluster.Add(m, c.ClusterdContext, o.clusterController, opManagerContext, opconfig); err != nil {
 		return err
 	}
 
@@ -141,15 +143,23 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 		}
 	}
 
+	metricsBindAddress, err := k8sutil.GetOperatorSetting(context, o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_OPERATOR_METRICS_BIND_ADDRESS", "0")
+	if err != nil {
+		mgrErrorCh <- errors.Wrap(err, "failed to get configmap value `ROOK_OPERATOR_METRICS_BIND_ADDRESS`.")
+		return
+	}
+	skipNameValidation := true
 	// Set up a manager
 	mgrOpts := manager.Options{
 		LeaderElection: false,
 		Metrics: metricsserver.Options{
-			// BindAddress is the bind address for controller runtime metrics server default is 8080. Since we don't use the
-			// controller runtime metrics server, we need to set the bind address 0 so that port 8080 is available.
-			BindAddress: "0",
+			// BindAddress is the bind address for controller runtime metrics server. Defaulted to "0" which is off.
+			BindAddress: metricsBindAddress,
 		},
 		Scheme: scheme,
+		Controller: config.Controller{
+			SkipNameValidation: &skipNameValidation,
+		},
 	}
 
 	if o.config.NamespaceToWatch != "" {
@@ -173,7 +183,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 	}
 
 	// Add the registered controllers to the manager (entrypoint for controllers)
-	err = o.addToManager(mgr, controllerOpts, context)
+	err = o.addToManager(mgr, controllerOpts, context, *o.config)
 	if err != nil {
 		mgrErrorCh <- errors.Wrap(err, "failed to add controllers to controller-runtime manager")
 		return

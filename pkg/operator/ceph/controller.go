@@ -132,6 +132,8 @@ func (r *ReconcileConfig) reconcile(request reconcile.Request) (reconcile.Result
 	}
 
 	opcontroller.SetAllowLoopDevices(r.config.Parameters)
+	opcontroller.SetEnforceHostNetwork(r.config.Parameters)
+	opcontroller.SetRevisionHistoryLimit(r.config.Parameters)
 
 	logger.Infof("%s done reconciling", controllerName)
 	return reconcile.Result{}, nil

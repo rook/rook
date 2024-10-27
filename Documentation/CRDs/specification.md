@@ -1847,6 +1847,34 @@ GatewaySpec
 </tr>
 <tr>
 <td>
+<code>protocols</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ProtocolSpec">
+ProtocolSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The protocol specification</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>auth</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AuthSpec">
+AuthSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The authentication configuration</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>zone</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ZoneSpec">
@@ -1915,7 +1943,9 @@ ObjectStoreHostingSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Hosting settings for the object store</p>
+<p>Hosting settings for the object store.
+A common use case for hosting configuration is to inform Rook of endpoints that support DNS
+wildcards, which in turn allows virtual host-style bucket addressing.</p>
 </td>
 </tr>
 </table>
@@ -2150,6 +2180,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The metadata pool settings</p>
 </td>
 </tr>
@@ -2163,6 +2194,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The data pool settings</p>
 </td>
 </tr>
@@ -2548,6 +2580,61 @@ string
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AdditionalVolumeMount">AdditionalVolumeMount
+</h3>
+<div>
+<p>AdditionalVolumeMount represents the source from where additional files in pod containers
+should come from and what subdirectory they are made available in.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>subPath</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
+be mounted. All files/keys in the volume source&rsquo;s volume will be mounted to the subdirectory.
+This is not the same as the Kubernetes <code>subPath</code> volume mount option.
+Each subPath definition must be unique and must not contain &lsquo;:&rsquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>volumeSource</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
+ConfigFileVolumeSource
+</a>
+</em>
+</td>
+<td>
+<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
+additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
+ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
+container <code>&lt;directory-root&gt;/&lt;subPath&gt;</code> directory.
+Be aware that some files may need to have a specific file mode like 0600 due to application
+requirements. For example, CA or TLS certificates.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.AdditionalVolumeMounts">AdditionalVolumeMounts
+(<code>[]github.com/rook/rook/pkg/apis/ceph.rook.io/v1.AdditionalVolumeMount</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.SSSDSidecar">SSSDSidecar</a>)
+</p>
+<div>
+</div>
 <h3 id="ceph.rook.io/v1.AddressRangesSpec">AddressRangesSpec
 </h3>
 <p>
@@ -2609,6 +2696,38 @@ CIDRList
 <div>
 <p>AnnotationsSpec is the main spec annotation for all daemons</p>
 </div>
+<h3 id="ceph.rook.io/v1.AuthSpec">AuthSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>)
+</p>
+<div>
+<p>AuthSpec represents the authentication protocol configuration of a Ceph Object Store Gateway</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>keystone</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.KeystoneSpec">
+KeystoneSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The spec for Keystone</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.BucketNotificationEvent">BucketNotificationEvent
 (<code>string</code> alias)</h3>
 <p>
@@ -3048,6 +3167,20 @@ string
 the CephBlockPool CR.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>mirroring</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroring">
+RadosNamespaceMirroring
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
+</td>
+</tr>
 </table>
 </td>
 </tr>
@@ -3105,6 +3238,20 @@ string
 <td>
 <p>BlockPoolName is the name of Ceph BlockPool. Typically it&rsquo;s the name of
 the CephBlockPool CR.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mirroring</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroring">
+RadosNamespaceMirroring
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
 </td>
 </tr>
 </tbody>
@@ -3565,6 +3712,45 @@ map[string]int
 <td>
 <em>(Optional)</em>
 <p>Overall shows overall Ceph version</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.CephExporterSpec">CephExporterSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MonitoringSpec">MonitoringSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>perfCountersPrioLimit</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>Only performance counters greater than or equal to this option are fetched</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>statsPeriodSeconds</code><br/>
+<em>
+int64
+</em>
+</td>
+<td>
+<p>Time to wait before sending requests again to exporter server (seconds)</p>
 </td>
 </tr>
 </tbody>
@@ -5027,7 +5213,7 @@ blocking deletion.</p>
 <h3 id="ceph.rook.io/v1.ConfigFileVolumeSource">ConfigFileVolumeSource
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles</a>, <a href="#ceph.rook.io/v1.KerberosKeytabFile">KerberosKeytabFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarAdditionalFile">SSSDSidecarAdditionalFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">SSSDSidecarConfigFile</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AdditionalVolumeMount">AdditionalVolumeMount</a>, <a href="#ceph.rook.io/v1.KerberosConfigFiles">KerberosConfigFiles</a>, <a href="#ceph.rook.io/v1.KerberosKeytabFile">KerberosKeytabFile</a>, <a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">SSSDSidecarConfigFile</a>)
 </p>
 <div>
 <p>Represents the source of a volume to mount.
@@ -6896,6 +7082,22 @@ bool
 <p>Whether rgw dashboard is enabled for the rgw daemon. If not set, the rgw dashboard will be enabled.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>additionalVolumeMounts</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AdditionalVolumeMounts">
+AdditionalVolumeMounts
+</a>
+</em>
+</td>
+<td>
+<p>AdditionalVolumeMounts allows additional volumes to be mounted to the RGW pod.
+The root directory for each additional volume mount is <code>/var/rgw</code>.
+Example: for an additional mount at subPath <code>ldap</code>, mounted from a secret that has key
+<code>bindpass.secret</code>, the file would reside at <code>/var/rgw/ldap/bindpass.secret</code>.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.HTTPEndpointSpec">HTTPEndpointSpec
@@ -7066,6 +7268,32 @@ string
 </tr><tr><td><p>&#34;IPv6&#34;</p></td>
 <td><p>IPv6 internet protocol version</p>
 </td>
+</tr></tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ImplicitTenantSetting">ImplicitTenantSetting
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.KeystoneSpec">KeystoneSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;false&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;s3&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;swift&#34;</p></td>
+<td></td>
+</tr><tr><td><p>&#34;true&#34;</p></td>
+<td></td>
 </tr></tbody>
 </table>
 <h3 id="ceph.rook.io/v1.KafkaEndpointSpec">KafkaEndpointSpec
@@ -7394,6 +7622,8 @@ string
 <td></td>
 </tr><tr><td><p>&#34;clusterMetadata&#34;</p></td>
 <td></td>
+</tr><tr><td><p>&#34;cmdreporter&#34;</p></td>
+<td></td>
 </tr><tr><td><p>&#34;crashcollector&#34;</p></td>
 <td></td>
 </tr><tr><td><p>&#34;dashboard&#34;</p></td>
@@ -7417,6 +7647,95 @@ string
 </tr><tr><td><p>&#34;keyrotation&#34;</p></td>
 <td></td>
 </tr></tbody>
+</table>
+<h3 id="ceph.rook.io/v1.KeystoneSpec">KeystoneSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AuthSpec">AuthSpec</a>)
+</p>
+<div>
+<p>KeystoneSpec represents the Keystone authentication configuration of a Ceph Object Store Gateway</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>url</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The URL for the Keystone server.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>serviceUserSecretName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The name of the secret containing the credentials for the service user account used by RGW. It has to be in the same namespace as the object store resource.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>acceptedRoles</code><br/>
+<em>
+[]string
+</em>
+</td>
+<td>
+<p>The roles requires to serve requests.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>implicitTenants</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ImplicitTenantSetting">
+ImplicitTenantSetting
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Create new users in their own tenants of the same name. Possible values are true, false, swift and s3. The latter have the effect of splitting the identity space such that only the indicated protocol will use implicit tenants.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>tokenCacheSize</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The maximum number of entries in each Keystone token cache.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>revocationInterval</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The number of seconds between token revocation checks.</p>
+</td>
+</tr>
+</tbody>
 </table>
 <h3 id="ceph.rook.io/v1.Labels">Labels
 (<code>map[string]string</code> alias)</h3>
@@ -8277,6 +8596,20 @@ Kubernetes meta/v1.Duration
 <p>Interval determines prometheus scrape interval</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>exporter</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.CephExporterSpec">
+CephExporterSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Ceph exporter configuration</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.MultiClusterServiceSpec">MultiClusterServiceSpec
@@ -8589,7 +8922,7 @@ map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.CephNetworkType]string
 networks when the &ldquo;multus&rdquo; network provider is used. This config section is not used for
 other network providers.</p>
 <p>Valid keys are &ldquo;public&rdquo; and &ldquo;cluster&rdquo;. Refer to Ceph networking documentation for more:
-<a href="https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/">https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/</a></p>
+<a href="https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/">https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/</a></p>
 <p>Refer to Multus network annotation documentation for help selecting values:
 <a href="https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation">https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation</a></p>
 <p>Rook will make a best-effort attempt to automatically detect CIDR address ranges for given
@@ -8977,6 +9310,60 @@ and prepares same OSD on that disk</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectEndpointSpec">ObjectEndpointSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreHostingSpec">ObjectStoreHostingSpec</a>)
+</p>
+<div>
+<p>ObjectEndpointSpec represents an object store endpoint</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>dnsName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>DnsName is the DNS name (in RFC-1123 format) of the endpoint.
+If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
+wildcard itself in the list of hostnames.
+E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>port</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<p>Port is the port on which S3 connections can be made for this endpoint.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>useTls</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>UseTls defines whether the endpoint uses TLS (HTTPS) or not (HTTP).</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ObjectEndpoints">ObjectEndpoints
 </h3>
 <p>
@@ -9114,6 +9501,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The metadata pool used for creating RADOS namespaces in the object store</p>
 </td>
 </tr>
@@ -9125,6 +9513,7 @@ string
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The data pool used for creating RADOS namespaces in the object store</p>
 </td>
 </tr>
@@ -9138,6 +9527,28 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Whether the RADOS namespaces should be preserved on deletion of the object store</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>poolPlacements</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PoolPlacementSpec">
+[]PoolPlacementSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>PoolPlacements control which Pools are associated with a particular RGW bucket.
+Once PoolPlacements are defined, RGW client will be able to associate pool
+with ObjectStore bucket by providing &ldquo;<LocationConstraint>&rdquo; during s3 bucket creation
+or &ldquo;X-Storage-Policy&rdquo; header during swift container creation.
+See: <a href="https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets">https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets</a>
+PoolPlacement with name: &ldquo;default&rdquo; will be used as a default pool if no option
+is provided during bucket creation.
+If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.</p>
 </td>
 </tr>
 </tbody>
@@ -9160,6 +9571,24 @@ bool
 <tbody>
 <tr>
 <td>
+<code>advertiseEndpoint</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectEndpointSpec">
+ObjectEndpointSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>AdvertiseEndpoint is the default endpoint Rook will return for resources dependent on this
+object store. This endpoint will be returned to CephObjectStoreUsers, Object Bucket Claims,
+and COSI Buckets/Accesses.
+By default, Rook returns the endpoint for the object store&rsquo;s Kubernetes service using HTTPS
+with <code>gateway.securePort</code> if it is defined (otherwise, HTTP with <code>gateway.port</code>).</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>dnsNames</code><br/>
 <em>
 []string
@@ -9167,12 +9596,15 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
-Each domain requires wildcard support like ingress loadbalancer.
-Do not include the wildcard itself in the list of hostnames (e.g. use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;).
-Add all hostnames including user-created Kubernetes Service endpoints to the list.
-CephObjectStore Service Endpoints and CephObjectZone customEndpoints are automatically added to the list.
-The feature is supported only for Ceph v18 and later versions.</p>
+<p>A list of DNS host names on which object store gateways will accept client S3 connections.
+When specified, object store gateways will reject client S3 connections to hostnames that are
+not present in this list, so include all endpoints.
+The object store&rsquo;s advertiseEndpoint and Kubernetes service endpoint, plus CephObjectZone
+<code>customEndpoints</code> are automatically added to the list but may be set here again if desired.
+Each DNS name must be valid according RFC-1123.
+If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
+wildcard itself in the list of hostnames.
+E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.</p>
 </td>
 </tr>
 </tbody>
@@ -9308,6 +9740,34 @@ GatewaySpec
 </tr>
 <tr>
 <td>
+<code>protocols</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ProtocolSpec">
+ProtocolSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The protocol specification</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>auth</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AuthSpec">
+AuthSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The authentication configuration</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>zone</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ZoneSpec">
@@ -9376,7 +9836,9 @@ ObjectStoreHostingSpec
 </td>
 <td>
 <em>(Optional)</em>
-<p>Hosting settings for the object store</p>
+<p>Hosting settings for the object store.
+A common use case for hosting configuration is to inform Rook of endpoints that support DNS
+wildcards, which in turn allows virtual host-style bucket addressing.</p>
 </td>
 </tr>
 </tbody>
@@ -9736,7 +10198,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api</a></p>
+<p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api</a></p>
 </td>
 </tr>
 <tr>
@@ -9934,6 +10396,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The metadata pool settings</p>
 </td>
 </tr>
@@ -9947,6 +10410,7 @@ PoolSpec
 </em>
 </td>
 <td>
+<em>(Optional)</em>
 <p>The data pool settings</p>
 </td>
 </tr>
@@ -10255,7 +10719,7 @@ the triple <key,value,effect> using the matching operator <operator></p>
 </td>
 <td>
 <em>(Optional)</em>
-<p>TopologySpreadConstraint specifies how to spread matching pods among the given topology</p>
+<p>TopologySpreadConstraints specifies how to spread matching pods among the given topology</p>
 </td>
 </tr>
 </tbody>
@@ -10268,6 +10732,49 @@ the triple <key,value,effect> using the matching operator <operator></p>
 <div>
 <p>PlacementSpec is the placement for core ceph daemons part of the CephCluster CRD</p>
 </div>
+<h3 id="ceph.rook.io/v1.PlacementStorageClassSpec">PlacementStorageClassSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolPlacementSpec">PoolPlacementSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+however most clients/libs insist on AWS names so it is recommended to use
+one of the valid x-amz-storage-class values for better compatibility:
+REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+See AWS docs: <a href="https://aws.amazon.com/de/s3/storage-classes/">https://aws.amazon.com/de/s3/storage-classes/</a></p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>DataPoolName is the data pool used to store ObjectStore objects data.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.PoolMirroringInfo">PoolMirroringInfo
 </h3>
 <p>
@@ -10420,6 +10927,96 @@ StatesSpec
 <td>
 <em>(Optional)</em>
 <p>States is the various state for all mirrored images</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.PoolPlacementSpec">PoolPlacementSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectSharedPoolsSpec">ObjectSharedPoolsSpec</a>)
+</p>
+<div>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>Pool placement name. Name can be arbitrary. Placement with name &ldquo;default&rdquo; will be used as default.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>default</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<p>Sets given placement as default. Only one placement in the list can be marked as default.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>metadataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The metadata pool used to store ObjectStore bucket index.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<p>The data pool used to store ObjectStore objects data.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>dataNonECPoolName</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>storageClasses</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PlacementStorageClassSpec">
+[]PlacementStorageClassSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>StorageClasses can be selected by user to override dataPoolName during object creation.
+Each placement has default STANDARD StorageClass pointing to dataPoolName.
+This list allows defining additional StorageClasses on top of default STANDARD storage class.</p>
 </td>
 </tr>
 </tbody>
@@ -10660,6 +11257,52 @@ alive or ready to receive traffic.</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ProtocolSpec">ProtocolSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>)
+</p>
+<div>
+<p>ProtocolSpec represents a Ceph Object Store protocol specification</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>s3</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.S3Spec">
+S3Spec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The spec for S3</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>swift</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SwiftSpec">
+SwiftSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The spec for Swift</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.PullSpec">PullSpec
 </h3>
 <p>
@@ -10887,6 +11530,86 @@ optional</p>
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceSpec">CephBlockPoolRadosNamespaceSpec</a>)
+</p>
+<div>
+<p>RadosNamespaceMirroring represents the mirroring configuration of CephBlockPoolRadosNamespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>remoteNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mode</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroringMode">
+RadosNamespaceMirroringMode
+</a>
+</em>
+</td>
+<td>
+<p>Mode is the mirroring mode; either pool or image</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotSchedules</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SnapshotScheduleSpec">
+[]SnapshotScheduleSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SnapshotSchedules is the scheduling of snapshot for mirrored images</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.RadosNamespaceMirroringMode">RadosNamespaceMirroringMode
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring</a>)
+</p>
+<div>
+<p>RadosNamespaceMirroringMode represents the mode of the RadosNamespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;image&#34;</p></td>
+<td><p>RadosNamespaceMirroringModeImage represents the image mode</p>
+</td>
+</tr><tr><td><p>&#34;pool&#34;</p></td>
+<td><p>RadosNamespaceMirroringModePool represents the pool mode</p>
+</td>
+</tr></tbody>
+</table>
 <h3 id="ceph.rook.io/v1.ReadAffinitySpec">ReadAffinitySpec
 </h3>
 <p>
@@ -11030,6 +11753,48 @@ HybridStorageSpec
 <div>
 <p>ResourceSpec is a collection of ResourceRequirements that describes the compute resource requirements</p>
 </div>
+<h3 id="ceph.rook.io/v1.S3Spec">S3Spec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ProtocolSpec">ProtocolSpec</a>)
+</p>
+<div>
+<p>S3Spec represents Ceph Object Store specification for the S3 API</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>enabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>authUseKeystone</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to use Keystone for authentication. This option maps directly to the rgw_s3_auth_use_keystone option. Enabling it allows generating S3 credentials via an OpenStack API call, see the docs. If not given, the defaults of the corresponding RGW option apply.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.SSSDSidecar">SSSDSidecar
 </h3>
 <p>
@@ -11079,15 +11844,16 @@ securely add the file via annotations on the CephNFS spec (passed to the NFS ser
 <td>
 <code>additionalFiles</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.SSSDSidecarAdditionalFile">
-[]SSSDSidecarAdditionalFile
+<a href="#ceph.rook.io/v1.AdditionalVolumeMounts">
+AdditionalVolumeMounts
 </a>
 </em>
 </td>
 <td>
 <em>(Optional)</em>
 <p>AdditionalFiles defines any number of additional files that should be mounted into the SSSD
-sidecar. These files may be referenced by the sssd.conf config file.</p>
+sidecar with a directory root of <code>/etc/sssd/rook-additional/</code>.
+These files may be referenced by the sssd.conf config file.</p>
 </td>
 </tr>
 <tr>
@@ -11116,55 +11882,6 @@ int
 <p>DebugLevel sets the debug level for SSSD. If unset or set to 0, Rook does nothing. Otherwise,
 this may be a value between 1 and 10. See SSSD docs for more info:
 <a href="https://sssd.io/troubleshooting/basics.html#sssd-debug-logs">https://sssd.io/troubleshooting/basics.html#sssd-debug-logs</a></p>
-</td>
-</tr>
-</tbody>
-</table>
-<h3 id="ceph.rook.io/v1.SSSDSidecarAdditionalFile">SSSDSidecarAdditionalFile
-</h3>
-<p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.SSSDSidecar">SSSDSidecar</a>)
-</p>
-<div>
-<p>SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
-configuration should come from and are made available.</p>
-</div>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>
-<code>subPath</code><br/>
-<em>
-string
-</em>
-</td>
-<td>
-<p>SubPath defines the sub-path in <code>/etc/sssd/rook-additional/</code> where the additional file(s)
-will be placed. Each subPath definition must be unique and must not contain &lsquo;:&rsquo;.</p>
-</td>
-</tr>
-<tr>
-<td>
-<code>volumeSource</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.ConfigFileVolumeSource">
-ConfigFileVolumeSource
-</a>
-</em>
-</td>
-<td>
-<p>VolumeSource accepts a pared down version of the standard Kubernetes VolumeSource for the
-additional file(s) like what is normally used to configure Volumes for a Pod. Fore example, a
-ConfigMap, Secret, or HostPath. Each VolumeSource adds one or more additional files to the
-SSSD sidecar container in the <code>/etc/sssd/rook-additional/&lt;subPath&gt;</code> directory.
-Be aware that some files may need to have a specific file mode like 0600 due to requirements
-by SSSD for some files. For example, CA or TLS certificates.</p>
 </td>
 </tr>
 </tbody>
@@ -11557,7 +12274,7 @@ string
 <h3 id="ceph.rook.io/v1.SnapshotScheduleSpec">SnapshotScheduleSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FSMirroringSpec">FSMirroringSpec</a>, <a href="#ceph.rook.io/v1.MirroringSpec">MirroringSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FSMirroringSpec">FSMirroringSpec</a>, <a href="#ceph.rook.io/v1.MirroringSpec">MirroringSpec</a>, <a href="#ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring</a>)
 </p>
 <div>
 <p>SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool</p>
@@ -12218,6 +12935,32 @@ float64
 <p>BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.</p>
 </td>
 </tr>
+<tr>
+<td>
+<code>allowDeviceClassUpdate</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to allow updating the device class after the OSD is initially provisioned</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>allowOsdCrushWeightUpdate</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
+This allows cluster data to be rebalanced to make most effective use of new OSD space.
+The default is false since data rebalancing can cause temporary cluster slowdown.</p>
+</td>
+</tr>
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.StoreType">StoreType
@@ -12291,6 +13034,60 @@ string
 <td>
 <em>(Optional)</em>
 <p>Zones is the list of zones</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.SwiftSpec">SwiftSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ProtocolSpec">ProtocolSpec</a>)
+</p>
+<div>
+<p>SwiftSpec represents Ceph Object Store specification for the Swift API</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>accountInUrl</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether or not the Swift account name should be included in the Swift API URL. If set to false (the default), then the Swift API will listen on a URL formed like <a href="http://host:port/">http://host:port/</a><rgw_swift_url_prefix>/v1. If set to true, the Swift API URL will be <a href="http://host:port/">http://host:port/</a><rgw_swift_url_prefix>/v1/AUTH_<account_name>. You must set this option to true (and update the Keystone service catalog) if you want radosgw to support publicly-readable containers and temporary URLs.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>urlPrefix</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The URL prefix for the Swift API, to distinguish it from the S3 API endpoint. The default is swift, which makes the Swift API available at the URL <a href="http://host:port/swift/v1">http://host:port/swift/v1</a> (or <a href="http://host:port/swift/v1/AUTH_%(tenant_id)s">http://host:port/swift/v1/AUTH_%(tenant_id)s</a> if rgw swift account in url is enabled).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>versioningEnabled</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enables the Object Versioning of OpenStack Object Storage API. This allows clients to put the X-Versions-Location attribute on containers that should be versioned.</p>
 </td>
 </tr>
 </tbody>
@@ -12568,7 +13365,7 @@ If the resource referred to by volumeAttributesClass does not exist, this Persis
 set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
 exists.
 More info: <a href="https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/">https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/</a>
-(Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.</p>
+(Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).</p>
 </td>
 </tr>
 </table>

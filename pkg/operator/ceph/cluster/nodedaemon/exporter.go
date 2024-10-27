@@ -42,8 +42,8 @@ const (
 	monitoringPath                   = "/etc/ceph-monitoring/"
 	serviceMonitorFile               = "exporter-service-monitor.yaml"
 	sockDir                          = "/run/ceph"
-	perfCountersPrioLimit            = "5"
-	statsPeriod                      = "5"
+	defaultPrioLimit                 = "5"
+	defaultStatsPeriod               = "5"
 	DefaultMetricsPort        uint16 = 9926
 	exporterServiceMetricName        = "ceph-exporter-http-metrics"
 	exporterKeyringUsername          = "client.ceph-exporter"
@@ -77,6 +77,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 			Namespace: cephCluster.GetNamespace(),
 		},
 	}
+	deploy.Spec.RevisionHistoryLimit = controller.RevisionHistoryLimit()
 	err := controllerutil.SetControllerReference(&cephCluster, deploy, r.scheme)
 	if err != nil {
 		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of ceph-exporter deployment %q", deploy.Name)
@@ -143,6 +144,7 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 				Volumes:                       volumes,
 				PriorityClassName:             cephv1.GetCephExporterPriorityClassName(cephCluster.Spec.PriorityClassNames),
 				TerminationGracePeriodSeconds: &terminationGracePeriodSeconds,
+				SecurityContext:               &corev1.PodSecurityContext{},
 				ServiceAccountName:            k8sutil.DefaultServiceAccount,
 			},
 		}
@@ -179,10 +181,15 @@ func getCephExporterDaemonContainer(cephCluster cephv1.CephCluster, cephVersion 
 	exporterEnvVar := generateExporterEnvVar()
 	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), exporterEnvVar)
 
+	prioLimit, statsPeriod := defaultPrioLimit, defaultStatsPeriod
+	if cephCluster.Spec.Monitoring.Exporter != nil {
+		prioLimit = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.PerfCountersPrioLimit))
+		statsPeriod = strconv.Itoa(int(cephCluster.Spec.Monitoring.Exporter.StatsPeriodSeconds))
+	}
 	args := []string{
 		"--sock-dir", sockDir,
 		"--port", strconv.Itoa(int(DefaultMetricsPort)),
-		"--prio-limit", perfCountersPrioLimit,
+		"--prio-limit", prioLimit,
 		"--stats-period", statsPeriod,
 	}
 

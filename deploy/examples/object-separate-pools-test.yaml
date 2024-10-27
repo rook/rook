@@ -1,0 +1,125 @@
+##########################################################################
+# Pre-create the pools for the an object store with custom configuration.
+#  kubectl create -f object-separate-pools-test.yaml
+##########################################################################
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: rgw.root
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  name: .rgw.root
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.control
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.meta
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.log
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.buckets.index
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.buckets.non-ec
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.otp
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPool
+metadata:
+  name: object-separate-pools.rgw.buckets.data
+  namespace: rook-ceph # namespace:cluster
+spec:
+  application: rgw
+  failureDomain: osd
+  parameters:
+    pg_autoscale_mode: "off"
+    pg_num: "1"
+  replicated:
+    requireSafeReplicaSize: false
+    size: 1

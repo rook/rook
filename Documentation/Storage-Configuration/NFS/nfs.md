@@ -64,11 +64,7 @@ The Ceph CLI can be used from the Rook toolbox pod to create and manage NFS expo
 ensure the necessary Ceph mgr modules are enabled, if necessary, and that the Ceph orchestrator
 backend is set to Rook.
 
-#### Enable the Ceph orchestrator if necessary
-
-* Required for Ceph v16.2.7 and below
-* Optional for Ceph v16.2.8 and above
-* Must be disabled for Ceph v17.2.1 due to a [Ceph regression](../../CRDs/ceph-nfs-crd.md#ceph-v1721)
+#### Enable the Ceph orchestrator (optional)
 
 ```console
 ceph mgr module enable rook

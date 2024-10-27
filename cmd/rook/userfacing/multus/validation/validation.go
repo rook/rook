@@ -134,6 +134,8 @@ func init() {
 			"The default value is set to the worst-case value for a Rook Ceph cluster with 3 portable OSDs, 3 portable monitors, "+
 			"and where all optional child resources have been created with 1 daemon such that they all might run on a single node in a failure scenario. "+
 			"If you aren't sure what to choose for this value, add 1 for each additional OSD beyond 3.")
+	runCmd.Flags().StringVar(&validationConfig.ServiceAccountName, "service-account", defaultConfig.ServiceAccountName,
+		"The name of the service account that will be used for test resources.")
 	runCmd.Flags().BoolVar(&flagHostCheckOnly, "host-check-only", defaultConfig.HostCheckOnly,
 		"Only check that hosts can connect to the server via the public network. Do not start clients. "+
 			"This mode is recommended when a Rook cluster is already running and consuming the public network specified.")

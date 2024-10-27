@@ -1,0 +1,17 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: csirbd-block-demo-pod
+spec:
+  containers:
+    - name: centos
+      image: quay.io/centos/centos:latest
+      command: ["/bin/sleep", "infinity"]
+      volumeDevices:
+        - name: mypvc
+          devicePath: /dev/xvda
+  volumes:
+    - name: mypvc
+      persistentVolumeClaim:
+        claimName: raw-block-rbd-pvc

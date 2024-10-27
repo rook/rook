@@ -4,7 +4,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephblockpoolradosnamespaces.ceph.rook.io
 spec:
@@ -60,6 +60,38 @@ spec:
                   x-kubernetes-validations:
                     - message: blockPoolName is immutable
                       rule: self == oldSelf
+                mirroring:
+                  description: Mirroring configuration of CephBlockPoolRadosNamespace
+                  properties:
+                    mode:
+                      description: Mode is the mirroring mode; either pool or image
+                      enum:
+                        - ""
+                        - pool
+                        - image
+                      type: string
+                    remoteNamespace:
+                      description: RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
+                      type: string
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the scheduling of snapshot for mirrored images
+                      items:
+                        description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
+                        properties:
+                          interval:
+                            description: Interval represent the periodicity of the snapshot.
+                            type: string
+                          path:
+                            description: Path is the path to snapshot, only valid for CephFS
+                            type: string
+                          startTime:
+                            description: StartTime indicates when to start the snapshot
+                            type: string
+                        type: object
+                      type: array
+                  required:
+                    - mode
+                  type: object
                 name:
                   description: The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
                   type: string
@@ -95,7 +127,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephblockpools.ceph.rook.io
 spec:
@@ -527,7 +559,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephbucketnotifications.ceph.rook.io
 spec:
@@ -690,7 +722,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephbuckettopics.ceph.rook.io
 spec:
@@ -850,7 +882,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephclients.ceph.rook.io
 spec:
@@ -934,7 +966,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephclusters.ceph.rook.io
 spec:
@@ -1284,10 +1316,10 @@ spec:
                                     format: int32
                                     type: integer
                                   service:
+                                    default: ""
                                     description: |-
                                       Service is the name of the service to place in the gRPC HealthCheckRequest
                                       (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                       If this is not specified, the default behavior is defined by gRPC.
                                     type: string
@@ -1432,10 +1464,10 @@ spec:
                                     format: int32
                                     type: integer
                                   service:
+                                    default: ""
                                     description: |-
                                       Service is the name of the service to place in the gRPC HealthCheckRequest
                                       (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                       If this is not specified, the default behavior is defined by gRPC.
                                     type: string
@@ -1601,6 +1633,7 @@ spec:
                                   - ""
                                   - crush-compat
                                   - upmap
+                                  - read
                                   - upmap-read
                                 type: string
                             type: object
@@ -1851,7 +1884,7 @@ spec:
                                           set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                                           exists.
                                           More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                                          (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                                          (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                                         type: string
                                       volumeMode:
                                         description: |-
@@ -2077,7 +2110,7 @@ spec:
                                 set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                                 exists.
                                 More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                                (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                                (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                               type: string
                             volumeMode:
                               description: |-
@@ -2310,7 +2343,7 @@ spec:
                                       set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                                       exists.
                                       More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                                      (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                                      (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                                     type: string
                                   volumeMode:
                                     description: |-
@@ -2340,6 +2373,20 @@ spec:
                         Enabled determines whether to create the prometheus rules for the ceph cluster. If true, the prometheus
                         types must exist or the creation will fail. Default is false.
                       type: boolean
+                    exporter:
+                      description: Ceph exporter configuration
+                      properties:
+                        perfCountersPrioLimit:
+                          default: 5
+                          description: Only performance counters greater than or equal to this option are fetched
+                          format: int64
+                          type: integer
+                        statsPeriodSeconds:
+                          default: 5
+                          description: Time to wait before sending requests again to exporter server (seconds)
+                          format: int64
+                          type: integer
+                      type: object
                     externalMgrEndpoints:
                       description: ExternalMgrEndpoints points to an existing Ceph prometheus exporter endpoint
                       items:
@@ -2372,7 +2419,6 @@ spec:
                                   the event) or if no container name is specified "spec.containers[2]" (container with
                                   index 2 in this pod). This syntax is chosen only to have some well-defined way of
                                   referencing a part of an object.
-                                  TODO: this design is not final and this field is subject to change in the future.
                                 type: string
                               kind:
                                 description: |-
@@ -2443,7 +2489,6 @@ spec:
                             description: |-
                               An IPv4 or IPv6 network CIDR.
 
-
                               This naive kubebuilder regex provides immediate feedback for some typos and for a common problem
                               case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code.
                             pattern: ^[0-9a-fA-F:.]{2,}\/[0-9]{1,3}$
@@ -2454,7 +2499,6 @@ spec:
                           items:
                             description: |-
                               An IPv4 or IPv6 network CIDR.
-
 
                               This naive kubebuilder regex provides immediate feedback for some typos and for a common problem
                               case where the range spec is forgotten (e.g., /24). Rook does in-depth validation in code.
@@ -2551,14 +2595,11 @@ spec:
                         networks when the "multus" network provider is used. This config section is not used for
                         other network providers.
 
-
                         Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
-                        https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
-
+                        https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/
 
                         Refer to Multus network annotation documentation for help selecting values:
                         https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation
-
 
                         Rook will make a best-effort attempt to automatically detect CIDR address ranges for given
                         network attachment definitions. Rook's methods are robust but may be imprecise for
@@ -2566,7 +2607,6 @@ spec:
                         lease for each CephCluster reconcile. If Rook fails to detect, incorrectly detects, only
                         partially detects, or if underlying networks do not support reusing old IP addresses, it is
                         best to use the 'addressRanges' config section to specify CIDR ranges for the Ceph cluster.
-
 
                         As a contrived example, one can use a theoretical Kubernetes-wide network for Ceph client
                         traffic and a theoretical Rook-only network for Ceph replication traffic as shown:
@@ -3114,10 +3154,8 @@ spec:
                           Claims lists the names of resources, defined in spec.resourceClaims,
                           that are used by this container.
 
-
                           This is an alpha field and requires enabling the
                           DynamicResourceAllocation feature gate.
-
 
                           This field is immutable. It can only be set for containers.
                         items:
@@ -3128,6 +3166,12 @@ spec:
                                 Name must match the name of one entry in pod.spec.resourceClaims of
                                 the Pod where this field is used. It makes that resource available
                                 inside a container.
+                              type: string
+                            request:
+                              description: |-
+                                Request is the name chosen for a request in the referenced claim.
+                                If empty, everything from the claim is made available, otherwise
+                                only the result of this request.
                               type: string
                           required:
                             - name
@@ -3204,6 +3248,15 @@ spec:
                   description: A spec for available storage in the cluster and how it should be used
                   nullable: true
                   properties:
+                    allowDeviceClassUpdate:
+                      description: Whether to allow updating the device class after the OSD is initially provisioned
+                      type: boolean
+                    allowOsdCrushWeightUpdate:
+                      description: |-
+                        Whether Rook will resize the OSD CRUSH weight when the OSD PVC size is increased.
+                        This allows cluster data to be rebalanced to make most effective use of new OSD space.
+                        The default is false since data rebalancing can cause temporary cluster slowdown.
+                      type: boolean
                     backfillFullRatio:
                       description: BackfillFullRatio is the ratio at which the cluster is too full for backfill. Backfill will be disabled if above this threshold. Default is 0.90.
                       maximum: 1
@@ -3308,10 +3361,8 @@ spec:
                                   Claims lists the names of resources, defined in spec.resourceClaims,
                                   that are used by this container.
 
-
                                   This is an alpha field and requires enabling the
                                   DynamicResourceAllocation feature gate.
-
 
                                   This field is immutable. It can only be set for containers.
                                 items:
@@ -3322,6 +3373,12 @@ spec:
                                         Name must match the name of one entry in pod.spec.resourceClaims of
                                         the Pod where this field is used. It makes that resource available
                                         inside a container.
+                                      type: string
+                                    request:
+                                      description: |-
+                                        Request is the name chosen for a request in the referenced claim.
+                                        If empty, everything from the claim is made available, otherwise
+                                        only the result of this request.
                                       type: string
                                   required:
                                     - name
@@ -3570,7 +3627,7 @@ spec:
                                         set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                                         exists.
                                         More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                                        (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                                        (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                                       type: string
                                     volumeMode:
                                       description: |-
@@ -4643,10 +4700,8 @@ spec:
                                   Claims lists the names of resources, defined in spec.resourceClaims,
                                   that are used by this container.
 
-
                                   This is an alpha field and requires enabling the
                                   DynamicResourceAllocation feature gate.
-
 
                                   This field is immutable. It can only be set for containers.
                                 items:
@@ -4657,6 +4712,12 @@ spec:
                                         Name must match the name of one entry in pod.spec.resourceClaims of
                                         the Pod where this field is used. It makes that resource available
                                         inside a container.
+                                      type: string
+                                    request:
+                                      description: |-
+                                        Request is the name chosen for a request in the referenced claim.
+                                        If empty, everything from the claim is made available, otherwise
+                                        only the result of this request.
                                       type: string
                                   required:
                                     - name
@@ -4912,7 +4973,7 @@ spec:
                                         set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                                         exists.
                                         More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                                        (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                                        (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                                       type: string
                                     volumeMode:
                                       description: |-
@@ -5164,7 +5225,7 @@ spec:
                                   set to a Pending state, as reflected by the modifyVolumeStatus field, until such as a resource
                                   exists.
                                   More info: https://kubernetes.io/docs/concepts/storage/volume-attributes-classes/
-                                  (Alpha) Using this field requires the VolumeAttributesClass feature gate to be enabled.
+                                  (Beta) Using this field requires the VolumeAttributesClass feature gate to be enabled (off by default).
                                 type: string
                               volumeMode:
                                 description: |-
@@ -5368,7 +5429,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephcosidrivers.ceph.rook.io
 spec:
@@ -5937,10 +5998,8 @@ spec:
                         Claims lists the names of resources, defined in spec.resourceClaims,
                         that are used by this container.
 
-
                         This is an alpha field and requires enabling the
                         DynamicResourceAllocation feature gate.
-
 
                         This field is immutable. It can only be set for containers.
                       items:
@@ -5951,6 +6010,12 @@ spec:
                               Name must match the name of one entry in pod.spec.resourceClaims of
                               the Pod where this field is used. It makes that resource available
                               inside a container.
+                            type: string
+                          request:
+                            description: |-
+                              Request is the name chosen for a request in the referenced claim.
+                              If empty, everything from the claim is made available, otherwise
+                              only the result of this request.
                             type: string
                         required:
                           - name
@@ -5996,7 +6061,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephfilesystemmirrors.ceph.rook.io
 spec:
@@ -6574,10 +6639,8 @@ spec:
                         Claims lists the names of resources, defined in spec.resourceClaims,
                         that are used by this container.
 
-
                         This is an alpha field and requires enabling the
                         DynamicResourceAllocation feature gate.
-
 
                         This field is immutable. It can only be set for containers.
                       items:
@@ -6588,6 +6651,12 @@ spec:
                               Name must match the name of one entry in pod.spec.resourceClaims of
                               the Pod where this field is used. It makes that resource available
                               inside a container.
+                            type: string
+                          request:
+                            description: |-
+                              Request is the name chosen for a request in the referenced claim.
+                              If empty, everything from the claim is made available, otherwise
+                              only the result of this request.
                             type: string
                         required:
                           - name
@@ -6667,7 +6736,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephfilesystems.ceph.rook.io
 spec:
@@ -7147,10 +7216,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -7775,10 +7844,8 @@ spec:
                             Claims lists the names of resources, defined in spec.resourceClaims,
                             that are used by this container.
 
-
                             This is an alpha field and requires enabling the
                             DynamicResourceAllocation feature gate.
-
 
                             This field is immutable. It can only be set for containers.
                           items:
@@ -7789,6 +7856,12 @@ spec:
                                   Name must match the name of one entry in pod.spec.resourceClaims of
                                   the Pod where this field is used. It makes that resource available
                                   inside a container.
+                                type: string
+                              request:
+                                description: |-
+                                  Request is the name chosen for a request in the referenced claim.
+                                  If empty, everything from the claim is made available, otherwise
+                                  only the result of this request.
                                 type: string
                             required:
                               - name
@@ -7863,10 +7936,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -8237,7 +8310,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephfilesystemsubvolumegroups.ceph.rook.io
 spec:
@@ -8376,7 +8449,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephnfses.ceph.rook.io
 spec:
@@ -8443,12 +8516,10 @@ spec:
                             ConfigFiles defines where the Kerberos configuration should be sourced from. Config files
                             will be placed into the `/etc/krb5.conf.rook/` directory.
 
-
                             If this is left empty, Rook will not add any files. This allows you to manage the files
                             yourself however you wish. For example, you may build them into your custom Ceph container
                             image or use the Vault agent injector to securely add the files via annotations on the
                             CephNFS spec (passed to the NFS server pods).
-
 
                             Rook configures Kerberos to log to stderr. We suggest removing logging sections from config
                             files to avoid consuming unnecessary disk space from logging to files.
@@ -8972,16 +9043,19 @@ spec:
                             additionalFiles:
                               description: |-
                                 AdditionalFiles defines any number of additional files that should be mounted into the SSSD
-                                sidecar. These files may be referenced by the sssd.conf config file.
+                                sidecar with a directory root of `/etc/sssd/rook-additional/`.
+                                These files may be referenced by the sssd.conf config file.
                               items:
                                 description: |-
-                                  SSSDSidecarAdditionalFile represents the source from where additional files for the the SSSD
-                                  configuration should come from and are made available.
+                                  AdditionalVolumeMount represents the source from where additional files in pod containers
+                                  should come from and what subdirectory they are made available in.
                                 properties:
                                   subPath:
                                     description: |-
-                                      SubPath defines the sub-path in `/etc/sssd/rook-additional/` where the additional file(s)
-                                      will be placed. Each subPath definition must be unique and must not contain ':'.
+                                      SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
+                                      be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
+                                      This is not the same as the Kubernetes `subPath` volume mount option.
+                                      Each subPath definition must be unique and must not contain ':'.
                                     minLength: 1
                                     pattern: ^[^:]+$
                                     type: string
@@ -9251,10 +9325,8 @@ spec:
                                     Claims lists the names of resources, defined in spec.resourceClaims,
                                     that are used by this container.
 
-
                                     This is an alpha field and requires enabling the
                                     DynamicResourceAllocation feature gate.
-
 
                                     This field is immutable. It can only be set for containers.
                                   items:
@@ -9265,6 +9337,12 @@ spec:
                                           Name must match the name of one entry in pod.spec.resourceClaims of
                                           the Pod where this field is used. It makes that resource available
                                           inside a container.
+                                        type: string
+                                      request:
+                                        description: |-
+                                          Request is the name chosen for a request in the referenced claim.
+                                          If empty, everything from the claim is made available, otherwise
+                                          only the result of this request.
                                         type: string
                                     required:
                                       - name
@@ -9619,10 +9697,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -10250,10 +10328,8 @@ spec:
                             Claims lists the names of resources, defined in spec.resourceClaims,
                             that are used by this container.
 
-
                             This is an alpha field and requires enabling the
                             DynamicResourceAllocation feature gate.
-
 
                             This field is immutable. It can only be set for containers.
                           items:
@@ -10264,6 +10340,12 @@ spec:
                                   Name must match the name of one entry in pod.spec.resourceClaims of
                                   the Pod where this field is used. It makes that resource available
                                   inside a container.
+                                type: string
+                              request:
+                                description: |-
+                                  Request is the name chosen for a request in the referenced claim.
+                                  If empty, everything from the claim is made available, otherwise
+                                  only the result of this request.
                                 type: string
                             required:
                               - name
@@ -10350,7 +10432,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephobjectrealms.ceph.rook.io
 spec:
@@ -10441,7 +10523,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephobjectstores.ceph.rook.io
 spec:
@@ -10502,6 +10584,41 @@ spec:
                   items:
                     type: string
                   type: array
+                auth:
+                  description: The authentication configuration
+                  properties:
+                    keystone:
+                      description: The spec for Keystone
+                      nullable: true
+                      properties:
+                        acceptedRoles:
+                          description: The roles requires to serve requests.
+                          items:
+                            type: string
+                          type: array
+                        implicitTenants:
+                          description: Create new users in their own tenants of the same name. Possible values are true, false, swift and s3. The latter have the effect of splitting the identity space such that only the indicated protocol will use implicit tenants.
+                          type: string
+                        revocationInterval:
+                          description: The number of seconds between token revocation checks.
+                          nullable: true
+                          type: integer
+                        serviceUserSecretName:
+                          description: The name of the secret containing the credentials for the service user account used by RGW. It has to be in the same namespace as the object store resource.
+                          type: string
+                        tokenCacheSize:
+                          description: The maximum number of entries in each Keystone token cache.
+                          nullable: true
+                          type: integer
+                        url:
+                          description: The URL for the Keystone server.
+                          type: string
+                      required:
+                        - acceptedRoles
+                        - serviceUserSecretName
+                        - url
+                      type: object
+                  type: object
                 dataPool:
                   description: The data pool settings
                   nullable: true
@@ -10685,6 +10802,272 @@ spec:
                   description: The rgw pod info
                   nullable: true
                   properties:
+                    additionalVolumeMounts:
+                      description: |-
+                        AdditionalVolumeMounts allows additional volumes to be mounted to the RGW pod.
+                        The root directory for each additional volume mount is `/var/rgw`.
+                        Example: for an additional mount at subPath `ldap`, mounted from a secret that has key
+                        `bindpass.secret`, the file would reside at `/var/rgw/ldap/bindpass.secret`.
+                      items:
+                        description: |-
+                          AdditionalVolumeMount represents the source from where additional files in pod containers
+                          should come from and what subdirectory they are made available in.
+                        properties:
+                          subPath:
+                            description: |-
+                              SubPath defines the sub-path (subdirectory) of the directory root where the volumeSource will
+                              be mounted. All files/keys in the volume source's volume will be mounted to the subdirectory.
+                              This is not the same as the Kubernetes `subPath` volume mount option.
+                              Each subPath definition must be unique and must not contain ':'.
+                            minLength: 1
+                            pattern: ^[^:]+$
+                            type: string
+                          volumeSource:
+                            properties:
+                              configMap:
+                                properties:
+                                  defaultMode:
+                                    format: int32
+                                    type: integer
+                                  items:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        mode:
+                                          format: int32
+                                          type: integer
+                                        path:
+                                          type: string
+                                      required:
+                                        - key
+                                        - path
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                  name:
+                                    default: ""
+                                    type: string
+                                  optional:
+                                    type: boolean
+                                type: object
+                                x-kubernetes-map-type: atomic
+                              emptyDir:
+                                properties:
+                                  medium:
+                                    type: string
+                                  sizeLimit:
+                                    anyOf:
+                                      - type: integer
+                                      - type: string
+                                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                    x-kubernetes-int-or-string: true
+                                type: object
+                              hostPath:
+                                properties:
+                                  path:
+                                    type: string
+                                  type:
+                                    type: string
+                                required:
+                                  - path
+                                type: object
+                              persistentVolumeClaim:
+                                properties:
+                                  claimName:
+                                    type: string
+                                  readOnly:
+                                    type: boolean
+                                required:
+                                  - claimName
+                                type: object
+                              projected:
+                                properties:
+                                  defaultMode:
+                                    format: int32
+                                    type: integer
+                                  sources:
+                                    items:
+                                      properties:
+                                        clusterTrustBundle:
+                                          properties:
+                                            labelSelector:
+                                              properties:
+                                                matchExpressions:
+                                                  items:
+                                                    properties:
+                                                      key:
+                                                        type: string
+                                                      operator:
+                                                        type: string
+                                                      values:
+                                                        items:
+                                                          type: string
+                                                        type: array
+                                                        x-kubernetes-list-type: atomic
+                                                    required:
+                                                      - key
+                                                      - operator
+                                                    type: object
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                                matchLabels:
+                                                  additionalProperties:
+                                                    type: string
+                                                  type: object
+                                              type: object
+                                              x-kubernetes-map-type: atomic
+                                            name:
+                                              type: string
+                                            optional:
+                                              type: boolean
+                                            path:
+                                              type: string
+                                            signerName:
+                                              type: string
+                                          required:
+                                            - path
+                                          type: object
+                                        configMap:
+                                          properties:
+                                            items:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  mode:
+                                                    format: int32
+                                                    type: integer
+                                                  path:
+                                                    type: string
+                                                required:
+                                                  - key
+                                                  - path
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                            name:
+                                              default: ""
+                                              type: string
+                                            optional:
+                                              type: boolean
+                                          type: object
+                                          x-kubernetes-map-type: atomic
+                                        downwardAPI:
+                                          properties:
+                                            items:
+                                              items:
+                                                properties:
+                                                  fieldRef:
+                                                    properties:
+                                                      apiVersion:
+                                                        type: string
+                                                      fieldPath:
+                                                        type: string
+                                                    required:
+                                                      - fieldPath
+                                                    type: object
+                                                    x-kubernetes-map-type: atomic
+                                                  mode:
+                                                    format: int32
+                                                    type: integer
+                                                  path:
+                                                    type: string
+                                                  resourceFieldRef:
+                                                    properties:
+                                                      containerName:
+                                                        type: string
+                                                      divisor:
+                                                        anyOf:
+                                                          - type: integer
+                                                          - type: string
+                                                        pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                                        x-kubernetes-int-or-string: true
+                                                      resource:
+                                                        type: string
+                                                    required:
+                                                      - resource
+                                                    type: object
+                                                    x-kubernetes-map-type: atomic
+                                                required:
+                                                  - path
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                          type: object
+                                        secret:
+                                          properties:
+                                            items:
+                                              items:
+                                                properties:
+                                                  key:
+                                                    type: string
+                                                  mode:
+                                                    format: int32
+                                                    type: integer
+                                                  path:
+                                                    type: string
+                                                required:
+                                                  - key
+                                                  - path
+                                                type: object
+                                              type: array
+                                              x-kubernetes-list-type: atomic
+                                            name:
+                                              default: ""
+                                              type: string
+                                            optional:
+                                              type: boolean
+                                          type: object
+                                          x-kubernetes-map-type: atomic
+                                        serviceAccountToken:
+                                          properties:
+                                            audience:
+                                              type: string
+                                            expirationSeconds:
+                                              format: int64
+                                              type: integer
+                                            path:
+                                              type: string
+                                          required:
+                                            - path
+                                          type: object
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                type: object
+                              secret:
+                                properties:
+                                  defaultMode:
+                                    format: int32
+                                    type: integer
+                                  items:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        mode:
+                                          format: int32
+                                          type: integer
+                                        path:
+                                          type: string
+                                      required:
+                                        - key
+                                        - path
+                                      type: object
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                  optional:
+                                    type: boolean
+                                  secretName:
+                                    type: string
+                                type: object
+                            type: object
+                        required:
+                          - subPath
+                          - volumeSource
+                        type: object
+                      type: array
                     annotations:
                       additionalProperties:
                         type: string
@@ -11273,10 +11656,8 @@ spec:
                             Claims lists the names of resources, defined in spec.resourceClaims,
                             that are used by this container.
 
-
                             This is an alpha field and requires enabling the
                             DynamicResourceAllocation feature gate.
-
 
                             This field is immutable. It can only be set for containers.
                           items:
@@ -11287,6 +11668,12 @@ spec:
                                   Name must match the name of one entry in pod.spec.resourceClaims of
                                   the Pod where this field is used. It makes that resource available
                                   inside a container.
+                                type: string
+                              request:
+                                description: |-
+                                  Request is the name chosen for a request in the referenced claim.
+                                  If empty, everything from the claim is made available, otherwise
+                                  only the result of this request.
                                 type: string
                             required:
                               - name
@@ -11390,10 +11777,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -11536,10 +11923,10 @@ spec:
                                   format: int32
                                   type: integer
                                 service:
+                                  default: ""
                                   description: |-
                                     Service is the name of the service to place in the gRPC HealthCheckRequest
                                     (see https://github.com/grpc/grpc/blob/master/doc/health-checking.md).
-
 
                                     If this is not specified, the default behavior is defined by gRPC.
                                   type: string
@@ -11643,16 +12030,54 @@ spec:
                       type: object
                   type: object
                 hosting:
-                  description: Hosting settings for the object store
+                  description: |-
+                    Hosting settings for the object store.
+                    A common use case for hosting configuration is to inform Rook of endpoints that support DNS
+                    wildcards, which in turn allows virtual host-style bucket addressing.
+                  nullable: true
                   properties:
+                    advertiseEndpoint:
+                      description: |-
+                        AdvertiseEndpoint is the default endpoint Rook will return for resources dependent on this
+                        object store. This endpoint will be returned to CephObjectStoreUsers, Object Bucket Claims,
+                        and COSI Buckets/Accesses.
+                        By default, Rook returns the endpoint for the object store's Kubernetes service using HTTPS
+                        with `gateway.securePort` if it is defined (otherwise, HTTP with `gateway.port`).
+                      nullable: true
+                      properties:
+                        dnsName:
+                          description: |-
+                            DnsName is the DNS name (in RFC-1123 format) of the endpoint.
+                            If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
+                            wildcard itself in the list of hostnames.
+                            E.g., use "mystore.example.com" instead of "*.mystore.example.com".
+                          minLength: 1
+                          type: string
+                        port:
+                          description: Port is the port on which S3 connections can be made for this endpoint.
+                          format: int32
+                          maximum: 65535
+                          minimum: 1
+                          type: integer
+                        useTls:
+                          description: UseTls defines whether the endpoint uses TLS (HTTPS) or not (HTTP).
+                          type: boolean
+                      required:
+                        - dnsName
+                        - port
+                        - useTls
+                      type: object
                     dnsNames:
                       description: |-
-                        A list of DNS names in which bucket can be accessed via virtual host path. These names need to valid according RFC-1123.
-                        Each domain requires wildcard support like ingress loadbalancer.
-                        Do not include the wildcard itself in the list of hostnames (e.g. use "mystore.example.com" instead of "*.mystore.example.com").
-                        Add all hostnames including user-created Kubernetes Service endpoints to the list.
-                        CephObjectStore Service Endpoints and CephObjectZone customEndpoints are automatically added to the list.
-                        The feature is supported only for Ceph v18 and later versions.
+                        A list of DNS host names on which object store gateways will accept client S3 connections.
+                        When specified, object store gateways will reject client S3 connections to hostnames that are
+                        not present in this list, so include all endpoints.
+                        The object store's advertiseEndpoint and Kubernetes service endpoint, plus CephObjectZone
+                        `customEndpoints` are automatically added to the list but may be set here again if desired.
+                        Each DNS name must be valid according RFC-1123.
+                        If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
+                        wildcard itself in the list of hostnames.
+                        E.g., use "mystore.example.com" instead of "*.mystore.example.com".
                       items:
                         type: string
                       type: array
@@ -11839,6 +12264,40 @@ spec:
                 preservePoolsOnDelete:
                   description: Preserve pools on object store deletion
                   type: boolean
+                protocols:
+                  description: The protocol specification
+                  properties:
+                    s3:
+                      description: The spec for S3
+                      nullable: true
+                      properties:
+                        authUseKeystone:
+                          description: Whether to use Keystone for authentication. This option maps directly to the rgw_s3_auth_use_keystone option. Enabling it allows generating S3 credentials via an OpenStack API call, see the docs. If not given, the defaults of the corresponding RGW option apply.
+                          nullable: true
+                          type: boolean
+                        enabled:
+                          description: Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
+                          nullable: true
+                          type: boolean
+                      type: object
+                    swift:
+                      description: The spec for Swift
+                      nullable: true
+                      properties:
+                        accountInUrl:
+                          description: Whether or not the Swift account name should be included in the Swift API URL. If set to false (the default), then the Swift API will listen on a URL formed like http://host:port/<rgw_swift_url_prefix>/v1. If set to true, the Swift API URL will be http://host:port/<rgw_swift_url_prefix>/v1/AUTH_<account_name>. You must set this option to true (and update the Keystone service catalog) if you want radosgw to support publicly-readable containers and temporary URLs.
+                          nullable: true
+                          type: boolean
+                        urlPrefix:
+                          description: The URL prefix for the Swift API, to distinguish it from the S3 API endpoint. The default is swift, which makes the Swift API available at the URL http://host:port/swift/v1 (or http://host:port/swift/v1/AUTH_%(tenant_id)s if rgw swift account in url is enabled).
+                          nullable: true
+                          type: string
+                        versioningEnabled:
+                          description: Enables the Object Versioning of OpenStack Object Storage API. This allows clients to put the X-Versions-Location attribute on containers that should be versioned.
+                          nullable: true
+                          type: boolean
+                      type: object
+                  type: object
                 security:
                   description: Security represents security settings
                   nullable: true
@@ -11902,12 +12361,76 @@ spec:
                       x-kubernetes-validations:
                         - message: object store shared metadata pool is immutable
                           rule: self == oldSelf
+                    poolPlacements:
+                      description: |-
+                        PoolPlacements control which Pools are associated with a particular RGW bucket.
+                        Once PoolPlacements are defined, RGW client will be able to associate pool
+                        with ObjectStore bucket by providing "<LocationConstraint>" during s3 bucket creation
+                        or "X-Storage-Policy" header during swift container creation.
+                        See: https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets
+                        PoolPlacement with name: "default" will be used as a default pool if no option
+                        is provided during bucket creation.
+                        If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+                        If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
+                      items:
+                        properties:
+                          dataNonECPoolName:
+                            description: |-
+                              The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+                              If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+                            type: string
+                          dataPoolName:
+                            description: The data pool used to store ObjectStore objects data.
+                            minLength: 1
+                            type: string
+                          default:
+                            description: Sets given placement as default. Only one placement in the list can be marked as default.
+                            type: boolean
+                          metadataPoolName:
+                            description: The metadata pool used to store ObjectStore bucket index.
+                            minLength: 1
+                            type: string
+                          name:
+                            description: Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
+                            minLength: 1
+                            pattern: ^[a-zA-Z0-9._/-]+$
+                            type: string
+                          storageClasses:
+                            description: |-
+                              StorageClasses can be selected by user to override dataPoolName during object creation.
+                              Each placement has default STANDARD StorageClass pointing to dataPoolName.
+                              This list allows defining additional StorageClasses on top of default STANDARD storage class.
+                            items:
+                              properties:
+                                dataPoolName:
+                                  description: DataPoolName is the data pool used to store ObjectStore objects data.
+                                  minLength: 1
+                                  type: string
+                                name:
+                                  description: |-
+                                    Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+                                    however most clients/libs insist on AWS names so it is recommended to use
+                                    one of the valid x-amz-storage-class values for better compatibility:
+                                    REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+                                    See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
+                                  minLength: 1
+                                  pattern: ^[a-zA-Z0-9._/-]+$
+                                  type: string
+                              required:
+                                - dataPoolName
+                                - name
+                              type: object
+                            type: array
+                        required:
+                          - dataPoolName
+                          - default
+                          - metadataPoolName
+                          - name
+                        type: object
+                      type: array
                     preserveRadosNamespaceDataOnDelete:
                       description: Whether the RADOS namespaces should be preserved on deletion of the object store
                       type: boolean
-                  required:
-                    - dataPoolName
-                    - metadataPoolName
                   type: object
                 zone:
                   description: The multisite info
@@ -11987,7 +12510,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephobjectstoreusers.ceph.rook.io
 spec:
@@ -12039,7 +12562,7 @@ spec:
                   nullable: true
                   properties:
                     amz-cache:
-                      description: Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+                      description: Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api
                       enum:
                         - '*'
                         - read
@@ -12230,7 +12753,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephobjectzonegroups.ceph.rook.io
 spec:
@@ -12326,7 +12849,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephobjectzones.ceph.rook.io
 spec:
@@ -12378,7 +12901,6 @@ spec:
                     In many cases, you should set this to the endpoint of the ingress resource that makes the
                     CephObjectStore associated with this CephObjectStoreZone reachable to peer clusters.
                     The list can have one or more endpoints pointing to different RGW servers in the zone.
-
 
                     If a CephObjectStore endpoint is omitted from this list, that object store's gateways will
                     not receive multisite replication data
@@ -12765,19 +13287,81 @@ spec:
                       x-kubernetes-validations:
                         - message: object store shared metadata pool is immutable
                           rule: self == oldSelf
+                    poolPlacements:
+                      description: |-
+                        PoolPlacements control which Pools are associated with a particular RGW bucket.
+                        Once PoolPlacements are defined, RGW client will be able to associate pool
+                        with ObjectStore bucket by providing "<LocationConstraint>" during s3 bucket creation
+                        or "X-Storage-Policy" header during swift container creation.
+                        See: https://docs.ceph.com/en/latest/radosgw/placement/#placement-targets
+                        PoolPlacement with name: "default" will be used as a default pool if no option
+                        is provided during bucket creation.
+                        If default placement is not provided, spec.sharedPools.dataPoolName and spec.sharedPools.MetadataPoolName will be used as default pools.
+                        If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metadataPool) will be used as defaults.
+                      items:
+                        properties:
+                          dataNonECPoolName:
+                            description: |-
+                              The data pool used to store ObjectStore data that cannot use erasure coding (ex: multi-part uploads).
+                              If dataPoolName is not erasure coded, then there is no need for dataNonECPoolName.
+                            type: string
+                          dataPoolName:
+                            description: The data pool used to store ObjectStore objects data.
+                            minLength: 1
+                            type: string
+                          default:
+                            description: Sets given placement as default. Only one placement in the list can be marked as default.
+                            type: boolean
+                          metadataPoolName:
+                            description: The metadata pool used to store ObjectStore bucket index.
+                            minLength: 1
+                            type: string
+                          name:
+                            description: Pool placement name. Name can be arbitrary. Placement with name "default" will be used as default.
+                            minLength: 1
+                            pattern: ^[a-zA-Z0-9._/-]+$
+                            type: string
+                          storageClasses:
+                            description: |-
+                              StorageClasses can be selected by user to override dataPoolName during object creation.
+                              Each placement has default STANDARD StorageClass pointing to dataPoolName.
+                              This list allows defining additional StorageClasses on top of default STANDARD storage class.
+                            items:
+                              properties:
+                                dataPoolName:
+                                  description: DataPoolName is the data pool used to store ObjectStore objects data.
+                                  minLength: 1
+                                  type: string
+                                name:
+                                  description: |-
+                                    Name is the StorageClass name. Ceph allows arbitrary name for StorageClasses,
+                                    however most clients/libs insist on AWS names so it is recommended to use
+                                    one of the valid x-amz-storage-class values for better compatibility:
+                                    REDUCED_REDUNDANCY | STANDARD_IA | ONEZONE_IA | INTELLIGENT_TIERING | GLACIER | DEEP_ARCHIVE | OUTPOSTS | GLACIER_IR | SNOW | EXPRESS_ONEZONE
+                                    See AWS docs: https://aws.amazon.com/de/s3/storage-classes/
+                                  minLength: 1
+                                  pattern: ^[a-zA-Z0-9._/-]+$
+                                  type: string
+                              required:
+                                - dataPoolName
+                                - name
+                              type: object
+                            type: array
+                        required:
+                          - dataPoolName
+                          - default
+                          - metadataPoolName
+                          - name
+                        type: object
+                      type: array
                     preserveRadosNamespaceDataOnDelete:
                       description: Whether the RADOS namespaces should be preserved on deletion of the object store
                       type: boolean
-                  required:
-                    - dataPoolName
-                    - metadataPoolName
                   type: object
                 zoneGroup:
                   description: The display name for the ceph users
                   type: string
               required:
-                - dataPool
-                - metadataPool
                 - zoneGroup
               type: object
             status:
@@ -12826,7 +13410,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.16.1
     helm.sh/resource-policy: keep
   name: cephrbdmirrors.ceph.rook.io
 spec:
@@ -13421,10 +14005,8 @@ spec:
                         Claims lists the names of resources, defined in spec.resourceClaims,
                         that are used by this container.
 
-
                         This is an alpha field and requires enabling the
                         DynamicResourceAllocation feature gate.
-
 
                         This field is immutable. It can only be set for containers.
                       items:
@@ -13435,6 +14017,12 @@ spec:
                               Name must match the name of one entry in pod.spec.resourceClaims of
                               the Pod where this field is used. It makes that resource available
                               inside a container.
+                            type: string
+                          request:
+                            description: |-
+                              Request is the name chosen for a request in the referenced claim.
+                              If empty, everything from the claim is made available, otherwise
+                              only the result of this request.
                             type: string
                         required:
                           - name

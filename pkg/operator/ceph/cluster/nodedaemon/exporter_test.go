@@ -121,6 +121,26 @@ func TestCreateOrUpdateCephExporter(t *testing.T) {
 	assert.Equal(t, tolerations, podSpec.Spec.Tolerations)
 	assert.Equal(t, true, podSpec.Spec.HostNetwork)
 	assert.Equal(t, "test-priority-class", podSpec.Spec.PriorityClassName)
+
+	t.Run("exporter config", func(t *testing.T) {
+		cephCluster.Spec.Monitoring.Exporter = &cephv1.CephExporterSpec{
+			PerfCountersPrioLimit: 3,
+			StatsPeriodSeconds:    7,
+		}
+		res, err := r.createOrUpdateCephExporter(node, tolerations, cephCluster, cephVersion)
+		assert.NoError(t, err)
+		assert.Equal(t, controllerutil.OperationResult("updated"), res)
+
+		err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: name}, &deploy)
+		assert.NoError(t, err)
+
+		podSpec := deploy.Spec.Template
+		args := podSpec.Spec.Containers[0].Args
+		assert.Equal(t, "--prio-limit", args[4])
+		assert.Equal(t, "3", args[5])
+		assert.Equal(t, "--stats-period", args[6])
+		assert.Equal(t, "7", args[7])
+	})
 }
 
 func TestCephExporterBindAddress(t *testing.T) {

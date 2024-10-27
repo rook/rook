@@ -86,6 +86,9 @@ func DetectCephVersion(ctx context.Context, rookImage, namespace, jobName string
 	cephv1.GetMonPlacement(cephClusterSpec.Placement).ApplyToPodSpec(&job.Spec.Template.Spec)
 	job.Spec.Template.Spec.Affinity.PodAntiAffinity = nil
 
+	cephv1.GetCmdReporterAnnotations(cephClusterSpec.Annotations).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
+	cephv1.GetCmdReporterLabels(cephClusterSpec.Labels).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
+
 	stdout, stderr, retcode, err := versionReporter.Run(ctx, detectCephVersionTimeout)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to complete ceph version job")

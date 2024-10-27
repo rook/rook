@@ -111,7 +111,7 @@ spec:
       initContainers:
         ## Setup Ceph SQLite VFS
         - name: setup
-          image: bitnami/kubectl:1.21.11
+          image: docker.io/bitnami/kubectl:1.21.11
           command:
             - /bin/bash
             - -c

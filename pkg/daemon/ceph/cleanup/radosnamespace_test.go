@@ -90,3 +90,56 @@ func TestRadosNamespace(t *testing.T) {
 		assert.NoError(t, err)
 	})
 }
+
+func TestBlockPoolCleanup(t *testing.T) {
+	clusterInfo := cephclient.AdminTestClusterInfo("mycluster")
+	poolName := "test-pool"
+
+	t.Run("no images in blockpool", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "ls" && args[1] == "-l" {
+				assert.Equal(t, poolName, args[2])
+				return "", nil
+			}
+			return "", errors.New("unknown command")
+		}
+		context := &clusterd.Context{Executor: executor}
+		err := BlockPoolCleanup(context, clusterInfo, poolName)
+		assert.NoError(t, err)
+	})
+
+	t.Run("images with snapshots available in blockpool", func(t *testing.T) {
+		executor := &exectest.MockExecutor{}
+		executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			// list all subvolumes in subvolumegroup
+			if args[0] == "ls" && args[1] == "-l" {
+				assert.Equal(t, poolName, args[2])
+				return mockImageLSResponse, nil
+			}
+			if args[0] == "snap" && args[1] == "ls" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d", args[2])
+				return mockSnapshotsResponse, nil
+			}
+			if args[0] == "snap" && args[1] == "rm" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d@snap1", args[2])
+				return "", nil
+			}
+			if args[0] == "trash" && args[1] == "mv" {
+				assert.Equal(t, "test-pool/csi-vol-136268e8-5386-4453-a6bd-9dca381d187d", args[2])
+				return "", nil
+			}
+			if args[0] == "rbd" && args[1] == "task" && args[2] == "add" && args[3] == "trash" {
+				// pool-name/image-id
+				assert.Equal(t, "test-pool/16e35cfa56a7", args[5])
+				return "", nil
+			}
+			return "", errors.New("unknown command")
+		}
+		context := &clusterd.Context{Executor: executor}
+		err := BlockPoolCleanup(context, clusterInfo, poolName)
+		assert.NoError(t, err)
+	})
+}

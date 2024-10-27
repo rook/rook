@@ -7,6 +7,10 @@ OUTFILE="stretch-pub-test.log"
 
 kubectl create namespace "$NAMESPACE"
 
+# create the expected serviceaccount in the namespace
+# in Minikube/KinD, the tool needs no special permissions, so just the SA is fine
+kubectl create serviceaccount rook-ceph-system --namespace "$NAMESPACE"
+
 # all daemons get public network, so all should get started
 
 sed \

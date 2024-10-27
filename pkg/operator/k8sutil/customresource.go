@@ -54,19 +54,7 @@ func WatchCR(resource CustomResource, namespace string, handlers cache.ResourceE
 		resource.Plural,
 		namespace,
 		fields.Everything())
-	_, controller := cache.NewInformer(
-		source,
-
-		// The object type.
-		objType,
-
-		// resyncPeriod
-		// Every resyncPeriod, all resources in the cache will retrigger events.
-		// Set to 0 to disable the resync.
-		0,
-
-		// Your custom resource event handlers.
-		handlers)
+	_, controller := cache.NewInformerWithOptions(cache.InformerOptions{ListerWatcher: source, ObjectType: objType, ResyncPeriod: 0, Handler: handlers})
 
 	go controller.Run(done)
 	<-done

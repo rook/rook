@@ -43,6 +43,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Volumes:            controller.DaemonVolumes(daemonConfig.DataPathMap, daemonConfig.ResourceName, r.cephClusterSpec.DataDirHostPath),
 			HostNetwork:        r.cephClusterSpec.Network.IsHost(),
 			PriorityClassName:  rbdMirror.Spec.PriorityClassName,
+			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
 		},
 	}
@@ -82,6 +83,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 			Labels:      controller.CephDaemonAppLabels(AppName, rbdMirror.Namespace, config.RbdMirrorType, daemonConfig.DaemonID, rbdMirror.Name, "cephrbdmirrors.ceph.rook.io", true),
 		},
 		Spec: apps.DeploymentSpec{
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: podSpec.Labels,
 			},

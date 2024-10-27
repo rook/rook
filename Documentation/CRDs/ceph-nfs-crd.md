@@ -194,15 +194,3 @@ the size of the cluster.
     not always happen due to the Kubernetes scheduler.
     * Workaround: It is safest to run only a single NFS server, but we do not limit this if it
         benefits your use case.
-
-### Ceph v17.2.1
-
-* Ceph NFS management with the Rook mgr module enabled has a breaking regression with the Ceph
-    Quincy v17.2.1 release.
-    * Workaround: Leave Ceph's Rook orchestrator mgr module disabled. If you have enabled it, you must
-        disable it using the snippet below from the toolbox.
-
-        ```console
-        ceph orch set backend ""
-        ceph mgr module disable rook
-        ```

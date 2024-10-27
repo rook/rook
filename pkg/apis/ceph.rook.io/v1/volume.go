@@ -17,9 +17,11 @@ limitations under the License.
 package v1
 
 import (
+	"path/filepath"
 	"reflect"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func (src *ConfigFileVolumeSource) ToKubernetesVolumeSource() *corev1.VolumeSource {
@@ -47,6 +49,28 @@ func (src *ConfigFileVolumeSource) ToKubernetesVolumeSource() *corev1.VolumeSour
 	}
 
 	return dst
+}
+
+// GenerateVolumesAndMounts converts Rook's AdditionalVolumeMounts type to a list of volumes and
+// corresponding mounts that can be added to Kubernetes pod specs.
+func (v *AdditionalVolumeMounts) GenerateVolumesAndMounts(rootDir string) ([]v1.Volume, []v1.VolumeMount) {
+	vols := []v1.Volume{}
+	mounts := []v1.VolumeMount{}
+
+	for _, addVolMnt := range *v {
+		mountPath := filepath.Join(rootDir, addVolMnt.SubPath)
+		volName := ToValidDNSLabel(mountPath)
+		vols = append(vols, v1.Volume{
+			Name:         volName,
+			VolumeSource: *addVolMnt.VolumeSource.ToKubernetesVolumeSource(),
+		})
+		mounts = append(mounts, v1.VolumeMount{
+			Name:      volName,
+			MountPath: mountPath,
+		})
+	}
+
+	return vols, mounts
 }
 
 func (t *VolumeClaimTemplate) ToPVC() *corev1.PersistentVolumeClaim {

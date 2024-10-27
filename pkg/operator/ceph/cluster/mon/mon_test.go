@@ -190,7 +190,7 @@ func TestStartMonPods(t *testing.T) {
 	}
 
 	// start a basic cluster
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	// test annotations
@@ -201,7 +201,7 @@ func TestStartMonPods(t *testing.T) {
 	validateStart(t, c)
 
 	// starting again should be a no-op
-	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	_, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 
 	validateStart(t, c)
@@ -215,7 +215,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized())
 
@@ -225,7 +225,7 @@ func TestOperatorRestart(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but will not result in an error
-	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized())
 
@@ -243,7 +243,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// start a basic cluster
-	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err := c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized())
 
@@ -255,7 +255,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Quincy, c.spec)
+	info, err = c.Start(c.ClusterInfo, c.rookImage, cephver.Squid, c.spec)
 	assert.NoError(t, err)
 	assert.NoError(t, info.IsInitialized(), info)
 
@@ -676,6 +676,68 @@ func TestMonVolumeClaimTemplate(t *testing.T) {
 		})
 	}
 }
+
+func TestRemoveExtraMonDeployments(t *testing.T) {
+	namespace := "ns"
+	context, err := newTestStartCluster(t, namespace)
+	assert.NoError(t, err)
+	c := newCluster(context, namespace, true, v1.ResourceRequirements{})
+	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
+
+	// Nothing to remove when the mons match the deployment
+	mons := []*monConfig{
+		{ResourceName: "rook-ceph-mon-a", DaemonName: "a"},
+	}
+	deployments := []apps.Deployment{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   "rook-ceph-mon-a",
+				Labels: map[string]string{"ceph_daemon_id": "a"},
+			},
+		},
+	}
+	c.spec.Mon.Count = 1
+	removed := c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "", removed)
+
+	// Remove an extra mon deployment
+	deployments = append(deployments, apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "rook-ceph-mon-b",
+			Labels: map[string]string{"ceph_daemon_id": "b"},
+		}})
+	removed = c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "b", removed)
+
+	// Nothing to remove when there are not enough deployments for the expected mons
+	mons = []*monConfig{
+		{ResourceName: "rook-ceph-mon-a", DaemonName: "a"},
+		{ResourceName: "rook-ceph-mon-b", DaemonName: "b"},
+		{ResourceName: "rook-ceph-mon-c", DaemonName: "c"},
+	}
+	c.spec.Mon.Count = 3
+	removed = c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "", removed)
+
+	// Do not remove a mon when it was during failover and only a single mon is in the list, even if extra deployments exist
+	mons = []*monConfig{
+		{ResourceName: "rook-ceph-mon-d", DaemonName: "d"},
+	}
+	deployments = append(deployments, apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "rook-ceph-mon-c",
+			Labels: map[string]string{"ceph_daemon_id": "c"},
+		}})
+	deployments = append(deployments, apps.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   "rook-ceph-mon-d",
+			Labels: map[string]string{"ceph_daemon_id": "d"},
+		}})
+	c.spec.Mon.Count = 3
+	removed = c.checkForExtraMonResources(mons, deployments)
+	assert.Equal(t, "", removed)
+}
+
 func TestStretchMonVolumeClaimTemplate(t *testing.T) {
 	generalSC := "generalSC"
 	zoneSC := "zoneSC"

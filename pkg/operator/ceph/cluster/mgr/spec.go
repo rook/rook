@@ -61,6 +61,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			Containers: []v1.Container{
 				c.makeMgrDaemonContainer(mgrConfig),
 			},
+			SecurityContext:    &v1.PodSecurityContext{},
 			ServiceAccountName: serviceAccountName,
 			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes:            volumes,
@@ -128,6 +129,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			Labels:    c.getPodLabels(mgrConfig, true),
 		},
 		Spec: apps.DeploymentSpec{
+			RevisionHistoryLimit: controller.RevisionHistoryLimit(),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: c.getPodLabels(mgrConfig, false),
 			},

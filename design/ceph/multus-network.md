@@ -93,50 +93,6 @@ network.
 The design for mitigating the issue is to add a new DaemonSet that will own the network for all CephFS mounts
 as well as RBD mapped devices. The `csi-{cephfs,rbd}plugin` DaemonSet are left untouched.
 
-#### New "holder" DaemonSet
-The Rook-Ceph Operator's CSI controller creates a `csi-plugin-holder` DaemonSet configured to use the
-`network.selectors.public` network specified for the CephCluster. This DaemonSet runs on all the
-nodes along side the `csi-{cephfs,rbd}plugin` DaemonSet.
-
-This Pod should only be stopped and restarted when a node is stopped so that volume operations do
-not become blocked. The Rook-Ceph Operator's CSI controller should set the DaemonSet's update
-strategy to `OnDelete` so that the pods do not get deleted if the DaemonSet is updated while also
-ensuring that the pods will be updated on the next node reboot (or node drain).
-
-The new holder DaemonSet only contains a single container called `holder`, the container
-responsible for pinning the network for filesystem mounts and mapped block devices. It is used as a passthrough by
-the Ceph-CSI plugin pod which when mounting or mapping will use the network namespace of that holder
-pod.
-
-One task of the Holder container is to pass the required PID into the `csi-plugin` pod. To
-solve this, the container will create a symlink to an equivalent of `/proc/$$/ns/net` in the
-`hostPath` volume shared with the `csi-plugin` pod. Then it will sleep forever.
-In order to support multiple Ceph-CSI consuming multiple Ceph clusters, the name of the symlink should be based on the Ceph
-cluster FSID. The complete name of the symlink can be decided during the implementation phase of the
-design.
-That symlink name will be stored in the Ceph-CSI configmap with a key name that we will define
-during the implementation.
-
-#### Interactions between components
-When the Ceph-CSI plugin mounts or maps a block device it will use the network namespace of the
-Holder pod. This is achieved by using `nsenter` to enter the network namespace of the Holder pod.
-Some changes are expected as part of the mounting/mapping method in today's `csi-plugin` pod.
-Instead of invoking `rbd map ...`, invoke `nsenter --net=<net
-ns file of pause in long-running pod> rbd map ...` (and same for `mount -t ceph ...`).  The `csi-plugin`
-pod is already privileged, it already adds `CAP_SYS_ADMIN`. The only missing piece is to expose the host
-PID namespace with `hostPID: true` on the `csi-cephfsplugin` DaemonSet (RBD already has it).
-
-Cleaning up the symlink is not a requirement nor a big issue. Once the Holder container stops, its
-network namespace goes away with it. So at worst, we end up with a broken symlink.
-
-When a new node is added, both DaemonSets are started, and the
-process described above occurs on the node.
-
-The initial implementation of this design is limited to supporting a single CephCluster with
-Multus.
-Until we stop using HostNetwork entirely it is impossible to support multiple CephClusters with and
-without Multus enabled.
-
 ## Accepted proposal
 
 So far, the team has decided to go with the [whereabouts](https://github.com/dougbtv/whereabouts) IPAM.

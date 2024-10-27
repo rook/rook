@@ -15,7 +15,7 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   cephVersion:
-    image: quay.io/ceph/ceph:v18
+    image: quay.io/ceph/ceph:v19
     allowUnsupported: true
   mon:
     count: 1
@@ -33,7 +33,11 @@ spec:
   storage:
     useAllNodes: true
     useAllDevices: true
+    allowDeviceClassUpdate: true
+    allowOsdCrushWeightUpdate: false
     #deviceFilter:
+    #config:
+    #  deviceClass: testclass
   monitoring:
     enabled: false
   healthCheck:

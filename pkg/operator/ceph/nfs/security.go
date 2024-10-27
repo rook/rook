@@ -18,10 +18,8 @@ package nfs
 
 import (
 	"fmt"
-	"path/filepath"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -144,7 +142,7 @@ func generateSssdSidecarResources(nfs *cephv1.CephNFS, sidecarCfg *cephv1.SSSDSi
 		sssdMounts = append(sssdMounts, mount)
 	}
 
-	genericVols, genericMounts := generateGenericFileVolsAndMounts(sidecarCfg.AdditionalFiles)
+	genericVols, genericMounts := sidecarCfg.AdditionalFiles.GenerateVolumesAndMounts("/etc/sssd/rook-additional/")
 	volumes = append(volumes, genericVols...)
 	sssdMounts = append(sssdMounts, genericMounts...)
 
@@ -291,26 +289,6 @@ func sssdConfigVolAndMount(volSource v1.VolumeSource) (v1.Volume, v1.VolumeMount
 	}
 
 	return vol, mount
-}
-
-func generateGenericFileVolsAndMounts(additionalFiles []cephv1.SSSDSidecarAdditionalFile) ([]v1.Volume, []v1.VolumeMount) {
-	vols := []v1.Volume{}
-	mounts := []v1.VolumeMount{}
-
-	for _, additionalFile := range additionalFiles {
-		mountPath := filepath.Join("/etc/sssd/rook-additional/", additionalFile.SubPath)
-		volName := k8sutil.ToValidDNSLabel(mountPath)
-		vols = append(vols, v1.Volume{
-			Name:         volName,
-			VolumeSource: *additionalFile.VolumeSource.ToKubernetesVolumeSource(),
-		})
-		mounts = append(mounts, v1.VolumeMount{
-			Name:      volName,
-			MountPath: mountPath,
-		})
-	}
-
-	return vols, mounts
 }
 
 func generateSssdNsswitchConfResources(r *ReconcileCephNFS, nfs *cephv1.CephNFS) (*v1.Container, *v1.Volume, *v1.VolumeMount) {

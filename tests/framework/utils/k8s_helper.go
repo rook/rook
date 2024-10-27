@@ -34,8 +34,6 @@ import (
 	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -154,9 +152,9 @@ func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, container
 	return err
 }
 
-// Kubectl is wrapper for executing kubectl commands
-func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-	result, err := k8sh.executor.ExecuteCommandWithTimeout(15*time.Second, "kubectl", args...)
+// KubectlWithTimeout is wrapper for executing kubectl commands
+func (k8sh *K8sHelper) KubectlWithTimeout(timeout time.Duration, args ...string) (string, error) {
+	result, err := k8sh.executor.ExecuteCommandWithTimeout(timeout*time.Second, "kubectl", args...)
 	if err != nil {
 		k8slogger.Errorf("Failed to execute: %s %+v : %+v. %s", cmd, args, err, result)
 		if args[0] == "delete" {
@@ -166,6 +164,13 @@ func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 		return result, fmt.Errorf("Failed to run: %s %v : %v", cmd, args, err)
 	}
 	return result, nil
+}
+
+// Kubectl is wrapper for executing kubectl commands and a timeout of 15 seconds
+func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
+
+	return k8sh.KubectlWithTimeout(15, args...)
+
 }
 
 // KubectlWithStdin is wrapper for executing kubectl commands in stdin
@@ -336,6 +341,9 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 
 		if len(pods.Items) >= count {
 			logger.Infof("found %d pods with label %s", count, label)
+			for _, pod := range pods.Items {
+				logger.Infof("pod found includes %q with status %q", pod.Name, pod.Status.Phase)
+			}
 			return nil
 		}
 
@@ -1597,18 +1605,8 @@ func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, name
 }
 
 func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
-	k8sVersion, err := k8sutil.GetK8SVersion(k8sh.Clientset)
-	if err != nil {
-		return errors.Wrap(err, "failed to get k8s version")
-	}
-	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(nodedaemon.MinVersionForCronV1))
 	for i := 0; i < RetryLoop; i++ {
-		var err error
-		if useCronJobV1 {
-			_, err = k8sh.Clientset.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		} else {
-			_, err = k8sh.Clientset.BatchV1beta1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		}
+		_, err := k8sh.Clientset.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				logger.Infof("waiting for CronJob named %s in namespace %s", name, namespace)

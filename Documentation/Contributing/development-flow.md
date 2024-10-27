@@ -3,7 +3,7 @@ title: Development Flow
 ---
 
 Thank you for your time and effort to help us improve Rook! Here are a few steps to get started. If you have any questions,
-don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev channel.
+don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev channel. Sign up for the Rook Slack [here](https://slack.rook.io).
 
 ## Prerequisites
 
@@ -91,7 +91,7 @@ The overall source code layout is summarized:
 ```text
 rook
 ├── build                         # build makefiles and logic to build, publish and release all Rook artifacts
-├── cluster
+├── deploy
 │   ├── charts                    # Helm charts
 │   │   └── rook-ceph
 │   │   └── rook-ceph-cluster
@@ -112,11 +112,14 @@ rook
 │   ├── clusterd
 │   ├── daemon                    # daemons for configuring ceph
 │   │   ├── ceph
-│   │   └── discover
+│   │   ├── discover
+│   │   ├── multus
+│   │   └── util
 │   ├── operator                  # all reconcile logic and custom controllers
 │   │   ├── ceph
 │   │   ├── discover
 │   │   ├── k8sutil
+│   │   └── test
 │   ├── util
 │   └── version
 └── tests

@@ -137,6 +137,12 @@ func (c *Cluster) getKeyRotationPodTemplateSpec(osdProps osdProperties, osd OSDI
 		devices = append(devices, encryptionBlockDestinationCopy(devicesBasePath, bluestoreWalName))
 	}
 
+	if c.spec.Security.KeyManagementService.IsVaultKMS() {
+		volumeTLS, volumeMountTLS := kms.VaultVolumeAndMount(c.spec.Security.KeyManagementService.ConnectionDetails, "")
+		volumes = append(volumes, volumeTLS)
+		volumeMounts = append(volumeMounts, volumeMountTLS)
+	}
+
 	keyRotationContainer, err := c.getKeyRotationContainer(osdProps, volumeMounts, devices)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate key rotation container")
@@ -161,6 +167,7 @@ func (c *Cluster) getKeyRotationPodTemplateSpec(osdProps osdProperties, osd OSDI
 			HostNetwork:       c.spec.Network.IsHost(),
 			PriorityClassName: cephv1.GetOSDPriorityClassName(c.spec.PriorityClassNames),
 			SchedulerName:     osdProps.schedulerName,
+			SecurityContext:   &v1.PodSecurityContext{},
 		},
 	}
 	if c.spec.Network.IsHost() {

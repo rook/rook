@@ -238,6 +238,25 @@ func (c *Config) UpdateSecret(secretName, secretValue string) error {
 
 		return nil
 	}
+	if c.IsVault() {
+		// Store the secret in Vault
+		v, err := InitVault(c.ClusterInfo.Context, c.context, c.ClusterInfo.Namespace, c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		if err != nil {
+			return errors.Wrap(err, "failed to init vault kms")
+		}
+		k := buildVaultKeyContext(c.clusterSpec.Security.KeyManagementService.ConnectionDetails)
+		// Build Secret
+		secretName = GenerateOSDEncryptionSecretName(secretName)
+		data := make(map[string]interface{})
+		data[secretName] = secretValue
+
+		_, err = v.PutSecret(secretName, data, k)
+		if err != nil {
+			return errors.Wrapf(err, "failed to put secret %q in vault kms", secretName)
+		}
+
+		return nil
+	}
 
 	return errors.Errorf("update secret is not supported for the %q KMS", c.Provider)
 }

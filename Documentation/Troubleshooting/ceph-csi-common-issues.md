@@ -413,9 +413,6 @@ Where `-m` is one of the mon endpoints and the `--key` is the key used by the CS
 
 When a node is lost, you will see application pods on the node stuck in the `Terminating` state while another pod is rescheduled and is in the `ContainerCreating` state.
 
-!!! important
-    For clusters with Kubernetes version 1.26 or greater, see the [improved automation](../Storage-Configuration/Block-Storage-RBD/block-storage.md#recover-rbd-rwo-volume-in-case-of-node-loss) to recover from the node loss. If using K8s 1.25 or older, continue with these instructions.
-
 ### Force deleting the pod
 
 To force delete the pod stuck in the `Terminating` state:
