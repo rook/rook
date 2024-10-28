@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,36 +35,38 @@ type FakeCephBlockPoolRadosNamespaces struct {
 	ns   string
 }
 
-var cephblockpoolradosnamespacesResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephblockpoolradosnamespaces"}
+var cephblockpoolradosnamespacesResource = v1.SchemeGroupVersion.WithResource("cephblockpoolradosnamespaces")
 
-var cephblockpoolradosnamespacesKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephBlockPoolRadosNamespace"}
+var cephblockpoolradosnamespacesKind = v1.SchemeGroupVersion.WithKind("CephBlockPoolRadosNamespace")
 
 // Get takes name of the cephBlockPoolRadosNamespace, and returns the corresponding cephBlockPoolRadosNamespace object, and an error if there is any.
-func (c *FakeCephBlockPoolRadosNamespaces) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephBlockPoolRadosNamespace, err error) {
+func (c *FakeCephBlockPoolRadosNamespaces) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephBlockPoolRadosNamespace, err error) {
+	emptyResult := &v1.CephBlockPoolRadosNamespace{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephblockpoolradosnamespacesResource, c.ns, name), &cephrookiov1.CephBlockPoolRadosNamespace{})
+		Invokes(testing.NewGetActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBlockPoolRadosNamespace), err
+	return obj.(*v1.CephBlockPoolRadosNamespace), err
 }
 
 // List takes label and field selectors, and returns the list of CephBlockPoolRadosNamespaces that match those selectors.
-func (c *FakeCephBlockPoolRadosNamespaces) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephBlockPoolRadosNamespaceList, err error) {
+func (c *FakeCephBlockPoolRadosNamespaces) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephBlockPoolRadosNamespaceList, err error) {
+	emptyResult := &v1.CephBlockPoolRadosNamespaceList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephblockpoolradosnamespacesResource, cephblockpoolradosnamespacesKind, c.ns, opts), &cephrookiov1.CephBlockPoolRadosNamespaceList{})
+		Invokes(testing.NewListActionWithOptions(cephblockpoolradosnamespacesResource, cephblockpoolradosnamespacesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &cephrookiov1.CephBlockPoolRadosNamespaceList{ListMeta: obj.(*cephrookiov1.CephBlockPoolRadosNamespaceList).ListMeta}
-	for _, item := range obj.(*cephrookiov1.CephBlockPoolRadosNamespaceList).Items {
+	list := &v1.CephBlockPoolRadosNamespaceList{ListMeta: obj.(*v1.CephBlockPoolRadosNamespaceList).ListMeta}
+	for _, item := range obj.(*v1.CephBlockPoolRadosNamespaceList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -74,57 +75,60 @@ func (c *FakeCephBlockPoolRadosNamespaces) List(ctx context.Context, opts v1.Lis
 }
 
 // Watch returns a watch.Interface that watches the requested cephBlockPoolRadosNamespaces.
-func (c *FakeCephBlockPoolRadosNamespaces) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephBlockPoolRadosNamespaces) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephblockpoolradosnamespacesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephBlockPoolRadosNamespace and creates it.  Returns the server's representation of the cephBlockPoolRadosNamespace, and an error, if there is any.
-func (c *FakeCephBlockPoolRadosNamespaces) Create(ctx context.Context, cephBlockPoolRadosNamespace *cephrookiov1.CephBlockPoolRadosNamespace, opts v1.CreateOptions) (result *cephrookiov1.CephBlockPoolRadosNamespace, err error) {
+func (c *FakeCephBlockPoolRadosNamespaces) Create(ctx context.Context, cephBlockPoolRadosNamespace *v1.CephBlockPoolRadosNamespace, opts metav1.CreateOptions) (result *v1.CephBlockPoolRadosNamespace, err error) {
+	emptyResult := &v1.CephBlockPoolRadosNamespace{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephblockpoolradosnamespacesResource, c.ns, cephBlockPoolRadosNamespace), &cephrookiov1.CephBlockPoolRadosNamespace{})
+		Invokes(testing.NewCreateActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, cephBlockPoolRadosNamespace, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBlockPoolRadosNamespace), err
+	return obj.(*v1.CephBlockPoolRadosNamespace), err
 }
 
 // Update takes the representation of a cephBlockPoolRadosNamespace and updates it. Returns the server's representation of the cephBlockPoolRadosNamespace, and an error, if there is any.
-func (c *FakeCephBlockPoolRadosNamespaces) Update(ctx context.Context, cephBlockPoolRadosNamespace *cephrookiov1.CephBlockPoolRadosNamespace, opts v1.UpdateOptions) (result *cephrookiov1.CephBlockPoolRadosNamespace, err error) {
+func (c *FakeCephBlockPoolRadosNamespaces) Update(ctx context.Context, cephBlockPoolRadosNamespace *v1.CephBlockPoolRadosNamespace, opts metav1.UpdateOptions) (result *v1.CephBlockPoolRadosNamespace, err error) {
+	emptyResult := &v1.CephBlockPoolRadosNamespace{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephblockpoolradosnamespacesResource, c.ns, cephBlockPoolRadosNamespace), &cephrookiov1.CephBlockPoolRadosNamespace{})
+		Invokes(testing.NewUpdateActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, cephBlockPoolRadosNamespace, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBlockPoolRadosNamespace), err
+	return obj.(*v1.CephBlockPoolRadosNamespace), err
 }
 
 // Delete takes name of the cephBlockPoolRadosNamespace and deletes it. Returns an error if one occurs.
-func (c *FakeCephBlockPoolRadosNamespaces) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeCephBlockPoolRadosNamespaces) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephblockpoolradosnamespacesResource, c.ns, name), &cephrookiov1.CephBlockPoolRadosNamespace{})
+		Invokes(testing.NewDeleteActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, name, opts), &v1.CephBlockPoolRadosNamespace{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephBlockPoolRadosNamespaces) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephblockpoolradosnamespacesResource, c.ns, listOpts)
+func (c *FakeCephBlockPoolRadosNamespaces) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &cephrookiov1.CephBlockPoolRadosNamespaceList{})
+	_, err := c.Fake.Invokes(action, &v1.CephBlockPoolRadosNamespaceList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephBlockPoolRadosNamespace.
-func (c *FakeCephBlockPoolRadosNamespaces) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephBlockPoolRadosNamespace, err error) {
+func (c *FakeCephBlockPoolRadosNamespaces) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephBlockPoolRadosNamespace, err error) {
+	emptyResult := &v1.CephBlockPoolRadosNamespace{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephblockpoolradosnamespacesResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephBlockPoolRadosNamespace{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cephblockpoolradosnamespacesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBlockPoolRadosNamespace), err
+	return obj.(*v1.CephBlockPoolRadosNamespace), err
 }
