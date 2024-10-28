@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,8 @@ package v1
 
 import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type CephFilesystemMirrorLister interface {
 
 // cephFilesystemMirrorLister implements the CephFilesystemMirrorLister interface.
 type cephFilesystemMirrorLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.CephFilesystemMirror]
 }
 
 // NewCephFilesystemMirrorLister returns a new CephFilesystemMirrorLister.
 func NewCephFilesystemMirrorLister(indexer cache.Indexer) CephFilesystemMirrorLister {
-	return &cephFilesystemMirrorLister{indexer: indexer}
-}
-
-// List lists all CephFilesystemMirrors in the indexer.
-func (s *cephFilesystemMirrorLister) List(selector labels.Selector) (ret []*v1.CephFilesystemMirror, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.CephFilesystemMirror))
-	})
-	return ret, err
+	return &cephFilesystemMirrorLister{listers.New[*v1.CephFilesystemMirror](indexer, v1.Resource("cephfilesystemmirror"))}
 }
 
 // CephFilesystemMirrors returns an object that can list and get CephFilesystemMirrors.
 func (s *cephFilesystemMirrorLister) CephFilesystemMirrors(namespace string) CephFilesystemMirrorNamespaceLister {
-	return cephFilesystemMirrorNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return cephFilesystemMirrorNamespaceLister{listers.NewNamespaced[*v1.CephFilesystemMirror](s.ResourceIndexer, namespace)}
 }
 
 // CephFilesystemMirrorNamespaceLister helps list and get CephFilesystemMirrors.
@@ -74,26 +66,5 @@ type CephFilesystemMirrorNamespaceLister interface {
 // cephFilesystemMirrorNamespaceLister implements the CephFilesystemMirrorNamespaceLister
 // interface.
 type cephFilesystemMirrorNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all CephFilesystemMirrors in the indexer for a given namespace.
-func (s cephFilesystemMirrorNamespaceLister) List(selector labels.Selector) (ret []*v1.CephFilesystemMirror, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.CephFilesystemMirror))
-	})
-	return ret, err
-}
-
-// Get retrieves the CephFilesystemMirror from the indexer for a given namespace and name.
-func (s cephFilesystemMirrorNamespaceLister) Get(name string) (*v1.CephFilesystemMirror, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("cephfilesystemmirror"), name)
-	}
-	return obj.(*v1.CephFilesystemMirror), nil
+	listers.ResourceIndexer[*v1.CephFilesystemMirror]
 }
