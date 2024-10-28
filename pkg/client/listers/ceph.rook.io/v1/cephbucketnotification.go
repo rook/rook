@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,8 @@ package v1
 
 import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type CephBucketNotificationLister interface {
 
 // cephBucketNotificationLister implements the CephBucketNotificationLister interface.
 type cephBucketNotificationLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.CephBucketNotification]
 }
 
 // NewCephBucketNotificationLister returns a new CephBucketNotificationLister.
 func NewCephBucketNotificationLister(indexer cache.Indexer) CephBucketNotificationLister {
-	return &cephBucketNotificationLister{indexer: indexer}
-}
-
-// List lists all CephBucketNotifications in the indexer.
-func (s *cephBucketNotificationLister) List(selector labels.Selector) (ret []*v1.CephBucketNotification, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.CephBucketNotification))
-	})
-	return ret, err
+	return &cephBucketNotificationLister{listers.New[*v1.CephBucketNotification](indexer, v1.Resource("cephbucketnotification"))}
 }
 
 // CephBucketNotifications returns an object that can list and get CephBucketNotifications.
 func (s *cephBucketNotificationLister) CephBucketNotifications(namespace string) CephBucketNotificationNamespaceLister {
-	return cephBucketNotificationNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return cephBucketNotificationNamespaceLister{listers.NewNamespaced[*v1.CephBucketNotification](s.ResourceIndexer, namespace)}
 }
 
 // CephBucketNotificationNamespaceLister helps list and get CephBucketNotifications.
@@ -74,26 +66,5 @@ type CephBucketNotificationNamespaceLister interface {
 // cephBucketNotificationNamespaceLister implements the CephBucketNotificationNamespaceLister
 // interface.
 type cephBucketNotificationNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all CephBucketNotifications in the indexer for a given namespace.
-func (s cephBucketNotificationNamespaceLister) List(selector labels.Selector) (ret []*v1.CephBucketNotification, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.CephBucketNotification))
-	})
-	return ret, err
-}
-
-// Get retrieves the CephBucketNotification from the indexer for a given namespace and name.
-func (s cephBucketNotificationNamespaceLister) Get(name string) (*v1.CephBucketNotification, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("cephbucketnotification"), name)
-	}
-	return obj.(*v1.CephBucketNotification), nil
+	listers.ResourceIndexer[*v1.CephBucketNotification]
 }

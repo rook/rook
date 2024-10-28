@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,36 +35,38 @@ type FakeCephNFSes struct {
 	ns   string
 }
 
-var cephnfsesResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephnfses"}
+var cephnfsesResource = v1.SchemeGroupVersion.WithResource("cephnfses")
 
-var cephnfsesKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephNFS"}
+var cephnfsesKind = v1.SchemeGroupVersion.WithKind("CephNFS")
 
 // Get takes name of the cephNFS, and returns the corresponding cephNFS object, and an error if there is any.
-func (c *FakeCephNFSes) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephNFS, err error) {
+	emptyResult := &v1.CephNFS{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephnfsesResource, c.ns, name), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewGetActionWithOptions(cephnfsesResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephNFS), err
+	return obj.(*v1.CephNFS), err
 }
 
 // List takes label and field selectors, and returns the list of CephNFSes that match those selectors.
-func (c *FakeCephNFSes) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephNFSList, err error) {
+func (c *FakeCephNFSes) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephNFSList, err error) {
+	emptyResult := &v1.CephNFSList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephnfsesResource, cephnfsesKind, c.ns, opts), &cephrookiov1.CephNFSList{})
+		Invokes(testing.NewListActionWithOptions(cephnfsesResource, cephnfsesKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &cephrookiov1.CephNFSList{ListMeta: obj.(*cephrookiov1.CephNFSList).ListMeta}
-	for _, item := range obj.(*cephrookiov1.CephNFSList).Items {
+	list := &v1.CephNFSList{ListMeta: obj.(*v1.CephNFSList).ListMeta}
+	for _, item := range obj.(*v1.CephNFSList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -74,57 +75,60 @@ func (c *FakeCephNFSes) List(ctx context.Context, opts v1.ListOptions) (result *
 }
 
 // Watch returns a watch.Interface that watches the requested cephNFSes.
-func (c *FakeCephNFSes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephNFSes) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephnfsesResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cephnfsesResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephNFS and creates it.  Returns the server's representation of the cephNFS, and an error, if there is any.
-func (c *FakeCephNFSes) Create(ctx context.Context, cephNFS *cephrookiov1.CephNFS, opts v1.CreateOptions) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Create(ctx context.Context, cephNFS *v1.CephNFS, opts metav1.CreateOptions) (result *v1.CephNFS, err error) {
+	emptyResult := &v1.CephNFS{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephnfsesResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewCreateActionWithOptions(cephnfsesResource, c.ns, cephNFS, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephNFS), err
+	return obj.(*v1.CephNFS), err
 }
 
 // Update takes the representation of a cephNFS and updates it. Returns the server's representation of the cephNFS, and an error, if there is any.
-func (c *FakeCephNFSes) Update(ctx context.Context, cephNFS *cephrookiov1.CephNFS, opts v1.UpdateOptions) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Update(ctx context.Context, cephNFS *v1.CephNFS, opts metav1.UpdateOptions) (result *v1.CephNFS, err error) {
+	emptyResult := &v1.CephNFS{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephnfsesResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewUpdateActionWithOptions(cephnfsesResource, c.ns, cephNFS, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephNFS), err
+	return obj.(*v1.CephNFS), err
 }
 
 // Delete takes name of the cephNFS and deletes it. Returns an error if one occurs.
-func (c *FakeCephNFSes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeCephNFSes) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephnfsesResource, c.ns, name), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewDeleteActionWithOptions(cephnfsesResource, c.ns, name, opts), &v1.CephNFS{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephNFSes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephnfsesResource, c.ns, listOpts)
+func (c *FakeCephNFSes) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(cephnfsesResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &cephrookiov1.CephNFSList{})
+	_, err := c.Fake.Invokes(action, &v1.CephNFSList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephNFS.
-func (c *FakeCephNFSes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephNFS, err error) {
+func (c *FakeCephNFSes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephNFS, err error) {
+	emptyResult := &v1.CephNFS{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephnfsesResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephNFS{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cephnfsesResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephNFS), err
+	return obj.(*v1.CephNFS), err
 }
