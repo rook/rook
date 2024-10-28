@@ -45,14 +45,14 @@ require (
 	golang.org/x/sync v0.8.0
 	gopkg.in/ini.v1 v1.67.0
 	gopkg.in/yaml.v2 v2.4.0
-	k8s.io/api v0.31.1
-	k8s.io/apiextensions-apiserver v0.31.1
-	k8s.io/apimachinery v0.31.1
-	k8s.io/cli-runtime v0.31.1
-	k8s.io/client-go v0.31.1
-	k8s.io/cloud-provider v0.31.1
+	k8s.io/api v0.31.2
+	k8s.io/apiextensions-apiserver v0.31.2
+	k8s.io/apimachinery v0.31.2
+	k8s.io/cli-runtime v0.31.2
+	k8s.io/client-go v0.31.2
+	k8s.io/cloud-provider v0.31.2
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
-	sigs.k8s.io/controller-runtime v0.19.0
+	sigs.k8s.io/controller-runtime v0.19.1
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/yaml v1.4.0
 )
