@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +20,8 @@ package v1
 
 import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/listers"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,25 +38,17 @@ type CephObjectStoreUserLister interface {
 
 // cephObjectStoreUserLister implements the CephObjectStoreUserLister interface.
 type cephObjectStoreUserLister struct {
-	indexer cache.Indexer
+	listers.ResourceIndexer[*v1.CephObjectStoreUser]
 }
 
 // NewCephObjectStoreUserLister returns a new CephObjectStoreUserLister.
 func NewCephObjectStoreUserLister(indexer cache.Indexer) CephObjectStoreUserLister {
-	return &cephObjectStoreUserLister{indexer: indexer}
-}
-
-// List lists all CephObjectStoreUsers in the indexer.
-func (s *cephObjectStoreUserLister) List(selector labels.Selector) (ret []*v1.CephObjectStoreUser, err error) {
-	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.CephObjectStoreUser))
-	})
-	return ret, err
+	return &cephObjectStoreUserLister{listers.New[*v1.CephObjectStoreUser](indexer, v1.Resource("cephobjectstoreuser"))}
 }
 
 // CephObjectStoreUsers returns an object that can list and get CephObjectStoreUsers.
 func (s *cephObjectStoreUserLister) CephObjectStoreUsers(namespace string) CephObjectStoreUserNamespaceLister {
-	return cephObjectStoreUserNamespaceLister{indexer: s.indexer, namespace: namespace}
+	return cephObjectStoreUserNamespaceLister{listers.NewNamespaced[*v1.CephObjectStoreUser](s.ResourceIndexer, namespace)}
 }
 
 // CephObjectStoreUserNamespaceLister helps list and get CephObjectStoreUsers.
@@ -74,26 +66,5 @@ type CephObjectStoreUserNamespaceLister interface {
 // cephObjectStoreUserNamespaceLister implements the CephObjectStoreUserNamespaceLister
 // interface.
 type cephObjectStoreUserNamespaceLister struct {
-	indexer   cache.Indexer
-	namespace string
-}
-
-// List lists all CephObjectStoreUsers in the indexer for a given namespace.
-func (s cephObjectStoreUserNamespaceLister) List(selector labels.Selector) (ret []*v1.CephObjectStoreUser, err error) {
-	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
-		ret = append(ret, m.(*v1.CephObjectStoreUser))
-	})
-	return ret, err
-}
-
-// Get retrieves the CephObjectStoreUser from the indexer for a given namespace and name.
-func (s cephObjectStoreUserNamespaceLister) Get(name string) (*v1.CephObjectStoreUser, error) {
-	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, errors.NewNotFound(v1.Resource("cephobjectstoreuser"), name)
-	}
-	return obj.(*v1.CephObjectStoreUser), nil
+	listers.ResourceIndexer[*v1.CephObjectStoreUser]
 }

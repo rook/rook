@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,36 +35,38 @@ type FakeCephFilesystems struct {
 	ns   string
 }
 
-var cephfilesystemsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephfilesystems"}
+var cephfilesystemsResource = v1.SchemeGroupVersion.WithResource("cephfilesystems")
 
-var cephfilesystemsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephFilesystem"}
+var cephfilesystemsKind = v1.SchemeGroupVersion.WithKind("CephFilesystem")
 
 // Get takes name of the cephFilesystem, and returns the corresponding cephFilesystem object, and an error if there is any.
-func (c *FakeCephFilesystems) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephFilesystem, err error) {
+func (c *FakeCephFilesystems) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephFilesystem, err error) {
+	emptyResult := &v1.CephFilesystem{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephfilesystemsResource, c.ns, name), &cephrookiov1.CephFilesystem{})
+		Invokes(testing.NewGetActionWithOptions(cephfilesystemsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephFilesystem), err
+	return obj.(*v1.CephFilesystem), err
 }
 
 // List takes label and field selectors, and returns the list of CephFilesystems that match those selectors.
-func (c *FakeCephFilesystems) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephFilesystemList, err error) {
+func (c *FakeCephFilesystems) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephFilesystemList, err error) {
+	emptyResult := &v1.CephFilesystemList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephfilesystemsResource, cephfilesystemsKind, c.ns, opts), &cephrookiov1.CephFilesystemList{})
+		Invokes(testing.NewListActionWithOptions(cephfilesystemsResource, cephfilesystemsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &cephrookiov1.CephFilesystemList{ListMeta: obj.(*cephrookiov1.CephFilesystemList).ListMeta}
-	for _, item := range obj.(*cephrookiov1.CephFilesystemList).Items {
+	list := &v1.CephFilesystemList{ListMeta: obj.(*v1.CephFilesystemList).ListMeta}
+	for _, item := range obj.(*v1.CephFilesystemList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -74,57 +75,60 @@ func (c *FakeCephFilesystems) List(ctx context.Context, opts v1.ListOptions) (re
 }
 
 // Watch returns a watch.Interface that watches the requested cephFilesystems.
-func (c *FakeCephFilesystems) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephFilesystems) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephfilesystemsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cephfilesystemsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephFilesystem and creates it.  Returns the server's representation of the cephFilesystem, and an error, if there is any.
-func (c *FakeCephFilesystems) Create(ctx context.Context, cephFilesystem *cephrookiov1.CephFilesystem, opts v1.CreateOptions) (result *cephrookiov1.CephFilesystem, err error) {
+func (c *FakeCephFilesystems) Create(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.CreateOptions) (result *v1.CephFilesystem, err error) {
+	emptyResult := &v1.CephFilesystem{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephfilesystemsResource, c.ns, cephFilesystem), &cephrookiov1.CephFilesystem{})
+		Invokes(testing.NewCreateActionWithOptions(cephfilesystemsResource, c.ns, cephFilesystem, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephFilesystem), err
+	return obj.(*v1.CephFilesystem), err
 }
 
 // Update takes the representation of a cephFilesystem and updates it. Returns the server's representation of the cephFilesystem, and an error, if there is any.
-func (c *FakeCephFilesystems) Update(ctx context.Context, cephFilesystem *cephrookiov1.CephFilesystem, opts v1.UpdateOptions) (result *cephrookiov1.CephFilesystem, err error) {
+func (c *FakeCephFilesystems) Update(ctx context.Context, cephFilesystem *v1.CephFilesystem, opts metav1.UpdateOptions) (result *v1.CephFilesystem, err error) {
+	emptyResult := &v1.CephFilesystem{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephfilesystemsResource, c.ns, cephFilesystem), &cephrookiov1.CephFilesystem{})
+		Invokes(testing.NewUpdateActionWithOptions(cephfilesystemsResource, c.ns, cephFilesystem, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephFilesystem), err
+	return obj.(*v1.CephFilesystem), err
 }
 
 // Delete takes name of the cephFilesystem and deletes it. Returns an error if one occurs.
-func (c *FakeCephFilesystems) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeCephFilesystems) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephfilesystemsResource, c.ns, name), &cephrookiov1.CephFilesystem{})
+		Invokes(testing.NewDeleteActionWithOptions(cephfilesystemsResource, c.ns, name, opts), &v1.CephFilesystem{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephFilesystems) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephfilesystemsResource, c.ns, listOpts)
+func (c *FakeCephFilesystems) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(cephfilesystemsResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &cephrookiov1.CephFilesystemList{})
+	_, err := c.Fake.Invokes(action, &v1.CephFilesystemList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephFilesystem.
-func (c *FakeCephFilesystems) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephFilesystem, err error) {
+func (c *FakeCephFilesystems) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephFilesystem, err error) {
+	emptyResult := &v1.CephFilesystem{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephfilesystemsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephFilesystem{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cephfilesystemsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephFilesystem), err
+	return obj.(*v1.CephFilesystem), err
 }

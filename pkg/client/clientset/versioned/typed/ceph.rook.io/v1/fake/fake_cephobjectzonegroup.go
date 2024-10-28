@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,36 +35,38 @@ type FakeCephObjectZoneGroups struct {
 	ns   string
 }
 
-var cephobjectzonegroupsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephobjectzonegroups"}
+var cephobjectzonegroupsResource = v1.SchemeGroupVersion.WithResource("cephobjectzonegroups")
 
-var cephobjectzonegroupsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephObjectZoneGroup"}
+var cephobjectzonegroupsKind = v1.SchemeGroupVersion.WithKind("CephObjectZoneGroup")
 
 // Get takes name of the cephObjectZoneGroup, and returns the corresponding cephObjectZoneGroup object, and an error if there is any.
-func (c *FakeCephObjectZoneGroups) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephObjectZoneGroup, err error) {
+func (c *FakeCephObjectZoneGroups) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectZoneGroup, err error) {
+	emptyResult := &v1.CephObjectZoneGroup{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephobjectzonegroupsResource, c.ns, name), &cephrookiov1.CephObjectZoneGroup{})
+		Invokes(testing.NewGetActionWithOptions(cephobjectzonegroupsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectZoneGroup), err
+	return obj.(*v1.CephObjectZoneGroup), err
 }
 
 // List takes label and field selectors, and returns the list of CephObjectZoneGroups that match those selectors.
-func (c *FakeCephObjectZoneGroups) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephObjectZoneGroupList, err error) {
+func (c *FakeCephObjectZoneGroups) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectZoneGroupList, err error) {
+	emptyResult := &v1.CephObjectZoneGroupList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephobjectzonegroupsResource, cephobjectzonegroupsKind, c.ns, opts), &cephrookiov1.CephObjectZoneGroupList{})
+		Invokes(testing.NewListActionWithOptions(cephobjectzonegroupsResource, cephobjectzonegroupsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &cephrookiov1.CephObjectZoneGroupList{ListMeta: obj.(*cephrookiov1.CephObjectZoneGroupList).ListMeta}
-	for _, item := range obj.(*cephrookiov1.CephObjectZoneGroupList).Items {
+	list := &v1.CephObjectZoneGroupList{ListMeta: obj.(*v1.CephObjectZoneGroupList).ListMeta}
+	for _, item := range obj.(*v1.CephObjectZoneGroupList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -74,57 +75,60 @@ func (c *FakeCephObjectZoneGroups) List(ctx context.Context, opts v1.ListOptions
 }
 
 // Watch returns a watch.Interface that watches the requested cephObjectZoneGroups.
-func (c *FakeCephObjectZoneGroups) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephObjectZoneGroups) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephobjectzonegroupsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cephobjectzonegroupsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephObjectZoneGroup and creates it.  Returns the server's representation of the cephObjectZoneGroup, and an error, if there is any.
-func (c *FakeCephObjectZoneGroups) Create(ctx context.Context, cephObjectZoneGroup *cephrookiov1.CephObjectZoneGroup, opts v1.CreateOptions) (result *cephrookiov1.CephObjectZoneGroup, err error) {
+func (c *FakeCephObjectZoneGroups) Create(ctx context.Context, cephObjectZoneGroup *v1.CephObjectZoneGroup, opts metav1.CreateOptions) (result *v1.CephObjectZoneGroup, err error) {
+	emptyResult := &v1.CephObjectZoneGroup{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephobjectzonegroupsResource, c.ns, cephObjectZoneGroup), &cephrookiov1.CephObjectZoneGroup{})
+		Invokes(testing.NewCreateActionWithOptions(cephobjectzonegroupsResource, c.ns, cephObjectZoneGroup, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectZoneGroup), err
+	return obj.(*v1.CephObjectZoneGroup), err
 }
 
 // Update takes the representation of a cephObjectZoneGroup and updates it. Returns the server's representation of the cephObjectZoneGroup, and an error, if there is any.
-func (c *FakeCephObjectZoneGroups) Update(ctx context.Context, cephObjectZoneGroup *cephrookiov1.CephObjectZoneGroup, opts v1.UpdateOptions) (result *cephrookiov1.CephObjectZoneGroup, err error) {
+func (c *FakeCephObjectZoneGroups) Update(ctx context.Context, cephObjectZoneGroup *v1.CephObjectZoneGroup, opts metav1.UpdateOptions) (result *v1.CephObjectZoneGroup, err error) {
+	emptyResult := &v1.CephObjectZoneGroup{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephobjectzonegroupsResource, c.ns, cephObjectZoneGroup), &cephrookiov1.CephObjectZoneGroup{})
+		Invokes(testing.NewUpdateActionWithOptions(cephobjectzonegroupsResource, c.ns, cephObjectZoneGroup, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectZoneGroup), err
+	return obj.(*v1.CephObjectZoneGroup), err
 }
 
 // Delete takes name of the cephObjectZoneGroup and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectZoneGroups) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeCephObjectZoneGroups) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephobjectzonegroupsResource, c.ns, name), &cephrookiov1.CephObjectZoneGroup{})
+		Invokes(testing.NewDeleteActionWithOptions(cephobjectzonegroupsResource, c.ns, name, opts), &v1.CephObjectZoneGroup{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectZoneGroups) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephobjectzonegroupsResource, c.ns, listOpts)
+func (c *FakeCephObjectZoneGroups) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(cephobjectzonegroupsResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &cephrookiov1.CephObjectZoneGroupList{})
+	_, err := c.Fake.Invokes(action, &v1.CephObjectZoneGroupList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephObjectZoneGroup.
-func (c *FakeCephObjectZoneGroups) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephObjectZoneGroup, err error) {
+func (c *FakeCephObjectZoneGroups) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectZoneGroup, err error) {
+	emptyResult := &v1.CephObjectZoneGroup{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephobjectzonegroupsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephObjectZoneGroup{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cephobjectzonegroupsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectZoneGroup), err
+	return obj.(*v1.CephObjectZoneGroup), err
 }
