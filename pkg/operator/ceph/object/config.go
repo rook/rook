@@ -183,6 +183,12 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 	configOptions["rgw_zone"] = rgwConfig.Zone
 	configOptions["rgw_zonegroup"] = rgwConfig.ZoneGroup
 
+	if c.store.Spec.Gateway.OpsLogSidecar != nil {
+		configOptions["rgw_enable_ops_log"] = "true"
+	} else {
+		configOptions["rgw_enable_ops_log"] = "false"
+	}
+
 	configOptions, err := configureKeystoneAuthentication(rgwConfig, configOptions)
 	if err != nil {
 		return configOptions, err
