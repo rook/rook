@@ -1401,9 +1401,9 @@ jobs:
       - name: create replicated mirrored filesystem on cluster 1
         run: |
           PRIMARY_YAML=deploy/examples/filesystem-test-primary.yaml
-          cp deploy/examples/filesystem-test.yaml "$PRIMARY_YAML"
+          c deploy/examples/filesystem-test.yaml "$PRIMARY_YAML"
           yq merge --inplace --arrays append "$PRIMARY_YAML" tests/manifests/test-fs-mirror-spec.yaml
-          kubectl create -f "$PRIMARY_YAML"
+          kbectl create -f "$PRIMARY_YAML"
 
       - name: create replicated mirrored filesystem on cluster 2
         run: |
