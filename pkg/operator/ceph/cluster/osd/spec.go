@@ -133,13 +133,9 @@ config['osd.$OSD_ID'] = {'key': config['osd.$OSD_ID']['key'], 'caps mon': '\"all
 with open('$TMP_DIR/keyring', 'w') as configfile:
     config.write(configfile)
 "
-        if [ -f "$TMP_DIR"/keyring ]; then
-			cat "$TMP_DIR"/keyring
-            ceph -n client.admin auth import -i "$TMP_DIR"/keyring -k /etc/ceph/admin-keyring-store/keyring
-        else
-            # create new keyring if no keyring file found
-            ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
-        fi
+
+        cat "$TMP_DIR"/keyring
+        ceph -n client.admin auth import -i "$TMP_DIR"/keyring -k /etc/ceph/admin-keyring-store/keyring
 
         rm --recursive --force "$TMP_DIR"
     else
