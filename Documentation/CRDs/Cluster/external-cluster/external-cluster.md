@@ -21,22 +21,22 @@ Create the desired types of storage in the provider Ceph cluster:
 
 ## Connect the external Ceph Provider cluster to the Rook consumer cluster
 
-1) [Export config from the Provider Ceph cluster](/Documentation/CRDs/Cluster/external-cluster/provider-export.md). Configuration must be exported by the Ceph admin, such as a Ceph keyring and mon endpoints, that allows connection to the Ceph cluster.
+1) [Export config from the Provider Ceph cluster](provider-export.md). Configuration must be exported by the Ceph admin, such as a Ceph keyring and mon endpoints, that allows connection to the Ceph cluster.
 
-2) [Import config to the Rook consumer cluster](/Documentation/CRDs/Cluster/external-cluster/consumer-import.md). The configuration exported from the Ceph cluster is imported to Rook to provide the needed connection details.
+2) [Import config to the Rook consumer cluster](consumer-import.md). The configuration exported from the Ceph cluster is imported to Rook to provide the needed connection details.
 
 ## Advance Options
 
-* [NFS storage](/Documentation/CRDs/Cluster/external-cluster/advance-external.md#nfs-storage)
+* [NFS storage](advance-external.md#nfs-storage)
 
-* [Exporting Rook to another cluster](/Documentation/CRDs/Cluster/external-cluster/advance-external.md#exporting-rook-to-another-cluster)
+* [Exporting Rook to another cluster](advance-external.md#exporting-rook-to-another-cluster)
 
-* [Run consumer Rook cluster with Admin privileges](/Documentation/CRDs/Cluster/external-cluster/advance-external.md#admin-privileges)
+* [Run consumer Rook cluster with Admin privileges](advance-external.md#admin-privileges)
 
-* [Connect to an External Object Store](/Documentation/CRDs/Cluster/external-cluster/advance-external.md#connect-to-an-external-object-store)
+* [Connect to an External Object Store](advance-external.md#connect-to-an-external-object-store)
 
 ## Upgrades
 
-* [Upgrade external cluster](/Documentation/CRDs/Cluster/external-cluster/upgrade-external.md#upgrade-external-cluster)
+* [Upgrade external cluster](upgrade-external.md#upgrade-external-cluster)
 
-* [Utilize new features in upgrade](/Documentation/CRDs/Cluster/external-cluster/upgrade-external.md#upgrade-cluster-to-utilize-new-feature)
+* [Utilize new features in upgrade](upgrade-external.md#upgrade-cluster-to-utilize-new-feature)
