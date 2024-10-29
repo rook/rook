@@ -7134,6 +7134,20 @@ RGWServiceSpec
 </tr>
 <tr>
 <td>
+<code>opsLogSidecar</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.OpsLogSidecar">
+OpsLogSidecar
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Enable enhanced operation Logs for S3 in a sidecar named ops-log</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>hostNetwork</code><br/>
 <em>
 bool
@@ -10796,6 +10810,38 @@ bool
 <td>
 <em>(Optional)</em>
 <p>Preserve pools on object zone deletion</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.OpsLogSidecar">OpsLogSidecar
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>)
+</p>
+<div>
+<p>RGWLoggingSpec is intended to extend the s3/swift logging for client operations</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>resources</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Resources represents the way to specify resource requirements for the ops-log sidecar</p>
 </td>
 </tr>
 </tbody>

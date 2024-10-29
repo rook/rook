@@ -108,6 +108,13 @@ spec:
   #zone:
   #name: zone-a
   # service endpoint healthcheck
+    # opsLogSidecar:
+    #   resources:
+    #     limits:
+    #     memory: "60Mi"
+    #   requests:
+    #     cpu: "100m"
+    #     memory: "60Mi"
   healthCheck:
     # Configure the pod probes for the rgw daemon
     startupProbe:
