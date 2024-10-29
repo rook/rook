@@ -47,11 +47,11 @@ Argument that are decided using the Priority: command-line-args has more priorit
 
 3. Make any desired modifications and additions to `config.ini``
 
-4. Run the python script again using the [config file](/Documentation/CRDs/Cluster/external-cluster/provider-export.md#config-file)
+4. Run the python script again using the [config file](provider-export.md#config-file)
 
-5. [Copy the bash output](/Documentation/CRDs/Cluster/external-cluster/provider-export.md#2-copy-the-bash-output)
+5. [Copy the bash output](provider-export.md#2-copy-the-bash-output)
 
-6. [Import-the-provider-data](/Documentation/CRDs/Cluster/external-cluster/consumer-import.md#import-the-provider-data)
+6. [Import-the-provider-data](consumer-import.md#import-the-provider-data)
 
 !!! warning
     If the last-applied config is unavailable, run the current version of the script again using previously-applied config and CLI flags.
