@@ -183,9 +183,6 @@ data:
   # supported values are documented at https://kubernetes-csi.github.io/docs/support-fsgroup.html
   CSI_NFS_FSGROUPPOLICY: "File"
 
-  # (Optional) Allow starting unsupported ceph-csi image
-  ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: "false"
-
   # (Optional) control the host mount of /etc/selinux for csi plugin pods.
   CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT: "false"
 

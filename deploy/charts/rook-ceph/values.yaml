@@ -179,9 +179,6 @@ csi:
   # -- Set GRPC timeout for csi containers (in seconds). It should be >= 120. If this value is not set or is invalid, it defaults to 150
   grpcTimeoutInSeconds: 150
 
-  # -- Allow starting an unsupported ceph-csi image
-  allowUnsupportedVersion: false
-
   # -- Burst to use while communicating with the kubernetes apiserver.
   kubeApiBurst:
 
