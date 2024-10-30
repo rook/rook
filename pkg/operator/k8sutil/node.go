@@ -22,8 +22,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sigs.k8s.io/yaml"
 	"strings"
+
+	"sigs.k8s.io/yaml"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	v1 "k8s.io/api/core/v1"
@@ -37,7 +38,7 @@ import (
 // validNodeNoSched returns true if the node (1) meets Rook's placement terms,
 // and (2) is ready. Unlike ValidNode, this method will ignore the
 // Node.Spec.Unschedulable flag. False otherwise.
-func validNodeNoSched(node v1.Node, placement cephv1.Placement) error {
+func validNodeNoSched(node v1.Node, placement cephv1.Placement, scheduleAlways bool) error {
 	p, err := NodeMeetsPlacementTerms(node, placement, false)
 	if err != nil {
 		return fmt.Errorf("failed to check if node meets Rook placement terms. %+v", err)
@@ -47,6 +48,10 @@ func validNodeNoSched(node v1.Node, placement cephv1.Placement) error {
 	}
 
 	if !NodeIsReady(node) {
+		if scheduleAlways {
+			logger.Infof("node %q is not ready but scheduleAlways set", node.Name)
+			return nil
+		}
 		return errors.New("node is not ready")
 	}
 
@@ -55,12 +60,12 @@ func validNodeNoSched(node v1.Node, placement cephv1.Placement) error {
 
 // ValidNode returns true if the node (1) is schedulable, (2) meets Rook's placement terms, and
 // (3) is ready. False otherwise.
-func ValidNode(node v1.Node, placement cephv1.Placement) error {
-	if !GetNodeSchedulable(node) {
+func ValidNode(node v1.Node, placement cephv1.Placement, scheduleAlways bool) error {
+	if !GetNodeSchedulable(node, scheduleAlways) {
 		return errors.New("node is unschedulable")
 	}
 
-	return validNodeNoSched(node, placement)
+	return validNodeNoSched(node, placement, scheduleAlways)
 }
 
 // GetValidNodes returns all nodes that (1) are not cordoned, (2) meet Rook's placement terms, and
@@ -76,7 +81,7 @@ func GetValidNodes(ctx context.Context, rookStorage cephv1.StorageScopeSpec, cli
 	validK8sNodes := []v1.Node{}
 	reasonsForSkippingNodes := map[string][]string{}
 	for _, n := range matchingK8sNodes {
-		err := ValidNode(n, placement)
+		err := ValidNode(n, placement, rookStorage.ScheduleAlways)
 		if err != nil {
 			reason := err.Error()
 			reasonsForSkippingNodes[reason] = append(reasonsForSkippingNodes[reason], n.Name)
@@ -144,10 +149,15 @@ func GetNodeHostNames(ctx context.Context, clientset kubernetes.Interface) (map[
 // GetNodeSchedulable returns a boolean if the node is tainted as Schedulable or not
 // true -> Node is schedulable
 // false -> Node is unschedulable
-func GetNodeSchedulable(node v1.Node) bool {
+func GetNodeSchedulable(node v1.Node, scheduleAlways bool) bool {
 	// some unit tests set this to quickly emulate an unschedulable node; if this is set to true,
 	// we can shortcut deeper inspection for schedulability.
-	return !node.Spec.Unschedulable
+	schedulable := !node.Spec.Unschedulable
+	if !schedulable && scheduleAlways {
+		logger.Infof("node %q is unschedulable but scheduling since scheduleAlways is set", node.Name)
+		return true
+	}
+	return schedulable
 }
 
 // NodeMeetsPlacementTerms returns true if the Rook placement allows the node to have resources scheduled
