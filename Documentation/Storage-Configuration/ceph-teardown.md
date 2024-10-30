@@ -12,7 +12,7 @@ Rook provides the following clean up options:
 To tear down the cluster, the following resources need to be cleaned up:
 
 * The resources created under Rook's namespace (default `rook-ceph`) such as the Rook operator created by `operator.yaml` and the cluster CR `cluster.yaml`.
-* `/var/lib/rook/rook-ceph`: Path on each host in the cluster where configuration is stored by the ceph mons and osds
+* All files under `dataDirHostPath` (default `/var/lib/rook`): Path on each host in the cluster where configuration is stored by ceph daemons.
 * Devices used by the OSDs
 
 If the default namespaces or paths such as `dataDirHostPath` are changed in the example yaml files, these namespaces and paths will need to be changed throughout these instructions.
@@ -68,7 +68,7 @@ kubectl delete storageclass csi-cephfs
 
     These jobs will perform the following operations:
 
-    * Delete the namespace directory under `dataDirHostPath`, for example `/var/lib/rook/rook-ceph`, on all the nodes
+    * Delete the all files under `dataDirHostPath` on all the nodes
     * Wipe the data on the drives on all the nodes where OSDs were running in this cluster
 
 !!! note
@@ -92,7 +92,7 @@ kubectl delete -f crds.yaml
 
 If the `cleanupPolicy` was not added to the CephCluster CR before deleting the cluster, these manual steps are required to tear down the cluster.
 
-Connect to each machine and delete the namespace directory under `dataDirHostPath`, for example `/var/lib/rook/rook-ceph`.
+Connect to each machine and delete all files under `dataDirHostPath`.
 
 #### Zapping Devices
 
