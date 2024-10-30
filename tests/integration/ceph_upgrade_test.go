@@ -145,7 +145,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	rbdFilesToRead = append(rbdFilesToRead, newFile)
 	cephfsFilesToRead = append(cephfsFilesToRead, newFile)
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
+	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
 
 	// should be Bound after upgrade to Rook master
 	// do not need retry b/c the OBC controller runs parallel to Rook-Ceph orchestration
@@ -169,7 +169,7 @@ func (s *UpgradeSuite) testUpgrade(useHelm bool, initialCephVersion v1.CephVersi
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("Verified upgrade from reef to squid")
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
+	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
@@ -203,7 +203,7 @@ func (s *UpgradeSuite) TestUpgradeCephToReefDevel() {
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("verified upgrade from reef stable to reef devel")
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
+	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
 }
 
 func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
@@ -237,7 +237,7 @@ func (s *UpgradeSuite) TestUpgradeCephToSquidDevel() {
 	s.verifyFilesAfterUpgrade(newFile, rbdFilesToRead, cephfsFilesToRead)
 	logger.Infof("verified upgrade from squid stable to squid devel")
 
-	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, true, false)
+	checkCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
 }
 
 func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preFilename string) (int, []string, []string) {
@@ -274,7 +274,7 @@ func (s *UpgradeSuite) deployClusterforUpgrade(baseRookImage, objectUserID, preF
 	}
 
 	logger.Infof("Initializing object user before the upgrade")
-	createCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false, false)
+	createCephObjectUser(&s.Suite, s.helper, s.k8sh, s.namespace, installer.ObjectStoreName, objectUserID, false)
 
 	logger.Info("Initializing object bucket claim before the upgrade")
 	cobErr := s.helper.BucketClient.CreateBucketStorageClass(s.namespace, installer.ObjectStoreName, installer.ObjectStoreName, "Delete")
