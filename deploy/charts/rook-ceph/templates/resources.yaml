@@ -3645,6 +3645,9 @@ spec:
                       type: array
                     onlyApplyOSDPlacement:
                       type: boolean
+                    scheduleAlways:
+                      description: Whether to always schedule OSDs on a node even if the node is not currently scheduleable or ready
+                      type: boolean
                     storageClassDeviceSets:
                       items:
                         description: StorageClassDeviceSet is a storage class device set
