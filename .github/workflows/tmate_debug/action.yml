@@ -12,7 +12,7 @@ runs:
   steps:
     - name: consider debugging
       shell: bash --noprofile --norc -eo pipefail -x {0}
-      if: runner.debug || ${{ inputs.debug-ci }}
+      if: runner.debug || inputs.debug-ci == 'true'
       run: |
         # Enable tmate only in the Rook fork, where the USE_TMATE secret is set in the repo, or if the action is re-run
         if [ "$GITHUB_REPOSITORY_OWNER" = "rook" ] || [ -n "${{ inputs.use-tmate }}" ] || [ "$GITHUB_RUN_ATTEMPT" -gt 1 ]; then
