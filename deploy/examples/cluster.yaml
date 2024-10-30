@@ -251,6 +251,7 @@ spec:
   #   logcollector:
   #   cleanup:
   #   exporter:
+  #   cmd-reporter:
   # The option to automatically remove OSDs that are out and are safe to destroy.
   removeOSDsIfOutAndSafeToRemove: false
   priorityClassNames:
