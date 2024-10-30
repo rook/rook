@@ -820,9 +820,12 @@ func ConfigureSharedPoolsForZone(objContext *Context, sharedPools cephv1.ObjectS
 	}
 	if hasZoneGroupChanged {
 		logger.Infof("zonegroup config changed: performing zonegroup config updates for %s", objContext.ZoneGroup)
-		_, err = updateZoneGroupJSON(objContext, zoneGroupUpdated)
+		updatedZoneGroupResult, err := updateZoneGroupJSON(objContext, zoneGroupUpdated)
 		if err != nil {
 			return fmt.Errorf("unable to persist zonegroup config update for %s: %w", objContext.ZoneGroup, err)
+		}
+		if err = zoneGroupUpdateWorkaround(objContext, zoneGroupUpdated, updatedZoneGroupResult); err != nil {
+			return fmt.Errorf("failed to apply zonegroup set workaround: %w", err)
 		}
 	}
 
@@ -938,11 +941,15 @@ func adjustZoneDefaultPools(zone map[string]interface{}, spec cephv1.ObjectShare
 	return zone, nil
 }
 
-// There was a radosgw-admin bug that was preventing the RADOS namespace from being applied
+// This function contains code for 2 workarounds:
+// 1) There was a radosgw-admin bug that was preventing the RADOS namespace from being applied
 // for the data pool. The fix is included in Reef v18.2.3 or newer, and v19.2.0.
 // The workaround is to run a "radosgw-admin zone placement modify" command to apply
 // the desired data pool config.
-// After Reef (v18) support is removed, this method will be dead code.
+// 2) Workaround for for radosgw-admin bug https://tracker.ceph.com/issues/68775
+// which is not fixed at the moment of writing.
+// The workaround is to run a "radosgw-admin zone placement rm" if 'default-placement'
+// was not removed.
 func zoneUpdateWorkaround(objContext *Context, expectedZone, gotZone map[string]interface{}) error {
 	// Update the necessary fields for RAODS namespaces
 	// If the radosgw-admin fix is in the release, the data pool is already applied and we skip the workaround.
@@ -950,48 +957,117 @@ func zoneUpdateWorkaround(objContext *Context, expectedZone, gotZone map[string]
 	if err != nil {
 		return err
 	}
-	got, err := getObjProperty[[]interface{}](gotZone, "placement_pools")
+	existingPlacements, err := getObjProperty[[]interface{}](gotZone, "placement_pools")
 	if err != nil {
 		return err
 	}
-	if len(expected) != len(got) {
-		// should not happen
-		return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, got)
-	}
 
-	// update pool placements one-by-one if needed
-	for i, expPl := range expected {
-		expPoolObj, ok := expPl.(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unable to cast pool placement to object: %+v", expPl)
-		}
-		expPoolName, err := getObjProperty[string](expPoolObj, "key")
-		if err != nil {
-			return fmt.Errorf("unable to get pool placement name: %w", err)
-		}
-
-		gotPoolObj, ok := got[i].(map[string]interface{})
-		if !ok {
-			return fmt.Errorf("unable to cast pool placement to object: %+v", got[i])
-		}
-		gotPoolName, err := getObjProperty[string](gotPoolObj, "key")
-		if err != nil {
-			return fmt.Errorf("unable to get pool placement name: %w", err)
-		}
-
-		if expPoolName != gotPoolName {
+	// check expected number of placements.
+	// If number is different, try to check if 'default-placement' was not-removed and remove it manually.
+	// Otherwise return error.
+	// see https://tracker.ceph.com/issues/68775
+	placementWasNotRemoved := false
+	if len(expected) != len(existingPlacements) {
+		if len(expected) == len(existingPlacements)-1 {
+			// note that there are extra placement to handle it later:
+			placementWasNotRemoved = true
+		} else {
 			// should not happen
-			return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, got)
-		}
-		err = zoneUpdatePlacementWorkaround(objContext, gotPoolName, expPoolObj, gotPoolObj)
-		if err != nil {
-			return fmt.Errorf("unable to do zone update workaround for placement %q: %w", gotPoolName, err)
+			return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, existingPlacements)
 		}
 	}
+
+	// flags to check if extra placement is named 'default-placement'
+	expectedHasDefault, existingHasDefault := false, false
+	// update pool placements one-by-one if needed
+	for i := range existingPlacements {
+
+		// obtain resulted pool name from JSON
+		existingPoolObj, ok := existingPlacements[i].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to cast pool placement to object: %+v", existingPlacements[i])
+		}
+		existingPoolName, err := getObjProperty[string](existingPoolObj, "key")
+		if err != nil {
+			return fmt.Errorf("unable to get pool placement name: %w", err)
+		}
+		existingHasDefault = existingHasDefault || existingPoolName == defaultPlacementCephConfigName
+		if i == len(expected) {
+			break
+		}
+
+		// obtain expected pool name from JSON
+		expPoolObj, ok := expected[i].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to cast pool placement to object: %+v", expected[i])
+		}
+		expectedPoolName, err := getObjProperty[string](expPoolObj, "key")
+		if err != nil {
+			return fmt.Errorf("unable to get pool placement name: %w", err)
+		}
+		expectedHasDefault = expectedHasDefault || expectedPoolName == defaultPlacementCephConfigName
+
+		// not matching pool names can be caused by not removed 'default-placement'.
+		// handle not removed placement if it is the case or return error:
+		if expectedPoolName != existingPoolName {
+			if !placementWasNotRemoved {
+				// should not happen
+				return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, existingPlacements)
+			}
+
+			// get next item to skip not removed pool
+			if len(existingPlacements) == i+1 {
+				// should not happen
+				return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, existingPlacements)
+			}
+			existingPoolObj, ok = existingPlacements[i+1].(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("unable to cast pool placement to object: %+v", existingPlacements[i+1])
+			}
+			existingPoolName, err = getObjProperty[string](existingPoolObj, "key")
+			if err != nil {
+				return fmt.Errorf("unable to get pool placement name: %w", err)
+			}
+			// check pool names again
+			if expectedPoolName != existingPoolName {
+				// should not happen
+				return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, existingPlacements)
+			}
+		}
+		// do workaround for placement:
+		err = zoneUpdatePlacementWorkaround(objContext, existingPoolName, expPoolObj, existingPoolObj)
+		if err != nil {
+			return fmt.Errorf("unable to do zone update workaround for placement %q: %w", existingPoolName, err)
+		}
+	}
+	// manually remove 'default-placement' if it was not removed:
+	if placementWasNotRemoved {
+		if expectedHasDefault {
+			// if expected zone contained 'default-placement', then it was a different issue.
+			return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, existingPlacements)
+		}
+		if !existingHasDefault {
+			// if resulted zone not contained 'default-placement', then it was a different issue.
+			return fmt.Errorf("placements were not applied to zone config: expected %+v, got %+v", expected, existingPlacements)
+		}
+		// remove 'default-placement':
+		args := []string{
+			"zone", "placement", "rm",
+			"--rgw-realm=" + objContext.Realm,
+			"--rgw-zonegroup=" + objContext.ZoneGroup,
+			"--rgw-zone=" + objContext.Zone,
+			"--placement-id", defaultPlacementCephConfigName,
+		}
+		_, err = RunAdminCommandNoMultisite(objContext, false, args...)
+		if err != nil {
+			return errors.Wrap(err, "failed to remove default placement from zone "+objContext.Zone)
+		}
+	}
+
 	return nil
 }
 
-func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expect, got map[string]interface{}) error {
+func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expect, existing map[string]interface{}) error {
 	args := []string{
 		"zone", "placement", "modify",
 		"--rgw-realm=" + objContext.Realm,
@@ -1005,12 +1081,12 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 	if err != nil {
 		return err
 	}
-	gotPool, err := getObjProperty[string](got, "val", "index_pool")
+	existingPool, err := getObjProperty[string](existing, "val", "index_pool")
 	if err != nil {
 		return err
 	}
-	if expPool != gotPool {
-		logger.Infof("do zone update workaround for zone %s, placement %s index pool: %s -> %s", objContext.Zone, placementID, gotPool, expPool)
+	if expPool != existingPool {
+		logger.Infof("do zone update workaround for zone %s, placement %s index pool: %s -> %s", objContext.Zone, placementID, existingPool, expPool)
 		args = append(args, "--index-pool="+expPool)
 		needsWorkaround = true
 	}
@@ -1018,12 +1094,12 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 	if err != nil {
 		return err
 	}
-	gotPool, err = getObjProperty[string](got, "val", "data_extra_pool")
+	existingPool, err = getObjProperty[string](existing, "val", "data_extra_pool")
 	if err != nil {
 		return err
 	}
-	if expPool != gotPool {
-		logger.Infof("do zone update workaround for zone %s, placement %s data extra pool: %s -> %s", objContext.Zone, placementID, gotPool, expPool)
+	if expPool != existingPool {
+		logger.Infof("do zone update workaround for zone %s, placement %s data extra pool: %s -> %s", objContext.Zone, placementID, existingPool, expPool)
 		args = append(args, "--data-extra-pool="+expPool)
 		needsWorkaround = true
 	}
@@ -1038,7 +1114,7 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 	if err != nil {
 		return err
 	}
-	gotSC, err := getObjProperty[map[string]interface{}](got, "val", "storage_classes")
+	existingSC, err := getObjProperty[map[string]interface{}](existing, "val", "storage_classes")
 	if err != nil {
 		return err
 	}
@@ -1049,14 +1125,14 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 		if err != nil {
 			return err
 		}
-		gotDP, err := getObjProperty[string](gotSC, sc, "data_pool")
+		existingDP, err := getObjProperty[string](existingSC, sc, "data_pool")
 		if err != nil {
 			return err
 		}
-		if expDP == gotDP {
+		if expDP == existingDP {
 			continue
 		}
-		logger.Infof("do zone update workaround for zone %s, placement %s storage-class %s pool: %s -> %s", objContext.Zone, placementID, sc, gotDP, expDP)
+		logger.Infof("do zone update workaround for zone %s, placement %s storage-class %s pool: %s -> %s", objContext.Zone, placementID, sc, existingDP, expDP)
 		args = []string{
 			"zone", "placement", "modify",
 			"--rgw-realm=" + objContext.Realm,
@@ -1073,6 +1149,83 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 		logger.Debugf("zone placement modify output=%s", output)
 	}
 
+	return nil
+}
+
+// zoneGroupUpdateWorkaround verifies that zonegroup changes were applied
+func zoneGroupUpdateWorkaround(objContext *Context, expectedZoneGroup, existingZoneGroup map[string]interface{}) error {
+	// check that target placement 'default-placement' was removed
+	// fixes https://tracker.ceph.com/issues/68775
+
+	expected, err := getObjProperty[[]interface{}](expectedZoneGroup, "placement_targets")
+	if err != nil {
+		return err
+	}
+	existing, err := getObjProperty[[]interface{}](existingZoneGroup, "placement_targets")
+	if err != nil {
+		return err
+	}
+	if len(expected) == len(existing) {
+		// both contain the same number of targes.
+		// no workaround needed
+		return nil
+	}
+	if len(expected) != len(existing)-1 {
+		// unknown issue
+		return fmt.Errorf("placement targets were not applied to zonegroup config: expected %+v, existing %+v", expected, existing)
+	}
+
+	// flags to check if extra target is named 'default-placement'
+	expHasDefault, existingHasDefault := false, false
+	for i := range existing {
+
+		// obtain resulted target name from JSON
+		existingTargetObj, ok := existing[i].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to cast pool target to object: %+v", existing[i])
+		}
+		existingTargetName, err := getObjProperty[string](existingTargetObj, "name")
+		if err != nil {
+			return fmt.Errorf("unable to get pool target name: %w", err)
+		}
+		existingHasDefault = existingHasDefault || existingTargetName == defaultPlacementCephConfigName
+
+		// obtain expected target name from JSON
+		if i == len(expected) {
+			break
+		}
+		expTargetObj, ok := expected[i].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unable to cast pool target to object: %+v", expected[i])
+		}
+		expTargetName, err := getObjProperty[string](expTargetObj, "name")
+		if err != nil {
+			return fmt.Errorf("unable to get pool target name: %w", err)
+		}
+		expHasDefault = expHasDefault || expTargetName == defaultPlacementCephConfigName
+	}
+
+	// check that extra target was named 'default-placement'
+	if expHasDefault {
+		// if expected zonegroup contained 'default-placement', then it was a different issue.
+		return fmt.Errorf("placements were not applied to zone config: expected %+v, existing %+v", expected, existing)
+	}
+	if !existingHasDefault {
+		// if resulted zonegroup not contained 'default-placement', then it was a different issue.
+		return fmt.Errorf("placements were not applied to zone config: expected %+v, existing %+v", expected, existing)
+	}
+	// remove 'default-placement':
+	args := []string{
+		"zonegroup", "placement", "rm",
+		"--rgw-realm=" + objContext.Realm,
+		"--rgw-zonegroup=" + objContext.ZoneGroup,
+		"--rgw-zone=" + objContext.Zone,
+		"--placement-id", defaultPlacementCephConfigName,
+	}
+	_, err = RunAdminCommandNoMultisite(objContext, false, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to remove default target from zonegroup "+objContext.ZoneGroup)
+	}
 	return nil
 }
 

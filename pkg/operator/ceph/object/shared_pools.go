@@ -493,7 +493,7 @@ func updateZoneGroupJSON(objContext *Context, group map[string]interface{}) (map
 	args := []string{"zonegroup", "set", zoneArg, "--infile=" + configFilename, realmArg, zoneGroupArg}
 	updatedBytes, err := RunAdminCommandNoMultisite(objContext, false, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to set zone config")
+		return nil, errors.Wrap(err, fmt.Sprintf("failed to set zone config %s", updatedBytes))
 	}
 	updated := map[string]interface{}{}
 	err = json.Unmarshal([]byte(updatedBytes), &updated)

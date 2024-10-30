@@ -17,6 +17,7 @@ package object
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -235,6 +236,10 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 	zoneGroupGetCalled := false
 	zoneGroupSetCalled := false
 	placementModifyCalled := false
+	placementDeleteCalled := false
+	placementTargetDeleteCalled := false
+	emulateDefaultPlacementNotRemoved := false
+	emulateDefaultPlacementTargetNotRemoved := false
 	mockExecutorFuncOutput := func(command string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[0] == "osd" && args[1] == "lspools" {
@@ -264,12 +269,18 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 					if err != nil {
 						panic(err)
 					}
+					if emulateDefaultPlacementNotRemoved {
+						inBytes = addDefaultPlacementToZone(inBytes)
+					}
 					return string(inBytes), nil
 				}
 				return objectZoneJson, nil
 			} else if args[1] == "placement" && args[2] == "modify" {
 				placementModifyCalled = true
 				return objectZoneJson, nil
+			} else if args[1] == "placement" && args[2] == "rm" {
+				placementDeleteCalled = true
+				return "", nil
 			}
 		} else if args[0] == "zonegroup" {
 			if args[1] == "get" {
@@ -286,9 +297,15 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 					if err != nil {
 						panic(err)
 					}
+					if emulateDefaultPlacementTargetNotRemoved {
+						inBytes = addDefaultPlacementTargetToZoneGroup(inBytes)
+					}
 					return string(inBytes), nil
 				}
 				return fmt.Sprintf(objectZonegroupJsonTempl, defaultPlacement), nil
+			} else if args[1] == "placement" && args[2] == "rm" {
+				placementTargetDeleteCalled = true
+				return "", nil
 			}
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
@@ -317,6 +334,8 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.False(t, placementModifyCalled)
 		assert.False(t, zoneGroupGetCalled)
 		assert.False(t, zoneGroupSetCalled)
+		assert.False(t, placementDeleteCalled)       // no workaround for removing 'default-placement' needed
+		assert.False(t, placementTargetDeleteCalled) // no workaround for removing 'default-placement' needed
 	})
 	t.Run("configure the zone", func(t *testing.T) {
 		sharedPools := cephv1.ObjectSharedPoolsSpec{
@@ -329,7 +348,9 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.True(t, zoneSetCalled)
 		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
-		assert.False(t, zoneGroupSetCalled) // zone group is set only if extra pool placements specified
+		assert.False(t, zoneGroupSetCalled)          // zone group is set only if extra pool placements specified
+		assert.False(t, placementDeleteCalled)       // no workaround for removing 'default-placement' needed
+		assert.False(t, placementTargetDeleteCalled) // no workaround for removing 'default-placement' needed
 	})
 	t.Run("configure with default placement", func(t *testing.T) {
 		sharedPools := cephv1.ObjectSharedPoolsSpec{
@@ -349,7 +370,9 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.True(t, zoneSetCalled)
 		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
-		assert.False(t, zoneGroupSetCalled) // zone group is set only if extra pool placements specified
+		assert.False(t, zoneGroupSetCalled)          // zone group is set only if extra pool placements specified
+		assert.False(t, placementDeleteCalled)       // no workaround for removing 'default-placement' needed
+		assert.False(t, placementTargetDeleteCalled) // no workaround for removing 'default-placement' needed
 	})
 	t.Run("data pool already set", func(t *testing.T) {
 		// Simulate that the data pool has already been set and the zone update can be skipped
@@ -369,6 +392,8 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.NoError(t, err)
 		assert.True(t, zoneGroupGetCalled)
 		assert.False(t, zoneGroupSetCalled)
+		assert.False(t, placementDeleteCalled)       // no workaround for removing 'default-placement' needed
+		assert.False(t, placementTargetDeleteCalled) // no workaround for removing 'default-placement' needed
 	})
 	t.Run("configure with extra placement", func(t *testing.T) {
 		sharedPools := cephv1.ObjectSharedPoolsSpec{
@@ -393,7 +418,141 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
 		assert.True(t, zoneGroupSetCalled)
+		assert.False(t, placementDeleteCalled)       // no workaround for removing 'default-placement' needed
+		assert.False(t, placementTargetDeleteCalled) // no workaround for removing 'default-placement' needed
 	})
+	t.Run("workaround for not removed default-placement", func(t *testing.T) {
+		placementDeleteCalled = false
+		placementTargetDeleteCalled = false
+		emulateDefaultPlacementNotRemoved = true
+		emulateDefaultPlacementTargetNotRemoved = false
+		sharedPools := cephv1.ObjectSharedPoolsSpec{
+			PoolPlacements: []cephv1.PoolPlacementSpec{
+				{
+					Name:             "default",
+					Default:          true,
+					MetadataPoolName: "test-meta",
+					DataPoolName:     "test-data",
+				},
+				{
+					Name:             "fast",
+					MetadataPoolName: "fast-meta",
+					DataPoolName:     "fast-data",
+				},
+			},
+		}
+		err := ConfigureSharedPoolsForZone(context, sharedPools)
+		assert.NoError(t, err)
+		assert.True(t, zoneGetCalled)
+		assert.True(t, zoneSetCalled)
+		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
+		assert.True(t, zoneGroupGetCalled)
+		assert.True(t, zoneGroupSetCalled)
+		assert.True(t, placementDeleteCalled)
+		assert.False(t, placementTargetDeleteCalled)
+	})
+	t.Run("workaround for not removed default-placement", func(t *testing.T) {
+		placementDeleteCalled = false
+		placementTargetDeleteCalled = false
+		emulateDefaultPlacementNotRemoved = false
+		emulateDefaultPlacementTargetNotRemoved = true
+		sharedPools := cephv1.ObjectSharedPoolsSpec{
+			PoolPlacements: []cephv1.PoolPlacementSpec{
+				{
+					Name:             "default",
+					Default:          true,
+					MetadataPoolName: "test-meta",
+					DataPoolName:     "test-data",
+				},
+				{
+					Name:             "fast",
+					MetadataPoolName: "fast-meta",
+					DataPoolName:     "fast-data",
+				},
+			},
+		}
+		err := ConfigureSharedPoolsForZone(context, sharedPools)
+		assert.NoError(t, err)
+		assert.True(t, zoneGetCalled)
+		assert.True(t, zoneSetCalled)
+		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
+		assert.True(t, zoneGroupGetCalled)
+		assert.True(t, zoneGroupSetCalled)
+		assert.False(t, placementDeleteCalled)
+		assert.True(t, placementTargetDeleteCalled)
+	})
+}
+
+func addDefaultPlacementToZone(in []byte) []byte {
+	const defaultPlacementStr = `       {
+            "key": "default-placement",
+            "val": {
+                "index_pool": "meta-pool",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "data-pool"
+                    }
+                },
+                "data_extra_pool": "meta-pool",
+                "index_type": 0,
+                "inline_data": true
+            }
+        }`
+	dpObj := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(defaultPlacementStr), &dpObj); err != nil {
+		panic(err)
+	}
+
+	jsonObj := map[string]interface{}{}
+	if err := json.Unmarshal(in, &jsonObj); err != nil {
+		panic(err)
+	}
+	placements, err := getObjProperty[[]interface{}](jsonObj, "placement_pools")
+	if err != nil {
+		panic(err)
+	}
+	placements = append(placements, dpObj)
+	if _, err = updateObjProperty(jsonObj, placements, "placement_pools"); err != nil {
+		panic(err)
+	}
+	res, err := json.Marshal(jsonObj)
+	if err != nil {
+		panic(err)
+	}
+	return res
+}
+
+func addDefaultPlacementTargetToZoneGroup(in []byte) []byte {
+	const defaultTargetStr = ` 
+        {
+            "name": "default-placement",
+            "tags": [],
+            "storage_classes": [
+                "STANDARD"
+            ]
+        }`
+	dtObj := map[string]interface{}{}
+	if err := json.Unmarshal([]byte(defaultTargetStr), &dtObj); err != nil {
+		panic(err)
+	}
+
+	jsonObj := map[string]interface{}{}
+	if err := json.Unmarshal(in, &jsonObj); err != nil {
+		panic(err)
+	}
+	targets, err := getObjProperty[[]interface{}](jsonObj, "placement_targets")
+	if err != nil {
+		panic(err)
+	}
+	targets = append(targets, dtObj)
+	if _, err = updateObjProperty(jsonObj, targets, "placement_targets"); err != nil {
+		panic(err)
+	}
+	res, err := json.Marshal(jsonObj)
+	if err != nil {
+		panic(err)
+	}
+	return res
 }
 
 func TestDeleteStore(t *testing.T) {
