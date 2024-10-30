@@ -33,6 +33,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -342,6 +343,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -419,6 +421,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -471,6 +474,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -520,6 +524,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -578,6 +583,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -630,6 +636,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -687,6 +694,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -763,6 +771,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -815,6 +824,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -870,6 +880,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -938,6 +949,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -992,6 +1004,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1056,6 +1069,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1146,6 +1160,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1216,6 +1231,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1273,6 +1289,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1532,6 +1549,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1627,6 +1645,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: run encryption KMS IBM Key Protect
         uses: ./.github/workflows/encryption-pvc-kms-ibm-kp
@@ -1657,6 +1676,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
@@ -1738,6 +1758,7 @@ jobs:
         uses: ./.github/workflows/tmate_debug
         with:
           use-tmate: ${{ secrets.USE_TMATE }}
+          debug-ci: ${{ contains(github.event.pull_request.labels.*.name, 'debug-ci') }}
 
       - name: setup cluster resources
         uses: ./.github/workflows/canary-test-config
