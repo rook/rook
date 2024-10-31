@@ -128,6 +128,7 @@ metadata:
   name: my-cluster
   namespace: rook-ceph # namespace:cluster
 spec:
+  # If there are multiple clusters, the directory must be unique for each cluster.
   dataDirHostPath: /var/lib/rook
   mon:
     count: 1

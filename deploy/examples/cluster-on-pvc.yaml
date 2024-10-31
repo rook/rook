@@ -12,6 +12,7 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph # namespace:cluster
 spec:
+  # If there are multiple clusters, the directory must be unique for each cluster.
   dataDirHostPath: /var/lib/rook
   mon:
     # Set the number of mons to be started. Generally recommended to be 3.
