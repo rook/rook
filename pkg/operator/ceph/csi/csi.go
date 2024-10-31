@@ -28,16 +28,14 @@ import (
 	"github.com/pkg/errors"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/version"
 )
 
-func (r *ReconcileCSI) validateAndConfigureDrivers(serverVersion *version.Info, ownerInfo *k8sutil.OwnerInfo) error {
+func (r *ReconcileCSI) validateAndConfigureDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	var (
-		v   *CephCSIVersion
 		err error
 	)
 
-	if err = r.setParams(serverVersion); err != nil {
+	if err = r.setParams(); err != nil {
 		return errors.Wrapf(err, "failed to configure CSI parameters")
 	}
 
@@ -45,25 +43,17 @@ func (r *ReconcileCSI) validateAndConfigureDrivers(serverVersion *version.Info, 
 		return errors.Wrapf(err, "failed to validate CSI parameters")
 	}
 
-	if !AllowUnsupported && CSIEnabled() {
-		if v, err = r.validateCSIVersion(ownerInfo); err != nil {
-			return errors.Wrapf(err, "invalid csi version")
-		}
-	} else {
-		logger.Info("skipping csi version check, since unsupported versions are allowed or csi is disabled")
-	}
-
 	if CSIEnabled() {
-		if err = r.startDrivers(serverVersion, ownerInfo, v); err != nil {
+		if err = r.startDrivers(ownerInfo); err != nil {
 			return errors.Wrap(err, "failed to start ceph csi drivers")
 		}
 	}
 
 	// Check whether RBD or CephFS needs to be disabled
-	return r.stopDrivers(serverVersion)
+	return r.stopDrivers()
 }
 
-func (r *ReconcileCSI) setParams(ver *version.Info) error {
+func (r *ReconcileCSI) setParams() error {
 	var err error
 
 	if EnableRBD, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ENABLE_RBD", "true")); err != nil {
@@ -76,10 +66,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 
 	if EnableNFS, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ENABLE_NFS", "false")); err != nil {
 		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ENABLE_NFS'")
-	}
-
-	if AllowUnsupported, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_ALLOW_UNSUPPORTED_VERSION", "false")); err != nil {
-		return errors.Wrap(err, "unable to parse value for 'ROOK_CSI_ALLOW_UNSUPPORTED_VERSION'")
 	}
 
 	if CSIParam.EnableCSIHostNetwork, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_HOST_NETWORK", "true")); err != nil {
@@ -139,10 +125,7 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 		CSIParam.EnableOMAPGenerator = true
 	}
 
-	// CSIDriver SeLinuxMount option is only available from kubernetes version 1.25.
-	if ver.Major == kubeMinMajor && ver.Minor >= kubeMinVerForCSIDriverSeLinuxMount {
-		CSIParam.EnableCSIDriverSeLinuxMount = true
-	}
+	CSIParam.EnableCSIDriverSeLinuxMount = true
 
 	CSIParam.EnableRBDSnapshotter = true
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_RBD_SNAPSHOTTER", "true"), "false") {
@@ -212,8 +195,6 @@ func (r *ReconcileCSI) setParams(ver *version.Info) error {
 	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_PLUGIN_ENABLE_SELINUX_HOST_MOUNT", "false"), "true") {
 		CSIParam.EnablePluginSelinuxHostMount = true
 	}
-
-	logger.Infof("Kubernetes version is %s.%s", ver.Major, ver.Minor)
 
 	logLevel := k8sutil.GetValue(r.opConfig.Parameters, "CSI_LOG_LEVEL", "")
 	CSIParam.LogLevel = defaultLogLevel

@@ -169,9 +169,6 @@ data:
 {{- if .Values.csi.nfsProvisionerNodeAffinity }}
   CSI_NFS_PROVISIONER_NODE_AFFINITY: {{ .Values.csi.nfsProvisionerNodeAffinity }}
 {{- end }}
-{{- if .Values.csi.allowUnsupportedVersion }}
-  ROOK_CSI_ALLOW_UNSUPPORTED_VERSION: {{ .Values.csi.allowUnsupportedVersion | quote }}
-{{- end }}
 {{- if .Values.csi.pluginTolerations }}
   CSI_PLUGIN_TOLERATIONS: {{ toYaml .Values.csi.pluginTolerations | quote }}
 {{- end }}
