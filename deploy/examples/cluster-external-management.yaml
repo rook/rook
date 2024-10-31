@@ -16,6 +16,7 @@ metadata:
 spec:
   external:
     enable: true
+  # If there are multiple clusters, the directory must be unique for each cluster.
   dataDirHostPath: /var/lib/rook
   # providing an image is required, if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
