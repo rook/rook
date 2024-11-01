@@ -61,7 +61,6 @@ func TestCephCSIController(t *testing.T) {
 	t.Setenv(k8sutil.PodNameEnvVar, "rook-ceph-operator")
 	t.Setenv(k8sutil.PodNamespaceEnvVar, namespace)
 
-	t.Setenv("ROOK_CSI_ALLOW_UNSUPPORTED_VERSION", "true")
 	CSIParam = Param{
 		CSIPluginImage:   "image",
 		RegistrarImage:   "image",

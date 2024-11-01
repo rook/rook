@@ -25,11 +25,8 @@ import (
 	"strings"
 	"time"
 
-	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/telemetry"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/k8sutil/cmdreporter"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/pkg/errors"
@@ -39,7 +36,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/kubernetes"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
@@ -131,7 +127,6 @@ var (
 	EnableCephFS              = false
 	EnableNFS                 = false
 	enableCSIOperator         = false
-	AllowUnsupported          = false
 	CustomCSICephConfigExists = false
 
 	// driver names
@@ -198,9 +193,6 @@ var (
 )
 
 const (
-	kubeMinMajor                       = "1"
-	kubeMinVerForCSIDriverSeLinuxMount = "25"
-
 	// common tolerations and node affinity
 	provisionerTolerationsEnv  = "CSI_PROVISIONER_TOLERATIONS"
 	provisionerNodeAffinityEnv = "CSI_PROVISIONER_NODE_AFFINITY"
@@ -254,7 +246,6 @@ const (
 	DefaultRBDLivenessMerticsPort    uint16 = 9080
 	DefaultCSIAddonsPort             uint16 = 9070
 
-	detectCSIVersionName = "rook-ceph-csi-detect-version"
 	// default log level for csi containers
 	defaultLogLevel        uint8 = 0
 	defaultSidecarLogLevel uint8 = 0
@@ -324,7 +315,7 @@ func validateCSIParam() error {
 	return nil
 }
 
-func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerInfo, v *CephCSIVersion) error {
+func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	var (
 		err                                                                             error
 		rbdPlugin, cephfsPlugin, nfsPlugin                                              *apps.DaemonSet
@@ -726,14 +717,14 @@ func (r *ReconcileCSI) startDrivers(ver *version.Info, ownerInfo *k8sutil.OwnerI
 	return nil
 }
 
-func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
+func (r *ReconcileCSI) stopDrivers() error {
 	RBDDriverName = fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
 	CephFSDriverName = fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	NFSDriverName = fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 
 	if !EnableRBD || EnableCSIOperator() {
 		logger.Debugf("either EnableRBD if `false` or EnableCSIOperator is `true`, `EnableRBD is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
-		err := r.deleteCSIDriverResources(ver, CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
+		err := r.deleteCSIDriverResources(CsiRBDPlugin, csiRBDProvisioner, "csi-rbdplugin-metrics", RBDDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI Ceph RBD driver")
 		}
@@ -742,7 +733,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableCephFS || EnableCSIOperator() {
 		logger.Debugf("either EnableCephFS if `false` or EnableCSIOperator is `true`, `EnableCephFS is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
-		err := r.deleteCSIDriverResources(ver, CsiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
+		err := r.deleteCSIDriverResources(CsiCephFSPlugin, csiCephFSProvisioner, "csi-cephfsplugin-metrics", CephFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI CephFS driver")
 		}
@@ -751,7 +742,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 
 	if !EnableNFS || EnableCSIOperator() {
 		logger.Debugf("either EnableNFS if `false` or EnableCSIOperator is `true`, `EnableNFS is %t` and `EnableCSIOperator is %t", EnableRBD, EnableCSIOperator())
-		err := r.deleteCSIDriverResources(ver, CsiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName)
+		err := r.deleteCSIDriverResources(CsiNFSPlugin, csiNFSProvisioner, "csi-nfsplugin-metrics", NFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to remove CSI NFS driver")
 		}
@@ -761,7 +752,7 @@ func (r *ReconcileCSI) stopDrivers(ver *version.Info) error {
 	return nil
 }
 
-func (r *ReconcileCSI) deleteCSIDriverResources(ver *version.Info, daemonset, deployment, service, driverName string) error {
+func (r *ReconcileCSI) deleteCSIDriverResources(daemonset, deployment, service, driverName string) error {
 	csiDriverobj := v1CsiDriver{}
 	err := k8sutil.DeleteDaemonset(r.opManagerContext, r.context.Clientset, r.opConfig.OperatorNamespace, daemonset)
 	if err != nil {
@@ -803,66 +794,6 @@ func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, object
 	}
 
 	return nil
-}
-
-// ValidateCSIVersion checks if the configured ceph-csi image is supported
-func (r *ReconcileCSI) validateCSIVersion(ownerInfo *k8sutil.OwnerInfo) (*CephCSIVersion, error) {
-	timeout := 15 * time.Minute
-
-	logger.Infof("detecting the ceph csi image version for image %q", CSIParam.CSIPluginImage)
-
-	versionReporter, err := cmdreporter.New(
-		r.context.Clientset,
-		ownerInfo,
-		detectCSIVersionName,
-		detectCSIVersionName,
-		r.opConfig.OperatorNamespace,
-		[]string{"cephcsi"},
-		[]string{"--version"},
-		r.opConfig.Image,
-		CSIParam.CSIPluginImage,
-		corev1.PullPolicy(CSIParam.ImagePullPolicy),
-	)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to set up ceph CSI version job")
-	}
-
-	job := versionReporter.Job()
-	job.Spec.Template.Spec.ServiceAccountName = r.opConfig.ServiceAccount
-
-	// Apply csi provisioner toleration and affinity for csi version check job
-	job.Spec.Template.Spec.Tolerations = getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{})
-	job.Spec.Template.Spec.Affinity = &corev1.Affinity{
-		NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
-	}
-	if r.firstCephCluster != nil {
-		cephv1.GetCmdReporterAnnotations(r.firstCephCluster.Annotations).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
-		cephv1.GetCmdReporterLabels(r.firstCephCluster.Labels).ApplyToObjectMeta(&job.Spec.Template.ObjectMeta)
-	}
-
-	stdout, _, retcode, err := versionReporter.Run(r.opManagerContext, timeout)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to complete ceph CSI version job")
-	}
-
-	if retcode != 0 {
-		return nil, errors.Errorf("ceph CSI version job returned %d", retcode)
-	}
-
-	version, err := extractCephCSIVersion(stdout)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to extract ceph CSI version")
-	}
-	logger.Infof("Detected ceph CSI image version: %q", version)
-
-	// Set the CSI version on a package variable so that each cluster reporting the
-	// telemetry can report the same CSI version
-	telemetry.CSIVersion = version.String()
-
-	if !version.Supported() {
-		return nil, errors.Errorf("ceph CSI image needs to be at least version %q", minimum.String())
-	}
-	return version, nil
 }
 
 func (r *ReconcileCSI) configureHolders(enabledDrivers []driverDetails, tp templateParam, pluginTolerations []corev1.Toleration, pluginNodeAffinity *corev1.NodeAffinity) error {
