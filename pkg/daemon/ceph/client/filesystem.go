@@ -20,6 +20,7 @@ import (
 	ctx "context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"syscall"
 	"time"
@@ -362,20 +363,35 @@ func deleteFSPool(context *clusterd.Context, clusterInfo *ClusterInfo, poolNames
 }
 
 // WaitForNoStandbys waits for all standbys go away
-func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, retryInterval, timeout time.Duration) error {
+func WaitForNoStandbys(context *clusterd.Context, clusterInfo *ClusterInfo, fsName string, retryInterval, timeout time.Duration) error {
 	err := wait.PollUntilContextTimeout(clusterInfo.Context, retryInterval, timeout, true, func(ctx ctx.Context) (bool, error) {
 		mdsDump, err := GetMDSDump(context, clusterInfo)
 		if err != nil {
 			logger.Errorf("failed to get fs dump. %v", err)
 			return false, nil
 		}
-		return len(mdsDump.Standbys) == 0, nil
+		return !filesystemHasStandby(mdsDump, fsName), nil
 	})
 
 	if err != nil {
 		return errors.Wrap(err, "timeout waiting for no standbys")
 	}
 	return nil
+}
+
+func filesystemHasStandby(dump *MDSDump, fsName string) bool {
+	for _, standby := range dump.Standbys {
+		// The mds dump does not explicitly return the name of the filesystem that the
+		// daemon belongs to, so the matching to the filesystem name is based on the mds daemon name
+		// with a regular expression comparison with the expected suffix.
+		// For example, if the filesystem is "myfs", the standby name may be "myfs-a" or "myfs-b".
+		matchString := fmt.Sprintf("^%s-[a-z]{1}$", fsName)
+		matched, _ := regexp.MatchString(matchString, standby.Name)
+		if matched {
+			return true
+		}
+	}
+	return false
 }
 
 func GetMDSDump(context *clusterd.Context, clusterInfo *ClusterInfo) (*MDSDump, error) {
