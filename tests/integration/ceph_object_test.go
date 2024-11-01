@@ -167,7 +167,7 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 
 	logger.Infof("Testing Object Operations on %s", storeName)
 	t.Run("create CephObjectStoreUser", func(t *testing.T) {
-		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true, true)
+		createCephObjectUser(s, helper, k8sh, namespace, storeName, userid, true)
 		i := 0
 		for i = 0; i < 4; i++ {
 			if helper.ObjectUserClient.UserSecretExists(namespace, storeName, userid) {
