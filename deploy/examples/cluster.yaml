@@ -285,6 +285,9 @@ spec:
     #     config: # configuration can be specified at the node level which overrides the cluster level config
     #   - name: "172.17.4.301"
     #     deviceFilter: "^sd."
+    # Whether to always schedule OSD pods on nodes declared explicitly in the "nodes" section, even if they are
+    # temporarily not schedulable. If set to true, consider adding placement tolerations for unschedulable nodes.
+    scheduleAlways: false
     # when onlyApplyOSDPlacement is false, will merge both placement.All() and placement.osd
     onlyApplyOSDPlacement: false
     # Time for which an OSD pod will sleep before restarting, if it stopped due to flapping

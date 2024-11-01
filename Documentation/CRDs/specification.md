@@ -12821,6 +12821,18 @@ bool
 </tr>
 <tr>
 <td>
+<code>scheduleAlways</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Whether to always schedule OSDs on a node even if the node is not currently scheduleable or ready</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>onlyApplyOSDPlacement</code><br/>
 <em>
 bool

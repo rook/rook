@@ -100,7 +100,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 		return false
 	}
 
-	if !k8sutil.GetNodeSchedulable(*node) {
+	if !k8sutil.GetNodeSchedulable(*node, false) {
 		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[corev1.LabelHostname])
 		return false
 	}
@@ -123,7 +123,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 
 	logger.Debugf("node %q is ready, checking if it can run OSDs", node.Name)
 	nodesCheckedForReconcile.Insert(node.Name)
-	err := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement))
+	err := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement), cluster.Spec.Storage.ScheduleAlways)
 	if err == nil {
 		nodeName := node.Name
 		hostname, ok := node.Labels[corev1.LabelHostname]

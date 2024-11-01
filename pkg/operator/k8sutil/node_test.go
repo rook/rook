@@ -25,6 +25,7 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	optest "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -74,8 +75,17 @@ func TestValidNode(t *testing.T) {
 	t.Run("test valid node", func(t *testing.T) {
 		var placement cephv1.Placement
 		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
-		assert.Equal(t, len(validNodes), 1)
+		assert.Equal(t, 1, len(validNodes))
 		assert.Equal(t, "nodeA", validNodes[0].Name)
+	})
+
+	t.Run("test nodes always valid", func(t *testing.T) {
+		var placement cephv1.Placement
+		storage.ScheduleAlways = true
+		validNodes := GetValidNodes(context.TODO(), storage, clientset, placement)
+		require.Equal(t, 2, len(validNodes))
+		assert.Equal(t, "nodeA", validNodes[0].Name)
+		assert.Equal(t, "nodeB", validNodes[1].Name)
 	})
 
 	t.Run("test placement", func(t *testing.T) {
@@ -438,12 +448,12 @@ func TestGenerateNodeAffinity(t *testing.T) {
 			name: "GenerateNodeAffinityWithYAMLInputUsingDoesNotExistOperator",
 			args: args{
 				nodeAffinity: `
---- 
-requiredDuringSchedulingIgnoredDuringExecution: 
-  nodeSelectorTerms: 
-    - 
-      matchExpressions: 
-        - 
+---
+requiredDuringSchedulingIgnoredDuringExecution:
+  nodeSelectorTerms:
+    -
+      matchExpressions:
+        -
           key: myKey
           operator: DoesNotExist`,
 			},
@@ -467,15 +477,15 @@ requiredDuringSchedulingIgnoredDuringExecution:
 			name: "GenerateNodeAffinityWithYAMLInputUsingNotInOperator",
 			args: args{
 				nodeAffinity: `
---- 
-requiredDuringSchedulingIgnoredDuringExecution: 
-  nodeSelectorTerms: 
-    - 
-      matchExpressions: 
-        - 
+---
+requiredDuringSchedulingIgnoredDuringExecution:
+  nodeSelectorTerms:
+    -
+      matchExpressions:
+        -
           key: myKey
           operator: NotIn
-          values: 
+          values:
             - myValue`,
 			},
 			want: &v1.NodeAffinity{

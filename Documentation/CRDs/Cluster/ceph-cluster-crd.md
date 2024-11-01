@@ -94,6 +94,8 @@ For more details on the mons and when to choose a number other than `3`, see the
         * For non-PVCs: `placement.all` and `placement.osd`
         * For PVCs: `placement.all` and inside the storageClassDeviceSets from the `placement` or `preparePlacement`
     * `flappingRestartIntervalHours`: Defines the time for which an OSD pod will sleep before restarting, if it stopped due to flapping. Flapping occurs where OSDs are marked `down` by Ceph more than 5 times in 600 seconds. The OSDs will stay down when flapping since they likely have a bad disk or other issue that needs investigation. If the issue with the OSD is fixed manually, the OSD pod can be manually restarted. The sleep is disabled if this interval is set to 0.
+    * `scheduleAlways`: Whether to always schedule OSD pods on nodes declared explicitly in the "nodes" section, even if they are
+        temporarily not schedulable. If set to true, consider adding placement tolerations for unschedulable nodes.
     * `fullRatio`: The ratio at which Ceph should block IO if the OSDs are too full. The default is 0.95.
     * `backfillFullRatio`: The ratio at which Ceph should stop backfilling data if the OSDs are too full. The default is 0.90.
     * `nearFullRatio`: The ratio at which Ceph should raise a health warning if the cluster is almost full. The default is 0.85.

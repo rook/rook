@@ -3035,6 +3035,9 @@ type StorageScopeSpec struct {
 	// +optional
 	UseAllNodes bool `json:"useAllNodes,omitempty"`
 	// +optional
+	// Whether to always schedule OSDs on a node even if the node is not currently scheduleable or ready
+	ScheduleAlways bool `json:"scheduleAlways,omitempty"`
+	// +optional
 	OnlyApplyOSDPlacement bool `json:"onlyApplyOSDPlacement,omitempty"`
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +nullable
