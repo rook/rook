@@ -630,7 +630,7 @@ func Test_toZonePlacementPools(t *testing.T) {
 			},
 		},
 		{
-			name: "default placement overrides shared pools",
+			name: "shared pools not removed if default placement set",
 			args: args{
 				spec: cephv1.ObjectSharedPoolsSpec{
 					MetadataPoolName:                   "meta",
@@ -655,6 +655,19 @@ func Test_toZonePlacementPools(t *testing.T) {
 				ns: "rgw-instance",
 			},
 			want: map[string]ZonePlacementPool{
+				defaultPlacementCephConfigName: {
+					Key: defaultPlacementCephConfigName,
+					Val: ZonePlacementPoolVal{
+						DataExtraPool: "meta:rgw-instance.buckets.non-ec",
+						IndexPool:     "meta:rgw-instance.buckets.index",
+						StorageClasses: map[string]ZonePlacementStorageClass{
+							"STANDARD": {
+								DataPool: "data:rgw-instance.buckets.data",
+							},
+						},
+						InlineData: true,
+					},
+				},
 				"some_name": {
 					Key: "some_name",
 					Val: ZonePlacementPoolVal{
@@ -1441,6 +1454,156 @@ func Test_adjustZonePlacementPools(t *testing.T) {
                 "data_extra_pool": "slow-non-ec:test.slow.data.non-ec",
                 "index_type": 0,
                 "inline_data": false
+            }
+        }
+    ]
+}`,
+			wantChanged: true,
+			wantErr:     false,
+		},
+		{
+			name: "sharedPools placement not removed if default set",
+			args: args{
+				beforeJSON: `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "placement_pools": [
+        {
+            "key": "default-placement",
+            "val": {
+                "index_pool": "test.rgw.buckets.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "test.rgw.buckets.data"
+                    }
+                },
+                "data_extra_pool": "test.rgw.buckets.non-ec",
+                "index_type": 5,
+                "inline_data": true
+            }
+        }
+    ]
+}`,
+				spec: cephv1.ObjectSharedPoolsSpec{
+					MetadataPoolName:                   "meta-pool",
+					DataPoolName:                       "data-pool",
+					PreserveRadosNamespaceDataOnDelete: false,
+					PoolPlacements: []cephv1.PoolPlacementSpec{
+						{
+							Name:              "slow",
+							Default:           true,
+							MetadataPoolName:  "slow-meta",
+							DataPoolName:      "slow-data",
+							DataNonECPoolName: "slow-non-ec",
+							StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+						},
+					},
+				},
+			},
+			wantJSON: `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "placement_pools": [
+        {
+            "key": "default-placement",
+            "val": {
+                "index_pool": "meta-pool:test.buckets.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "data-pool:test.buckets.data"
+                    }
+                },
+                "data_extra_pool": "meta-pool:test.buckets.non-ec",
+                "index_type": 5,
+                "inline_data": true
+            }
+        },
+        {
+            "key": "slow",
+            "val": {
+                "index_pool": "slow-meta:test.slow.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "slow-data:test.slow.data"
+                    }
+                },
+                "data_extra_pool": "slow-non-ec:test.slow.data.non-ec",
+                "inline_data": true
+            }
+        }
+    ]
+}`,
+			wantChanged: true,
+			wantErr:     false,
+		},
+		{
+			name: "if sharedPools not set and default placement is set, then default placements values are copied to 'default-placement'",
+			args: args{
+				beforeJSON: `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "placement_pools": [
+        {
+            "key": "default-placement",
+            "val": {
+                "index_pool": "test.rgw.buckets.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "test.rgw.buckets.data"
+                    }
+                },
+                "data_extra_pool": "test.rgw.buckets.non-ec",
+                "index_type": 5,
+                "inline_data": true
+            }
+        }
+    ]
+}`,
+				spec: cephv1.ObjectSharedPoolsSpec{
+					MetadataPoolName:                   "",
+					DataPoolName:                       "",
+					PreserveRadosNamespaceDataOnDelete: false,
+					PoolPlacements: []cephv1.PoolPlacementSpec{
+						{
+							Name:              "slow",
+							Default:           true,
+							MetadataPoolName:  "slow-meta",
+							DataPoolName:      "slow-data",
+							DataNonECPoolName: "slow-non-ec",
+							StorageClasses:    []cephv1.PlacementStorageClassSpec{},
+						},
+					},
+				},
+			},
+			wantJSON: `{
+    "id": "f539c2c0-e1ed-4c42-9294-41742352eeae",
+    "name": "test",
+    "placement_pools": [
+        {
+            "key": "default-placement",
+            "val": {
+                "index_pool": "slow-meta:test.slow.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "slow-data:test.slow.data"
+                    }
+                },
+                "data_extra_pool": "slow-non-ec:test.slow.data.non-ec",
+                "index_type": 5,
+                "inline_data": true
+            }
+        },
+        {
+            "key": "slow",
+            "val": {
+                "index_pool": "slow-meta:test.slow.index",
+                "storage_classes": {
+                    "STANDARD": {
+                        "data_pool": "slow-data:test.slow.data"
+                    }
+                },
+                "data_extra_pool": "slow-non-ec:test.slow.data.non-ec",
+                "inline_data": true
             }
         }
     ]
