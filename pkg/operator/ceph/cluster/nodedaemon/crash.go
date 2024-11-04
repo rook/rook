@@ -126,7 +126,7 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 			},
 		}
 		cephv1.GetCrashCollectorAnnotations(cephCluster.Spec.Annotations).ApplyToObjectMeta(&deploy.Spec.Template.ObjectMeta)
-
+		deploy.Spec.RevisionHistoryLimit = controller.RevisionHistoryLimit()
 		return nil
 	}
 
