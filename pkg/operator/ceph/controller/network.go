@@ -252,6 +252,7 @@ func discoverAddressRanges(
 		rookImage,
 		rookImage,
 		clusterSpec.CephVersion.ImagePullPolicy,
+		clusterSpec.Resources,
 	)
 	if err != nil {
 		return ranges, errors.Wrapf(err, "failed to set up ceph %q network canary", cephNetwork)

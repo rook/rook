@@ -31,6 +31,8 @@ const (
 	ResourcesKeyOSD = "osd"
 	// ResourcesKeyPrepareOSD represents the name of resource in the CR for the osd prepare job
 	ResourcesKeyPrepareOSD = "prepareosd"
+	// ResourcesKeyCmdReporter represents the name of resource in the CR for the detect version and network jobs
+	ResourcesKeyCmdReporter = "cmd-reporter"
 	// ResourcesKeyMDS represents the name of resource in the CR for the mds
 	ResourcesKeyMDS = "mds"
 	// ResourcesKeyCrashCollector represents the name of resource in the CR for the crash
@@ -47,22 +49,22 @@ const (
 	ResourcesKeyCephExporter = "exporter"
 )
 
-// GetMgrResources returns the placement for the MGR service
+// GetMgrResources returns the resources for the MGR service
 func GetMgrResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgr]
 }
 
-// GetMgrSidecarResources returns the placement for the MGR sidecar container
+// GetMgrSidecarResources returns the resources for the MGR sidecar container
 func GetMgrSidecarResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMgrSidecar]
 }
 
-// GetMonResources returns the placement for the monitors
+// GetMonResources returns the resources for the monitors
 func GetMonResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyMon]
 }
 
-// GetOSDResources returns the placement for all OSDs or for OSDs of specified device class (hdd, nvme, ssd)
+// GetOSDResources returns the resources for all OSDs or for OSDs of specified device class (hdd, nvme, ssd)
 func GetOSDResources(p ResourceSpec, deviceClass string) v1.ResourceRequirements {
 	if deviceClass == "" {
 		return p[ResourcesKeyOSD]
@@ -80,27 +82,32 @@ func getOSDResourceKeyForDeviceClass(deviceClass string) string {
 	return ResourcesKeyOSD + "-" + deviceClass
 }
 
-// GetPrepareOSDResources returns the placement for the OSDs prepare job
+// GetPrepareOSDResources returns the resources for the OSDs prepare job
 func GetPrepareOSDResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyPrepareOSD]
 }
 
-// GetCrashCollectorResources returns the placement for the crash daemon
+// GetCmdReporterResources returns the resources for the detect version job
+func GetCmdReporterResources(p ResourceSpec) v1.ResourceRequirements {
+	return p[ResourcesKeyCmdReporter]
+}
+
+// GetCrashCollectorResources returns the resources for the crash daemon
 func GetCrashCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCrashCollector]
 }
 
-// GetLogCollectorResources returns the placement for the crash daemon
+// GetLogCollectorResources returns the resources for the logo collector
 func GetLogCollectorResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyLogCollector]
 }
 
-// GetCleanupResources returns the placement for the cleanup job
+// GetCleanupResources returns the resources for the cleanup job
 func GetCleanupResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCleanup]
 }
 
-// GetCephExporterResources returns the placement for the cleanup job
+// GetCephExporterResources returns the resources for the cleanup job
 func GetCephExporterResources(p ResourceSpec) v1.ResourceRequirements {
 	return p[ResourcesKeyCephExporter]
 }
