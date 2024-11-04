@@ -487,6 +487,7 @@ You can set resource requests/limits for Rook components through the [Resource R
 It scrapes for Ceph daemon core dumps and sends them to the Ceph manager crash module so that core dumps are centralized and can be easily listed/accessed.
 You can read more about the [Ceph Crash module](https://docs.ceph.com/docs/master/mgr/crash/).
 * `logcollector`: Set resource requests/limits for the log collector. When enabled, this container runs as side-car to each Ceph daemons.
+* `cmd-reporter`: Set resource requests/limits for the jobs that detect the ceph version and collect network info.
 * `cleanup`: Set resource requests/limits for cleanup job, responsible for wiping cluster's data after uninstall
 * `exporter`: Set resource requests/limits for Ceph exporter.
 

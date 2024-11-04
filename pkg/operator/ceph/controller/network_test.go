@@ -54,9 +54,9 @@ func (m *mockCmdReporter) Run(ctx context.Context, timeout time.Duration) (stdou
 }
 
 // returns a newCmdReporter function that returns the given mockCmdReporter and error
-func mockNewCmdReporter(m *mockCmdReporter, err error) func(clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo, appName string, jobName string, jobNamespace string, cmd []string, args []string, rookImage string, runImage string, imagePullPolicy v1.PullPolicy) (cmdreporter.CmdReporterInterface, error) {
-	return func(clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo, appName, jobName, jobNamespace string, cmd, args []string, rookImage, runImage string, imagePullPolicy v1.PullPolicy) (cmdreporter.CmdReporterInterface, error) {
-		job, err := cmdreporter.MockCmdReporterJob(clientset, ownerInfo, appName, jobName, jobNamespace, cmd, args, rookImage, runImage, imagePullPolicy)
+func mockNewCmdReporter(m *mockCmdReporter, err error) func(clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo, appName string, jobName string, jobNamespace string, cmd []string, args []string, rookImage string, runImage string, imagePullPolicy v1.PullPolicy, resources cephv1.ResourceSpec) (cmdreporter.CmdReporterInterface, error) {
+	return func(clientset kubernetes.Interface, ownerInfo *k8sutil.OwnerInfo, appName, jobName, jobNamespace string, cmd, args []string, rookImage, runImage string, imagePullPolicy v1.PullPolicy, resources cephv1.ResourceSpec) (cmdreporter.CmdReporterInterface, error) {
+		job, err := cmdreporter.MockCmdReporterJob(clientset, ownerInfo, appName, jobName, jobNamespace, cmd, args, rookImage, runImage, imagePullPolicy, resources)
 		if err != nil {
 			// okay to panic here because this is a unit test setup failure, not part of code testing
 			panic(fmt.Sprintf("error setting up mock CmdReporter job: %v", err))
@@ -82,7 +82,6 @@ func newTestConfigsWithNetworkSpec(n cephv1.NetworkSpec) (*clusterd.Context, *ce
 func Test_discoverAddressRanges(t *testing.T) {
 	oldNewCmdReporter := newCmdReporter
 	defer func() { newCmdReporter = oldNewCmdReporter }()
-
 	t.Run("public network selected", func(t *testing.T) {
 		clusterdCtx, clusterSpec, clusterInfo := newTestConfigsWithNetworkSpec(
 			cephv1.NetworkSpec{
