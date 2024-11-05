@@ -707,29 +707,26 @@ class RadosJSON:
                 "'quorum_status' command failed.\n"
                 f"Error: {err_msg if ret_val != 0 else self.EMPTY_OUTPUT_LIST}"
             )
-        q_leader_name = json_out["quorum_leader_name"]
-        q_leader_details = {}
-        q_leader_matching_list = [
-            l for l in json_out["monmap"]["mons"] if l["name"] == q_leader_name
-        ]
-        if len(q_leader_matching_list) == 0:
+        if len(json_out['monmap']['mons']) == 0:
             raise ExecutionFailureException("No matching 'mon' details found")
-        q_leader_details = q_leader_matching_list[0]
-        # get the address vector of the quorum-leader
-        q_leader_addrvec = q_leader_details.get("public_addrs", {}).get("addrvec", [])
-        ip_addr = str(q_leader_details["public_addr"].split("/")[0])
 
-        if self._arg_parser.v2_port_enable:
-            if q_leader_addrvec[0]["type"] == "v2":
-                ip_addr = q_leader_addrvec[0]["addr"]
-            elif len(q_leader_addrvec) > 1 and q_leader_addrvec[1]["type"] == "v2":
-                ip_addr = q_leader_addrvec[1]["addr"]
+        mon_data = []
+        for mon in json_out['monmap']['mons']:
+            if self._arg_parser.v2_port_enable:
+                mon_addrvec = mon.get("public_addrs", {}).get("addrvec", [])
+                if mon_addrvec[0]["type"] == "v2":
+                    ip_addr = mon_addrvec[0]["addr"]
+                elif len(mon_addrvec) > 1 and mon_addrvec[1]["type"] == "v2":
+                    ip_addr = mon_addrvec[1]["addr"]
+                else:
+                    sys.stderr.write(
+                        "'v2' address type not present, and 'v2-port-enable' flag is provided"
+                    )
             else:
-                sys.stderr.write(
-                    "'v2' address type not present, and 'v2-port-enable' flag is provided"
-                )
+                ip_addr = str(mon["public_addr"].split("/")[0])
+            mon_data.append(f"{str(mon['name'])}={ip_addr}")
 
-        return f"{str(q_leader_name)}={ip_addr}"
+        return ','.join(mon_data)
 
     def _convert_hostname_to_ip(self, host_name, port, ip_type):
         # if 'cluster' instance is a dummy type,
