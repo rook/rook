@@ -635,12 +635,14 @@ func TestConfigureRBDStats(t *testing.T) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
 				if args[1] == "set" {
+					mockedPools = args[4]
 					return "", nil
 				}
 				if args[1] == "get" {
 					return mockedPools, nil
 				}
 				if args[1] == "rm" {
+					mockedPools = ""
 					return "", nil
 				}
 			}
@@ -701,7 +703,6 @@ func TestConfigureRBDStats(t *testing.T) {
 	monStore := config.GetMonStore(context, clusterInfo)
 	e := monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", "pool1,pool2")
 	assert.Nil(t, e)
-	mockedPools = "my-pool-with-rbd-stats,pool1,pool2"
 	e = configureRBDStats(context, clusterInfo, "")
 	assert.Nil(t, e)
 
@@ -710,7 +711,6 @@ func TestConfigureRBDStats(t *testing.T) {
 	assert.Equal(t, "my-pool-with-rbd-stats,pool1,pool2", rbdStatsPools)
 
 	// Case 6: Deleted CephBlockPool should be excluded from config
-	mockedPools = "pool1,pool2"
 	err = configureRBDStats(context, clusterInfo, "my-pool-with-rbd-stats")
 	assert.Nil(t, err)
 
@@ -726,7 +726,7 @@ func TestConfigureRBDStats(t *testing.T) {
 
 	rbdStatsPools, err = monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
 	assert.Nil(t, err)
-	assert.Equal(t, "pool1,pool2", rbdStatsPools)
+	assert.Equal(t, "my-pool-with-rbd-stats,pool1,pool2", rbdStatsPools)
 
 	// Case 8: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
 	// SetConfig returns an error
@@ -738,5 +738,111 @@ func TestConfigureRBDStats(t *testing.T) {
 	}
 	err = configureRBDStats(context, clusterInfo, "")
 	assert.NotNil(t, err)
+}
 
+func TestGenerateStatsPoolList(t *testing.T) {
+	tests := []struct {
+		name               string
+		existingStatsPools []string
+		rookStatsPools     []string
+		removePools        []string
+		expectedOutput     string
+	}{
+		// Basic cases
+		{
+			name:               "Empty lists",
+			existingStatsPools: []string{},
+			rookStatsPools:     []string{},
+			removePools:        []string{},
+			expectedOutput:     "",
+		},
+		{
+			name:               "Single-item lists, no removal",
+			existingStatsPools: []string{"p1"},
+			rookStatsPools:     []string{"p2"},
+			removePools:        []string{},
+			expectedOutput:     "p1,p2",
+		},
+		// Overlap and duplicates
+		{
+			name:               "Overlapping pools, some to remove",
+			existingStatsPools: []string{"p1", "p2", "p3"},
+			rookStatsPools:     []string{"p2", "p4", "p5"},
+			removePools:        []string{"p1", "p5"},
+			expectedOutput:     "p2,p3,p4",
+		},
+		{
+			name:               "Non-overlapping lists",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p3", "p4"},
+			removePools:        []string{},
+			expectedOutput:     "p1,p2,p3,p4",
+		},
+		// All pools removed
+		{
+			name:               "All pools removed",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p2", "p3"},
+			removePools:        []string{"p1", "p2", "p3"},
+			expectedOutput:     "",
+		},
+		// Mixed scenarios with edge cases
+		{
+			name:               "Only removed pools",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p2", "p3"},
+			removePools:        []string{"p1", "p2", "p3", "p4"},
+			expectedOutput:     "",
+		},
+		{
+			name:               "Duplicate pools across lists",
+			existingStatsPools: []string{"p1", "p2", "p1"},
+			rookStatsPools:     []string{"p2", "p3", "p3"},
+			removePools:        []string{},
+			expectedOutput:     "p1,p2,p3",
+		},
+		{
+			name:               "Empty string in pools",
+			existingStatsPools: []string{"p1", ""},
+			rookStatsPools:     []string{"p2", ""},
+			removePools:        []string{""},
+			expectedOutput:     "p1,p2",
+		},
+		{
+			name:               "Empty string in remove pools",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p3", "p4"},
+			removePools:        []string{""},
+			expectedOutput:     "p1,p2,p3,p4",
+		},
+		{
+			name:               "All lists empty strings",
+			existingStatsPools: []string{""},
+			rookStatsPools:     []string{""},
+			removePools:        []string{""},
+			expectedOutput:     "",
+		},
+		// Larger cases
+		{
+			name:               "Large unique pool list",
+			existingStatsPools: []string{"p1", "p2", "p3", "p4"},
+			rookStatsPools:     []string{"p5", "p6", "p7", "p8"},
+			removePools:        []string{"p1", "p8"},
+			expectedOutput:     "p2,p3,p4,p5,p6,p7",
+		},
+		{
+			name:               "Large list with many duplicates",
+			existingStatsPools: []string{"p1", "p2", "p3", "p2", "p1"},
+			rookStatsPools:     []string{"p2", "p3", "p3", "p4", "p1"},
+			removePools:        []string{"p4"},
+			expectedOutput:     "p1,p2,p3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateStatsPoolList(tt.existingStatsPools, tt.rookStatsPools, tt.removePools)
+			assert.Equal(t, tt.expectedOutput, result)
+		})
+	}
 }
