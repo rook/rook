@@ -219,7 +219,24 @@ func Test_getObjPropertyObjArr(t *testing.T) {
 	}
 }
 
-func Test_setObjProperty(t *testing.T) {
+func Test_deepCopyJson(t *testing.T) {
+	in := map[string]interface{}{
+		"key": []interface{}{"1", "2", "3"},
+	}
+	inCopy, err := deepCopyJson(in)
+	assert.NoError(t, err)
+	assert.EqualValues(t, in, inCopy)
+
+	assert.EqualValues(t, []interface{}{"1", "2", "3"}, in["key"])
+	assert.EqualValues(t, []interface{}{"1", "2", "3"}, inCopy["key"])
+
+	inCopy["key"].([]interface{})[1] = "7"
+
+	assert.EqualValues(t, []interface{}{"1", "2", "3"}, in["key"])
+	assert.EqualValues(t, []interface{}{"1", "7", "3"}, inCopy["key"])
+}
+
+func Test_updateObjProperty(t *testing.T) {
 	type args struct {
 		json string
 		val  string
@@ -233,7 +250,7 @@ func Test_setObjProperty(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "replace val",
+			name: "exists",
 			args: args{
 				json: `{"a":{"b":"val"}}`,
 				val:  "new val",
@@ -259,7 +276,7 @@ func Test_setObjProperty(t *testing.T) {
 			wantErr:  false,
 		},
 		{
-			name: "add val",
+			name: "not exists",
 			args: args{
 				json: `{"a":{"b":"val"}}`,
 				val:  "val2",
@@ -268,21 +285,8 @@ func Test_setObjProperty(t *testing.T) {
 				},
 			},
 			wantPrev: "",
-			wantJSON: `{"a":{"b":"val","c":"val2"}}`,
-			wantErr:  false,
-		},
-		{
-			name: "add root val",
-			args: args{
-				json: `{"a":{"b":"val"}}`,
-				val:  "val2",
-				path: []string{
-					"c",
-				},
-			},
-			wantPrev: "",
-			wantJSON: `{"a":{"b":"val"},"c":"val2"}`,
-			wantErr:  false,
+			wantJSON: `{"a":{"b":"val"}}`,
+			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
@@ -290,66 +294,7 @@ func Test_setObjProperty(t *testing.T) {
 			obj := map[string]interface{}{}
 			err := json.Unmarshal([]byte(tt.args.json), &obj)
 			assert.NoError(t, err)
-			prev, err := setObjProperty(obj, tt.args.val, tt.args.path...)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.EqualValues(t, tt.wantPrev, prev)
-			bytes, err := json.Marshal(obj)
-			assert.NoError(t, err)
-			assert.JSONEq(t, tt.wantJSON, string(bytes))
-		})
-	}
-}
-func Test_setObjPropertyObj(t *testing.T) {
-	type args struct {
-		json string
-		val  map[string]interface{}
-		path []string
-	}
-	tests := []struct {
-		name     string
-		args     args
-		wantPrev map[string]interface{}
-		wantJSON string
-		wantErr  bool
-	}{
-		{
-			name: "add obj",
-			args: args{
-				json: `{"a":{"b":{}}}`,
-				val:  map[string]interface{}{"c": "val1"},
-				path: []string{
-					"a", "b",
-				},
-			},
-			wantPrev: map[string]interface{}{},
-			wantJSON: `{"a":{"b":{"c":"val1"}}}`,
-			wantErr:  false,
-		},
-		{
-			name: "set obj",
-			args: args{
-				json: `{"a":{"b":{"c": "val1"}}}`,
-				val:  map[string]interface{}{"d": "val2"},
-				path: []string{
-					"a", "b",
-				},
-			},
-			wantPrev: map[string]interface{}{"c": "val1"},
-			wantJSON: `{"a":{"b":{"d":"val2"}}}`,
-			wantErr:  false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
-			err := json.Unmarshal([]byte(tt.args.json), &obj)
-			assert.NoError(t, err)
-			prev, err := setObjProperty(obj, tt.args.val, tt.args.path...)
+			prev, err := updateObjProperty(obj, tt.args.val, tt.args.path...)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -364,7 +309,67 @@ func Test_setObjPropertyObj(t *testing.T) {
 	}
 }
 
-func Test_setObjPropertyArr(t *testing.T) {
+func Test_updateObjPropertyObj(t *testing.T) {
+	type args struct {
+		json string
+		val  map[string]interface{}
+		path []string
+	}
+	tests := []struct {
+		name     string
+		args     args
+		wantPrev map[string]interface{}
+		wantJSON string
+		wantErr  bool
+	}{
+		{
+			name: "exists",
+			args: args{
+				json: `{"a":{"b":{"c": "val1"}}}`,
+				val:  map[string]interface{}{"d": "val2"},
+				path: []string{
+					"a", "b",
+				},
+			},
+			wantPrev: map[string]interface{}{"c": "val1"},
+			wantJSON: `{"a":{"b":{"d":"val2"}}}`,
+			wantErr:  false,
+		},
+		{
+			name: "not exists",
+			args: args{
+				json: `{"a":{"b":{}}}`,
+				val:  map[string]interface{}{"c": "val1"},
+				path: []string{
+					"a", "c",
+				},
+			},
+			wantPrev: nil,
+			wantJSON: `{"a":{"b":{}}}`,
+			wantErr:  true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj := map[string]interface{}{}
+			err := json.Unmarshal([]byte(tt.args.json), &obj)
+			assert.NoError(t, err)
+			prev, err := updateObjProperty(obj, tt.args.val, tt.args.path...)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			} else {
+				assert.NoError(t, err)
+			}
+			assert.EqualValues(t, tt.wantPrev, prev)
+			bytes, err := json.Marshal(obj)
+			assert.NoError(t, err)
+			assert.JSONEq(t, tt.wantJSON, string(bytes))
+		})
+	}
+}
+
+func Test_updateObjPropertyArr(t *testing.T) {
 	type args struct {
 		json string
 		val  []interface{}
@@ -378,23 +383,7 @@ func Test_setObjPropertyArr(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name: "set obj arr",
-			args: args{
-				json: `{"a":{"b":{}}}`,
-				val: []interface{}{
-					map[string]interface{}{"c": "val1"},
-					map[string]interface{}{"d": "val2"},
-				},
-				path: []string{
-					"a", "b",
-				},
-			},
-			wantPrev: nil,
-			wantJSON: `{"a":{"b":[{"c":"val1"},{"d":"val2"}]}}`,
-			wantErr:  false,
-		},
-		{
-			name: "add obj arr",
+			name: "exists",
 			args: args{
 				json: `{"a":{"b":[{"c": "val"}]}}`,
 				val: []interface{}{
@@ -411,64 +400,21 @@ func Test_setObjPropertyArr(t *testing.T) {
 			wantJSON: `{"a":{"b":[{"d":"val1"},{"e":"val2"}]}}`,
 			wantErr:  false,
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			obj := map[string]interface{}{}
-			err := json.Unmarshal([]byte(tt.args.json), &obj)
-			assert.NoError(t, err)
-			prev, err := setObjProperty(obj, tt.args.val, tt.args.path...)
-			if tt.wantErr {
-				assert.Error(t, err)
-				return
-			} else {
-				assert.NoError(t, err)
-			}
-			assert.EqualValues(t, tt.wantPrev, prev)
-			bytes, err := json.Marshal(obj)
-			assert.NoError(t, err)
-			assert.JSONEq(t, tt.wantJSON, string(bytes))
-		})
-	}
-}
-func Test_setObjPropertyStrArr(t *testing.T) {
-	type args struct {
-		json string
-		val  []string
-		path []string
-	}
-	tests := []struct {
-		name     string
-		args     args
-		wantPrev []string
-		wantJSON string
-		wantErr  bool
-	}{
 		{
-			name: "add str arr",
+			name: "not exists",
 			args: args{
 				json: `{"a":{"b":{}}}`,
-				val:  []string{"c", "d"},
+				val: []interface{}{
+					map[string]interface{}{"c": "val1"},
+					map[string]interface{}{"d": "val2"},
+				},
 				path: []string{
-					"a", "b",
+					"a", "c",
 				},
 			},
 			wantPrev: nil,
-			wantJSON: `{"a":{"b":["c","d"]}}`,
-			wantErr:  false,
-		},
-		{
-			name: "set str arr",
-			args: args{
-				json: `{"a":{"b":["val"]}}`,
-				val:  []string{"c", "d"},
-				path: []string{
-					"a", "b",
-				},
-			},
-			wantPrev: []string{"val"},
-			wantJSON: `{"a":{"b":["c","d"]}}`,
-			wantErr:  false,
+			wantJSON: `{"a":{"b":{}}}`,
+			wantErr:  true,
 		},
 	}
 	for _, tt := range tests {
@@ -476,7 +422,7 @@ func Test_setObjPropertyStrArr(t *testing.T) {
 			obj := map[string]interface{}{}
 			err := json.Unmarshal([]byte(tt.args.json), &obj)
 			assert.NoError(t, err)
-			prev, err := setObjProperty(obj, tt.args.val, tt.args.path...)
+			prev, err := updateObjProperty(obj, tt.args.val, tt.args.path...)
 			if tt.wantErr {
 				assert.Error(t, err)
 				return
@@ -489,21 +435,4 @@ func Test_setObjPropertyStrArr(t *testing.T) {
 			assert.JSONEq(t, tt.wantJSON, string(bytes))
 		})
 	}
-}
-
-func Test_deepCopyJson(t *testing.T) {
-	in := map[string]interface{}{
-		"key": []interface{}{"1", "2", "3"},
-	}
-	inCopy, err := deepCopyJson(in)
-	assert.NoError(t, err)
-	assert.EqualValues(t, in, inCopy)
-
-	assert.EqualValues(t, []interface{}{"1", "2", "3"}, in["key"])
-	assert.EqualValues(t, []interface{}{"1", "2", "3"}, inCopy["key"])
-
-	inCopy["key"].([]interface{})[1] = "7"
-
-	assert.EqualValues(t, []interface{}{"1", "2", "3"}, in["key"])
-	assert.EqualValues(t, []interface{}{"1", "7", "3"}, inCopy["key"])
 }

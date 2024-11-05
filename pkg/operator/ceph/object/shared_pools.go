@@ -98,11 +98,11 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 		}
 		// update placement with values from spec:
 		if pSpec, inSpec := fromSpec[placementID]; inSpec {
-			_, err = setObjProperty(pObj, pSpec.Val.IndexPool, "val", "index_pool")
+			_, err = updateObjProperty(pObj, pSpec.Val.IndexPool, "val", "index_pool")
 			if err != nil {
 				return nil, fmt.Errorf("unable to set index pool to pool placement %q for zone %q: %w", placementID, name, err)
 			}
-			_, err = setObjProperty(pObj, pSpec.Val.DataExtraPool, "val", "data_extra_pool")
+			_, err = updateObjProperty(pObj, pSpec.Val.DataExtraPool, "val", "data_extra_pool")
 			if err != nil {
 				return nil, fmt.Errorf("unable to set data extra pool to pool placement %q for zone %q: %w", placementID, name, err)
 			}
@@ -111,7 +111,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 				return nil, fmt.Errorf("unable convert to pool placement %q storage class for zone %q: %w", placementID, name, err)
 			}
 
-			_, err = setObjProperty(pObj, scObj, "val", "storage_classes")
+			_, err = updateObjProperty(pObj, scObj, "val", "storage_classes")
 			if err != nil {
 				return nil, fmt.Errorf("unable to set storage classes to pool placement %q for zone %q: %w", placementID, name, err)
 			}
@@ -144,7 +144,7 @@ func adjustZonePlacementPools(zone map[string]interface{}, spec cephv1.ObjectSha
 		placements = append(placements, pObj)
 	}
 
-	_, err = setObjProperty(zone, placements, "placement_pools")
+	_, err = updateObjProperty(zone, placements, "placement_pools")
 	if err != nil {
 		return nil, fmt.Errorf("unable to set pool placements for zone %q: %w", name, err)
 	}
@@ -247,7 +247,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}) (map[st
 		return nil, fmt.Errorf("unable to deep copy config for zonegroup %s: %w", name, err)
 	}
 
-	_, err = setObjProperty(group, defaultPlacementCephConfigName, "default_placement")
+	_, err = updateObjProperty(group, defaultPlacementCephConfigName, "default_placement")
 	if err != nil {
 		return nil, fmt.Errorf("unable to set default_placement for zonegroup %s: %w", name, err)
 	}
@@ -277,9 +277,9 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}) (map[st
 			sc := []interface{}{}
 			ok = castJson(desired.StorageClasses, &sc)
 			if ok {
-				_, err = setObjProperty(tObj, sc, "storage_classes")
+				_, err = updateObjProperty(tObj, sc, "storage_classes")
 			} else {
-				_, err = setObjProperty(tObj, desired.StorageClasses, "storage_classes")
+				_, err = updateObjProperty(tObj, desired.StorageClasses, "storage_classes")
 			}
 			if err != nil {
 				return nil, fmt.Errorf("unable to set storage classes to pool placement target %q for zonegroup %q: %w", tName, name, err)
@@ -317,7 +317,7 @@ func adjustZoneGroupPlacementTargets(group, zone map[string]interface{}) (map[st
 		currentTargets = append(currentTargets, tObj)
 	}
 
-	_, err = setObjProperty(group, currentTargets, "placement_targets")
+	_, err = updateObjProperty(group, currentTargets, "placement_targets")
 	if err != nil {
 		return nil, fmt.Errorf("unable to set placement targets for zonegroup %q: %w", name, err)
 	}
