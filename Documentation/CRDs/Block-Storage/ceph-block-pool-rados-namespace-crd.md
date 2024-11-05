@@ -57,6 +57,9 @@ If any setting is unspecified, a suitable default will be used automatically.
         - `interval`: frequency of the snapshots. The interval can be specified in days, hours, or minutes using d, h, m suffix respectively.
         - `startTime`: optional, determines at what time the snapshot process starts, specified using the ISO 8601 time format.
 
+!!! note
+    If mirroring is enabled, whether to monitor the status and the interval of status updates is based on the `statusCheck` spec values of the parent CephBlockPool CR.
+
 ## Creating a Storage Class
 
 Once the RADOS namespace is created, an RBD-based StorageClass can be created to

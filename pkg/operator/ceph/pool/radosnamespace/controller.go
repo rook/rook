@@ -67,12 +67,19 @@ var controllerTypeMeta = metav1.TypeMeta{
 
 // ReconcileCephBlockPoolRadosNamespace reconciles a CephBlockPoolRadosNamespace object
 type ReconcileCephBlockPoolRadosNamespace struct {
-	client           client.Client
-	scheme           *runtime.Scheme
-	context          *clusterd.Context
-	clusterInfo      *cephclient.ClusterInfo
-	opManagerContext context.Context
-	opConfig         opcontroller.OperatorConfig
+	client                 client.Client
+	scheme                 *runtime.Scheme
+	context                *clusterd.Context
+	clusterInfo            *cephclient.ClusterInfo
+	radosNamespaceContexts map[string]*mirrorHealth
+	opManagerContext       context.Context
+	opConfig               opcontroller.OperatorConfig
+}
+
+type mirrorHealth struct {
+	internalCtx    context.Context
+	internalCancel context.CancelFunc
+	started        bool
 }
 
 // Add creates a new CephBlockPoolRadosNamespace Controller and adds it to the
@@ -85,11 +92,12 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 // newReconciler returns a new reconcile.Reconciler
 func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerContext context.Context, opConfig opcontroller.OperatorConfig) reconcile.Reconciler {
 	return &ReconcileCephBlockPoolRadosNamespace{
-		client:           mgr.GetClient(),
-		scheme:           mgr.GetScheme(),
-		context:          context,
-		opManagerContext: opManagerContext,
-		opConfig:         opConfig,
+		client:                 mgr.GetClient(),
+		scheme:                 mgr.GetScheme(),
+		context:                context,
+		radosNamespaceContexts: make(map[string]*mirrorHealth),
+		opManagerContext:       opManagerContext,
+		opConfig:               opConfig,
 	}
 }
 
@@ -155,6 +163,8 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		r.updateStatus(r.client, request.NamespacedName, cephv1.ConditionProgressing)
 	}
 
+	poolAndRadosNamespaceName := fmt.Sprintf("%s/%s", cephBlockPoolRadosNamespace.Spec.BlockPoolName, getRadosNamespaceName(cephBlockPoolRadosNamespace))
+
 	// Make sure a CephCluster is present otherwise do nothing
 	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
 	if !isReadyToReconcile {
@@ -165,6 +175,8 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		// If not, we should wait for it to be ready
 		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
 		if !cephBlockPoolRadosNamespace.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+			// don't leak the health checker routine if we are force-deleting
+			r.cancelMirrorMonitoring(radosNamespaceChannelKeyName(cephBlockPoolRadosNamespace.Namespace, poolAndRadosNamespaceName))
 			// Remove finalizer
 			err = opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephBlockPoolRadosNamespace)
 			if err != nil {
@@ -219,6 +231,9 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 				}
 				return reconcile.Result{}, errors.Wrapf(err, "failed to delete ceph blockpool rados namespace %q", cephBlockPoolRadosNamespace.Name)
 			}
+			// If the ceph block pool is still in the map, we must remove it during CR deletion
+			// We must remove it first otherwise the checker will panic since the status/info will be nil
+			r.cancelMirrorMonitoring(radosNamespaceChannelKeyName(cephBlockPoolRadosNamespace.Namespace, poolAndRadosNamespaceName))
 		}
 		err = csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephBlockPoolRadosNamespace), cephCluster.Namespace, r.clusterInfo, nil)
 		if err != nil {
@@ -418,6 +433,23 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		return errors.Wrapf(err, "failed to get mirroring info for the radosnamespace %q", poolAndRadosNamespaceName)
 	}
 
+	// Initialize the channel for radosNamespace
+	// This allows us to track multiple radosNamespace in the same namespace
+	radosNamespaceChannelKey := radosNamespaceChannelKeyName(cephBlockPool.Namespace, poolAndRadosNamespaceName)
+	_, radosNamespaceContextsExists := r.radosNamespaceContexts[radosNamespaceChannelKey]
+	if !radosNamespaceContextsExists {
+		internalCtx, internalCancel := context.WithCancel(r.opManagerContext)
+		r.radosNamespaceContexts[radosNamespaceChannelKey] = &mirrorHealth{
+			internalCtx:    internalCtx,
+			internalCancel: internalCancel,
+		}
+	}
+	monitoringSpec := cephv1.NamedPoolSpec{
+		Name:     poolAndRadosNamespaceName, // use the name of the blockpool/radosNamespace
+		PoolSpec: cephBlockPool.Spec.PoolSpec,
+	}
+	checker := cephclient.NewMirrorChecker(r.context, r.client, r.clusterInfo, types.NamespacedName{Name: cephBlockPoolRadosNamespace.Name, Namespace: cephBlockPoolRadosNamespace.Namespace}, &monitoringSpec, cephBlockPoolRadosNamespace)
+
 	if cephBlockPoolRadosNamespace.Spec.Mirroring != nil {
 		mirroringDisabled := checkBlockPoolMirroring(cephBlockPool)
 		if mirroringDisabled {
@@ -433,6 +465,19 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 		err = cephclient.EnableSnapshotSchedules(r.context, r.clusterInfo, poolAndRadosNamespaceName, cephBlockPoolRadosNamespace.Spec.Mirroring.SnapshotSchedules)
 		if err != nil {
 			return errors.Wrapf(err, "failed to enable snapshot scheduling for rbd rados namespace %q", poolAndRadosNamespaceName)
+		}
+
+		// Run the goroutine to update the mirroring status
+		// use the monitoring settings from the cephBlockPool CR
+		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+			logger.Debugf("starting mirror monitoring for radosnamespace %q", poolAndRadosNamespaceName)
+			// Start monitoring of the radosNamespace
+			if r.radosNamespaceContexts[radosNamespaceChannelKey].started {
+				logger.Debug("radosnamespace monitoring go routine already running!")
+			} else {
+				r.radosNamespaceContexts[radosNamespaceChannelKey].started = true
+				go checker.CheckMirroring(r.radosNamespaceContexts[radosNamespaceChannelKey].internalCtx)
+			}
 		}
 	}
 
@@ -453,5 +498,31 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcileMirroring(cephBlockPoolR
 			return errors.Wrap(err, "failed to disable rbd rados namespace mirroring")
 		}
 	}
+
+	if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+		// Stop monitoring the mirroring status of this radosNamespace
+		if radosNamespaceContextsExists && r.radosNamespaceContexts[radosNamespaceChannelKey].started {
+			r.cancelMirrorMonitoring(radosNamespaceChannelKey)
+			// Reset the MirrorHealthCheckSpec
+			checker.UpdateStatusMirroring(nil, nil, nil, "")
+		}
+	}
+
 	return nil
+}
+
+func radosNamespaceChannelKeyName(poolAndRadosNamespaceName, namespace string) string {
+	return types.NamespacedName{Namespace: namespace, Name: poolAndRadosNamespaceName}.String()
+}
+
+// cancel mirror monitoring. This is a noop if monitoring is not running.
+func (r *ReconcileCephBlockPoolRadosNamespace) cancelMirrorMonitoring(channelKey string) {
+	_, poolContextExists := r.radosNamespaceContexts[channelKey]
+	if poolContextExists {
+		// Cancel the context to stop the go routine
+		r.radosNamespaceContexts[channelKey].internalCancel()
+
+		// Remove ceph radosNamespace from the map
+		delete(r.radosNamespaceContexts, channelKey)
+	}
 }

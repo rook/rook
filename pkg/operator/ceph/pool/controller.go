@@ -305,7 +305,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 	if err := configureRBDStats(r.context, clusterInfo, ""); err != nil {
 		return reconcile.Result{}, *cephBlockPool, errors.Wrap(err, "failed to enable/disable stats collection for pool(s)")
 	}
-	checker := newMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &poolSpec)
+	checker := cephclient.NewMirrorChecker(r.context, r.client, r.clusterInfo, request.NamespacedName, &poolSpec, cephBlockPool)
 	// ADD PEERS
 	logger.Debug("reconciling create rbd mirror peer configuration")
 	if cephBlockPool.Spec.Mirroring.Enabled {
@@ -324,8 +324,8 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			if r.blockPoolContexts[blockPoolChannelKey].started {
 				logger.Debug("pool monitoring go routine already running!")
 			} else {
-				go checker.checkMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
 				r.blockPoolContexts[blockPoolChannelKey].started = true
+				go checker.CheckMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
 			}
 		}
 
@@ -361,7 +361,7 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
 			r.cancelMirrorMonitoring(cephBlockPool)
 			// Reset the MirrorHealthCheckSpec
-			checker.updateStatusMirroring(nil, nil, nil, "")
+			checker.UpdateStatusMirroring(nil, nil, nil, "")
 		}
 	}
 

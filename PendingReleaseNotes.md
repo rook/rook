@@ -7,3 +7,4 @@
 ## Features
 
 - Enable mirroring for CephBlockPoolRadosNamespaces (see [#14701](https://github.com/rook/rook/pull/14701)).
+- Enable periodic monitoring for CephBlockPoolRadosNamespaces mirroring (see [#14896](https://github.com/rook/rook/pull/14896)).

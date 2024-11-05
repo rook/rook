@@ -167,7 +167,7 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			Phase: "",
 		},
 	}
-
+	cephBlockPool.Spec.StatusCheck.Mirror.Disabled = true
 	t.Run("error - ceph blockpool not ready", func(t *testing.T) {
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -218,11 +218,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &version.Reef, nil
@@ -337,11 +338,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &version.Reef, nil
@@ -385,11 +387,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &version.Reef, nil
@@ -436,11 +439,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &version.Reef, nil
@@ -487,11 +491,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
@@ -541,11 +546,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
@@ -599,11 +605,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephBlockPoolList{})
 		// Create a ReconcileCephBlockPoolRadosNamespace object with the scheme and fake client.
 		r = &ReconcileCephBlockPoolRadosNamespace{
-			client:           cl,
-			scheme:           s,
-			context:          c,
-			opManagerContext: context.TODO(),
-			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			client:                 cl,
+			scheme:                 s,
+			context:                c,
+			opManagerContext:       context.TODO(),
+			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
+			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
 		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
 			return &version.Reef, nil
