@@ -10938,7 +10938,9 @@ bool
 </em>
 </td>
 <td>
-<p>Sets given placement as default. Only one placement in the list can be marked as default.</p>
+<em>(Optional)</em>
+<p>Sets given placement as default. Only one placement in the list can be marked as default.
+Default is false.</p>
 </td>
 </tr>
 <tr>

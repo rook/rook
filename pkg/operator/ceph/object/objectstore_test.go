@@ -152,7 +152,7 @@ const (
   "notif_pool": "%[1]s:store-a.log.notif"
 }`
 
-	objectZonegroupJsonTempl = `{
+	objectZonegroupJson = `{
     "id": "610c9e3d-19e7-40b0-9f88-03319c4bc65a",
     "name": "store-a",
     "api_name": "test",
@@ -174,14 +174,14 @@ const (
     ],
     "placement_targets": [
         {
-            "name": "%[1]s",
+            "name": "default-placement",
             "tags": [],
             "storage_classes": [
                 "STANDARD"
             ]
         }
     ],
-    "default_placement": "%[1]s",
+    "default_placement": "default-placement",
     "realm_id": "29e28253-be54-4581-90dd-206020d2fcdd",
     "sync_policy": {
         "groups": []
@@ -229,7 +229,6 @@ func TestReconcileRealm(t *testing.T) {
 
 func TestConfigureStoreWithSharedPools(t *testing.T) {
 	sharedMetaPoolAlreadySet, sharedDataPoolAlreadySet := "", ""
-	defaultPlacement := defaultPlacementCephConfigName
 	zoneGetCalled := false
 	zoneSetCalled := false
 	zoneGroupGetCalled := false
@@ -274,7 +273,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		} else if args[0] == "zonegroup" {
 			if args[1] == "get" {
 				zoneGroupGetCalled = true
-				return fmt.Sprintf(objectZonegroupJsonTempl, defaultPlacement), nil
+				return objectZonegroupJson, nil
 			} else if args[1] == "set" {
 				zoneGroupSetCalled = true
 				for _, arg := range args {
@@ -288,7 +287,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 					}
 					return string(inBytes), nil
 				}
-				return fmt.Sprintf(objectZonegroupJsonTempl, defaultPlacement), nil
+				return objectZonegroupJson, nil
 			}
 		}
 		return "", errors.Errorf("unexpected ceph command %q", args)
@@ -331,7 +330,7 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 		assert.True(t, zoneGroupGetCalled)
 		assert.False(t, zoneGroupSetCalled) // zone group is set only if extra pool placements specified
 	})
-	t.Run("configure with default placement", func(t *testing.T) {
+	t.Run("configure with new default placement", func(t *testing.T) {
 		sharedPools := cephv1.ObjectSharedPoolsSpec{
 			PoolPlacements: []cephv1.PoolPlacementSpec{
 				{
@@ -342,22 +341,22 @@ func TestConfigureStoreWithSharedPools(t *testing.T) {
 				},
 			},
 		}
-		defaultPlacement = "default"
 		err := ConfigureSharedPoolsForZone(context, sharedPools)
 		assert.NoError(t, err)
 		assert.True(t, zoneGetCalled)
 		assert.True(t, zoneSetCalled)
 		assert.False(t, placementModifyCalled) // mock returns applied namespases, no workaround needed
 		assert.True(t, zoneGroupGetCalled)
-		assert.False(t, zoneGroupSetCalled) // zone group is set only if extra pool placements specified
+		assert.True(t, zoneGroupSetCalled)
 	})
 	t.Run("data pool already set", func(t *testing.T) {
+		// reset
+		zoneGroupSetCalled = false
 		// Simulate that the data pool has already been set and the zone update can be skipped
 		sharedPools := cephv1.ObjectSharedPoolsSpec{
 			MetadataPoolName: "test-meta",
 			DataPoolName:     "test-data",
 		}
-		defaultPlacement = defaultPlacementCephConfigName
 		sharedMetaPoolAlreadySet, sharedDataPoolAlreadySet = "test-meta", "test-data"
 		zoneGetCalled = false
 		zoneSetCalled = false

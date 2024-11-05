@@ -12356,7 +12356,9 @@ spec:
                             minLength: 1
                             type: string
                           default:
-                            description: Sets given placement as default. Only one placement in the list can be marked as default.
+                            description: |-
+                              Sets given placement as default. Only one placement in the list can be marked as default.
+                              Default is false.
                             type: boolean
                           metadataPoolName:
                             description: The metadata pool used to store ObjectStore bucket index.
@@ -12395,7 +12397,6 @@ spec:
                             type: array
                         required:
                           - dataPoolName
-                          - default
                           - metadataPoolName
                           - name
                         type: object
@@ -13282,7 +13283,9 @@ spec:
                             minLength: 1
                             type: string
                           default:
-                            description: Sets given placement as default. Only one placement in the list can be marked as default.
+                            description: |-
+                              Sets given placement as default. Only one placement in the list can be marked as default.
+                              Default is false.
                             type: boolean
                           metadataPoolName:
                             description: The metadata pool used to store ObjectStore bucket index.
@@ -13321,7 +13324,6 @@ spec:
                             type: array
                         required:
                           - dataPoolName
-                          - default
                           - metadataPoolName
                           - name
                         type: object

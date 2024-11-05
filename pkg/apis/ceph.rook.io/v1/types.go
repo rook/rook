@@ -1564,6 +1564,8 @@ type PoolPlacementSpec struct {
 	Name string `json:"name"`
 
 	// Sets given placement as default. Only one placement in the list can be marked as default.
+	// Default is false.
+	// +optional
 	Default bool `json:"default"`
 
 	// The metadata pool used to store ObjectStore bucket index.
