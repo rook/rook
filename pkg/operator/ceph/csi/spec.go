@@ -338,6 +338,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
+		rbdPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&rbdPlugin.Spec.Template, "csi-rbd-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -351,6 +352,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&rbdProvisionerDeployment.Spec.Template, "csi-rbd-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		rbdProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+		rbdProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
@@ -368,6 +370,8 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
+		cephfsPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&cephfsPlugin.Spec.Template, "csi-cephfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -381,6 +385,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&cephfsProvisionerDeployment.Spec.Template, "csi-cephfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		cephfsProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+		cephfsProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
@@ -399,6 +404,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs plugin template")
 		}
+		nfsPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&nfsPlugin.Spec.Template, "csi-nfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -412,6 +418,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&nfsProvisionerDeployment.Spec.Template, "csi-nfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		nfsProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+		nfsProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 	}
 
 	// get common provisioner tolerations and node affinity
