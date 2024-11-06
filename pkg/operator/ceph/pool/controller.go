@@ -319,13 +319,22 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 
 		// Check if rbd-mirror CR and daemons are running
 		logger.Debug("listing rbd-mirror CR")
-		// Run the goroutine to update the mirroring status
-		if !cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+
+		if cephBlockPool.Spec.StatusCheck.Mirror.Disabled {
+			// Stop monitoring the mirroring status of this pool
+			if blockPoolContextsExists && r.blockPoolContexts[blockPoolChannelKey].started {
+				logger.Info("stop monitoring the mirroring status of the pool %s", cephBlockPool.Name)
+				r.cancelMirrorMonitoring(cephBlockPool)
+				// Reset the MirrorHealthCheckSpec
+				checker.UpdateStatusMirroring(nil, nil, nil, "")
+			}
+		} else {
 			// Start monitoring of the pool
 			if r.blockPoolContexts[blockPoolChannelKey].started {
 				logger.Debug("pool monitoring go routine already running!")
 			} else {
 				r.blockPoolContexts[blockPoolChannelKey].started = true
+				// Run the goroutine to update the mirroring status
 				go checker.CheckMirroring(r.blockPoolContexts[blockPoolChannelKey].internalCtx)
 			}
 		}
