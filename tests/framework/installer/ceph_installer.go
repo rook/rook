@@ -98,7 +98,8 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 	case "reef-devel":
 		return ReefDevelVersion
 	default:
-		return ReefDevelVersion
+		// Default to the latest stable version
+		return ReefVersion
 	}
 }
 
