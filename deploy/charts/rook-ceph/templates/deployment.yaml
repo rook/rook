@@ -9,6 +9,9 @@ metadata:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}
+{{- if .Values.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+{{- end }}
   selector:
     matchLabels:
       app: rook-ceph-operator

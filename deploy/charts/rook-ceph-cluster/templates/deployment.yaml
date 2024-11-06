@@ -9,6 +9,9 @@ metadata:
     app: rook-ceph-tools
 spec:
   replicas: 1
+{{- if .Values.revisionHistoryLimit }}
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+{{- end }}
   selector:
     matchLabels:
       app: rook-ceph-tools
