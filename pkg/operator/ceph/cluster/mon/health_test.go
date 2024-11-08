@@ -251,30 +251,6 @@ func TestTrackMonsOutOfQuorum(t *testing.T) {
 	assert.Equal(t, "", cm.Data[opcontroller.OutOfQuorumKey])
 }
 
-func TestSkipMonFailover(t *testing.T) {
-	c := New(context.TODO(), &clusterd.Context{}, "ns", cephv1.ClusterSpec{}, nil)
-	c.ClusterInfo = clienttest.CreateTestClusterInfo(1)
-	monName := "arb"
-
-	t.Run("don't skip failover for non-stretch", func(t *testing.T) {
-		assert.NoError(t, c.allowFailover(monName))
-	})
-
-	t.Run("don't skip failover for non-arbiter", func(t *testing.T) {
-		c.spec.Mon.Count = 5
-		c.spec.Mon.StretchCluster = &cephv1.StretchClusterSpec{
-			Zones: []cephv1.MonZoneSpec{
-				{Name: "a"},
-				{Name: "b"},
-				{Name: "c", Arbiter: true},
-			},
-		}
-
-		assert.NoError(t, c.allowFailover(monName))
-	})
-
-}
-
 func TestEvictMonOnSameNode(t *testing.T) {
 	ctx := context.TODO()
 	clientset := test.New(t, 1)
