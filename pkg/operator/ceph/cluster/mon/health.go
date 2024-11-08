@@ -518,11 +518,6 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 		return true
 	}
 
-	if err := c.allowFailover(name); err != nil {
-		logger.Warningf("aborting mon %q failover. %v", name, err)
-		return false
-	}
-
 	// prevent any voluntary mon drain while failing over
 	if err := c.blockMonDrain(types.NamespacedName{Name: monPDBName, Namespace: c.Namespace}); err != nil {
 		logger.Errorf("failed to block mon drain. %v", err)
@@ -538,20 +533,6 @@ func (c *Cluster) failMon(monCount, desiredMonCount int, name string) bool {
 		logger.Errorf("failed to allow mon drain. %v", err)
 	}
 	return true
-}
-
-func (c *Cluster) allowFailover(name string) error {
-	if !c.spec.IsStretchCluster() {
-		// always failover if not a stretch cluster
-		return nil
-	}
-	if name != c.arbiterMon {
-		// failover if it's a non-arbiter
-		return nil
-	}
-
-	// Ceph does not support updating the arbiter mon in older versions
-	return errors.Errorf("refusing to failover arbiter mon %q on a stretched cluster", name)
 }
 
 func (c *Cluster) removeOrphanMonResources() {
