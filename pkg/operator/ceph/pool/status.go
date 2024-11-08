@@ -18,21 +18,19 @@ limitations under the License.
 package pool
 
 import (
-	"context"
-
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // updateStatus updates a pool CR with the given status
-func updateStatus(ctx context.Context, client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
 	pool := &cephv1.CephBlockPool{}
-	err := client.Get(ctx, poolName, pool)
+	err := r.client.Get(r.opManagerContext, poolName, pool)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
@@ -46,12 +44,17 @@ func updateStatus(ctx context.Context, client client.Client, poolName types.Name
 		pool.Status = &cephv1.CephBlockPoolStatus{}
 	}
 
+	// add pool ID to the status
+	if status == cephv1.ConditionReady && pool.Status.PoolID == 0 {
+		r.updatePoolID(pool)
+	}
+
 	pool.Status.Phase = status
 	updateStatusInfo(pool)
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		pool.Status.ObservedGeneration = observedGeneration
 	}
-	if err := reporting.UpdateStatus(client, pool); err != nil {
+	if err := reporting.UpdateStatus(r.client, pool); err != nil {
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
 		return
 	}
@@ -80,4 +83,15 @@ func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
 	}
 
 	cephBlockPool.Status.Info = m
+}
+
+func (r *ReconcileCephBlockPool) updatePoolID(cephBlockPool *cephv1.CephBlockPool) {
+	poolName := cephBlockPool.ToNamedPoolSpec().Name
+	poolDetails, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, poolName)
+	if err != nil {
+		logger.Warningf("failed to get pool details for cephBlockPool %q", poolName)
+		return
+	}
+	logger.Infof("set pool ID %d to cephBlockPool %q status", poolDetails.Number, poolName)
+	cephBlockPool.Status.PoolID = poolDetails.Number
 }

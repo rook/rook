@@ -3395,6 +3395,17 @@ MirroringInfoSpec
 </tr>
 <tr>
 <td>
+<code>poolID</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<p>optional</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>snapshotScheduleStatus</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.SnapshotScheduleStatusSpec">

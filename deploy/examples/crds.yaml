@@ -636,6 +636,9 @@ spec:
                 phase:
                   description: ConditionType represent a resource's status
                   type: string
+                poolID:
+                  description: optional
+                  type: integer
                 snapshotScheduleStatus:
                   description: SnapshotScheduleStatusSpec is the status of the snapshot schedule
                   properties:
