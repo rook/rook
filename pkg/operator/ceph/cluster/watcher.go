@@ -148,17 +148,19 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object) bo
 }
 
 func (c *clientCluster) handleNodeFailure(ctx context.Context, cluster *cephv1.CephCluster, node *corev1.Node) error {
-	watchForNodeLoss, err := k8sutil.GetOperatorSetting(ctx, c.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_WATCH_FOR_NODE_FAILURE", "true")
-	if err != nil {
-		return pkgerror.Wrapf(err, "failed to get configmap value `ROOK_WATCH_FOR_NODE_FAILURE`.")
-	}
+	// watchForNodeLoss, err := k8sutil.GetOperatorSetting(ctx, c.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_WATCH_FOR_NODE_FAILURE", "true")
+	// if err != nil {
+	// 	return pkgerror.Wrapf(err, "failed to get configmap value `ROOK_WATCH_FOR_NODE_FAILURE`.")
+	// }
+
+	watchForNodeLoss := "false"
 
 	if strings.ToLower(watchForNodeLoss) != "true" {
 		logger.Debugf("not watching for node failures since `ROOK_WATCH_FOR_NODE_FAILURE` is set to %q", watchForNodeLoss)
 		return nil
 	}
 
-	_, err = c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
+	_, err := c.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(ctx, "networkfences.csiaddons.openshift.io", metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Debug("networkfences.csiaddons.openshift.io CRD not found, skip creating networkFence")
