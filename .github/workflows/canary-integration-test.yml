@@ -70,6 +70,21 @@ jobs:
           mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
           timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
 
+      - name: test osd.0 auth recovery from keyring file
+        run: |
+          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          osd_id=0
+          osd_pod=$(kubectl get pod -l app=rook-ceph-osd,osd=$osd_id -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
+          if [ $osd_pod ]; then
+            timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph auth del osd.$osd_id ; do sleep 1 && echo 'waiting for osd auth to be deleted'; done";
+            kubectl -n rook-ceph delete pod $osd_pod;
+            timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph auth get osd.$osd_id ; do sleep 1 && echo 'waiting for osd auth to be recovered'; done";
+            osd_pod=$(kubectl get pod -l app=rook-ceph-osd,osd=$osd_id -n rook-ceph -o jsonpath='{.items[*].metadata.name}');
+            kubectl -n rook-ceph wait --for=condition=Ready pod/$osd_pod --timeout=120s;
+          else
+            echo "osd $osd_id not found, skipping test";
+          fi
+
       - name: test external script create-external-cluster-resources.py
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')

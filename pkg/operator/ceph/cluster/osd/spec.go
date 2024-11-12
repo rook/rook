@@ -113,7 +113,6 @@ KEYRING_FILE="$OSD_DATA_DIR"/keyring
 CV_MODE=%s
 DEVICE="$%s"
 
-<<<<<<< HEAD
 # "ceph.conf" must have the "fsid" global configuration to activate encrypted OSDs
 # after the following Ceph's PR is merged.
 # https://github.com/ceph/ceph/commit/25655e5a8829e001adf467511a6bde8142b0a575
@@ -137,9 +136,6 @@ with open('/etc/ceph/ceph.conf', 'w') as configfile:
     config.write(configfile)
 "
 
-# create new keyring
-ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
-=======
 # In rare cases keyring file created with prepare-osd but did not
 # being stored in ceph auth system therefore we need to import it
 # from keyring file instead of creating new one
@@ -172,7 +168,6 @@ with open('$TMP_DIR/keyring', 'w') as configfile:
         ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
     fi
 fi
->>>>>>> 6eb2d1121 (osd: import keyring file on activate to ceph auth if not imported yet)
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
