@@ -26,6 +26,7 @@ until all the daemons have been updated.
 
 Rook v1.15 supports the following Ceph versions:
 
+* Ceph Squid v19.2.0 or newer
 * Ceph Reef v18.2.0 or newer
 * Ceph Quincy v17.2.0 or newer
 

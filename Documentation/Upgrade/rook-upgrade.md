@@ -51,6 +51,9 @@ those releases.
 
 ## Breaking changes in v1.15
 
+* The minimum supported version of Kubernetes is v1.26.
+    Upgrade to Kubernetes v1.26 or higher before upgrading Rook.
+
 * Rook has deprecated CSI network "holder" pods.
     If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, see the
     [detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
