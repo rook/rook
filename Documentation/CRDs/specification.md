@@ -1847,6 +1847,20 @@ GatewaySpec
 </tr>
 <tr>
 <td>
+<code>adminGateway</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AdminGatewaySpec">
+AdminGatewaySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>If set creates a separate deployment to host RGW admin-ops API.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>protocols</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ProtocolSpec">
@@ -2680,10 +2694,144 @@ CIDRList
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.AdminGatewaySpec">AdminGatewaySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>)
+</p>
+<div>
+<p>AdminGatewaySpec represents the specification for RGW instance hosting admin-ops API.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>port</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The port the rgw service will be listening on (http)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>securePort</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The port the rgw service will be listening on (https)</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>instances</code><br/>
+<em>
+int32
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The number of pods in the rgw replicaset.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>sslCertificateRef</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the secret that stores the ssl certificate for secure rgw connections</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>caBundleRef</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The name of the secret that stores custom ca-bundle with root and intermediate certificates.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>annotations</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Annotations">
+Annotations
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The annotations-related configuration to add/set on each Pod related object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>labels</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Labels">
+Labels
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The labels-related configuration to add/set on each Pod related object.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>resources</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#resourcerequirements-v1-core">
+Kubernetes core/v1.ResourceRequirements
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The resource requirements for the rgw pods</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>service</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RGWServiceSpec">
+RGWServiceSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>The configuration related to add/set on each rgw service.</p>
+</td>
+</tr>
+</tbody>
+</table>
 <h3 id="ceph.rook.io/v1.Annotations">Annotations
 (<code>map[string]string</code> alias)</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.RGWServiceSpec">RGWServiceSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AdminGatewaySpec">AdminGatewaySpec</a>, <a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>, <a href="#ceph.rook.io/v1.RGWServiceSpec">RGWServiceSpec</a>)
 </p>
 <div>
 <p>Annotations are annotations</p>
@@ -7779,7 +7927,7 @@ int
 <h3 id="ceph.rook.io/v1.Labels">Labels
 (<code>map[string]string</code> alias)</h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AdminGatewaySpec">AdminGatewaySpec</a>, <a href="#ceph.rook.io/v1.FilesystemMirroringSpec">FilesystemMirroringSpec</a>, <a href="#ceph.rook.io/v1.GaneshaServerSpec">GaneshaServerSpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>, <a href="#ceph.rook.io/v1.MetadataServerSpec">MetadataServerSpec</a>, <a href="#ceph.rook.io/v1.RBDMirroringSpec">RBDMirroringSpec</a>)
 </p>
 <div>
 <p>Labels are label for a given daemons</p>
@@ -9935,6 +10083,20 @@ GatewaySpec
 </tr>
 <tr>
 <td>
+<code>adminGateway</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.AdminGatewaySpec">
+AdminGatewaySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>If set creates a separate deployment to host RGW admin-ops API.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>protocols</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.ProtocolSpec">
@@ -11541,7 +11703,7 @@ string
 <h3 id="ceph.rook.io/v1.RGWServiceSpec">RGWServiceSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.AdminGatewaySpec">AdminGatewaySpec</a>, <a href="#ceph.rook.io/v1.GatewaySpec">GatewaySpec</a>)
 </p>
 <div>
 <p>RGWServiceSpec represent the spec for RGW service</p>

@@ -1487,6 +1487,11 @@ type ObjectStoreSpec struct {
 	// +nullable
 	Gateway GatewaySpec `json:"gateway"`
 
+	// If set creates a separate deployment to host RGW admin-ops API.
+	// +optional
+	// +nullable
+	AdminGateway *AdminGatewaySpec `json:"adminGateway"`
+
 	// The protocol specification
 	// +optional
 	Protocols ProtocolSpec `json:"protocols,omitempty"`
@@ -1627,6 +1632,58 @@ type HealthCheckSpec struct {
 	Interval *metav1.Duration `json:"interval,omitempty"`
 	// +optional
 	Timeout string `json:"timeout,omitempty"`
+}
+
+// AdminGatewaySpec represents the specification for RGW instance hosting admin-ops API.
+type AdminGatewaySpec struct {
+	// The port the rgw service will be listening on (http)
+	// +optional
+	Port int32 `json:"port,omitempty"`
+
+	// The port the rgw service will be listening on (https)
+	// +kubebuilder:validation:Minimum=0
+	// +kubebuilder:validation:Maximum=65535
+	// +nullable
+	// +optional
+	SecurePort int32 `json:"securePort,omitempty"`
+
+	// The number of pods in the rgw replicaset.
+	// +nullable
+	// +optional
+	Instances int32 `json:"instances,omitempty"`
+
+	// The name of the secret that stores the ssl certificate for secure rgw connections
+	// +nullable
+	// +optional
+	SSLCertificateRef string `json:"sslCertificateRef,omitempty"`
+
+	// The name of the secret that stores custom ca-bundle with root and intermediate certificates.
+	// +nullable
+	// +optional
+	CaBundleRef string `json:"caBundleRef,omitempty"`
+
+	// The annotations-related configuration to add/set on each Pod related object.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Annotations Annotations `json:"annotations,omitempty"`
+
+	// The labels-related configuration to add/set on each Pod related object.
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Labels Labels `json:"labels,omitempty"`
+
+	// The resource requirements for the rgw pods
+	// +kubebuilder:pruning:PreserveUnknownFields
+	// +nullable
+	// +optional
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
+
+	// The configuration related to add/set on each rgw service.
+	// +optional
+	// +nullable
+	Service *RGWServiceSpec `json:"service,omitempty"`
 }
 
 // GatewaySpec represents the specification of Ceph Object Store Gateway

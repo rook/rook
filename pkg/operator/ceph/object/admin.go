@@ -139,6 +139,20 @@ func NewMultisiteContext(context *clusterd.Context, clusterInfo *cephclient.Clus
 
 // GetAdminOpsEndpoint returns an endpoint that can be used to perform RGW admin ops
 func GetAdminOpsEndpoint(s *cephv1.CephObjectStore) (string, error) {
+	if s.Spec.AdminGateway.Enabled() {
+		// return service endpoint for dedicated admin RGW instance:
+		adminSpec := s.DeepCopy()
+		adminSpec.Name += "-admin"
+
+		address := adminSpec.GetServiceDomainName()
+		protocol := "http"
+		port := adminSpec.Spec.AdminGateway.Port
+		if adminSpec.Spec.AdminGateway.SecurePort != 0 {
+			port = adminSpec.Spec.AdminGateway.SecurePort
+			protocol = "https"
+		}
+		return fmt.Sprintf("%s://%s:%d", protocol, address, port), nil
+	}
 	nsName := fmt.Sprintf("%s/%s", s.Namespace, s.Name)
 
 	// advertise endpoint should be most likely to have a valid cert, so use it for admin ops

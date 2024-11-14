@@ -10709,6 +10709,123 @@ spec:
             spec:
               description: ObjectStoreSpec represent the spec of a pool
               properties:
+                adminGateway:
+                  description: If set creates a separate deployment to host RGW admin-ops API.
+                  nullable: true
+                  properties:
+                    annotations:
+                      additionalProperties:
+                        type: string
+                      description: The annotations-related configuration to add/set on each Pod related object.
+                      nullable: true
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    caBundleRef:
+                      description: The name of the secret that stores custom ca-bundle with root and intermediate certificates.
+                      nullable: true
+                      type: string
+                    instances:
+                      description: The number of pods in the rgw replicaset.
+                      format: int32
+                      nullable: true
+                      type: integer
+                    labels:
+                      additionalProperties:
+                        type: string
+                      description: The labels-related configuration to add/set on each Pod related object.
+                      nullable: true
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    port:
+                      description: The port the rgw service will be listening on (http)
+                      format: int32
+                      type: integer
+                    resources:
+                      description: The resource requirements for the rgw pods
+                      nullable: true
+                      properties:
+                        claims:
+                          description: |-
+                            Claims lists the names of resources, defined in spec.resourceClaims,
+                            that are used by this container.
+
+                            This is an alpha field and requires enabling the
+                            DynamicResourceAllocation feature gate.
+
+                            This field is immutable. It can only be set for containers.
+                          items:
+                            description: ResourceClaim references one entry in PodSpec.ResourceClaims.
+                            properties:
+                              name:
+                                description: |-
+                                  Name must match the name of one entry in pod.spec.resourceClaims of
+                                  the Pod where this field is used. It makes that resource available
+                                  inside a container.
+                                type: string
+                              request:
+                                description: |-
+                                  Request is the name chosen for a request in the referenced claim.
+                                  If empty, everything from the claim is made available, otherwise
+                                  only the result of this request.
+                                type: string
+                            required:
+                              - name
+                            type: object
+                          type: array
+                          x-kubernetes-list-map-keys:
+                            - name
+                          x-kubernetes-list-type: map
+                        limits:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            Limits describes the maximum amount of compute resources allowed.
+                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          type: object
+                        requests:
+                          additionalProperties:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                            x-kubernetes-int-or-string: true
+                          description: |-
+                            Requests describes the minimum amount of compute resources required.
+                            If Requests is omitted for a container, it defaults to Limits if that is explicitly specified,
+                            otherwise to an implementation-defined value. Requests cannot exceed Limits.
+                            More info: https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+                          type: object
+                      type: object
+                      x-kubernetes-preserve-unknown-fields: true
+                    securePort:
+                      description: The port the rgw service will be listening on (https)
+                      format: int32
+                      maximum: 65535
+                      minimum: 0
+                      nullable: true
+                      type: integer
+                    service:
+                      description: The configuration related to add/set on each rgw service.
+                      nullable: true
+                      properties:
+                        annotations:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            The annotations-related configuration to add/set on each rgw service.
+                            nullable
+                            optional
+                          type: object
+                      type: object
+                    sslCertificateRef:
+                      description: The name of the secret that stores the ssl certificate for secure rgw connections
+                      nullable: true
+                      type: string
+                  type: object
                 allowUsersInNamespaces:
                   description: |-
                     The list of allowed namespaces in addition to the object store namespace

@@ -54,6 +54,8 @@ caps osd = "allow rwx"
 	HttpTimeOut                     = time.Second * 15
 	rgwVaultVolumeName              = "rgw-vault-volume"
 	rgwVaultDirName                 = "/etc/vault/rgw/"
+	// APIs hosted by RGW by default. See: https://docs.ceph.com/en/latest/radosgw/config-ref/#confval-rgw_enable_apis
+	defaultRgwApis = "s3, s3website, swift, swift_auth, admin, sts, iam, notifications"
 )
 
 var (
@@ -208,6 +210,13 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 
 	}
 
+	apisToEnable := defaultRgwApis
+	disableAdminForUserFacigRGW := c.store.Spec.AdminGateway.Enabled()
+	if disableAdminForUserFacigRGW {
+		// remove admin api from the list
+		apisToEnable = strings.ReplaceAll(apisToEnable, ", admin", "")
+	}
+
 	if s3disabled {
 		// XXX: how to handle enabled APIs? We only configure s3 and
 		// swift in the resource, `admin` is required for the operator to
@@ -220,13 +229,35 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		// Swift was enabled so far already by default, so perhaps better
 		// not change that if someone relies on it.
 
-		configOptions["rgw_enable_apis"] = "s3website, swift, swift_auth, admin, sts, iam, notifications"
+		// remove s3 api from the list
+		apisToEnable = strings.ReplaceAll(apisToEnable, "s3, ", "")
+	}
+	if apisToEnable != defaultRgwApis {
+		logger.Debugf("adjust RGW enabled APIs: %s", apisToEnable)
+		configOptions["rgw_enable_apis"] = apisToEnable
 	}
 
 	for flag, val := range configOptions {
 		err := monStore.Set(who, flag, val)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
+		}
+	}
+	if apisToEnable == defaultRgwApis {
+		// revert config to default state in case if some api was disabled and then enabled back in CRD
+		// TODO: should we also restart RGW deployment?
+		err := monStore.Delete(who, "rgw_enable_apis")
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete rgw_enable_apis config on %q", who)
+		}
+	}
+
+	if c.store.Spec.AdminGateway.Enabled() {
+		// enable only admin api for dedicated Admin RGW:
+		whoAdmin := generateCephXUser(rgwConfig.ResourceName + "-admin")
+		err := monStore.Set(whoAdmin, "rgw_enable_apis", "admin")
+		if err != nil {
+			return errors.Wrapf(err, "failed to override enabled api for admin rgw")
 		}
 	}
 

@@ -363,3 +363,50 @@ func TestCephObjectStore_GetAdvertiseEndpointUrl(t *testing.T) {
 		}
 	}
 }
+
+func TestAdminGatewaySpec_Enabled(t *testing.T) {
+	type fields struct {
+		Spec *AdminGatewaySpec
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   bool
+	}{
+		{
+			name: "disabled: ports are not set",
+			fields: fields{
+				Spec: &AdminGatewaySpec{},
+			},
+			want: false,
+		},
+		{
+			name: "disabled: spec is nil",
+			fields: fields{
+				Spec: nil,
+			},
+			want: false,
+		},
+		{
+			name: "enabled: port is set",
+			fields: fields{
+				Spec: &AdminGatewaySpec{Port: 8080},
+			},
+			want: true,
+		},
+		{
+			name: "enabled: secure port is set",
+			fields: fields{
+				Spec: &AdminGatewaySpec{SecurePort: 8080},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.fields.Spec.Enabled(); got != tt.want {
+				t.Errorf("AdminGatewaySpec.Enabled() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

@@ -197,6 +197,66 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 		if err := c.generateMimeTypes(); err != nil {
 			return errors.Wrap(err, "failed to generate the rgw mime.types config")
 		}
+
+		// create admingw deployment
+		if c.store.Spec.AdminGateway.Enabled() {
+			adminRgwConfig := *rgwConfig
+			adminRgwConfig.ResourceName += "-admin"
+
+			adminClusterConf := c
+			adminClusterConf.store = c.store.DeepCopy()
+			adminClusterConf.store.Spec.Gateway.Port = adminClusterConf.store.Spec.AdminGateway.Port
+			adminClusterConf.store.Spec.Gateway.SecurePort = adminClusterConf.store.Spec.AdminGateway.SecurePort
+			adminClusterConf.store.Spec.Gateway.SSLCertificateRef = adminClusterConf.store.Spec.AdminGateway.SSLCertificateRef
+			adminClusterConf.store.Spec.Gateway.CaBundleRef = adminClusterConf.store.Spec.AdminGateway.CaBundleRef
+			adminClusterConf.store.Spec.Gateway.Annotations = adminClusterConf.store.Spec.AdminGateway.Annotations
+			adminClusterConf.store.Spec.Gateway.Labels = adminClusterConf.store.Spec.AdminGateway.Labels
+			adminClusterConf.store.Spec.Gateway.Resources = adminClusterConf.store.Spec.AdminGateway.Resources
+			adminClusterConf.store.Spec.Gateway.Instances = adminClusterConf.store.Spec.AdminGateway.Instances
+			if adminClusterConf.store.Spec.Gateway.Instances == 0 {
+				adminClusterConf.store.Spec.Gateway.Instances = 1
+			}
+
+			if err := cephv1.ValidateObjectSpec(adminClusterConf.store); err != nil {
+				return errors.Wrap(err, "failed to create rgw admin deployment: invalid spec")
+			}
+
+			_, err = c.generateKeyring(&adminRgwConfig)
+			if err != nil {
+				return errors.Wrap(err, "failed to create admin rgw keyring")
+			}
+
+			adminDeployment, err := adminClusterConf.createDeployment(&adminRgwConfig)
+			if err != nil {
+				return errors.Wrap(err, "failed to create rgw admin deployment")
+			}
+
+			adminDeployment.Spec.Template.Spec.Containers[0].StartupProbe = nil
+			adminDeployment.Spec.Template.Spec.Containers[0].ReadinessProbe = nil
+			adminDeployment.Spec.Selector.MatchLabels["ceph_daemon_id"] += "-admin"
+			adminDeployment.Spec.Template.Labels["ceph_daemon_id"] += "-admin"
+
+			err = c.ownerInfo.SetControllerReference(adminDeployment)
+			if err != nil {
+				return errors.Wrapf(err, "failed to set owner reference for rgw admin deployment %q", adminDeployment.Name)
+			}
+			err = patch.DefaultAnnotator.SetLastAppliedAnnotation(adminDeployment)
+			if err != nil {
+				return errors.Wrapf(err, "failed to set annotation for deployment %q", adminDeployment.Name)
+			}
+			logger.Infof("object store %q admin deployment %q created", c.store.Name, adminDeployment.Name)
+
+			_, createErr := c.context.Clientset.AppsV1().Deployments(c.store.Namespace).Create(c.clusterInfo.Context, adminDeployment, metav1.CreateOptions{})
+			if createErr != nil {
+				if !kerrors.IsAlreadyExists(createErr) {
+					return errors.Wrap(createErr, "failed to create rgw admin deployment")
+				}
+				logger.Infof("object store %q admin deployment %q already exists. updating if needed", c.store.Name, adminDeployment.Name)
+				if err := updateDeploymentAndWait(c.context, c.clusterInfo, adminDeployment, config.RgwType, daemonLetterID, c.clusterSpec.SkipUpgradeChecks, c.clusterSpec.ContinueUpgradeAfterChecksEvenIfNotHealthy); err != nil {
+					return errors.Wrapf(err, "failed to update object store %q admin deployment %q", c.store.Name, adminDeployment.Name)
+				}
+			}
+		}
 	}
 
 	// scale down scenario
@@ -216,7 +276,6 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 				logger.Warningf("error during deletion of deployment %q resource. %v", depNameToRemove, err)
 			}
 			currentRgwInstances = currentRgwInstances - 1
-			i++
 
 			// Delete the Secret key
 			secretToRemove := c.generateSecretName(k8sutil.IndexToName(depIDToRemove))
@@ -229,6 +288,22 @@ func (c *clusterConfig) startRGWPods(realmName, zoneGroupName, zoneName string, 
 			if err != nil {
 				logger.Warningf("%v", err)
 			}
+			if c.store.Spec.AdminGateway.Enabled() {
+				depNameToRemove += "-admin"
+				if err := k8sutil.DeleteDeployment(c.clusterInfo.Context, c.context.Clientset, c.store.Namespace, depNameToRemove); err != nil {
+					logger.Warningf("error during deletion of deployment %q resource. %v", depNameToRemove, err)
+				}
+				secretToRemove := c.generateSecretName(k8sutil.IndexToName(depIDToRemove) + "-admin")
+				err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.clusterInfo.Context, secretToRemove, metav1.DeleteOptions{})
+				if err != nil && !kerrors.IsNotFound(err) {
+					logger.Warningf("failed to delete rgw secret %q. %v", secretToRemove, err)
+				}
+				err = c.deleteRgwCephObjects(depNameToRemove)
+				if err != nil {
+					logger.Warningf("%v", err)
+				}
+			}
+			i++
 		}
 		// verify scale down was successful
 		deps, err = k8sutil.GetDeployments(c.clusterInfo.Context, c.context.Clientset, c.store.Namespace, c.storeLabelSelector())

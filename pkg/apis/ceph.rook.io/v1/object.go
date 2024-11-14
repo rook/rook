@@ -201,3 +201,10 @@ func (e *EndpointAddress) String() string {
 	}
 	return e.IP
 }
+
+func (a *AdminGatewaySpec) Enabled() bool {
+	if a == nil {
+		return false
+	}
+	return a.Port != 0 || a.SecurePort != 0
+}

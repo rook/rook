@@ -639,6 +639,30 @@ func (c *clusterConfig) reconcileService(store *cephv1.CephObjectStore) error {
 
 	logger.Infof("ceph object store gateway service running at %s", svc.Spec.ClusterIP)
 
+	if store.Spec.AdminGateway.Enabled() {
+		adminStore := store.DeepCopy()
+		adminStore.Spec.Gateway.Port = adminStore.Spec.AdminGateway.Port
+		adminStore.Spec.Gateway.SecurePort = adminStore.Spec.AdminGateway.SecurePort
+		adminStore.Spec.Gateway.Annotations = adminStore.Spec.AdminGateway.Annotations
+		adminStore.Spec.Gateway.Labels = adminStore.Spec.AdminGateway.Labels
+		adminStore.Spec.Gateway.Service = adminStore.Spec.AdminGateway.Service
+		adminSvc := c.generateService(adminStore)
+		adminSvc.Name += "-admin"
+		adminSvc.Spec.Selector["ceph_daemon_id"] += "-admin"
+
+		err := c.ownerInfo.SetControllerReference(adminSvc)
+		if err != nil {
+			return errors.Wrapf(err, "failed to set owner reference to ceph object store admin service %q", adminSvc.Name)
+		}
+
+		svc, err := k8sutil.CreateOrUpdateService(c.clusterInfo.Context, c.context.Clientset, adminStore.Namespace, adminSvc)
+		if err != nil {
+			return errors.Wrapf(err, "failed to create or update object store %q admin service", adminStore.Name)
+		}
+
+		logger.Infof("ceph object store gateway admin service running at %s", svc.Spec.ClusterIP)
+	}
+
 	return nil
 }
 
