@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	corev1 "k8s.io/api/core/v1"
 )
@@ -39,6 +40,8 @@ var (
 
 	// The list of supported failure domains in the CRUSH map, ordered from lowest to highest
 	CRUSHMapLevelsOrdered = append([]string{"host"}, append(CRUSHTopologyLabels, KubernetesTopologyLabels...)...)
+
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "osd-topology")
 )
 
 const (
@@ -107,16 +110,25 @@ func extractTopologyFromLabels(labels map[string]string) (map[string]string, str
 	}
 	// iterate in lowest to highest order as the lowest level should be sustained and higher level duplicate
 	// should be removed
-	duplicateTopology := make(map[string]int)
+	duplicateTopology := make(map[string][]string)
 	for i := len(allKubernetesTopologyLabels) - 1; i >= 0; i-- {
 		topologyLabel := allKubernetesTopologyLabels[i]
 		if value, ok := labels[topologyLabel]; ok {
 			if _, ok := duplicateTopology[value]; ok {
 				delete(topology, kubernetesTopologyLabelToCRUSHLabel(topologyLabel))
-			} else {
-				duplicateTopology[value] = 1
 			}
+			duplicateTopology[value] = append(duplicateTopology[value], topologyLabel)
 		}
+	}
+
+	// remove non-duplicate entries, and report if any duplicate entries were found
+	for value, duplicateKeys := range duplicateTopology {
+		if len(duplicateKeys) <= 1 {
+			delete(duplicateTopology, value)
+		}
+	}
+	if len(duplicateTopology) != 0 {
+		logger.Warningf("Found duplicate location values with labels: %v", duplicateTopology)
 	}
 
 	return topology, topologyAffinity
