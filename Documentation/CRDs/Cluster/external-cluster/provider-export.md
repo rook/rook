@@ -4,7 +4,7 @@ In order to configure an external Ceph cluster with Rook, we need to extract som
 
 ## 1. Create all users and keys
 
-Run the python script [create-external-cluster-resources.py](https://github.com/rook/rook/blob/master/deploy/examples/external/create-external-cluster-resources.py) for creating all users and keys.
+Run the python script [create-external-cluster-resources.py](https://github.com/rook/rook/blob/master/deploy/examples/external/create-external-cluster-resources.py) in the provider Ceph cluster cephadm shell, to have access to create the necessary users and keys.
 
 ```console
 python3 create-external-cluster-resources.py --rbd-data-pool-name <pool_name> --cephfs-filesystem-name <filesystem-name> --rgw-endpoint  <rgw-endpoint> --namespace <namespace> --format bash
