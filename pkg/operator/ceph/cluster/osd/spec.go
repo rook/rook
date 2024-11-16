@@ -107,11 +107,42 @@ OSD_ID="$ROOK_OSD_ID"
 OSD_UUID=%s
 OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
+KEYRING_FILE="$OSD_DATA_DIR"/keyring
 CV_MODE=%s
 DEVICE="$%s"
 
-# create new keyring
-ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
+# In rare cases keyring file created with prepare-osd but did not
+# being stored in ceph auth system therefore we need to import it
+# from keyring file instead of creating new one
+if ! ceph -n client.admin auth get osd."$OSD_ID" -k /etc/ceph/admin-keyring-store/keyring; then
+    if [ -f "$KEYRING_FILE" ]; then
+        # import keyring from existing file
+        TMP_DIR=$(mktemp -d)
+
+        python3 -c "
+import configparser
+
+config = configparser.ConfigParser()
+config.read('$KEYRING_FILE')
+
+if not config.has_section('osd.$OSD_ID'):
+    exit()
+
+config['osd.$OSD_ID'] = {'key': config['osd.$OSD_ID']['key'], 'caps mon': '\"allow profile osd\"', 'caps mgr': '\"allow profile osd\"', 'caps osd': '\"allow *\"'}
+
+with open('$TMP_DIR/keyring', 'w') as configfile:
+    config.write(configfile)
+"
+
+        cat "$TMP_DIR"/keyring
+        ceph -n client.admin auth import -i "$TMP_DIR"/keyring -k /etc/ceph/admin-keyring-store/keyring
+
+        rm --recursive --force "$TMP_DIR"
+    else
+        # create new keyring if no keyring file found
+        ceph -n client.admin auth get-or-create osd."$OSD_ID" mon 'allow profile osd' mgr 'allow profile osd' osd 'allow *' -k /etc/ceph/admin-keyring-store/keyring
+    fi
+fi
 
 # active the osd with ceph-volume
 if [[ "$CV_MODE" == "lvm" ]]; then
