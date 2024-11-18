@@ -46,7 +46,7 @@ jobs:
           go-version: "1.22"
 
       - name: Setup jq
-        uses: dcarbone/install-jq-action@8867ddb4788346d7c22b72ea2e2ffe4d514c7bcb # v2.1.0
+        uses: dcarbone/install-jq-action@e397bd87438d72198f81efd21f876461183d383a # v3.0.1
         with:
           version: "${{ inputs.version }}"
 
