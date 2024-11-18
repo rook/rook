@@ -130,7 +130,6 @@ spec:
     instances: 1
   config:
     rgw_enable_apis: "s3, s3website, sts, iam, notifications" 
-    rgw_enable_apis: "s3, s3website, swift, swift_auth, admin, sts, iam, notifications" 
   adminOpsInstanceName: "my-store-admin"
 ---
 apiVersion: ceph.rook.io/v1
