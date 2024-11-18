@@ -63,7 +63,7 @@ Alternative approach is to have a separate `CephObjectStore` CR for each RGW ins
 - separate RGW instance to host SWIFT and S3 APIs on different domains
 - separate RGW instance to run garbage collection
 
-To run different RGW daemons for the same storage but with different confgis these daemons should refer to the same `realm`, `zone`, `zonegroup` and use the same pools.
+To run different RGW daemons for the same storage but with different configs these daemons should refer to the same `realm`, `zone`, `zonegroup` and use the same pools.
 
 The following changes are required to support flexible RGW deployments with Rook:
 1. Set custom `realm`, `zone`, `zonegroup` names to `CephObjectStore` CR. Currencly, [Rook is using CephObjectStore name as realm/zone/zonegroup for single-site setup](https://github.com/rook/rook/blob/master/pkg/operator/ceph/object/controller.go#L510-L513). In this case it is not possible to create multiple `CephObjectStore` CRs with different configs (e.g. `rgw_enable_apis`).
@@ -82,7 +82,7 @@ metadata:
   name: my-store
 spec:
 ...
-+  # [OPTIONAL] Required if admin api is disabled for given RGW instance and served by diffrent CephObjectStore
++  # [OPTIONAL] Required if admin api is disabled for given RGW instance and served by different CephObjectStore
 +  adminOpsInstanceName: "my-store-admin"
 +  # [OPTIONAL] 
 +  multiInstance:
