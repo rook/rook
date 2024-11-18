@@ -51,7 +51,7 @@ spec:
     ...
 ```
 
-If `spec.extAdminOps.enabled` set to `true`, Rook will remove `admin` from `rgw_enable_apis` option for user-facing `my-store` RGW instances to disable admin admin-ops API on it.
+If `spec.adminGateway` is specified, Rook will remove `admin` from `rgw_enable_apis` option for user-facing `my-store` RGW instances to disable admin admin-ops API on it.
 Additionally, Rook will create a separate deployment and service of `my-store-admin` RGW instance with all options and configs inherited from `my-store` except of following:
 - `rgw_enable_apis=admin` - admin instance will expose only admin API
 - rgw admin instance will use a separate certificate if TLS is enabled.
