@@ -114,6 +114,7 @@ spec:
               mountPath: /etc/rook
             - name: ceph-admin-secret
               mountPath: /var/lib/rook-ceph-mon
+      serviceAccountName: rook-ceph-default
       volumes:
         - name: ceph-admin-secret
           secret:
