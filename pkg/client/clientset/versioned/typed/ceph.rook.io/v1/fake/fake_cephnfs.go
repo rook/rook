@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,9 +29,16 @@ package fake
 import (
 	"context"
 
+<<<<<<< HEAD
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
+=======
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,6 +50,7 @@ type FakeCephNFSes struct {
 	ns   string
 }
 
+<<<<<<< HEAD
 var cephnfsesResource = v1.SchemeGroupVersion.WithResource("cephnfses")
 
 var cephnfsesKind = v1.SchemeGroupVersion.WithKind("CephNFS")
@@ -59,14 +75,43 @@ func (c *FakeCephNFSes) List(ctx context.Context, opts metav1.ListOptions) (resu
 
 	if obj == nil {
 		return emptyResult, err
+=======
+var cephnfsesResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephnfses"}
+
+var cephnfsesKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephNFS"}
+
+// Get takes name of the cephNFS, and returns the corresponding cephNFS object, and an error if there is any.
+func (c *FakeCephNFSes) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephNFS, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewGetAction(cephnfsesResource, c.ns, name), &cephrookiov1.CephNFS{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephNFS), err
+}
+
+// List takes label and field selectors, and returns the list of CephNFSes that match those selectors.
+func (c *FakeCephNFSes) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephNFSList, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewListAction(cephnfsesResource, cephnfsesKind, c.ns, opts), &cephrookiov1.CephNFSList{})
+
+	if obj == nil {
+		return nil, err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
+<<<<<<< HEAD
 	list := &v1.CephNFSList{ListMeta: obj.(*v1.CephNFSList).ListMeta}
 	for _, item := range obj.(*v1.CephNFSList).Items {
+=======
+	list := &cephrookiov1.CephNFSList{ListMeta: obj.(*cephrookiov1.CephNFSList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.CephNFSList).Items {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -75,13 +120,20 @@ func (c *FakeCephNFSes) List(ctx context.Context, opts metav1.ListOptions) (resu
 }
 
 // Watch returns a watch.Interface that watches the requested cephNFSes.
+<<<<<<< HEAD
 func (c *FakeCephNFSes) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchActionWithOptions(cephnfsesResource, c.ns, opts))
+=======
+func (c *FakeCephNFSes) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+	return c.Fake.
+		InvokesWatch(testing.NewWatchAction(cephnfsesResource, c.ns, opts))
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 }
 
 // Create takes the representation of a cephNFS and creates it.  Returns the server's representation of the cephNFS, and an error, if there is any.
+<<<<<<< HEAD
 func (c *FakeCephNFSes) Create(ctx context.Context, cephNFS *v1.CephNFS, opts metav1.CreateOptions) (result *v1.CephNFS, err error) {
 	emptyResult := &v1.CephNFS{}
 	obj, err := c.Fake.
@@ -109,19 +161,54 @@ func (c *FakeCephNFSes) Update(ctx context.Context, cephNFS *v1.CephNFS, opts me
 func (c *FakeCephNFSes) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteActionWithOptions(cephnfsesResource, c.ns, name, opts), &v1.CephNFS{})
+=======
+func (c *FakeCephNFSes) Create(ctx context.Context, cephNFS *cephrookiov1.CephNFS, opts v1.CreateOptions) (result *cephrookiov1.CephNFS, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewCreateAction(cephnfsesResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephNFS), err
+}
+
+// Update takes the representation of a cephNFS and updates it. Returns the server's representation of the cephNFS, and an error, if there is any.
+func (c *FakeCephNFSes) Update(ctx context.Context, cephNFS *cephrookiov1.CephNFS, opts v1.UpdateOptions) (result *cephrookiov1.CephNFS, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateAction(cephnfsesResource, c.ns, cephNFS), &cephrookiov1.CephNFS{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephNFS), err
+}
+
+// Delete takes name of the cephNFS and deletes it. Returns an error if one occurs.
+func (c *FakeCephNFSes) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+	_, err := c.Fake.
+		Invokes(testing.NewDeleteAction(cephnfsesResource, c.ns, name), &cephrookiov1.CephNFS{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
+<<<<<<< HEAD
 func (c *FakeCephNFSes) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewDeleteCollectionActionWithOptions(cephnfsesResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.CephNFSList{})
+=======
+func (c *FakeCephNFSes) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephnfsesResource, c.ns, listOpts)
+
+	_, err := c.Fake.Invokes(action, &cephrookiov1.CephNFSList{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return err
 }
 
 // Patch applies the patch and returns the patched cephNFS.
+<<<<<<< HEAD
 func (c *FakeCephNFSes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephNFS, err error) {
 	emptyResult := &v1.CephNFS{}
 	obj, err := c.Fake.
@@ -131,4 +218,14 @@ func (c *FakeCephNFSes) Patch(ctx context.Context, name string, pt types.PatchTy
 		return emptyResult, err
 	}
 	return obj.(*v1.CephNFS), err
+=======
+func (c *FakeCephNFSes) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephNFS, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(cephnfsesResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephNFS{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephNFS), err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

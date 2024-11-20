@@ -24,7 +24,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/k8sutil"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +41,10 @@ func TestCreateUpdateCephConnection(t *testing.T) {
 	c.Namespace = ns
 	c.SetName("testcluster")
 	c.NamespacedName()
+<<<<<<< HEAD
 	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{

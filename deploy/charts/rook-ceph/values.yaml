@@ -7,7 +7,11 @@ image:
   repository: docker.io/rook/ceph
   # -- Image tag
   # @default -- `master`
+<<<<<<< HEAD
   tag: v1.16.0-beta.0
+=======
+  tag: master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -480,7 +484,11 @@ csi:
     # -- Ceph CSI image repository
     repository: quay.io/cephcsi/cephcsi
     # -- Ceph CSI image tag
+<<<<<<< HEAD
     tag: v3.12.3
+=======
+    tag: v3.12.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
   registrar:
     # -- Kubernetes CSI registrar image repository
@@ -530,7 +538,11 @@ csi:
     # -- CSIAddons sidecar image repository
     repository: quay.io/csiaddons/k8s-sidecar
     # -- CSIAddons sidecar image tag
+<<<<<<< HEAD
     tag: v0.11.0
+=======
+    tag: v0.10.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
   nfs:
     # -- Enable the nfs csi driver

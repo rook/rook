@@ -54,7 +54,12 @@ const (
 	enforceHostNetworkSettingName  string = "ROOK_ENFORCE_HOST_NETWORK"
 	enforceHostNetworkDefaultValue string = "false"
 
+<<<<<<< HEAD
 	revisionHistoryLimitSettingName string = "ROOK_REVISION_HISTORY_LIMIT"
+=======
+	revisionHistoryLimitSettingName  string = "ROOK_REVISION_HISTORY_LIMIT"
+	revisionHistoryLimitDefaultValue string = ""
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
 	// This typically is raised when the operator has not finished initializing
@@ -137,6 +142,7 @@ func EnforceHostNetwork() bool {
 }
 
 func SetRevisionHistoryLimit(data map[string]string) {
+<<<<<<< HEAD
 	strval := k8sutil.GetValue(data, revisionHistoryLimitSettingName, "")
 	var limit int32
 	if strval == "" {
@@ -152,6 +158,20 @@ func SetRevisionHistoryLimit(data map[string]string) {
 	}
 	limit = int32(numval)
 	revisionHistoryLimit = &limit
+=======
+	strval := k8sutil.GetValue(data, revisionHistoryLimitSettingName, revisionHistoryLimitDefaultValue)
+	if strval != "" {
+		numval, err := strconv.ParseInt(strval, 10, 32)
+		if err != nil {
+			logger.Warningf("failed to parse value %q for %q. assuming default value.", strval, revisionHistoryLimitSettingName)
+			revisionHistoryLimit = nil
+			return
+
+		}
+		limit := int32(numval)
+		revisionHistoryLimit = &limit
+	}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 }
 

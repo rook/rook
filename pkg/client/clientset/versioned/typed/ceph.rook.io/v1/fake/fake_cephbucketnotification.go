@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,9 +29,16 @@ package fake
 import (
 	"context"
 
+<<<<<<< HEAD
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
+=======
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,6 +50,7 @@ type FakeCephBucketNotifications struct {
 	ns   string
 }
 
+<<<<<<< HEAD
 var cephbucketnotificationsResource = v1.SchemeGroupVersion.WithResource("cephbucketnotifications")
 
 var cephbucketnotificationsKind = v1.SchemeGroupVersion.WithKind("CephBucketNotification")
@@ -59,14 +75,43 @@ func (c *FakeCephBucketNotifications) List(ctx context.Context, opts metav1.List
 
 	if obj == nil {
 		return emptyResult, err
+=======
+var cephbucketnotificationsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephbucketnotifications"}
+
+var cephbucketnotificationsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephBucketNotification"}
+
+// Get takes name of the cephBucketNotification, and returns the corresponding cephBucketNotification object, and an error if there is any.
+func (c *FakeCephBucketNotifications) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephBucketNotification, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewGetAction(cephbucketnotificationsResource, c.ns, name), &cephrookiov1.CephBucketNotification{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephBucketNotification), err
+}
+
+// List takes label and field selectors, and returns the list of CephBucketNotifications that match those selectors.
+func (c *FakeCephBucketNotifications) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephBucketNotificationList, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewListAction(cephbucketnotificationsResource, cephbucketnotificationsKind, c.ns, opts), &cephrookiov1.CephBucketNotificationList{})
+
+	if obj == nil {
+		return nil, err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
+<<<<<<< HEAD
 	list := &v1.CephBucketNotificationList{ListMeta: obj.(*v1.CephBucketNotificationList).ListMeta}
 	for _, item := range obj.(*v1.CephBucketNotificationList).Items {
+=======
+	list := &cephrookiov1.CephBucketNotificationList{ListMeta: obj.(*cephrookiov1.CephBucketNotificationList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.CephBucketNotificationList).Items {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -75,13 +120,20 @@ func (c *FakeCephBucketNotifications) List(ctx context.Context, opts metav1.List
 }
 
 // Watch returns a watch.Interface that watches the requested cephBucketNotifications.
+<<<<<<< HEAD
 func (c *FakeCephBucketNotifications) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchActionWithOptions(cephbucketnotificationsResource, c.ns, opts))
+=======
+func (c *FakeCephBucketNotifications) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+	return c.Fake.
+		InvokesWatch(testing.NewWatchAction(cephbucketnotificationsResource, c.ns, opts))
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 }
 
 // Create takes the representation of a cephBucketNotification and creates it.  Returns the server's representation of the cephBucketNotification, and an error, if there is any.
+<<<<<<< HEAD
 func (c *FakeCephBucketNotifications) Create(ctx context.Context, cephBucketNotification *v1.CephBucketNotification, opts metav1.CreateOptions) (result *v1.CephBucketNotification, err error) {
 	emptyResult := &v1.CephBucketNotification{}
 	obj, err := c.Fake.
@@ -109,19 +161,54 @@ func (c *FakeCephBucketNotifications) Update(ctx context.Context, cephBucketNoti
 func (c *FakeCephBucketNotifications) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteActionWithOptions(cephbucketnotificationsResource, c.ns, name, opts), &v1.CephBucketNotification{})
+=======
+func (c *FakeCephBucketNotifications) Create(ctx context.Context, cephBucketNotification *cephrookiov1.CephBucketNotification, opts v1.CreateOptions) (result *cephrookiov1.CephBucketNotification, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewCreateAction(cephbucketnotificationsResource, c.ns, cephBucketNotification), &cephrookiov1.CephBucketNotification{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephBucketNotification), err
+}
+
+// Update takes the representation of a cephBucketNotification and updates it. Returns the server's representation of the cephBucketNotification, and an error, if there is any.
+func (c *FakeCephBucketNotifications) Update(ctx context.Context, cephBucketNotification *cephrookiov1.CephBucketNotification, opts v1.UpdateOptions) (result *cephrookiov1.CephBucketNotification, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateAction(cephbucketnotificationsResource, c.ns, cephBucketNotification), &cephrookiov1.CephBucketNotification{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephBucketNotification), err
+}
+
+// Delete takes name of the cephBucketNotification and deletes it. Returns an error if one occurs.
+func (c *FakeCephBucketNotifications) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+	_, err := c.Fake.
+		Invokes(testing.NewDeleteAction(cephbucketnotificationsResource, c.ns, name), &cephrookiov1.CephBucketNotification{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
+<<<<<<< HEAD
 func (c *FakeCephBucketNotifications) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewDeleteCollectionActionWithOptions(cephbucketnotificationsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.CephBucketNotificationList{})
+=======
+func (c *FakeCephBucketNotifications) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephbucketnotificationsResource, c.ns, listOpts)
+
+	_, err := c.Fake.Invokes(action, &cephrookiov1.CephBucketNotificationList{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return err
 }
 
 // Patch applies the patch and returns the patched cephBucketNotification.
+<<<<<<< HEAD
 func (c *FakeCephBucketNotifications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephBucketNotification, err error) {
 	emptyResult := &v1.CephBucketNotification{}
 	obj, err := c.Fake.
@@ -131,4 +218,14 @@ func (c *FakeCephBucketNotifications) Patch(ctx context.Context, name string, pt
 		return emptyResult, err
 	}
 	return obj.(*v1.CephBucketNotification), err
+=======
+func (c *FakeCephBucketNotifications) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephBucketNotification, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(cephbucketnotificationsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephBucketNotification{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephBucketNotification), err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

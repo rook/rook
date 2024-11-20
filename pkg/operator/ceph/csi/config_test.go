@@ -25,7 +25,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/k8sutil"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -49,9 +52,12 @@ func TestCreateUpdateClientProfile(t *testing.T) {
 	c.Namespace = ns
 	c.SetName("testcluster")
 	c.NamespacedName()
+<<<<<<< HEAD
 	c.SetName(c.Namespace)
 	t.Setenv(k8sutil.PodNamespaceEnvVar, ns)
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	clusterName := "testClusterName"
 	cephBlockPoolRadosNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephBlockPoolRadosNames"}
 	cephSubVolGrpNamespacedName := types.NamespacedName{Namespace: ns, Name: "cephSubVolumeGroupNames"}

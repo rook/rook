@@ -73,7 +73,10 @@ const (
 	bluestorePVCData               = "data"
 	deviceClass                    = "device-class"
 	osdStore                       = "osd-store"
+<<<<<<< HEAD
 	deviceType                     = "device-type"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 // Cluster keeps track of the OSDs
@@ -122,7 +125,10 @@ type OSDInfo struct {
 	ExportService    bool   `json:"exportService"`
 	NodeName         string `json:"nodeName"`
 	PVCName          string `json:"pvcName"`
+<<<<<<< HEAD
 	DeviceType       string `json:"device-type"`
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -408,7 +414,11 @@ func deploymentOnNode(c *Cluster, osd *OSDInfo, nodeName string, config *provisi
 func deploymentOnPVC(c *Cluster, osd *OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
 	osdLongName := fmt.Sprintf("OSD %d on PVC %q", osd.ID, pvcName)
 
+<<<<<<< HEAD
 	osdProps, err := c.getOSDPropsForPVC(pvcName)
+=======
+	osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
@@ -468,7 +478,11 @@ func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdPropertie
 	return osdProps, nil
 }
 
+<<<<<<< HEAD
 func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
+=======
+func (c *Cluster) getOSDPropsForPVC(pvcName, osdDeviceClass string) (osdProperties, error) {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	for _, deviceSet := range c.deviceSets {
 		// The data PVC template is required.
 		dataSource, dataOK := deviceSet.PVCSources[bluestorePVCData]
@@ -491,7 +505,11 @@ func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 			}
 
 			if deviceSet.Resources.Limits == nil && deviceSet.Resources.Requests == nil {
+<<<<<<< HEAD
 				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources, deviceSet.CrushDeviceClass)
+=======
+				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources, osdDeviceClass)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			}
 
 			osdProps := osdProperties{

@@ -48,7 +48,11 @@ There are two sources for metrics collection:
 From the root of your locally cloned Rook repo, go the monitoring directory:
 
 ```console
+<<<<<<< HEAD
 $ git clone --single-branch --branch v1.16.0-beta.0 https://github.com/rook/rook.git
+=======
+$ git clone --single-branch --branch master https://github.com/rook/rook.git
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 cd rook/deploy/examples/monitoring
 ```
 

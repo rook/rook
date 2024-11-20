@@ -779,7 +779,11 @@ rules:
     verbs: ["get", "watch", "list", "delete", "update", "create"]
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
+<<<<<<< HEAD
     verbs: ["get", "create", "update", "delete"]
+=======
+    verbs: ["get", "create", "update"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]
@@ -798,7 +802,11 @@ metadata:
 rules:
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
+<<<<<<< HEAD
     verbs: ["get", "create", "update", "delete"]
+=======
+    verbs: ["get", "create", "update"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]
@@ -820,7 +828,11 @@ rules:
     verbs: ["get", "watch", "list", "delete", "update", "create"]
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
+<<<<<<< HEAD
     verbs: ["get", "create", "update", "delete"]
+=======
+    verbs: ["get", "create", "update"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]

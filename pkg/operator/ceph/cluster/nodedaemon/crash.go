@@ -126,7 +126,11 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 			},
 		}
 		cephv1.GetCrashCollectorAnnotations(cephCluster.Spec.Annotations).ApplyToObjectMeta(&deploy.Spec.Template.ObjectMeta)
+<<<<<<< HEAD
 		deploy.Spec.RevisionHistoryLimit = controller.RevisionHistoryLimit()
+=======
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		return nil
 	}
 

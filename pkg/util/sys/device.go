@@ -19,7 +19,10 @@ package sys
 import (
 	"encoding/json"
 	"fmt"
+<<<<<<< HEAD
 	"os"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	osexec "os/exec"
 	"strconv"
 	"strings"
@@ -280,7 +283,11 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	return parseUUID(device, output)
 }
 
+<<<<<<< HEAD
 func GetDiskDeviceType(disk *LocalDisk) string {
+=======
+func GetDiskDeviceClass(disk *LocalDisk) string {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if disk.Rotational {
 		return "hdd"
 	}
@@ -290,6 +297,7 @@ func GetDiskDeviceType(disk *LocalDisk) string {
 	return "ssd"
 }
 
+<<<<<<< HEAD
 func GetDiskDeviceClass(crushDeviceClassVarName, deviceType string) string {
 	crushDeviceClass := os.Getenv(crushDeviceClassVarName)
 	if crushDeviceClass != "" {
@@ -299,6 +307,8 @@ func GetDiskDeviceClass(crushDeviceClassVarName, deviceType string) string {
 	}
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // CheckIfDeviceAvailable checks if a device is available for consumption. The caller
 // needs to decide based on the return values whether it is available.
 func CheckIfDeviceAvailable(executor exec.Executor, devicePath string, pvcBacked bool) (bool, string, error) {

@@ -131,13 +131,21 @@ var (
 // manually challenging.
 var (
 	// image names
+<<<<<<< HEAD
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.12.3"
+=======
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.12.2"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.6.1"
 	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v8.0.1"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.11.1"
+<<<<<<< HEAD
 	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.11.0"
+=======
+	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.10.0"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// image pull policy
 	DefaultCSIImagePullPolicy = string(corev1.PullIfNotPresent)
@@ -338,7 +346,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
+<<<<<<< HEAD
 		rbdPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&rbdPlugin.Spec.Template, "csi-rbd-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -352,7 +363,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&rbdProvisionerDeployment.Spec.Template, "csi-rbd-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		rbdProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+<<<<<<< HEAD
 		rbdProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
@@ -370,8 +384,11 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
+<<<<<<< HEAD
 		cephfsPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&cephfsPlugin.Spec.Template, "csi-cephfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -385,7 +402,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&cephfsProvisionerDeployment.Spec.Template, "csi-cephfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		cephfsProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+<<<<<<< HEAD
 		cephfsProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
@@ -404,7 +424,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs plugin template")
 		}
+<<<<<<< HEAD
 		nfsPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&nfsPlugin.Spec.Template, "csi-nfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -418,7 +441,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&nfsProvisionerDeployment.Spec.Template, "csi-nfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		nfsProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+<<<<<<< HEAD
 		nfsProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	// get common provisioner tolerations and node affinity

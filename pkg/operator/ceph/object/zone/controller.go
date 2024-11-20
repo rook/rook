@@ -61,12 +61,15 @@ type domainRootType struct {
 
 var waitForRequeueIfObjectZoneGroupNotReady = reconcile.Result{Requeue: true, RequeueAfter: 10 * time.Second}
 
+<<<<<<< HEAD
 // allow this to be overridden for unit tests
 var createObjectStorePoolsFunc = object.CreateObjectStorePools
 
 // allow this to be overridden for unit tests
 var commitConfigChangesFunc = object.CommitConfigChanges
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
 var cephObjectZoneKind = reflect.TypeOf(cephv1.CephObjectZone{}).Name()
@@ -230,11 +233,18 @@ func (r *ReconcileObjectZone) reconcile(request reconcile.Request) (reconcile.Re
 func (r *ReconcileObjectZone) createorUpdateCephZone(zone *cephv1.CephObjectZone, realmName string) (reconcile.Result, error) {
 	logger.Infof("creating object zone %q in zonegroup %q in realm %q", zone.Name, zone.Spec.ZoneGroup, realmName)
 
+<<<<<<< HEAD
+=======
+	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	objContext := object.NewContext(r.context, r.clusterInfo, zone.Name)
 	objContext.Realm = realmName
 	objContext.ZoneGroup = zone.Spec.ZoneGroup
 	objContext.Zone = zone.Name
 
+<<<<<<< HEAD
 	err := r.createPoolsAndZone(objContext, zone)
 	if err != nil {
 		return reconcile.Result{}, err
@@ -282,10 +292,13 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 	realmArg := fmt.Sprintf("--rgw-realm=%s", objContext.Realm)
 	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
 	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// get zone group to see if master zone exists yet
 	output, err := object.RunAdminCommandNoMultisite(objContext, true, "zonegroup", "get", realmArg, zoneGroupArg)
 	if err != nil {
 		if code, ok := exec.ExitStatus(err); ok && code == int(syscall.ENOENT) {
+<<<<<<< HEAD
 			return errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
 		} else {
 			return errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
@@ -300,6 +313,18 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 	zoneIsMaster := false
 	if zoneGroupJson.MasterZoneID == "" {
 		zoneIsMaster = true
+=======
+			return reconcile.Result{}, errors.Wrapf(err, "ceph zone group %q not found", zone.Spec.ZoneGroup)
+		} else {
+			return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zonegroup get failed with code %d", code)
+		}
+	}
+
+	// check if master zone does not exist yet for period
+	zoneGroupJson, err := object.DecodeZoneGroupConfig(output)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrap(err, "failed to parse `radosgw-admin zonegroup get` output")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	// create/update zone
@@ -308,7 +333,11 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 		logger.Debugf("ceph zone %q already exists, new zone and pools will not be created but checking for update", zone.Name)
 		zoneEndpointsModified, err := object.ShouldUpdateZoneEndpointList(zoneGroupJson.Zones, zone.Spec.CustomEndpoints, objContext.Zone)
 		if err != nil {
+<<<<<<< HEAD
 			return err
+=======
+			return reconcile.Result{}, err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 		if zoneEndpointsModified {
 			zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
@@ -316,6 +345,7 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 			endpointArg := fmt.Sprintf("--endpoints=%s", zoneEndpoints)
 			err = object.JoinMultisite(objContext, endpointArg, zoneEndpoints, zone.Namespace)
 			if err != nil {
+<<<<<<< HEAD
 				return err
 			}
 		}
@@ -329,6 +359,52 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 	logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
 
 	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, objContext.Realm, zone.Namespace)
+=======
+				return reconcile.Result{}, err
+			}
+		}
+		return reconcile.Result{}, nil
+	}
+
+	if code, ok := exec.ExitStatus(err); ok && code != int(syscall.ENOENT) {
+		return reconcile.Result{}, errors.Wrapf(err, "radosgw-admin zone get failed with code %d for reason %q", code, output)
+	}
+	logger.Debugf("ceph zone %q not found, running `radosgw-admin zone create`", zone.Name)
+
+	zoneIsMaster := false
+	if zoneGroupJson.MasterZoneID == "" {
+		zoneIsMaster = true
+	}
+
+	err = r.createPoolsAndZone(objContext, zone, realmName, zoneIsMaster)
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+
+	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileObjectZone) createPoolsAndZone(objContext *object.Context, zone *cephv1.CephObjectZone, realmName string, zoneIsMaster bool) error {
+	// create pools for zone
+	logger.Debugf("creating pools ceph zone %q", zone.Name)
+	err := object.ValidateObjectStorePoolsConfig(zone.Spec.MetadataPool, zone.Spec.DataPool, zone.Spec.SharedPools)
+	if err != nil {
+		return fmt.Errorf("invalid zone pools config: %w", err)
+	}
+	if object.IsNeedToCreateObjectStorePools(zone.Spec.SharedPools) {
+		err = object.CreateObjectStorePools(objContext, r.clusterSpec, zone.Spec.MetadataPool, zone.Spec.DataPool)
+		if err != nil {
+			return fmt.Errorf("unable to create pools for zone: %w", err)
+		}
+		logger.Debugf("created pools ceph zone %q", zone.Name)
+	}
+
+	realmArg := fmt.Sprintf("--rgw-realm=%s", realmName)
+	zoneGroupArg := fmt.Sprintf("--rgw-zonegroup=%s", zone.Spec.ZoneGroup)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", zone.Name)
+
+	accessKeyArg, secretKeyArg, err := object.GetRealmKeyArgs(r.opManagerContext, r.context, realmName, zone.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return errors.Wrap(err, "failed to get keys for realm")
 	}
@@ -343,11 +419,31 @@ func (r *ReconcileObjectZone) createZoneIfNotExists(objContext *object.Context, 
 		zoneEndpoints := strings.Join(zone.Spec.CustomEndpoints, ",")
 		args = append(args, fmt.Sprintf("--endpoints=%s", zoneEndpoints))
 	}
+<<<<<<< HEAD
 	output, err = object.RunAdminCommandNoMultisite(objContext, false, args...)
+=======
+	output, err := object.RunAdminCommandNoMultisite(objContext, false, args...)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return errors.Wrapf(err, "failed to create ceph zone %q for reason %q", zone.Name, output)
 	}
 	logger.Debugf("created ceph zone %q", zone.Name)
+<<<<<<< HEAD
+=======
+
+	// Configure the zone for RADOS namespaces
+	err = object.ConfigureSharedPoolsForZone(objContext, zone.Spec.SharedPools)
+	if err != nil {
+		return errors.Wrapf(err, "failed to configure rados namespaces for zone")
+	}
+
+	// Commit rgw zone config changes
+	err = object.CommitConfigChanges(objContext)
+	if err != nil {
+		return errors.Wrapf(err, "failed to commit zone config changes")
+	}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return nil
 }
 

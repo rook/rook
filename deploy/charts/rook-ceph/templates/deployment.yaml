@@ -9,9 +9,12 @@ metadata:
     {{- include "library.rook-ceph.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.scaleDownOperator | ternary 0 1 }}
+<<<<<<< HEAD
 {{- if .Values.revisionHistoryLimit }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
 {{- end }}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   selector:
     matchLabels:
       app: rook-ceph-operator

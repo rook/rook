@@ -284,7 +284,11 @@ func Test_getImage(t *testing.T) {
 			args: args{
 				data:         map[string]string{},
 				settingName:  "ROOK_CSI_CEPH_IMAGE",
+<<<<<<< HEAD
 				defaultImage: "quay.io/cephcsi/cephcsi:v3.12.3",
+=======
+				defaultImage: "quay.io/cephcsi/cephcsi:v3.12.2",
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			},
 			want: DefaultCSIPluginImage,
 		},

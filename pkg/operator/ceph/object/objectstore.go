@@ -53,8 +53,11 @@ const (
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
 	rgwRadosPoolPgNum     = "8"
+<<<<<<< HEAD
 	cosiUserName          = "cosi"
 	cosiUserCaps          = "buckets=*;users=*"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	rgwApplication        = "rgw"
 )
 

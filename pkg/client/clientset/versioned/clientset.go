@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,7 +28,10 @@ package versioned
 
 import (
 	"fmt"
+<<<<<<< HEAD
 	"net/http"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	cephv1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1"
 	discovery "k8s.io/client-go/discovery"
@@ -33,7 +44,12 @@ type Interface interface {
 	CephV1() cephv1.CephV1Interface
 }
 
+<<<<<<< HEAD
 // Clientset contains the clients for groups.
+=======
+// Clientset contains the clients for groups. Each group has exactly one
+// version included in a Clientset.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 type Clientset struct {
 	*discovery.DiscoveryClient
 	cephV1 *cephv1.CephV1Client
@@ -55,6 +71,7 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 // NewForConfig creates a new Clientset for the given config.
 // If config's RateLimiter is not set and QPS and Burst are acceptable,
 // NewForConfig will generate a rate-limiter in configShallowCopy.
+<<<<<<< HEAD
 // NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
 // where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*Clientset, error) {
@@ -79,21 +96,35 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // NewForConfigAndClient will generate a rate-limiter in configShallowCopy.
 func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset, error) {
 	configShallowCopy := *c
+=======
+func NewForConfig(c *rest.Config) (*Clientset, error) {
+	configShallowCopy := *c
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if configShallowCopy.RateLimiter == nil && configShallowCopy.QPS > 0 {
 		if configShallowCopy.Burst <= 0 {
 			return nil, fmt.Errorf("burst is required to be greater than 0 when RateLimiter is not set and QPS is set to greater than 0")
 		}
 		configShallowCopy.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(configShallowCopy.QPS, configShallowCopy.Burst)
 	}
+<<<<<<< HEAD
 
 	var cs Clientset
 	var err error
 	cs.cephV1, err = cephv1.NewForConfigAndClient(&configShallowCopy, httpClient)
+=======
+	var cs Clientset
+	var err error
+	cs.cephV1, err = cephv1.NewForConfig(&configShallowCopy)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return nil, err
 	}
 
+<<<<<<< HEAD
 	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfigAndClient(&configShallowCopy, httpClient)
+=======
+	cs.DiscoveryClient, err = discovery.NewDiscoveryClientForConfig(&configShallowCopy)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return nil, err
 	}
@@ -103,11 +134,19 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 // NewForConfigOrDie creates a new Clientset for the given config and
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
+<<<<<<< HEAD
 	cs, err := NewForConfig(c)
 	if err != nil {
 		panic(err)
 	}
 	return cs
+=======
+	var cs Clientset
+	cs.cephV1 = cephv1.NewForConfigOrDie(c)
+
+	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
+	return &cs
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // New creates a new Clientset for the given RESTClient.

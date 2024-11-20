@@ -17,13 +17,19 @@ limitations under the License.
 package csi
 
 import (
+<<<<<<< HEAD
 	"os"
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/pkg/errors"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/k8sutil"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,13 +43,25 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 	csiCephConnection := &csiopv1a1.CephConnection{}
 
 	csiCephConnection.Name = clusterInfo.NamespacedName().Name
+<<<<<<< HEAD
 	csiCephConnection.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
+=======
+	csiCephConnection.Namespace = clusterInfo.NamespacedName().Namespace
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	spec, err := generateCephConnSpec(c, clusterInfo, csiCephConnection.Spec, clusterSpec)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set ceph connection CR %q in namespace %q", csiCephConnection.Name, clusterInfo.Namespace)
 	}
 
+<<<<<<< HEAD
+=======
+	err = clusterInfo.OwnerInfo.SetOwnerReference(csiCephConnection)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference for ceph connection CR %q", csiCephConnection.Name)
+	}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	err = c.Get(clusterInfo.Context, types.NamespacedName{Name: csiCephConnection.Name, Namespace: csiCephConnection.Namespace}, csiCephConnection)
 	if err != nil {
 		if kerrors.IsNotFound(err) {

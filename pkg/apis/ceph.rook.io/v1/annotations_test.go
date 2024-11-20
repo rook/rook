@@ -62,7 +62,10 @@ func TestCephAnnotationsMerge(t *testing.T) {
 		"mgr":            {"mgrkey": "mgrval"},
 		"cmdreporter":    {"myversions": "detect"},
 		"crashcollector": {"crash": "crashval"},
+<<<<<<< HEAD
 		"osd":            {"osdkey": "osdval"},
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	a = GetMonAnnotations(testAnnotations)
 	assert.Equal(t, "allval1", a["allkey1"])
@@ -81,10 +84,13 @@ func TestCephAnnotationsMerge(t *testing.T) {
 	assert.Equal(t, "crashval", c["crash"])
 	assert.Equal(t, "allval1", c["allkey1"])
 	assert.Equal(t, "allval2", c["allkey2"])
+<<<<<<< HEAD
 	d := GetOSDAnnotations(testAnnotations)
 	assert.Equal(t, "allval1", d["allkey1"])
 	assert.Equal(t, "allval2", d["allkey2"])
 	assert.Equal(t, "osdval", d["osdkey"])
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 func TestAnnotationsSpec(t *testing.T) {

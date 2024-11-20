@@ -5,3 +5,20 @@ metadata:
   namespace: rook-ceph
 spec:
   deploymentStrategy: "Auto"
+<<<<<<< HEAD
+=======
+---
+# The Ceph-COSI driver needs a privileged user for each CephObjectStore
+# in order to provision buckets and users
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: cosi
+  namespace: rook-ceph # namespace:cluster
+spec:
+  store: my-store # name of the CephObjectStore
+  displayName: "user for cosi"
+  capabilities:
+    user: "*"
+    bucket: "*"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

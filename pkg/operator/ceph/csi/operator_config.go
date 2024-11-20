@@ -17,6 +17,11 @@ limitations under the License.
 package csi
 
 import (
+<<<<<<< HEAD
+=======
+	"reflect"
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
@@ -117,11 +122,22 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 			CephFsClientType: cephfsClientType,
 		},
 	}
+<<<<<<< HEAD
 	if CSIParam.EnableCSIEncryption {
 		opConfig.Spec.DriverSpecDefaults.Encryption = &csiopv1a1.EncryptionSpec{
 			ConfigMapRef: v1.LocalObjectReference{
 				Name: "rook-ceph-csi-kms-config",
 			},
+=======
+	if !reflect.DeepEqual(cluster.Spec.Network, cephv1.NetworkSpec{}) {
+
+		if cluster.Spec.Network.Connections.Encryption.Enabled {
+			opConfig.Spec.DriverSpecDefaults.Encryption = &csiopv1a1.EncryptionSpec{
+				ConfigMapRef: v1.LocalObjectReference{
+					Name: "rook-ceph-csi-kms-config",
+				},
+			}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}
 

@@ -27,7 +27,10 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/util/exec"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -88,7 +91,11 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	cmd := NewRBDCommand(context, clusterInfo, args)
 
 	// Run command
+<<<<<<< HEAD
 	output, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+=======
+	output, err := cmd.Run()
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return errors.Wrapf(err, "failed to add rbd-mirror peer token for pool %q. %s", poolName, output)
 	}

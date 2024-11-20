@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -42,17 +50,23 @@ type sharedInformerFactory struct {
 	lock             sync.Mutex
 	defaultResync    time.Duration
 	customResync     map[reflect.Type]time.Duration
+<<<<<<< HEAD
 	transform        cache.TransformFunc
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	informers map[reflect.Type]cache.SharedIndexInformer
 	// startedInformers is used for tracking which informers have been started.
 	// This allows Start() to be called multiple times safely.
 	startedInformers map[reflect.Type]bool
+<<<<<<< HEAD
 	// wg tracks how many goroutines were started.
 	wg sync.WaitGroup
 	// shuttingDown is true when Shutdown has been called. It may still be running
 	// because it needs to wait for goroutines.
 	shuttingDown bool
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // WithCustomResyncConfig sets a custom resync period for the specified informer types.
@@ -81,6 +95,7 @@ func WithNamespace(namespace string) SharedInformerOption {
 	}
 }
 
+<<<<<<< HEAD
 // WithTransform sets a transform on all informers.
 func WithTransform(transform cache.TransformFunc) SharedInformerOption {
 	return func(factory *sharedInformerFactory) *sharedInformerFactory {
@@ -89,6 +104,8 @@ func WithTransform(transform cache.TransformFunc) SharedInformerOption {
 	}
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // NewSharedInformerFactory constructs a new instance of sharedInformerFactory for all namespaces.
 func NewSharedInformerFactory(client versioned.Interface, defaultResync time.Duration) SharedInformerFactory {
 	return NewSharedInformerFactoryWithOptions(client, defaultResync)
@@ -121,10 +138,15 @@ func NewSharedInformerFactoryWithOptions(client versioned.Interface, defaultResy
 	return factory
 }
 
+<<<<<<< HEAD
+=======
+// Start initializes all requested informers.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func (f *sharedInformerFactory) Start(stopCh <-chan struct{}) {
 	f.lock.Lock()
 	defer f.lock.Unlock()
 
+<<<<<<< HEAD
 	if f.shuttingDown {
 		return
 	}
@@ -140,11 +162,17 @@ func (f *sharedInformerFactory) Start(stopCh <-chan struct{}) {
 				defer f.wg.Done()
 				informer.Run(stopCh)
 			}()
+=======
+	for informerType, informer := range f.informers {
+		if !f.startedInformers[informerType] {
+			go informer.Run(stopCh)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			f.startedInformers[informerType] = true
 		}
 	}
 }
 
+<<<<<<< HEAD
 func (f *sharedInformerFactory) Shutdown() {
 	f.lock.Lock()
 	f.shuttingDown = true
@@ -154,6 +182,9 @@ func (f *sharedInformerFactory) Shutdown() {
 	f.wg.Wait()
 }
 
+=======
+// WaitForCacheSync waits for all started informers' cache were synced.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func (f *sharedInformerFactory) WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool {
 	informers := func() map[reflect.Type]cache.SharedIndexInformer {
 		f.lock.Lock()
@@ -175,7 +206,11 @@ func (f *sharedInformerFactory) WaitForCacheSync(stopCh <-chan struct{}) map[ref
 	return res
 }
 
+<<<<<<< HEAD
 // InformerFor returns the SharedIndexInformer for obj using an internal
+=======
+// InternalInformerFor returns the SharedIndexInformer for obj using an internal
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // client.
 func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer {
 	f.lock.Lock()
@@ -193,7 +228,10 @@ func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internal
 	}
 
 	informer = newFunc(f.client, resyncPeriod)
+<<<<<<< HEAD
 	informer.SetTransform(f.transform)
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	f.informers[informerType] = informer
 
 	return informer
@@ -201,6 +239,7 @@ func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internal
 
 // SharedInformerFactory provides shared informers for resources in all known
 // API group versions.
+<<<<<<< HEAD
 //
 // It is typically used like this:
 //
@@ -253,6 +292,12 @@ type SharedInformerFactory interface {
 	// InformerFor returns the SharedIndexInformer for obj using an internal
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
+=======
+type SharedInformerFactory interface {
+	internalinterfaces.SharedInformerFactory
+	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
+	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	Ceph() cephrookio.Interface
 }

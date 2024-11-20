@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +28,13 @@ package v1
 
 import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/listers"
+=======
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,17 +51,37 @@ type CephFilesystemSubVolumeGroupLister interface {
 
 // cephFilesystemSubVolumeGroupLister implements the CephFilesystemSubVolumeGroupLister interface.
 type cephFilesystemSubVolumeGroupLister struct {
+<<<<<<< HEAD
 	listers.ResourceIndexer[*v1.CephFilesystemSubVolumeGroup]
+=======
+	indexer cache.Indexer
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // NewCephFilesystemSubVolumeGroupLister returns a new CephFilesystemSubVolumeGroupLister.
 func NewCephFilesystemSubVolumeGroupLister(indexer cache.Indexer) CephFilesystemSubVolumeGroupLister {
+<<<<<<< HEAD
 	return &cephFilesystemSubVolumeGroupLister{listers.New[*v1.CephFilesystemSubVolumeGroup](indexer, v1.Resource("cephfilesystemsubvolumegroup"))}
+=======
+	return &cephFilesystemSubVolumeGroupLister{indexer: indexer}
+}
+
+// List lists all CephFilesystemSubVolumeGroups in the indexer.
+func (s *cephFilesystemSubVolumeGroupLister) List(selector labels.Selector) (ret []*v1.CephFilesystemSubVolumeGroup, err error) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1.CephFilesystemSubVolumeGroup))
+	})
+	return ret, err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // CephFilesystemSubVolumeGroups returns an object that can list and get CephFilesystemSubVolumeGroups.
 func (s *cephFilesystemSubVolumeGroupLister) CephFilesystemSubVolumeGroups(namespace string) CephFilesystemSubVolumeGroupNamespaceLister {
+<<<<<<< HEAD
 	return cephFilesystemSubVolumeGroupNamespaceLister{listers.NewNamespaced[*v1.CephFilesystemSubVolumeGroup](s.ResourceIndexer, namespace)}
+=======
+	return cephFilesystemSubVolumeGroupNamespaceLister{indexer: s.indexer, namespace: namespace}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // CephFilesystemSubVolumeGroupNamespaceLister helps list and get CephFilesystemSubVolumeGroups.
@@ -66,5 +99,30 @@ type CephFilesystemSubVolumeGroupNamespaceLister interface {
 // cephFilesystemSubVolumeGroupNamespaceLister implements the CephFilesystemSubVolumeGroupNamespaceLister
 // interface.
 type cephFilesystemSubVolumeGroupNamespaceLister struct {
+<<<<<<< HEAD
 	listers.ResourceIndexer[*v1.CephFilesystemSubVolumeGroup]
+=======
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all CephFilesystemSubVolumeGroups in the indexer for a given namespace.
+func (s cephFilesystemSubVolumeGroupNamespaceLister) List(selector labels.Selector) (ret []*v1.CephFilesystemSubVolumeGroup, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1.CephFilesystemSubVolumeGroup))
+	})
+	return ret, err
+}
+
+// Get retrieves the CephFilesystemSubVolumeGroup from the indexer for a given namespace and name.
+func (s cephFilesystemSubVolumeGroupNamespaceLister) Get(name string) (*v1.CephFilesystemSubVolumeGroup, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.NewNotFound(v1.Resource("cephfilesystemsubvolumegroup"), name)
+	}
+	return obj.(*v1.CephFilesystemSubVolumeGroup), nil
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

@@ -197,6 +197,7 @@ func TestListDevicesChildListDevicesChild(t *testing.T) {
 	assert.Equal(t, 3, len(child))
 }
 
+<<<<<<< HEAD
 func TestGetDiskDeviceType(t *testing.T) {
 	d := &LocalDisk{}
 	assert.Equal(t, "ssd", GetDiskDeviceType(d))
@@ -214,4 +215,14 @@ func TestGetDiskDeviceClass(t *testing.T) {
 	assert.Equal(t, "test1", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "hdd"))
 	t.Setenv("ROOK_OSD_CRUSH_DEVICE_CLASS", "")
 	assert.Equal(t, "nvme", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "nvme"))
+=======
+func TestGetDiskDeviceClass(t *testing.T) {
+	d := &LocalDisk{}
+	assert.Equal(t, "ssd", GetDiskDeviceClass(d))
+	d.Rotational = true
+	assert.Equal(t, "hdd", GetDiskDeviceClass(d))
+	d.Rotational = false
+	d.RealPath = "nvme"
+	assert.Equal(t, "nvme", GetDiskDeviceClass(d))
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

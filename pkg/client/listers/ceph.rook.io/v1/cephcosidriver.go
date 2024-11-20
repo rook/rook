@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,8 +28,13 @@ package v1
 
 import (
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/listers"
+=======
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -38,17 +51,37 @@ type CephCOSIDriverLister interface {
 
 // cephCOSIDriverLister implements the CephCOSIDriverLister interface.
 type cephCOSIDriverLister struct {
+<<<<<<< HEAD
 	listers.ResourceIndexer[*v1.CephCOSIDriver]
+=======
+	indexer cache.Indexer
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // NewCephCOSIDriverLister returns a new CephCOSIDriverLister.
 func NewCephCOSIDriverLister(indexer cache.Indexer) CephCOSIDriverLister {
+<<<<<<< HEAD
 	return &cephCOSIDriverLister{listers.New[*v1.CephCOSIDriver](indexer, v1.Resource("cephcosidriver"))}
+=======
+	return &cephCOSIDriverLister{indexer: indexer}
+}
+
+// List lists all CephCOSIDrivers in the indexer.
+func (s *cephCOSIDriverLister) List(selector labels.Selector) (ret []*v1.CephCOSIDriver, err error) {
+	err = cache.ListAll(s.indexer, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1.CephCOSIDriver))
+	})
+	return ret, err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // CephCOSIDrivers returns an object that can list and get CephCOSIDrivers.
 func (s *cephCOSIDriverLister) CephCOSIDrivers(namespace string) CephCOSIDriverNamespaceLister {
+<<<<<<< HEAD
 	return cephCOSIDriverNamespaceLister{listers.NewNamespaced[*v1.CephCOSIDriver](s.ResourceIndexer, namespace)}
+=======
+	return cephCOSIDriverNamespaceLister{indexer: s.indexer, namespace: namespace}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // CephCOSIDriverNamespaceLister helps list and get CephCOSIDrivers.
@@ -66,5 +99,30 @@ type CephCOSIDriverNamespaceLister interface {
 // cephCOSIDriverNamespaceLister implements the CephCOSIDriverNamespaceLister
 // interface.
 type cephCOSIDriverNamespaceLister struct {
+<<<<<<< HEAD
 	listers.ResourceIndexer[*v1.CephCOSIDriver]
+=======
+	indexer   cache.Indexer
+	namespace string
+}
+
+// List lists all CephCOSIDrivers in the indexer for a given namespace.
+func (s cephCOSIDriverNamespaceLister) List(selector labels.Selector) (ret []*v1.CephCOSIDriver, err error) {
+	err = cache.ListAllByNamespace(s.indexer, s.namespace, selector, func(m interface{}) {
+		ret = append(ret, m.(*v1.CephCOSIDriver))
+	})
+	return ret, err
+}
+
+// Get retrieves the CephCOSIDriver from the indexer for a given namespace and name.
+func (s cephCOSIDriverNamespaceLister) Get(name string) (*v1.CephCOSIDriver, error) {
+	obj, exists, err := s.indexer.GetByKey(s.namespace + "/" + name)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errors.NewNotFound(v1.Resource("cephcosidriver"), name)
+	}
+	return obj.(*v1.CephCOSIDriver), nil
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

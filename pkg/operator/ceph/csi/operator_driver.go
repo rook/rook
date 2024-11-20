@@ -41,35 +41,59 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 
 	if EnableRBD {
 		logger.Info("Creating RBD driver resources")
+<<<<<<< HEAD
 		err := r.transferCSIDriverOwner(r.opManagerContext, RBDDriverName)
+=======
+		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, RBDDriverName)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrap(err, "failed to create update RBD driver for csi-operator driver CR ")
 		}
 		err = r.createOrUpdateRBDDriverResource(cluster, clusterInfo)
 		if err != nil {
+<<<<<<< HEAD
 			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", r.opConfig.OperatorNamespace)
+=======
+			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", clusterInfo.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}
 	if EnableCephFS {
 		logger.Info("Creating CephFS driver resources")
+<<<<<<< HEAD
 		err := r.transferCSIDriverOwner(r.opManagerContext, CephFSDriverName)
+=======
+		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, CephFSDriverName)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrap(err, "failed to create update CephFS driver for csi-operator driver CR ")
 		}
 		err = r.createOrUpdateCephFSDriverResource(cluster, clusterInfo)
 		if err != nil {
+<<<<<<< HEAD
 			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", r.opConfig.OperatorNamespace)
+=======
+			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", clusterInfo.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}
 	if EnableNFS {
 		logger.Info("Creating NFS driver resources")
+<<<<<<< HEAD
 		err := r.transferCSIDriverOwner(r.opManagerContext, NFSDriverName)
+=======
+		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, NFSDriverName)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrap(err, "failed to create update NFS driver for csi-operator driver CR ")
 		}
 		err = r.createOrUpdateNFSDriverResource(cluster, clusterInfo)
 		if err != nil {
+<<<<<<< HEAD
 			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", r.opConfig.OperatorNamespace)
+=======
+			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", clusterInfo.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}
 
@@ -77,7 +101,11 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 }
 
 func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+<<<<<<< HEAD
 	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
+=======
+	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", clusterInfo.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -87,7 +115,11 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
+<<<<<<< HEAD
 			Namespace: r.opConfig.OperatorNamespace,
+=======
+			Namespace: clusterInfo.Namespace,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Spec: spec,
 	}
@@ -123,7 +155,11 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 }
 
 func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+<<<<<<< HEAD
 	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
+=======
+	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", clusterInfo.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -133,7 +169,11 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
+<<<<<<< HEAD
 			Namespace: r.opConfig.OperatorNamespace,
+=======
+			Namespace: clusterInfo.Namespace,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Spec: spec,
 	}
@@ -175,7 +215,11 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 }
 
 func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
+<<<<<<< HEAD
 	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
+=======
+	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", clusterInfo.Namespace)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -185,7 +229,11 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
+<<<<<<< HEAD
 			Namespace: r.opConfig.OperatorNamespace,
+=======
+			Namespace: clusterInfo.Namespace,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Spec: spec,
 	}
@@ -221,7 +269,11 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1a1.Driver) error {
 	spec := driverResource.Spec
 
+<<<<<<< HEAD
 	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: r.opConfig.OperatorNamespace}, driverResource)
+=======
+	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: clusterInfo.Namespace}, driverResource)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			err = r.client.Create(r.opManagerContext, driverResource)
@@ -380,7 +432,11 @@ func createDriverNodePluginResouces(opConfig map[string]string, key string) csio
 }
 
 // transferCSIDriverOwner update CSIDriver and returns the error if any
+<<<<<<< HEAD
 func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, name string) error {
+=======
+func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, clusterInfo *cephclient.ClusterInfo, name string) error {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	logger.Info("adding annotation to CSIDriver resource for csi-operator to own it")
 	csiDriver, err := r.context.Clientset.StorageV1().CSIDrivers().Get(ctx, name, metav1.GetOptions{})
@@ -393,7 +449,10 @@ func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, name string) 
 
 	key := "csi.ceph.io/ownerref"
 	ownerObjKey := client.ObjectKeyFromObject(csiDriver)
+<<<<<<< HEAD
 	ownerObjKey.Namespace = r.opConfig.OperatorNamespace
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	val, err := json.Marshal(ownerObjKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal owner object key %q", ownerObjKey.Name)

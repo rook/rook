@@ -27,7 +27,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
+<<<<<<< HEAD
 
+=======
+	"github.com/rook/rook/pkg/operator/ceph/version"
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -38,6 +43,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+<<<<<<< HEAD
+=======
+	"k8s.io/client-go/kubernetes"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -120,15 +129,23 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		},
 		Spec: cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
+<<<<<<< HEAD
 				Image:           "ceph/ceph:v20.0.0",
+=======
+				Image:           "ceph/ceph:v14.2.9",
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 				ImagePullPolicy: v1.PullIfNotPresent,
 			},
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
 			CephVersion: &cephv1.ClusterVersion{
+<<<<<<< HEAD
 				Version: "20.0.0-0",
 				Image:   "ceph/ceph:v20.0.0",
+=======
+				Version: "14.2.9-0",
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			},
 			CephStatus: &cephv1.CephStatus{
 				Health: "",
@@ -224,6 +241,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		// Enable CSI
 		csi.EnableRBD = true
@@ -271,6 +294,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext: ctx,
 			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		// Enable CSI
 		csi.EnableRBD = true
@@ -338,6 +367,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		res, err := r.Reconcile(ctx, req)
 		assert.Error(t, err)
@@ -384,14 +419,26 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+
+		res, err := r.Reconcile(ctx, req)
+		assert.Error(t, err)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		assert.False(t, res.Requeue)
 	})
 
 	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and non empty rados namespace but less ceph version", func(t *testing.T) {
+<<<<<<< HEAD
 		cephCluster.Status.CephVersion.Version = "14.2.9"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		remoteNamespace := "test-1"
 		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
 			RemoteNamespace: &remoteNamespace,
@@ -434,11 +481,20 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		res, err := r.Reconcile(ctx, req)
 		assert.Error(t, err)
 		assert.False(t, res.Requeue)
+<<<<<<< HEAD
 		cephCluster.Status.CephVersion.Version = "20.0.0"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	})
 
 	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and non empty rados namespace and correct ceph version", func(t *testing.T) {
@@ -484,6 +540,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -536,6 +598,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)
@@ -592,6 +660,12 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
+<<<<<<< HEAD
+=======
+		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
+			return &version.Reef, nil
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		res, err := r.Reconcile(ctx, req)
 		assert.NoError(t, err)

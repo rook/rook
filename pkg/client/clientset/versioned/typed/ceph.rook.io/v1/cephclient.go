@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,13 +28,21 @@ package v1
 
 import (
 	"context"
+<<<<<<< HEAD
+=======
+	"time"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	scheme "github.com/rook/rook/pkg/client/clientset/versioned/scheme"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
+<<<<<<< HEAD
 	gentype "k8s.io/client-go/gentype"
+=======
+	rest "k8s.io/client-go/rest"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 // CephClientsGetter has a method to return a CephClientInterface.
@@ -50,12 +66,18 @@ type CephClientInterface interface {
 
 // cephClients implements CephClientInterface
 type cephClients struct {
+<<<<<<< HEAD
 	*gentype.ClientWithList[*v1.CephClient, *v1.CephClientList]
+=======
+	client rest.Interface
+	ns     string
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // newCephClients returns a CephClients
 func newCephClients(c *CephV1Client, namespace string) *cephClients {
 	return &cephClients{
+<<<<<<< HEAD
 		gentype.NewClientWithList[*v1.CephClient, *v1.CephClientList](
 			"cephclients",
 			c.RESTClient(),
@@ -65,3 +87,123 @@ func newCephClients(c *CephV1Client, namespace string) *cephClients {
 			func() *v1.CephClientList { return &v1.CephClientList{} }),
 	}
 }
+=======
+		client: c.RESTClient(),
+		ns:     namespace,
+	}
+}
+
+// Get takes name of the cephClient, and returns the corresponding cephClient object, and an error if there is any.
+func (c *cephClients) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephClient, err error) {
+	result = &v1.CephClient{}
+	err = c.client.Get().
+		Namespace(c.ns).
+		Resource("cephclients").
+		Name(name).
+		VersionedParams(&options, scheme.ParameterCodec).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// List takes label and field selectors, and returns the list of CephClients that match those selectors.
+func (c *cephClients) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephClientList, err error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
+	result = &v1.CephClientList{}
+	err = c.client.Get().
+		Namespace(c.ns).
+		Resource("cephclients").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// Watch returns a watch.Interface that watches the requested cephClients.
+func (c *cephClients) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
+	var timeout time.Duration
+	if opts.TimeoutSeconds != nil {
+		timeout = time.Duration(*opts.TimeoutSeconds) * time.Second
+	}
+	opts.Watch = true
+	return c.client.Get().
+		Namespace(c.ns).
+		Resource("cephclients").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Watch(ctx)
+}
+
+// Create takes the representation of a cephClient and creates it.  Returns the server's representation of the cephClient, and an error, if there is any.
+func (c *cephClients) Create(ctx context.Context, cephClient *v1.CephClient, opts metav1.CreateOptions) (result *v1.CephClient, err error) {
+	result = &v1.CephClient{}
+	err = c.client.Post().
+		Namespace(c.ns).
+		Resource("cephclients").
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(cephClient).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// Update takes the representation of a cephClient and updates it. Returns the server's representation of the cephClient, and an error, if there is any.
+func (c *cephClients) Update(ctx context.Context, cephClient *v1.CephClient, opts metav1.UpdateOptions) (result *v1.CephClient, err error) {
+	result = &v1.CephClient{}
+	err = c.client.Put().
+		Namespace(c.ns).
+		Resource("cephclients").
+		Name(cephClient.Name).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(cephClient).
+		Do(ctx).
+		Into(result)
+	return
+}
+
+// Delete takes name of the cephClient and deletes it. Returns an error if one occurs.
+func (c *cephClients) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
+	return c.client.Delete().
+		Namespace(c.ns).
+		Resource("cephclients").
+		Name(name).
+		Body(&opts).
+		Do(ctx).
+		Error()
+}
+
+// DeleteCollection deletes a collection of objects.
+func (c *cephClients) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	var timeout time.Duration
+	if listOpts.TimeoutSeconds != nil {
+		timeout = time.Duration(*listOpts.TimeoutSeconds) * time.Second
+	}
+	return c.client.Delete().
+		Namespace(c.ns).
+		Resource("cephclients").
+		VersionedParams(&listOpts, scheme.ParameterCodec).
+		Timeout(timeout).
+		Body(&opts).
+		Do(ctx).
+		Error()
+}
+
+// Patch applies the patch and returns the patched cephClient.
+func (c *cephClients) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephClient, err error) {
+	result = &v1.CephClient{}
+	err = c.client.Patch(pt).
+		Namespace(c.ns).
+		Resource("cephclients").
+		Name(name).
+		SubResource(subresources...).
+		VersionedParams(&opts, scheme.ParameterCodec).
+		Body(data).
+		Do(ctx).
+		Into(result)
+	return
+}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

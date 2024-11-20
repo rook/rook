@@ -60,9 +60,12 @@ func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable 
 	labels[portableKey] = strconv.FormatBool(portable)
 	labels[deviceClass] = osd.DeviceClass
 	labels[osdStore] = osd.Store
+<<<<<<< HEAD
 	if osd.DeviceType != "" {
 		labels[deviceType] = osd.DeviceType
 	}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	for k, v := range getOSDTopologyLocationLabels(osd.Location) {
 		labels[k] = v

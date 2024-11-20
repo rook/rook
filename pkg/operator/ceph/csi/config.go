@@ -18,6 +18,7 @@ package csi
 
 import (
 	"context"
+<<<<<<< HEAD
 	"os"
 	"reflect"
 	"runtime/debug"
@@ -26,6 +27,11 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+=======
+	"strings"
+
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/pkg/errors"
@@ -41,7 +47,11 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
+<<<<<<< HEAD
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
+=======
+	csiOpClientProfile.Namespace = cephBlockPoolRadosNamespacedName.Namespace
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: clusterName,
@@ -51,7 +61,16 @@ func CreateUpdateClientProfileRadosNamespace(ctx context.Context, c client.Clien
 		},
 	}
 
+<<<<<<< HEAD
 	err := c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+=======
+	err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference for clientProfile CR %q for radosNamespace", csiOpClientProfile.Name)
+	}
+
+	err = c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			err = c.Create(ctx, csiOpClientProfile)
@@ -79,7 +98,16 @@ func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Clien
 
 	csiOpClientProfile := generateProfileSubVolumeGroupSpec(clusterInfo, cephFilesystemNamespacedName, clusterID, clusterName)
 
+<<<<<<< HEAD
 	err := c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+=======
+	err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference for clientProfile CR %q for subVolGrp", csiOpClientProfile.Name)
+	}
+
+	err = c.Get(ctx, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			err = c.Create(ctx, csiOpClientProfile)
@@ -104,7 +132,11 @@ func CreateUpdateClientProfileSubVolumeGroup(ctx context.Context, c client.Clien
 func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, cephFilesystemNamespacedName types.NamespacedName, clusterID, clusterName string) *csiopv1a1.ClientProfile {
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	csiOpClientProfile.Name = clusterID
+<<<<<<< HEAD
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
+=======
+	csiOpClientProfile.Namespace = cephFilesystemNamespacedName.Namespace
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: clusterName,
@@ -114,6 +146,7 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 		},
 	}
 
+<<<<<<< HEAD
 	if !reflect.DeepEqual(clusterInfo.CSIDriverSpec.CephFS, cephv1.CSICephFSSpec{}) {
 		if clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions != "" {
 			kernelMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions, "=")
@@ -122,6 +155,17 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 			fuseMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions, "=")
 			csiOpClientProfile.Spec.CephFs.FuseMountOptions = map[string]string{fuseMountKeyVal[0]: fuseMountKeyVal[1]}
 		}
+=======
+	kernelMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions, "=")
+	fuseMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.FuseMountOptions, "=")
+
+	if len(kernelMountKeyVal) == 2 {
+		csiOpClientProfile.Spec.CephFs.KernelMountOptions = map[string]string{kernelMountKeyVal[0]: kernelMountKeyVal[1]}
+	}
+
+	if len(fuseMountKeyVal) == 2 {
+		csiOpClientProfile.Spec.CephFs.FuseMountOptions = map[string]string{fuseMountKeyVal[0]: fuseMountKeyVal[1]}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	return csiOpClientProfile
@@ -130,6 +174,7 @@ func generateProfileSubVolumeGroupSpec(clusterInfo *cephclient.ClusterInfo, ceph
 // CreateDefaultClientProfile creates a default client profile for csi-operator to connect driver
 func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.ClusterInfo, namespaced types.NamespacedName) error {
 	logger.Info("Creating ceph-csi clientProfile default CR")
+<<<<<<< HEAD
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Errorf("Panic when creating the default client profile: %+v", r)
@@ -141,12 +186,19 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 	csiOpClientProfile := &csiopv1a1.ClientProfile{}
 	csiOpClientProfile.Name = clusterInfo.Namespace
 	csiOpClientProfile.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
+=======
+
+	csiOpClientProfile := &csiopv1a1.ClientProfile{}
+	csiOpClientProfile.Name = clusterInfo.Namespace
+	csiOpClientProfile.Namespace = clusterInfo.Namespace
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	csiOpClientProfile.Spec = csiopv1a1.ClientProfileSpec{
 		CephConnectionRef: v1.LocalObjectReference{
 			Name: namespaced.Name,
 		},
 	}
 
+<<<<<<< HEAD
 	if !reflect.DeepEqual(clusterInfo.CSIDriverSpec.CephFS, cephv1.CSICephFSSpec{}) {
 		if clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions != "" {
 			kernelMountKeyVal := strings.Split(clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions, "=")
@@ -166,6 +218,14 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 	}
 
 	err := c.Get(clusterInfo.Context, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+=======
+	err := clusterInfo.OwnerInfo.SetOwnerReference(csiOpClientProfile)
+	if err != nil {
+		return errors.Wrapf(err, "failed to set owner reference for default clientProfile CR %q", csiOpClientProfile.Name)
+	}
+
+	err = c.Get(clusterInfo.Context, types.NamespacedName{Name: csiOpClientProfile.Name, Namespace: csiOpClientProfile.Namespace}, csiOpClientProfile)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		if apierrors.IsNotFound(err) {
 			err = c.Create(clusterInfo.Context, csiOpClientProfile)

@@ -1161,12 +1161,16 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 			if err != nil {
 				return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
 			}
+<<<<<<< HEAD
 			deviceType := sys.GetDiskDeviceType(diskInfo)
 			osd.DeviceType = deviceType
 			logger.Infof("setting device type %q for device %q", osd.DeviceType, diskInfo.Name)
 
 			crushDeviceClass := sys.GetDiskDeviceClass(oposd.CrushDeviceClassVarName, deviceType)
 			osd.DeviceClass = crushDeviceClass
+=======
+			osd.DeviceClass = sys.GetDiskDeviceClass(diskInfo)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			logger.Infof("setting device class %q for device %q", osd.DeviceClass, diskInfo.Name)
 		}
 

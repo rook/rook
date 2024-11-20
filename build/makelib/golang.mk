@@ -231,7 +231,11 @@ $(YQ):
 	@curl -JL https://github.com/mikefarah/yq/releases/download/$(YQ_VERSION)/yq_$(REAL_HOST_PLATFORM) -o $(YQ)
 	@chmod +x $(YQ)
 
+<<<<<<< HEAD
 export CODE_GENERATOR_VERSION=0.31.3
+=======
+export CODE_GENERATOR_VERSION=0.20.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 export CODE_GENERATOR=$(TOOLS_HOST_DIR)/code-generator-$(CODE_GENERATOR_VERSION)
 $(CODE_GENERATOR):
 	mkdir -p $(TOOLS_HOST_DIR)

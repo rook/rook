@@ -44,7 +44,11 @@ This allows the NFS-Ganesha server cluster to be scalable and highly available.
   ```
 
 - An existing RADOS pool (e.g., CephFS's data pool) or a pool created with a
+<<<<<<< HEAD
   [Ceph Block Pool CRD] to store NFS client recovery data.
+=======
+  [Ceph Pool CRD] to store NFS client recovery data.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 ### Ceph NFS-Ganesha CRD
 
@@ -340,6 +344,7 @@ EXPORT {
 [NFS-Ganesha]: https://github.com/nfs-ganesha/nfs-ganesha/wiki
 [CephFS]: http://docs.ceph.com/docs/master/cephfs/nfs/
 [RGW]: http://docs.ceph.com/docs/master/radosgw/nfs/
+<<<<<<< HEAD
 [OpenStack]: https://www.openstack.org/software/
 [Manila]: https://wiki.openstack.org/wiki/Manila
 [CephFS driver]: https://github.com/openstack/manila/blob/master/doc/source/admin/cephfs_driver.rst
@@ -348,3 +353,15 @@ EXPORT {
 [Ceph Block Pool CRD]: https://github.com/rook/rook/blob/master/Documentation/CRDs/Block-Storage/ceph-block-pool-crd.md
 [k8s Deployments]: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
 [SSSD]: https://sssd.io
+=======
+[Rook toolbox]: (/Documentation/ceph-toolbox.md)
+[Ceph manager]: (http://docs.ceph.com/docs/master/mgr/)
+[OpenStack]: (https://www.openstack.org/software/)
+[Manila]: (https://wiki.openstack.org/wiki/Manila)
+[CephFS driver]: (https://github.com/openstack/manila/blob/master/doc/source/admin/cephfs_driver.rst)
+[k8s ConfigMaps]: (https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/)
+[k8s Service]: (https://kubernetes.io/docs/concepts/services-networking/service)
+[Ceph Pool CRD]: (https://github.com/rook/rook/blob/master/Documentation/ceph-pool-crd.md)
+[k8s Deployments]: (https://kubernetes.io/docs/concepts/workloads/controllers/deployment/)
+[SSSD]: (https://sssd.io)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
