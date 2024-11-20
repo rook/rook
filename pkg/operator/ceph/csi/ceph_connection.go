@@ -17,10 +17,13 @@ limitations under the License.
 package csi
 
 import (
+	"os"
+
 	"github.com/pkg/errors"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -34,16 +37,11 @@ func CreateUpdateCephConnection(c client.Client, clusterInfo *cephclient.Cluster
 	csiCephConnection := &csiopv1a1.CephConnection{}
 
 	csiCephConnection.Name = clusterInfo.NamespacedName().Name
-	csiCephConnection.Namespace = clusterInfo.NamespacedName().Namespace
+	csiCephConnection.Namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 
 	spec, err := generateCephConnSpec(c, clusterInfo, csiCephConnection.Spec, clusterSpec)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set ceph connection CR %q in namespace %q", csiCephConnection.Name, clusterInfo.Namespace)
-	}
-
-	err = clusterInfo.OwnerInfo.SetOwnerReference(csiCephConnection)
-	if err != nil {
-		return errors.Wrapf(err, "failed to set owner reference for ceph connection CR %q", csiCephConnection.Name)
 	}
 
 	err = c.Get(clusterInfo.Context, types.NamespacedName{Name: csiCephConnection.Name, Namespace: csiCephConnection.Namespace}, csiCephConnection)

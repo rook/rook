@@ -41,35 +41,35 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 
 	if EnableRBD {
 		logger.Info("Creating RBD driver resources")
-		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, RBDDriverName)
+		err := r.transferCSIDriverOwner(r.opManagerContext, RBDDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to create update RBD driver for csi-operator driver CR ")
 		}
 		err = r.createOrUpdateRBDDriverResource(cluster, clusterInfo)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create or update RBD driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
 	if EnableCephFS {
 		logger.Info("Creating CephFS driver resources")
-		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, CephFSDriverName)
+		err := r.transferCSIDriverOwner(r.opManagerContext, CephFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to create update CephFS driver for csi-operator driver CR ")
 		}
 		err = r.createOrUpdateCephFSDriverResource(cluster, clusterInfo)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create or update cephFS driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
 	if EnableNFS {
 		logger.Info("Creating NFS driver resources")
-		err := r.transferCSIDriverOwner(r.opManagerContext, clusterInfo, NFSDriverName)
+		err := r.transferCSIDriverOwner(r.opManagerContext, NFSDriverName)
 		if err != nil {
 			return errors.Wrap(err, "failed to create update NFS driver for csi-operator driver CR ")
 		}
 		err = r.createOrUpdateNFSDriverResource(cluster, clusterInfo)
 		if err != nil {
-			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", clusterInfo.Namespace)
+			return errors.Wrapf(err, "failed to create or update NFS driver resource in the namespace %q", r.opConfig.OperatorNamespace)
 		}
 	}
 
@@ -77,7 +77,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 }
 
 func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", clusterInfo.Namespace)
+	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -87,7 +87,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: clusterInfo.Namespace,
+			Namespace: r.opConfig.OperatorNamespace,
 		},
 		Spec: spec,
 	}
@@ -123,7 +123,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 }
 
 func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", clusterInfo.Namespace)
+	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -133,7 +133,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: clusterInfo.Namespace,
+			Namespace: r.opConfig.OperatorNamespace,
 		},
 		Spec: spec,
 	}
@@ -175,7 +175,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 }
 
 func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", clusterInfo.Namespace)
+	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -185,7 +185,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		TypeMeta: metav1.TypeMeta{},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      resourceName,
-			Namespace: clusterInfo.Namespace,
+			Namespace: r.opConfig.OperatorNamespace,
 		},
 		Spec: spec,
 	}
@@ -221,7 +221,7 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 func (r ReconcileCSI) createOrUpdateDriverResource(clusterInfo *cephclient.ClusterInfo, driverResource *csiopv1a1.Driver) error {
 	spec := driverResource.Spec
 
-	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: clusterInfo.Namespace}, driverResource)
+	err := r.client.Get(r.opManagerContext, types.NamespacedName{Name: driverResource.Name, Namespace: r.opConfig.OperatorNamespace}, driverResource)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			err = r.client.Create(r.opManagerContext, driverResource)
@@ -380,7 +380,7 @@ func createDriverNodePluginResouces(opConfig map[string]string, key string) csio
 }
 
 // transferCSIDriverOwner update CSIDriver and returns the error if any
-func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, clusterInfo *cephclient.ClusterInfo, name string) error {
+func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, name string) error {
 
 	logger.Info("adding annotation to CSIDriver resource for csi-operator to own it")
 	csiDriver, err := r.context.Clientset.StorageV1().CSIDrivers().Get(ctx, name, metav1.GetOptions{})
@@ -393,6 +393,7 @@ func (r *ReconcileCSI) transferCSIDriverOwner(ctx context.Context, clusterInfo *
 
 	key := "csi.ceph.io/ownerref"
 	ownerObjKey := client.ObjectKeyFromObject(csiDriver)
+	ownerObjKey.Namespace = r.opConfig.OperatorNamespace
 	val, err := json.Marshal(ownerObjKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal owner object key %q", ownerObjKey.Name)
