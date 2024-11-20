@@ -23,12 +23,20 @@ jobs:
   yaml-linter:
     runs-on: ubuntu-latest
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v4
+=======
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
       - name: Set up Python
+<<<<<<< HEAD
         uses: actions/setup-python@v5
+=======
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           python-version: 3.9
 
@@ -41,12 +49,20 @@ jobs:
   pylint:
     runs-on: ubuntu-latest
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v4
+=======
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
       - name: Set up Python
+<<<<<<< HEAD
         uses: actions/setup-python@v5
+=======
+        uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           python-version: 3.9
 
@@ -61,4 +77,8 @@ jobs:
         run: pylint $(git ls-files '*.py') -E
 
       - name: Setup black for py
+<<<<<<< HEAD
         uses: psf/black@stable
+=======
+        uses: psf/black@1b2427a2b785cc4aac97c19bb4b9a0de063f9547 # stable
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

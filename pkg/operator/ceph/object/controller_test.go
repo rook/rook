@@ -18,10 +18,14 @@ limitations under the License.
 package object
 
 import (
+<<<<<<< HEAD
 	"bytes"
 	"context"
 	"io"
 	"net/http"
+=======
+	"context"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"os"
 	"reflect"
 	"testing"
@@ -29,7 +33,10 @@ import (
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 
+<<<<<<< HEAD
 	"github.com/ceph/go-ceph/rgw/admin"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -149,7 +156,11 @@ const (
 	dummyVersionsRaw          = `
 	{
 		"mon": {
+<<<<<<< HEAD
 			"ceph version 17.2.1 (0000000000000000) quincy (stable)": 3
+=======
+			"ceph version 19.2.1 (0000000000000000) squid (stable)": 3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}`
 	//nolint:gosec // only test values, not a real secret
@@ -325,6 +336,7 @@ var (
 	store     = "my-store"
 )
 
+<<<<<<< HEAD
 var mockMultisiteAdminOpsCtxFunc = func(objContext *Context, spec *cephv1.ObjectStoreSpec) (*AdminOpsContext, error) {
 	mockClient := &MockClient{
 		MockDo: func(req *http.Request) (*http.Response, error) {
@@ -354,6 +366,8 @@ var mockMultisiteAdminOpsCtxFunc = func(objContext *Context, spec *cephv1.Object
 	}, nil
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func TestCephObjectStoreController(t *testing.T) {
 	ctx := context.TODO()
 	// Set DEBUG logging
@@ -370,6 +384,7 @@ func TestCephObjectStoreController(t *testing.T) {
 		return nil
 	}
 
+<<<<<<< HEAD
 	// overwrite adminops context func
 	oldNewMultisiteAdminOpsCtxFunc := newMultisiteAdminOpsCtxFunc
 	newMultisiteAdminOpsCtxFunc = mockMultisiteAdminOpsCtxFunc
@@ -377,6 +392,8 @@ func TestCephObjectStoreController(t *testing.T) {
 		newMultisiteAdminOpsCtxFunc = oldNewMultisiteAdminOpsCtxFunc
 	}()
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	setupNewEnvironment := func(additionalObjects ...runtime.Object) *ReconcileCephObjectStore {
 		// reset var we use to check if we have called to commit config changes
 		calledCommitConfigChanges = false
@@ -418,11 +435,17 @@ func TestCephObjectStoreController(t *testing.T) {
 		s := scheme.Scheme
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectStore{})
 		s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephCluster{})
+<<<<<<< HEAD
 		s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
 
 		// Create a fake client to mock API calls.
 		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
 
+=======
+
+		// Create a fake client to mock API calls.
+		cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(objects...).Build()
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		// Create a ReconcileCephObjectStore object with the scheme and fake client.
 		r := &ReconcileCephObjectStore{
 			client:           cl,
@@ -738,12 +761,16 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 
 	commitConfigChangesOrig := commitConfigChanges
 	defer func() { commitConfigChanges = commitConfigChangesOrig }()
+<<<<<<< HEAD
 	// overwrite adminops context func
 	oldNewMultisiteAdminOpsCtxFunc := newMultisiteAdminOpsCtxFunc
 	newMultisiteAdminOpsCtxFunc = mockMultisiteAdminOpsCtxFunc
 	defer func() {
 		newMultisiteAdminOpsCtxFunc = oldNewMultisiteAdminOpsCtxFunc
 	}()
+=======
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// make sure joining multisite calls to commit config changes
 	calledCommitConfigChanges := false
 	commitConfigChanges = func(c *Context) error {
@@ -766,7 +793,11 @@ func TestCephObjectStoreControllerMultisite(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
 	s.AddKnownTypes(cephv1.SchemeGroupVersion, &cephv1.CephObjectZone{}, &cephv1.CephObjectZoneList{}, &cephv1.CephCluster{}, &cephv1.CephClusterList{}, &cephv1.CephObjectStore{}, &cephv1.CephObjectStoreList{})
+<<<<<<< HEAD
 	s.AddKnownTypes(v1.SchemeGroupVersion, &v1.Secret{})
+=======
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 
@@ -971,6 +1002,7 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			rgwAdminOpsUserSecret,
 		}
 
+<<<<<<< HEAD
 		// overwrite adminops context func
 		oldNewMultisiteAdminOpsCtxFunc := newMultisiteAdminOpsCtxFunc
 		newMultisiteAdminOpsCtxFunc = mockMultisiteAdminOpsCtxFunc
@@ -978,6 +1010,8 @@ func TestCephObjectExternalStoreController(t *testing.T) {
 			newMultisiteAdminOpsCtxFunc = oldNewMultisiteAdminOpsCtxFunc
 		}()
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		r := getReconciler(objects)
 
 		t.Run("create an external object store", func(t *testing.T) {
@@ -1049,6 +1083,7 @@ func TestDiffVersions(t *testing.T) {
 			if args[0] == "versions" {
 				return `{
     "mon": {
+<<<<<<< HEAD
         "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 3
     },
     "mgr": {
@@ -1065,6 +1100,24 @@ func TestDiffVersions(t *testing.T) {
     },
     "overall": {
         "ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)": 10
+=======
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 3
+    },
+    "mgr": {
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 1
+    },
+    "osd": {
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 3
+    },
+    "mds": {
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 2
+    },
+    "rgw": {
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 1
+    },
+    "overall": {
+        "ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)": 10
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
     }
 }`, nil
 			}
@@ -1074,7 +1127,11 @@ func TestDiffVersions(t *testing.T) {
 	c := &clusterd.Context{Executor: executor}
 
 	// desiredCephVersion comes from DetectCephVersion() (ceph --version) which uses ExtractCephVersion()
+<<<<<<< HEAD
 	desiredCephVersion, err := cephver.ExtractCephVersion("ceph version 17.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) quincy (dev)")
+=======
+	desiredCephVersion, err := cephver.ExtractCephVersion("ceph version 19.0.0-9718-g4ff72306 (4ff723061fc15c803dcf6556d02f56bdf56de5fa) squid (dev)")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	assert.NoError(t, err)
 
 	// runningCephVersion comes from LeastUptodateDaemonVersion()

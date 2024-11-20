@@ -382,8 +382,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "loop0", RealPath: "/dev/loop0", Type: sys.LoopType},
 	}
 
+<<<<<<< HEAD
 	version := cephver.Quincy
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// select all devices, including nvme01 for metadata
 	pvcBackedOSD := false
 	agent := &OsdAgent{
@@ -392,7 +395,10 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		pvcBacked:      pvcBackedOSD,
 		clusterInfo:    &cephclient.ClusterInfo{},
 	}
+<<<<<<< HEAD
 	agent.clusterInfo.CephVersion = version
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	mapping, err := getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 7, len(mapping.Entries))
@@ -536,6 +542,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		{Name: "sda", DevLinks: "/dev/disk/by-id/scsi-0123 /dev/disk/by-path/pci-0:1:2:3-scsi-1", RealPath: "/dev/sda"},
 	}
 
+<<<<<<< HEAD
 	// loop device: Ceph version is too old
 	agent.pvcBacked = false
 	agent.devices = []DesiredDevice{{Name: "loop0"}}
@@ -549,6 +556,10 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		Minor: 2,
 		Extra: 4,
 	}
+=======
+	// loop device: specify a loop device
+	agent.clusterInfo.CephVersion = cephver.Squid
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	agent.pvcBacked = false
 	agent.devices = []DesiredDevice{{Name: "loop0"}}
 	mapping, err = getAvailableDevices(context, agent)
@@ -574,7 +585,10 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	mapping, err = getAvailableDevices(context, agent)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
+<<<<<<< HEAD
 	agent.clusterInfo.CephVersion = cephver.Quincy
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 func TestGetVolumeGroupName(t *testing.T) {

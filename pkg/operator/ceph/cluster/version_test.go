@@ -37,7 +37,11 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions := []byte(`
 	{
 		"mon": {
+<<<<<<< HEAD
 			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1,
+=======
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			"ceph version 18.1.0 (4be78cea2b4ae54a27b1049cffa1208df48bffae) reef (stable)": 2
 		}
 	}`)
@@ -53,7 +57,11 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
+<<<<<<< HEAD
 			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 1,
+=======
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			"ceph version 18.1.0 (4be78cea2b4ae54a27b1049cffa1208df48bffae) reef (stable)": 2
 		}
 	}`)
@@ -69,7 +77,11 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
+<<<<<<< HEAD
 				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+=======
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			}
 		}`)
 	var dummyRunningVersions3 cephv1.CephDaemonsVersions
@@ -82,11 +94,19 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 4 test - spec version is higher than running cluster --> we upgrade
+<<<<<<< HEAD
 	fakeImageVersion = cephver.Quincy
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
 			"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+=======
+	fakeImageVersion = cephver.Squid
+	fakeRunningVersions = []byte(`
+	{
+		"overall": {
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}`)
 	var dummyRunningVersions4 cephv1.CephDaemonsVersions
@@ -98,12 +118,20 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 5 test - spec version and running cluster versions are identical --> we upgrade
+<<<<<<< HEAD
 	fakeImageVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 0,
+=======
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
+<<<<<<< HEAD
 				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+=======
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			}
 		}`)
 	var dummyRunningVersions5 cephv1.CephDaemonsVersions
@@ -115,12 +143,20 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.False(t, m)
 
 	// 6 test - spec version and running cluster have different commit ID
+<<<<<<< HEAD
 	fakeImageVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 0, Build: 139,
+=======
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0, Build: 139,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
+<<<<<<< HEAD
 				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+=======
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			}
 		}`)
 	var dummyRunningVersions6 cephv1.CephDaemonsVersions
@@ -132,12 +168,20 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 7 test - spec version and running cluster have same commit ID
+<<<<<<< HEAD
 	fakeImageVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 0,
+=======
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
+<<<<<<< HEAD
 				"ceph version 17.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+=======
+				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			}
 		}`)
 	var dummyRunningVersions7 cephv1.CephDaemonsVersions
@@ -154,6 +198,7 @@ func TestMinVersion(t *testing.T) {
 	c.Spec.CephVersion.AllowUnsupported = true
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
+<<<<<<< HEAD
 	// All versions less than 16.2.0 or invalid tag are invalid
 	v := &cephver.CephVersion{Major: 16, Minor: 1, Extra: 999}
 	assert.Error(t, c.validateCephVersion(v))
@@ -164,6 +209,16 @@ func TestMinVersion(t *testing.T) {
 	v = &cephver.CephVersion{Major: 17, Minor: 2}
 	assert.NoError(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 18}
+=======
+	// All versions less than 18.2.0 or invalid tag are invalid
+	v := &cephver.CephVersion{Major: 18, Minor: 1, Extra: 999}
+	assert.Error(t, c.validateCephVersion(v))
+	v = &cephver.CephVersion{Major: 16, Minor: 2, Extra: 11}
+	assert.Error(t, c.validateCephVersion(v))
+
+	// All versions at least 18.2.0 are valid
+	v = &cephver.CephVersion{Major: 18, Minor: 2}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	assert.NoError(t, c.validateCephVersion(v))
 	v = &cephver.CephVersion{Major: 19}
 	assert.NoError(t, c.validateCephVersion(v))
@@ -174,6 +229,7 @@ func TestSupportedVersion(t *testing.T) {
 	c.ClusterInfo = &client.ClusterInfo{Context: context.TODO()}
 
 	// lower version is not supported
+<<<<<<< HEAD
 	v := &cephver.CephVersion{Major: 16, Minor: 2, Extra: 7}
 	assert.Error(t, c.validateCephVersion(v))
 
@@ -181,6 +237,11 @@ func TestSupportedVersion(t *testing.T) {
 	v = &cephver.CephVersion{Major: 17, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))
 
+=======
+	v := &cephver.CephVersion{Major: 17, Minor: 2, Extra: 7}
+	assert.Error(t, c.validateCephVersion(v))
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// Reef is supported
 	v = &cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
 	assert.NoError(t, c.validateCephVersion(v))

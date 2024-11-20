@@ -218,7 +218,11 @@ func TestCephNFSController(t *testing.T) {
 	}
 
 	currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *cephclient.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+<<<<<<< HEAD
 		return &version.Quincy, &version.Quincy, nil
+=======
+		return &version.Squid, &version.Squid, nil
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	t.Run("error - no ceph cluster", func(t *testing.T) {

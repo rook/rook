@@ -557,7 +557,11 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clusterInfo.SetName("mycluster")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -589,7 +593,11 @@ func Test_getOSDUpdateInfo(t *testing.T) {
 		// osd.1 and 3 in another namespace (another Rook cluster)
 		clusterInfo2 := &cephclient.ClusterInfo{
 			Namespace:   "other-namespace",
+<<<<<<< HEAD
 			CephVersion: cephver.Quincy,
+=======
+			CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 		clusterInfo2.SetName("other-cluster")
 		clusterInfo2.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

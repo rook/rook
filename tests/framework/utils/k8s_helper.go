@@ -34,8 +34,11 @@ import (
 	"github.com/pkg/errors"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/ceph/cluster/nodedaemon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1607,6 +1610,7 @@ func (k8sh *K8sHelper) WaitForLabeledDeploymentsToBeReadyWithRetries(label, name
 }
 
 func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
+<<<<<<< HEAD
 	k8sVersion, err := k8sutil.GetK8SVersion(k8sh.Clientset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get k8s version")
@@ -1619,6 +1623,10 @@ func (k8sh *K8sHelper) WaitForCronJob(name, namespace string) error {
 		} else {
 			_, err = k8sh.Clientset.BatchV1beta1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 		}
+=======
+	for i := 0; i < RetryLoop; i++ {
+		_, err := k8sh.Clientset.BatchV1().CronJobs(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				logger.Infof("waiting for CronJob named %s in namespace %s", name, namespace)

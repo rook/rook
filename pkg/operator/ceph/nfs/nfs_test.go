@@ -49,7 +49,11 @@ func TestReconcileCephNFS_createConfigMap(t *testing.T) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
+<<<<<<< HEAD
 			CephVersion: cephver.Quincy,
+=======
+			CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
@@ -154,7 +158,11 @@ func TestReconcileCephNFS_upCephNFS(t *testing.T) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
+<<<<<<< HEAD
 			CephVersion: cephver.Quincy,
+=======
+			CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			Context:     context.TODO(),
 			Namespace:   ns,
 		},

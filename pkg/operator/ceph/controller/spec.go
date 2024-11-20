@@ -729,6 +729,15 @@ func PodSecurityContext() *v1.SecurityContext {
 
 	return &v1.SecurityContext{
 		Privileged: &privileged,
+<<<<<<< HEAD
+=======
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{},
+			Drop: []v1.Capability{
+				"NET_RAW",
+			},
+		},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 }
 
@@ -754,6 +763,15 @@ func PrivilegedContext(runAsRoot bool) *v1.SecurityContext {
 		sec.RunAsUser = &rootUser
 	}
 
+<<<<<<< HEAD
+=======
+	sec.Capabilities = &v1.Capabilities{
+		Add: []v1.Capability{},
+		Drop: []v1.Capability{
+			"NET_RAW",
+		},
+	}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return sec
 }
 

@@ -60,6 +60,41 @@ spec:
                   x-kubernetes-validations:
                     - message: blockPoolName is immutable
                       rule: self == oldSelf
+<<<<<<< HEAD
+=======
+                mirroring:
+                  description: Mirroring configuration of CephBlockPoolRadosNamespace
+                  properties:
+                    mode:
+                      description: Mode is the mirroring mode; either pool or image
+                      enum:
+                        - ""
+                        - pool
+                        - image
+                      type: string
+                    remoteNamespace:
+                      description: RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
+                      type: string
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the scheduling of snapshot for mirrored images
+                      items:
+                        description: SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool
+                        properties:
+                          interval:
+                            description: Interval represent the periodicity of the snapshot.
+                            type: string
+                          path:
+                            description: Path is the path to snapshot, only valid for CephFS
+                            type: string
+                          startTime:
+                            description: StartTime indicates when to start the snapshot
+                            type: string
+                        type: object
+                      type: array
+                  required:
+                    - mode
+                  type: object
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                 name:
                   description: The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
                   type: string
@@ -77,9 +112,148 @@ spec:
                     type: string
                   nullable: true
                   type: object
+<<<<<<< HEAD
                 phase:
                   description: ConditionType represent a resource's status
                   type: string
+=======
+                mirroringInfo:
+                  description: MirroringInfoSpec is the status of the pool/radosnamespace mirroring
+                  properties:
+                    details:
+                      type: string
+                    lastChanged:
+                      type: string
+                    lastChecked:
+                      type: string
+                    mode:
+                      description: Mode is the mirroring mode
+                      type: string
+                    peers:
+                      description: Peers are the list of peer sites connected to that cluster
+                      items:
+                        description: PeersSpec contains peer details
+                        properties:
+                          client_name:
+                            description: ClientName is the CephX user used to connect to the peer
+                            type: string
+                          direction:
+                            description: Direction is the peer mirroring direction
+                            type: string
+                          mirror_uuid:
+                            description: MirrorUUID is the mirror UUID
+                            type: string
+                          site_name:
+                            description: SiteName is the current site name
+                            type: string
+                          uuid:
+                            description: UUID is the peer UUID
+                            type: string
+                        type: object
+                      type: array
+                    site_name:
+                      description: SiteName is the current site name
+                      type: string
+                  type: object
+                mirroringStatus:
+                  description: MirroringStatusSpec is the status of the pool/radosNamespace mirroring
+                  properties:
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                    summary:
+                      description: Summary is the mirroring status summary
+                      properties:
+                        daemon_health:
+                          description: DaemonHealth is the health of the mirroring daemon
+                          type: string
+                        health:
+                          description: Health is the mirroring health
+                          type: string
+                        image_health:
+                          description: ImageHealth is the health of the mirrored image
+                          type: string
+                        states:
+                          description: States is the various state for all mirrored images
+                          nullable: true
+                          properties:
+                            error:
+                              description: Error is when the mirroring state is errored
+                              type: integer
+                            replaying:
+                              description: Replaying is when the replay of the mirroring journal is on-going
+                              type: integer
+                            starting_replay:
+                              description: StartingReplay is when the replay of the mirroring journal starts
+                              type: integer
+                            stopped:
+                              description: Stopped is when the mirroring state is stopped
+                              type: integer
+                            stopping_replay:
+                              description: StopReplaying is when the replay of the mirroring journal stops
+                              type: integer
+                            syncing:
+                              description: Syncing is when the image is syncing
+                              type: integer
+                            unknown:
+                              description: Unknown is when the mirroring state is unknown
+                              type: integer
+                          type: object
+                      type: object
+                  type: object
+                phase:
+                  description: ConditionType represent a resource's status
+                  type: string
+                snapshotScheduleStatus:
+                  description: SnapshotScheduleStatusSpec is the status of the snapshot schedule
+                  properties:
+                    details:
+                      description: Details contains potential status errors
+                      type: string
+                    lastChanged:
+                      description: LastChanged is the last time time the status last changed
+                      type: string
+                    lastChecked:
+                      description: LastChecked is the last time time the status was checked
+                      type: string
+                    snapshotSchedules:
+                      description: SnapshotSchedules is the list of snapshots scheduled
+                      items:
+                        description: SnapshotSchedulesSpec is the list of snapshot scheduled for images in a pool
+                        properties:
+                          image:
+                            description: Image is the mirrored image
+                            type: string
+                          items:
+                            description: Items is the list schedules times for a given snapshot
+                            items:
+                              description: SnapshotSchedule is a schedule
+                              properties:
+                                interval:
+                                  description: Interval is the interval in which snapshots will be taken
+                                  type: string
+                                start_time:
+                                  description: StartTime is the snapshot starting time
+                                  type: string
+                              type: object
+                            type: array
+                          namespace:
+                            description: Namespace is the RADOS namespace the image is part of
+                            type: string
+                          pool:
+                            description: Pool is the pool name
+                            type: string
+                        type: object
+                      nullable: true
+                      type: array
+                  type: object
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               type: object
               x-kubernetes-preserve-unknown-fields: true
           required:
@@ -373,7 +547,11 @@ spec:
                   nullable: true
                   type: object
                 mirroringInfo:
+<<<<<<< HEAD
                   description: MirroringInfoSpec is the status of the pool mirroring
+=======
+                  description: MirroringInfoSpec is the status of the pool/radosnamespace mirroring
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                   properties:
                     details:
                       type: string
@@ -411,7 +589,11 @@ spec:
                       type: string
                   type: object
                 mirroringStatus:
+<<<<<<< HEAD
                   description: MirroringStatusSpec is the status of the pool mirroring
+=======
+                  description: MirroringStatusSpec is the status of the pool/radosNamespace mirroring
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                   properties:
                     details:
                       description: Details contains potential status errors
@@ -469,6 +651,12 @@ spec:
                 phase:
                   description: ConditionType represent a resource's status
                   type: string
+<<<<<<< HEAD
+=======
+                poolID:
+                  description: optional
+                  type: integer
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                 snapshotScheduleStatus:
                   description: SnapshotScheduleStatusSpec is the status of the snapshot schedule
                   properties:
@@ -2564,7 +2752,11 @@ spec:
                         other network providers.
 
                         Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
+<<<<<<< HEAD
                         https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
+=======
+                        https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
                         Refer to Multus network annotation documentation for help selecting values:
                         https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation
@@ -7036,9 +7228,12 @@ spec:
                             type: object
                           type: array
                       type: object
+<<<<<<< HEAD
                     name:
                       description: Name of the pool
                       type: string
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                     parameters:
                       additionalProperties:
                         type: string
@@ -8071,9 +8266,12 @@ spec:
                 preserveFilesystemOnDelete:
                   description: Preserve the fs in the cluster on CephFilesystem CR deletion. Setting this to true automatically implies PreservePoolsOnDelete is true.
                   type: boolean
+<<<<<<< HEAD
                 preservePoolNames:
                   description: Preserve pool names as specified
                   type: boolean
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                 preservePoolsOnDelete:
                   description: Preserve pools on filesystem deletion
                   type: boolean
@@ -12055,7 +12253,10 @@ spec:
                         If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
                         wildcard itself in the list of hostnames.
                         E.g., use "mystore.example.com" instead of "*.mystore.example.com".
+<<<<<<< HEAD
                         The feature is supported only for Ceph v18 and later versions.
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                       items:
                         type: string
                       type: array
@@ -12541,7 +12742,11 @@ spec:
                   nullable: true
                   properties:
                     amz-cache:
+<<<<<<< HEAD
                       description: Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+=======
+                      description: Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
                       enum:
                         - '*'
                         - read

@@ -21,13 +21,19 @@ import (
 	_ "embed"
 	"fmt"
 	"path"
+<<<<<<< HEAD
 	"strconv"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"strings"
 	"time"
 
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+<<<<<<< HEAD
 	"sigs.k8s.io/controller-runtime/pkg/client"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	"github.com/pkg/errors"
 	apps "k8s.io/api/apps/v1"
@@ -35,10 +41,14 @@ import (
 	k8scsi "k8s.io/api/storage/v1beta1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 
 	cephcsi "github.com/ceph/ceph-csi/api/deploy/kubernetes"
+=======
+	"k8s.io/client-go/kubernetes"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 type Param struct {
@@ -111,6 +121,7 @@ type templateParam struct {
 	Namespace string
 }
 
+<<<<<<< HEAD
 type driverDetails struct {
 	name           string
 	fullName       string
@@ -120,6 +131,8 @@ type driverDetails struct {
 	resource       string
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 var (
 	CSIParam Param
 
@@ -145,13 +158,21 @@ var (
 // manually challenging.
 var (
 	// image names
+<<<<<<< HEAD
 	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.12.3"
+=======
+	DefaultCSIPluginImage   = "quay.io/cephcsi/cephcsi:v3.12.2"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.6.1"
 	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v8.0.1"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.11.1"
+<<<<<<< HEAD
 	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.9.1"
+=======
+	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.10.0"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// image pull policy
 	DefaultCSIImagePullPolicy = string(corev1.PullIfNotPresent)
@@ -159,8 +180,11 @@ var (
 	// Local package template path for RBD
 	//go:embed template/rbd/csi-rbdplugin.yaml
 	RBDPluginTemplatePath string
+<<<<<<< HEAD
 	//go:embed template/rbd/csi-rbdplugin-holder.yaml
 	RBDPluginHolderTemplatePath string
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	//go:embed template/rbd/csi-rbdplugin-provisioner-dep.yaml
 	RBDProvisionerDepTemplatePath string
 	//go:embed template/rbd/csi-rbdplugin-svc.yaml
@@ -169,8 +193,11 @@ var (
 	// Local package template path for CephFS
 	//go:embed template/cephfs/csi-cephfsplugin.yaml
 	CephFSPluginTemplatePath string
+<<<<<<< HEAD
 	//go:embed template/cephfs/csi-cephfsplugin-holder.yaml
 	CephFSPluginHolderTemplatePath string
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	//go:embed template/cephfs/csi-cephfsplugin-provisioner-dep.yaml
 	CephFSProvisionerDepTemplatePath string
 	//go:embed template/cephfs/csi-cephfsplugin-svc.yaml
@@ -181,8 +208,11 @@ var (
 	NFSPluginTemplatePath string
 	//go:embed template/nfs/csi-nfsplugin-provisioner-dep.yaml
 	NFSProvisionerDepTemplatePath string
+<<<<<<< HEAD
 	//go:embed template/nfs/csi-nfsplugin-holder.yaml
 	NFSPluginHolderTemplatePath string
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	//go:embed template/csi-logrotate-sidecar.yaml
 	LogrotateTemplatePath string
@@ -324,8 +354,11 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		csiDriverobj                                                                    v1CsiDriver
 	)
 
+<<<<<<< HEAD
 	enabledDrivers := make([]driverDetails, 0)
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	tp := templateParam{
 		Param:     CSIParam,
 		Namespace: r.opConfig.OperatorNamespace,
@@ -360,7 +393,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load rbdplugin template")
 		}
+<<<<<<< HEAD
 		rbdPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&rbdPlugin.Spec.Template, "csi-rbd-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -374,7 +410,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&rbdProvisionerDeployment.Spec.Template, "csi-rbd-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		rbdProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+<<<<<<< HEAD
 		rbdProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
@@ -384,6 +423,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			}
 			rbdService.Namespace = r.opConfig.OperatorNamespace
 		}
+<<<<<<< HEAD
 		enabledDrivers = append(enabledDrivers, driverDetails{
 			name:           RBDDriverShortName,
 			fullName:       RBDDriverName,
@@ -392,6 +432,8 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			toleration:     rbdPluginTolerationsEnv,
 			resource:       rbdPluginResource,
 		})
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	if EnableCephFS {
 		tp.CsiComponentName = nodePlugin
@@ -400,8 +442,11 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load CephFS plugin template")
 		}
+<<<<<<< HEAD
 		cephfsPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&cephfsPlugin.Spec.Template, "csi-cephfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -415,7 +460,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&cephfsProvisionerDeployment.Spec.Template, "csi-cephfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		cephfsProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+<<<<<<< HEAD
 		cephfsProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		// Create service if either liveness or GRPC metrics are enabled.
 		if CSIParam.EnableLiveness {
@@ -425,6 +473,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			}
 			cephfsService.Namespace = r.opConfig.OperatorNamespace
 		}
+<<<<<<< HEAD
 		enabledDrivers = append(enabledDrivers, driverDetails{
 			name:           CephFSDriverShortName,
 			fullName:       CephFSDriverName,
@@ -433,6 +482,8 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			toleration:     cephFSPluginTolerationsEnv,
 			resource:       cephFSPluginResource,
 		})
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	if EnableNFS {
@@ -442,7 +493,10 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to load nfs plugin template")
 		}
+<<<<<<< HEAD
 		nfsPlugin.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if tp.CSILogRotation {
 			applyLogrotateSidecar(&nfsPlugin.Spec.Template, "csi-nfs-daemonset-log-collector", LogrotateTemplatePath, tp)
 		}
@@ -456,6 +510,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			applyLogrotateSidecar(&nfsProvisionerDeployment.Spec.Template, "csi-nfs-deployment-log-collector", LogrotateTemplatePath, tp)
 		}
 		nfsProvisionerDeployment.Spec.Template.Spec.HostNetwork = opcontroller.EnforceHostNetwork()
+<<<<<<< HEAD
 		nfsProvisionerDeployment.Spec.RevisionHistoryLimit = opcontroller.RevisionHistoryLimit()
 
 		enabledDrivers = append(enabledDrivers, driverDetails{
@@ -466,6 +521,8 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 			toleration:     nfsPluginTolerationsEnv,
 			resource:       nfsPluginResource,
 		})
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	// get common provisioner tolerations and node affinity
@@ -476,6 +533,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	pluginTolerations := getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{})
 	pluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
 
+<<<<<<< HEAD
 	// Deploy the CSI Holder DaemonSet if Multus is enabled or
 	// EnableCSIHostNetwork is disabled.
 	err = r.configureHolders(enabledDrivers, tp, pluginTolerations, pluginNodeAffinity)
@@ -483,6 +541,8 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		return errors.Wrap(err, "failed to configure holder")
 	}
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if rbdPlugin != nil {
 		// get RBD plugin tolerations and node affinity, defaults to common tolerations and node affinity if not specified
 		rbdPluginTolerations := getToleration(r.opConfig.Parameters, rbdPluginTolerationsEnv, pluginTolerations)
@@ -503,9 +563,12 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to rbd plugin daemonset %q", rbdPlugin.Name)
 		}
+<<<<<<< HEAD
 		if holderEnabled {
 			rbdPlugin.Spec.Template.Spec.HostNetwork = false
 		}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		err = k8sutil.CreateDaemonSet(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to start rbdplugin daemonset %q", rbdPlugin.Name)
@@ -575,11 +638,14 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to cephfs plugin daemonset %q", cephfsPlugin.Name)
 		}
+<<<<<<< HEAD
 		if holderEnabled {
 			cephfsPlugin.Spec.Template.Spec.HostNetwork = false
 			// HostPID is used to communicate with the network namespace
 			cephfsPlugin.Spec.Template.Spec.HostPID = true
 		}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err = k8sutil.CreateDaemonSet(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, cephfsPlugin)
 		if err != nil {
@@ -650,11 +716,14 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply network config to nfs plugin daemonset %q", nfsPlugin.Name)
 		}
+<<<<<<< HEAD
 		if holderEnabled {
 			nfsPlugin.Spec.Template.Spec.HostNetwork = false
 			// HostPID is used to communicate with the network namespace
 			nfsPlugin.Spec.Template.Spec.HostPID = true
 		}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err = k8sutil.CreateDaemonSet(r.opManagerContext, r.opConfig.OperatorNamespace, r.context.Clientset, nfsPlugin)
 		if err != nil {
@@ -803,6 +872,7 @@ func (r *ReconcileCSI) applyCephClusterNetworkConfig(ctx context.Context, object
 	return nil
 }
 
+<<<<<<< HEAD
 func (r *ReconcileCSI) configureHolders(enabledDrivers []driverDetails, tp templateParam, pluginTolerations []corev1.Toleration, pluginNodeAffinity *corev1.NodeAffinity) error {
 	for _, cluster := range r.clustersWithHolder {
 		for _, driver := range enabledDrivers {
@@ -963,6 +1033,8 @@ func generateNetNamespaceFilePath(kubeletDirPath, driverFullName, clusterNamespa
 	return fmt.Sprintf("%s/plugins/%s/%s.net.ns", kubeletDirPath, driverFullName, clusterNamespace)
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func validateCSIDriverNamePrefix(ctx context.Context, clientset kubernetes.Interface, namespace, driverNamePrefix string) error {
 	if EnableRBD {
 		rbdDriverNamePrefix, err := getCSIDriverNamePrefixFromDeployment(ctx, clientset, namespace, csiRBDProvisioner, "csi-rbdplugin")
@@ -1044,5 +1116,9 @@ func getPrefixFromArg(arg string) (string, bool) {
 }
 
 func EnableCSIOperator() bool {
+<<<<<<< HEAD
 	return enableCSIOperator && !IsHolderEnabled()
+=======
+	return enableCSIOperator
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

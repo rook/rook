@@ -49,6 +49,7 @@ those releases.
     official releases. Builds from the master branch can have functionality changed or removed at any
     time without compatibility support and without prior notice.
 
+<<<<<<< HEAD
 ## Breaking changes in v1.15
 
 * The minimum supported version of Kubernetes is v1.26.
@@ -68,6 +69,14 @@ those releases.
     define required behavior as
     [documented](../Storage-Configuration/Object-Storage-RGW/object-storage.md#object-store-endpoint).
 
+=======
+## Breaking changes in v1.16
+
+* Rook fully deprecated CSI "holder" pods in Rook v1.16. Any Rook v1.15 CephCluster with
+    `csi-*plugin-holder-*` pods present in the Rook operator namespace must follow holder pod
+    removal migration steps outlined in
+    [v1.15 documentation](https://rook.io/docs/rook/v1.15/CRDs/Cluster/network-providers/?h=depre#holder-pod-deprecation).
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 ## Considerations
 
@@ -83,11 +92,19 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
+<<<<<<< HEAD
 example, when Rook v1.15.6 is released, the process of updating from v1.15.0 is as simple as running
 the following:
 
 ```console
 git clone --single-branch --depth=1 --branch v1.15.6 https://github.com/rook/rook.git
+=======
+example, when Rook v1.15.1 is released, the process of updating from v1.15.0 is as simple as running
+the following:
+
+```console
+git clone --single-branch --depth=1 --branch v1.15.1 https://github.com/rook/rook.git
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 cd rook/deploy/examples
 ```
 
@@ -99,7 +116,11 @@ Then, apply the latest changes from v1.15, and update the Rook Operator image.
 
 ```console
 kubectl apply -f common.yaml -f crds.yaml
+<<<<<<< HEAD
 kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.15.6
+=======
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.15.1
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ```
 
 As exemplified above, it is a good practice to update Rook common resources from the example
@@ -114,10 +135,13 @@ Also update optional resources like Prometheus monitoring noted more fully in th
 If Rook is installed via the Helm chart, Helm will handle some details of the upgrade itself.
 The upgrade steps in this guide will clarify what Helm handles automatically.
 
+<<<<<<< HEAD
 !!! important
     If there are pods named `csi-*plugin-holder-*` in the Rook operator namespace, set the new
     config `csi.disableHolderPods: false` in the values.yaml before upgrading to v1.15.
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 The `rook-ceph` helm chart upgrade performs the Rook upgrade.
 The `rook-ceph-cluster` helm chart upgrade performs a [Ceph upgrade](./ceph-upgrade.md) if the Ceph image is updated.
 The `rook-ceph` chart should be upgraded before `rook-ceph-cluster`, so the latest operator has the opportunity to update
@@ -137,8 +161,13 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
 
 ## Rook Operator Upgrade
 
+<<<<<<< HEAD
 The examples given in this guide upgrade a live Rook cluster running `v1.14.12` to
 the version `v1.15.6`. This upgrade should work from any official patch release of Rook v1.14 to any
+=======
+The examples given in this guide upgrade a live Rook cluster running `v1.14.9` to
+the version `v1.15.0`. This upgrade should work from any official patch release of Rook v1.14 to any
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 official patch release of v1.15.
 
 Let's get started!
@@ -165,7 +194,11 @@ by the Operator. Also update the Custom Resource Definitions (CRDs).
 Get the latest common resources manifests that contain the latest changes.
 
 ```console
+<<<<<<< HEAD
 git clone --single-branch --depth=1 --branch v1.15.6 https://github.com/rook/rook.git
+=======
+git clone --single-branch --depth=1 --branch master https://github.com/rook/rook.git
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 cd rook/deploy/examples
 ```
 
@@ -204,7 +237,11 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
+<<<<<<< HEAD
 kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.15.6
+=======
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ```
 
 ### **3. Update Ceph CSI**
@@ -234,11 +271,16 @@ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=
 ```
 
 As an example, this cluster is midway through updating the OSDs. When all deployments report `1/1/1`
+<<<<<<< HEAD
 availability and `rook-version=v1.15.6`, the Ceph cluster's core components are fully updated.
+=======
+availability and `rook-version=v1.15.0`, the Ceph cluster's core components are fully updated.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 
+<<<<<<< HEAD
 rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.15.6
 rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.15.6
 rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.15.6
@@ -246,6 +288,15 @@ rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.15.6
 rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.15.6
 rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.14.12
 rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.14.12
+=======
+rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.15.0
+rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.15.0
+rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.15.0
+rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.15.0
+rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.15.0
+rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.14.9
+rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.14.9
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
@@ -254,14 +305,22 @@ An easy check to see if the upgrade is totally finished is to check that there i
 ```console
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
+<<<<<<< HEAD
   rook-version=v1.14.12
   rook-version=v1.15.6
 This cluster is finished:
   rook-version=v1.15.6
+=======
+  rook-version=v1.14.9
+  rook-version=v1.15.0
+This cluster is finished:
+  rook-version=v1.15.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ```
 
 ### **5. Verify the updated cluster**
 
+<<<<<<< HEAD
 At this point, the Rook operator should be running version `rook/ceph:v1.15.6`.
 
 Verify the CephCluster health using the [health verification doc](health-verification.md).
@@ -272,3 +331,8 @@ Rook has deprecated CSI network "holder" pods. If there are pods named
 `csi-*plugin-holder-*` in the Rook operator namespace, see the
 [detailed documentation](../CRDs/Cluster/network-providers.md#holder-pod-deprecation)
 to disable them. This deprecation process is required before upgrading to the future Rook v1.16.
+=======
+At this point, the Rook operator should be running version `rook/ceph:v1.15.0`.
+
+Verify the CephCluster health using the [health verification doc](health-verification.md).
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

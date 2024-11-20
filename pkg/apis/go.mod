@@ -2,6 +2,11 @@ module github.com/rook/rook/pkg/apis
 
 go 1.22.5
 
+<<<<<<< HEAD
+=======
+toolchain go1.22.7
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
@@ -13,18 +18,32 @@ replace (
 )
 
 require (
+<<<<<<< HEAD
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
+=======
+	github.com/hashicorp/vault/api v1.15.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
 	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.9.0
+<<<<<<< HEAD
 	k8s.io/api v0.31.1
 	k8s.io/apimachinery v0.31.1
+=======
+	k8s.io/api v0.31.2
+	k8s.io/apimachinery v0.31.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
+<<<<<<< HEAD
+=======
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
@@ -33,13 +52,20 @@ require (
 	github.com/onsi/gomega v1.34.2 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+<<<<<<< HEAD
 	k8s.io/client-go v0.31.1 // indirect
+=======
+	k8s.io/client-go v0.31.2 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
 require (
+<<<<<<< HEAD
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/containernetworking/cni v1.2.0-rc1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
@@ -81,12 +107,20 @@ require (
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
+<<<<<<< HEAD
 	golang.org/x/time v0.5.0 // indirect
+=======
+	golang.org/x/time v0.6.0 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	google.golang.org/protobuf v1.34.2 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
+<<<<<<< HEAD
 	k8s.io/kube-openapi v0.0.0-20240620174524-b456828f718b // indirect
+=======
+	k8s.io/kube-openapi v0.0.0-20240808142205-8e686545bdb8 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )

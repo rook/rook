@@ -26,7 +26,11 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/util/exec"
+=======
+	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -51,8 +55,14 @@ type Images struct {
 }
 
 var (
+<<<<<<< HEAD
 	rbdMirrorPeerCaps      = []string{"mon", "profile rbd-mirror-peer", "osd", "profile rbd"}
 	rbdMirrorPeerKeyringID = "rbd-mirror-peer"
+=======
+	rbdMirrorPeerCaps                     = []string{"mon", "profile rbd-mirror-peer", "osd", "profile rbd"}
+	rbdMirrorPeerKeyringID                = "rbd-mirror-peer"
+	radosNamespaceMirroringMinimumVersion = cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 // ImportRBDMirrorBootstrapPeer add a mirror peer in the rbd-mirror configuration
@@ -86,7 +96,11 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	cmd := NewRBDCommand(context, clusterInfo, args)
 
 	// Run command
+<<<<<<< HEAD
 	output, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
+=======
+	output, err := cmd.Run()
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return errors.Wrapf(err, "failed to add rbd-mirror peer token for pool %q. %s", poolName, output)
 	}
@@ -164,7 +178,11 @@ func RemoveClusterPeer(context *clusterd.Context, clusterInfo *ClusterInfo, pool
 }
 
 // GetPoolMirroringStatus prints the pool mirroring status
+<<<<<<< HEAD
 func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolMirroringStatus, error) {
+=======
+func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.MirroringStatus, error) {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	logger.Debugf("retrieving mirroring pool %q status", poolName)
 
 	// Build command
@@ -178,7 +196,11 @@ func GetPoolMirroringStatus(context *clusterd.Context, clusterInfo *ClusterInfo,
 		return nil, errors.Wrapf(err, "failed to retrieve mirroring pool %q status", poolName)
 	}
 
+<<<<<<< HEAD
 	var poolMirroringStatus cephv1.PoolMirroringStatus
+=======
+	var poolMirroringStatus cephv1.MirroringStatus
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err := json.Unmarshal([]byte(buf), &poolMirroringStatus); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal mirror pool status response")
 	}
@@ -210,7 +232,12 @@ func GetMirroredPoolImages(context *clusterd.Context, clusterInfo *ClusterInfo, 
 }
 
 // GetPoolMirroringInfo  prints the pool mirroring information
+<<<<<<< HEAD
 func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.PoolMirroringInfo, error) {
+=======
+// `poolName` is the name of the pool or the pool/radosNamespace
+func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string) (*cephv1.MirroringInfo, error) {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	logger.Debugf("retrieving mirroring pool %q info", poolName)
 
 	// Build command
@@ -225,7 +252,11 @@ func GetPoolMirroringInfo(context *clusterd.Context, clusterInfo *ClusterInfo, p
 	}
 
 	// Unmarshal JSON into Go struct
+<<<<<<< HEAD
 	var poolMirroringInfo cephv1.PoolMirroringInfo
+=======
+	var poolMirroringInfo cephv1.MirroringInfo
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err := json.Unmarshal(buf, &poolMirroringInfo); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal mirror pool info response")
 	}
@@ -279,17 +310,30 @@ func removeSnapshotSchedule(context *clusterd.Context, clusterInfo *ClusterInfo,
 	return nil
 }
 
+<<<<<<< HEAD
 func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	logger.Info("resetting current snapshot schedules")
 	// Reset any existing schedules
 	err := removeSnapshotSchedules(context, clusterInfo, pool)
+=======
+// `poolName` is the name of the pool or the pool/radosNamespace
+func EnableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, poolName string, snapshotSchedules []cephv1.SnapshotScheduleSpec) error {
+	logger.Info("resetting current snapshot schedules in cluster namespace %q", clusterInfo.Namespace)
+	// Reset any existing schedules
+	err := removeSnapshotSchedules(context, clusterInfo, poolName)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		logger.Errorf("failed to remove snapshot schedules. %v", err)
 	}
 
 	// Enable all the snap schedules
+<<<<<<< HEAD
 	for _, snapSchedule := range pool.Mirroring.SnapshotSchedules {
 		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, pool.Name)
+=======
+	for _, snapSchedule := range snapshotSchedules {
+		err := enableSnapshotSchedule(context, clusterInfo, snapSchedule, poolName)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrap(err, "failed to enable snapshot schedule")
 		}
@@ -299,16 +343,26 @@ func enableSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo
 }
 
 // removeSnapshotSchedules removes all the existing snapshot schedules
+<<<<<<< HEAD
 func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	// Get the list of existing snapshot schedule
 	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, pool.Name)
+=======
+func removeSnapshotSchedules(context *clusterd.Context, clusterInfo *ClusterInfo, pool string) error {
+	// Get the list of existing snapshot schedule
+	existingSnapshotSchedules, err := listSnapshotSchedules(context, clusterInfo, pool)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		return errors.Wrap(err, "failed to list snapshot schedule(s)")
 	}
 
 	// Remove each schedule
 	for _, existingSnapshotSchedule := range existingSnapshotSchedules {
+<<<<<<< HEAD
 		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, pool.Name)
+=======
+		err := removeSnapshotSchedule(context, clusterInfo, existingSnapshotSchedule, pool)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove snapshot schedule %v", existingSnapshotSchedule)
 		}
@@ -363,6 +417,48 @@ func ListSnapshotSchedulesRecursively(context *clusterd.Context, clusterInfo *Cl
 	return snapshotSchedulesRecursive, nil
 }
 
+<<<<<<< HEAD
+=======
+// EnableRBDRadosNamespaceMirroring enables rbd mirroring on a rados namespace.
+func EnableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolAndRadosNamespaceName string, remoteNamespace *string, mode string) error {
+	logger.Infof("enable mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+
+	// remove the check when the min supported version is 20.0.0
+	if !clusterInfo.CephVersion.IsAtLeast(radosNamespaceMirroringMinimumVersion) {
+		return errors.Errorf("ceph version %q does not support mirroring in rados namespace %q with --remote-namespace flag, supported version are v20 and above.", clusterInfo.CephVersion.String(), poolAndRadosNamespaceName)
+	}
+
+	args := []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode}
+	if remoteNamespace != nil {
+		args = []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode, "--remote-namespace", *remoteNamespace}
+	}
+
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to enable mirroring in rados namespace %s with mode %s. %s", poolAndRadosNamespaceName, mode, output)
+	}
+
+	logger.Infof("successfully enabled mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+	return nil
+}
+
+func DisableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, poolAndRadosNamespaceName string) error {
+	logger.Infof("disable mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+	args := []string{"mirror", "pool", "disable", poolAndRadosNamespaceName}
+	cmd := NewRBDCommand(context, clusterInfo, args)
+	cmd.JsonOutput = false
+	output, err := cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "failed to disable mirroring in rados namespace %s. %s", poolAndRadosNamespaceName, output)
+	}
+
+	logger.Infof("successfully disabled mirroring in rados namespace %s in k8s namespace %q", poolAndRadosNamespaceName, clusterInfo.Namespace)
+	return nil
+}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 /*
 	CreateRBDMirrorBootstrapPeerWithoutPool creates a bootstrap peer for the current cluster
 

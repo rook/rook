@@ -106,6 +106,23 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 		}
 	}
 
+<<<<<<< HEAD
+=======
+	if _, ok := config["bucketMaxObjects"]; ok {
+		spec.bucketMaxObjects, err = quanityToInt64(config["bucketMaxObjects"])
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse bucketMaxObjects quota")
+		}
+	}
+
+	if _, ok := config["bucketMaxSize"]; ok {
+		spec.bucketMaxSize, err = quanityToInt64(config["bucketMaxSize"])
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse bucketMaxSize quota")
+		}
+	}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return &spec, nil
 }
 

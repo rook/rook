@@ -65,7 +65,10 @@ const (
 	bluestoreBlockName    = "block"
 	bluestoreMetadataName = "block.db"
 	bluestoreWalName      = "block.wal"
+<<<<<<< HEAD
 	tempEtcCephDir        = "/etc/temp-ceph"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	osdPortv1             = 6801
 	osdPortv2             = 6800
 )
@@ -105,7 +108,10 @@ set -o nounset # fail if variables are unset
 set -o xtrace
 
 OSD_ID="$ROOK_OSD_ID"
+<<<<<<< HEAD
 CEPH_FSID=%s
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 OSD_UUID=%s
 OSD_STORE_FLAG="%s"
 OSD_DATA_DIR=/var/lib/ceph/osd/ceph-"$OSD_ID"
@@ -113,6 +119,7 @@ KEYRING_FILE="$OSD_DATA_DIR"/keyring
 CV_MODE=%s
 DEVICE="$%s"
 
+<<<<<<< HEAD
 # "ceph.conf" must have the "fsid" global configuration to activate encrypted OSDs
 # after the following Ceph's PR is merged.
 # https://github.com/ceph/ceph/commit/25655e5a8829e001adf467511a6bde8142b0a575
@@ -136,6 +143,8 @@ with open('/etc/ceph/ceph.conf', 'w') as configfile:
     config.write(configfile)
 "
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 # In rare cases keyring file created with prepare-osd but did not
 # being stored in ceph auth system therefore we need to import it
 # from keyring file instead of creating new one
@@ -538,6 +547,15 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		Privileged:             &privileged,
 		RunAsUser:              &runAsUser,
 		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+<<<<<<< HEAD
+=======
+		Capabilities: &v1.Capabilities{
+			Add: []v1.Capability{},
+			Drop: []v1.Capability{
+				"NET_RAW",
+			},
+		},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	// needed for luksOpen synchronization when devices are encrypted and the osd is prepared with LVM
@@ -928,7 +946,11 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 	volMounts := []v1.VolumeMount{
 		{Name: activateOSDVolumeName, MountPath: activateOSDMountPathID},
 		{Name: "devices", MountPath: "/dev"},
+<<<<<<< HEAD
 		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: tempEtcCephDir},
+=======
+		{Name: k8sutil.ConfigOverrideName, ReadOnly: true, MountPath: opconfig.EtcCephDir},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		{Name: "udev", MountPath: "/run/udev"},
 		adminKeyringVolMount,
 	}
@@ -943,7 +965,11 @@ func (c *Cluster) getActivateOSDInitContainer(configDir, namespace, osdID string
 		Command: []string{
 			"/bin/bash",
 			"-c",
+<<<<<<< HEAD
 			fmt.Sprintf(activateOSDOnNodeCode, c.clusterInfo.FSID, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
+=======
+			fmt.Sprintf(activateOSDOnNodeCode, osdInfo.UUID, osdStoreFlag, osdInfo.CVMode, blockPathVarName),
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Name:            "activate",
 		Image:           c.spec.CephVersion.Image,
@@ -969,6 +995,12 @@ func getBlockDevMapperContext() *v1.SecurityContext {
 			Add: []v1.Capability{
 				"MKNOD",
 			},
+<<<<<<< HEAD
+=======
+			Drop: []v1.Capability{
+				"NET_RAW",
+			},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Privileged: &privileged,
 	}

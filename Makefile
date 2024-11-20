@@ -161,6 +161,10 @@ fmt: ## Check formatting of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
+<<<<<<< HEAD
+=======
+gen.codegen: codegen
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 codegen: ${CODE_GENERATOR} ## Run code generators.
 	@build/codegen/codegen.sh
 
@@ -178,19 +182,32 @@ distclean: clean ## Remove all files that are created by building or configuring
 prune: ## Prune cached artifacts.
 	@$(MAKE) -C images prune
 
+<<<<<<< HEAD
 docs: helm-docs
 
+=======
+gen.crds: crds
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 crds: $(CONTROLLER_GEN) $(YQ)
 	@echo Updating CRD manifests
 	@build/crds/build-crds.sh $(CONTROLLER_GEN) $(YQ)
 	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
 
+<<<<<<< HEAD
+=======
+gen.rbac: gen-rbac
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 	@# output only stdout to the file; stderr for debugging should keep going to stderr
 	HELM=$(HELM) ./build/rbac/gen-common.sh
 	HELM=$(HELM) ./build/rbac/gen-nfs-rbac.sh
 	HELM=$(HELM) ./build/rbac/gen-psp.sh
 
+<<<<<<< HEAD
+=======
+gen.docs: docs
+docs: helm-docs
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm charts
 	$(HELM_DOCS) -c deploy/charts/rook-ceph \
 		-o ../../../Documentation/Helm-Charts/operator-chart.md \
@@ -201,18 +218,28 @@ helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm cha
 		-t ../../../Documentation/Helm-Charts/ceph-cluster-chart.gotmpl.md \
 		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
 
+<<<<<<< HEAD
 check-helm-docs:
+=======
+check.helm-docs:
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	@$(MAKE) helm-docs
 	@git diff --exit-code || { \
 	echo "Please run 'make helm-docs' locally, commit the updated docs, and push the change. See https://rook.io/docs/rook/latest/Contributing/documentation/#making-docs" ; \
 	exit 2 ; \
 	};
+<<<<<<< HEAD
 check-docs:
 	@$(MAKE) docs
 	@git diff --exit-code || { \
 	echo "Please run 'make docs' locally, commit the updated docs, and push the change." ; \
 	exit 2 ; \
 	};
+=======
+check.docs:
+	@$(MAKE) docs
+	@tests/scripts/validate_modified_files.sh docs
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 
 docs-preview: ## Preview the documentation through mkdocs
@@ -221,11 +248,23 @@ docs-preview: ## Preview the documentation through mkdocs
 docs-build:  ## Build the documentation to the `site/` directory
 	mkdocs build --strict
 
+<<<<<<< HEAD
 generate-docs-crds: ## Build the documentation for CRD
 	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
 
 .PHONY: all build.common
 .PHONY: build build.all install test check vet fmt codegen mod.check clean distclean prune
+=======
+gen.crd-docs: generate-docs-crds
+generate-docs-crds: ## Build the documentation for CRD
+	@GOBIN=$(GOBIN) build/crds/generate-crd-docs.sh
+
+generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all generated files (code, manifests, charts, and docs).
+
+
+.PHONY: all build.common
+.PHONY: build build.all install test check vet fmt codegen gen.codegen gen.rbac gen.crds gen.crd-docs gen.docs generate mod.check clean distclean prune
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 # ====================================================================================
 # Help

@@ -60,7 +60,11 @@ func testDeploymentObject(t *testing.T, network cephv1.NetworkSpec) (*apps.Deplo
 	}
 	clusterInfo := &cephclient.ClusterInfo{
 		FSID:        "myfsid",
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clientset := testop.New(t, 1)
 

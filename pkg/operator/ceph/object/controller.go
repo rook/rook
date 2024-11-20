@@ -24,7 +24,10 @@ import (
 	"syscall"
 	"time"
 
+<<<<<<< HEAD
 	"github.com/ceph/go-ceph/rgw/admin"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/coreos/pkg/capnslog"
 	bktclient "github.com/kube-object-storage/lib-bucket-provisioner/pkg/client/clientset/versioned"
 	"github.com/pkg/errors"
@@ -82,9 +85,12 @@ var currentAndDesiredCephVersion = opcontroller.CurrentAndDesiredCephVersion
 // allow this to be overridden for unit tests
 var cephObjectStoreDependents = CephObjectStoreDependents
 
+<<<<<<< HEAD
 // newMultisiteAdminOpsCtxFunc help us mocking the admin ops API client in unit test
 var newMultisiteAdminOpsCtxFunc = NewMultisiteAdminOpsContext
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // ReconcileCephObjectStore reconciles a cephObjectStore object
 type ReconcileCephObjectStore struct {
 	client           client.Client
@@ -243,6 +249,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get object context")
 		}
+<<<<<<< HEAD
 		opsCtx, err := newMultisiteAdminOpsCtxFunc(objCtx, &cephObjectStore.Spec)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get admin ops API context")
@@ -252,6 +259,12 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 			// Allow the object store removal to proceed even if the user deletion fails
 			logger.Warningf("failed to delete COSI user. %v", err)
 		}
+=======
+		opsCtx, err := NewMultisiteAdminOpsContext(objCtx, &cephObjectStore.Spec)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to get admin ops API context")
+		}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		deps, err := cephObjectStoreDependents(r.context, r.clusterInfo, cephObjectStore, objCtx, opsCtx)
 		if err != nil {
 			return reconcile.Result{}, *cephObjectStore, err
@@ -480,11 +493,17 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		if err != nil {
 			return reconcile.Result{}, errors.Wrapf(err, "failed to create object store %q", cephObjectStore.Name)
 		}
+<<<<<<< HEAD
 
 	}
 
 	// Create COSI user and secret
 	return r.reconcileCOSIUser(cephObjectStore)
+=======
+	}
+
+	return reconcile.Result{}, nil
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 func (r *ReconcileCephObjectStore) retrieveMultisiteZone(store *cephv1.CephObjectStore, zoneGroupName string, realmName string) (reconcile.Result, error) {
@@ -545,6 +564,7 @@ func (r *ReconcileCephObjectStore) getMultisiteResourceNames(cephObjectStore *ce
 
 	return realm.Name, zonegroup.Name, zone.Name, zone, reconcile.Result{}, nil
 }
+<<<<<<< HEAD
 
 func (r *ReconcileCephObjectStore) reconcileCOSIUser(cephObjectStore *cephv1.CephObjectStore) (reconcile.Result, error) {
 	// Create COSI user and secret
@@ -603,3 +623,5 @@ func (r *ReconcileCephObjectStore) deleteCOSIUser(adminOpsCtx *AdminOpsContext) 
 	}
 	return nil
 }
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

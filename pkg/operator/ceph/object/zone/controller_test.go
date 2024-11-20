@@ -25,7 +25,10 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/ceph/object"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -132,6 +135,7 @@ func TestCephObjectZoneController(t *testing.T) {
 	zonegroup := "zonegroup-a"
 	namespace := "rook-ceph"
 
+<<<<<<< HEAD
 	createPoolsCalled := false
 	createObjectStorePoolsFunc = func(context *object.Context, cluster *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
 		createPoolsCalled = true
@@ -150,6 +154,8 @@ func TestCephObjectZoneController(t *testing.T) {
 		commitConfigChangesFunc = object.CommitConfigChanges
 	}()
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	//
 	// TEST 1 SETUP
 	//
@@ -375,13 +381,19 @@ func TestCephObjectZoneController(t *testing.T) {
 		},
 	}
 
+<<<<<<< HEAD
 	assert.False(t, createPoolsCalled)
 	assert.False(t, commitChangesCalled)
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectZone)
 	assert.NoError(t, err)
+<<<<<<< HEAD
 	assert.True(t, createPoolsCalled)
 	assert.True(t, commitChangesCalled)
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

@@ -118,7 +118,11 @@ func TestStart(t *testing.T) {
 	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -201,7 +205,11 @@ func TestAddRemoveNode(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		Context:     ctx,
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -425,7 +433,11 @@ func TestPostReconcileUpdateOSDProperties(t *testing.T) {
 	client := clientfake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("rook-ceph-test")
@@ -475,7 +487,11 @@ func TestAddNodeFailure(t *testing.T) {
 
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns-add-remove",
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("testcluster")
@@ -1085,7 +1101,11 @@ func TestValidateOSDSettings(t *testing.T) {
 	namespace := "ns"
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   namespace,
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		Context:     context.TODO(),
 	}
 	clusterInfo.SetName("rook-ceph-test")

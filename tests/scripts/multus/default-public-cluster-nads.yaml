@@ -22,6 +22,11 @@ spec:
       }
     }
 ---
+<<<<<<< HEAD
+=======
+# IPv6 address here (with IPv4 above) makes this unsuitable for CephCluster use, but it is okay for
+# testing validation tool
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 apiVersion: k8s.cni.cncf.io/v1
 kind: NetworkAttachmentDefinition
 metadata:

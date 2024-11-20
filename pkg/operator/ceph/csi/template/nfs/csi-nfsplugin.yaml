@@ -33,6 +33,10 @@ spec:
           # created by privileged CSI driver container.
           securityContext:
             capabilities:
+<<<<<<< HEAD
+=======
+              add: []
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               drop: ["ALL"]
             privileged: true
           image: {{ .RegistrarImage }}

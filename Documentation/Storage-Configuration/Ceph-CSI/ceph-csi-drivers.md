@@ -166,9 +166,15 @@ that the controller inspects and forwards to one or more CSI-Addons sidecars for
 Deploy the controller by running the following commands:
 
 ```console
+<<<<<<< HEAD
 kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.9.1/crds.yaml
 kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.9.1/rbac.yaml
 kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.9.1/setup-controller.yaml
+=======
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.10.0/crds.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.10.0/rbac.yaml
+kubectl create -f https://github.com/csi-addons/kubernetes-csi-addons/releases/download/v0.10.0/setup-controller.yaml
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ```
 
 This creates the required CRDs and configures permissions.
@@ -196,6 +202,7 @@ Execute the following to enable the CSI-Addons sidecars:
 CSI-Addons supports the following operations:
 
 * Reclaim Space
+<<<<<<< HEAD
     * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#reclaimspacejob)
     * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#reclaimspacecronjob)
     * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/reclaimspace.md#annotating-perstentvolumeclaims)
@@ -212,15 +219,40 @@ CSI-Addons supports the following operations:
     * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#annotating-persistentvolumeclaims)
     * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#annotating-namespace)
     * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.9.1/docs/encryptionkeyrotation.md#annotating-storageclass)
+=======
+    * [Creating a ReclaimSpaceJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/reclaimspace.md#reclaimspacejob)
+    * [Creating a ReclaimSpaceCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/reclaimspace.md#reclaimspacecronjob)
+    * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/reclaimspace.md#annotating-perstentvolumeclaims)
+    * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/reclaimspace.md#annotating-namespace)
+    * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/reclaimspace.md#annotating-storageclass)
+* Network Fencing
+    * [Creating a NetworkFence](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/networkfence.md)
+* Volume Replication
+    * [Creating VolumeReplicationClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/volumereplicationclass.md)
+    * [Creating VolumeReplication CR](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/volumereplication.md)
+* Key Rotation Job for PV encryption
+    * [Creating EncryptionKeyRotationJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/encryptionkeyrotation.md#encryptionkeyrotationjob)
+    * [Creating EncryptionKeyRotationCronJob](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/encryptionkeyrotation.md#encryptionkeyrotationcronjob)
+    * [Annotating PersistentVolumeClaims](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/encryptionkeyrotation.md#annotating-persistentvolumeclaims)
+    * [Annotating Namespace](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/encryptionkeyrotation.md#annotating-namespace)
+    * [Annotating StorageClass](https://github.com/csi-addons/kubernetes-csi-addons/blob/v0.10.0/docs/encryptionkeyrotation.md#annotating-storageclass)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 ## Enable RBD and CephFS Encryption Support
 
 Ceph-CSI supports encrypting PersistentVolumeClaims (PVCs) for both RBD and CephFS.
 This can be achieved using LUKS for RBD and fscrypt for CephFS. More details on encrypting RBD PVCs can be found
+<<<<<<< HEAD
 [here](https://github.com/ceph/ceph-csi/blob/v3.12.3/docs/deploy-rbd.md#encryption-for-rbd-volumes),
 which includes a full list of supported encryption configurations.
 More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.3/docs/deploy-cephfs.md#cephfs-volume-encryption).
 A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.3/examples/kms/vault/kms-config.yaml).
+=======
+[here](https://github.com/ceph/ceph-csi/blob/v3.12.2/docs/deploy-rbd.md#encryption-for-rbd-volumes),
+which includes a full list of supported encryption configurations.
+More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.2/docs/deploy-cephfs.md#cephfs-volume-encryption).
+A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.2/examples/kms/vault/kms-config.yaml).
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 !!! note
     Not all KMS are compatible with fscrypt. Generally, KMS that either store secrets to use directly (like Vault)

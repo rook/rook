@@ -209,6 +209,10 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+<<<<<<< HEAD
+=======
+              add: []
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               drop: ["ALL"]
           {{ end }}
           volumeMounts:
@@ -267,6 +271,10 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+<<<<<<< HEAD
+=======
+              add: []
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               drop: ["ALL"]
           {{ end }}
           volumeMounts:

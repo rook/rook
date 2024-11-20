@@ -44,5 +44,13 @@ If any setting is unspecified, a suitable default will be used automatically.
 
 ### Configuring mirroring peers
 
+<<<<<<< HEAD
 Configure mirroring peers individually for each CephBlockPool. Refer to the
 [CephBlockPool documentation](ceph-block-pool-crd.md#mirroring) for more detail.
+=======
+* Configure mirroring peers individually for each CephBlockPool. Refer to the
+[CephBlockPool documentation](ceph-block-pool-crd.md#mirroring) for more detail.
+
+* Configure mirroring peers individually for each CephBlockPoolRadosNamespace. Refer to the
+[CephBlockPoolRadosNamespace documentation](ceph-block-pool-rados-namespace-crd.md#mirroring) for more detail.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

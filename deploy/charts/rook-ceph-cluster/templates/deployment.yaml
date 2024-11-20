@@ -9,9 +9,12 @@ metadata:
     app: rook-ceph-tools
 spec:
   replicas: 1
+<<<<<<< HEAD
 {{- if .Values.revisionHistoryLimit }}
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
 {{- end }}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   selector:
     matchLabels:
       app: rook-ceph-tools

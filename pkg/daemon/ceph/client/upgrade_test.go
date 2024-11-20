@@ -62,7 +62,11 @@ func TestEnableReleaseOSDFunctionality(t *testing.T) {
 	}
 	context := &clusterd.Context{Executor: executor}
 
+<<<<<<< HEAD
 	err := EnableReleaseOSDFunctionality(context, AdminTestClusterInfo("mycluster"), "quincy")
+=======
+	err := EnableReleaseOSDFunctionality(context, AdminTestClusterInfo("mycluster"), "squid")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	assert.NoError(t, err)
 }
 
@@ -129,7 +133,11 @@ func TestDaemonMapEntry(t *testing.T) {
 	{
 		"mon": {
 			"ceph version 18.2.5 (cbff874f9007f1869bfd3821b7e33b2a6ffd4988) reef (stable)": 1,
+<<<<<<< HEAD
 			"ceph version 17.2.7 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) quincy (stable)": 2
+=======
+			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}`)
 

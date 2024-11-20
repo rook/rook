@@ -17,14 +17,19 @@ limitations under the License.
 package object
 
 import (
+<<<<<<< HEAD
 	"context"
 	"encoding/json"
 	"fmt"
+=======
+	"encoding/json"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"strings"
 	"syscall"
 
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/pkg/errors"
+<<<<<<< HEAD
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -34,6 +39,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+=======
+	"github.com/rook/rook/pkg/util/exec"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 const (
@@ -236,6 +244,7 @@ func DeleteUser(c *Context, id string, opts ...string) (string, error) {
 
 	return result, errors.Wrapf(err, "failed to delete s3 user uid=%q", id)
 }
+<<<<<<< HEAD
 
 func GenerateCephUserSecretName(store, username string) string {
 	return fmt.Sprintf("rook-ceph-object-user-%s-%s", store, username)
@@ -286,3 +295,5 @@ func ReconcileCephUserSecret(ctx context.Context, k8sclient client.Client, schem
 	}
 	return reconcile.Result{}, nil
 }
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

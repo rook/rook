@@ -1127,8 +1127,13 @@ FilesystemSpec
 <td>
 <code>metadataPool</code><br/>
 <em>
+<<<<<<< HEAD
 <a href="#ceph.rook.io/v1.NamedPoolSpec">
 NamedPoolSpec
+=======
+<a href="#ceph.rook.io/v1.PoolSpec">
+PoolSpec
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </a>
 </em>
 </td>
@@ -1151,6 +1156,7 @@ NamedPoolSpec
 </tr>
 <tr>
 <td>
+<<<<<<< HEAD
 <code>preservePoolNames</code><br/>
 <em>
 bool
@@ -1163,6 +1169,8 @@ bool
 </tr>
 <tr>
 <td>
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <code>preservePoolsOnDelete</code><br/>
 <em>
 bool
@@ -3179,6 +3187,23 @@ string
 the CephBlockPool CR.</p>
 </td>
 </tr>
+<<<<<<< HEAD
+=======
+<tr>
+<td>
+<code>mirroring</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroring">
+RadosNamespaceMirroring
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
+</td>
+</tr>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </table>
 </td>
 </tr>
@@ -3238,6 +3263,23 @@ string
 the CephBlockPool CR.</p>
 </td>
 </tr>
+<<<<<<< HEAD
+=======
+<tr>
+<td>
+<code>mirroring</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroring">
+RadosNamespaceMirroring
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mirroring configuration of CephBlockPoolRadosNamespace</p>
+</td>
+</tr>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus
@@ -3281,6 +3323,48 @@ map[string]string
 <em>(Optional)</em>
 </td>
 </tr>
+<<<<<<< HEAD
+=======
+<tr>
+<td>
+<code>mirroringStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringStatusSpec">
+MirroringStatusSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>mirroringInfo</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringInfoSpec">
+MirroringInfoSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotScheduleStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SnapshotScheduleStatusSpec">
+SnapshotScheduleStatusSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+</td>
+</tr>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus
@@ -3340,6 +3424,20 @@ MirroringInfoSpec
 </tr>
 <tr>
 <td>
+<<<<<<< HEAD
+=======
+<code>poolID</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+<p>optional</p>
+</td>
+</tr>
+<tr>
+<td>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <code>snapshotScheduleStatus</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.SnapshotScheduleStatusSpec">
@@ -6516,8 +6614,13 @@ FilesystemSnapshotScheduleStatusRetention
 <td>
 <code>metadataPool</code><br/>
 <em>
+<<<<<<< HEAD
 <a href="#ceph.rook.io/v1.NamedPoolSpec">
 NamedPoolSpec
+=======
+<a href="#ceph.rook.io/v1.PoolSpec">
+PoolSpec
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </a>
 </em>
 </td>
@@ -6540,6 +6643,7 @@ NamedPoolSpec
 </tr>
 <tr>
 <td>
+<<<<<<< HEAD
 <code>preservePoolNames</code><br/>
 <em>
 bool
@@ -6552,6 +6656,8 @@ bool
 </tr>
 <tr>
 <td>
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <code>preservePoolsOnDelete</code><br/>
 <em>
 bool
@@ -8026,6 +8132,7 @@ HealthCheckSpec
 </tr>
 </tbody>
 </table>
+<<<<<<< HEAD
 <h3 id="ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec
 </h3>
 <p>
@@ -8033,6 +8140,15 @@ HealthCheckSpec
 </p>
 <div>
 <p>MirroringInfoSpec is the status of the pool mirroring</p>
+=======
+<h3 id="ceph.rook.io/v1.MirroringInfo">MirroringInfo
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec</a>)
+</p>
+<div>
+<p>MirroringInfo is the mirroring info of a given pool/radosnamespace</p>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </div>
 <table>
 <thead>
@@ -8044,16 +8160,83 @@ HealthCheckSpec
 <tbody>
 <tr>
 <td>
+<<<<<<< HEAD
 <code>PoolMirroringInfo</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.PoolMirroringInfo">
 PoolMirroringInfo
+=======
+<code>mode</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Mode is the mirroring mode</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>site_name</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SiteName is the current site name</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>peers</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.PeersSpec">
+[]PeersSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Peers are the list of peer sites connected to that cluster</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MirroringInfoSpec">MirroringInfoSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+</p>
+<div>
+<p>MirroringInfoSpec is the status of the pool/radosnamespace mirroring</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>MirroringInfo</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringInfo">
+MirroringInfo
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </a>
 </em>
 </td>
 <td>
 <p>
+<<<<<<< HEAD
 (Members of <code>PoolMirroringInfo</code> are embedded into this type.)
+=======
+(Members of <code>MirroringInfo</code> are embedded into this type.)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </p>
 <em>(Optional)</em>
 </td>
@@ -8193,6 +8376,7 @@ MirroringPeerSpec
 </tr>
 </tbody>
 </table>
+<<<<<<< HEAD
 <h3 id="ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec
 </h3>
 <p>
@@ -8200,6 +8384,15 @@ MirroringPeerSpec
 </p>
 <div>
 <p>MirroringStatusSpec is the status of the pool mirroring</p>
+=======
+<h3 id="ceph.rook.io/v1.MirroringStatus">MirroringStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec</a>)
+</p>
+<div>
+<p>MirroringStatus is the pool/radosNamespace mirror status</p>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </div>
 <table>
 <thead>
@@ -8211,19 +8404,65 @@ MirroringPeerSpec
 <tbody>
 <tr>
 <td>
+<<<<<<< HEAD
 <code>PoolMirroringStatus</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.PoolMirroringStatus">
 PoolMirroringStatus
+=======
+<code>summary</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">
+MirroringStatusSummarySpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Summary is the mirroring status summary</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MirroringStatusSpec">MirroringStatusSpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+</p>
+<div>
+<p>MirroringStatusSpec is the status of the pool/radosNamespace mirroring</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>MirroringStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MirroringStatus">
+MirroringStatus
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </a>
 </em>
 </td>
 <td>
 <p>
+<<<<<<< HEAD
 (Members of <code>PoolMirroringStatus</code> are embedded into this type.)
 </p>
 <em>(Optional)</em>
 <p>PoolMirroringStatus is the mirroring status of a pool</p>
+=======
+(Members of <code>MirroringStatus</code> are embedded into this type.)
+</p>
+<em>(Optional)</em>
+<p>MirroringStatus is the mirroring status of a pool/radosNamespace</p>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </td>
 </tr>
 <tr>
@@ -8264,6 +8503,77 @@ string
 </tr>
 </tbody>
 </table>
+<<<<<<< HEAD
+=======
+<h3 id="ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatus">MirroringStatus</a>)
+</p>
+<div>
+<p>MirroringStatusSummarySpec is the summary output of the command</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Health is the mirroring health</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>daemon_health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>DaemonHealth is the health of the mirroring daemon</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>image_health</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>ImageHealth is the health of the mirrored image</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>states</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.StatesSpec">
+StatesSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>States is the various state for all mirrored images</p>
+</td>
+</tr>
+</tbody>
+</table>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <h3 id="ceph.rook.io/v1.Module">Module
 </h3>
 <p>
@@ -8918,7 +9228,11 @@ map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.CephNetworkType]string
 networks when the &ldquo;multus&rdquo; network provider is used. This config section is not used for
 other network providers.</p>
 <p>Valid keys are &ldquo;public&rdquo; and &ldquo;cluster&rdquo;. Refer to Ceph networking documentation for more:
+<<<<<<< HEAD
 <a href="https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/">https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/</a></p>
+=======
+<a href="https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/">https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/</a></p>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <p>Refer to Multus network annotation documentation for help selecting values:
 <a href="https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation">https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation</a></p>
 <p>Rook will make a best-effort attempt to automatically detect CIDR address ranges for given
@@ -9600,8 +9914,12 @@ The object store&rsquo;s advertiseEndpoint and Kubernetes service endpoint, plus
 Each DNS name must be valid according RFC-1123.
 If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
 wildcard itself in the list of hostnames.
+<<<<<<< HEAD
 E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.
 The feature is supported only for Ceph v18 and later versions.</p>
+=======
+E.g., use &ldquo;mystore.example.com&rdquo; instead of &ldquo;*.mystore.example.com&rdquo;.</p>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </td>
 </tr>
 </tbody>
@@ -10195,7 +10513,11 @@ string
 </td>
 <td>
 <em>(Optional)</em>
+<<<<<<< HEAD
 <p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api</a></p>
+=======
+<p>Add capabilities for user to send request to RGW Cache API header. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api">https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api</a></p>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </td>
 </tr>
 <tr>
@@ -10557,7 +10879,11 @@ int
 <h3 id="ceph.rook.io/v1.PeersSpec">PeersSpec
 </h3>
 <p>
+<<<<<<< HEAD
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolMirroringInfo">PoolMirroringInfo</a>)
+=======
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringInfo">MirroringInfo</a>)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </p>
 <div>
 <p>PeersSpec contains peer details</p>
@@ -10772,6 +11098,7 @@ string
 </tr>
 </tbody>
 </table>
+<<<<<<< HEAD
 <h3 id="ceph.rook.io/v1.PoolMirroringInfo">PoolMirroringInfo
 </h3>
 <p>
@@ -10928,6 +11255,8 @@ StatesSpec
 </tr>
 </tbody>
 </table>
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <h3 id="ceph.rook.io/v1.PoolPlacementSpec">PoolPlacementSpec
 </h3>
 <p>
@@ -11023,7 +11352,11 @@ This list allows defining additional StorageClasses on top of default STANDARD s
 <h3 id="ceph.rook.io/v1.PoolSpec">PoolSpec
 </h3>
 <p>
+<<<<<<< HEAD
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.NamedBlockPoolSpec">NamedBlockPoolSpec</a>, <a href="#ceph.rook.io/v1.NamedPoolSpec">NamedPoolSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
+=======
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemSpec">FilesystemSpec</a>, <a href="#ceph.rook.io/v1.NamedBlockPoolSpec">NamedBlockPoolSpec</a>, <a href="#ceph.rook.io/v1.NamedPoolSpec">NamedPoolSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </p>
 <div>
 <p>PoolSpec represents the spec of ceph pool</p>
@@ -11529,6 +11862,89 @@ optional</p>
 </tr>
 </tbody>
 </table>
+<<<<<<< HEAD
+=======
+<h3 id="ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceSpec">CephBlockPoolRadosNamespaceSpec</a>)
+</p>
+<div>
+<p>RadosNamespaceMirroring represents the mirroring configuration of CephBlockPoolRadosNamespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>remoteNamespace</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>mode</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.RadosNamespaceMirroringMode">
+RadosNamespaceMirroringMode
+</a>
+</em>
+</td>
+<td>
+<p>Mode is the mirroring mode; either pool or image</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>snapshotSchedules</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.SnapshotScheduleSpec">
+[]SnapshotScheduleSpec
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>SnapshotSchedules is the scheduling of snapshot for mirrored images</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.RadosNamespaceMirroringMode">RadosNamespaceMirroringMode
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring</a>)
+</p>
+<div>
+<p>RadosNamespaceMirroringMode represents the mode of the RadosNamespace</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Value</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr><td><p>&#34;image&#34;</p></td>
+<td><p>RadosNamespaceMirroringModeImage represents the image mode</p>
+</td>
+</tr><tr><td><p>&#34;pool&#34;</p></td>
+<td><p>RadosNamespaceMirroringModePool represents the pool mode</p>
+</td>
+</tr></tbody>
+</table>
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 <h3 id="ceph.rook.io/v1.ReadAffinitySpec">ReadAffinitySpec
 </h3>
 <p>
@@ -12193,7 +12609,11 @@ string
 <h3 id="ceph.rook.io/v1.SnapshotScheduleSpec">SnapshotScheduleSpec
 </h3>
 <p>
+<<<<<<< HEAD
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.FSMirroringSpec">FSMirroringSpec</a>, <a href="#ceph.rook.io/v1.MirroringSpec">MirroringSpec</a>)
+=======
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.FSMirroringSpec">FSMirroringSpec</a>, <a href="#ceph.rook.io/v1.MirroringSpec">MirroringSpec</a>, <a href="#ceph.rook.io/v1.RadosNamespaceMirroring">RadosNamespaceMirroring</a>)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </p>
 <div>
 <p>SnapshotScheduleSpec represents the snapshot scheduling settings of a mirrored pool</p>
@@ -12247,7 +12667,11 @@ string
 <h3 id="ceph.rook.io/v1.SnapshotScheduleStatusSpec">SnapshotScheduleStatusSpec
 </h3>
 <p>
+<<<<<<< HEAD
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+=======
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephBlockPoolRadosNamespaceStatus">CephBlockPoolRadosNamespaceStatus</a>, <a href="#ceph.rook.io/v1.CephBlockPoolStatus">CephBlockPoolStatus</a>)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </p>
 <div>
 <p>SnapshotScheduleStatusSpec is the status of the snapshot schedule</p>
@@ -12383,7 +12807,11 @@ string
 <h3 id="ceph.rook.io/v1.StatesSpec">StatesSpec
 </h3>
 <p>
+<<<<<<< HEAD
 (<em>Appears on:</em><a href="#ceph.rook.io/v1.PoolMirroringStatusSummarySpec">PoolMirroringStatusSummarySpec</a>)
+=======
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.MirroringStatusSummarySpec">MirroringStatusSummarySpec</a>)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 </p>
 <div>
 <p>StatesSpec are rbd images mirroring state</p>

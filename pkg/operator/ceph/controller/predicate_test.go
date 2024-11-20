@@ -98,18 +98,31 @@ func TestIsUpgrade(t *testing.T) {
 	assert.False(t, b)
 
 	// different value do something
+<<<<<<< HEAD
 	newLabel["ceph_version"] = "17.2.0-quincy"
+=======
+	newLabel["ceph_version"] = "19.2.0-squid"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	b = isUpgrade(oldLabel, newLabel)
 	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 
 	// same value do nothing
+<<<<<<< HEAD
 	oldLabel["ceph_version"] = "17.2.0-quincy"
 	newLabel["ceph_version"] = "17.2.0-quincy"
+=======
+	oldLabel["ceph_version"] = "19.2.0-squid"
+	newLabel["ceph_version"] = "19.2.0-squid"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	b = isUpgrade(oldLabel, newLabel)
 	assert.False(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 
 	// different value do something
+<<<<<<< HEAD
 	newLabel["ceph_version"] = "17.2.1-quincy"
+=======
+	newLabel["ceph_version"] = "19.2.1-squid"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	b = isUpgrade(oldLabel, newLabel)
 	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 }

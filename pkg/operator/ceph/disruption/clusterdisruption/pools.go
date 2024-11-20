@@ -52,7 +52,11 @@ func (r *ReconcileClusterDisruption) processPools(request reconcile.Request) (*c
 	}
 	poolCount += len(cephFilesystemList.Items)
 	for _, cephFilesystem := range cephFilesystemList.Items {
+<<<<<<< HEAD
 		poolSpecs = append(poolSpecs, cephFilesystem.Spec.MetadataPool.PoolSpec)
+=======
+		poolSpecs = append(poolSpecs, cephFilesystem.Spec.MetadataPool)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		for _, pool := range cephFilesystem.Spec.DataPools {
 			poolSpecs = append(poolSpecs, pool.PoolSpec)
 		}

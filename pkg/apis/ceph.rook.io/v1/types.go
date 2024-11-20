@@ -850,6 +850,11 @@ type CephBlockPoolStatus struct {
 	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
 	// +optional
 	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
+<<<<<<< HEAD
+=======
+	// optional
+	PoolID int `json:"poolID,omitempty"`
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// +optional
 	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
 	// +optional
@@ -861,11 +866,19 @@ type CephBlockPoolStatus struct {
 	Conditions         []Condition `json:"conditions,omitempty"`
 }
 
+<<<<<<< HEAD
 // MirroringStatusSpec is the status of the pool mirroring
 type MirroringStatusSpec struct {
 	// PoolMirroringStatus is the mirroring status of a pool
 	// +optional
 	PoolMirroringStatus `json:",inline"`
+=======
+// MirroringStatusSpec is the status of the pool/radosNamespace mirroring
+type MirroringStatusSpec struct {
+	// MirroringStatus is the mirroring status of a pool/radosNamespace
+	// +optional
+	MirroringStatus `json:",inline"`
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// LastChecked is the last time time the status was checked
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
@@ -877,6 +890,7 @@ type MirroringStatusSpec struct {
 	Details string `json:"details,omitempty"`
 }
 
+<<<<<<< HEAD
 // PoolMirroringStatus is the pool mirror status
 type PoolMirroringStatus struct {
 	// Summary is the mirroring status summary
@@ -886,6 +900,17 @@ type PoolMirroringStatus struct {
 
 // PoolMirroringStatusSummarySpec is the summary output of the command
 type PoolMirroringStatusSummarySpec struct {
+=======
+// MirroringStatus is the pool/radosNamespace mirror status
+type MirroringStatus struct {
+	// Summary is the mirroring status summary
+	// +optional
+	Summary *MirroringStatusSummarySpec `json:"summary,omitempty"`
+}
+
+// MirroringStatusSummarySpec is the summary output of the command
+type MirroringStatusSummarySpec struct {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// Health is the mirroring health
 	// +optional
 	Health string `json:"health,omitempty"`
@@ -926,10 +951,17 @@ type StatesSpec struct {
 	Error int `json:"error,omitempty"`
 }
 
+<<<<<<< HEAD
 // MirroringInfoSpec is the status of the pool mirroring
 type MirroringInfoSpec struct {
 	// +optional
 	*PoolMirroringInfo `json:",inline"`
+=======
+// MirroringInfoSpec is the status of the pool/radosnamespace mirroring
+type MirroringInfoSpec struct {
+	// +optional
+	*MirroringInfo `json:",inline"`
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// +optional
 	LastChecked string `json:"lastChecked,omitempty"`
 	// +optional
@@ -938,8 +970,13 @@ type MirroringInfoSpec struct {
 	Details string `json:"details,omitempty"`
 }
 
+<<<<<<< HEAD
 // PoolMirroringInfo is the mirroring info of a given pool
 type PoolMirroringInfo struct {
+=======
+// MirroringInfo is the mirroring info of a given pool/radosnamespace
+type MirroringInfo struct {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// Mode is the mirroring mode
 	// +optional
 	Mode string `json:"mode,omitempty"`
@@ -1166,16 +1203,23 @@ type CephFilesystemList struct {
 type FilesystemSpec struct {
 	// The metadata pool settings
 	// +nullable
+<<<<<<< HEAD
 	MetadataPool NamedPoolSpec `json:"metadataPool"`
+=======
+	MetadataPool PoolSpec `json:"metadataPool"`
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// The data pool settings, with optional predefined pool name.
 	// +nullable
 	DataPools []NamedPoolSpec `json:"dataPools"`
 
+<<<<<<< HEAD
 	// Preserve pool names as specified
 	// +optional
 	PreservePoolNames bool `json:"preservePoolNames,omitempty"`
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// Preserve pools on filesystem deletion
 	// +optional
 	PreservePoolsOnDelete bool `json:"preservePoolsOnDelete,omitempty"`
@@ -1872,7 +1916,10 @@ type ObjectStoreHostingSpec struct {
 	// If the DNS name corresponds to an endpoint with DNS wildcard support, do not include the
 	// wildcard itself in the list of hostnames.
 	// E.g., use "mystore.example.com" instead of "*.mystore.example.com".
+<<<<<<< HEAD
 	// The feature is supported only for Ceph v18 and later versions.
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// +optional
 	DNSNames []string `json:"dnsNames,omitempty"`
 }
@@ -1994,7 +2041,11 @@ type ObjectUserCapSpec struct {
 	Info string `json:"info,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
+<<<<<<< HEAD
 	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/quincy/radosgw/rgw-cache/#cache-api
+=======
+	// Add capabilities for user to send request to RGW Cache API header. Documented in https://docs.ceph.com/en/latest/radosgw/rgw-cache/#cache-api
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	AMZCache string `json:"amz-cache,omitempty"`
 	// +optional
 	// +kubebuilder:validation:Enum={"*","read","write","read, write"}
@@ -2638,7 +2689,11 @@ type NetworkSpec struct {
 	// other network providers.
 	//
 	// Valid keys are "public" and "cluster". Refer to Ceph networking documentation for more:
+<<<<<<< HEAD
 	// https://docs.ceph.com/en/reef/rados/configuration/network-config-ref/
+=======
+	// https://docs.ceph.com/en/latest/rados/configuration/network-config-ref/
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	//
 	// Refer to Multus network annotation documentation for help selecting values:
 	// https://github.com/k8snetworkplumbingwg/multus-cni/blob/master/docs/how-to-use.md#run-pod-with-network-annotation
@@ -3353,6 +3408,32 @@ type CephBlockPoolRadosNamespaceList struct {
 	Items           []CephBlockPoolRadosNamespace `json:"items"`
 }
 
+<<<<<<< HEAD
+=======
+// RadosNamespaceMirroring represents the mirroring configuration of CephBlockPoolRadosNamespace
+type RadosNamespaceMirroring struct {
+	// RemoteNamespace is the name of the CephBlockPoolRadosNamespace on the secondary cluster CephBlockPool
+	// +optional
+	RemoteNamespace *string `json:"remoteNamespace"`
+	// Mode is the mirroring mode; either pool or image
+	// +kubebuilder:validation:Enum="";pool;image
+	Mode RadosNamespaceMirroringMode `json:"mode"`
+	// SnapshotSchedules is the scheduling of snapshot for mirrored images
+	// +optional
+	SnapshotSchedules []SnapshotScheduleSpec `json:"snapshotSchedules,omitempty"`
+}
+
+// RadosNamespaceMirroringMode represents the mode of the RadosNamespace
+type RadosNamespaceMirroringMode string
+
+const (
+	// RadosNamespaceMirroringModePool represents the pool mode
+	RadosNamespaceMirroringModePool RadosNamespaceMirroringMode = "pool"
+	// RadosNamespaceMirroringModeImage represents the image mode
+	RadosNamespaceMirroringModeImage RadosNamespaceMirroringMode = "image"
+)
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // CephBlockPoolRadosNamespaceSpec represents the specification of a CephBlockPool Rados Namespace
 type CephBlockPoolRadosNamespaceSpec struct {
 	// The name of the CephBlockPoolRadosNamespaceSpec namespace. If not set, the default is the name of the CR.
@@ -3363,6 +3444,12 @@ type CephBlockPoolRadosNamespaceSpec struct {
 	// the CephBlockPool CR.
 	// +kubebuilder:validation:XValidation:message="blockPoolName is immutable",rule="self == oldSelf"
 	BlockPoolName string `json:"blockPoolName"`
+<<<<<<< HEAD
+=======
+	// Mirroring configuration of CephBlockPoolRadosNamespace
+	// +optional
+	Mirroring *RadosNamespaceMirroring `json:"mirroring,omitempty"`
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // CephBlockPoolRadosNamespaceStatus represents the Status of Ceph BlockPool
@@ -3373,6 +3460,15 @@ type CephBlockPoolRadosNamespaceStatus struct {
 	// +optional
 	// +nullable
 	Info map[string]string `json:"info,omitempty"`
+<<<<<<< HEAD
+=======
+	// +optional
+	MirroringStatus *MirroringStatusSpec `json:"mirroringStatus,omitempty"`
+	// +optional
+	MirroringInfo *MirroringInfoSpec `json:"mirroringInfo,omitempty"`
+	// +optional
+	SnapshotScheduleStatus *SnapshotScheduleStatusSpec `json:"snapshotScheduleStatus,omitempty"`
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 // Represents the source of a volume to mount.

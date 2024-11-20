@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # v1.15 Pending Release Notes
 
 ## Breaking Changes
@@ -26,3 +27,15 @@
     (see [#9088](https://github.com/rook/rook/issues/9088)).
 - Support K8s versions v1.26 through v1.31.
 - Use fully-qualified image names (`docker.io/rook/ceph`) in operator manifests and helm charts
+=======
+# v1.16 Pending Release Notes
+
+## Breaking Changes
+
+- Removed support for Ceph Quincy (v17) since it has reached end of life
+
+## Features
+
+- Enable mirroring for CephBlockPoolRadosNamespaces (see [#14701](https://github.com/rook/rook/pull/14701)).
+- Enable periodic monitoring for CephBlockPoolRadosNamespaces mirroring (see [#14896](https://github.com/rook/rook/pull/14896)).
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

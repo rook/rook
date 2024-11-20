@@ -29,7 +29,11 @@ import (
 
 func newConfig(t *testing.T) *clusterConfig {
 	clusterInfo := &cephclient.ClusterInfo{
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clusterSpec := &cephv1.ClusterSpec{
 		Network: cephv1.NetworkSpec{

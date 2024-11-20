@@ -2,6 +2,11 @@ module github.com/rook/rook
 
 go 1.22.5
 
+<<<<<<< HEAD
+=======
+toolchain go1.22.7
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
 	github.com/kubernetes-incubator/external-storage => github.com/libopenstorage/external-storage v0.20.4-openstorage-rc3
@@ -13,7 +18,11 @@ replace (
 )
 
 require (
+<<<<<<< HEAD
 	github.com/IBM/keyprotect-go-client v0.14.3
+=======
+	github.com/IBM/keyprotect-go-client v0.15.1
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20240918113437-f3030b0ac9f4
@@ -24,6 +33,7 @@ require (
 	github.com/go-ini/ini v1.67.0
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
+<<<<<<< HEAD
 	github.com/hashicorp/vault/api v1.14.0
 	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.0
 	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
@@ -33,10 +43,22 @@ require (
 	github.com/prometheus-operator/prometheus-operator/pkg/client v0.75.2
 	github.com/rook/rook/pkg/apis v0.0.0-20231204200402-5287527732f7
 	github.com/sethvargo/go-password v0.2.0
+=======
+	github.com/hashicorp/vault/api v1.15.0
+	github.com/k8snetworkplumbingwg/network-attachment-definition-client v1.7.3
+	github.com/kube-object-storage/lib-bucket-provisioner v0.0.0-20221122204822-d1a8c34382f1
+	github.com/libopenstorage/secrets v0.0.0-20240416031220-a17cf7f72c6c
+	github.com/pkg/errors v0.9.1
+	github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.76.2
+	github.com/prometheus-operator/prometheus-operator/pkg/client v0.76.2
+	github.com/rook/rook/pkg/apis v0.0.0-20231204200402-5287527732f7
+	github.com/sethvargo/go-password v0.3.1
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/pflag v1.0.5
 	github.com/stretchr/testify v1.9.0
 	github.com/sykesm/zap-logfmt v0.0.4
+<<<<<<< HEAD
 	go.uber.org/automaxprocs v1.5.3
 	go.uber.org/zap v1.27.0
 	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
@@ -51,6 +73,22 @@ require (
 	k8s.io/cloud-provider v0.30.3
 	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
 	sigs.k8s.io/controller-runtime v0.19.0
+=======
+	go.uber.org/automaxprocs v1.6.0
+	go.uber.org/zap v1.27.0
+	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56
+	golang.org/x/sync v0.9.0
+	gopkg.in/ini.v1 v1.67.0
+	gopkg.in/yaml.v2 v2.4.0
+	k8s.io/api v0.31.2
+	k8s.io/apiextensions-apiserver v0.31.2
+	k8s.io/apimachinery v0.31.2
+	k8s.io/cli-runtime v0.31.2
+	k8s.io/client-go v0.31.2
+	k8s.io/cloud-provider v0.31.2
+	k8s.io/utils v0.0.0-20240711033017-18e509b52bc8
+	sigs.k8s.io/controller-runtime v0.19.1
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	sigs.k8s.io/mcs-api v0.1.0
 	sigs.k8s.io/yaml v1.4.0
 )
@@ -63,6 +101,11 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/keyvault/internal v0.7.1 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.2 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
+<<<<<<< HEAD
+=======
+	github.com/blang/semver/v4 v4.0.0 // indirect
+	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/fxamacker/cbor/v2 v2.7.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.1 // indirect
 	github.com/golang-jwt/jwt/v5 v5.2.1 // indirect
@@ -79,7 +122,10 @@ require (
 	github.com/ansel1/merry v1.8.0 // indirect
 	github.com/ansel1/merry/v2 v2.2.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
+<<<<<<< HEAD
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/ceph/ceph-csi/api v0.0.0-20231227104434-06f9a98b7a83
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containernetworking/cni v1.2.0-rc1 // indirect
@@ -129,7 +175,11 @@ require (
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/spdystream v0.4.0 // indirect
+<<<<<<< HEAD
 	github.com/moby/term v0.0.0-20221205130635-1aeaba878587 // indirect
+=======
+	github.com/moby/term v0.5.0 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00 // indirect
@@ -154,6 +204,7 @@ require (
 	golang.org/x/sys v0.24.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	golang.org/x/text v0.17.0 // indirect
+<<<<<<< HEAD
 	golang.org/x/time v0.5.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
@@ -165,6 +216,18 @@ require (
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/kustomize/api v0.15.0 // indirect
 	sigs.k8s.io/kustomize/kyaml v0.15.0 // indirect
+=======
+	golang.org/x/time v0.6.0 // indirect
+	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
+	google.golang.org/protobuf v1.34.2 // indirect
+	gopkg.in/inf.v0 v0.9.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
+	k8s.io/kube-openapi v0.0.0-20240808142205-8e686545bdb8 // indirect
+	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
+	sigs.k8s.io/kustomize/api v0.17.2 // indirect
+	sigs.k8s.io/kustomize/kyaml v0.17.1 // indirect
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 )
 

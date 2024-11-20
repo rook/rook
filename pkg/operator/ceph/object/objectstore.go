@@ -31,8 +31,11 @@ import (
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+<<<<<<< HEAD
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -55,8 +58,11 @@ const (
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
 	rgwRadosPoolPgNum     = "8"
+<<<<<<< HEAD
 	cosiUserName          = "cosi"
 	cosiUserCaps          = "buckets=*;users=*"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	rgwApplication        = "rgw"
 )
 
@@ -73,8 +79,12 @@ var (
 	dataPoolName = "rgw.buckets.data"
 
 	// An user with system privileges for dashboard service
+<<<<<<< HEAD
 	DashboardUser                = "dashboard-admin"
 	rgwPgNumRemovedQuincyVersion = cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}
+=======
+	DashboardUser = "dashboard-admin"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 )
 
 type idType struct {
@@ -763,6 +773,7 @@ func CreateObjectStorePools(context *Context, cluster *cephv1.ClusterSpec, metad
 		return nil
 	}
 
+<<<<<<< HEAD
 	// get the default PG count for rgw metadata pools
 	var err error
 	var metadataPoolPGs string
@@ -777,6 +788,9 @@ func CreateObjectStorePools(context *Context, cluster *cephv1.ClusterSpec, metad
 	}
 
 	if err := createSimilarPools(context, append(metadataPools, rootPool), cluster, metadataPool, metadataPoolPGs); err != nil {
+=======
+	if err := createSimilarPools(context, append(metadataPools, rootPool), cluster, metadataPool, rgwRadosPoolPgNum); err != nil {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		return errors.Wrap(err, "failed to create metadata pools")
 	}
 
@@ -1092,12 +1106,15 @@ func zoneUpdatePlacementWorkaround(objContext *Context, placementID string, expe
 	return nil
 }
 
+<<<<<<< HEAD
 // Check if this is a recent release of ceph where the legacy rgw_rados_pool_pg_num_min
 // is no longer available.
 func rgwRadosPGNumIsNew(cephVer cephver.CephVersion) bool {
 	return cephVer.IsAtLeast(rgwPgNumRemovedQuincyVersion)
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // configurePoolsConcurrently checks if operator pod resources are set or not
 func configurePoolsConcurrently() bool {
 	// if operator resources are specified return false as it will lead to operator pod killed due to resource limit

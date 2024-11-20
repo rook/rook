@@ -194,6 +194,7 @@ the size of the cluster.
     not always happen due to the Kubernetes scheduler.
     * Workaround: It is safest to run only a single NFS server, but we do not limit this if it
         benefits your use case.
+<<<<<<< HEAD
 
 ### Ceph v17.2.1
 
@@ -206,3 +207,5 @@ the size of the cluster.
         ceph orch set backend ""
         ceph mgr module disable rook
         ```
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

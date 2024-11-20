@@ -103,6 +103,7 @@ function test_demo_pool {
 
 function test_csi {
   timeout 360 bash -x <<-'EOF'
+<<<<<<< HEAD
     echo $IS_POD_NETWORK
     echo $IS_MULTUS
     if [ -z "$IS_POD_NETWORK" ]; then
@@ -122,6 +123,12 @@ function test_csi {
       kubectl -n rook-ceph exec -t ds/csi-cephfsplugin-holder-my-cluster -- grep eth0 /proc/net/dev
       kubectl -n rook-ceph exec -t ds/csi-nfsplugin-holder-my-cluster -- grep eth0 /proc/net/dev
     fi
+=======
+    until [[ "$(kubectl -n rook-ceph get pods --field-selector=status.phase=Running|grep -c ^csi-)" -eq 6 ]]; do
+      echo "waiting for csi pods to be ready"
+      sleep 5
+    done
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 EOF
 }
 

@@ -24,16 +24,24 @@ until all the daemons have been updated.
 
 ## Supported Versions
 
+<<<<<<< HEAD
 Rook v1.15 supports the following Ceph versions:
 
 * Ceph Squid v19.2.0 or newer
 * Ceph Reef v18.2.0 or newer
 * Ceph Quincy v17.2.0 or newer
+=======
+Rook v1.16 supports the following Ceph versions:
+
+* Ceph Squid v19.2.0 or newer
+* Ceph Reef v18.2.0 or newer
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 !!! important
     When an update is requested, the operator will check Ceph's status,
     **if it is in `HEALTH_ERR` the operator will refuse to proceed with the upgrade.**
 
+<<<<<<< HEAD
 !!! warning
     Ceph v17.2.2 has a blocking issue when running with Rook. Use v17.2.3 or newer when possible.
 
@@ -42,6 +50,8 @@ Rook v1.15 supports the following Ceph versions:
 Ceph Quincy v17.2.1 has a potentially breaking regression with CephNFS. See the NFS documentation's
 [known issue](../CRDs/ceph-nfs-crd.md#ceph-v1721) for more detail.
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ### Ceph Images
 
 Official Ceph container images can be found on [Quay](https://quay.io/repository/ceph/ceph?tab=tags).

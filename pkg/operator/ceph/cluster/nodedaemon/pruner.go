@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/config/keyring"
 	"github.com/rook/rook/pkg/operator/ceph/controller"
+<<<<<<< HEAD
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/batch/v1"
@@ -37,17 +38,31 @@ import (
 )
 
 func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
+=======
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	v1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+)
+
+func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster) error {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if cephCluster.Spec.CrashCollector.Disable {
 		logger.Debugf("crash collector is disabled in namespace %q so skipping crash retention reconcile", namespace)
 		return nil
 	}
 
+<<<<<<< HEAD
 	k8sVersion, err := k8sutil.GetK8SVersion(r.context.Clientset)
 	if err != nil {
 		return errors.Wrap(err, "failed to get k8s version")
 	}
 	useCronJobV1 := k8sVersion.AtLeast(version.MustParseSemantic(MinVersionForCronV1))
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	objectMeta := metav1.ObjectMeta{
 		Name:      prunerName,
 		Namespace: namespace,
@@ -56,6 +71,7 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 	if cephCluster.Spec.CrashCollector.DaysToRetain == 0 {
 		logger.Debug("deleting cronjob if it exists...")
 
+<<<<<<< HEAD
 		var cronJob client.Object
 		// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
 		if useCronJobV1 {
@@ -63,6 +79,9 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 		} else {
 			cronJob = &v1beta1.CronJob{ObjectMeta: objectMeta}
 		}
+=======
+		cronJob := &v1.CronJob{ObjectMeta: objectMeta}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err := r.client.Delete(r.opManagerContext, cronJob)
 		if err != nil {
@@ -76,7 +95,11 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 		}
 	} else {
 		logger.Debugf("daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
+<<<<<<< HEAD
 		op, err := r.createOrUpdateCephCron(cephCluster, cephVersion, useCronJobV1)
+=======
+		op, err := r.createOrUpdateCephCron(cephCluster)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrapf(err, "node reconcile failed on op %q", op)
 		}
@@ -84,7 +107,11 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 	}
 	return nil
 }
+<<<<<<< HEAD
 func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion, useCronJobV1 bool) (controllerutil.OperationResult, error) {
+=======
+func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster) (controllerutil.OperationResult, error) {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	objectMeta := metav1.ObjectMeta{
 		Name:      prunerName,
 		Namespace: cephCluster.GetNamespace(),
@@ -105,7 +132,11 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 		},
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{
+<<<<<<< HEAD
 				getCrashPruneContainer(cephCluster, *cephVersion),
+=======
+				getCrashPruneContainer(cephCluster),
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			},
 			RestartPolicy:      corev1.RestartPolicyNever,
 			HostNetwork:        cephCluster.Spec.Network.IsHost(),
@@ -119,6 +150,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 	// To avoid this, the cronjob is configured to only count the failures
 	// that occurred in the last hour.
 	deadline := int64(60)
+<<<<<<< HEAD
 
 	// minimum k8s version required for v1 cronJob is 'v1.21.0'. Apply v1 if k8s version is at least 'v1.21.0', else apply v1beta1 cronJob.
 	if useCronJobV1 {
@@ -141,11 +173,17 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 		return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, cronJob, mutateFunc)
 	}
 	cronJob := &v1beta1.CronJob{ObjectMeta: objectMeta}
+=======
+	cronJob := &v1.CronJob{ObjectMeta: objectMeta}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	err := controllerutil.SetControllerReference(&cephCluster, cronJob, r.scheme)
 	if err != nil {
 		return controllerutil.OperationResultNone, errors.Errorf("failed to set owner reference of deployment %q", cronJob.Name)
 	}
+<<<<<<< HEAD
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	mutateFunc := func() error {
 		cronJob.ObjectMeta.Labels = cronJobLabels
 		cronJob.Spec.JobTemplate.Spec.Template = podTemplateSpec
@@ -158,6 +196,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 	return controllerutil.CreateOrUpdate(r.opManagerContext, r.client, cronJob, mutateFunc)
 }
 
+<<<<<<< HEAD
 func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) {
 	// delete v1beta1 cronJob on an update to v1 job,only if v1 job is not created yet
 	if _, err := r.context.Clientset.BatchV1().CronJobs(objectMeta.Namespace).Get(r.opManagerContext, prunerName, metav1.GetOptions{}); err != nil {
@@ -171,6 +210,9 @@ func (r *ReconcileNode) deletev1betaJob(objectMeta metav1.ObjectMeta) {
 }
 
 func getCrashPruneContainer(cephCluster cephv1.CephCluster, cephVersion cephver.CephVersion) corev1.Container {
+=======
+func getCrashPruneContainer(cephCluster cephv1.CephCluster) corev1.Container {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	envVars := append(controller.DaemonEnvVars(&cephCluster.Spec), generateCrashEnvVar())
 	dataPathMap := config.NewDatalessDaemonDataPathMap(cephCluster.GetNamespace(), cephCluster.Spec.DataDirHostPath)
 	volumeMounts := controller.DaemonVolumeMounts(dataPathMap, "", cephCluster.Spec.DataDirHostPath)

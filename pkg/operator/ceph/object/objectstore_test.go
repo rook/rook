@@ -552,12 +552,15 @@ func TestGetObjectBucketProvisioner(t *testing.T) {
 
 }
 
+<<<<<<< HEAD
 func TestRGWPGNumVersion(t *testing.T) {
 	assert.False(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 17, Minor: 2, Extra: 1}))
 	assert.True(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 17, Minor: 2, Extra: 2}))
 	assert.True(t, rgwRadosPGNumIsNew(cephver.CephVersion{Major: 18, Minor: 0, Extra: 0}))
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func TestCheckDashboardUser(t *testing.T) {
 	storeName := "myobject"
 	executor := &exectest.MockExecutor{

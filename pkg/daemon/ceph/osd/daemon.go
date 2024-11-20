@@ -33,7 +33,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+<<<<<<< HEAD
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -395,6 +398,7 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			}
 		}
 
+<<<<<<< HEAD
 		if device.Type == sys.LoopType {
 			if !agent.clusterInfo.CephVersion.IsAtLeast(cephver.CephVersion{Major: 17, Minor: 2, Extra: 4}) {
 				logger.Infof("partition %q is not picked because loop devices are not allowed on Ceph clusters older than v17.2.4", device.Name)
@@ -402,6 +406,8 @@ func getAvailableDevices(context *clusterd.Context, agent *OsdAgent) (*DeviceOsd
 			}
 		}
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		// Check if the desired device is available
 		//
 		// We need to use the /dev path, provided by the NAME property from "lsblk --paths",

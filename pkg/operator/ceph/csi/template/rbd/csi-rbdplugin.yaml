@@ -40,6 +40,10 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+<<<<<<< HEAD
+=======
+              add: []
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               drop: ["ALL"]
           image: {{ .RegistrarImage }}
           imagePullPolicy: {{ .ImagePullPolicy }}
@@ -153,6 +157,10 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+<<<<<<< HEAD
+=======
+              add: []
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               drop: ["ALL"]
           image: {{ .CSIAddonsImage }}
           args :
@@ -204,6 +212,10 @@ spec:
           securityContext:
             privileged: true
             capabilities:
+<<<<<<< HEAD
+=======
+              add: []
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
               drop: ["ALL"]
           image: {{ .CSIPluginImage }}
           args:

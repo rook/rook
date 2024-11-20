@@ -83,7 +83,11 @@ type ReconcileCephRBDMirror struct {
 
 // peerSpec represents peer details
 type peerSpec struct {
+<<<<<<< HEAD
 	info      *cephv1.PoolMirroringInfo
+=======
+	info      *cephv1.MirroringInfo
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	poolName  string
 	direction string
 }

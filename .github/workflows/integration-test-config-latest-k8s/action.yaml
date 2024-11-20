@@ -8,6 +8,7 @@ inputs:
 runs:
   using: "composite"
   steps:
+<<<<<<< HEAD
     - name: Free Disk Space (Ubuntu)
       uses: jlumbroso/free-disk-space@main
       with:
@@ -15,6 +16,8 @@ runs:
         # if set to "true" but frees about 6 GB
         tool-cache: true
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
     - name: setup golang
       uses: actions/setup-go@v5
       with:

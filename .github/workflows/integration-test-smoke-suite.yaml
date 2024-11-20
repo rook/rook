@@ -31,7 +31,11 @@ jobs:
         kubernetes-versions: ["v1.26.15", "v1.31.0"]
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -61,7 +65,11 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-smoke-suite-artifact-${{ matrix.kubernetes-versions }}

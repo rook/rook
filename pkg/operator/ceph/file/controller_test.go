@@ -142,7 +142,11 @@ const (
 	dummyVersionsRaw          = `
 	{
 		"mon": {
+<<<<<<< HEAD
 			"ceph version 17.2.1 (000000000000000000000000000000) quincy (stable)": 3
+=======
+			"ceph version 19.2.1 (000000000000000000000000000000) squid (stable)": 3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 	}`
 )

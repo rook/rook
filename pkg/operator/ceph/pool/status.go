@@ -18,15 +18,21 @@ limitations under the License.
 package pool
 
 import (
+<<<<<<< HEAD
 	"context"
 	"time"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+=======
+	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/types"
+<<<<<<< HEAD
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -34,6 +40,14 @@ import (
 func updateStatus(ctx context.Context, client client.Client, poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
 	pool := &cephv1.CephBlockPool{}
 	err := client.Get(ctx, poolName, pool)
+=======
+)
+
+// updateStatus updates a pool CR with the given status
+func (r *ReconcileCephBlockPool) updateStatus(poolName types.NamespacedName, status cephv1.ConditionType, observedGeneration int64) {
+	pool := &cephv1.CephBlockPool{}
+	err := r.client.Get(r.opManagerContext, poolName, pool)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	if err != nil {
 		if kerrors.IsNotFound(err) {
 			logger.Debug("CephBlockPool resource not found. Ignoring since object must be deleted.")
@@ -47,18 +61,31 @@ func updateStatus(ctx context.Context, client client.Client, poolName types.Name
 		pool.Status = &cephv1.CephBlockPoolStatus{}
 	}
 
+<<<<<<< HEAD
+=======
+	// add pool ID to the status
+	if status == cephv1.ConditionReady && pool.Status.PoolID == 0 {
+		r.updatePoolID(pool)
+	}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	pool.Status.Phase = status
 	updateStatusInfo(pool)
 	if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 		pool.Status.ObservedGeneration = observedGeneration
 	}
+<<<<<<< HEAD
 	if err := reporting.UpdateStatus(client, pool); err != nil {
+=======
+	if err := reporting.UpdateStatus(r.client, pool); err != nil {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		logger.Warningf("failed to set pool %q status to %q. %v", pool.Name, status, err)
 		return
 	}
 	logger.Debugf("pool %q status updated to %q", poolName, status)
 }
 
+<<<<<<< HEAD
 // updateStatusBucket updates an object with a given status
 func (c *mirrorChecker) updateStatusMirroring(mirrorStatus *cephv1.PoolMirroringStatusSummarySpec, mirrorInfo *cephv1.PoolMirroringInfo, snapSchedStatus []cephv1.SnapshotSchedulesSpec, details string) {
 	blockPool := &cephv1.CephBlockPool{}
@@ -132,6 +159,8 @@ func toCustomResourceStatus(currentStatus *cephv1.MirroringStatusSpec, mirroring
 	return mirroringStatusSpec, mirroringInfoSpec, snapshotScheduleStatusSpec
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
 	m := make(map[string]string)
 	if cephBlockPool.Status.Phase == cephv1.ConditionReady && cephBlockPool.Spec.Mirroring.Enabled {
@@ -155,3 +184,17 @@ func updateStatusInfo(cephBlockPool *cephv1.CephBlockPool) {
 
 	cephBlockPool.Status.Info = m
 }
+<<<<<<< HEAD
+=======
+
+func (r *ReconcileCephBlockPool) updatePoolID(cephBlockPool *cephv1.CephBlockPool) {
+	poolName := cephBlockPool.ToNamedPoolSpec().Name
+	poolDetails, err := cephclient.GetPoolDetails(r.context, r.clusterInfo, poolName)
+	if err != nil {
+		logger.Warningf("failed to get pool details for cephBlockPool %q", poolName)
+		return
+	}
+	logger.Infof("set pool ID %d to cephBlockPool %q status", poolDetails.Number, poolName)
+	cephBlockPool.Status.PoolID = poolDetails.Number
+}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

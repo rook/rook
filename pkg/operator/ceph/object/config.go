@@ -213,7 +213,11 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		// swift in the resource, `admin` is required for the operator to
 		// work, `swift_auth` is required to access swift without keystone
 		// – not sure about the additional APIs
+<<<<<<< HEAD
 		// https://docs.ceph.com/en/quincy/radosgw/config-ref/#confval-rgw_enable_apis
+=======
+		// https://docs.ceph.com/en/latest/radosgw/config-ref/#confval-rgw_enable_apis
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		// see also https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings on disabling s3
 		// when using '/' as prefix
 

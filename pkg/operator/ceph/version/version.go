@@ -40,10 +40,15 @@ const (
 
 var (
 	// Minimum supported version
+<<<<<<< HEAD
 	Minimum = CephVersion{17, 2, 0, 0, ""}
 
 	// Quincy Ceph version
 	Quincy = CephVersion{17, 0, 0, 0, ""}
+=======
+	Minimum = CephVersion{18, 2, 0, 0, ""}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// Reef Ceph version
 	Reef = CephVersion{18, 0, 0, 0, ""}
 	// Squid ceph version
@@ -52,7 +57,11 @@ var (
 	Tentacle = CephVersion{20, 0, 0, 0, ""}
 
 	// supportedVersions are production-ready versions that rook supports
+<<<<<<< HEAD
 	supportedVersions = []CephVersion{Quincy, Reef, Squid}
+=======
+	supportedVersions = []CephVersion{Reef, Squid}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// unsupportedVersions are possibly Ceph pin-point release that introduced breaking changes and not recommended
 	unsupportedVersions []CephVersion
@@ -86,8 +95,11 @@ func (v *CephVersion) CephVersionFormatted() string {
 // ReleaseName is the name of the Ceph release
 func (v *CephVersion) ReleaseName() string {
 	switch v.Major {
+<<<<<<< HEAD
 	case Quincy.Major:
 		return "quincy"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	case Reef.Major:
 		return "reef"
 	case Squid.Major:
@@ -169,11 +181,14 @@ func (v *CephVersion) isExactly(other CephVersion) bool {
 	return v.Major == other.Major && v.Minor == other.Minor && v.Extra == other.Extra
 }
 
+<<<<<<< HEAD
 // IsQuincy checks if the Ceph version is Quincy
 func (v *CephVersion) IsQuincy() bool {
 	return v.isRelease(Quincy)
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // IsReef checks if the Ceph version is Reef
 func (v *CephVersion) IsReef() bool {
 	return v.isRelease(Reef)
@@ -227,11 +242,14 @@ func (v *CephVersion) IsAtLeastReef() bool {
 	return v.IsAtLeast(Reef)
 }
 
+<<<<<<< HEAD
 // IsAtLeastQuincy checks that the Ceph version is at least Quincy
 func (v *CephVersion) IsAtLeastQuincy() bool {
 	return v.IsAtLeast(Quincy)
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // IsIdentical checks if Ceph versions are identical
 func IsIdentical(a, b CephVersion) bool {
 	if a.Major == b.Major {

@@ -85,7 +85,11 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clusterInfo.SetName("test")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -463,7 +467,11 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	t.Run(("check hostpid and shareprocessnamespace"), func(t *testing.T) {
 		clusterInfo := &cephclient.ClusterInfo{
 			Namespace:   "ns",
+<<<<<<< HEAD
 			CephVersion: cephver.Quincy,
+=======
+			CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 		clusterInfo.SetName("test")
 		clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -512,7 +520,11 @@ func TestStorageSpecConfig(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clusterInfo.SetName("testing")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)
@@ -595,7 +607,11 @@ func TestHostNetwork(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clusterInfo.SetName("test")
 
@@ -756,7 +772,11 @@ func TestOSDPlacement(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	clusterInfo := &cephclient.ClusterInfo{
 		Namespace:   "ns",
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	clusterInfo.SetName("testing")
 	clusterInfo.OwnerInfo = cephclient.NewMinimumOwnerInfo(t)

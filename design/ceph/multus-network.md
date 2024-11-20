@@ -93,6 +93,7 @@ network.
 The design for mitigating the issue is to add a new DaemonSet that will own the network for all CephFS mounts
 as well as RBD mapped devices. The `csi-{cephfs,rbd}plugin` DaemonSet are left untouched.
 
+<<<<<<< HEAD
 #### New "holder" DaemonSet
 The Rook-Ceph Operator's CSI controller creates a `csi-plugin-holder` DaemonSet configured to use the
 `network.selectors.public` network specified for the CephCluster. This DaemonSet runs on all the
@@ -137,6 +138,8 @@ Multus.
 Until we stop using HostNetwork entirely it is impossible to support multiple CephClusters with and
 without Multus enabled.
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ## Accepted proposal
 
 So far, the team has decided to go with the [whereabouts](https://github.com/dougbtv/whereabouts) IPAM.

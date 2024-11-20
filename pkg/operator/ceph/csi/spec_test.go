@@ -21,6 +21,7 @@ import (
 	_ "embed"
 	"testing"
 
+<<<<<<< HEAD
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
@@ -28,10 +29,13 @@ import (
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	"github.com/stretchr/testify/assert"
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/runtime"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -132,6 +136,11 @@ func TestGenerateNetNamespaceFilePath(t *testing.T) {
 	})
 }
 
+=======
+	kfake "k8s.io/client-go/kubernetes/fake"
+)
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func Test_getCSIDriverNamePrefixFromDeployment(t *testing.T) {
 	namespace := "test"
 	deployment := func(name, containerName, drivernameSuffix string) *apps.Deployment {

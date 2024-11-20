@@ -25,7 +25,11 @@ spec:
       serviceAccountName: rook-ceph-default
       containers:
         - name: rook-ceph-tools-operator-image
+<<<<<<< HEAD
           image: docker.io/rook/ceph:v1.15.6
+=======
+          image: docker.io/rook/ceph:master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           command:
             - /bin/bash
             - -c

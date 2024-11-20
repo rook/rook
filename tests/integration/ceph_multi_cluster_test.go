@@ -81,7 +81,11 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		Mons:              1,
 		MultipleMgrs:      true,
 		RookVersion:       installer.LocalBuildTag,
+<<<<<<< HEAD
 		CephVersion:       installer.QuincyVersion,
+=======
+		CephVersion:       installer.SquidVersion,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		RequireMsgr2:      true,
 	}
 	s.settings.ApplyEnvVars()
@@ -91,7 +95,11 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		Namespace:         "multi-external",
 		OperatorNamespace: s.settings.OperatorNamespace,
 		RookVersion:       s.settings.RookVersion,
+<<<<<<< HEAD
 		CephVersion:       installer.QuincyVersion,
+=======
+		CephVersion:       installer.SquidVersion,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	externalSettings.ApplyEnvVars()
 	s.externalManifests = installer.NewCephManifests(externalSettings)

@@ -59,7 +59,11 @@ func TestOrchestratorModules(t *testing.T) {
 	}
 
 	clusterInfo := &cephclient.ClusterInfo{
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		Context:     context.TODO(),
 	}
 	context := &clusterd.Context{Executor: executor}

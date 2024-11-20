@@ -311,6 +311,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 		},
 	}
 
+<<<<<<< HEAD
 	// If the cluster has Multus enabled we need to append the network namespace of the driver's
 	// holder DaemonSet in the csi configmap
 	if cephCluster.Spec.Network.IsMultus() {
@@ -320,6 +321,9 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 		}
 		csiClusterConfigEntry.CephFS.NetNamespaceFilePath = netNamespaceFilePath
 	}
+=======
+	csiClusterConfigEntry.CephFS.NetNamespaceFilePath = ""
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	err := csi.SaveClusterConfig(r.context.Clientset, buildClusterID(cephFilesystemSubVolumeGroup), cephCluster.Namespace, r.clusterInfo, &csiClusterConfigEntry)
 	if err != nil {

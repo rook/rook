@@ -562,6 +562,69 @@ func TestCephBlockPoolController(t *testing.T) {
 	})
 }
 
+<<<<<<< HEAD
+=======
+func TestIsAnyRadosNamespaceMirrored(t *testing.T) {
+	pool := "test"
+	object := []runtime.Object{}
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	cl := fake.NewClientBuilder().WithScheme(s).WithRuntimeObjects(object...).Build()
+	executor := &exectest.MockExecutor{}
+	c := &clusterd.Context{
+		Executor:      executor,
+		Clientset:     testop.New(t, 1),
+		RookClientset: rookclient.NewSimpleClientset(),
+	}
+	// Create a ReconcileCephBlockPool object with the scheme and fake client.
+	r := &ReconcileCephBlockPool{
+		client:            cl,
+		scheme:            s,
+		context:           c,
+		blockPoolContexts: make(map[string]*blockPoolHealth),
+		opManagerContext:  context.TODO(),
+		recorder:          record.NewFakeRecorder(5),
+		clusterInfo:       cephclient.AdminTestClusterInfo("mycluster"),
+	}
+
+	t.Run("rados namespace mirroring enabled", func(t *testing.T) {
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" {
+					assert.Equal(t, pool, args[2])
+					return `[{"name":"abc"},{"name":"abc1"},{"name":"abc3"}]`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return "{}", nil
+				}
+				return "", nil
+			},
+		}
+		enabled, err := r.isAnyRadosNamespaceMirrored(pool)
+		assert.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("rados namespace mirroring disabled", func(t *testing.T) {
+		r.context.Executor = &exectest.MockExecutor{
+			MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+				if args[0] == "namespace" {
+					assert.Equal(t, pool, args[2])
+					return `[]`, nil
+				}
+				if args[0] == "mirror" && args[1] == "pool" && args[2] == "info" {
+					return "{}", nil
+				}
+				return "", nil
+			},
+		}
+		enabled, err := r.isAnyRadosNamespaceMirrored(pool)
+		assert.NoError(t, err)
+		assert.False(t, enabled)
+	})
+}
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func TestConfigureRBDStats(t *testing.T) {
 	var (
 		s         = runtime.NewScheme()
@@ -575,12 +638,20 @@ func TestConfigureRBDStats(t *testing.T) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "config" && args[2] == "mgr" && args[3] == "mgr/prometheus/rbd_stats_pools" {
 				if args[1] == "set" {
+<<<<<<< HEAD
+=======
+					mockedPools = args[4]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 					return "", nil
 				}
 				if args[1] == "get" {
 					return mockedPools, nil
 				}
 				if args[1] == "rm" {
+<<<<<<< HEAD
+=======
+					mockedPools = ""
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 					return "", nil
 				}
 			}
@@ -641,7 +712,10 @@ func TestConfigureRBDStats(t *testing.T) {
 	monStore := config.GetMonStore(context, clusterInfo)
 	e := monStore.Set("mgr", "mgr/prometheus/rbd_stats_pools", "pool1,pool2")
 	assert.Nil(t, e)
+<<<<<<< HEAD
 	mockedPools = "my-pool-with-rbd-stats,pool1,pool2"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	e = configureRBDStats(context, clusterInfo, "")
 	assert.Nil(t, e)
 
@@ -650,7 +724,10 @@ func TestConfigureRBDStats(t *testing.T) {
 	assert.Equal(t, "my-pool-with-rbd-stats,pool1,pool2", rbdStatsPools)
 
 	// Case 6: Deleted CephBlockPool should be excluded from config
+<<<<<<< HEAD
 	mockedPools = "pool1,pool2"
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	err = configureRBDStats(context, clusterInfo, "my-pool-with-rbd-stats")
 	assert.Nil(t, err)
 
@@ -666,7 +743,11 @@ func TestConfigureRBDStats(t *testing.T) {
 
 	rbdStatsPools, err = monStore.Get("mgr", "mgr/prometheus/rbd_stats_pools")
 	assert.Nil(t, err)
+<<<<<<< HEAD
 	assert.Equal(t, "pool1,pool2", rbdStatsPools)
+=======
+	assert.Equal(t, "my-pool-with-rbd-stats,pool1,pool2", rbdStatsPools)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// Case 8: Two CephBlockPools with EnableRBDStats:false & EnableRBDStats:true.
 	// SetConfig returns an error
@@ -678,5 +759,115 @@ func TestConfigureRBDStats(t *testing.T) {
 	}
 	err = configureRBDStats(context, clusterInfo, "")
 	assert.NotNil(t, err)
+<<<<<<< HEAD
 
+=======
+}
+
+func TestGenerateStatsPoolList(t *testing.T) {
+	tests := []struct {
+		name               string
+		existingStatsPools []string
+		rookStatsPools     []string
+		removePools        []string
+		expectedOutput     string
+	}{
+		// Basic cases
+		{
+			name:               "Empty lists",
+			existingStatsPools: []string{},
+			rookStatsPools:     []string{},
+			removePools:        []string{},
+			expectedOutput:     "",
+		},
+		{
+			name:               "Single-item lists, no removal",
+			existingStatsPools: []string{"p1"},
+			rookStatsPools:     []string{"p2"},
+			removePools:        []string{},
+			expectedOutput:     "p1,p2",
+		},
+		// Overlap and duplicates
+		{
+			name:               "Overlapping pools, some to remove",
+			existingStatsPools: []string{"p1", "p2", "p3"},
+			rookStatsPools:     []string{"p2", "p4", "p5"},
+			removePools:        []string{"p1", "p5"},
+			expectedOutput:     "p2,p3,p4",
+		},
+		{
+			name:               "Non-overlapping lists",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p3", "p4"},
+			removePools:        []string{},
+			expectedOutput:     "p1,p2,p3,p4",
+		},
+		// All pools removed
+		{
+			name:               "All pools removed",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p2", "p3"},
+			removePools:        []string{"p1", "p2", "p3"},
+			expectedOutput:     "",
+		},
+		// Mixed scenarios with edge cases
+		{
+			name:               "Only removed pools",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p2", "p3"},
+			removePools:        []string{"p1", "p2", "p3", "p4"},
+			expectedOutput:     "",
+		},
+		{
+			name:               "Duplicate pools across lists",
+			existingStatsPools: []string{"p1", "p2", "p1"},
+			rookStatsPools:     []string{"p2", "p3", "p3"},
+			removePools:        []string{},
+			expectedOutput:     "p1,p2,p3",
+		},
+		{
+			name:               "Empty string in pools",
+			existingStatsPools: []string{"p1", ""},
+			rookStatsPools:     []string{"p2", ""},
+			removePools:        []string{""},
+			expectedOutput:     "p1,p2",
+		},
+		{
+			name:               "Empty string in remove pools",
+			existingStatsPools: []string{"p1", "p2"},
+			rookStatsPools:     []string{"p3", "p4"},
+			removePools:        []string{""},
+			expectedOutput:     "p1,p2,p3,p4",
+		},
+		{
+			name:               "All lists empty strings",
+			existingStatsPools: []string{""},
+			rookStatsPools:     []string{""},
+			removePools:        []string{""},
+			expectedOutput:     "",
+		},
+		// Larger cases
+		{
+			name:               "Large unique pool list",
+			existingStatsPools: []string{"p1", "p2", "p3", "p4"},
+			rookStatsPools:     []string{"p5", "p6", "p7", "p8"},
+			removePools:        []string{"p1", "p8"},
+			expectedOutput:     "p2,p3,p4,p5,p6,p7",
+		},
+		{
+			name:               "Large list with many duplicates",
+			existingStatsPools: []string{"p1", "p2", "p3", "p2", "p1"},
+			rookStatsPools:     []string{"p2", "p3", "p3", "p4", "p1"},
+			removePools:        []string{"p4"},
+			expectedOutput:     "p1,p2,p3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := generateStatsPoolList(tt.existingStatsPools, tt.rookStatsPools, tt.removePools)
+			assert.Equal(t, tt.expectedOutput, result)
+		})
+	}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

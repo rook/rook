@@ -414,6 +414,7 @@ spec:
       }
     }'
 ```
+<<<<<<< HEAD
 
 ## Holder Pod Deprecation
 
@@ -593,3 +594,5 @@ daemonset.apps "csi-rbdplugin-holder-my-cluster" deleted
 **Step 6**
 
 The migration is now complete! Congratulations!
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

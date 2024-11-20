@@ -15,7 +15,11 @@ jobs:
     runs-on: ubuntu-22.04
     if: github.repository == 'rook/rook'
     steps:
+<<<<<<< HEAD
       - uses: actions/stale@v9
+=======
+      - uses: actions/stale@28ca1036281a5e5922ead5184a1bbf96e5fc984e # v9.0.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           days-before-issue-stale: 60

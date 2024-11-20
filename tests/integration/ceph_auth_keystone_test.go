@@ -93,7 +93,11 @@ func (h *KeystoneAuthSuite) SetupSuite() {
 		ChangeHostName:       true,
 		ConnectionsEncrypted: true,
 		RookVersion:          installer.LocalBuildTag,
+<<<<<<< HEAD
 		CephVersion:          installer.QuincyVersion,
+=======
+		CephVersion:          installer.ReefVersion,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		SkipClusterCleanup:   false,
 		SkipCleanupPolicy:    false,
 	}

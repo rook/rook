@@ -32,6 +32,11 @@ spec:
   additionalConfig: [6]
     maxObjects: "1000"
     maxSize: "2G"
+<<<<<<< HEAD
+=======
+    bucketMaxObjects: "3000"
+    bucketMaxSize: "4G"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 ```
 
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
@@ -45,8 +50,15 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
 5. `storageClassName` which defines the StorageClass which contains the names of the bucket provisioner, the object-store and specifies the bucket retention policy.
 6. `additionalConfig` is an optional list of key-value pairs used to define attributes specific to the bucket being provisioned by this OBC. This information is typically tuned to a particular bucket provisioner and may limit application portability. Options supported:
 
+<<<<<<< HEAD
     * `maxObjects`: The maximum number of objects in the bucket
     * `maxSize`: The maximum size of the bucket, please note minimum recommended value is 4K.
+=======
+    * `maxObjects`: The maximum number of objects in the bucket as a quota on the user account automatically created for the bucket.
+    * `maxSize`: The maximum size of the bucket as a quota on the user account automatically created for the bucket. Please note minimum recommended value is 4K.
+    * `bucketMaxObjects`: The maximum number of objects in the bucket as an individual bucket quota. This is useful when the bucket is shared among multiple users.
+    * `bucketMaxSize`: The maximum size of the bucket as an individual bucket quota.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 ### OBC Custom Resource after Bucket Provisioning
 

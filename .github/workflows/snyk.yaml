@@ -16,12 +16,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
       - name: run Snyk to check for code vulnerabilities
+<<<<<<< HEAD
         uses: snyk/actions/golang@master
+=======
+        uses: snyk/actions/golang@cdb760004ba9ea4d525f2e043745dfe85bb9077e # master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
           GOFLAGS: "-buildvcs=false"

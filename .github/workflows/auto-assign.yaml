@@ -10,12 +10,20 @@ jobs:
   assign:
     permissions:
       # write permissions are needed to assign the issue.
+<<<<<<< HEAD
     issues: write
+=======
+      issues: write
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
     name: Run self assign job
     runs-on: ubuntu-latest
     steps:
       - name: take the issue
+<<<<<<< HEAD
         uses: bdougie/take-action@main
+=======
+        uses: bdougie/take-action@1439165ac45a7461c2d89a59952cd7d941964b87 # main
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           message: Thanks for taking this issue! Let us know if you have any questions!
           trigger: /assign

@@ -342,6 +342,15 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			RunAsUser:              &runAsUser,
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+<<<<<<< HEAD
+=======
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{},
+				Drop: []v1.Capability{
+					"NET_RAW",
+				},
+			},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Resources: cephv1.GetPrepareOSDResources(c.spec.Resources),
 	}

@@ -76,7 +76,11 @@ func TestPodSpec(t *testing.T) {
 		TypeMeta: controllerTypeMeta,
 	}
 	clusterInfo := &cephclient.ClusterInfo{
+<<<<<<< HEAD
 		CephVersion: cephver.Quincy,
+=======
+		CephVersion: cephver.Squid,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	s := scheme.Scheme
 	object := []runtime.Object{rbdMirror}

@@ -71,11 +71,19 @@ func newDeploymentSpecTest(t *testing.T) (*ReconcileCephNFS, daemonConfig) {
 		context: c,
 		clusterInfo: &cephclient.ClusterInfo{
 			FSID:        "myfsid",
+<<<<<<< HEAD
 			CephVersion: cephver.Quincy,
 		},
 		cephClusterSpec: &cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
 				Image: "quay.io/ceph/ceph:v17",
+=======
+			CephVersion: cephver.Squid,
+		},
+		cephClusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{
+				Image: "quay.io/ceph/ceph:v19",
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			},
 		},
 	}

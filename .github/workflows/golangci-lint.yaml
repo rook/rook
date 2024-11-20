@@ -24,6 +24,7 @@ jobs:
     name: golangci-lint
     runs-on: ubuntu-latest
     steps:
+<<<<<<< HEAD
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -32,6 +33,16 @@ jobs:
           go-version: "1.22"
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
+=======
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+        with:
+          go-version: "1.22"
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@971e284b6050e8a5849b72094c50ab08da042db8 # v6.1.1
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           # Required: the version of golangci-lint is required and must be specified without patch version: we always use the latest patch version.
           version: v1.55
@@ -52,9 +63,17 @@ jobs:
     name: govulncheck
     runs-on: ubuntu-latest
     steps:
+<<<<<<< HEAD
       - uses: actions/setup-go@v5
+=======
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
          go-version: "1.22.5"
          check-latest: true
       - name: govulncheck
+<<<<<<< HEAD
         uses: golang/govulncheck-action@v1
+=======
+        uses: golang/govulncheck-action@b625fbe08f3bccbe446d94fbf87fcc875a4f50ee # v1.0.4
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

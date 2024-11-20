@@ -59,11 +59,14 @@ func DefaultCentralizedConfigs(cephVersion version.CephVersion) map[string]strin
 		"mon allow pool size one": "true",
 	}
 
+<<<<<<< HEAD
 	// Every release before Quincy will enable PG auto repair on Bluestore OSDs
 	if !cephVersion.IsAtLeastQuincy() {
 		overrides["osd scrub auto repair"] = "true"
 	}
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return overrides
 }
 

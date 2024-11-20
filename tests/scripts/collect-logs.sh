@@ -47,7 +47,11 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   # secret need `-oyaml` to read the content instead of `describe` since secrets `describe` will be encrypted.
   # so keeping it in a different block.
   for secret in $(kubectl -n "$NAMESPACE" get secrets -o jsonpath='{.items[*].metadata.name}'); do
+<<<<<<< HEAD
     kubectl -n "$NAMESPACE" get -o yaml secret "$secret" >"${NS_DIR}"/secret-describe--"$secret".txt
+=======
+    kubectl -n "$NAMESPACE" get -o yaml secret "$secret" >"${NS_DIR}"/secret-get--"$secret".txt
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   done
 
   # describe every one of the custom resources in the namespace since all should be rook-related and
@@ -55,7 +59,11 @@ for NAMESPACE in "${NAMESPACES[@]}"; do
   for CRD in $(kubectl get crds -o jsonpath='{.items[*].metadata.name}'); do
     for resource in $(kubectl -n "$NAMESPACE" get "$CRD" -o jsonpath='{.items[*].metadata.name}'); do
       crd_main_type="${CRD%%.*}" # e.g., for cephclusters.ceph.rook.io, only use 'cephclusters'
+<<<<<<< HEAD
       kubectl -n "$NAMESPACE" get -o yaml "$CRD" "$resource" >"${NS_DIR}"/"$crd_main_type"-describe--"$resource".txt
+=======
+      kubectl -n "$NAMESPACE" describe "$CRD" "$resource" >"${NS_DIR}"/"$crd_main_type"-describe--"$resource".txt
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
     done
   done
 

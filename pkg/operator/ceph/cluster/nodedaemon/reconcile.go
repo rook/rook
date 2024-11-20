@@ -59,10 +59,13 @@ var (
 	waitForRequeueIfSecretNotCreated = reconcile.Result{Requeue: true, RequeueAfter: 30 * time.Second}
 )
 
+<<<<<<< HEAD
 const (
 	MinVersionForCronV1 = "1.21.0"
 )
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 // ReconcileNode reconciles ReplicaSets
 type ReconcileNode struct {
 	// client can be used to retrieve objects from the APIServer.
@@ -223,7 +226,11 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 
+<<<<<<< HEAD
 		if err := r.reconcileCrashPruner(namespace, cephCluster, cephVersion); err != nil {
+=======
+		if err := r.reconcileCrashPruner(namespace, cephCluster); err != nil {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			return reconcile.Result{}, err
 		}
 	}

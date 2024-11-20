@@ -63,7 +63,11 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing metadata pool
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
+<<<<<<< HEAD
 	fs.Spec.MetadataPool.PoolSpec = p
+=======
+	fs.Spec.MetadataPool = p
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// missing mds count
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
@@ -112,6 +116,7 @@ func TestGenerateDataPoolNames(t *testing.T) {
 	assert.Equal(t, expectedNames, names)
 }
 
+<<<<<<< HEAD
 func TestPreservePoolNames(t *testing.T) {
 	fs := &Filesystem{Name: "fake", Namespace: "fake"}
 	fsSpec := cephv1.FilesystemSpec{
@@ -132,6 +137,8 @@ func TestPreservePoolNames(t *testing.T) {
 	assert.Equal(t, expectedNames, names)
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func isBasePoolOperation(fsName, command string, args []string) bool {
 	if reflect.DeepEqual(args[0:7], []string{"osd", "pool", "create", fsName + "-metadata", "0", "replicated", fsName + "-metadata"}) {
 		return true
@@ -244,7 +251,11 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 					versionStr, _ := json.Marshal(
 						map[string]map[string]int{
 							"mds": {
+<<<<<<< HEAD
 								"ceph version 17.0.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
+=======
+								"ceph version 19.0.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) squid (stable)": 2,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 							},
 						})
 					return string(versionStr), nil
@@ -327,7 +338,11 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				versionStr, _ := json.Marshal(
 					map[string]map[string]int{
 						"mds": {
+<<<<<<< HEAD
 							"ceph version 17.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) quincy (stable)": 2,
+=======
+							"ceph version 19.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) squid (stable)": 2,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 						},
 					})
 				return string(versionStr), nil
@@ -345,9 +360,13 @@ func fsTest(fsName string) cephv1.CephFilesystem {
 	return cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
+<<<<<<< HEAD
 			MetadataPool: cephv1.NamedPoolSpec{
 				PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
 			},
+=======
+			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 			DataPools: []cephv1.NamedPoolSpec{
 				{
 					PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
@@ -383,7 +402,11 @@ func TestCreateFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
+<<<<<<< HEAD
 	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Quincy, Context: ctx}
+=======
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Squid, Context: ctx}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
 
 	t.Run("start basic filesystem", func(t *testing.T) {
@@ -427,7 +450,11 @@ func TestCreateFilesystem(t *testing.T) {
 	})
 
 	t.Run("multi filesystem creation should succeed", func(t *testing.T) {
+<<<<<<< HEAD
 		clusterInfo.CephVersion = version.Quincy
+=======
+		clusterInfo.CephVersion = version.Squid
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		err := createFilesystem(context, clusterInfo, fs, &cephv1.ClusterSpec{}, ownerInfo, "/var/lib/rook/")
 		assert.NoError(t, err)
 	})
@@ -449,7 +476,11 @@ func TestUpgradeFilesystem(t *testing.T) {
 		ConfigDir: configDir,
 		Clientset: clientset}
 	fs := fsTest(fsName)
+<<<<<<< HEAD
 	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Quincy, Context: ctx}
+=======
+	clusterInfo := &cephclient.ClusterInfo{FSID: "myfsid", CephVersion: version.Squid, Context: ctx}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	// start a basic cluster for upgrade
 	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
@@ -460,7 +491,11 @@ func TestUpgradeFilesystem(t *testing.T) {
 	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
 
 	// do upgrade
+<<<<<<< HEAD
 	clusterInfo.CephVersion = version.Quincy
+=======
+	clusterInfo.CephVersion = version.Squid
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	context = &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
@@ -495,6 +530,7 @@ func TestUpgradeFilesystem(t *testing.T) {
 		},
 	}
 	createdFsResponse, _ := json.Marshal(mdsmap)
+<<<<<<< HEAD
 	firstGet := false
 	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
 		if contains(args, "fs") && contains(args, "get") {
@@ -539,12 +575,87 @@ func TestUpgradeFilesystem(t *testing.T) {
 					},
 				})
 			return string(versionStr), nil
+=======
+
+	// actual version
+	clusterInfo.CephVersion = version.Squid
+	// mocked version to cause an error different from the actual version
+	mockedVersionStr, _ := json.Marshal(
+		map[string]map[string]int{
+			"mds": {
+				"ceph version 18.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) reef (stable)": 2,
+			},
+		})
+	executor.MockExecuteCommandWithOutput = func(command string, args ...string) (string, error) {
+		if contains(args, "fs") {
+			if contains(args, "get") {
+				return string(createdFsResponse), nil
+			} else if contains(args, "ls") {
+				return "[]", nil
+			} else if contains(args, "dump") {
+				return `{"standbys":[], "filesystems":[]}`, nil
+			} else if contains(args, "subvolumegroup") {
+				return "[]", nil
+			}
+		}
+		if contains(args, "osd") {
+			if contains(args, "lspools") {
+				return "[]", nil
+			}
+			if contains(args, "pool") && contains(args, "application") {
+				if contains(args, "get") {
+					return `{"":{}}`, nil
+				}
+				return "[]", nil
+			}
+			if reflect.DeepEqual(args[1:3], []string{"pool", "get"}) {
+				return "", errors.New("test pool does not exist yet")
+			}
+		}
+		if contains(args, "mds") && contains(args, "fail") {
+			return "", errors.New("fail mds failed")
+		}
+		if isBasePoolOperation(fsName, command, args) {
+			return "", nil
+		}
+		if reflect.DeepEqual(args[0:5], []string{"fs", "new", fsName, fsName + "-metadata", fsName + "-data0"}) {
+			return "", nil
+		}
+		if contains(args, "auth") {
+			if contains(args, "get-or-create-key") {
+				return "{\"key\":\"mysecurekey\"}", nil
+			} else if contains(args, "auth") && contains(args, "del") {
+				return "", nil
+			}
+		}
+		if contains(args, "config") {
+			if contains(args, "mds_cache_memory_limit") {
+				return "", nil
+			} else if contains(args, "mds_join_fs") {
+				return "", nil
+			} else if contains(args, "get") {
+				return "{}", nil
+			}
+		}
+		if contains(args, "set") {
+			if contains(args, "max_mds") {
+				return "", nil
+			} else if contains(args, "allow_standby_replay") {
+				return "", nil
+			}
+		}
+		if contains(args, "versions") {
+			return string(mockedVersionStr), nil
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 		assert.Fail(t, fmt.Sprintf("Unexpected command %q %q", command, args))
 		return "", nil
 	}
 	// do upgrade
+<<<<<<< HEAD
 	clusterInfo.CephVersion = version.Reef
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	context = &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,

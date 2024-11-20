@@ -40,6 +40,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+<<<<<<< HEAD
+=======
+const (
+	userPath   = "rgw.test/admin/user"
+	bucketPath = "rgw.test/admin/bucket"
+)
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func TestPopulateDomainAndPort(t *testing.T) {
 	ctx := context.TODO()
 	store := "test-store"
@@ -142,6 +150,7 @@ func TestQuanityToInt64(t *testing.T) {
 }
 
 func TestProvisioner_setAdditionalSettings(t *testing.T) {
+<<<<<<< HEAD
 	newProvisioner := func(t *testing.T, getUserResult string, putValsSeen *[]string) *Provisioner {
 		mockClient := &object.MockClient{
 			MockDo: func(req *http.Request) (*http.Response, error) {
@@ -176,6 +185,44 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		}
 
 		adminClient, err := admin.New("my.endpoint.net", "accesskey", "secretkey", mockClient)
+=======
+	newProvisioner := func(t *testing.T, getResult *map[string]string, getSeen, putSeen *map[string][]string) *Provisioner {
+		mockClient := &object.MockClient{
+			MockDo: func(req *http.Request) (*http.Response, error) {
+				path := req.URL.Path
+
+				// t.Logf("HTTP req: %#v", req)
+				t.Logf("HTTP %s: %s %s", req.Method, path, req.URL.RawQuery)
+
+				statusCode := 200
+				if _, ok := (*getResult)[path]; !ok {
+					// path not configured
+					statusCode = 500
+				}
+				responseBody := []byte(`[]`)
+
+				switch method := req.Method; method {
+				case http.MethodGet:
+					(*getSeen)[path] = append((*getSeen)[path], req.URL.RawQuery)
+					responseBody = []byte((*getResult)[path])
+				case http.MethodPut:
+					if (*putSeen)[path] == nil {
+						(*putSeen)[path] = []string{}
+					}
+					(*putSeen)[path] = append((*putSeen)[path], req.URL.RawQuery)
+				default:
+					panic(fmt.Sprintf("unexpected request: %q. method %q. path %q", req.URL.RawQuery, req.Method, path))
+				}
+
+				return &http.Response{
+					StatusCode: statusCode,
+					Body:       io.NopCloser(bytes.NewReader(responseBody)),
+				}, nil
+			},
+		}
+
+		adminClient, err := admin.New("rgw.test", "accesskey", "secretkey", mockClient)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		assert.NoError(t, err)
 
 		p := &Provisioner{
@@ -189,6 +236,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		return p
 	}
 
+<<<<<<< HEAD
 	t.Run("quota should remain disabled", func(t *testing.T) {
 		putValsSeen := []string{}
 		p := newProvisioner(t,
@@ -213,6 +261,18 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 			`{"enabled":true,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":2}`,
 			&putValsSeen,
 		)
+=======
+	t.Run("user and bucket quota should remain disabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
@@ -223,6 +283,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
+<<<<<<< HEAD
 		// quota should be disabled, and that's it
 		assert.Len(t, putValsSeen, 1)
 		assert.Equal(t, 1, numberOfPutsWithValue(`enabled=false`, putValsSeen))
@@ -234,6 +295,58 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 			`{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
 			&putValsSeen,
 		)
+=======
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 0)   // user quota should not be touched
+		assert.Len(t, putSeen[bucketPath], 0) // bucket quota should not be touched
+	})
+
+	t.Run("user and bucket quota should be disabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":true,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":2}`,
+			bucketPath: `{"owner": "bob","bucket_quota":{"enabled":true,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":3}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+
+		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					AdditionalConfig: map[string]string{},
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 1)
+		assert.Equal(t, 1, numberOfCallsWithValue("enabled=false", putSeen[userPath]))
+		assert.Len(t, putSeen[bucketPath], 1)
+		assert.Equal(t, 1, numberOfCallsWithValue("enabled=false", putSeen[bucketPath]))
+	})
+
+	t.Run("user maxSize quota should be enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
@@ -246,6 +359,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
+<<<<<<< HEAD
 		assert.Zero(t, numberOfPutsWithValue(`enabled=false`, putValsSeen)) // no puts should disable
 
 		assert.NotEmpty(t, putWithValue(`enabled=true`, putValsSeen)) // at least one put enables
@@ -262,6 +376,29 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 			`{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
 			&putValsSeen,
 		)
+=======
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[userPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-size=2", putSeen[userPath]), 1)
+		assert.Len(t, putSeen[bucketPath], 0) // bucket quota should not be touched
+	})
+
+	t.Run("user maxObjects quota should be enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
@@ -274,6 +411,7 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		})
 		assert.NoError(t, err)
 
+<<<<<<< HEAD
 		assert.Zero(t, numberOfPutsWithValue(`enabled=false`, putValsSeen)) // no puts should disable
 
 		assert.NotEmpty(t, putWithValue(`enabled=true`, putValsSeen)) // at least one put enables
@@ -290,19 +428,48 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 			`{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
 			&putValsSeen,
 		)
+=======
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[userPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-objects=2", putSeen[userPath]), 1)
+		assert.Len(t, putSeen[bucketPath], 0) // bucket quota should not be touched
+	})
+
+	t.Run("user maxObjects and maxSize quotas should be enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{
+<<<<<<< HEAD
 						"maxSize":    "2",
 						"maxObjects": "3",
+=======
+						"maxObjects": "2",
+						"maxSize":    "3",
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 					},
 				},
 			},
 		})
 		assert.NoError(t, err)
 
+<<<<<<< HEAD
 		assert.Zero(t, numberOfPutsWithValue(`enabled=false`, putValsSeen)) // no puts should disable
 
 		assert.NotEmpty(t, putWithValue(`enabled=true`, putValsSeen)) // at least one put enables
@@ -322,19 +489,49 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 			`{"enabled":true,"check_on_raw":false,"max_size":1,"max_size_kb":0,"max_objects":1}`,
 			&putValsSeen,
 		)
+=======
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[userPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-objects=2", putSeen[userPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-size=3", putSeen[userPath]), 1)
+		assert.Len(t, putSeen[bucketPath], 0) // bucket quota should not be touched
+	})
+
+	t.Run("user quotas are enabled and need updated enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":true,"check_on_raw":false,"max_size":1,"max_size_kb":0,"max_objects":1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 		err := p.setAdditionalSettings(&apibkt.BucketOptions{
 			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
 				Spec: v1alpha1.ObjectBucketClaimSpec{
 					AdditionalConfig: map[string]string{
+<<<<<<< HEAD
 						"maxSize":    "2",
 						"maxObjects": "3",
+=======
+						"maxObjects": "12",
+						"maxSize":    "13",
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 					},
 				},
 			},
 		})
 		assert.NoError(t, err)
 
+<<<<<<< HEAD
 		assert.Zero(t, numberOfPutsWithValue(`enabled=false`, putValsSeen)) // no puts should disable
 
 		// there is only one time that max-size is set, and it's to the right value
@@ -344,6 +541,119 @@ func TestProvisioner_setAdditionalSettings(t *testing.T) {
 		// there is only one time max-objects is set, and it's to the right value
 		assert.NotEmpty(t, putWithValue(`max-objects=3`, putValsSeen))
 		assert.Equal(t, 1, numberOfPutsWithValue(`max-objects`, putValsSeen))
+=======
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[userPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-objects=12", putSeen[userPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-size=13", putSeen[userPath]), 1)
+		assert.Len(t, putSeen[bucketPath], 0) // bucket quota should not be touched
+	})
+
+	t.Run("bucket maxObjects quota should be enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+
+		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					AdditionalConfig: map[string]string{
+						"bucketMaxObjects": "4",
+					},
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 0) // user quota should not be touched
+		assert.Len(t, putSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[bucketPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-objects=4", putSeen[bucketPath]), 1)
+	})
+
+	t.Run("bucket maxSize quota should be enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+
+		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					AdditionalConfig: map[string]string{
+						"bucketMaxSize": "5",
+					},
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 0) // user quota should not be touched
+		assert.Len(t, putSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[bucketPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-size=5", putSeen[bucketPath]), 1)
+	})
+
+	t.Run("bucket quotas are enabled and need updated enabled", func(t *testing.T) {
+		getResult := map[string]string{
+			userPath:   `{"enabled":false,"check_on_raw":false,"max_size":-1024,"max_size_kb":0,"max_objects":-1}`,
+			bucketPath: `{"bucket_quota":{"enabled":true,"check_on_raw":false,"max_size":5,"max_size_kb":0,"max_objects":4}}`,
+		}
+		getSeen := map[string][]string{}
+		putSeen := map[string][]string{}
+
+		p := newProvisioner(t, &getResult, &getSeen, &putSeen)
+		p.setBucketName("bob")
+
+		err := p.setAdditionalSettings(&apibkt.BucketOptions{
+			ObjectBucketClaim: &v1alpha1.ObjectBucketClaim{
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					AdditionalConfig: map[string]string{
+						"bucketMaxObjects": "14",
+						"bucketMaxSize":    "15",
+					},
+				},
+			},
+		})
+		assert.NoError(t, err)
+
+		assert.Len(t, getSeen[userPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("uid=bob", getSeen[userPath]), 1)
+		assert.Len(t, getSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("bucket=bob", getSeen[bucketPath]), 1)
+
+		assert.Len(t, putSeen[userPath], 0) // user quota should not be touched
+		assert.Len(t, putSeen[bucketPath], 1)
+		assert.Equal(t, numberOfCallsWithValue("enabled=true", putSeen[bucketPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-objects=14", putSeen[bucketPath]), 1)
+		assert.Equal(t, numberOfCallsWithValue("max-size=15", putSeen[bucketPath]), 1)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	})
 }
 
@@ -367,9 +677,27 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 		var i int64 = 3
 		assert.Equal(t, additionalConfigSpec{maxSize: &i}, *spec)
 	})
+<<<<<<< HEAD
 }
 
 func numberOfPutsWithValue(substr string, strs []string) int {
+=======
+
+	t.Run("bucketMaxObjects field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketMaxObjects": "4"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketMaxObjects: &(&struct{ i int64 }{4}).i}, *spec)
+	})
+
+	t.Run("bucketMaxSize field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketMaxSize": "5"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketMaxSize: &(&struct{ i int64 }{5}).i}, *spec)
+	})
+}
+
+func numberOfCallsWithValue(substr string, strs []string) int {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	count := 0
 	for _, s := range strs {
 		if strings.Contains(s, substr) {
@@ -378,6 +706,7 @@ func numberOfPutsWithValue(substr string, strs []string) int {
 	}
 	return count
 }
+<<<<<<< HEAD
 
 func putWithValue(substr string, strs []string) string {
 	for _, s := range strs {
@@ -387,3 +716,5 @@ func putWithValue(substr string, strs []string) string {
 	}
 	return ""
 }
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")

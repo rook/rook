@@ -25,6 +25,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+<<<<<<< HEAD
 func TestToCustomResourceStatus(t *testing.T) {
 	mirroringStatus := &cephv1.PoolMirroringStatusSummarySpec{}
 	mirroringStatus.Health = "HEALTH_OK"
@@ -60,6 +61,8 @@ func TestToCustomResourceStatus(t *testing.T) {
 	}
 }
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 func TestUpdateStatusInfo(t *testing.T) {
 
 	cephBlockPoolReplicated := &cephv1.CephBlockPool{

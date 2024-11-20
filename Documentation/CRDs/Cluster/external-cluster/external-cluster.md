@@ -17,7 +17,11 @@ In external mode, Rook will provide the configuration for the CSI driver and oth
 Create the desired types of storage in the provider Ceph cluster:
 
 * [RBD pools](https://docs.ceph.com/en/latest/rados/operations/pools/#create-a-pool)
+<<<<<<< HEAD
 * [CephFS filesystem](https://docs.ceph.com/en/quincy/cephfs/createfs/)
+=======
+* [CephFS filesystem](https://docs.ceph.com/en/latest/cephfs/createfs/)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 ## Connect the external Ceph Provider cluster to the Rook consumer cluster
 

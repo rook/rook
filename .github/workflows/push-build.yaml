@@ -21,28 +21,48 @@ jobs:
     if: github.repository == 'rook/rook'
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - uses: actions/setup-go@v5
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           go-version: "1.22"
 
         # docker/setup-qemu action installs QEMU static binaries, which are used to run builders for architectures other than the host.
       - name: set up QEMU
+<<<<<<< HEAD
         uses: docker/setup-qemu-action@master
+=======
+        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           platforms: all
 
       - name: log in to container registry
+<<<<<<< HEAD
         uses: docker/login-action@v3
+=======
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Configure AWS Credentials
+<<<<<<< HEAD
         uses: aws-actions/configure-aws-credentials@v4
+=======
+        uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           aws-access-key-id: ${{ secrets.AWS_USR }}
           aws-secret-access-key: ${{ secrets.AWS_PSW }}

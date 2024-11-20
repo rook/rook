@@ -1,11 +1,19 @@
 /*
+<<<<<<< HEAD
 Copyright 2018 The Rook Authors. All rights reserved.
+=======
+Copyright The Kubernetes Authors.
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
+<<<<<<< HEAD
     http://www.apache.org/licenses/LICENSE-2.0
+=======
+    http://www.apache.org/licenses/LICENSE-2.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,9 +29,16 @@ package fake
 import (
 	"context"
 
+<<<<<<< HEAD
 	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
+=======
+	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	labels "k8s.io/apimachinery/pkg/labels"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -35,6 +50,7 @@ type FakeCephRBDMirrors struct {
 	ns   string
 }
 
+<<<<<<< HEAD
 var cephrbdmirrorsResource = v1.SchemeGroupVersion.WithResource("cephrbdmirrors")
 
 var cephrbdmirrorsKind = v1.SchemeGroupVersion.WithKind("CephRBDMirror")
@@ -59,14 +75,43 @@ func (c *FakeCephRBDMirrors) List(ctx context.Context, opts metav1.ListOptions) 
 
 	if obj == nil {
 		return emptyResult, err
+=======
+var cephrbdmirrorsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephrbdmirrors"}
+
+var cephrbdmirrorsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephRBDMirror"}
+
+// Get takes name of the cephRBDMirror, and returns the corresponding cephRBDMirror object, and an error if there is any.
+func (c *FakeCephRBDMirrors) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephRBDMirror, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewGetAction(cephrbdmirrorsResource, c.ns, name), &cephrookiov1.CephRBDMirror{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephRBDMirror), err
+}
+
+// List takes label and field selectors, and returns the list of CephRBDMirrors that match those selectors.
+func (c *FakeCephRBDMirrors) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephRBDMirrorList, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewListAction(cephrbdmirrorsResource, cephrbdmirrorsKind, c.ns, opts), &cephrookiov1.CephRBDMirrorList{})
+
+	if obj == nil {
+		return nil, err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
+<<<<<<< HEAD
 	list := &v1.CephRBDMirrorList{ListMeta: obj.(*v1.CephRBDMirrorList).ListMeta}
 	for _, item := range obj.(*v1.CephRBDMirrorList).Items {
+=======
+	list := &cephrookiov1.CephRBDMirrorList{ListMeta: obj.(*cephrookiov1.CephRBDMirrorList).ListMeta}
+	for _, item := range obj.(*cephrookiov1.CephRBDMirrorList).Items {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -75,13 +120,20 @@ func (c *FakeCephRBDMirrors) List(ctx context.Context, opts metav1.ListOptions) 
 }
 
 // Watch returns a watch.Interface that watches the requested cephRBDMirrors.
+<<<<<<< HEAD
 func (c *FakeCephRBDMirrors) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchActionWithOptions(cephrbdmirrorsResource, c.ns, opts))
+=======
+func (c *FakeCephRBDMirrors) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+	return c.Fake.
+		InvokesWatch(testing.NewWatchAction(cephrbdmirrorsResource, c.ns, opts))
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 }
 
 // Create takes the representation of a cephRBDMirror and creates it.  Returns the server's representation of the cephRBDMirror, and an error, if there is any.
+<<<<<<< HEAD
 func (c *FakeCephRBDMirrors) Create(ctx context.Context, cephRBDMirror *v1.CephRBDMirror, opts metav1.CreateOptions) (result *v1.CephRBDMirror, err error) {
 	emptyResult := &v1.CephRBDMirror{}
 	obj, err := c.Fake.
@@ -109,19 +161,54 @@ func (c *FakeCephRBDMirrors) Update(ctx context.Context, cephRBDMirror *v1.CephR
 func (c *FakeCephRBDMirrors) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
 		Invokes(testing.NewDeleteActionWithOptions(cephrbdmirrorsResource, c.ns, name, opts), &v1.CephRBDMirror{})
+=======
+func (c *FakeCephRBDMirrors) Create(ctx context.Context, cephRBDMirror *cephrookiov1.CephRBDMirror, opts v1.CreateOptions) (result *cephrookiov1.CephRBDMirror, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewCreateAction(cephrbdmirrorsResource, c.ns, cephRBDMirror), &cephrookiov1.CephRBDMirror{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephRBDMirror), err
+}
+
+// Update takes the representation of a cephRBDMirror and updates it. Returns the server's representation of the cephRBDMirror, and an error, if there is any.
+func (c *FakeCephRBDMirrors) Update(ctx context.Context, cephRBDMirror *cephrookiov1.CephRBDMirror, opts v1.UpdateOptions) (result *cephrookiov1.CephRBDMirror, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewUpdateAction(cephrbdmirrorsResource, c.ns, cephRBDMirror), &cephrookiov1.CephRBDMirror{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephRBDMirror), err
+}
+
+// Delete takes name of the cephRBDMirror and deletes it. Returns an error if one occurs.
+func (c *FakeCephRBDMirrors) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+	_, err := c.Fake.
+		Invokes(testing.NewDeleteAction(cephrbdmirrorsResource, c.ns, name), &cephrookiov1.CephRBDMirror{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
+<<<<<<< HEAD
 func (c *FakeCephRBDMirrors) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
 	action := testing.NewDeleteCollectionActionWithOptions(cephrbdmirrorsResource, c.ns, opts, listOpts)
 
 	_, err := c.Fake.Invokes(action, &v1.CephRBDMirrorList{})
+=======
+func (c *FakeCephRBDMirrors) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
+	action := testing.NewDeleteCollectionAction(cephrbdmirrorsResource, c.ns, listOpts)
+
+	_, err := c.Fake.Invokes(action, &cephrookiov1.CephRBDMirrorList{})
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return err
 }
 
 // Patch applies the patch and returns the patched cephRBDMirror.
+<<<<<<< HEAD
 func (c *FakeCephRBDMirrors) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephRBDMirror, err error) {
 	emptyResult := &v1.CephRBDMirror{}
 	obj, err := c.Fake.
@@ -131,4 +218,14 @@ func (c *FakeCephRBDMirrors) Patch(ctx context.Context, name string, pt types.Pa
 		return emptyResult, err
 	}
 	return obj.(*v1.CephRBDMirror), err
+=======
+func (c *FakeCephRBDMirrors) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephRBDMirror, err error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewPatchSubresourceAction(cephrbdmirrorsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephRBDMirror{})
+
+	if obj == nil {
+		return nil, err
+	}
+	return obj.(*cephrookiov1.CephRBDMirror), err
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

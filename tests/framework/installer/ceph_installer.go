@@ -43,6 +43,7 @@ import (
 
 const (
 	// test with the latest releases
+<<<<<<< HEAD
 	quincyTestImage = "quay.io/ceph/ceph:v17"
 	reefTestImage   = "quay.io/ceph/ceph:v18"
 	squidTestImage  = "quay.io/ceph/ceph:v19"
@@ -50,6 +51,13 @@ const (
 	quincyDevelTestImage = "quay.io/ceph/daemon-base:latest-quincy-devel"
 	reefDevelTestImage   = "quay.io/ceph/daemon-base:latest-reef-devel"
 	squidDevelTestImage  = "quay.io/ceph/daemon-base:latest-squid-devel"
+=======
+	reefTestImage  = "quay.io/ceph/ceph:v18"
+	squidTestImage = "quay.io/ceph/ceph:v19"
+	// test with the current development versions
+	reefDevelTestImage  = "quay.io/ceph/daemon-base:latest-reef-devel"
+	squidDevelTestImage = "quay.io/ceph/daemon-base:latest-squid-devel"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	// test with the latest Ceph main image
 	mainTestImage      = "quay.io/ceph/daemon-base:latest-main-devel"
 	cephOperatorLabel  = "app=rook-ceph-operator"
@@ -69,8 +77,11 @@ mon compact on start = true
 )
 
 var (
+<<<<<<< HEAD
 	QuincyVersion                = cephv1.CephVersionSpec{Image: quincyTestImage}
 	QuincyDevelVersion           = cephv1.CephVersionSpec{Image: quincyDevelTestImage}
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	ReefVersion                  = cephv1.CephVersionSpec{Image: reefTestImage}
 	ReefDevelVersion             = cephv1.CephVersionSpec{Image: reefDevelTestImage}
 	SquidVersion                 = cephv1.CephVersionSpec{Image: squidTestImage}
@@ -97,8 +108,11 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 	switch os.Getenv("CEPH_SUITE_VERSION") {
 	case "main":
 		return MainVersion
+<<<<<<< HEAD
 	case "quincy-devel":
 		return QuincyDevelVersion
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	case "reef-devel":
 		return ReefDevelVersion
 	case "squid-devel":

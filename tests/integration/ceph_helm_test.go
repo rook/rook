@@ -70,7 +70,11 @@ func (h *HelmSuite) SetupSuite() {
 		ChangeHostName:       true,
 		ConnectionsEncrypted: true,
 		RookVersion:          installer.LocalBuildTag,
+<<<<<<< HEAD
 		CephVersion:          installer.QuincyVersion,
+=======
+		CephVersion:          installer.ReefVersion,
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	h.settings.ApplyEnvVars()
 	h.installer, h.k8shelper = StartTestCluster(h.T, h.settings)

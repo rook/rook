@@ -331,7 +331,11 @@ func TestRemoveSnapshotSchedules(t *testing.T) {
 			},
 		},
 	}
+<<<<<<< HEAD
 	err := removeSnapshotSchedules(context, AdminTestClusterInfo("mycluster"), pool)
+=======
+	err := removeSnapshotSchedules(context, AdminTestClusterInfo("mycluster"), pool.Name)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	assert.NoError(t, err)
 }
 

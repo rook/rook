@@ -228,7 +228,11 @@ func TestCephFilesystemMirrorController(t *testing.T) {
 		}
 
 		currentAndDesiredCephVersion = func(ctx context.Context, rookImage string, namespace string, jobName string, ownerInfo *k8sutil.OwnerInfo, context *clusterd.Context, cephClusterSpec *cephv1.ClusterSpec, clusterInfo *client.ClusterInfo) (*version.CephVersion, *version.CephVersion, error) {
+<<<<<<< HEAD
 			return &version.Quincy, &version.Reef, nil
+=======
+			return &version.Squid, &version.Reef, nil
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		}
 
 		res, err := r.Reconcile(ctx, req)

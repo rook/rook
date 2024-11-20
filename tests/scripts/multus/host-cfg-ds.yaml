@@ -64,5 +64,9 @@ spec:
               sleep infinity
           resources: {}
           securityContext:
+<<<<<<< HEAD
+=======
+            privileged: true
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
             capabilities:
               add: ["NET_ADMIN"]

@@ -16,12 +16,19 @@ jobs:
   canary-arm64:
     runs-on: [self-hosted, ubuntu-20.04-arm64, ARM64]
     if: github.repository == 'rook/rook'
+<<<<<<< HEAD
     env:
       BLOCK: /dev/sdb
 
     steps:
       - name: checkout
         uses: actions/checkout@v4
+=======
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -31,7 +38,11 @@ jobs:
           use-tmate: ${{ secrets.USE_TMATE }}
 
       - name: setup golang
+<<<<<<< HEAD
         uses: actions/setup-go@v5
+=======
+        uses: actions/setup-go@41dfa10bad2bb2ae585af6ee5bb4d7d973ad74ed # v5.1.0
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           go-version: "1.22"
 
@@ -82,6 +93,10 @@ jobs:
           yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.mgr.disabled" true
           yq write -d0 -i deploy/examples/cluster-test.yaml "spec.healthCheck.livenessProbe.osd.disabled" true
           tests/scripts/github-action-helper.sh deploy_cluster
+<<<<<<< HEAD
+=======
+          tests/scripts/github-action-helper.sh deploy_all_additional_resources_on_cluster
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           # there are no package for arm64 nfs-ganesha
           kubectl delete -f deploy/examples/nfs-test.yaml
 
@@ -91,6 +106,15 @@ jobs:
       - name: wait for ceph to be ready
         run: tests/scripts/github-action-helper.sh wait_for_ceph_to_be_ready "mon,mgr,osd,mds,rgw,rbd_mirror,fs_mirror" 1
 
+<<<<<<< HEAD
+=======
+      - name: collect common logs
+        if: always()
+        uses: ./.github/workflows/collect-logs
+        with:
+          name: canary-arm64
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
       - name: teardown minikube, docker and kubectl
         if: always()
         run: |
@@ -100,11 +124,16 @@ jobs:
           sudo service docker stop
           sudo rm -rf  /usr/local/bin/minikube
           sudo rm -rf /usr/local/bin/kubectl
+<<<<<<< HEAD
+=======
+          sudo modprobe -r nbd
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
       - name: remove /usr/bin/yq
         if: always()
         run: sudo rm -rf /usr/bin/yq
 
+<<<<<<< HEAD
       - name: collect common logs
         if: always()
         uses: ./.github/workflows/collect-logs
@@ -158,12 +187,18 @@ jobs:
           name: ceph-smoke-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   smoke-suite-reef-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -192,7 +227,11 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-smoke-suite-reef-artifact
@@ -203,7 +242,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -232,7 +275,11 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-smoke-suite-squid-artifact
@@ -243,7 +290,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -272,12 +323,17 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-smoke-suite-master-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+<<<<<<< HEAD
   object-suite-quincy-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
@@ -318,12 +374,18 @@ jobs:
           name: ceph-object-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   object-suite-ceph-main:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -352,7 +414,11 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-object-suite-master-artifact
@@ -363,7 +429,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -392,7 +462,11 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-upgrade-suite-squid-artifact
@@ -404,7 +478,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: checkout
+<<<<<<< HEAD
         uses: actions/checkout@v4
+=======
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         with:
           fetch-depth: 0
 
@@ -433,12 +511,17 @@ jobs:
           tests/scripts/collect-logs.sh
 
       - name: Artifact
+<<<<<<< HEAD
         uses: actions/upload-artifact@v4
+=======
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
         if: failure()
         with:
           name: ceph-upgrade-suite-reef-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+<<<<<<< HEAD
   upgrade-from-quincy-stable-to-quincy-devel:
     if: github.repository == 'rook/rook'
     runs-on: ubuntu-22.04
@@ -479,9 +562,15 @@ jobs:
           name: ceph-upgrade-suite-quincy-artifact
           path: /home/runner/work/rook/rook/tests/integration/_output/tests/
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   canary-tests:
     if: github.repository == 'rook/rook'
     uses: ./.github/workflows/canary-integration-test.yml
     with:
+<<<<<<< HEAD
       ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-quincy-devel", "quay.io/ceph/daemon-base:latest-reef-devel", "quay.io/ceph/daemon-base:latest-squid-devel"]'
+=======
+      ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-reef-devel", "quay.io/ceph/daemon-base:latest-squid-devel"]'
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
     secrets: inherit

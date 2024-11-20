@@ -48,7 +48,10 @@ func TestReconcileCSI_createOrUpdateDriverResources(t *testing.T) {
 		opConfig: opcontroller.OperatorConfig{
 			OperatorNamespace: "test",
 		},
+<<<<<<< HEAD
 		clustersWithHolder: []ClusterDetail{},
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	}
 	cluster := &cephv1.CephCluster{
 		ObjectMeta: metav1.ObjectMeta{

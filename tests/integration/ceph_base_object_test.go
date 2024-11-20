@@ -238,8 +238,12 @@ func assertObjectStoreDeletion(t *testing.T, k8sh *utils.K8sHelper, namespace, s
 
 func createCephObjectUser(
 	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+<<<<<<< HEAD
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool) {
+=======
+	namespace, storeName, userID string, checkQuotaAndCaps bool) {
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	maxObjectInt, err := strconv.Atoi(maxObject)
 	assert.Nil(s.T(), err)
@@ -254,14 +258,23 @@ func createCephObjectUser(
 		time.Sleep(5 * time.Second)
 	}
 
+<<<<<<< HEAD
 	checkCephObjectUser(s, helper, k8sh, namespace, storeName, userID, checkPhase, checkQuotaAndCaps)
+=======
+	checkCephObjectUser(s, helper, k8sh, namespace, storeName, userID, checkQuotaAndCaps)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 func checkCephObjectUser(
 	s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper,
+<<<<<<< HEAD
 	namespace, storeName, userID string,
 	checkPhase, checkQuotaAndCaps bool,
 ) {
+=======
+	namespace, storeName, userID string, checkQuotaAndCaps bool) {
+
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	logger.Infof("checking object store \"%s/%s\" user %q", namespace, storeName, userID)
 	assert.True(s.T(), helper.ObjectUserClient.UserSecretExists(namespace, storeName, userID))
 
@@ -270,6 +283,7 @@ func checkCephObjectUser(
 	assert.Equal(s.T(), userID, userInfo.UserID)
 	assert.Equal(s.T(), userdisplayname, *userInfo.DisplayName)
 
+<<<<<<< HEAD
 	if checkPhase {
 		// status.phase doesn't exist before Rook v1.6
 		phase, err := k8sh.GetResource("--namespace", namespace, "cephobjectstoreuser", userID, "--output", "jsonpath={.status.phase}")
@@ -287,6 +301,11 @@ func checkCephObjectUser(
 		assert.Equal(s.T(), int64(maxSizeInt), *userInfo.UserQuota.MaxSize)
 		assert.Equal(s.T(), userCap, userInfo.Caps[0].Perm)
 	}
+=======
+	phase, err := k8sh.GetResource("--namespace", namespace, "cephobjectstoreuser", userID, "--output", "jsonpath={.status.phase}")
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), k8sutil.ReadyStatus, phase)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 func objectStoreCleanUp(s *suite.Suite, helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {

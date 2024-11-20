@@ -94,6 +94,15 @@ func (c *Cluster) getKeyRotationContainer(osdProps osdProperties, volumeMounts [
 			RunAsUser:              &runAsUser,
 			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+<<<<<<< HEAD
+=======
+			Capabilities: &v1.Capabilities{
+				Add: []v1.Capability{},
+				Drop: []v1.Capability{
+					"NET_RAW",
+				},
+			},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		},
 		Resources: osdProps.resources,
 	}
@@ -265,7 +274,11 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 			return errors.Errorf("pvc name label %q for osd %q is empty",
 				OSDOverPVCLabelKey, osdDep.Name)
 		}
+<<<<<<< HEAD
 		osdProps, err := c.getOSDPropsForPVC(pvcName)
+=======
+		osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate config for osd %q", osdDep.Name)
 		}

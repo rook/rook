@@ -139,11 +139,14 @@ data:
   # there is significant drop in read/write performance.
   # CSI_ENABLE_HOST_NETWORK: "true"
 
+<<<<<<< HEAD
   # Deprecation note: Rook uses "holder" pods to allow CSI to connect to the multus public network
   # without needing hosts to the network. Holder pods are being removed. See issue for details:
   # https://github.com/rook/rook/issues/13055. New Rook deployments should set this to "true".
   CSI_DISABLE_HOLDER_PODS: "true"
 
+=======
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   # Set logging level for cephCSI containers maintained by the cephCSI.
   # Supported values from 0 to 5. 0 for general useful logs, 5 for trace level verbosity.
   # CSI_LOG_LEVEL: "0"
@@ -194,7 +197,11 @@ data:
   # The default version of CSI supported by Rook will be started. To change the version
   # of the CSI driver to something other than what is officially supported, change
   # these images to the desired release of the CSI driver.
+<<<<<<< HEAD
   # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.12.3"
+=======
+  # ROOK_CSI_CEPH_IMAGE: "quay.io/cephcsi/cephcsi:v3.12.2"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   # ROOK_CSI_REGISTRAR_IMAGE: "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1"
   # ROOK_CSI_RESIZER_IMAGE: "registry.k8s.io/sig-storage/csi-resizer:v1.11.1"
   # ROOK_CSI_PROVISIONER_IMAGE: "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1"
@@ -555,7 +562,11 @@ data:
   CSI_ENABLE_CSIADDONS: "false"
   # Enable watch for faster recovery from rbd rwo node loss
   ROOK_WATCH_FOR_NODE_FAILURE: "true"
+<<<<<<< HEAD
   # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.9.1"
+=======
+  # ROOK_CSIADDONS_IMAGE: "quay.io/csiaddons/k8s-sidecar:v0.10.0"
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
   # The GCSI RPC timeout value (in seconds). It should be >= 120. If this variable is not set or is an invalid value, it's default to 150.
   CSI_GRPC_TIMEOUT_SECONDS: "150"
 
@@ -676,7 +687,11 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
         - name: rook-ceph-operator
+<<<<<<< HEAD
           image: docker.io/rook/ceph:v1.15.6
+=======
+          image: docker.io/rook/ceph:master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           args: ["ceph", "operator"]
           securityContext:
             runAsNonRoot: true

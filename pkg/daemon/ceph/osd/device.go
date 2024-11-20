@@ -94,5 +94,9 @@ func (d *DesiredDevice) UpdateDeviceClass(agent *OsdAgent, device *sys.LocalDisk
 		}
 	}
 
+<<<<<<< HEAD
 	d.DeviceClass = sys.GetDiskDeviceType(device)
+=======
+	d.DeviceClass = sys.GetDiskDeviceClass(device)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }

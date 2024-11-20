@@ -24,7 +24,11 @@ import (
 )
 
 func TestToString(t *testing.T) {
+<<<<<<< HEAD
 	assert.Equal(t, "17.0.0-0 quincy", Quincy.String())
+=======
+	assert.Equal(t, "19.0.0-0 squid", Squid.String())
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	received := CephVersion{-1, 0, 0, 0, ""}
 	expected := fmt.Sprintf("-1.0.0-0 %s", unknownVersionString)
@@ -32,11 +36,19 @@ func TestToString(t *testing.T) {
 }
 
 func TestCephVersionFormatted(t *testing.T) {
+<<<<<<< HEAD
 	assert.Equal(t, "ceph version 17.0.0-0 quincy", Quincy.CephVersionFormatted())
 }
 
 func TestReleaseName(t *testing.T) {
 	assert.Equal(t, "quincy", Quincy.ReleaseName())
+=======
+	assert.Equal(t, "ceph version 19.0.0-0 squid", Squid.CephVersionFormatted())
+}
+
+func TestReleaseName(t *testing.T) {
+	assert.Equal(t, "squid", Squid.ReleaseName())
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	ver := CephVersion{-1, 0, 0, 0, ""}
 	assert.Equal(t, unknownVersionString, ver.ReleaseName())
 }
@@ -79,7 +91,11 @@ ceph version 18.1.33-403-g7ba6bece41
 	v2d := `
 bin/ceph --version
 *** DEVELOPER MODE: setting PATH, PYTHONPATH and LD_LIBRARY_PATH ***
+<<<<<<< HEAD
 ceph version Development (no_version) quincy (rc)
+=======
+ceph version Development (no_version) reef (rc)
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 `
 	v, err := ExtractCephVersion(v2c)
 	assert.Error(t, err)
@@ -105,6 +121,7 @@ func TestSupported(t *testing.T) {
 }
 
 func TestIsRelease(t *testing.T) {
+<<<<<<< HEAD
 	assert.True(t, Quincy.isRelease(Quincy))
 	assert.True(t, Reef.isRelease(Reef))
 
@@ -122,6 +139,26 @@ func TestIsReleaseX(t *testing.T) {
 
 func TestVersionAtLeast(t *testing.T) {
 	assert.True(t, Quincy.IsAtLeast(Quincy))
+=======
+	assert.True(t, Reef.isRelease(Reef))
+	assert.True(t, Squid.isRelease(Squid))
+
+	assert.False(t, Reef.isRelease(Squid))
+
+	ReefUpdate := Reef
+	ReefUpdate.Minor = 33
+	ReefUpdate.Extra = 4
+	assert.True(t, ReefUpdate.isRelease(Reef))
+}
+
+func TestIsReleaseX(t *testing.T) {
+	assert.False(t, Squid.IsReef())
+}
+
+func TestVersionAtLeast(t *testing.T) {
+	assert.True(t, Squid.IsAtLeast(Squid))
+	assert.True(t, Squid.IsAtLeast(Reef))
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 
 	assert.True(t, (&CephVersion{1, 0, 0, 0, ""}).IsAtLeast(CephVersion{0, 0, 0, 0, ""}))
 	assert.False(t, (&CephVersion{0, 0, 0, 0, ""}).IsAtLeast(CephVersion{1, 0, 0, 0, ""}))
@@ -133,8 +170,13 @@ func TestVersionAtLeast(t *testing.T) {
 }
 
 func TestVersionAtLeastX(t *testing.T) {
+<<<<<<< HEAD
 	assert.True(t, Quincy.IsAtLeastQuincy())
 	assert.False(t, Quincy.IsAtLeastReef())
+=======
+	assert.True(t, Reef.IsAtLeastReef())
+	assert.False(t, Reef.IsAtLeastSquid())
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 }
 
 func TestIsIdentical(t *testing.T) {
@@ -205,7 +247,11 @@ func TestCephVersion_Unsupported(t *testing.T) {
 		fields fields
 		want   bool
 	}{
+<<<<<<< HEAD
 		{"quincy", fields{Major: 17, Minor: 2, Extra: 0, Build: 0}, false},
+=======
+		{"squid", fields{Major: 19, Minor: 2, Extra: 0, Build: 0}, false},
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 		{"reef", fields{Major: 18, Minor: 2, Extra: 0, Build: 0}, false},
 	}
 	for _, tt := range tests {

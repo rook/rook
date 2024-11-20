@@ -44,6 +44,13 @@ spec:
             - name: ADDRESS
               value: /csi/csi-provisioner.sock
           imagePullPolicy: {{ .ImagePullPolicy }}
+<<<<<<< HEAD
+=======
+          securityContext:
+            capabilities:
+              add: []
+              drop: ["ALL"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -71,6 +78,13 @@ spec:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: {{ .ImagePullPolicy }}
+<<<<<<< HEAD
+=======
+          securityContext:
+            capabilities:
+              add: []
+              drop: ["ALL"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -98,6 +112,13 @@ spec:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: {{ .ImagePullPolicy }}
+<<<<<<< HEAD
+=======
+          securityContext:
+            capabilities:
+              add: []
+              drop: ["ALL"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           volumeMounts:
             - name: socket-dir
               mountPath: /csi
@@ -125,6 +146,13 @@ spec:
             - name: ADDRESS
               value: unix:///csi/csi-provisioner.sock
           imagePullPolicy: {{ .ImagePullPolicy }}
+<<<<<<< HEAD
+=======
+          securityContext:
+            capabilities:
+              add: []
+              drop: ["ALL"]
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           volumeMounts:
             - name: socket-dir
               mountPath: /csi

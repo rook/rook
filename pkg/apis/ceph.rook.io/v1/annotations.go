@@ -110,6 +110,7 @@ func (a Annotations) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 // original Annotations with the attributes of the supplied one. The supplied
 // Annotation attributes will override the original ones if defined.
 func (a Annotations) Merge(with map[string]string) Annotations {
+<<<<<<< HEAD
 	// Create a new map of type Annotations to hold the merged results
 	ret := Annotations{}
 
@@ -125,5 +126,16 @@ func (a Annotations) Merge(with map[string]string) Annotations {
 		}
 	}
 
+=======
+	ret := a
+	if ret == nil {
+		ret = map[string]string{}
+	}
+	for k, v := range with {
+		if _, ok := ret[k]; !ok {
+			ret[k] = v
+		}
+	}
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
 	return ret
 }

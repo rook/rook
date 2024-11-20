@@ -10,7 +10,11 @@ spec:
     spec:
       initContainers:
         - name: config-init
+<<<<<<< HEAD
           image: docker.io/rook/ceph:v1.15.6
+=======
+          image: docker.io/rook/ceph:master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           command: ["/usr/local/bin/toolbox.sh"]
           args: ["--skip-watch"]
           imagePullPolicy: IfNotPresent
@@ -29,7 +33,11 @@ spec:
               mountPath: /var/lib/rook-ceph-mon
       containers:
         - name: script
+<<<<<<< HEAD
           image: docker.io/rook/ceph:v1.15.6
+=======
+          image: docker.io/rook/ceph:master
+>>>>>>> fc08e87d4 (Revert "object: create cosi user for each object store")
           volumeMounts:
             - mountPath: /etc/ceph
               name: ceph-config
