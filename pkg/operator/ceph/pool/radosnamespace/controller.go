@@ -57,8 +57,6 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", controllerName)
 
 var poolNamespace = reflect.TypeOf(cephv1.CephBlockPoolRadosNamespace{}).Name()
 
-var detectCephVersion = opcontroller.DetectCephVersion
-
 // Sets the type meta for the controller main object
 var controllerTypeMeta = metav1.TypeMeta{
 	Kind:       poolNamespace,
@@ -195,21 +193,7 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		return reconcile.Result{}, errors.Wrap(err, "failed to populate cluster info")
 	}
 	r.clusterInfo.Context = r.opManagerContext
-	cephversion, err := detectCephVersion(
-		r.opManagerContext,
-		r.opConfig.Image,
-		cephBlockPoolRadosNamespace.Namespace,
-		controllerName,
-		k8sutil.NewOwnerInfo(cephBlockPoolRadosNamespace, r.scheme),
-		r.context.Clientset,
-		&cephCluster.Spec,
-	)
-	if err != nil {
-		return reconcile.Result{}, errors.Wrap(err, "failed to detect ceph version")
-	}
-	if cephversion != nil {
-		r.clusterInfo.CephVersion = *cephversion
-	}
+
 	// DELETE: the CR was deleted
 	if !cephBlockPoolRadosNamespace.GetDeletionTimestamp().IsZero() {
 		logger.Debugf("delete cephBlockPoolRadosNamespace %q", namespacedName)
@@ -258,6 +242,19 @@ func (r *ReconcileCephBlockPoolRadosNamespace) reconcile(request reconcile.Reque
 		r.updateStatus(r.client, namespacedName, cephv1.ConditionReady)
 		return reconcile.Result{}, nil
 	}
+
+	// cephversion check is only required for enabling mirroring
+	if cephBlockPoolRadosNamespace.Spec.Mirroring != nil {
+		// Get CephCluster version
+		cephVersion, err := opcontroller.GetImageVersion(cephCluster)
+		if err != nil {
+			return opcontroller.ImmediateRetryResult, errors.Wrapf(err, "failed to fetch ceph version from cephcluster %q running in namespace %q", cephCluster.Name, cephCluster.Namespace)
+		}
+		if cephVersion != nil {
+			r.clusterInfo.CephVersion = *cephVersion
+		}
+	}
+
 	// Build the NamespacedName to fetch the CephBlockPool and make sure it exists, if not we cannot
 	// create the rados namespace
 	cephBlockPool := &cephv1.CephBlockPool{}

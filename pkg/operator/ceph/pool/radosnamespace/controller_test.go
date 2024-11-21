@@ -27,8 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/csi"
-	"github.com/rook/rook/pkg/operator/ceph/version"
-	cephver "github.com/rook/rook/pkg/operator/ceph/version"
+
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -39,7 +38,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -122,14 +120,15 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 		},
 		Spec: cephv1.ClusterSpec{
 			CephVersion: cephv1.CephVersionSpec{
-				Image:           "ceph/ceph:v14.2.9",
+				Image:           "ceph/ceph:v20.0.0",
 				ImagePullPolicy: v1.PullIfNotPresent,
 			},
 		},
 		Status: cephv1.ClusterStatus{
 			Phase: "",
 			CephVersion: &cephv1.ClusterVersion{
-				Version: "14.2.9-0",
+				Version: "20.0.0-0",
+				Image:   "ceph/ceph:v20.0.0",
 			},
 			CephStatus: &cephv1.CephStatus{
 				Health: "",
@@ -225,9 +224,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &version.Reef, nil
-		}
 
 		// Enable CSI
 		csi.EnableRBD = true
@@ -274,9 +270,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			context:          c,
 			opManagerContext: ctx,
 			opConfig:         opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
-		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &version.Reef, nil
 		}
 
 		// Enable CSI
@@ -345,9 +338,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &version.Reef, nil
-		}
 
 		res, err := r.Reconcile(ctx, req)
 		assert.Error(t, err)
@@ -394,16 +384,14 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &version.Reef, nil
-		}
 
 		res, err := r.Reconcile(ctx, req)
-		assert.Error(t, err)
+		assert.NoError(t, err)
 		assert.False(t, res.Requeue)
 	})
 
 	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and non empty rados namespace but less ceph version", func(t *testing.T) {
+		cephCluster.Status.CephVersion.Version = "14.2.9"
 		remoteNamespace := "test-1"
 		cephBlockPoolRadosNamespace.Spec.Mirroring = &cephv1.RadosNamespaceMirroring{
 			RemoteNamespace: &remoteNamespace,
@@ -446,13 +434,11 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
 		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &version.Reef, nil
-		}
 
 		res, err := r.Reconcile(ctx, req)
 		assert.Error(t, err)
 		assert.False(t, res.Requeue)
+		cephCluster.Status.CephVersion.Version = "20.0.0"
 	})
 
 	t.Run("test rbd rados namespace mirroring enabled and blockpool mirroring is also enabled and non empty rados namespace and correct ceph version", func(t *testing.T) {
@@ -497,9 +483,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -552,9 +535,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &cephver.CephVersion{Major: 20, Minor: 0, Extra: 0}, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)
@@ -611,9 +591,6 @@ func TestCephBlockPoolRadosNamespaceController(t *testing.T) {
 			opManagerContext:       context.TODO(),
 			opConfig:               opcontroller.OperatorConfig{Image: "ceph/ceph:v14.2.9"},
 			radosNamespaceContexts: make(map[string]*mirrorHealth),
-		}
-		detectCephVersion = func(ctx context.Context, rookImage, namespace, jobName string, ownerInfo *k8sutil.OwnerInfo, clientset kubernetes.Interface, cephClusterSpec *cephv1.ClusterSpec) (*cephver.CephVersion, error) {
-			return &version.Reef, nil
 		}
 
 		res, err := r.Reconcile(ctx, req)
