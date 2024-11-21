@@ -25,6 +25,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
+	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/test"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -130,6 +131,24 @@ func TestCephObjectZoneController(t *testing.T) {
 	name := "zone-a"
 	zonegroup := "zonegroup-a"
 	namespace := "rook-ceph"
+
+	createPoolsCalled := false
+	createObjectStorePoolsFunc = func(context *object.Context, cluster *cephv1.ClusterSpec, metadataPool, dataPool cephv1.PoolSpec) error {
+		createPoolsCalled = true
+		return nil
+	}
+	defer func() {
+		createObjectStorePoolsFunc = object.CreateObjectStorePools
+	}()
+
+	commitChangesCalled := false
+	commitConfigChangesFunc = func(c *object.Context) error {
+		commitChangesCalled = true
+		return nil
+	}
+	defer func() {
+		commitConfigChangesFunc = object.CommitConfigChanges
+	}()
 
 	//
 	// TEST 1 SETUP
@@ -356,9 +375,13 @@ func TestCephObjectZoneController(t *testing.T) {
 		},
 	}
 
+	assert.False(t, createPoolsCalled)
+	assert.False(t, commitChangesCalled)
 	res, err = r.Reconcile(ctx, req)
 	assert.NoError(t, err)
 	assert.False(t, res.Requeue)
 	err = r.client.Get(context.TODO(), req.NamespacedName, objectZone)
 	assert.NoError(t, err)
+	assert.True(t, createPoolsCalled)
+	assert.True(t, commitChangesCalled)
 }
