@@ -401,23 +401,27 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		}
 	}
 
-	s3Enabled, err := c.CheckRGWSSES3Enabled()
+	if flags := buildRGWConfigFlags(c.store); len(flags) != 0 {
+		container.Args = append(container.Args, flags...)
+	}
+
+	s3EncryptionEnabled, err := c.CheckRGWSSES3Enabled()
 	if err != nil {
 		return v1.Container{}, err
 	}
-	if s3Enabled {
+	if s3EncryptionEnabled {
 		logger.Debugf("enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
 
-		container.Args = append(container.Args, c.sseS3DefaultOptions(s3Enabled)...)
+		container.Args = append(container.Args, c.sseS3DefaultOptions(s3EncryptionEnabled)...)
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
-			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3Enabled)...)
+			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3EncryptionEnabled)...)
 		}
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTLSEnabled() {
-			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3Enabled)...)
+			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3EncryptionEnabled)...)
 		}
 	}
 
-	if s3Enabled || kmsEnabled {
+	if s3EncryptionEnabled || kmsEnabled {
 		vaultVolMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
 		container.VolumeMounts = append(container.VolumeMounts, vaultVolMount)
 	}
@@ -902,6 +906,46 @@ func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
 		}
 	}
 	return rgwOptions
+}
+
+// Builds list of rgw config parameters which should be passed as CLI flags.
+// Consider set config option as flag if BOTH criterias fullfilled:
+//  1. config value is not secret
+//  2. config change requires RGW daemon restart
+//
+// Otherwise set rgw config parameter to mon database in ./config.go -> setFlagsMonConfigStore()
+// CLI falgs override values from mon db: see ceph config docs: https://docs.ceph.com/en/latest/rados/configuration/ceph-conf/#config-sources
+func buildRGWConfigFlags(objectStore *cephv1.CephObjectStore) []string {
+	var res []string
+	// todo: move all flags here
+	if enableAPIs := buildRGWEnableAPIsConfigVal(objectStore.Spec.Protocols); enableAPIs != "" {
+		res = append(res, cephconfig.NewFlag("rgw_enable_apis", enableAPIs))
+		logger.Debugf("Enabling APIs for RGW instance %q: %s", objectStore.Name, enableAPIs)
+	}
+	return res
+}
+
+func buildRGWEnableAPIsConfigVal(protocolSpec cephv1.ProtocolSpec) string {
+	if len(protocolSpec.EnableAPIs) != 0 {
+		// handle explicit enabledAPIS spec
+		enabledAPIs := make([]string, len(protocolSpec.EnableAPIs))
+		for i, v := range protocolSpec.EnableAPIs {
+			enabledAPIs[i] = strings.TrimSpace(string(v))
+		}
+		return strings.Join(enabledAPIs, ",")
+	}
+
+	// if enabledAPIs not set, check if S3 should be disabled
+	if protocolSpec.S3 != nil && protocolSpec.S3.Enabled != nil && !*protocolSpec.S3.Enabled {
+		return "s3website,swift,swift_auth,admin,sts,iam,notifications"
+	}
+	// see also https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings on disabling s3
+	// when using '/' as prefix
+	if protocolSpec.Swift != nil && protocolSpec.Swift.UrlPrefix != nil && *protocolSpec.Swift.UrlPrefix == "/" {
+		logger.Warning("Forcefully disabled S3 as the swift prefix is given as a slash /. Ignoring any S3 options (including Enabled=true)!")
+		return "s3website,swift,swift_auth,admin,sts,iam,notifications"
+	}
+	return ""
 }
 
 func renderProbe(cfg rgwProbeConfig) (string, error) {

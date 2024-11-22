@@ -18,7 +18,9 @@ package object
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/pkg/errors"
@@ -1148,6 +1150,178 @@ func TestGetHostnameFromEndpoint(t *testing.T) {
 			}
 			assert.Equal(t, tt.expected, res)
 
+		})
+	}
+}
+
+func strPtr(in string) *string {
+	return &in
+}
+
+func Test_buildRGWEnableAPIsConfigVal(t *testing.T) {
+	type args struct {
+		protocolSpec cephv1.ProtocolSpec
+	}
+	tests := []struct {
+		name string
+		args args
+		want string
+	}{
+		{
+			name: "nothing set",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{},
+			},
+			want: "",
+		},
+		{
+			name: "only admin enabled",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					EnableAPIs: []cephv1.ObjectStoreAPI{
+						"admin",
+					},
+				},
+			},
+			want: "admin",
+		},
+		{
+			name: "admin and s3 enabled",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					EnableAPIs: []cephv1.ObjectStoreAPI{
+						"admin",
+						"s3",
+					},
+				},
+			},
+			want: "admin,s3",
+		},
+		{
+			name: "whitespaces trimmed",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					EnableAPIs: []cephv1.ObjectStoreAPI{
+						" s3 ",
+						" swift ",
+					},
+				},
+			},
+			want: "s3,swift",
+		},
+		{
+			name: "s3 disabled",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					S3: &cephv1.S3Spec{
+						Enabled: new(bool),
+					},
+				},
+			},
+			want: "s3website,swift,swift_auth,admin,sts,iam,notifications",
+		},
+		{
+			name: "s3 disabled when swift prefix is '/'",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					Swift: &cephv1.SwiftSpec{
+						UrlPrefix: strPtr("/"),
+					},
+				},
+			},
+			want: "s3website,swift,swift_auth,admin,sts,iam,notifications",
+		},
+		{
+			name: "s3 is not disabled when swift prefix is not '/'",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					Swift: &cephv1.SwiftSpec{
+						UrlPrefix: strPtr("object/"),
+					},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "enableAPIs overrides s3 option",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					EnableAPIs: []cephv1.ObjectStoreAPI{
+						" s3 ",
+						" swift ",
+					},
+					S3: &cephv1.S3Spec{
+						Enabled: new(bool),
+					},
+				},
+			},
+			want: "s3,swift",
+		},
+		{
+			name: "enableAPIs overrides swift prefix option",
+			args: args{
+				protocolSpec: cephv1.ProtocolSpec{
+					EnableAPIs: []cephv1.ObjectStoreAPI{
+						" s3 ",
+						" swift ",
+					},
+					Swift: &cephv1.SwiftSpec{
+						UrlPrefix: strPtr("/"),
+					},
+				},
+			},
+			want: "s3,swift",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildRGWEnableAPIsConfigVal(tt.args.protocolSpec); got != tt.want {
+				t.Errorf("buildRGWEnableAPIsConfigVal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_buildRGWConfigFlags(t *testing.T) {
+	type args struct {
+		objectStore *cephv1.CephObjectStore
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "nothing set",
+			args: args{
+				objectStore: &cephv1.CephObjectStore{},
+			},
+			want: nil,
+		},
+		{
+			name: "enabled APIs set",
+			args: args{
+				objectStore: &cephv1.CephObjectStore{
+					Spec: cephv1.ObjectStoreSpec{
+						Protocols: cephv1.ProtocolSpec{
+							EnableAPIs: []cephv1.ObjectStoreAPI{
+								"swift",
+								"admin",
+							},
+						},
+					},
+				},
+			},
+			want: []string{
+				"--rgw-enable-apis=swift,admin",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := buildRGWConfigFlags(tt.args.objectStore); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("buildRGWConfigFlags() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }
