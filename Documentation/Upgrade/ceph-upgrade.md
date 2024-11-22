@@ -42,7 +42,7 @@ These images are tagged in a few ways:
 * The most explicit form of tags are full-ceph-version-and-build tags (e.g., `v19.2.0-20240927`).
     These tags are recommended for production clusters, as there is no possibility for the cluster to
     be heterogeneous with respect to the version of Ceph running in containers.
-* Ceph major version tags (e.g., `v18`) are useful for development and test clusters so that the
+* Ceph major version tags (e.g., `v19`) are useful for development and test clusters so that the
     latest version of Ceph is always available.
 
 **Ceph containers other than the official images from the registry above will not be supported.**

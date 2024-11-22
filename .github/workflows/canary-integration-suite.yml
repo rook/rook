@@ -31,5 +31,5 @@ jobs:
   canary-tests:
     uses: ./.github/workflows/canary-integration-test.yml
     with:
-      ceph_images: '["quay.io/ceph/ceph:v18"]'
+      ceph_images: '["quay.io/ceph/ceph:v19"]'
     secrets: inherit
