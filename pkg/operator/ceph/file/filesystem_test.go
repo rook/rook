@@ -63,7 +63,7 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing metadata pool
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
-	fs.Spec.MetadataPool = p
+	fs.Spec.MetadataPool.PoolSpec = p
 
 	// missing mds count
 	assert.NotNil(t, validateFilesystem(context, clusterInfo, clusterSpec, fs))
@@ -108,6 +108,26 @@ func TestGenerateDataPoolNames(t *testing.T) {
 	}
 
 	expectedNames := []string{"fake-data0", "fake-somename"}
+	names := generateDataPoolNames(fs, fsSpec)
+	assert.Equal(t, expectedNames, names)
+}
+
+func TestPreservePoolNames(t *testing.T) {
+	fs := &Filesystem{Name: "fake", Namespace: "fake"}
+	fsSpec := cephv1.FilesystemSpec{
+		DataPools: []cephv1.NamedPoolSpec{
+			{
+				PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			},
+			{
+				Name:     "somename",
+				PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			},
+		},
+		PreservePoolNames: true,
+	}
+
+	expectedNames := []string{"fake-data0", "somename"}
 	names := generateDataPoolNames(fs, fsSpec)
 	assert.Equal(t, expectedNames, names)
 }
@@ -325,7 +345,9 @@ func fsTest(fsName string) cephv1.CephFilesystem {
 	return cephv1.CephFilesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: fsName, Namespace: "ns"},
 		Spec: cephv1.FilesystemSpec{
-			MetadataPool: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			MetadataPool: cephv1.NamedPoolSpec{
+				PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
+			},
 			DataPools: []cephv1.NamedPoolSpec{
 				{
 					PoolSpec: cephv1.PoolSpec{Replicated: cephv1.ReplicatedSpec{Size: 1, RequireSafeReplicaSize: false}},
