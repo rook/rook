@@ -1158,10 +1158,17 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 
 		if !skipDeviceClass {
 			diskInfo, err := clusterd.PopulateDeviceInfo(blockPath, context.Executor)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
+			crushDeviceClass := os.Getenv(oposd.CrushDeviceClassVarName)
+			if crushDeviceClass != "" {
+				osd.DeviceClass = crushDeviceClass
 			}
-			osd.DeviceClass = sys.GetDiskDeviceClass(diskInfo)
+
+			if osd.DeviceClass == "" {
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
+				}
+				osd.DeviceClass = sys.GetDiskDeviceClass(diskInfo)
+			}
 			logger.Infof("setting device class %q for device %q", osd.DeviceClass, diskInfo.Name)
 		}
 
