@@ -16,7 +16,7 @@
 
 set -xEo pipefail
 
-CSIADDONS_VERSION="v0.10.0"
+CSIADDONS_VERSION="v0.11.0"
 CSIADDONS_CRD_NAME="csiaddonsnodes.csiaddons.openshift.io"
 CSIADDONS_CONTAINER_NAME="csi-addons"
 
