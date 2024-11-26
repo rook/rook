@@ -197,12 +197,21 @@ func TestListDevicesChildListDevicesChild(t *testing.T) {
 	assert.Equal(t, 3, len(child))
 }
 
-func TestGetDiskDeviceClass(t *testing.T) {
+func TestGetDiskDeviceType(t *testing.T) {
 	d := &LocalDisk{}
-	assert.Equal(t, "ssd", GetDiskDeviceClass(d))
+	assert.Equal(t, "ssd", GetDiskDeviceType(d))
 	d.Rotational = true
-	assert.Equal(t, "hdd", GetDiskDeviceClass(d))
+	assert.Equal(t, "hdd", GetDiskDeviceType(d))
 	d.Rotational = false
 	d.RealPath = "nvme"
-	assert.Equal(t, "nvme", GetDiskDeviceClass(d))
+	assert.Equal(t, "nvme", GetDiskDeviceType(d))
+}
+
+func TestGetDiskDeviceClass(t *testing.T) {
+	t.Setenv("ROOK_OSD_CRUSH_DEVICE_CLASS", "test")
+	assert.Equal(t, "test", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "hdd"))
+	t.Setenv("ROOK_OSD_CRUSH_DEVICE_CLASS", "test1")
+	assert.Equal(t, "test1", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "hdd"))
+	t.Setenv("ROOK_OSD_CRUSH_DEVICE_CLASS", "")
+	assert.Equal(t, "nvme", GetDiskDeviceClass("ROOK_OSD_CRUSH_DEVICE_CLASS", "nvme"))
 }
