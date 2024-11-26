@@ -73,6 +73,7 @@ const (
 	bluestorePVCData               = "data"
 	deviceClass                    = "device-class"
 	osdStore                       = "osd-store"
+	deviceType                     = "device-type"
 )
 
 // Cluster keeps track of the OSDs
@@ -121,6 +122,7 @@ type OSDInfo struct {
 	ExportService    bool   `json:"exportService"`
 	NodeName         string `json:"nodeName"`
 	PVCName          string `json:"pvcName"`
+	DeviceType       string `json:"device-type"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
