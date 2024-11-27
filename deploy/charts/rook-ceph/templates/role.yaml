@@ -74,7 +74,7 @@ rules:
 {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
-    verbs: ["get", "create", "update"]
+    verbs: ["get", "create", "update", "delete"]
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]
@@ -95,7 +95,7 @@ metadata:
 rules:
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
-    verbs: ["get", "create", "update"]
+    verbs: ["get", "create", "update", "delete"]
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]
@@ -119,7 +119,7 @@ rules:
   {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
   - apiGroups: ["csiaddons.openshift.io"]
     resources: ["csiaddonsnodes"]
-    verbs: ["get", "create", "update"]
+    verbs: ["get", "create", "update", "delete"]
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get"]
