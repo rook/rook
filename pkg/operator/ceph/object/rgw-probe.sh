@@ -4,7 +4,6 @@ PROBE_TYPE="{{ .ProbeType }}"
 PROBE_PORT="{{ .Port }}"
 PROBE_PROTOCOL="{{ .Protocol }}"
 PROBE_PATH="{{ .Path }}"
-PROBE_OK_CODE="{{ .OKCode }}"
 
 # standard bash codes start at 126 and progress upward. pick error codes from 125 downward for
 # script as to allow curl to output new error codes and still return a distinctive number.
@@ -43,10 +42,6 @@ RGW_MISCONFIGURATION_RESPONSE=500
 
 if [[ $http_response -ge 200 ]] && [[ $http_response -lt 400 ]]; then
   # 200-399 are successful responses. same behavior as Kubernetes' HTTP probe
-  exit 0
-
-elif [[ $PROBE_OK_CODE -ne 0 ]] && [[ $http_response -eq $PROBE_OK_CODE ]]; then
-  # check custom probe return code if set
   exit 0
 
 elif [[ $http_response -eq $RGW_RATE_LIMITING_RESPONSE ]]; then

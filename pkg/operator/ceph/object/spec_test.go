@@ -1330,10 +1330,10 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 		protocolSpec cephv1.ProtocolSpec
 	}
 	tests := []struct {
-		name     string
-		args     args
-		wantPath string
-		wantCode int
+		name        string
+		args        args
+		wantPath    string
+		wantDisable bool
 	}{
 		{
 			name: "all apis enabled - return s3 probe",
@@ -1344,8 +1344,8 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					Swift:      &cephv1.SwiftSpec{},
 				},
 			},
-			wantPath: "",
-			wantCode: 0,
+			wantPath:    "",
+			wantDisable: false,
 		},
 		{
 			name: "s3 disabled - return default swift probe",
@@ -1358,8 +1358,8 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					Swift: &cephv1.SwiftSpec{},
 				},
 			},
-			wantPath: "/swift/info",
-			wantCode: 0,
+			wantPath:    "/swift/info",
+			wantDisable: false,
 		},
 		{
 			name: "s3 disabled in api list - return default swift probe",
@@ -1371,8 +1371,8 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					},
 				},
 			},
-			wantPath: "/swift/info",
-			wantCode: 0,
+			wantPath:    "/swift/info",
+			wantDisable: false,
 		},
 		{
 			name: "s3 disabled - return swift with custom prefix probe",
@@ -1387,8 +1387,8 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					},
 				},
 			},
-			wantPath: "/some-path/info",
-			wantCode: 0,
+			wantPath:    "/some-path/info",
+			wantDisable: false,
 		},
 		{
 			name: "s3 disabled - return swift with root prefix probe",
@@ -1399,11 +1399,11 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					},
 				},
 			},
-			wantPath: "/info",
-			wantCode: 0,
+			wantPath:    "/info",
+			wantDisable: false,
 		},
 		{
-			name: "s3 and swift disabled - return admin probe",
+			name: "s3 and swift disabled - disable probe",
 			args: args{
 				protocolSpec: cephv1.ProtocolSpec{
 					EnableAPIs: []cephv1.ObjectStoreAPI{
@@ -1411,11 +1411,11 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					},
 				},
 			},
-			wantPath: "/admin/info",
-			wantCode: 403,
+			wantPath:    "",
+			wantDisable: true,
 		},
 		{
-			name: "no suitable api enabled - fallback to s3 probe",
+			name: "no suitable api enabled - disable probe",
 			args: args{
 				protocolSpec: cephv1.ProtocolSpec{
 					EnableAPIs: []cephv1.ObjectStoreAPI{
@@ -1423,18 +1423,18 @@ func Test_getRGWProbePathAndCode(t *testing.T) {
 					},
 				},
 			},
-			wantPath: "",
-			wantCode: 0,
+			wantPath:    "",
+			wantDisable: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotPath, gotCode := getRGWProbePathAndCode(tt.args.protocolSpec)
+			gotPath, gotDisable := getRGWProbePath(tt.args.protocolSpec)
 			if gotPath != tt.wantPath {
-				t.Errorf("getRGWProbePathAndCode() gotPath = %v, want %v", gotPath, tt.wantPath)
+				t.Errorf("getRGWProbePath() gotPath = %v, want %v", gotPath, tt.wantPath)
 			}
-			if gotCode != tt.wantCode {
-				t.Errorf("getRGWProbePathAndCode() gotCode = %v, want %v", gotCode, tt.wantCode)
+			if gotDisable != tt.wantDisable {
+				t.Errorf("getRGWProbePath() gotDisable = %v, want %v", gotDisable, tt.wantDisable)
 			}
 		})
 	}

@@ -93,7 +93,6 @@ type rgwProbeConfig struct {
 	Protocol ProtocolType
 	Port     string
 	Path     string
-	OKCode   int
 }
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
@@ -468,13 +467,18 @@ func noLivenessProbe() *v1.Probe {
 }
 
 func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
+	probePath, disableProbe := getRGWProbePath(c.store.Spec.Protocols)
+	if disableProbe {
+		logger.Infof("disabling startup probe for %q store", c.store.Name)
+		return nil, nil
+	}
 	proto, port := c.endpointInfo()
 	cfg := rgwProbeConfig{
 		ProbeType: ReadinessProbeType,
 		Protocol:  proto,
 		Port:      port.String(),
+		Path:      probePath,
 	}
-	cfg.Path, cfg.OKCode = getRGWProbePathAndCode(c.store.Spec.Protocols)
 	script, err := renderProbe(cfg)
 	if err != nil {
 		return nil, err
@@ -499,16 +503,17 @@ func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
 	return probe, nil
 }
 
-func getRGWProbePathAndCode(protocolSpec cephv1.ProtocolSpec) (string, int) {
+// getRGWProbePath - returns custom path for RGW probe and returns true if probe should be disabled.
+func getRGWProbePath(protocolSpec cephv1.ProtocolSpec) (path string, disable bool) {
 	enabledAPIs := buildRGWEnableAPIsConfigVal(protocolSpec)
 	if len(enabledAPIs) == 0 {
 		// all apis including s3 are enabled
 		// using default s3 Probe
-		return "", 0
+		return "", false
 	}
 	if slices.Contains(enabledAPIs, "s3") {
 		// using default s3 Probe
-		return "", 0
+		return "", false
 	}
 	if slices.Contains(enabledAPIs, "swift") {
 		// using swift api for probe
@@ -524,25 +529,26 @@ func getRGWProbePathAndCode(protocolSpec cephv1.ProtocolSpec) (string, int) {
 			}
 		}
 		prefix += "info"
-		return prefix, 0
+		return prefix, false
 	}
-	if slices.Contains(enabledAPIs, "admin") {
-		// using admin-ops api for probe
-		// check that admin ops info responds with 403 - Forbidden because all admin endpoinds secured
-		return "/admin/info", 403
-	}
-	logger.Warningf("no suitable for probe api enabled %v. Fallback to s3 probe", enabledAPIs)
-	return "", 0
+	// both swift and s3 are disabled - disable probe.
+	return "", true
 }
 
 func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
+	probePath, disableProbe := getRGWProbePath(c.store.Spec.Protocols)
+	if disableProbe {
+		logger.Infof("disabling startup probe for %q store", c.store.Name)
+		return nil, nil
+	}
 	proto, port := c.endpointInfo()
 	cfg := rgwProbeConfig{
 		ProbeType: StartupProbeType,
 		Protocol:  proto,
 		Port:      port.String(),
+		Path:      probePath,
 	}
-	cfg.Path, cfg.OKCode = getRGWProbePathAndCode(c.store.Spec.Protocols)
+
 	script, err := renderProbe(cfg)
 	if err != nil {
 		return nil, err
