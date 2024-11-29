@@ -51,5 +51,7 @@ jobs:
 
       - name: validate codegen
         run: |
+          # run validation again, explicitly.
+          # it is also part of 'make codegen'
           cd $(go env GOPATH)/src/github.com/rook/rook
           tests/scripts/validate_modified_files.sh codegen
