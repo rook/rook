@@ -1,4 +1,4 @@
-#!/usr/bin/env -S bash -e
+#!/usr/bin/env bash
 
 # Copyright 2018 The Rook Authors. All rights reserved.
 #
