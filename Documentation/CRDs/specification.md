@@ -3624,20 +3624,6 @@ DaemonHealthSpec
 </tr>
 <tr>
 <td>
-<code>alternatesssdconfigfile</code><br/>
-<em>
-<a href="#ceph.rook.io/v1.SSSDSidecarConfigFile">
-SSSDSidecarConfigFile
-</a>
-</em>
-</td>
-<td>
-<p>LivenessProbe allows changing the livenessProbe configuration for a given daemon
-AlternateSSDConfigFile for ci test purposes only</p>
-</td>
-</tr>
-<tr>
-<td>
 <code>livenessProbe</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.*github.com/rook/rook/pkg/apis/ceph.rook.io/v1.ProbeSpec">
@@ -3647,6 +3633,7 @@ map[github.com/rook/rook/pkg/apis/ceph.rook.io/v1.KeyType]*github.com/rook/rook/
 </td>
 <td>
 <em>(Optional)</em>
+<p>LivenessProbe allows changing the livenessProbe configuration for a given daemon</p>
 </td>
 </tr>
 <tr>
@@ -11954,7 +11941,7 @@ this may be a value between 1 and 10. See SSSD docs for more info:
 <h3 id="ceph.rook.io/v1.SSSDSidecarConfigFile">SSSDSidecarConfigFile
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.CephClusterHealthCheckSpec">CephClusterHealthCheckSpec</a>, <a href="#ceph.rook.io/v1.SSSDSidecar">SSSDSidecar</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.SSSDSidecar">SSSDSidecar</a>)
 </p>
 <div>
 <p>SSSDSidecarConfigFile represents the source(s) from which the SSSD configuration should come.</p>
