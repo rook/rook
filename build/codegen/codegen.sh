@@ -16,7 +16,7 @@
 
 GROUP_VERSIONS="ceph.rook.io:v1"
 
-scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # CODE GENERATION
 # we run deepcopy and client,lister,informer generations separately so we can use the flag "--plural-exceptions"
@@ -29,7 +29,7 @@ bash ${CODE_GENERATOR}/generate-groups.sh \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
     --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
-    --go-header-file "${scriptdir}/boilerplate.go.txt"
+    --go-header-file "${script_dir}/boilerplate.go.txt"
 
 # run code client,lister,informer generation
 bash ${CODE_GENERATOR}/generate-groups.sh \
@@ -38,5 +38,5 @@ bash ${CODE_GENERATOR}/generate-groups.sh \
     github.com/rook/rook/pkg/apis \
     "${GROUP_VERSIONS}" \
     --output-base "$(dirname "${BASH_SOURCE[0]}")/../../../../.." \
-    --go-header-file "${scriptdir}/boilerplate.go.txt" \
+    --go-header-file "${script_dir}/boilerplate.go.txt" \
     --plural-exceptions "CephNFS:CephNFSes" \
