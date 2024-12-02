@@ -91,10 +91,7 @@ func newS3Agent(p provisioner) (*object.S3Agent, error) {
 		}
 	}
 
-	if insecureTLS {
-		return object.NewInsecureS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG))
-	}
-	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG), tlsCert)
+	return object.NewS3Agent(accessKey, secretKey, objContext.Endpoint, logger.LevelAt(capnslog.DEBUG), tlsCert, insecureTLS, nil)
 }
 
 // TODO: convert all rules without restrictions once the AWS SDK supports that
