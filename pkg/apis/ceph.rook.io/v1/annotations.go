@@ -110,14 +110,20 @@ func (a Annotations) ApplyToObjectMeta(t *metav1.ObjectMeta) {
 // original Annotations with the attributes of the supplied one. The supplied
 // Annotation attributes will override the original ones if defined.
 func (a Annotations) Merge(with map[string]string) Annotations {
-	ret := a
-	if ret == nil {
-		ret = map[string]string{}
+	// Create a new map of type Annotations to hold the merged results
+	ret := Annotations{}
+
+	// Copy the contents of the original map (a) into ret
+	for k, v := range a {
+		ret[k] = v
 	}
+
+	// Add entries from the 'with' map only if the key does not already exist
 	for k, v := range with {
-		if _, ok := ret[k]; !ok {
+		if _, exists := ret[k]; !exists {
 			ret[k] = v
 		}
 	}
+
 	return ret
 }
