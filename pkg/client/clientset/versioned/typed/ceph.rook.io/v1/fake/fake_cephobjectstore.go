@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,36 +35,38 @@ type FakeCephObjectStores struct {
 	ns   string
 }
 
-var cephobjectstoresResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephobjectstores"}
+var cephobjectstoresResource = v1.SchemeGroupVersion.WithResource("cephobjectstores")
 
-var cephobjectstoresKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephObjectStore"}
+var cephobjectstoresKind = v1.SchemeGroupVersion.WithKind("CephObjectStore")
 
 // Get takes name of the cephObjectStore, and returns the corresponding cephObjectStore object, and an error if there is any.
-func (c *FakeCephObjectStores) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephObjectStore, err error) {
+func (c *FakeCephObjectStores) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephObjectStore, err error) {
+	emptyResult := &v1.CephObjectStore{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephobjectstoresResource, c.ns, name), &cephrookiov1.CephObjectStore{})
+		Invokes(testing.NewGetActionWithOptions(cephobjectstoresResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectStore), err
+	return obj.(*v1.CephObjectStore), err
 }
 
 // List takes label and field selectors, and returns the list of CephObjectStores that match those selectors.
-func (c *FakeCephObjectStores) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephObjectStoreList, err error) {
+func (c *FakeCephObjectStores) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephObjectStoreList, err error) {
+	emptyResult := &v1.CephObjectStoreList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephobjectstoresResource, cephobjectstoresKind, c.ns, opts), &cephrookiov1.CephObjectStoreList{})
+		Invokes(testing.NewListActionWithOptions(cephobjectstoresResource, cephobjectstoresKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &cephrookiov1.CephObjectStoreList{ListMeta: obj.(*cephrookiov1.CephObjectStoreList).ListMeta}
-	for _, item := range obj.(*cephrookiov1.CephObjectStoreList).Items {
+	list := &v1.CephObjectStoreList{ListMeta: obj.(*v1.CephObjectStoreList).ListMeta}
+	for _, item := range obj.(*v1.CephObjectStoreList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -74,57 +75,60 @@ func (c *FakeCephObjectStores) List(ctx context.Context, opts v1.ListOptions) (r
 }
 
 // Watch returns a watch.Interface that watches the requested cephObjectStores.
-func (c *FakeCephObjectStores) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephObjectStores) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephobjectstoresResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cephobjectstoresResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephObjectStore and creates it.  Returns the server's representation of the cephObjectStore, and an error, if there is any.
-func (c *FakeCephObjectStores) Create(ctx context.Context, cephObjectStore *cephrookiov1.CephObjectStore, opts v1.CreateOptions) (result *cephrookiov1.CephObjectStore, err error) {
+func (c *FakeCephObjectStores) Create(ctx context.Context, cephObjectStore *v1.CephObjectStore, opts metav1.CreateOptions) (result *v1.CephObjectStore, err error) {
+	emptyResult := &v1.CephObjectStore{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephobjectstoresResource, c.ns, cephObjectStore), &cephrookiov1.CephObjectStore{})
+		Invokes(testing.NewCreateActionWithOptions(cephobjectstoresResource, c.ns, cephObjectStore, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectStore), err
+	return obj.(*v1.CephObjectStore), err
 }
 
 // Update takes the representation of a cephObjectStore and updates it. Returns the server's representation of the cephObjectStore, and an error, if there is any.
-func (c *FakeCephObjectStores) Update(ctx context.Context, cephObjectStore *cephrookiov1.CephObjectStore, opts v1.UpdateOptions) (result *cephrookiov1.CephObjectStore, err error) {
+func (c *FakeCephObjectStores) Update(ctx context.Context, cephObjectStore *v1.CephObjectStore, opts metav1.UpdateOptions) (result *v1.CephObjectStore, err error) {
+	emptyResult := &v1.CephObjectStore{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephobjectstoresResource, c.ns, cephObjectStore), &cephrookiov1.CephObjectStore{})
+		Invokes(testing.NewUpdateActionWithOptions(cephobjectstoresResource, c.ns, cephObjectStore, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectStore), err
+	return obj.(*v1.CephObjectStore), err
 }
 
 // Delete takes name of the cephObjectStore and deletes it. Returns an error if one occurs.
-func (c *FakeCephObjectStores) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeCephObjectStores) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephobjectstoresResource, c.ns, name), &cephrookiov1.CephObjectStore{})
+		Invokes(testing.NewDeleteActionWithOptions(cephobjectstoresResource, c.ns, name, opts), &v1.CephObjectStore{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephObjectStores) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephobjectstoresResource, c.ns, listOpts)
+func (c *FakeCephObjectStores) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(cephobjectstoresResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &cephrookiov1.CephObjectStoreList{})
+	_, err := c.Fake.Invokes(action, &v1.CephObjectStoreList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephObjectStore.
-func (c *FakeCephObjectStores) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephObjectStore, err error) {
+func (c *FakeCephObjectStores) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephObjectStore, err error) {
+	emptyResult := &v1.CephObjectStore{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephobjectstoresResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephObjectStore{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cephobjectstoresResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephObjectStore), err
+	return obj.(*v1.CephObjectStore), err
 }
