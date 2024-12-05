@@ -1,11 +1,11 @@
 /*
-Copyright The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+    http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -21,10 +21,9 @@ package fake
 import (
 	"context"
 
-	cephrookiov1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	v1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	labels "k8s.io/apimachinery/pkg/labels"
-	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"
 	testing "k8s.io/client-go/testing"
@@ -36,36 +35,38 @@ type FakeCephBucketTopics struct {
 	ns   string
 }
 
-var cephbuckettopicsResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1", Resource: "cephbuckettopics"}
+var cephbuckettopicsResource = v1.SchemeGroupVersion.WithResource("cephbuckettopics")
 
-var cephbuckettopicsKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1", Kind: "CephBucketTopic"}
+var cephbuckettopicsKind = v1.SchemeGroupVersion.WithKind("CephBucketTopic")
 
 // Get takes name of the cephBucketTopic, and returns the corresponding cephBucketTopic object, and an error if there is any.
-func (c *FakeCephBucketTopics) Get(ctx context.Context, name string, options v1.GetOptions) (result *cephrookiov1.CephBucketTopic, err error) {
+func (c *FakeCephBucketTopics) Get(ctx context.Context, name string, options metav1.GetOptions) (result *v1.CephBucketTopic, err error) {
+	emptyResult := &v1.CephBucketTopic{}
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(cephbuckettopicsResource, c.ns, name), &cephrookiov1.CephBucketTopic{})
+		Invokes(testing.NewGetActionWithOptions(cephbuckettopicsResource, c.ns, name, options), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBucketTopic), err
+	return obj.(*v1.CephBucketTopic), err
 }
 
 // List takes label and field selectors, and returns the list of CephBucketTopics that match those selectors.
-func (c *FakeCephBucketTopics) List(ctx context.Context, opts v1.ListOptions) (result *cephrookiov1.CephBucketTopicList, err error) {
+func (c *FakeCephBucketTopics) List(ctx context.Context, opts metav1.ListOptions) (result *v1.CephBucketTopicList, err error) {
+	emptyResult := &v1.CephBucketTopicList{}
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(cephbuckettopicsResource, cephbuckettopicsKind, c.ns, opts), &cephrookiov1.CephBucketTopicList{})
+		Invokes(testing.NewListActionWithOptions(cephbuckettopicsResource, cephbuckettopicsKind, c.ns, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
 
 	label, _, _ := testing.ExtractFromListOptions(opts)
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &cephrookiov1.CephBucketTopicList{ListMeta: obj.(*cephrookiov1.CephBucketTopicList).ListMeta}
-	for _, item := range obj.(*cephrookiov1.CephBucketTopicList).Items {
+	list := &v1.CephBucketTopicList{ListMeta: obj.(*v1.CephBucketTopicList).ListMeta}
+	for _, item := range obj.(*v1.CephBucketTopicList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -74,57 +75,60 @@ func (c *FakeCephBucketTopics) List(ctx context.Context, opts v1.ListOptions) (r
 }
 
 // Watch returns a watch.Interface that watches the requested cephBucketTopics.
-func (c *FakeCephBucketTopics) Watch(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
+func (c *FakeCephBucketTopics) Watch(ctx context.Context, opts metav1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
-		InvokesWatch(testing.NewWatchAction(cephbuckettopicsResource, c.ns, opts))
+		InvokesWatch(testing.NewWatchActionWithOptions(cephbuckettopicsResource, c.ns, opts))
 
 }
 
 // Create takes the representation of a cephBucketTopic and creates it.  Returns the server's representation of the cephBucketTopic, and an error, if there is any.
-func (c *FakeCephBucketTopics) Create(ctx context.Context, cephBucketTopic *cephrookiov1.CephBucketTopic, opts v1.CreateOptions) (result *cephrookiov1.CephBucketTopic, err error) {
+func (c *FakeCephBucketTopics) Create(ctx context.Context, cephBucketTopic *v1.CephBucketTopic, opts metav1.CreateOptions) (result *v1.CephBucketTopic, err error) {
+	emptyResult := &v1.CephBucketTopic{}
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(cephbuckettopicsResource, c.ns, cephBucketTopic), &cephrookiov1.CephBucketTopic{})
+		Invokes(testing.NewCreateActionWithOptions(cephbuckettopicsResource, c.ns, cephBucketTopic, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBucketTopic), err
+	return obj.(*v1.CephBucketTopic), err
 }
 
 // Update takes the representation of a cephBucketTopic and updates it. Returns the server's representation of the cephBucketTopic, and an error, if there is any.
-func (c *FakeCephBucketTopics) Update(ctx context.Context, cephBucketTopic *cephrookiov1.CephBucketTopic, opts v1.UpdateOptions) (result *cephrookiov1.CephBucketTopic, err error) {
+func (c *FakeCephBucketTopics) Update(ctx context.Context, cephBucketTopic *v1.CephBucketTopic, opts metav1.UpdateOptions) (result *v1.CephBucketTopic, err error) {
+	emptyResult := &v1.CephBucketTopic{}
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(cephbuckettopicsResource, c.ns, cephBucketTopic), &cephrookiov1.CephBucketTopic{})
+		Invokes(testing.NewUpdateActionWithOptions(cephbuckettopicsResource, c.ns, cephBucketTopic, opts), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBucketTopic), err
+	return obj.(*v1.CephBucketTopic), err
 }
 
 // Delete takes name of the cephBucketTopic and deletes it. Returns an error if one occurs.
-func (c *FakeCephBucketTopics) Delete(ctx context.Context, name string, opts v1.DeleteOptions) error {
+func (c *FakeCephBucketTopics) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(cephbuckettopicsResource, c.ns, name), &cephrookiov1.CephBucketTopic{})
+		Invokes(testing.NewDeleteActionWithOptions(cephbuckettopicsResource, c.ns, name, opts), &v1.CephBucketTopic{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeCephBucketTopics) DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error {
-	action := testing.NewDeleteCollectionAction(cephbuckettopicsResource, c.ns, listOpts)
+func (c *FakeCephBucketTopics) DeleteCollection(ctx context.Context, opts metav1.DeleteOptions, listOpts metav1.ListOptions) error {
+	action := testing.NewDeleteCollectionActionWithOptions(cephbuckettopicsResource, c.ns, opts, listOpts)
 
-	_, err := c.Fake.Invokes(action, &cephrookiov1.CephBucketTopicList{})
+	_, err := c.Fake.Invokes(action, &v1.CephBucketTopicList{})
 	return err
 }
 
 // Patch applies the patch and returns the patched cephBucketTopic.
-func (c *FakeCephBucketTopics) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (result *cephrookiov1.CephBucketTopic, err error) {
+func (c *FakeCephBucketTopics) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts metav1.PatchOptions, subresources ...string) (result *v1.CephBucketTopic, err error) {
+	emptyResult := &v1.CephBucketTopic{}
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(cephbuckettopicsResource, c.ns, name, pt, data, subresources...), &cephrookiov1.CephBucketTopic{})
+		Invokes(testing.NewPatchSubresourceActionWithOptions(cephbuckettopicsResource, c.ns, name, pt, data, opts, subresources...), emptyResult)
 
 	if obj == nil {
-		return nil, err
+		return emptyResult, err
 	}
-	return obj.(*cephrookiov1.CephBucketTopic), err
+	return obj.(*v1.CephBucketTopic), err
 }
