@@ -194,6 +194,7 @@ gen-rbac: $(HELM) $(YQ) ## Generate RBAC from Helm charts
 
 gen.docs: docs
 docs: helm-docs
+gen.helm-docs: helm-docs
 helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm charts
 	$(HELM_DOCS) -c deploy/charts/rook-ceph \
 		-o ../../../Documentation/Helm-Charts/operator-chart.md \
@@ -229,7 +230,7 @@ generate: gen.codegen gen.crds gen.rbac gen.docs gen.crd-docs ## Update all gene
 
 
 .PHONY: all build.common
-.PHONY: build build.all install test check vet fmt codegen gen.codegen gen.rbac gen.crds gen.crd-docs gen.docs generate mod.check clean distclean prune
+.PHONY: build build.all install test check vet fmt codegen gen.codegen gen.rbac gen.crds gen.crd-docs gen.docs gen.helm-docs generate mod.check clean distclean prune
 
 # ====================================================================================
 # Help
