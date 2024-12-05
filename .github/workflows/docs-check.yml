@@ -42,10 +42,10 @@ jobs:
             Documentation/**/*.md
             !Documentation/Helm-Charts
 
-      - name: Check helm-docs
-        run: make check.helm-docs
       - name: Check docs
-        run: make check.docs
+        run: |
+          make gen.docs
+          tests/scripts/validate_modified_files.sh docs
       - name: Install mkdocs and dependencies
         run: cd build/release/ && make deps.docs
 
