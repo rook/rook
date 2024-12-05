@@ -94,5 +94,5 @@ func (d *DesiredDevice) UpdateDeviceClass(agent *OsdAgent, device *sys.LocalDisk
 		}
 	}
 
-	d.DeviceClass = sys.GetDiskDeviceClass(device)
+	d.DeviceClass = sys.GetDiskDeviceType(device)
 }
