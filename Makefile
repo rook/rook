@@ -205,17 +205,6 @@ helm-docs: $(HELM_DOCS) ## Use helm-docs to generate documentation from helm cha
 		-t ../../../Documentation/Helm-Charts/ceph-cluster-chart.gotmpl.md \
 		-t ../../../Documentation/Helm-Charts/_templates.gotmpl
 
-check.helm-docs:
-	@$(MAKE) helm-docs
-	@git diff --exit-code || { \
-	echo "Please run 'make helm-docs' locally, commit the updated docs, and push the change. See https://rook.io/docs/rook/latest/Contributing/documentation/#making-docs" ; \
-	exit 2 ; \
-	};
-check.docs:
-	@$(MAKE) docs
-	@tests/scripts/validate_modified_files.sh docs
-
-
 docs-preview: ## Preview the documentation through mkdocs
 	mkdocs serve
 
