@@ -3445,6 +3445,16 @@ spec:
                       minimum: 0
                       nullable: true
                       type: number
+                    migration:
+                      description: Migration handles the OSD migration
+                      properties:
+                        confirmation:
+                          description: |-
+                            A user confirmation to migrate the OSDs. It destroys each OSD one at a time, cleans up the backing disk
+                            and prepares OSD with same ID on that disk
+                          pattern: ^$|^yes-really-migrate-osds$
+                          type: string
+                      type: object
                     nearFullRatio:
                       description: NearFullRatio is the ratio at which the cluster is considered nearly full and will raise a ceph health warning. Default is 0.85.
                       maximum: 1
@@ -5538,6 +5548,12 @@ spec:
                     osd:
                       description: OSDStatus represents OSD status of the ceph Cluster
                       properties:
+                        migrationStatus:
+                          description: MigrationStatus status represents the current status of any OSD migration.
+                          properties:
+                            pending:
+                              type: integer
+                          type: object
                         storeType:
                           additionalProperties:
                             type: integer

@@ -190,3 +190,29 @@ If you don't see a new OSD automatically created, restart the operator (by delet
 
 !!! note
     The OSD might have a different ID than the previous OSD that was replaced.
+
+
+## OSD Migration
+
+Ceph does not support changing certain settings on existing OSDs. To support changing these settings on an OSD, the OSD must be destroyed and re-created with the new settings. Rook will automate this by migrating only one OSD at a time. The operator waits for the data to rebalance (PGs to become `active+clean`) before migrating the next OSD. This ensures that there is no data loss. Refer to the [OSD migration](https://github.com/rook/rook/blob/master/design/ceph/osd-migration.md) design doc for more information. 
+
+The following scenarios are supported for OSD migration:
+
+- Enable or disable OSD encryption for existing PVC-based OSDs by changing the `encrypted` setting under the `storageClassDeviceSets`
+
+For example:
+
+```yaml
+storage:
+    migration:
+        confirmation: "yes-really-migrate-osds" 
+    storageClassDeviceSets:
+        - name: set1
+          count: 3
+          encrypted: true  # change to true or false based on whether encryption needs to enable or disabled.
+```
+
+Details about the migration status can be found under the cephCluster `status.storage.osd.migrationStatus.pending` field which shows the total number of OSDs that are pending migration.
+
+!!! note
+    Performance of the cluster might be impacted during data rebalancing while OSDs are being migrated.

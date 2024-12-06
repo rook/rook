@@ -357,6 +357,7 @@ The following storage selection settings are specific to Ceph and do not apply t
 * `encryptedDevice`**: Encrypt OSD volumes using dmcrypt ("true" or "false"). By default this option is disabled. See [encryption](http://docs.ceph.com/docs/master/ceph-volume/lvm/encryption/) for more information on encryption in Ceph. (Resizing is not supported for host-based clusters.)
 * `crushRoot`: The value of the `root` CRUSH map label. The default is `default`. Generally, you should not need to change this. However, if any of your topology labels may have the value `default`, you need to change `crushRoot` to avoid conflicts, since CRUSH map values need to be unique.
 * `enableCrushUpdates`: Enables rook to update the pool crush rule using Pool Spec. Can cause data remapping if crush rule changes, Defaults to false.
+* `migration`: Existing PVC based OSDs can be migrated to enable or disable encryption. Refer to the [osd management](../../Storage-Configuration/Advanced/ceph-osd-mgmt.md/#osd-encryption-as-day-2-operation) topic for details.
 
 Allowed configurations are:
 
