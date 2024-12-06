@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -85,7 +86,7 @@ func ImportRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 	cmd := NewRBDCommand(context, clusterInfo, args)
 
 	// Run command
-	output, err := cmd.Run()
+	output, err := cmd.RunWithTimeout(exec.CephCommandsTimeout)
 	if err != nil {
 		return errors.Wrapf(err, "failed to add rbd-mirror peer token for pool %q. %s", poolName, output)
 	}
