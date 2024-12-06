@@ -1,0 +1,123 @@
+#################################################################################################################
+# Create an object store with settings for a test environment. Only a single OSD is required in this example.
+#  kubectl create -f object-multi-instance-test.yaml
+#
+# The example below provides minimalistic test configuration for multi-instance RGW deployment.
+# It defines CephObjectRealm, CephObjectZoneGroup, and CephObjectZone CRs responsible for storage pools configuration.
+# Then, three separate CephObjectStore resources are created.
+# These stores refer to the same CephObjectZone, and therefore, to the same storage pools, representing the same ObjectStorage data.
+# The CephObjectStore resources are configured to host different RGW APIs: S3, SWIFT, and Admin-ops.
+# The configuration of the CephObjectStore can be further extended to include any number of RGW deployments backed by the same data.
+# Deployments can be customized to host different APIs, allocate different resources, use different domains,
+# and apply any other options available in the CephObjectStore CRD.
+# Finally, CephObjectStoreUser is created. Child resources like user should refer to RGW instance hosting admin-ops API.
+# In this case - store-admin.
+#################################################################################################################
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: multi-instance-store
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  # Names for realm/zonegroup/zone can be arbitrary.
+  # For non-multisite setup, reusing the same name across realm/zonegroup/zone is advised for simplicity.
+  # If multiple sharedPools.poolPlacements are configured for zone, then zonegroup name will be used as a prefix
+  # in S3 bucket location: <zonegroup-name>:<placement-name>. See pool placement documentation:
+  # https://docs.ceph.com/en/latest/radosgw/placement/#s3-bucket-placement - Ceph RGW doc
+  name: multi-instance-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: multi-instance-store
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: multi-instance-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: multi-instance-store
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  # Alternatively, configure pool placements with pre-existing pools here.
+  # More details about Pool placements and storage classes:
+  # https://rook.io/docs/rook/latest-release/Storage-Configuration/Object-Storage-RGW/object-storage/#create-local-object-stores-with-pool-placements
+  # sharedPools:
+  #   poolPlacements:
+  #   ...
+---
+# RGW instance to host admin-ops API only
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-admin
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: multi-instance-store
+  protocols:
+    enableAPIs: ["admin"]
+---
+# RGW instance to host S3 API only
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-s3
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: multi-instance-store
+  protocols:
+    enableAPIs:
+      - s3
+      - s3website
+      - sts
+      - iam
+      - notifications
+---
+# RGW instance to host SWIFT API only
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-swift
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: multi-instance-store
+  protocols:
+    enableAPIs:
+      - swift
+      - swift_auth
+    swift:
+      # if S3 API is disabled, then SWIFT can be hosted on root path without prefix
+      urlPrefix: "/"
+---
+# ObjectStore user should refer to ObjectStore instance hosting admin API.
+# Created used can be used for all ObjectStore instances.
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStoreUser
+metadata:
+  name: multi-instance-user
+  namespace: rook-ceph # namespace:cluster
+spec:
+  store: store-admin
+  displayName: "my display name"
