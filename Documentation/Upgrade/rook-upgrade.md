@@ -14,7 +14,7 @@ We welcome feedback and opening issues!
 
 ## Supported Versions
 
-This guide is for upgrading from **Rook v1.14.x to Rook v1.15.x**.
+This guide is for upgrading from **Rook v1.15.x to Rook v1.16.x**.
 
 Please refer to the upgrade guides from previous releases for supported upgrade paths.
 Rook upgrades are only supported between official releases.
@@ -22,6 +22,7 @@ Rook upgrades are only supported between official releases.
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for
 those releases.
 
+* [Upgrade 1.14 to 1.15](https://rook.io/docs/rook/v1.15/Upgrade/rook-upgrade/)
 * [Upgrade 1.13 to 1.14](https://rook.io/docs/rook/v1.14/Upgrade/rook-upgrade/)
 * [Upgrade 1.12 to 1.13](https://rook.io/docs/rook/v1.13/Upgrade/rook-upgrade/)
 * [Upgrade 1.11 to 1.12](https://rook.io/docs/rook/v1.12/Upgrade/rook-upgrade/)
@@ -51,6 +52,12 @@ those releases.
 
 ## Breaking changes in v1.16
 
+* The minimum supported Kubernetes version is v1.27.
+
+* Rook no longer supports Ceph v17 (Quincy) as it is end of life. Rook v1.15 clusters should
+    [upgrade Ceph](./ceph-upgrade.md) to at least Ceph v18 (Reef) before upgrading Rook to v1.16.
+    Be aware of known [Ceph v18.2.4 ARM issues](https://github.com/rook/rook/issues/14502).
+
 * Rook fully deprecated CSI "holder" pods in Rook v1.16. Any Rook v1.15 CephCluster with
     `csi-*plugin-holder-*` pods present in the Rook operator namespace must follow holder pod
     removal migration steps outlined in
@@ -70,11 +77,11 @@ With this upgrade guide, there are a few notes to consider:
 
 Unless otherwise noted due to extenuating requirements, upgrades from one patch release of Rook to
 another are as simple as updating the common resources and the image of the Rook operator. For
-example, when Rook v1.15.1 is released, the process of updating from v1.15.0 is as simple as running
+example, when Rook v1.16.1 is released, the process of updating from v1.16.0 is as simple as running
 the following:
 
 ```console
-git clone --single-branch --depth=1 --branch v1.15.1 https://github.com/rook/rook.git
+git clone --single-branch --depth=1 --branch v1.16.1 https://github.com/rook/rook.git
 cd rook/deploy/examples
 ```
 
@@ -82,11 +89,11 @@ If the Rook Operator or CephCluster are deployed into a different namespace than
 `rook-ceph`, see the [Update common resources and CRDs](#1-update-common-resources-and-crds)
 section for instructions on how to change the default namespaces in `common.yaml`.
 
-Then, apply the latest changes from v1.15, and update the Rook Operator image.
+Then, apply the latest changes from v1.16, and update the Rook Operator image.
 
 ```console
 kubectl apply -f common.yaml -f crds.yaml
-kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.15.1
+kubectl -n rook-ceph set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.16.1
 ```
 
 As exemplified above, it is a good practice to update Rook common resources from the example
@@ -120,9 +127,9 @@ In order to successfully upgrade a Rook cluster, the following prerequisites mus
 
 ## Rook Operator Upgrade
 
-The examples given in this guide upgrade a live Rook cluster running `v1.14.9` to
-the version `v1.15.0`. This upgrade should work from any official patch release of Rook v1.14 to any
-official patch release of v1.15.
+The examples given in this guide upgrade a live Rook cluster running `v1.15.6` to
+the version `v1.16.0`. This upgrade should work from any official patch release of Rook v1.15 to any
+official patch release of v1.16.
 
 Let's get started!
 
@@ -183,7 +190,7 @@ kubectl apply -f deploy/examples/monitoring/rbac.yaml
 !!! hint
     The operator is automatically updated when using Helm charts.
 
-The largest portion of the upgrade is triggered when the operator's image is updated to `v1.15.x`.
+The largest portion of the upgrade is triggered when the operator's image is updated to `v1.16.x`.
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
@@ -217,18 +224,18 @@ watch --exec kubectl -n $ROOK_CLUSTER_NAMESPACE get deployments -l rook_cluster=
 ```
 
 As an example, this cluster is midway through updating the OSDs. When all deployments report `1/1/1`
-availability and `rook-version=v1.15.0`, the Ceph cluster's core components are fully updated.
+availability and `rook-version=v1.16.0`, the Ceph cluster's core components are fully updated.
 
 ```console
 Every 2.0s: kubectl -n rook-ceph get deployment -o j...
 
-rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.15.0
-rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.15.0
-rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.15.0
-rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.15.0
-rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.15.0
-rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.14.9
-rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.14.9
+rook-ceph-mgr-a         req/upd/avl: 1/1/1      rook-version=v1.16.0
+rook-ceph-mon-a         req/upd/avl: 1/1/1      rook-version=v1.16.0
+rook-ceph-mon-b         req/upd/avl: 1/1/1      rook-version=v1.16.0
+rook-ceph-mon-c         req/upd/avl: 1/1/1      rook-version=v1.16.0
+rook-ceph-osd-0         req/upd/avl: 1//        rook-version=v1.16.0
+rook-ceph-osd-1         req/upd/avl: 1/1/1      rook-version=v1.15.6
+rook-ceph-osd-2         req/upd/avl: 1/1/1      rook-version=v1.15.6
 ```
 
 An easy check to see if the upgrade is totally finished is to check that there is only one
@@ -237,14 +244,14 @@ An easy check to see if the upgrade is totally finished is to check that there i
 ```console
 # kubectl -n $ROOK_CLUSTER_NAMESPACE get deployment -l rook_cluster=$ROOK_CLUSTER_NAMESPACE -o jsonpath='{range .items[*]}{"rook-version="}{.metadata.labels.rook-version}{"\n"}{end}' | sort | uniq
 This cluster is not yet finished:
-  rook-version=v1.14.9
-  rook-version=v1.15.0
+  rook-version=v1.15.6
+  rook-version=v1.16.0
 This cluster is finished:
-  rook-version=v1.15.0
+  rook-version=v1.16.0
 ```
 
 ### **5. Verify the updated cluster**
 
-At this point, the Rook operator should be running version `rook/ceph:v1.15.0`.
+At this point, the Rook operator should be running version `rook/ceph:v1.16.0`.
 
 Verify the CephCluster health using the [health verification doc](health-verification.md).
