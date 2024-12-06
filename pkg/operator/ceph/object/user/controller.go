@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -265,7 +266,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
-	reconcileResponse, err = object.ReconcileCephUserSecret(r.opManagerContext, r.client, r.scheme, cephObjectStoreUser, r.userConfig, r.advertiseEndpoint, cephObjectStoreUser.Namespace, cephObjectStoreUser.Spec.Store, tlsSecretName)
+	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser, tlsSecretName)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -509,10 +510,60 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 	return userConfig
 }
 
+func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
+	return fmt.Sprintf("rook-ceph-object-user-%s-%s", u.Spec.Store, u.Name)
+}
+
 func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
 	m := make(map[string]string)
-	m["secretName"] = object.GenerateCephUserSecretName(u.Spec.Store, u.Name)
+	m["secretName"] = generateCephUserSecretName(u)
 	return m
+}
+
+func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser, tlsSecretName string) *corev1.Secret {
+	// Store the keys in a secret
+	secrets := map[string]string{
+		"AccessKey": r.userConfig.Keys[0].AccessKey,
+		"SecretKey": r.userConfig.Keys[0].SecretKey,
+		"Endpoint":  r.objContext.Endpoint,
+	}
+	if tlsSecretName != "" {
+		secrets["SSLCertSecretName"] = tlsSecretName
+	}
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      generateCephUserSecretName(u),
+			Namespace: u.Namespace,
+			Labels: map[string]string{
+				"app":               appName,
+				"user":              u.Name,
+				"rook_cluster":      u.Namespace,
+				"rook_object_store": u.Spec.Store,
+			},
+		},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	return secret
+}
+
+func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser, tlsSecretName string) (reconcile.Result, error) {
+	// Generate Kubernetes Secret
+	secret := r.generateCephUserSecret(cephObjectStoreUser, tlsSecretName)
+
+	// Set owner ref to the object store user object
+	err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to set owner reference of ceph object user secret %q", secret.Name)
+	}
+
+	// Create Kubernetes Secret
+	err = opcontroller.CreateOrUpdateObject(r.opManagerContext, r.client, secret)
+	if err != nil {
+		return reconcile.Result{}, errors.Wrapf(err, "failed to create or update ceph object user %q secret", secret.Name)
+	}
+
+	return reconcile.Result{}, nil
 }
 
 func (r *ReconcileObjectStoreUser) objectStoreInitialized(cephObjectStoreUser *cephv1.CephObjectStoreUser) error {
