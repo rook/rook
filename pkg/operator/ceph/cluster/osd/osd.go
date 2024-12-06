@@ -74,6 +74,7 @@ const (
 	deviceClass                    = "device-class"
 	osdStore                       = "osd-store"
 	deviceType                     = "device-type"
+	encrypted                      = "encrypted"
 )
 
 // Cluster keeps track of the OSDs
@@ -85,7 +86,7 @@ type Cluster struct {
 	ValidStorage   cephv1.StorageScopeSpec // valid subset of `Storage`, computed at runtime
 	kv             *k8sutil.ConfigMapKVStore
 	deviceSets     []deviceSet
-	replaceOSD     *OSDReplaceInfo
+	migrateOSD     *OSDInfo
 	deprecatedOSDs map[string][]int
 }
 
@@ -218,15 +219,14 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("wait timeout for healthy OSDs during upgrade or restart is %q", c.clusterInfo.OsdUpgradeTimeout)
 
-	// replace OSDs for a new backing store
-	osdsToBeReplaced, err := c.replaceOSDForNewStore()
-	if err != nil {
-		return errors.Wrapf(err, "failed to replace OSD for new backing store %q in namespace %q", c.spec.Storage.Store.Type, namespace)
-	}
-
 	osdsToSkipReconcile, err := controller.GetDaemonsToSkipReconcile(c.clusterInfo.Context, c.context, c.clusterInfo.Namespace, OsdIdLabelKey, AppName)
 	if err != nil {
 		logger.Warningf("failed to get osds to skip reconcile. %v", err)
+	}
+
+	migrationConfig, err := c.startOSDMigration()
+	if err != nil {
+		return errors.Wrapf(err, "failed to start OSD migration")
 	}
 
 	// prepare for updating existing OSDs
@@ -235,9 +235,11 @@ func (c *Cluster) Start() error {
 		return errors.Wrapf(err, "failed to get information about currently-running OSD Deployments in namespace %q", namespace)
 	}
 
-	// OSDs that are to be replaced should not be upgraded. So remove them from the `updateQueue`
-	if len(osdsToBeReplaced) > 0 {
-		updateQueue.Remove(osdsToBeReplaced.getOSDIds())
+	if migrationConfig != nil {
+		if len(migrationConfig.osds) != 0 {
+			// prevent upgrade of OSDs that require migration
+			updateQueue.Remove(migrationConfig.getOSDIds())
+		}
 	}
 
 	logger.Debugf("%d of %d OSD Deployments need update", updateQueue.Len(), deployments.Len())
@@ -295,30 +297,67 @@ func (c *Cluster) Start() error {
 		return errors.Wrapf(err, "failed to update ceph storage status")
 	}
 
-	if c.spec.Storage.Store.UpdateStore == OSDStoreUpdateConfirmation {
-		delOpts := &k8sutil.DeleteOptions{WaitOptions: k8sutil.WaitOptions{Wait: true}}
-		err := k8sutil.DeleteConfigMap(c.clusterInfo.Context, c.context.Clientset, OSDReplaceConfigName, namespace, delOpts)
-		if err != nil {
-			if kerrors.IsNotFound(err) {
-				logger.Debugf("config map %q not found. Ignoring since object must be deleted.", OSDReplaceConfigName)
-			} else {
-				return errors.Wrapf(err, "failed to delete the %q configmap", OSDReplaceConfigName)
-			}
-		}
-
-		if len(osdsToBeReplaced) > 0 {
-			// wait for the pgs to be healthy before attempting to migrate the next OSD
-			_, err := c.waitForHealthyPGs()
-			if err != nil {
-				return errors.Wrapf(err, "failed to wait for pgs to be healhty")
-			}
-			// return with error to reconcile the operator since there are OSDs that are pending migration
-			return errors.New("reconcile operator to replace OSDs that are pending migration")
-		}
-	}
-
 	logger.Infof("finished running OSDs in namespace %q", namespace)
 	return nil
+}
+
+func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
+	if !c.isMigrationRequested() {
+		logger.Debug("no OSD migration is requested")
+		return nil, nil
+	}
+
+	logger.Info("osd migration is requested")
+
+	// start migration only if PGs are active+clean
+	pgsHealhty, err := c.waitForHealthyPGs()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to wait for pgs to be healthy")
+	}
+
+	if !pgsHealhty {
+		return nil, errors.Wrapf(err, "failed to start migration due to unhealthy PGs")
+	}
+
+	// skip migration if previously migrated OSD is not up yet.
+	migrationComplete, err := isLastOSDMigrationComplete(c)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to check if the last migration was successful or not")
+	}
+
+	if !migrationComplete {
+		return nil, errors.Wrapf(err, "migration of the last OSD is not complete")
+	}
+
+	migrationConfig, err := c.newMigrationConfig()
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get new OSD migration config")
+	}
+
+	// delete deployment of the osd that needs migration
+	if migrationConfig != nil && len(migrationConfig.osds) > 0 {
+		osdToMigrate := migrationConfig.getOSDToMigrate()
+		logger.Infof("deleting OSD.%d deployment for migration ", osdToMigrate.ID)
+		err = c.deleteOSDDeployment(osdToMigrate.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to delete deployment for osd.%d that needs migration %q", osdToMigrate.ID, c.clusterInfo.Namespace)
+		}
+		err = saveMigrationConfig(c.context, c.clusterInfo, osdToMigrate.ID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to save migrated OSD ID %din the config map", osdToMigrate.ID)
+		}
+		c.migrateOSD = osdToMigrate
+	}
+
+	return migrationConfig, nil
+}
+
+func (c *Cluster) isMigrationRequested() bool {
+	// check for OSDUpdateStoreConfirmation as well for backwards compatibility
+	if c.spec.Storage.Migration.Confirmation == OSDMigrationConfirmation || c.spec.Storage.Store.UpdateStore == OSDUpdateStoreConfirmation {
+		return true
+	}
+	return false
 }
 
 func (c *Cluster) postReconcileUpdateOSDProperties(desiredOSDs map[int]*OSDInfo) error {
@@ -671,6 +710,10 @@ func (c *Cluster) getOSDInfo(d *appsv1.Deployment) (OSDInfo, error) {
 	}
 
 	osd.Store = d.Labels[osdStore]
+	osd.Encrypted = false
+	if d.Labels[encrypted] == "true" {
+		osd.Encrypted = true
+	}
 
 	if isPVC {
 		osd.PVCName = d.Labels[OSDOverPVCLabelKey]
@@ -894,7 +937,7 @@ func (c *Cluster) deleteOSDDeployment(osdID int) error {
 		}
 	}
 
-	return c.replaceOSD.saveAsConfig(c.context, c.clusterInfo)
+	return nil
 }
 
 func (c *Cluster) waitForHealthyPGs() (bool, error) {
@@ -940,6 +983,15 @@ func (c *Cluster) updateCephStorageStatus() error {
 
 	// Add the status about deprecated OSDs
 	cephClusterStorage.DeprecatedOSDs = c.deprecatedOSDs
+
+	// Update pending migration status
+	if c.isMigrationRequested() {
+		migrationConfig, err := c.newMigrationConfig()
+		if err != nil {
+			return errors.Wrapf(err, "failed to get osd migration config to update cluster status")
+		}
+		cephClusterStorage.OSD.MigrationStatus.Pending = len(migrationConfig.osds)
+	}
 
 	err = c.context.Client.Get(c.clusterInfo.Context, c.clusterInfo.NamespacedName(), &cephCluster)
 	if err != nil {
