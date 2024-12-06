@@ -38,18 +38,8 @@ jobs:
         with:
           go-version: "1.22"
 
-      - name: post-process checkout - copy to github.com
-        run: |
-          # copy to the github.com path so codegen will work as expected
-          mkdir -p $(go env GOPATH)/src/github.com/rook/rook/
-          cp -R . $(go env GOPATH)/src/github.com/rook/rook/
-
       - name: run codegen
-        run: |
-          cd $(go env GOPATH)/src/github.com/rook/rook
-          GOPATH=$(go env GOPATH) make codegen
+        run: GOPATH=$(go env GOPATH) make codegen
 
       - name: validate codegen
-        run: |
-          cd $(go env GOPATH)/src/github.com/rook/rook
-          tests/scripts/validate_modified_files.sh codegen
+        run: tests/scripts/validate_modified_files.sh codegen
