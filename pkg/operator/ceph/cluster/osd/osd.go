@@ -73,6 +73,7 @@ const (
 	bluestorePVCData               = "data"
 	deviceClass                    = "device-class"
 	osdStore                       = "osd-store"
+	deviceType                     = "device-type"
 )
 
 // Cluster keeps track of the OSDs
@@ -121,6 +122,7 @@ type OSDInfo struct {
 	ExportService    bool   `json:"exportService"`
 	NodeName         string `json:"nodeName"`
 	PVCName          string `json:"pvcName"`
+	DeviceType       string `json:"device-type"`
 }
 
 // OrchestrationStatus represents the status of an OSD orchestration
@@ -406,7 +408,7 @@ func deploymentOnNode(c *Cluster, osd *OSDInfo, nodeName string, config *provisi
 func deploymentOnPVC(c *Cluster, osd *OSDInfo, pvcName string, config *provisionConfig) (*appsv1.Deployment, error) {
 	osdLongName := fmt.Sprintf("OSD %d on PVC %q", osd.ID, pvcName)
 
-	osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
+	osdProps, err := c.getOSDPropsForPVC(pvcName)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate config for %s", osdLongName)
 	}
@@ -466,7 +468,7 @@ func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdPropertie
 	return osdProps, nil
 }
 
-func (c *Cluster) getOSDPropsForPVC(pvcName, osdDeviceClass string) (osdProperties, error) {
+func (c *Cluster) getOSDPropsForPVC(pvcName string) (osdProperties, error) {
 	for _, deviceSet := range c.deviceSets {
 		// The data PVC template is required.
 		dataSource, dataOK := deviceSet.PVCSources[bluestorePVCData]
@@ -489,7 +491,7 @@ func (c *Cluster) getOSDPropsForPVC(pvcName, osdDeviceClass string) (osdProperti
 			}
 
 			if deviceSet.Resources.Limits == nil && deviceSet.Resources.Requests == nil {
-				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources, osdDeviceClass)
+				deviceSet.Resources = cephv1.GetOSDResources(c.spec.Resources, deviceSet.CrushDeviceClass)
 			}
 
 			osdProps := osdProperties{

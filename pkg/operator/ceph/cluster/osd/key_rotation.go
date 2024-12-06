@@ -271,7 +271,7 @@ func (c *Cluster) reconcileKeyRotationCronJob() error {
 			return errors.Errorf("pvc name label %q for osd %q is empty",
 				OSDOverPVCLabelKey, osdDep.Name)
 		}
-		osdProps, err := c.getOSDPropsForPVC(pvcName, osd.DeviceClass)
+		osdProps, err := c.getOSDPropsForPVC(pvcName)
 		if err != nil {
 			return errors.Wrapf(err, "failed to generate config for osd %q", osdDep.Name)
 		}
