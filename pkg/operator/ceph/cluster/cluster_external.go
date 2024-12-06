@@ -145,6 +145,17 @@ func (c *ClusterController) configureExternalCephCluster(cluster *cluster) error
 			return errors.Wrap(err, "failed to create crash collector kubernetes secret")
 		}
 	}
+	// Create exporter secret
+	if !cluster.Spec.Monitoring.MetricsDisabled {
+		if cluster.ClusterInfo.CephCred.Username == client.AdminUsername &&
+			cluster.ClusterInfo.CephCred.Secret != opcontroller.AdminSecretNameKey {
+
+			err = nodedaemon.CreateExporterSecret(c.context, cluster.ClusterInfo)
+			if err != nil {
+				return errors.Wrap(err, "failed to create exporter kubernetes secret")
+			}
+		}
+	}
 
 	// enable monitoring if `monitoring: enabled: true`
 	// We need the Ceph version
