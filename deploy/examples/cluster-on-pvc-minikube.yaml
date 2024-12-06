@@ -150,7 +150,7 @@ spec:
   crashCollector:
     disable: false
   cephVersion:
-    image: quay.io/ceph/ceph:v18
+    image: quay.io/ceph/ceph:v19
     allowUnsupported: false
   skipUpgradeChecks: false
   continueUpgradeAfterChecksEvenIfNotHealthy: false
