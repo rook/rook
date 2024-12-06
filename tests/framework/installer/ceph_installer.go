@@ -267,8 +267,8 @@ func (h *CephInstaller) CreateCephCluster() error {
 
 func (h *CephInstaller) waitForCluster() error {
 	monWaitLabel := "app=rook-ceph-mon,mon_daemon=true"
-	if h.Manifests.Settings().RookVersion == Version1_14 {
-		// TODO: Remove this when upgrade test is from v1.15 since v1.14 does not have the mon_daemon label
+	if h.Manifests.Settings().RookVersion == Version1_15 {
+		// TODO: Remove this when upgrade test is from v1.15.7 since prior releases do not have the mon_daemon label
 		monWaitLabel = "app=rook-ceph-mon"
 	}
 	if err := h.k8shelper.WaitForPodCount(monWaitLabel, h.settings.Namespace, h.settings.Mons); err != nil {
