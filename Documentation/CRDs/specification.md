@@ -1127,8 +1127,8 @@ FilesystemSpec
 <td>
 <code>metadataPool</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.PoolSpec">
-PoolSpec
+<a href="#ceph.rook.io/v1.NamedPoolSpec">
+NamedPoolSpec
 </a>
 </em>
 </td>
@@ -1147,6 +1147,18 @@ PoolSpec
 </td>
 <td>
 <p>The data pool settings, with optional predefined pool name.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preservePoolNames</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Preserve pool names as specified</p>
 </td>
 </tr>
 <tr>
@@ -6582,8 +6594,8 @@ FilesystemSnapshotScheduleStatusRetention
 <td>
 <code>metadataPool</code><br/>
 <em>
-<a href="#ceph.rook.io/v1.PoolSpec">
-PoolSpec
+<a href="#ceph.rook.io/v1.NamedPoolSpec">
+NamedPoolSpec
 </a>
 </em>
 </td>
@@ -6602,6 +6614,18 @@ PoolSpec
 </td>
 <td>
 <p>The data pool settings, with optional predefined pool name.</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>preservePoolNames</code><br/>
+<em>
+bool
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Preserve pool names as specified</p>
 </td>
 </tr>
 <tr>
@@ -11147,7 +11171,7 @@ This list allows defining additional StorageClasses on top of default STANDARD s
 <h3 id="ceph.rook.io/v1.PoolSpec">PoolSpec
 </h3>
 <p>
-(<em>Appears on:</em><a href="#ceph.rook.io/v1.FilesystemSpec">FilesystemSpec</a>, <a href="#ceph.rook.io/v1.NamedBlockPoolSpec">NamedBlockPoolSpec</a>, <a href="#ceph.rook.io/v1.NamedPoolSpec">NamedPoolSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.NamedBlockPoolSpec">NamedBlockPoolSpec</a>, <a href="#ceph.rook.io/v1.NamedPoolSpec">NamedPoolSpec</a>, <a href="#ceph.rook.io/v1.ObjectStoreSpec">ObjectStoreSpec</a>, <a href="#ceph.rook.io/v1.ObjectZoneSpec">ObjectZoneSpec</a>)
 </p>
 <div>
 <p>PoolSpec represents the spec of ceph pool</p>

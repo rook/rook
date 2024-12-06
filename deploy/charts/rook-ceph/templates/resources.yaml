@@ -7220,6 +7220,9 @@ spec:
                             type: object
                           type: array
                       type: object
+                    name:
+                      description: Name of the pool
+                      type: string
                     parameters:
                       additionalProperties:
                         type: string
@@ -8251,6 +8254,9 @@ spec:
                   type: object
                 preserveFilesystemOnDelete:
                   description: Preserve the fs in the cluster on CephFilesystem CR deletion. Setting this to true automatically implies PreservePoolsOnDelete is true.
+                  type: boolean
+                preservePoolNames:
+                  description: Preserve pool names as specified
                   type: boolean
                 preservePoolsOnDelete:
                   description: Preserve pools on filesystem deletion

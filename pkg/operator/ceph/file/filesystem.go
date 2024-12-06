@@ -152,12 +152,13 @@ func validateFilesystem(context *clusterd.Context, clusterInfo *cephclient.Clust
 		}
 	}
 
-	if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &f.Spec.MetadataPool); err != nil {
+	localMetadataPoolSpec := f.Spec.MetadataPool.PoolSpec
+	if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localMetadataPoolSpec); err != nil {
 		return errors.Wrap(err, "invalid metadata pool")
 	}
 	for _, p := range f.Spec.DataPools {
-		localpoolSpec := p.PoolSpec
-		if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localpoolSpec); err != nil {
+		localPoolSpec := p.PoolSpec
+		if err := cephpool.ValidatePoolSpec(context, clusterInfo, clusterSpec, &localPoolSpec); err != nil {
 			return errors.Wrap(err, "Invalid data pool")
 		}
 	}
@@ -190,12 +191,10 @@ func newFS(name, namespace string) *Filesystem {
 
 // createOrUpdatePools function sets the sizes for MetadataPool and dataPool
 func createOrUpdatePools(f *Filesystem, context *clusterd.Context, clusterInfo *cephclient.ClusterInfo, clusterSpec *cephv1.ClusterSpec, spec cephv1.FilesystemSpec) error {
-	// generating the metadata pool's name
-	metadataPool := cephv1.NamedPoolSpec{
-		Name:     GenerateMetaDataPoolName(f.Name),
-		PoolSpec: spec.MetadataPool,
-	}
+	metadataPool := spec.MetadataPool
 	metadataPool.Application = cephfsApplication
+	metadataPool.Name = generateMetaDataPoolName(f.Name, &spec)
+
 	err := cephclient.CreatePool(context, clusterInfo, clusterSpec, &metadataPool)
 	if err != nil {
 		return errors.Wrapf(err, "failed to update metadata pool %q", metadataPool.Name)
@@ -264,11 +263,10 @@ func (f *Filesystem) doFilesystemCreate(context *clusterd.Context, clusterInfo *
 		reversedPoolMap[value] = key
 	}
 
-	spec.MetadataPool.Application = cephfsApplication
-	metadataPool := cephv1.NamedPoolSpec{
-		Name:     GenerateMetaDataPoolName(f.Name),
-		PoolSpec: spec.MetadataPool,
-	}
+	metadataPool := spec.MetadataPool
+	metadataPool.Application = cephfsApplication
+	metadataPool.Name = generateMetaDataPoolName(f.Name, &spec)
+
 	if _, poolFound := reversedPoolMap[metadataPool.Name]; !poolFound {
 		err = cephclient.CreatePool(context, clusterInfo, clusterSpec, &metadataPool)
 		if err != nil {
@@ -320,19 +318,40 @@ func downFilesystem(context *clusterd.Context, clusterInfo *cephclient.ClusterIn
 // or get predefined name from spec
 func generateDataPoolNames(f *Filesystem, spec cephv1.FilesystemSpec) []string {
 	var dataPoolNames []string
+
 	for i, pool := range spec.DataPools {
 		poolName := ""
+
 		if pool.Name == "" {
 			poolName = fmt.Sprintf("%s-%s%d", f.Name, dataPoolSuffix, i)
+		} else if spec.PreservePoolNames {
+			poolName = pool.Name
 		} else {
 			poolName = fmt.Sprintf("%s-%s", f.Name, pool.Name)
 		}
+
 		dataPoolNames = append(dataPoolNames, poolName)
 	}
+
 	return dataPoolNames
 }
 
 // GenerateMetaDataPoolName generates MetaDataPool name by prefixing the filesystem name to the constant metaDataPoolSuffix
 func GenerateMetaDataPoolName(fsName string) string {
-	return fmt.Sprintf("%s-%s", fsName, metaDataPoolSuffix)
+	return generateMetaDataPoolName(fsName, nil)
+}
+
+// GenerateMetaDataPoolName generates MetaDataPool name as specified in FilesystemSpec
+func generateMetaDataPoolName(fsName string, spec *cephv1.FilesystemSpec) string {
+	poolName := ""
+
+	if nil == spec || spec.MetadataPool.Name == "" {
+		poolName = fmt.Sprintf("%s-%s", fsName, metaDataPoolSuffix)
+	} else if spec.PreservePoolNames {
+		poolName = spec.MetadataPool.Name
+	} else {
+		poolName = fmt.Sprintf("%s-%s", fsName, spec.MetadataPool.Name)
+	}
+
+	return poolName
 }
