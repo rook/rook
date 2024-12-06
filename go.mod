@@ -18,7 +18,7 @@ require (
 	github.com/IBM/keyprotect-go-client v0.15.1
 	github.com/aws/aws-sdk-go v1.55.5
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
-	github.com/ceph/ceph-csi-operator/api v0.0.0-20240918113437-f3030b0ac9f4
+	github.com/ceph/ceph-csi-operator/api v0.0.0-20241105085518-2e1f3648eb65
 	github.com/ceph/go-ceph v0.29.0
 	github.com/coreos/pkg v0.0.0-20230601102743-20bbbf26f4d8
 	github.com/csi-addons/kubernetes-csi-addons v0.10.1-0.20240924092040-c11db0b867a1

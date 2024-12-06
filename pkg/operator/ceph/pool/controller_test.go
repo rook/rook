@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	csiopv1a1 "github.com/ceph/ceph-csi-operator/api/v1alpha1"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -245,6 +246,7 @@ func TestCephBlockPoolController(t *testing.T) {
 	// Objects to track in the fake client.
 	object := []runtime.Object{
 		pool,
+		&csiopv1a1.ClientProfileMapping{},
 	}
 
 	executor := &exectest.MockExecutor{
@@ -264,7 +266,7 @@ func TestCephBlockPoolController(t *testing.T) {
 
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cephv1.SchemeGroupVersion, pool, &cephv1.CephClusterList{})
+	s.AddKnownTypes(cephv1.SchemeGroupVersion, pool, &cephv1.CephClusterList{}, &csiopv1a1.ClientProfileMapping{})
 
 	// Create a fake client to mock API calls.
 	cl := fake.NewClientBuilder().WithRuntimeObjects(object...).Build()
