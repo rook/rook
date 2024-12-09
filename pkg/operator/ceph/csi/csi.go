@@ -303,15 +303,27 @@ func (r *ReconcileCSI) setParams() error {
 
 	CSIParam.DriverNamePrefix = k8sutil.GetValue(r.opConfig.Parameters, "CSI_DRIVER_NAME_PREFIX", r.opConfig.OperatorNamespace)
 
-	_, err = r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io", metav1.GetOptions{})
+	crd, err := r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io", metav1.GetOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrapf(err, "failed to get volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io CRD")
 	}
 	CSIParam.VolumeGroupSnapshotSupported = (err == nil)
 
-	CSIParam.EnableVolumeGroupSnapshot = true
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_GROUP_SNAPSHOT", "true"), "false") {
-		CSIParam.EnableVolumeGroupSnapshot = false
+	if err == nil && len(crd.Spec.Versions) > 0 {
+		ver := crd.Spec.Versions[0]
+		// If the CRD is present, we need to check the API version to determine the CLI flag, as the CLI flag
+		// is different between the two versions.
+		if ver.Name == "v1alpha1" {
+			CSIParam.VolumeGroupSnapshotCLIFlag = "--enable-volume-group-snapshots=true"
+			if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_GROUP_SNAPSHOT", "true"), "false") {
+				CSIParam.VolumeGroupSnapshotCLIFlag = "--enable-volume-group-snapshots=false"
+			}
+		} else {
+			CSIParam.VolumeGroupSnapshotCLIFlag = "--feature-gate=CSIVolumeGroupSnapshot=true"
+			if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_GROUP_SNAPSHOT", "true"), "false") {
+				CSIParam.VolumeGroupSnapshotCLIFlag = "--feature-gate=CSIVolumeGroupSnapshot=false"
+			}
+		}
 	}
 
 	kubeApiBurst := k8sutil.GetValue(r.opConfig.Parameters, "CSI_KUBE_API_BURST", "")
