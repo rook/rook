@@ -111,8 +111,10 @@ Also see an example in the [`storageclass-ec.yaml`](https://github.com/rook/rook
 The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](../Block-Storage/ceph-block-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least eight devices (6 data + 2 coding chunks) in the cluster.
 
 * `metadataPool`: The settings used to create the filesystem metadata pool. Must use replication.
+    * `name`: (optional) Override the default generated name of the metadata pool.
 * `dataPools`: The settings to create the filesystem data pools. Optionally (and we highly recommend), a pool name can be specified with the `name` field to override the default generated name; see more below. If multiple pools are specified, Rook will add the pools to the filesystem. Assigning users or files to a pool is left as an exercise for the reader with the [CephFS documentation](http://docs.ceph.com/docs/master/cephfs/file-layouts/). The data pools can use replication or erasure coding. If erasure coding pools are specified, the cluster must be running with bluestore enabled on the OSDs.
-    * `name`: (optional, and highly recommended) Override the default generated name of the pool. The final pool name will consist of the filesystem name and pool name, e.g., `<fsName>-<poolName>`. We highly recommend to specify `name` to prevent issues that can arise from modifying the spec in a way that causes Rook to lose the original pool ordering.
+    * `name`: (optional, and highly recommended) Override the default generated name of the pool. We highly recommend to specify `name` to prevent issues that can arise from modifying the spec in a way that causes Rook to lose the original pool ordering.
+* `preservePoolNames`: Preserve pool names as specified.
 * `preserveFilesystemOnDelete`: If it is set to 'true' the filesystem will remain when the
     CephFilesystem resource is deleted. This is a security measure to avoid loss of data if the
     CephFilesystem resource is deleted accidentally. The default value is 'false'. This option
@@ -120,6 +122,10 @@ The pools allow all of the settings defined in the Pool CRD spec. For more detai
 * (deprecated) `preservePoolsOnDelete`: This option is replaced by the above
     `preserveFilesystemOnDelete`. For backwards compatibility and upgradeability, if this is set to
     'true', Rook will treat `preserveFilesystemOnDelete` as being set to 'true'.
+
+### Generated Pool Names
+
+Both `metadataPool` and `dataPools` support defining names as required. The final pool name will consist of the filesystem name and pool name, e.g., `<fsName>-<poolName>` or `<fsName>-metadata` for `metadataPool`. For more granular configuration you may want to set `preservePoolNames` to `true` in `pools` to disable generation of names. In that case all pool names defined are used as given.
 
 ## Metadata Server Settings
 
