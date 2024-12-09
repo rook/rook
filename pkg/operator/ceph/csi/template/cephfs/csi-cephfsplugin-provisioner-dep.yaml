@@ -63,7 +63,7 @@ spec:
             - "--leader-election-retry-period={{ .LeaderElectionRetryPeriod }}"
             - "--extra-create-metadata=true"
           {{ if .VolumeGroupSnapshotSupported }}
-            - "--enable-volume-group-snapshots={{ .EnableVolumeGroupSnapshot }}"
+            - "{{ .VolumeGroupSnapshotCLIFlag }}"
           {{ end }}
           {{ if .KubeApiBurst }}
             - "--kube-api-burst={{ .KubeApiBurst }}"
