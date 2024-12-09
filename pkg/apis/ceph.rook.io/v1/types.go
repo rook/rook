@@ -1174,11 +1174,15 @@ type CephFilesystemList struct {
 type FilesystemSpec struct {
 	// The metadata pool settings
 	// +nullable
-	MetadataPool PoolSpec `json:"metadataPool"`
+	MetadataPool NamedPoolSpec `json:"metadataPool"`
 
 	// The data pool settings, with optional predefined pool name.
 	// +nullable
 	DataPools []NamedPoolSpec `json:"dataPools"`
+
+	// Preserve pool names as specified
+	// +optional
+	PreservePoolNames bool `json:"preservePoolNames,omitempty"`
 
 	// Preserve pools on filesystem deletion
 	// +optional
