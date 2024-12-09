@@ -77,8 +77,8 @@ type Param struct {
 	CephFSAttachRequired                     bool
 	RBDAttachRequired                        bool
 	NFSAttachRequired                        bool
+	VolumeGroupSnapshotCLIFlag               string
 	VolumeGroupSnapshotSupported             bool
-	EnableVolumeGroupSnapshot                bool
 	LogLevel                                 uint8
 	SidecarLogLevel                          uint8
 	CephFSLivenessMetricsPort                uint16

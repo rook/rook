@@ -303,15 +303,35 @@ func (r *ReconcileCSI) setParams() error {
 
 	CSIParam.DriverNamePrefix = k8sutil.GetValue(r.opConfig.Parameters, "CSI_DRIVER_NAME_PREFIX", r.opConfig.OperatorNamespace)
 
-	_, err = r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io", metav1.GetOptions{})
+	crd, err := r.context.ApiExtensionsClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.TODO(), "volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io", metav1.GetOptions{})
 	if err != nil && !kerrors.IsNotFound(err) {
 		return errors.Wrapf(err, "failed to get volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io CRD")
 	}
 	CSIParam.VolumeGroupSnapshotSupported = (err == nil)
 
-	CSIParam.EnableVolumeGroupSnapshot = true
-	if strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_GROUP_SNAPSHOT", "true"), "false") {
-		CSIParam.EnableVolumeGroupSnapshot = false
+	if err == nil && len(crd.Spec.Versions) > 0 {
+		ver := crd.Spec.Versions[0]
+		// Determine if VolumeGroupSnapshot feature should be disabled
+		disableVGS := strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_GROUP_SNAPSHOT", "true"), "false")
+		const (
+			enableVolumeGroupSnapshotFlag = "--enable-volume-group-snapshots="
+			featureGateFlag               = "--feature-gate=CSIVolumeGroupSnapshot="
+		)
+		// Check for "v1alpha1" version to determine the appropriate CLI flag
+		// In the "v1alpha1" version, we use the '--enable-volume-group-snapshots' flag.
+		// In later versions (e.g., "v1beta1"), we use the '--feature-gate=CSIVolumeGroupSnapshot' flag.
+		if ver.Name == "v1alpha1" {
+			CSIParam.VolumeGroupSnapshotCLIFlag = enableVolumeGroupSnapshotFlag + "true"
+		} else {
+			CSIParam.VolumeGroupSnapshotCLIFlag = featureGateFlag + "true"
+		}
+		if disableVGS {
+			if ver.Name == "v1alpha1" {
+				CSIParam.VolumeGroupSnapshotCLIFlag = enableVolumeGroupSnapshotFlag + "false"
+			} else {
+				CSIParam.VolumeGroupSnapshotCLIFlag = featureGateFlag + "false"
+			}
+		}
 	}
 
 	kubeApiBurst := k8sutil.GetValue(r.opConfig.Parameters, "CSI_KUBE_API_BURST", "")
