@@ -1180,7 +1180,11 @@ func GetCephVolumeRawOSDs(context *clusterd.Context, clusterInfo *client.Cluster
 		// pod
 		// For the cleanup pod we don't want to close the encrypted block since it will sanitize it
 		// first and then close it
+<<<<<<< HEAD
 		if os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName) != "" {
+=======
+		if osd.Encrypted && os.Getenv(oposd.CephVolumeEncryptedKeyEnvVarName) != "" {
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 			// If label and subsystem are not set on the encrypted block let's set it
 			// They will be set if the OSD deployment has been removed manually and the prepare job
 			// runs again.

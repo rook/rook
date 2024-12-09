@@ -25,6 +25,10 @@ considered in the future:
   and application data on slower media.
 - Setups with multiple OSDs per drive, though with recent Ceph releases the
   motivation for deploying this way is mostly obviated.
+<<<<<<< HEAD
+=======
+- OSDs where Persistent Volumes are using partitioned disks due to a [ceph issue](https://tracker.ceph.com/issues/68977). 
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 
 ## Proposal
 - Since migration requires destroying of the OSD and cleaning data from the disk,

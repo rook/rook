@@ -308,6 +308,7 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 
 	// Add OSD ID as environment variables.
 	// When this env is set, prepare pod job will destroy this OSD.
+<<<<<<< HEAD
 	if c.replaceOSD != nil {
 		// Compare pvc claim name in case of OSDs on PVC
 		if osdProps.onPVC() {
@@ -318,6 +319,18 @@ func (c *Cluster) provisionOSDContainer(osdProps osdProperties, copyBinariesMoun
 			// Compare the node name in case of OSDs on disk
 			if c.replaceOSD.Node == osdProps.crushHostname {
 				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.replaceOSD.ID)))
+=======
+	if c.migrateOSD != nil {
+		// Compare pvc claim name in case of OSDs on PVC
+		if osdProps.onPVC() {
+			if strings.Contains(c.migrateOSD.PVCName, osdProps.pvc.ClaimName) {
+				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.migrateOSD.ID)))
+			}
+		} else {
+			// Compare the node name in case of OSDs on disk
+			if c.migrateOSD.NodeName == osdProps.crushHostname {
+				envVars = append(envVars, replaceOSDIDEnvVar(fmt.Sprint(c.migrateOSD.ID)))
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 			}
 		}
 	}

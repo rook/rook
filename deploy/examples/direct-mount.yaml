@@ -19,7 +19,11 @@ spec:
       serviceAccountName: rook-ceph-default
       containers:
         - name: rook-direct-mount
+<<<<<<< HEAD
           image: docker.io/rook/ceph:v1.16.0-beta.0
+=======
+          image: docker.io/rook/ceph:master
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
           command: ["/bin/bash"]
           args: ["-m", "-c", "/usr/local/bin/toolbox.sh"]
           imagePullPolicy: IfNotPresent

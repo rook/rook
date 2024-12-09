@@ -155,7 +155,11 @@ by the Operator. Also update the Custom Resource Definitions (CRDs).
 Get the latest common resources manifests that contain the latest changes.
 
 ```console
+<<<<<<< HEAD
 git clone --single-branch --depth=1 --branch v1.16.0-beta.0 https://github.com/rook/rook.git
+=======
+git clone --single-branch --depth=1 --branch master https://github.com/rook/rook.git
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 cd rook/deploy/examples
 ```
 
@@ -194,7 +198,11 @@ The largest portion of the upgrade is triggered when the operator's image is upd
 When the operator is updated, it will proceed to update all of the Ceph daemons.
 
 ```console
+<<<<<<< HEAD
 kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:v1.16.0-beta.0
+=======
+kubectl -n $ROOK_OPERATOR_NAMESPACE set image deploy/rook-ceph-operator rook-ceph-operator=rook/ceph:master
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 ```
 
 ### **3. Update Ceph CSI**

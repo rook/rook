@@ -248,15 +248,22 @@ func archiveCrash(clusterdContext *clusterd.Context, clusterInfo *client.Cluster
 }
 
 // DestroyOSD fetches the OSD to be replaced based on the ID and then destroys that OSD and zaps the backing device
+<<<<<<< HEAD
 func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC, isEncrypted bool) (*oposd.OSDReplaceInfo, error) {
 	var block string
+=======
+func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id int, isPVC bool) (*oposd.OSDInfo, error) {
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 	osdInfo, err := GetOSDInfoById(context, clusterInfo, id)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get OSD info for OSD.%d", id)
 	}
 
+<<<<<<< HEAD
 	block = osdInfo.BlockPath
 
+=======
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 	logger.Infof("destroying osd.%d", osdInfo.ID)
 	destroyOSDArgs := []string{"osd", "destroy", fmt.Sprintf("osd.%d", osdInfo.ID), "--yes-i-really-mean-it"}
 	_, err = client.NewCephCommand(context, clusterInfo, destroyOSDArgs).Run()
@@ -265,7 +272,11 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	}
 	logger.Infof("successfully destroyed osd.%d", osdInfo.ID)
 
+<<<<<<< HEAD
 	if isPVC && isEncrypted {
+=======
+	if isPVC && osdInfo.Encrypted {
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 		// remove the dm device
 		pvcName := os.Getenv(oposd.PVCNameEnvVarName)
 		target := oposd.EncryptionDMName(pvcName, oposd.DmcryptBlockType)
@@ -280,6 +291,7 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to get device info for %q", blockPath)
 		}
+<<<<<<< HEAD
 		block = diskInfo.RealPath
 	}
 
@@ -293,4 +305,19 @@ func DestroyOSD(context *clusterd.Context, clusterInfo *client.ClusterInfo, id i
 	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, block)
 
 	return &oposd.OSDReplaceInfo{ID: osdInfo.ID, Path: block}, nil
+=======
+		osdInfo.BlockPath = diskInfo.RealPath
+	}
+
+	logger.Infof("zap OSD.%d path %q", osdInfo.ID, osdInfo.BlockPath)
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput("stdbuf", "-oL", "ceph-volume", "lvm", "zap", osdInfo.BlockPath, "--destroy")
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to zap osd.%d path %q. %s.", osdInfo.ID, osdInfo.BlockPath, output)
+	}
+
+	logger.Infof("%s\n", output)
+	logger.Infof("successfully zapped osd.%d path %q", osdInfo.ID, osdInfo.BlockPath)
+
+	return osdInfo, nil
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 }

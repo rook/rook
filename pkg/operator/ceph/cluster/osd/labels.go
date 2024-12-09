@@ -64,6 +64,15 @@ func (c *Cluster) getOSDLabels(osd OSDInfo, failureDomainValue string, portable 
 		labels[deviceType] = osd.DeviceType
 	}
 
+<<<<<<< HEAD
+=======
+	encryptedOSD := "false"
+	if osd.Encrypted {
+		encryptedOSD = "true"
+	}
+	labels[encrypted] = encryptedOSD
+
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 	for k, v := range getOSDTopologyLocationLabels(osd.Location) {
 		labels[k] = v
 	}

@@ -18,7 +18,10 @@ package osd
 
 import (
 	"context"
+<<<<<<< HEAD
 	"encoding/json"
+=======
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 	"testing"
 
 	"github.com/pkg/errors"
@@ -796,6 +799,7 @@ func TestGetOSDInfoWithCustomRoot(t *testing.T) {
 	assert.Error(t, err)
 }
 
+<<<<<<< HEAD
 func TestReplaceOSDForNewStore(t *testing.T) {
 	clusterInfo := &cephclient.ClusterInfo{Namespace: "ns", Context: context.TODO()}
 	clusterInfo.SetName("test")
@@ -964,6 +968,8 @@ func TestReplaceOSDForNewStore(t *testing.T) {
 	})
 }
 
+=======
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 func TestUpdateCephStorageStatus(t *testing.T) {
 	ctx := context.TODO()
 	clusterInfo := cephclient.AdminTestClusterInfo("fake")

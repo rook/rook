@@ -261,10 +261,17 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	}
 
 	// destroy the OSD using the OSD ID
+<<<<<<< HEAD
 	var replaceOSD *oposd.OSDReplaceInfo
 	if replaceOSDID != -1 {
 		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
 		replaceOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, replaceOSDID, cfg.pvcBacked, cfg.storeConfig.EncryptedDevice)
+=======
+	var replaceOSD *oposd.OSDInfo
+	if replaceOSDID != -1 {
+		logger.Infof("destroying osd.%d and cleaning its backing device", replaceOSDID)
+		replaceOSD, err = osddaemon.DestroyOSD(context, &clusterInfo, replaceOSDID, cfg.pvcBacked)
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 		if err != nil {
 			rook.TerminateFatal(errors.Wrapf(err, "failed to destroy OSD %d.", replaceOSDID))
 		}

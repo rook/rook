@@ -8049,6 +8049,68 @@ bool
 </tr>
 </tbody>
 </table>
+<<<<<<< HEAD
+=======
+<h3 id="ceph.rook.io/v1.Migration">Migration
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.StorageScopeSpec">StorageScopeSpec</a>)
+</p>
+<div>
+<p>Migration handles the OSD migration</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>confirmation</code><br/>
+<em>
+string
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>A user confirmation to migrate the OSDs. It destroys each OSD one at a time, cleans up the backing disk
+and prepares OSD with same ID on that disk</p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.MigrationStatus">MigrationStatus
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.OSDStatus">OSDStatus</a>)
+</p>
+<div>
+<p>MigrationStatus status represents the current status of any OSD migration.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>pending</code><br/>
+<em>
+int
+</em>
+</td>
+<td>
+</td>
+</tr>
+</tbody>
+</table>
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 <h3 id="ceph.rook.io/v1.MirrorHealthCheckSpec">MirrorHealthCheckSpec
 </h3>
 <p>
@@ -9471,6 +9533,21 @@ map[string]int
 <p>StoreType is a mapping between the OSD backend stores and number of OSDs using these stores</p>
 </td>
 </tr>
+<<<<<<< HEAD
+=======
+<tr>
+<td>
+<code>migrationStatus</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.MigrationStatus">
+MigrationStatus
+</a>
+</em>
+</td>
+<td>
+</td>
+</tr>
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 </tbody>
 </table>
 <h3 id="ceph.rook.io/v1.OSDStore">OSDStore
@@ -12935,6 +13012,23 @@ Selection
 </tr>
 <tr>
 <td>
+<<<<<<< HEAD
+=======
+<code>migration</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.Migration">
+Migration
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Migration handles the OSD migration</p>
+</td>
+</tr>
+<tr>
+<td>
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
 <code>store</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.OSDStore">

@@ -8,3 +8,7 @@
 
 - Enable mirroring for CephBlockPoolRadosNamespaces (see [#14701](https://github.com/rook/rook/pull/14701)).
 - Enable periodic monitoring for CephBlockPoolRadosNamespaces mirroring (see [#14896](https://github.com/rook/rook/pull/14896)).
+<<<<<<< HEAD
+=======
+- Allow migration of PVC based OSDs to enable or disable encryption (see [#14776](https://github.com/rook/rook/pull/14776)).
+>>>>>>> 79e767e0e (docs: remove deprecated toplogyKey beta labels)
