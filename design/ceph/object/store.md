@@ -712,3 +712,95 @@ For external CephCephObjectStores (i.e., when `spec.gateway.externalRgwEndpoints
 vhost-style addressing should be configured on the host cluster, and `hosting.dnsNames` is
 irrelevant. The default `advertiseEndpoint` for external CephObjectStores is the first entry in the
 `spec.gateway.externalRgwEndpoints` list, which users should be able to override if desired.
+
+### Advanced user configuration
+
+RGW is a very active project with many existing features and regular new feature additions. Rook
+maintainers have a hard time catching up with RGW's latest features. In an effort to help users who
+want access to rare and new features, Rook can allow users to set arbitrary Ceph configs in their
+CephObjectStore CR. RGW config reference: https://docs.ceph.com/en/reef/radosgw/config-ref/
+
+This is an advanced feature. It allows users to modify many untested aspects of the RGW and object
+store. Any user configs that break the object store should be a responsibility of the user.
+
+```yaml
+spec:
+  metadataPool: # ...
+  dataPool: # ...
+  gateway: # ...
+
+  cephConfig:
+    rgw_enable_apis: s3, s3website, swift, swift_auth, sts, iam, notifications # e.g. 'admin' removed
+    rgw_gc_max_concurrent_io: "4" # e.g, reduce garbage collection IO
+    debug_rgw: "20"
+```
+
+CephCluster has a similar configuration section called `config`. `config` may be somewhat too vague
+in the context of the CephObjectStore CR. `cephConfig` is a clearer naming for users and give
+context that Ceph configs are expected.
+
+Rook users can already use the `CephCluster.spec.config` section to control individual
+CephObjectStore configurations today. However, this requires users to know the name of the Ceph
+client user for each CephObjectStore. Adding this feature improves config override usability for
+object store users, and it keeps config overrides in the same place as the resource. This is a clear
+quality of life improvement for users managing object stores.
+
+Rook will apply user config values to the mon config store. Rook will not override its own mon
+config values set via other means. This will ensure that values controlled by Rook for other spec
+configurations or that are important for running in Kubernetes are not clobbered by user configs.
+This will risk some instances where users want to update a value that Rook currently sets.
+This tradeoff favors reliability over flexibility.
+
+Examples:
+    - Rook sets configs like `rgw_zone` which are critical for a functional CephObjectStore. Users
+    would not be able to override this value.
+    - Rook sets `rgw_dns_name` via the `hosting` config section. User inputs to `rgw_dns_name`
+    wouldn't take affect when `hosting` configs are set.
+
+If possible, Rook should make log when it overrides a user's `cephConfig` based on another config or
+internal decision. This may not be easily feasible when Rook applies CLI flags to the RGW
+deployment.
+
+Rook will apply each configuration under the client scope of the shared RGW client.
+i.e., `client.rook-ceph-rgw-<store-name>`. This will also help ensure that configs changed don't
+affect other Rook-managed Ceph daemons, critically mons, osds, and mds.
+
+Configs set here will be equivalent to a Ceph config section like the following ini.
+
+```ini
+[client.rook-ceph-rgw-<store-name>]
+rgw_enable_apis = s3, s3website, swift, swift_auth, sts, iam, notifications
+rgw_gc_max_concurrent_io = "4"
+debug_rgw = "20"
+```
+
+Rook will not perform validation to ensure configs set in the CephObjectStore `cephConfig` section
+do not conflict with CephCluster `config` options. Users should refrain from setting
+`client.rook-ceph-rgw-*` configs in the CephCluster when this feature is used. Documentation should
+note this for users. Rook can revisit this decision in the future to add cross-CRD validation if it
+becomes a strong user desire/need.
+
+In order to prevent misuse or abuse of this feature, Rook will perform some high-level validation of
+configurations. For example, users will be prevented from setting the
+[Ceph general config](https://docs.ceph.com/en/reef/rados/configuration/general-config-ref/)
+`admin_socket` which might affect RGW's ability to run correctly in the container. Rook will
+disallow all configurations by default, and use an allow-list architecture to allow user configs
+that are reasonably in scope for object stores.
+
+Critically, users should be able to modify RGW configurations. Ceph prefixes all RGW-related
+configurations with `rgw_`, so Rook will allow-list all `rgw_`-prefixed configs.
+
+Users are often asked to set Ceph log levels for debugging challenging issues. Ceph has an `rgw`
+[debug subsystem](https://docs.ceph.com/en/reef/rados/troubleshooting/log-and-debug/). Rook can
+allow users to set RGW log levels per-objectstore by allowing `debug_rgw` as a prefix also. The
+prefix will allow `debug_rgw_access`, and similar options.
+
+These validations are simple to implement and maintain. If Rook finds that users need configurations
+outside of these allowed bounds, maintainers can decide to add broad or specific allowances then, or
+open up all configs to this mechanism at future discretion. Implementing restrictions in the future
+would necessitate breaking change notices, so it is preferred to implement restrictions early.
+
+This config does not allow users to override CLI flags on the RGW deployment; only mon config store
+values. This means that users may need to restart the RGW manually themselves for certain
+configurations. Rook code could allow users to override CLI flags to allow automatic restarts, but
+this would raise greater risk of
