@@ -3,6 +3,7 @@
 PROBE_TYPE="{{ .ProbeType }}"
 PROBE_PORT="{{ .Port }}"
 PROBE_PROTOCOL="{{ .Protocol }}"
+PROBE_PATH="{{ .Path }}"
 
 # standard bash codes start at 126 and progress upward. pick error codes from 125 downward for
 # script as to allow curl to output new error codes and still return a distinctive number.
@@ -13,7 +14,7 @@ PROBE_ERR_CODE=124
 STARTUP_TYPE='startup'
 READINESS_TYPE='readiness'
 
-RGW_URL="$PROBE_PROTOCOL://0.0.0.0:$PROBE_PORT"
+RGW_URL="$PROBE_PROTOCOL://0.0.0.0:$PROBE_PORT$PROBE_PATH"
 
 function check() {
   local URL="$1"

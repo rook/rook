@@ -9854,6 +9854,13 @@ If spec.sharedPools are also empty, then RGW pools (spec.dataPool and spec.metad
 </tr>
 </tbody>
 </table>
+<h3 id="ceph.rook.io/v1.ObjectStoreAPI">ObjectStoreAPI
+(<code>string</code> alias)</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ProtocolSpec">ProtocolSpec</a>)
+</p>
+<div>
+</div>
 <h3 id="ceph.rook.io/v1.ObjectStoreHostingSpec">ObjectStoreHostingSpec
 </h3>
 <p>
@@ -11422,6 +11429,23 @@ alive or ready to receive traffic.</p>
 <tbody>
 <tr>
 <td>
+<code>enableAPIs</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectStoreAPI">
+[]ObjectStoreAPI
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Represents RGW &lsquo;rgw_enable_apis&rsquo; config option. See: <a href="https://docs.ceph.com/en/reef/radosgw/config-ref/#confval-rgw_enable_apis">https://docs.ceph.com/en/reef/radosgw/config-ref/#confval-rgw_enable_apis</a>
+If no value provided then all APIs will be enabled: s3, s3website, swift, swift_auth, admin, sts, iam, notifications
+If enabled APIs are set, all remaining APIs will be disabled.
+This option overrides S3.Enabled value.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>s3</code><br/>
 <em>
 <a href="#ceph.rook.io/v1.S3Spec">
@@ -11925,7 +11949,8 @@ bool
 </td>
 <td>
 <em>(Optional)</em>
-<p>Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.</p>
+<p>Deprecated: use protocol.enableAPIs instead.
+Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.</p>
 </td>
 </tr>
 <tr>

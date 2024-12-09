@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"net/url"
 	"path"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -71,6 +72,8 @@ chown --recursive --verbose ceph:ceph $VAULT_TOKEN_NEW_PATH
 var (
 	//go:embed rgw-probe.sh
 	rgwProbeScriptTemplate string
+
+	rgwAPIwithoutS3 = []string{"s3website", "swift", "swift_auth", "admin", "sts", "iam", "notifications"}
 )
 
 type ProbeType string
@@ -89,6 +92,7 @@ type rgwProbeConfig struct {
 
 	Protocol ProtocolType
 	Port     string
+	Path     string
 }
 
 func (c *clusterConfig) createDeployment(rgwConfig *rgwConfig) (*apps.Deployment, error) {
@@ -401,23 +405,27 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 		}
 	}
 
-	s3Enabled, err := c.CheckRGWSSES3Enabled()
+	if flags := buildRGWConfigFlags(c.store); len(flags) != 0 {
+		container.Args = append(container.Args, flags...)
+	}
+
+	s3EncryptionEnabled, err := c.CheckRGWSSES3Enabled()
 	if err != nil {
 		return v1.Container{}, err
 	}
-	if s3Enabled {
+	if s3EncryptionEnabled {
 		logger.Debugf("enabliing SSE-S3. %v", c.store.Spec.Security.ServerSideEncryptionS3)
 
-		container.Args = append(container.Args, c.sseS3DefaultOptions(s3Enabled)...)
+		container.Args = append(container.Args, c.sseS3DefaultOptions(s3EncryptionEnabled)...)
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTokenAuthEnabled() {
-			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3Enabled)...)
+			container.Args = append(container.Args, c.sseS3VaultTokenOptions(s3EncryptionEnabled)...)
 		}
 		if c.store.Spec.Security.ServerSideEncryptionS3.IsTLSEnabled() {
-			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3Enabled)...)
+			container.Args = append(container.Args, c.sseS3VaultTLSOptions(s3EncryptionEnabled)...)
 		}
 	}
 
-	if s3Enabled || kmsEnabled {
+	if s3EncryptionEnabled || kmsEnabled {
 		vaultVolMount := v1.VolumeMount{Name: rgwVaultVolumeName, MountPath: rgwVaultDirName}
 		container.VolumeMounts = append(container.VolumeMounts, vaultVolMount)
 	}
@@ -459,11 +467,17 @@ func noLivenessProbe() *v1.Probe {
 }
 
 func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
+	probePath, disableProbe := getRGWProbePath(c.store.Spec.Protocols)
+	if disableProbe {
+		logger.Infof("disabling startup probe for %q store", c.store.Name)
+		return nil, nil
+	}
 	proto, port := c.endpointInfo()
 	cfg := rgwProbeConfig{
 		ProbeType: ReadinessProbeType,
 		Protocol:  proto,
 		Port:      port.String(),
+		Path:      probePath,
 	}
 	script, err := renderProbe(cfg)
 	if err != nil {
@@ -489,13 +503,52 @@ func (c *clusterConfig) defaultReadinessProbe() (*v1.Probe, error) {
 	return probe, nil
 }
 
+// getRGWProbePath - returns custom path for RGW probe and returns true if probe should be disabled.
+func getRGWProbePath(protocolSpec cephv1.ProtocolSpec) (path string, disable bool) {
+	enabledAPIs := buildRGWEnableAPIsConfigVal(protocolSpec)
+	if len(enabledAPIs) == 0 {
+		// all apis including s3 are enabled
+		// using default s3 Probe
+		return "", false
+	}
+	if slices.Contains(enabledAPIs, "s3") {
+		// using default s3 Probe
+		return "", false
+	}
+	if slices.Contains(enabledAPIs, "swift") {
+		// using swift api for probe
+		// calculate path for swift probe
+		prefix := "/swift/"
+		if protocolSpec.Swift != nil && protocolSpec.Swift.UrlPrefix != nil && *protocolSpec.Swift.UrlPrefix != "" {
+			prefix = *protocolSpec.Swift.UrlPrefix
+			if !strings.HasPrefix(prefix, "/") {
+				prefix = "/" + prefix
+			}
+			if !strings.HasSuffix(prefix, "/") {
+				prefix += "/"
+			}
+		}
+		prefix += "info"
+		return prefix, false
+	}
+	// both swift and s3 are disabled - disable probe.
+	return "", true
+}
+
 func (c *clusterConfig) defaultStartupProbe() (*v1.Probe, error) {
+	probePath, disableProbe := getRGWProbePath(c.store.Spec.Protocols)
+	if disableProbe {
+		logger.Infof("disabling startup probe for %q store", c.store.Name)
+		return nil, nil
+	}
 	proto, port := c.endpointInfo()
 	cfg := rgwProbeConfig{
 		ProbeType: StartupProbeType,
 		Protocol:  proto,
 		Port:      port.String(),
+		Path:      probePath,
 	}
+
 	script, err := renderProbe(cfg)
 	if err != nil {
 		return nil, err
@@ -902,6 +955,46 @@ func (c *clusterConfig) sseS3VaultTLSOptions(setOptions bool) []string {
 		}
 	}
 	return rgwOptions
+}
+
+// Builds list of rgw config parameters which should be passed as CLI flags.
+// Consider set config option as flag if BOTH criteria fulfilled:
+//  1. config value is not secret
+//  2. config change requires RGW daemon restart
+//
+// Otherwise set rgw config parameter to mon database in ./config.go -> setFlagsMonConfigStore()
+// CLI flags override values from mon db: see ceph config docs: https://docs.ceph.com/en/latest/rados/configuration/ceph-conf/#config-sources
+func buildRGWConfigFlags(objectStore *cephv1.CephObjectStore) []string {
+	var res []string
+	// todo: move all flags here
+	if enableAPIs := buildRGWEnableAPIsConfigVal(objectStore.Spec.Protocols); len(enableAPIs) != 0 {
+		res = append(res, cephconfig.NewFlag("rgw_enable_apis", strings.Join(enableAPIs, ",")))
+		logger.Debugf("Enabling APIs for RGW instance %q: %s", objectStore.Name, enableAPIs)
+	}
+	return res
+}
+
+func buildRGWEnableAPIsConfigVal(protocolSpec cephv1.ProtocolSpec) []string {
+	if len(protocolSpec.EnableAPIs) != 0 {
+		// handle explicit enabledAPIS spec
+		enabledAPIs := make([]string, len(protocolSpec.EnableAPIs))
+		for i, v := range protocolSpec.EnableAPIs {
+			enabledAPIs[i] = strings.TrimSpace(string(v))
+		}
+		return enabledAPIs
+	}
+
+	// if enabledAPIs not set, check if S3 should be disabled
+	if protocolSpec.S3 != nil && protocolSpec.S3.Enabled != nil && !*protocolSpec.S3.Enabled { //nolint // disable deprecation check
+		return rgwAPIwithoutS3
+	}
+	// see also https://docs.ceph.com/en/octopus/radosgw/config-ref/#swift-settings on disabling s3
+	// when using '/' as prefix
+	if protocolSpec.Swift != nil && protocolSpec.Swift.UrlPrefix != nil && *protocolSpec.Swift.UrlPrefix == "/" {
+		logger.Warning("Forcefully disabled S3 as the swift prefix is given as a slash /. Ignoring any S3 options (including Enabled=true)!")
+		return rgwAPIwithoutS3
+	}
+	return nil
 }
 
 func renderProbe(cfg rgwProbeConfig) (string, error) {
