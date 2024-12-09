@@ -139,7 +139,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 	}
 
 	cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.NoneSnapshotPolicy
-	if CSIParam.EnableVolumeGroupSnapshot {
+	if CSIParam.VolumeGroupSnapshotCLIFlag != "" {
 		cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.VolumeGroupSnapshotPolicy
 	}
 
