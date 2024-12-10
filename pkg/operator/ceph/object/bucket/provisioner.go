@@ -126,13 +126,6 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		logger.Debugf("bucket %q already exists", p.bucketName)
 	}
 
-	singleBucketQuota := 1
-	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &singleBucketQuota})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set user %q bucket quota to %d", p.cephUserName, singleBucketQuota)
-	}
-	logger.Infof("set user %q bucket max to %d", p.cephUserName, singleBucketQuota)
-
 	err = p.setAdditionalSettings(options)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
@@ -163,13 +156,6 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	p.accessKeyID, p.secretAccessKey, err = p.createCephUser(options.UserID)
 	if err != nil {
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
-	}
-
-	// restrict creation of new buckets in rgw
-	restrictBucketCreation := 0
-	_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &restrictBucketCreation})
-	if err != nil {
-		return nil, err
 	}
 
 	// get the bucket's owner via the bucket metadata
