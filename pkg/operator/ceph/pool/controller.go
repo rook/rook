@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/ceph/csi"
 	"github.com/rook/rook/pkg/operator/ceph/csi/peermap"
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -333,6 +334,13 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 			return reconcileResponse, *cephBlockPool, errors.Wrapf(err, "failed to update pool ID mapping config for the pool %q", cephBlockPool.Name)
 		}
 
+		if csi.EnableCSIOperator() {
+			err = peermap.ReconcileClientProfileMapping(r.opManagerContext, r.context, r.clusterInfo, cephBlockPool)
+			if err != nil {
+				return reconcileResponse, *cephBlockPool, errors.Wrapf(err, "failed to reconcile clientProfileMappings resource for the pool %q", cephBlockPool.Name)
+			}
+		}
+
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
 		r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
@@ -363,6 +371,14 @@ func (r *ReconcileCephBlockPool) reconcile(request reconcile.Request) (reconcile
 		if err != nil {
 			logger.Warningf("failed to disable mirroring on pool %q running in ceph cluster namespace %q. %v", poolSpec.Name, r.clusterInfo.Namespace, err)
 		}
+
+		// delete clientProfileMappings resource used by csi-operator
+		if !csi.EnableCSIOperator() {
+			if err := peermap.DeleteClientProfileMapping(r.opManagerContext, r.client, cephBlockPool.Name, cephBlockPool.Namespace); err != nil {
+				logger.Warningf("failed to delete clientProfileMappings resource for cephBlockPool %q. %v", cephBlockPool.Name, err)
+			}
+		}
+
 		// update ObservedGeneration in status at the end of reconcile
 		// Set Ready status, we are done reconciling
 		r.updateStatus(request.NamespacedName, cephv1.ConditionReady, observedGeneration)
