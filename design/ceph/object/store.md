@@ -712,3 +712,31 @@ For external CephCephObjectStores (i.e., when `spec.gateway.externalRgwEndpoints
 vhost-style addressing should be configured on the host cluster, and `hosting.dnsNames` is
 irrelevant. The default `advertiseEndpoint` for external CephObjectStores is the first entry in the
 `spec.gateway.externalRgwEndpoints` list, which users should be able to override if desired.
+
+### RGW Operations Logging
+
+By default, all RGW logs are included in the main RGW container logs. For enhanced observability of the operations, the [RGW operations log](https://docs.ceph.com/en/latest/radosgw/config-ref/#confval-rgw_enable_ops_log) can be separated from the main RGW container logs by enabling a sidecar. To enable, set `gateway.opsLogSidecar`.
+
+```yaml
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+  preservePoolsOnDelete: false
+  gateway:
+    port: 80
+    instances: 1
+    opsLogSidecar:
+      resources:
+        requests: {}
+        limits: {}
+```
+
+Once enabled, logs can be accessed in RGW pod `ops-log` sidecar containers. For example:
+
+```sh
+kubectl --namespace rook-ceph logs rook-ceph-rgw-my-store-a-59d48474d9-jv7ps --container ops-log
+```
