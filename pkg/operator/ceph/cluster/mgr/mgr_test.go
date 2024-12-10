@@ -173,6 +173,7 @@ func validateServices(t *testing.T, c *Cluster) {
 			assert.Equal(t, ds.Spec.Ports[0].Port, int32(dashboardPortHTTPS))
 		} else {
 			// non-zero ports are configured as-is
+			// nolint:gosec // G115 no overflow expected in the test
 			assert.Equal(t, ds.Spec.Ports[0].Port, int32(c.spec.Dashboard.Port))
 		}
 	} else {

@@ -218,11 +218,13 @@ func (f *Filesystem) updateFilesystem(context *clusterd.Context, clusterInfo *ce
 	// Even if the fs already exists, the num active mdses may have changed
 	if err := cephclient.SetNumMDSRanks(context, clusterInfo, f.Name, spec.MetadataServer.ActiveCount); err != nil {
 		logger.Errorf(
-			fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", spec.MetadataServer.ActiveCount, f.Name) +
-				"this error is not critical, but mdses may not be as failure tolerant as desired. " +
-				fmt.Sprintf("USER should verify that the number of active mdses is %d with 'ceph fs get %s'", spec.MetadataServer.ActiveCount, f.Name) +
-				fmt.Sprintf(". %v", err),
-		)
+			"failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. "+
+				"this error is not critical, but mdses may not be as failure tolerant as desired. "+
+				"USER should verify that the number of active mdses is %d with 'ceph fs get %s'. %v",
+			spec.MetadataServer.ActiveCount,
+			f.Name,
+			spec.MetadataServer.ActiveCount, f.Name,
+			err)
 	}
 
 	if err := createOrUpdatePools(f, context, clusterInfo, clusterSpec, spec); err != nil {

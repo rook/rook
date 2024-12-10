@@ -366,7 +366,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Set access and secret key
-	if r.userConfig.Keys == nil || len(r.userConfig.Keys) == 0 {
+	if len(r.userConfig.Keys) == 0 {
 		r.userConfig.Keys = make([]admin.UserKeySpec, 1)
 	}
 	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey

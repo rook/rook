@@ -234,6 +234,7 @@ func (s *SmokeSuite) TestPoolResize() {
 		require.NoError(s.T(), err)
 		if details.Size > 1 {
 			logger.Infof("pool %s size was updated", poolName)
+			// nolint:gosec // G115 no overflow expected in the test
 			require.Equal(s.T(), 2, int(details.Size))
 			poolResized = true
 

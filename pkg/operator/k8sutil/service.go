@@ -165,7 +165,7 @@ func verifyExportedService(ctx context.Context, client *mcsv1Client.Clientset, n
 
 	for _, condition := range exportedService.Status.Conditions {
 		if condition.Type == mcsv1a1.ServiceExportValid && condition.Status == v1.ConditionFalse {
-			return fmt.Errorf(*condition.Message)
+			return fmt.Errorf("%s", *condition.Message)
 		}
 	}
 
