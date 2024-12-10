@@ -34,7 +34,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: quay.io/ceph/ceph:v18.2.4
+    image: quay.io/ceph/ceph:v19.2.0
   dataDirHostPath: /var/lib/rook
   mon:
     count: 3
