@@ -138,10 +138,25 @@ The following options can be configured in the `keystone`-section:
 * `tokenCacheSize`: specifies the maximum number of entries in each Keystone token cache.
 * `url`: The url of the Keystone API endpoint to use.
 
-The protocols section is divided into two parts:
+### Protocols Settings
 
+The protocols section is divided into three parts:
+
+- `enableAPIs` - list of APIs to be enabled in RGW instance. If no values set, all APIs will be enabled. Possible values: `s3, s3website, swift, swift_auth, admin, sts, iam, notifications`. Represents RGW [rgw_enable_apis](https://docs.ceph.com/en/reef/radosgw/config-ref/#confval-rgw_enable_apis) config parameter.
 - a section to configure S3
 - a section to configure swift
+
+```yaml
+spec:
+  [...]
+  protocols:
+    enableAPIs: []
+    swift:
+      # a section to configure swift
+    s3:
+      # a section to configure s3
+  [...]
+```
 
 #### protocols/S3 settings
 
