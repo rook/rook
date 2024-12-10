@@ -84,6 +84,7 @@ func TestReconcileMgrPDB(t *testing.T) {
 		assert.Error(t, err)
 	}
 	assert.NoError(t, err)
+	// nolint:gosec // G115 no overflow expected in the test
 	assert.Equalf(t, testCases.expectedMaxUnAvailable, int32(existingPDBV1.Spec.MaxUnavailable.IntValue()), "[%s]: incorrect minAvailable count in pdb", testCases.name)
 
 	// reconcile mon PDB again to test update

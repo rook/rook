@@ -104,8 +104,8 @@ func DeleteResource(
 	msg := fmt.Sprintf("failed to delete %s. gave up waiting after %d retries every %v seconds. %+v",
 		resource, retries, retryInterval/time.Second, err)
 	if opts.ErrorOnTimeout {
-		return fmt.Errorf(msg)
+		return fmt.Errorf("%s", msg)
 	}
-	logger.Warningf(msg)
+	logger.Warningf("%s", msg)
 	return nil
 }

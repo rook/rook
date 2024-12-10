@@ -203,8 +203,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 			// create encryption Kubernetes Secret if the PVC is encrypted
 			key, err := GenerateDmCryptKey()
 			if err != nil {
-				errMsg := fmt.Sprintf("failed to generate dmcrypt key for osd claim %q. %v", osdProps.pvc.ClaimName, err)
-				errs.addError(errMsg)
+				errs.addError("failed to generate dmcrypt key for osd claim %q. %v", osdProps.pvc.ClaimName, err)
 				continue
 			}
 
@@ -216,8 +215,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 			if c.spec.Security.KeyManagementService.IsTokenAuthEnabled() && c.spec.Security.KeyManagementService.IsVaultKMS() {
 				err := kms.SetTokenToEnvVar(c.clusterInfo.Context, c.context, c.spec.Security.KeyManagementService.TokenSecretName, kmsConfig.Provider, c.clusterInfo.Namespace)
 				if err != nil {
-					errMsg := fmt.Sprintf("failed to fetch kms token secret %q. %v", c.spec.Security.KeyManagementService.TokenSecretName, err)
-					errs.addError(errMsg)
+					errs.addError("failed to fetch kms token secret %q. %v", c.spec.Security.KeyManagementService.TokenSecretName, err)
 					continue
 				}
 			}
@@ -227,8 +225,7 @@ func (c *Cluster) startProvisioningOverPVCs(config *provisionConfig, errs *provi
 			// no risk of overwriting an existing key.
 			err = kmsConfig.PutSecret(osdProps.pvc.ClaimName, key)
 			if err != nil {
-				errMsg := fmt.Sprintf("failed to store secret. %v", err)
-				errs.addError(errMsg)
+				errs.addError("failed to store secret. %v", err)
 				continue
 			}
 		}

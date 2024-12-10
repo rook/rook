@@ -88,7 +88,7 @@ func fakeOSDDeployment(id, readyReplicas int) appsv1.Deployment {
 			},
 		},
 		Status: appsv1.DeploymentStatus{
-			ReadyReplicas: int32(readyReplicas),
+			ReadyReplicas: int32(readyReplicas), // nolint:gosec // G115 no overflow expected for ready replicas
 		},
 	}
 	return osd

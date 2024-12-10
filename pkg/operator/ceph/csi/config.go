@@ -134,7 +134,7 @@ func CreateDefaultClientProfile(c client.Client, clusterInfo *cephclient.Cluster
 		if r := recover(); r != nil {
 			logger.Errorf("Panic when creating the default client profile: %+v", r)
 			logger.Errorf("Stack trace:")
-			logger.Errorf(string(debug.Stack()))
+			logger.Errorf("%s", string(debug.Stack()))
 		}
 	}()
 

@@ -577,7 +577,7 @@ func (r *ReconcileCephBlockPool) disableMirroring(pool string) error {
 
 		if len(*mirroredPools.Images) > 0 {
 			msg := fmt.Sprintf("there are images in the pool %q. Please manually disable mirroring for each image", pool)
-			logger.Errorf(msg)
+			logger.Errorf("%s", msg)
 			return errors.New(msg)
 		}
 	}

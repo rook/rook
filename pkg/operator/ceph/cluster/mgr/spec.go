@@ -193,7 +193,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(c.dashboardInternalPort()),
+				ContainerPort: int32(c.dashboardInternalPort()), // nolint:gosec // G115 port numbers will not overflow an int32
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -337,9 +337,9 @@ func (c *Cluster) makeDashboardService(name string) (*v1.Service, error) {
 			Ports: []v1.ServicePort{
 				{
 					Name: portName,
-					Port: int32(c.dashboardPublicPort()),
+					Port: int32(c.dashboardPublicPort()), // nolint:gosec // G115 port numbers will not overflow an int32
 					TargetPort: intstr.IntOrString{
-						IntVal: int32(c.dashboardInternalPort()),
+						IntVal: int32(c.dashboardInternalPort()), // nolint:gosec // G115 port numbers will not overflow an int32
 					},
 					Protocol: v1.ProtocolTCP,
 				},

@@ -104,6 +104,7 @@ func TestCephStatus(t *testing.T) {
 		PgMap: cephclient.PgMap{TotalBytes: 0},
 	}
 	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
+	// nolint:gosec // G115 no overflow expected in the test
 	assert.Equal(t, 0, int(aggregateStatus.Capacity.TotalBytes))
 	assert.Equal(t, "", aggregateStatus.Capacity.LastUpdated)
 
@@ -112,6 +113,7 @@ func TestCephStatus(t *testing.T) {
 		PgMap: cephclient.PgMap{TotalBytes: 1024},
 	}
 	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
+	// nolint:gosec // G115 no overflow expected in the test
 	assert.Equal(t, 1024, int(aggregateStatus.Capacity.TotalBytes))
 	assert.Equal(t, formatTime(time.Now().UTC()), aggregateStatus.Capacity.LastUpdated)
 
@@ -123,6 +125,7 @@ func TestCephStatus(t *testing.T) {
 	}
 
 	aggregateStatus = toCustomResourceStatus(currentStatus, newStatus)
+	// nolint:gosec // G115 no overflow expected in the test
 	assert.Equal(t, 1024, int(aggregateStatus.Capacity.TotalBytes))
 	assert.Equal(t, formatTime(time.Now().Add(-time.Minute).UTC()), formatTime(time.Now().Add(-time.Minute).UTC()))
 }

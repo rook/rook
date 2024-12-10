@@ -72,23 +72,25 @@ func TestUpdateMultipleDeploymentsAndWait(t *testing.T) {
 		return d
 	}
 
-	timesCalled := 0
+	timesCalled := int32(0)
 	// generate a status that is not ready when first called but becomes ready later
-	status := func(timesCalled int) appsv1.DeploymentStatus {
+	status := func(timesCalled int32) appsv1.DeploymentStatus {
 		if timesCalled < 0 {
 			timesCalled = 0
 		}
 		return appsv1.DeploymentStatus{
 			ObservedGeneration: int64(timesCalled),
-			UpdatedReplicas:    int32(timesCalled),
-			ReadyReplicas:      int32(timesCalled),
+			//nolint:gosec // G115 widening cast - no integer overflow
+			UpdatedReplicas: int32(timesCalled),
+			//nolint:gosec // G115 widening cast - no integer overflow
+			ReadyReplicas: int32(timesCalled),
 			Conditions: []appsv1.DeploymentCondition{
 				{Type: appsv1.DeploymentProgressing, Reason: "DoinStuff"},
 			},
 		}
 	}
 	// generate a deployment with no errors and status=status(timesCalled)
-	okayDeployment := func(name string, timesCalled int) appsv1.Deployment {
+	okayDeployment := func(name string, timesCalled int32) appsv1.Deployment {
 		return appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
@@ -274,8 +276,10 @@ func TestWaitForDeploymentsToUpdate(t *testing.T) {
 		}
 		return appsv1.DeploymentStatus{
 			ObservedGeneration: int64(timesCalled),
-			UpdatedReplicas:    int32(timesCalled),
-			ReadyReplicas:      int32(timesCalled),
+			// nolint:gosec // G115 No overflow: widening cast.
+			UpdatedReplicas: int32(timesCalled),
+			// nolint:gosec // G115 No overflow: widening cast.
+			ReadyReplicas: int32(timesCalled),
 			Conditions: []appsv1.DeploymentCondition{
 				{Type: appsv1.DeploymentProgressing, Reason: "DoinStuff"},
 			},
