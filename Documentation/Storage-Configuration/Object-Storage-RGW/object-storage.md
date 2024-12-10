@@ -17,6 +17,7 @@ Rook can configure the Ceph Object Store for several different scenarios. See ea
 3. Create [one or more object stores with pool placement targets and storage classes](#create-local-object-stores-with-pool-placements). This configuration allows Rook to provide different object placement options to object store clients.
 4. Connect to an [RGW service in an external Ceph cluster](#connect-to-an-external-object-store), rather than create a local object store.
 5. Configure [RGW Multisite](#object-multisite) to synchronize buckets between object stores in different clusters.
+6. Create a [multi-instance RGW setup](#object-multi-instance). This option allows to have multiple `CephObjectStore` with different configurations backed by the same storage pools. For example, serving S3, Swift, or Admin-ops API by separate RGW instances.
 
 !!! note
     Updating the configuration of an object store between these types is not supported.
@@ -668,6 +669,119 @@ Multisite is a feature of Ceph that allows object stores to replicate its data o
 Multisite also allows object stores to be independent and isolated from other object stores in a cluster.
 
 For more information on multisite please read the [ceph multisite overview](ceph-object-multisite.md) for how to run it.
+
+## Object Multi-instance
+
+This section describes how to configure multiple `CephObjectStore` backed by the same storage pools.
+The setup allows using different configuration parameters for each `CephObjecStore`, like:
+
+- `hosting` and `gateway` configs to host object store APIs on different ports and domains. For example, having a independently-scalable deployments for internal and external traffic.
+- `protocols` to host `S3`, `Swift`, and `Admin-ops` APIs on a separate `CephObjectStores`.
+- having different resource limits, affinity or other configurations per `CephObjecStore` instance for other possible use-cases.
+
+Multi-instance setup can be described in two steps. The first step is to create `CephObjectRealm`, `CephObjectZoneGroup`, and `CephObjectZone`, where
+`CephObjectZone` contains storage pools configuration. This configuration will be shared across all `CephObjectStore` instances:
+
+```yaml
+apiVersion: ceph.rook.io/v1
+kind: CephObjectRealm
+metadata:
+  name: multi-instance-store
+  namespace: rook-ceph # namespace:cluster
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZoneGroup
+metadata:
+  name: multi-instance-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  realm: multi-instance-store
+---
+apiVersion: ceph.rook.io/v1
+kind: CephObjectZone
+metadata:
+  name: multi-instance-store
+  namespace: rook-ceph # namespace:cluster
+spec:
+  zoneGroup: multi-instance-store
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+  dataPool:
+    failureDomain: host
+    replicated:
+      size: 1
+      requireSafeReplicaSize: false
+```
+
+The second step defines multiple `CephObjectStore` with different configurations. All of the stores should refer to the same `zone`.
+
+```yaml
+# RGW instance to host admin-ops API only
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-admin
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: multi-instance-store
+  protocols:
+    enableAPIs: ["admin"]
+---
+# RGW instance to host S3 API only
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-s3
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: multi-instance-store
+  protocols:
+    enableAPIs:
+      - s3
+      - s3website
+      - sts
+      - iam
+      - notifications
+---
+# RGW instance to host SWIFT API only
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: store-swift
+  namespace: rook-ceph # namespace:cluster
+spec:
+  gateway:
+    port: 80
+    instances: 1
+  zone:
+    name: multi-instance-store
+  protocols:
+    enableAPIs:
+      - swift
+      - swift_auth
+    swift:
+      # if S3 API is disabled, then SWIFT can be hosted on root path without prefix
+      urlPrefix: "/"
+```
+
+!!! note
+    Child resources should refer to the appropriate RGW instance.
+    For example, a `CephObjectStoreUser` requires the Admin Ops API,
+    so it should refer to an instance where this API is enabled.
+    After the user is created, it can be used for all instances.
+
+See the [example configuration](https://github.com/rook/rook/blob/master/deploy/examples/object-multi-instance-test.yaml) for more details.
 
 ## Using Swift and Keystone
 
