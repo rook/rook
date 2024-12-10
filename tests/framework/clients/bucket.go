@@ -157,11 +157,7 @@ func (b *BucketOperation) CheckBucketNotificationSetonRGW(namespace, storeName, 
 	s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 	s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 	s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-	if tlsEnabled {
-		s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
-	} else {
-		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
-	}
+	s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, tlsEnabled, nil)
 	if err != nil {
 		logger.Infof("failed to s3client due to %v", err)
 		return false
