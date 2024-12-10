@@ -1709,6 +1709,7 @@ type GatewaySpec struct {
 
 	// Enable enhanced operation Logs for S3 in a sidecar named ops-log
 	// +optional
+	// +nullable
 	OpsLogSidecar *OpsLogSidecar `json:"opsLogSidecar,omitempty"`
 
 	// Whether host networking is enabled for the rgw daemon. If not set, the network settings from the cluster CR will be applied.
@@ -1732,7 +1733,7 @@ type GatewaySpec struct {
 
 // RGWLoggingSpec is intended to extend the s3/swift logging for client operations
 type OpsLogSidecar struct {
-	//Resources represents the way to specify resource requirements for the ops-log sidecar
+	// Resources represents the way to specify resource requirements for the ops-log sidecar
 	// +optional
 	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 }

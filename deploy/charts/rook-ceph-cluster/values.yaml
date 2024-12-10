@@ -606,12 +606,12 @@ cephObjectStores:
         instances: 1
         priorityClassName: system-cluster-critical
         # opsLogSidecar:
-          # resources:
-          #   limits:
-          #     memory: "100Mi"
-          #   requests:
-          #     cpu: "100m"
-          #     memory: "40Mi"
+        #   resources:
+        #     limits:
+        #       memory: "100Mi"
+        #     requests:
+        #       cpu: "100m"
+        #       memory: "40Mi"
     storageClass:
       enabled: true
       name: ceph-bucket

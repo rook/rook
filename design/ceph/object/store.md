@@ -735,12 +735,8 @@ spec:
         limits: {}
 ```
 
-### Accessing RGW Operations Logs
-
-Once enabled, logs can be accessed in a sidecar container:
+Once enabled, logs can be accessed in RGW pod `ops-log` sidecar containers. For example:
 
 ```sh
-kubectl logs rook-ceph-rgw-my-store-a-59d48474d9-jv7ps -c ops-log -n rook-ceph
+kubectl --namespace rook-ceph logs rook-ceph-rgw-my-store-a-59d48474d9-jv7ps --container ops-log
 ```
-
-* `-c ops-log`: This flag specifies the container to fetch logs from, which in this case is the sidecar collecting RGW operations logs.

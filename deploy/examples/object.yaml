@@ -70,13 +70,6 @@ spec:
               # Use <topologyKey: failure-domain.beta.kubernetes.io/zone> in k8s cluster if your cluster is v1.16 or lower
               # Use <topologyKey: topology.kubernetes.io/zone>  in k8s cluster is v1.17 or upper
               topologyKey: kubernetes.io/hostname
-      # opsLogSidecar:
-      # resources:
-      #   limits:
-      #     memory: "60Mi"
-      #   requests:
-      #     cpu: "100m"
-      #     memory: "60Mi"
     # A key/value list of annotations
     #  nodeAffinity:
     #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -117,6 +110,13 @@ spec:
   #zone:
   #name: zone-a
   # service endpoint healthcheck
+    # opsLogSidecar:
+    #   resources:
+    #     limits:
+    #     memory: "60Mi"
+    #   requests:
+    #     cpu: "100m"
+    #     memory: "60Mi"
   healthCheck:
     # Configure the pod probes for the rgw daemon
     startupProbe:

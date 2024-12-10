@@ -800,20 +800,17 @@ func GetLogRotateConfig(c cephv1.ClusterSpec) (resource.Quantity, string) {
 }
 
 // LogCollectorContainer rotate logs
-func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, rgwOpsLogEnabled ...bool) *v1.Container {
+func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, additionalLogFiles ...string) *v1.Container {
 	maxLogSize, periodicity := GetLogRotateConfig(c)
 	rotation := "7"
-	additionalLogFile := ""
 
 	if strings.Contains(daemonID, "-client.rbd-mirror") {
 		rotation = "28"
 	}
 
-	if len(rgwOpsLogEnabled) > 0 && rgwOpsLogEnabled[0] {
-		additionalLogFile = c.DataDirHostPath + "ops-log-" + daemonID + ".log"
-
-	}
-
+	// Convert the variadic string slice into a space-separated string
+	additionalLogs := strings.Join(additionalLogFiles, " ")
+	logger.Debugf("additional log file %s would be used for logCollector", additionalLogs)
 	logger.Debugf("setting periodicity to %q. Supported periodicity are hourly, daily, weekly and monthly", periodicity)
 
 	return &v1.Container{
@@ -824,7 +821,7 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, rgwOpsLogE
 			"-e", // Exit immediately if a command exits with a non-zero status.
 			"-m", // Terminal job control, allows job to be terminated by SIGTERM
 			"-c", // Command to run
-			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String(), rotation, additionalLogFile),
+			fmt.Sprintf(cronLogRotate, daemonID, periodicity, maxLogSize.String(), rotation, additionalLogs),
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),
@@ -838,14 +835,13 @@ func LogCollectorContainer(daemonID, ns string, c cephv1.ClusterSpec, rgwOpsLogE
 
 // rgw operations will be logged in sidecar ops-log
 func RgwOpsLogSidecarContainer(opsLogFile, ns string, c cephv1.ClusterSpec, Resources v1.ResourceRequirements) *v1.Container {
-
 	return &v1.Container{
 		Name: "ops-log",
 		Command: []string{
 			"bash",
 			"-x", // Enable debugging mode
 			"-c", // Run the following command
-			fmt.Sprintf("tail -n+1 -F %s", path.Join(config.VarLogCephDir, opsLogFile+".log")),
+			fmt.Sprintf("tail -n+1 -F %s", path.Join(config.VarLogCephDir, opsLogFile)),
 		},
 		Image:           c.CephVersion.Image,
 		ImagePullPolicy: GetContainerImagePullPolicy(c.CephVersion.ImagePullPolicy),

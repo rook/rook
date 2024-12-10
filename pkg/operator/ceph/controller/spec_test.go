@@ -442,6 +442,16 @@ func TestLogCollectorContainer(t *testing.T) {
 		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "1M", "7", "")
 		assert.Equal(t, want, got.Command[5])
 	})
+
+	t.Run("AdditionalLogFile, 500k MaxlogSize and Periodicity 1d", func(t *testing.T) {
+		additionalLogFile := "/tmp/ceph_test_log_500KB.log"
+		maxsize, _ := resource.ParseQuantity("500K")
+		c := cephv1.ClusterSpec{LogCollector: cephv1.LogCollectorSpec{Enabled: true, Periodicity: "1d", MaxLogSize: &maxsize}}
+		got := LogCollectorContainer(daemonId, ns, c, additionalLogFile)
+
+		want := fmt.Sprintf(cronLogRotate, daemonId, "daily", "1M", "7", additionalLogFile)
+		assert.Equal(t, want, got.Command[5])
+	})
 }
 
 func TestGetContainerImagePullPolicy(t *testing.T) {
