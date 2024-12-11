@@ -483,5 +483,5 @@ jobs:
     if: github.repository == 'rook/rook'
     uses: ./.github/workflows/canary-integration-test.yml
     with:
-      ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph/daemon-base:latest-main-devel", "quay.io/ceph/daemon-base:latest-quincy-devel", "quay.io/ceph/daemon-base:latest-reef-devel", "quay.io/ceph/daemon-base:latest-squid-devel"]'
+      ceph_images: '["quay.io/ceph/ceph:v18", "quay.io/ceph-ci/ceph:main", "quay.io/ceph-ci/ceph:quincy", "quay.io/ceph-ci/ceph:reef", "quay.io/ceph-ci/ceph:squid"]'
     secrets: inherit
