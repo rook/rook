@@ -176,11 +176,18 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		objectStores, err := k8sh.RookClientset.CephV1().CephObjectStores(namespace).List(ctx, metav1.ListOptions{})
 		assert.Nil(t, err)
 
-		for _, objectStore := range objectStores.Items {
-			err, output := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.GetName())}, namespace)
-			logger.Infof("output: %s", output)
-			assert.NoError(t, err)
-		}
+		err = wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 90*time.Second, true, func(ctx context.Context) (done bool, err error) {
+			for _, objectStore := range objectStores.Items {
+				err, output := installer.Execute("radosgw-admin", []string{"user", "info", "--uid=dashboard-admin", fmt.Sprintf("--rgw-realm=%s", objectStore.GetName())}, namespace)
+				if err != nil {
+					logger.Infof("waiting for object store %q to have 'dasbhoard-admin' user; output: %s", objectStore.GetName(), output)
+					return false, nil
+				}
+				logger.Infof("object store %q has a 'dashboard-admin' user; output: %s", objectStore.GetName(), output)
+			}
+			return true, nil
+		})
+		assert.NoError(t, err)
 	})
 }
 
