@@ -5,7 +5,7 @@ on:
     inputs:
       ceph_images:
         description: "JSON list of Ceph images for creating Ceph cluster"
-        default: '["quay.io/ceph/ceph:v18"]'
+        default: '["quay.io/ceph/ceph:v19"]'
         type: string
 
 defaults:
