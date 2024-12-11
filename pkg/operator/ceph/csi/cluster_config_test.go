@@ -439,8 +439,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 
 	t.Run("test empty namespace correction", func(t *testing.T) {
 		currentConfigFormatString := `[` +
-			`{"clusterID":"cluster-id-and-namespace","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"","subvolumeGroup":"","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"","radosNamespace":""},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"%s"},` +
-			`{"clusterID":"5bb69c306a7d011c3e91c3cec112fb7a","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"","subvolumeGroup":"csi","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"","radosNamespace":""},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"cluster-id-and-namespace"}` +
+			`{"clusterID":"cluster-id-and-namespace","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"","subvolumeGroup":"","radosNamespace":"","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"","radosNamespace":"","mirrorDaemonCount":0},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"%s"},` +
+			`{"clusterID":"5bb69c306a7d011c3e91c3cec112fb7a","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"","subvolumeGroup":"csi","radosNamespace":"","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"","radosNamespace":"","mirrorDaemonCount":0},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"cluster-id-and-namespace"}` +
 			`]`
 		idAndNs := "cluster-id-and-namespace"
 
@@ -460,8 +460,8 @@ func TestUpdateCsiClusterConfig(t *testing.T) {
 	t.Run("test empty namespace correction and clear netNamespaceFilePath", func(t *testing.T) {
 		holderEnabled = false
 		currentConfigFormatString := `[` +
-			`{"clusterID":"cluster-id-and-namespace","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"%s","subvolumeGroup":"","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"%s","radosNamespace":""},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"%s"},` +
-			`{"clusterID":"5bb69c306a7d011c3e91c3cec112fb7a","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"","subvolumeGroup":"csi","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"","radosNamespace":""},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"cluster-id-and-namespace"}` +
+			`{"clusterID":"cluster-id-and-namespace","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"%s","subvolumeGroup":"","radosNamespace":"","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"%s","radosNamespace":"","mirrorDaemonCount":0},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"%s"},` +
+			`{"clusterID":"5bb69c306a7d011c3e91c3cec112fb7a","monitors":["172.30.100.1:3300"],"cephFS":{"netNamespaceFilePath":"","subvolumeGroup":"csi","radosNamespace":"","kernelMountOptions":"","fuseMountOptions":""},"rbd":{"netNamespaceFilePath":"","radosNamespace":"","mirrorDaemonCount":0},"nfs":{"netNamespaceFilePath":""},"readAffinity":{"enabled":false,"crushLocationLabels":null},"namespace":"cluster-id-and-namespace"}` +
 			`]`
 		cephFsNetNsFilePath := "/var/lib/kubelet/plugins/cluster-id-and-namespace.cephfs.csi.ceph.com/cluster-id-and-namespace.net.ns"
 		rbdNetNsFilePath := "/var/lib/kubelet/plugins/cluster-id-and-namespace.rbd.csi.ceph.com/cluster-id-and-namespace.net.ns"
