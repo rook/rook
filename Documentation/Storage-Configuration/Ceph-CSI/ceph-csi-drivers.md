@@ -217,10 +217,10 @@ CSI-Addons supports the following operations:
 
 Ceph-CSI supports encrypting PersistentVolumeClaims (PVCs) for both RBD and CephFS.
 This can be achieved using LUKS for RBD and fscrypt for CephFS. More details on encrypting RBD PVCs can be found
-[here](https://github.com/ceph/ceph-csi/blob/v3.12.3/docs/deploy-rbd.md#encryption-for-rbd-volumes),
+[here](https://github.com/ceph/ceph-csi/blob/v3.13.0/docs/deploy-rbd.md#encryption-for-rbd-volumes),
 which includes a full list of supported encryption configurations.
-More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.3/docs/deploy-cephfs.md#cephfs-volume-encryption).
-A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.12.3/examples/kms/vault/kms-config.yaml).
+More details on encrypting CephFS PVCs can be found [here](https://github.com/ceph/ceph-csi/blob/v3.13.0/docs/deploy-cephfs.md#cephfs-volume-encryption).
+A sample KMS configmap can be found [here](https://github.com/ceph/ceph-csi/blob/v3.13.0/examples/kms/vault/kms-config.yaml).
 
 !!! note
     Not all KMS are compatible with fscrypt. Generally, KMS that either store secrets to use directly (like Vault)
