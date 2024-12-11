@@ -1751,6 +1751,14 @@ type EndpointAddress struct {
 
 // ProtocolSpec represents a Ceph Object Store protocol specification
 type ProtocolSpec struct {
+	// Represents RGW 'rgw_enable_apis' config option. See: https://docs.ceph.com/en/reef/radosgw/config-ref/#confval-rgw_enable_apis
+	// If no value provided then all APIs will be enabled: s3, s3website, swift, swift_auth, admin, sts, iam, notifications
+	// If enabled APIs are set, all remaining APIs will be disabled.
+	// This option overrides S3.Enabled value.
+	// +optional
+	// +nullable
+	EnableAPIs []ObjectStoreAPI `json:"enableAPIs,omitempty"`
+
 	// The spec for S3
 	// +optional
 	// +nullable
@@ -1762,8 +1770,12 @@ type ProtocolSpec struct {
 	Swift *SwiftSpec `json:"swift"`
 }
 
+// +kubebuilder:validation:Enum=s3;s3website;swift;swift_auth;admin;sts;iam;notifications
+type ObjectStoreAPI string
+
 // S3Spec represents Ceph Object Store specification for the S3 API
 type S3Spec struct {
+	// Deprecated: use protocol.enableAPIs instead.
 	// Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
 	// +nullable
 	// +optional

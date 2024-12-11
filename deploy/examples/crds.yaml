@@ -12419,6 +12419,25 @@ spec:
                 protocols:
                   description: The protocol specification
                   properties:
+                    enableAPIs:
+                      description: |-
+                        Represents RGW 'rgw_enable_apis' config option. See: https://docs.ceph.com/en/reef/radosgw/config-ref/#confval-rgw_enable_apis
+                        If no value provided then all APIs will be enabled: s3, s3website, swift, swift_auth, admin, sts, iam, notifications
+                        If enabled APIs are set, all remaining APIs will be disabled.
+                        This option overrides S3.Enabled value.
+                      items:
+                        enum:
+                          - s3
+                          - s3website
+                          - swift
+                          - swift_auth
+                          - admin
+                          - sts
+                          - iam
+                          - notifications
+                        type: string
+                      nullable: true
+                      type: array
                     s3:
                       description: The spec for S3
                       nullable: true
@@ -12428,7 +12447,9 @@ spec:
                           nullable: true
                           type: boolean
                         enabled:
-                          description: Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
+                          description: |-
+                            Deprecated: use protocol.enableAPIs instead.
+                            Whether to enable S3. This defaults to true (even if protocols.s3 is not present in the CRD). This maintains backwards compatibility – by default S3 is enabled.
                           nullable: true
                           type: boolean
                       type: object
