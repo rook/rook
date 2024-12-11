@@ -227,7 +227,6 @@ pull_request_rules:
       - "check-success=canary-tests / rgw-multisite-testing (quay.io/ceph/ceph:v18)"
       - "check-success=canary-tests / encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v18)"
       - "check-success=canary-tests / multus-public-and-cluster (quay.io/ceph/ceph:v18)"
-      - "check-success=canary-tests / csi-hostnetwork-disabled (quay.io/ceph/ceph:v18)"
       - "check-success=TestCephSmokeSuite (v1.27.16)"
       - "check-success=TestCephSmokeSuite (v1.31.0)"
       - "check-success=TestCephHelmSuite (v1.27.16)"
