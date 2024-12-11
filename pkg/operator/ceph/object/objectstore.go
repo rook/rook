@@ -53,8 +53,6 @@ const (
 	SecretKeyName         = "secret-key"
 	svcDNSSuffix          = "svc"
 	rgwRadosPoolPgNum     = "8"
-	cosiUserName          = "cosi"
-	cosiUserCaps          = "buckets=*;users=*"
 	rgwApplication        = "rgw"
 )
 
