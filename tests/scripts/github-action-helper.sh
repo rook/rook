@@ -692,7 +692,7 @@ function test_csi_nfs_workload {
 }
 
 function install_minikube_with_none_driver() {
-  CRICTL_VERSION="v1.31.1"
+  CRICTL_VERSION="v1.32.0"
   MINIKUBE_VERSION="v1.34.0"
 
   sudo apt update
