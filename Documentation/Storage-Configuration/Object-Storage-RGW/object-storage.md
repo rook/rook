@@ -140,6 +140,8 @@ spec:
     # For production it is recommended to use more chunks, such as 4+2 or 8+4
     dataChunks: 2
     codingChunks: 1
+  parameters:
+    bulk: "true"
   application: rgw
 ```
 

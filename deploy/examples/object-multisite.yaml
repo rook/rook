@@ -36,6 +36,7 @@ spec:
       requireSafeReplicaSize: true
     parameters:
       compression_mode: none
+      bulk: "true"
   # recommended to set this value if ingress used for exposing rgw endpoints
   # customEndpoints:
   #   - "http://rgw-a.fqdn"

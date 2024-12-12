@@ -53,6 +53,8 @@ spec:
     replicated:
       size: 3
       requireSafeReplicaSize: true
+    parameters:
+      bulk: "true"
 ---
 apiVersion: ceph.rook.io/v1
 kind: CephObjectStore
