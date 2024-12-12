@@ -1,0 +1,8 @@
+---
+apiVersion: ceph.rook.io/v1
+kind: CephBlockPoolRadosNamespace
+metadata:
+  name: namespace-a
+  namespace: rook-ceph
+spec:
+  blockPoolName: blockpool-rados-ns
