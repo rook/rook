@@ -76,7 +76,7 @@ spec:
   protocols:
     swift:
       accountInUrl: true
-      urlPrefix: /swift
+      urlPrefix: swift
     # note that s3 is enabled by default if protocols.s3.enabled is not explicitly set to false
   preservePoolsOnDelete: true
   gateway:
