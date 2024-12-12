@@ -123,11 +123,8 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
-		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
-		}
+		insecure := objectStore.Spec.IsTLSEnabled()
+		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
 
 		assert.Nil(t, err)
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
@@ -227,11 +224,8 @@ func testBucketNotifications(s *suite.Suite, helper *clients.TestClient, k8sh *u
 		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
-		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
-		}
+		insecure := objectStore.Spec.IsTLSEnabled()
+		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
 
 		assert.Nil(t, err)
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)

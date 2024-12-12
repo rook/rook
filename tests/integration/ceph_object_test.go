@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -31,6 +33,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -218,11 +221,8 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 		s3endpoint, _ := helper.ObjectClient.GetEndPointUrl(namespace, storeName)
 		s3AccessKey, _ := helper.BucketClient.GetAccessKey(obcName)
 		s3SecretKey, _ := helper.BucketClient.GetSecretKey(obcName)
-		if objectStore.Spec.IsTLSEnabled() {
-			s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
-		} else {
-			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
-		}
+		insecure := objectStore.Spec.IsTLSEnabled()
+		s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
 
 		assert.Nil(t, err)
 		logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
@@ -334,11 +334,8 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			s3AccessKey := string(secret.Data["AWS_ACCESS_KEY_ID"])
 			s3SecretKey := string(secret.Data["AWS_SECRET_ACCESS_KEY"])
 
-			if objectStore.Spec.IsTLSEnabled() {
-				s3client, err = rgw.NewInsecureS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true)
-			} else {
-				s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil)
-			}
+			insecure := objectStore.Spec.IsTLSEnabled()
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
 			assert.Nil(t, err)
 			logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
 		})
@@ -419,6 +416,248 @@ func testObjectStoreOperations(s *suite.Suite, helper *clients.TestClient, k8sh 
 			assert.True(t, absent)
 
 			absent = utils.Retry(20, 2*time.Second, "OB is absent", func() bool {
+				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
+				return err != nil
+			})
+			assert.True(t, absent)
+		})
+	})
+
+	t.Run("OBC bucket policy management", func(t *testing.T) {
+		bucketName := "bucket-policy-test"
+		var obName string
+		var s3client *rgw.S3Agent
+		bucketPolicy1 := `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam:::user/foo"
+            },
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::bucket-policy-test/*"
+            ]
+        }
+    ]
+}
+		`
+
+		bucketPolicy2 := `
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "AWS": "arn:aws:iam:::user/bar"
+            },
+            "Action": [
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+            ],
+            "Resource": [
+                "arn:aws:s3:::bucket-policy-test/*"
+            ]
+        }
+    ]
+}
+		`
+
+		t.Run("create obc with bucketPolicy", func(t *testing.T) {
+			newObc := v1alpha1.ObjectBucketClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      bucketName,
+					Namespace: namespace,
+				},
+				Spec: v1alpha1.ObjectBucketClaimSpec{
+					BucketName:       bucketName,
+					StorageClassName: bucketStorageClassName,
+					AdditionalConfig: map[string]string{
+						"bucketPolicy": bucketPolicy1,
+					},
+				},
+			}
+			_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Create(ctx, &newObc, metav1.CreateOptions{})
+			assert.Nil(t, err)
+			obcBound := utils.Retry(20, 2*time.Second, "OBC is Bound", func() bool {
+				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
+			})
+			assert.True(t, obcBound)
+
+			// wait until obc is Bound to lookup the ob name
+			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			obName = obc.Spec.ObjectBucketName
+
+			obBound := utils.Retry(20, 2*time.Second, "OB is Bound", func() bool {
+				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
+			})
+			assert.True(t, obBound)
+
+			// verify that bucketPolicy is set
+			assert.Equal(t, bucketPolicy1, obc.Spec.AdditionalConfig["bucketPolicy"])
+
+			// as the tests are running external to k8s, the internal svc can't be used
+			labelSelector := "rgw=" + storeName
+			services, err := k8sh.Clientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: labelSelector})
+			assert.Nil(t, err)
+			assert.Equal(t, 1, len(services.Items))
+			s3endpoint := services.Items[0].Spec.ClusterIP + ":80"
+
+			secret, err := k8sh.Clientset.CoreV1().Secrets(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			s3AccessKey := string(secret.Data["AWS_ACCESS_KEY_ID"])
+			s3SecretKey := string(secret.Data["AWS_SECRET_ACCESS_KEY"])
+
+			insecure := objectStore.Spec.IsTLSEnabled()
+			s3client, err = rgw.NewS3Agent(s3AccessKey, s3SecretKey, s3endpoint, true, nil, insecure, nil)
+			assert.Nil(t, err)
+			logger.Infof("endpoint (%s) Accesskey (%s) secret (%s)", s3endpoint, s3AccessKey, s3SecretKey)
+		})
+
+		t.Run("policy was applied verbatim to bucket", func(t *testing.T) {
+			policyResp, err := s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+				Bucket: &bucketName,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, bucketPolicy1, *policyResp.Policy)
+		})
+
+		t.Run("update obc bucketPolicy", func(t *testing.T) {
+			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+
+			obc.Spec.AdditionalConfig["bucketPolicy"] = bucketPolicy2
+
+			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Update(ctx, obc, metav1.UpdateOptions{})
+			assert.Nil(t, err)
+			obcBound := utils.Retry(20, time.Second, "OBC is Bound", func() bool {
+				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
+			})
+			assert.True(t, obcBound)
+
+			// wait until obc is Bound to lookup the ob name
+			obc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			obName = obc.Spec.ObjectBucketName
+
+			obBound := utils.Retry(20, time.Second, "OB is Bound", func() bool {
+				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
+			})
+			assert.True(t, obBound)
+
+			// verify that updated bucketPolicy is set
+			assert.Equal(t, bucketPolicy2, obc.Spec.AdditionalConfig["bucketPolicy"])
+		})
+
+		t.Run("policy update applied verbatim to bucket", func(t *testing.T) {
+			var livePolicy string
+			utils.Retry(20, time.Second, "policy changed", func() bool {
+				policyResp, err := s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+					Bucket: &bucketName,
+				})
+				if err != nil {
+					return false
+				}
+
+				livePolicy = *policyResp.Policy
+				return bucketPolicy2 == livePolicy
+			})
+			assert.Equal(t, bucketPolicy2, livePolicy)
+		})
+
+		t.Run("remove obc bucketPolicy", func(t *testing.T) {
+			obc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+
+			obc.Spec.AdditionalConfig = map[string]string{}
+
+			_, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Update(ctx, obc, metav1.UpdateOptions{})
+			assert.Nil(t, err)
+			obcBound := utils.Retry(20, time.Second, "OBC is Bound", func() bool {
+				liveObc, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return liveObc.Status.Phase == v1alpha1.ObjectBucketClaimStatusPhaseBound
+			})
+			assert.True(t, obcBound)
+
+			// wait until obc is Bound to lookup the ob name
+			obc, err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+			assert.Nil(t, err)
+			obName = obc.Spec.ObjectBucketName
+
+			obBound := utils.Retry(20, time.Second, "OB is Bound", func() bool {
+				liveOb, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
+				if err != nil {
+					return false
+				}
+
+				return liveOb.Status.Phase == v1alpha1.ObjectBucketStatusPhaseBound
+			})
+			assert.True(t, obBound)
+
+			// verify that bucketPolicy is unset
+			assert.NotContains(t, obc.Spec.AdditionalConfig, "bucketPolicy")
+		})
+
+		t.Run("policy was removed from bucket", func(t *testing.T) {
+			var err error
+			utils.Retry(20, time.Second, "policy is gone", func() bool {
+				_, err = s3client.Client.GetBucketPolicy(&s3.GetBucketPolicyInput{
+					Bucket: &bucketName,
+				})
+				return err != nil
+			})
+			require.Error(t, err)
+			require.Implements(t, (*awserr.Error)(nil), err)
+			aerr, _ := err.(awserr.Error)
+			assert.Equal(t, aerr.Code(), "NoSuchBucketPolicy")
+		})
+
+		t.Run("delete bucket", func(t *testing.T) {
+			err = k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Delete(ctx, bucketName, metav1.DeleteOptions{})
+			assert.Nil(t, err)
+
+			absent := utils.Retry(20, time.Second, "OBC is absent", func() bool {
+				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBucketClaims(namespace).Get(ctx, bucketName, metav1.GetOptions{})
+				return err != nil
+			})
+			assert.True(t, absent)
+
+			absent = utils.Retry(20, time.Second, "OB is absent", func() bool {
 				_, err := k8sh.BucketClientset.ObjectbucketV1alpha1().ObjectBuckets().Get(ctx, obName, metav1.GetOptions{})
 				return err != nil
 			})

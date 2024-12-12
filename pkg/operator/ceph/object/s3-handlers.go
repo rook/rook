@@ -39,27 +39,24 @@ type S3Agent struct {
 	Client *s3.S3
 }
 
-func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte) (*S3Agent, error) {
-	return newS3Agent(accessKey, secretKey, endpoint, debug, tlsCert, false)
-}
-
-func NewInsecureS3Agent(accessKey, secretKey, endpoint string, debug bool) (*S3Agent, error) {
-	return newS3Agent(accessKey, secretKey, endpoint, debug, nil, true)
-}
-
-func newS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool) (*S3Agent, error) {
+func NewS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byte, insecure bool, httpClient *http.Client) (*S3Agent, error) {
 	logLevel := aws.LogOff
 	if debug {
 		logLevel = aws.LogDebug
 	}
-	client := http.Client{
-		Timeout: HttpTimeOut,
-	}
 	tlsEnabled := false
 	if len(tlsCert) > 0 || insecure {
 		tlsEnabled = true
-		client.Transport = BuildTransportTLS(tlsCert, insecure)
 	}
+	if httpClient == nil {
+		httpClient = &http.Client{
+			Timeout: HttpTimeOut,
+		}
+		if tlsEnabled {
+			httpClient.Transport = BuildTransportTLS(tlsCert, insecure)
+		}
+	}
+
 	session, err := awssession.NewSession(
 		aws.NewConfig().
 			WithRegion(CephRegion).
@@ -68,7 +65,7 @@ func newS3Agent(accessKey, secretKey, endpoint string, debug bool, tlsCert []byt
 			WithS3ForcePathStyle(true).
 			WithMaxRetries(5).
 			WithDisableSSL(!tlsEnabled).
-			WithHTTPClient(&client).
+			WithHTTPClient(httpClient).
 			WithLogLevel(logLevel),
 	)
 	if err != nil {

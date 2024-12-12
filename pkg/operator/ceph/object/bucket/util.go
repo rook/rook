@@ -120,6 +120,11 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 		}
 	}
 
+	if _, ok := config["bucketPolicy"]; ok {
+		policy := config["bucketPolicy"]
+		spec.bucketPolicy = &policy
+	}
+
 	return &spec, nil
 }
 
