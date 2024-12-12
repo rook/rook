@@ -908,6 +908,87 @@ func TestAWSServerSideEncryption(t *testing.T) {
 	})
 }
 
+func TestRgwCommandFlags(t *testing.T) {
+	//ctx := context.TODO()
+	// Placeholder
+	context := &clusterd.Context{Clientset: test.New(t, 3)}
+
+	store := simpleStore()
+	info := clienttest.CreateTestClusterInfo(1)
+	info.CephVersion = cephver.CephVersion{Major: 18, Minor: 2, Extra: 0}
+	info.Namespace = store.Namespace
+	data := cephconfig.NewStatelessDaemonDataPathMap(cephconfig.RgwType, "default", "rook-ceph", "/var/lib/rook/")
+
+	c := &clusterConfig{
+		clusterInfo: info,
+		store:       store,
+		context:     context,
+		rookVersion: "rook/rook:myversion",
+		clusterSpec: &cephv1.ClusterSpec{
+			CephVersion: cephv1.CephVersionSpec{Image: "quay.io/ceph/ceph:v19.3"},
+			Network: cephv1.NetworkSpec{
+				HostNetwork: true,
+			},
+		},
+		DataPathMap: data,
+	}
+
+	resourceName := fmt.Sprintf("%s-%s", AppName, c.store.Name)
+	rgwConfig := &rgwConfig{
+		ResourceName: resourceName,
+		DaemonID:     "default",
+	}
+
+	rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+	assert.NoError(t, err)
+	baseArgs := rgwContainer.Args // args without rgwCommandFlags set
+
+	t.Run("empty map adds no flags", func(t *testing.T) {
+		c.store.Spec.Gateway.RgwCommandFlags = map[string]string{}
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		assert.Equal(t, baseArgs, rgwContainer.Args)
+	})
+
+	t.Run("add flag with space", func(t *testing.T) {
+		c.store.Spec.Gateway.RgwCommandFlags = map[string]string{"rgw option": "val spaced"}
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		l := len(rgwContainer.Args)
+		assert.Equal(t, "--rgw-option=val spaced", rgwContainer.Args[l-1])
+	})
+
+	t.Run("add flag with dashes", func(t *testing.T) {
+		c.store.Spec.Gateway.RgwCommandFlags = map[string]string{"rgw-option": "val-dashed"}
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		l := len(rgwContainer.Args)
+		assert.Equal(t, "--rgw-option=val-dashed", rgwContainer.Args[l-1])
+	})
+
+	t.Run("add flag with underscores", func(t *testing.T) {
+		c.store.Spec.Gateway.RgwCommandFlags = map[string]string{"rgw_option": "val_underscored"}
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		l := len(rgwContainer.Args)
+		assert.Equal(t, "--rgw-option=val_underscored", rgwContainer.Args[l-1])
+	})
+
+	t.Run("add all flags", func(t *testing.T) {
+		c.store.Spec.Gateway.RgwCommandFlags = map[string]string{
+			"rgw option": "val spaced",
+			"rgw-option": "val-dashed",
+			"rgw_option": "val_underscored",
+		}
+		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
+		assert.NoError(t, err)
+		l := len(rgwContainer.Args)
+		assert.Equal(t, "--rgw-option=val spaced", rgwContainer.Args[l-3])
+		assert.Equal(t, "--rgw-option=val-dashed", rgwContainer.Args[l-2])
+		assert.Equal(t, "--rgw-option=val_underscored", rgwContainer.Args[l-1])
+	})
+}
+
 func TestAddDNSNamesToRGWPodSpec(t *testing.T) {
 	setupTest := func(zoneName string, cephvers cephver.CephVersion, dnsNames, customEndpoints []string) *clusterConfig {
 		store := simpleStore()

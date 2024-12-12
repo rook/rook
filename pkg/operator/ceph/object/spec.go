@@ -437,6 +437,12 @@ func (c *clusterConfig) makeDaemonContainer(rgwConfig *rgwConfig) (v1.Container,
 	if hostingOptions != "" {
 		container.Args = append(container.Args, hostingOptions)
 	}
+
+	// user configs are very last arguments so that they override what Rook might be setting before
+	for flag, val := range c.store.Spec.Gateway.RgwCommandFlags {
+		container.Args = append(container.Args, cephconfig.NewFlag(flag, val))
+	}
+
 	return container, nil
 }
 
