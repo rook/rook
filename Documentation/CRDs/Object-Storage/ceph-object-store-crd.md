@@ -349,6 +349,64 @@ vault write -f transit/keys/<mybucketkey> exportable=true # transit engine
 
 * `tokenSecretName` can be (and often will be) the same for both kms and s3 configurations.
 
+## Advanced configuration
+
+!!! warning
+    This feature is intended for advanced users. It allows breaking configurations to be easily
+    applied. Use with caution.
+
+CephObjectStore allows arbitrary Ceph configurations to be applied to RGW daemons that serve the
+object store. [RGW config reference](https://docs.ceph.com/en/latest/radosgw/config-ref/).
+
+Configurations are applied to all RGWs that serve the CephObjectStore. Values must be strings.
+Below is an example showing how different RGW configs and values might be applied. The example is
+intended only to show a selection of value data types.
+
+```yaml
+# THIS SAMPLE IS NOT A RECOMMENDATION
+# ...
+spec:
+  gateway:
+    # ...
+    rgwConfig:
+      debug_rgw: "10" # int
+      # debug-rgw: "20" # equivalent config keys can have dashes or underscores
+      rgw_s3_auth_use_ldap: "true" # bool
+    rgwCommandFlags:
+      rgw_dmclock_auth_res: "100.0" # float
+      rgw_d4n_l1_datacache_persistent_path: /var/log/rook/rgwd4ncache # string
+      rgw_d4n_address: "127.0.0.1:6379" # IP string
+```
+
+* `rgwConfig` - These configurations are applied and modified at runtime, without RGW restart.
+* `rgwCommandFlags` - These configurations are applied as CLI arguments and result in RGW daemons
+    restarting when updates are applied. Restarts are desired behavior for some RGW configs.
+
+!!! note
+    Once an `rgwConfig` is set, it will not be removed from Ceph's central config store when removed
+    from the `rgwConfig` spec. Be sure to specifically set values back to their defaults once done.
+    With this in mind, `rgwCommandFlags` may be a better choice for temporary config values like
+    debug levels.
+
+### Example - debugging
+
+Users are often asked to provide RGW logs at a high log level when troubleshooting complex issues.
+Apply log levels to RGWs easily using `rgwCommandFlags`.
+
+This spec will restart the RGW(s) with the highest level debugging enabled.
+
+```yaml
+# ...
+spec:
+  gateway:
+    # ...
+    rgwCommandFlags:
+      debug_ms: "20"
+      debug_rgw: "20"
+```
+
+Once RGW debug logging is no longer needed, the values can simply be removed from the spec.
+
 ## Deleting a CephObjectStore
 
 During deletion of a CephObjectStore resource, Rook protects against accidental or premature

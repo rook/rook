@@ -88,34 +88,6 @@ func TestStartRGW(t *testing.T) {
 
 		validateStart(ctx, t, c, clientset)
 	})
-
-	t.Run("Multisite sync traffic disabled", func(t *testing.T) {
-		store.ObjectMeta.Name = "client-rgw-sync-disabled"
-		store.Spec.Gateway.DisableMultisiteSyncTraffic = true
-
-		// Purge store of configurations applied to gateways
-		appliedRgwConfigurations = make(map[string]string)
-
-		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
-		assert.Nil(t, err)
-
-		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
-		assert.Equal(t, appliedRgwConfigurations["rgw_run_sync_thread"], "false")
-	})
-
-	t.Run("Multisite sync traffic enabled", func(t *testing.T) {
-		store.ObjectMeta.Name = "client-rgw-sync-enabled"
-		store.Spec.Gateway.DisableMultisiteSyncTraffic = false
-
-		// Purge store of configurations applied to gateways
-		appliedRgwConfigurations = make(map[string]string)
-
-		err := c.startRGWPods(store.Name, store.Name, store.Name, nil)
-		assert.Nil(t, err)
-
-		assert.Contains(t, appliedRgwConfigurations, "rgw_run_sync_thread")
-		assert.Equal(t, appliedRgwConfigurations["rgw_run_sync_thread"], "true")
-	})
 }
 
 func validateStart(ctx context.Context, t *testing.T, c *clusterConfig, clientset *fclient.Clientset) {

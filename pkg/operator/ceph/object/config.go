@@ -156,6 +156,20 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 
 	monStore := cephconfig.GetMonStore(c.context, c.clusterInfo)
 	who := generateCephXUser(rgwConfig.ResourceName)
+
+	configOptions, err := c.generateMonConfigOptions(rgwConfig)
+	if err != nil {
+		return err
+	}
+
+	if err := monStore.SetAll(who, configOptions); err != nil {
+		return errors.Wrapf(err, "failed to set all RGW configs on %q", who)
+	}
+
+	return nil
+}
+
+func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[string]string, error) {
 	configOptions := make(map[string]string)
 
 	configOptions["rgw_run_sync_thread"] = "true"
@@ -171,7 +185,7 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 
 	configOptions, err := configureKeystoneAuthentication(rgwConfig, configOptions)
 	if err != nil {
-		return err
+		return configOptions, err
 	}
 
 	if s3 := rgwConfig.Protocols.S3; s3 != nil {
@@ -192,14 +206,16 @@ func (c *clusterConfig) setFlagsMonConfigStore(rgwConfig *rgwConfig) error {
 		}
 	}
 
-	for flag, val := range configOptions {
-		err := monStore.Set(who, flag, val)
-		if err != nil {
-			return errors.Wrapf(err, "failed to set %q to %q on %q", flag, val, who)
+	for flag, val := range c.store.Spec.Gateway.RgwConfig {
+		if currVal, ok := configOptions[flag]; ok {
+			// RGW might break with some user-specified config overrides; log clearly to help triage
+			logger.Infof("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfig %q",
+				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, val)
 		}
+		configOptions[flag] = val
 	}
 
-	return nil
+	return configOptions, nil
 }
 
 func configureKeystoneAuthentication(rgwConfig *rgwConfig, configOptions map[string]string) (map[string]string, error) {
