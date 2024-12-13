@@ -524,6 +524,18 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketMaxSize: &(&struct{ i int64 }{5}).i}, *spec)
 	})
+
+	t.Run("bucketPolicy field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketPolicy": "foo"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketPolicy: &(&struct{ s string }{"foo"}).s}, *spec)
+	})
+
+	t.Run("bucketLifecycle field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketLifecycle": "foo"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketLifecycle: &(&struct{ s string }{"foo"}).s}, *spec)
+	})
 }
 
 func numberOfCallsWithValue(substr string, strs []string) int {
