@@ -123,7 +123,7 @@ spec:
   protocols:
     swift:
       accountInUrl: true
-      urlPrefix: /swift
+      urlPrefix: swift
   [...]
 ```
 
