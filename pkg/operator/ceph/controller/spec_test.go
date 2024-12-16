@@ -85,6 +85,7 @@ func TestCheckPodMemory(t *testing.T) {
 	name := "test"
 
 	// A value for the memory used in the tests
+	// nolint:gosec // G115 no overflow expected in the test
 	var memory_value = int64(PodMinimumMemory * 8 * uint64(math.Pow10(6)))
 
 	// Case 1: No memory limits, no memory requested

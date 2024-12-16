@@ -150,8 +150,9 @@ func buildTwoStepCrushSteps(pool cephv1.PoolSpec) []stepSpec {
 	// Step three
 	stepTakeSubFailureDomain := &stepSpec{
 		Operation: "chooseleaf_firstn",
-		Number:    int(pool.Replicated.ReplicasPerFailureDomain),
-		Type:      pool.Replicated.SubFailureDomain,
+		// nolint:gosec // G115 - casting uint to int has no overflow
+		Number: int(pool.Replicated.ReplicasPerFailureDomain),
+		Type:   pool.Replicated.SubFailureDomain,
 	}
 	steps = append(steps, *stepTakeSubFailureDomain)
 	steps = append(steps, *stepEmit)

@@ -357,7 +357,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) deleteSubVolumeGroup(cephFilesys
 				msg = fmt.Sprintf("failed to delete ceph filesystem subvolume group %q, started clean up job to delete the subvolumes", cephFilesystemSubVolumeGroup.Name)
 			}
 
-			return errors.Wrapf(err, msg)
+			return errors.Wrapf(err, "%s", msg)
 		}
 
 		return errors.Wrapf(err, "failed to delete ceph filesystem subvolume group %q", cephFilesystemSubVolumeGroup.Name)

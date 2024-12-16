@@ -144,7 +144,7 @@ func ReportReconcileResult(
 		errorMsg := fmt.Sprintf("failed to reconcile %s %q. %v", kind, nsName, err)
 
 		// 1. log
-		logger.Errorf(errorMsg)
+		logger.Errorf("%s", errorMsg)
 
 		// 2. event
 		recorder.Event(objCopy, corev1.EventTypeWarning, string(cephv1.ReconcileFailed), errorMsg)

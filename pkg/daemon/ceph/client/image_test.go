@@ -29,8 +29,15 @@ import (
 )
 
 const (
-	sizeMB = 1048576 // 1 MB
+	sizeMB = MiB // 1 MB
 )
+
+func TestRoundup_size_MiB(t *testing.T) {
+	assert.Equal(t, uint64(1), roundupSizeMiB(MiB))
+	assert.Equal(t, uint64(2), roundupSizeMiB(2*MiB))
+	assert.Equal(t, uint64(2), roundupSizeMiB(MiB+1))
+	assert.Equal(t, uint64(1), roundupSizeMiB(MiB-1))
+}
 
 func TestCreateImage(t *testing.T) {
 	executor := &exectest.MockExecutor{}

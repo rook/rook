@@ -41,5 +41,5 @@ func AggregateErrors(errs []error, format string, args ...interface{}) error {
 	for _, err := range errs {
 		errString = fmt.Sprintf("%s\n    %s", errString, err.Error())
 	}
-	return errors.Errorf(errString)
+	return errors.Errorf("%s", errString)
 }

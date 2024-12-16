@@ -313,9 +313,10 @@ func (c *Cluster) scaleDownDeployments(replicas int32, activeCount int32, desire
 	deps, err := getMdsDeployments(c.clusterInfo.Context, c.context, c.fs.Namespace, c.fs.Name)
 	if err != nil {
 		return errors.Wrapf(err,
-			fmt.Sprintf("cannot verify the removal of extraneous mds deployments for filesystem %s. ", c.fs.Name)+
-				fmt.Sprintf("USER should make sure that only deployments %+v exist which match the filesystem's label selector", desiredDeployments),
-		)
+			"cannot verify the removal of extraneous mds deployments for filesystem %s. "+
+				"USER should make sure that only deployments %+v exist which match the filesystem's label selector",
+			c.fs.Name,
+			desiredDeployments)
 	}
 	if !(len(deps.Items) > int(replicas)) {
 		// It's possible to check if there are fewer deployments than desired here, but that's
@@ -332,11 +333,12 @@ func (c *Cluster) scaleDownDeployments(replicas int32, activeCount int32, desire
 			if err := cephclient.WaitForActiveRanks(c.context, c.clusterInfo, c.fs.Name, activeCount, true, fsWaitForActiveTimeout); err != nil {
 				errCount++
 				logger.Errorf(
-					"number of active mds ranks is not as desired. it is potentially unsafe to continue with extraneous mds deletion, so stopping. " +
-						fmt.Sprintf("USER should delete undesired mds daemons once filesystem %s is healthy. ", c.fs.Name) +
-						fmt.Sprintf("desired mds deployments for this filesystem are %+v", desiredDeployments) +
-						fmt.Sprintf(". %v", err),
-				)
+					"number of active mds ranks is not as desired. it is potentially unsafe to continue with extraneous mds deletion, so stopping. "+
+						"USER should delete undesired mds daemons once filesystem %s is healthy. "+
+						"desired mds deployments for this filesystem are %+v. %v",
+					c.fs.Name,
+					desiredDeployments,
+					err)
 				break // stop trying to delete daemons, but continue to reporting any errors below
 			}
 
