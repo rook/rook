@@ -109,7 +109,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	// Update the secret as if created in an old cluster
 	delete(secret.Data, CephUserSecretKey)
 	delete(secret.Data, CephUsernameKey)
-	secret.Data[adminSecretNameKey] = []byte(adminSecret)
+	secret.Data[AdminSecretNameKey] = []byte(adminSecret)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 
@@ -120,7 +120,7 @@ func TestCreateClusterSecrets(t *testing.T) {
 	assert.Equal(t, adminSecret, info.CephCred.Secret)
 
 	// Fail to load the external cluster if the admin placeholder is specified
-	secret.Data[adminSecretNameKey] = []byte(adminSecretNameKey)
+	secret.Data[AdminSecretNameKey] = []byte(AdminSecretNameKey)
 	_, err = clientset.CoreV1().Secrets(namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	assert.NoError(t, err)
 	_, _, _, err = CreateOrLoadClusterInfo(context, ctx, namespace, ownerInfo, cephClusterSpec)
