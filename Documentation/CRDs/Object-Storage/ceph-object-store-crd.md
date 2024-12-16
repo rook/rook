@@ -407,6 +407,36 @@ spec:
 
 Once RGW debug logging is no longer needed, the values can simply be removed from the spec.
 
+### Example - usage with `additionalVolumeMounts`
+
+This sample configuration below demonstrates how advanced configuration can be used alongside
+`additionalVolumeMounts`. This hypothetical scenario shows how a Kubernetes secret containing an
+LDAP secret might be mounted to the RGW pod and how RGW would be configured to reference the mounted
+secret file.
+
+```yaml
+  # ...
+  gateway:
+    # ...
+    rgwConfig:
+      rgw_ldap_secret: /var/rgw/ldap/bindpass.secret
+    additionalVolumeMounts:
+      - subPath: ldap
+        volumeSource:
+          secret:
+            secretName: rgw-ldap
+            defaultMode: 0600
+---
+apiVersion: v1
+kind: Secret
+metadata:
+    name: rgw-ldap
+    namespace: rook-ceph
+type: Opaque
+data:
+    "bindpass.secret": aGVsbG8ud29ybGQK # hello.world
+```
+
 ## Deleting a CephObjectStore
 
 During deletion of a CephObjectStore resource, Rook protects against accidental or premature
