@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/google/go-cmp/cmp"
@@ -54,6 +55,7 @@ type Provisioner struct {
 	tlsCert              []byte
 	insecureTLS          bool
 	adminOpsClient       *admin.API
+	s3Agent              *object.S3Agent
 }
 
 type additionalConfigSpec struct {
@@ -61,6 +63,7 @@ type additionalConfigSpec struct {
 	maxSize          *int64
 	bucketMaxObjects *int64
 	bucketMaxSize    *int64
+	bucketPolicy     *string
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -95,12 +98,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrap(err, "Provision: can't create ceph user")
 	}
 
-	var s3svc *object.S3Agent
-	if p.insecureTLS {
-		s3svc, err = object.NewInsecureS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-	} else {
-		s3svc, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-	}
+	err = p.setS3Agent()
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +114,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		// if bucket already exists, this returns error: TooManyBuckets because we set the quota
 		// below. If it already exists, assume we are good to go
 		logger.Debugf("creating bucket %q", p.bucketName)
-		err = s3svc.CreateBucket(p.bucketName)
+		err = p.s3Agent.CreateBucket(p.bucketName)
 		if err != nil {
 			return nil, errors.Wrapf(err, "error creating bucket %q", p.bucketName)
 		}
@@ -133,7 +131,12 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 	}
 	logger.Infof("set user %q bucket max to %d", p.cephUserName, singleBucketQuota)
 
-	err = p.setAdditionalSettings(options)
+	additionalConfig, err := additionalConfigSpecFromMap(options.ObjectBucketClaim.Spec.AdditionalConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to process additionalConfig")
+	}
+
+	err = p.setAdditionalSettings(additionalConfig)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
 	}
@@ -172,29 +175,31 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, err
 	}
 
-	// get the bucket's owner via the bucket metadata
-	stats, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: p.bucketName})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get bucket %q stats", p.bucketName)
-	}
-
-	objectUser, err := p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: stats.Owner})
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get user %q", stats.Owner)
-	}
-
-	var s3svc *object.S3Agent
-	if p.insecureTLS {
-		s3svc, err = object.NewInsecureS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-	} else {
-		s3svc, err = object.NewS3Agent(objectUser.Keys[0].AccessKey, objectUser.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-	}
+	err = p.setS3Agent()
 	if err != nil {
 		return nil, err
 	}
 
+	additionalConfig, err := additionalConfigSpecFromMap(options.ObjectBucketClaim.Spec.AdditionalConfig)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to process additionalConfig")
+	}
+
+	// setting quota limit if it is enabled
+	err = p.setAdditionalSettings(additionalConfig)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
+	}
+
+	if additionalConfig.bucketPolicy != nil {
+		// if the user is managing the bucket policy, there's nothing else to do
+		return p.composeObjectBucket(), nil
+	}
+
+	// generate the bucket policy if it isn't managed by the user
+
 	// if the policy does not exist, we'll create a new and append the statement to it
-	policy, err := s3svc.GetBucketPolicy(p.bucketName)
+	policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() != "NoSuchBucketPolicy" {
@@ -215,17 +220,11 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	} else {
 		policy = policy.ModifyBucketPolicy(*statement)
 	}
-	out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+	out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 
 	logger.Infof("PutBucketPolicy output: %v", out)
 	if err != nil {
 		return nil, err
-	}
-
-	// setting quota limit if it is enabled
-	err = p.setAdditionalSettings(options)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
 	}
 
 	// returned ob with connection info
@@ -280,19 +279,17 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			return err
 		}
 
-		var s3svc *object.S3Agent
-		if p.insecureTLS {
-			s3svc, err = object.NewInsecureS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG))
-		} else {
-			s3svc, err = object.NewS3Agent(user.Keys[0].AccessKey, user.Keys[0].SecretKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert)
-		}
+		p.accessKeyID = user.Keys[0].AccessKey
+		p.secretAccessKey = user.Keys[0].SecretKey
+
+		err = p.setS3Agent()
 		if err != nil {
 			return err
 		}
 
 		// Ignore cases where there is no bucket policy. This may have occurred if an error ended a Grant()
 		// call before the policy was attached to the bucket
-		policy, err := s3svc.GetBucketPolicy(p.bucketName)
+		policy, err := p.s3Agent.GetBucketPolicy(p.bucketName)
 		if err != nil {
 			if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchBucketPolicy" {
 				policy = nil
@@ -317,7 +314,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 			} else {
 				policy = policy.ModifyBucketPolicy(*statement)
 			}
-			out, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			out, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 			logger.Infof("PutBucketPolicy output: %v", out)
 			if err != nil {
 				return errors.Wrap(err, "failed to update policy")
@@ -329,7 +326,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 		// drop policy if present
 		if policy != nil {
 			policy = policy.DropPolicyStatements(p.cephUserName)
-			_, err := s3svc.PutBucketPolicy(p.bucketName, *policy)
+			_, err := p.s3Agent.PutBucketPolicy(p.bucketName, *policy)
 			if err != nil {
 				return err
 			}
@@ -574,13 +571,8 @@ func (p *Provisioner) populateDomainAndPort(sc *storagev1.StorageClass) error {
 }
 
 // Check for additional options mentioned in OBC and set them accordingly
-func (p *Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error {
-	additionalConfig, err := additionalConfigSpecFromMap(options.ObjectBucketClaim.Spec.AdditionalConfig)
-	if err != nil {
-		return errors.Wrap(err, "failed to process additionalConfig")
-	}
-
-	err = p.setUserQuota(additionalConfig)
+func (p *Provisioner) setAdditionalSettings(additionalConfig *additionalConfigSpec) error {
+	err := p.setUserQuota(additionalConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to set user quota")
 	}
@@ -588,6 +580,11 @@ func (p *Provisioner) setAdditionalSettings(options *apibkt.BucketOptions) error
 	err = p.setBucketQuota(additionalConfig)
 	if err != nil {
 		return errors.Wrap(err, "failed to set bucket quota")
+	}
+
+	err = p.setBucketPolicy(additionalConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to set bucket policy")
 	}
 
 	return nil
@@ -697,6 +694,53 @@ func (p *Provisioner) setBucketQuota(additionalConfig *additionalConfigSpec) err
 	return nil
 }
 
+func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) error {
+	svc := p.s3Agent.Client
+	var livePolicy *string
+
+	policyResp, err := svc.GetBucketPolicy(&s3.GetBucketPolicyInput{
+		Bucket: &p.bucketName,
+	})
+	if err != nil {
+		// when no policy is set, an err with code "NoSuchBucketPolicy" is returned
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() != "NoSuchBucketPolicy" {
+				return errors.Wrapf(err, "failed to fetch policy for bucket %q", p.bucketName)
+			}
+		}
+	} else {
+		livePolicy = policyResp.Policy
+	}
+
+	diff := cmp.Diff(&livePolicy, additionalConfig.bucketPolicy)
+	if diff == "" {
+		// policy is in sync
+		return nil
+	}
+
+	logger.Debugf("Policy for bucket %q has changed. diff:%s", p.bucketName, diff)
+	if additionalConfig.bucketPolicy == nil {
+		// if policy is out of sync and the new policy is nil, we should delete the live policy
+		_, err = svc.DeleteBucketPolicy(&s3.DeleteBucketPolicyInput{
+			Bucket: &p.bucketName,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete policy for bucket %q", p.bucketName)
+		}
+	} else {
+		// set the new policy
+		_, err = svc.PutBucketPolicy(&s3.PutBucketPolicyInput{
+			Bucket: &p.bucketName,
+			Policy: additionalConfig.bucketPolicy,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to set policy for bucket %q", p.bucketName)
+		}
+	}
+
+	return nil
+}
+
 func (p *Provisioner) setTlsCaCert() error {
 	objStore, err := p.getObjectStore()
 	if err != nil {
@@ -753,4 +797,10 @@ func (p *Provisioner) setAdminOpsAPIClient() error {
 	}
 
 	return nil
+}
+
+func (p *Provisioner) setS3Agent() error {
+	var err error
+	p.s3Agent, err = object.NewS3Agent(p.accessKeyID, p.secretAccessKey, p.getObjectStoreEndpoint(), logger.LevelAt(capnslog.DEBUG), p.tlsCert, p.insecureTLS, nil)
+	return err
 }
