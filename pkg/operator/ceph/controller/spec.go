@@ -497,19 +497,23 @@ func CheckPodMemory(name string, resources v1.ResourceRequirements, cephPodMinim
 
 	if !podMemoryLimit.IsZero() {
 		// This means LIMIT and REQUEST are either identical or different but still we use LIMIT as a reference
-		if uint64(podMemoryLimit.Value()) < display.MbTob(cephPodMinimumMemory) {
+		// nolint:gosec // G115 int64 to uint64 conversion is reasonabe here
+		upodMemoryLimit := uint64(podMemoryLimit.Value())
+		if upodMemoryLimit < display.MbTob(cephPodMinimumMemory) {
 			// allow the configuration if less than the min, but print a warning
-			logger.Warningf("running the %q daemon(s) with %dMB of ram, but at least %dMB is recommended", name, display.BToMb(uint64(podMemoryLimit.Value())), cephPodMinimumMemory)
+			logger.Warningf("running the %q daemon(s) with %dMB of ram, but at least %dMB is recommended", name, display.BToMb(upodMemoryLimit), cephPodMinimumMemory)
 		}
 
 		// This means LIMIT < REQUEST
 		// Kubernetes will refuse to schedule that pod however it's still valuable to indicate that user's input was incorrect
-		if uint64(podMemoryLimit.Value()) < uint64(podMemoryRequest.Value()) {
+		// nolint:gosec // G115 int64 to uint64 conversion is reasonabe here
+		upodMemoryRequest := uint64(podMemoryRequest.Value())
+		if upodMemoryLimit < upodMemoryRequest {
 			extraErrorLine := `\n
 			User has specified a pod memory limit %dmb below the pod memory request %dmb in the cluster CR.\n
 			Rook will create pods that are expected to fail to serve as a more apparent error indicator to the user.`
 
-			return errors.Errorf(extraErrorLine, display.BToMb(uint64(podMemoryLimit.Value())), display.BToMb(uint64(podMemoryRequest.Value())))
+			return errors.Errorf(extraErrorLine, display.BToMb(upodMemoryLimit), display.BToMb(upodMemoryRequest))
 		}
 	}
 

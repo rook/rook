@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 	"time"
 
@@ -97,14 +98,20 @@ func InitKMIP(config map[string]string) (*kmipKMS, error) {
 	kms.readTimeout = kmipDefaultReadTimeout
 	timeout, err := strconv.Atoi(GetParam(config, kmipReadTimeOut))
 	if err == nil {
-		kms.readTimeout = uint8(timeout)
+		if timeout > math.MaxUint8 {
+			return nil, fmt.Errorf("read timeout %d is too big", timeout)
+		}
+		kms.readTimeout = uint8(timeout) // nolint:gosec // G115 : already checked if too big
 	}
 
 	// optional
 	kms.writeTimeout = kmipDefaultWriteTimeout
 	timeout, err = strconv.Atoi(GetParam(config, kmipWriteTimeOut))
 	if err == nil {
-		kms.writeTimeout = uint8(timeout)
+		if timeout > math.MaxUint8 {
+			return nil, fmt.Errorf("read timeout %d is too big", timeout)
+		}
+		kms.writeTimeout = uint8(timeout) // nolint:gosec // G115 : already checked if too big
 	}
 
 	caCert := GetParam(config, KmipCACert)

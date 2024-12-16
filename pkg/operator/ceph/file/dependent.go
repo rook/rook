@@ -80,7 +80,7 @@ func cephFilesystemDependents(clusterdCtx *clusterd.Context, clusterInfo *cephcl
 	if fsExists {
 		deps, err = subvolumeGroupDependents(clusterdCtx, clusterInfo, filesystem)
 		if err != nil {
-			return deps, errors.Wrapf(err, baseErrMsg)
+			return deps, errors.Wrapf(err, "%s", baseErrMsg)
 		}
 	}
 

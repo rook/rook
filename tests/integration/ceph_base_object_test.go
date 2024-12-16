@@ -98,6 +98,7 @@ func createCephObjectStore(t *testing.T, helper *clients.TestClient, k8sh *utils
 		})
 	}
 	t.Run("create CephObjectStore", func(t *testing.T) {
+		// nolint:gosec // G115 no overflow in test
 		err := helper.ObjectClient.Create(namespace, storeName, int32(replicaSize), tlsEnable, swiftAndKeystone)
 		assert.Nil(t, err)
 	})

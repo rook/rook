@@ -74,6 +74,7 @@ func (r *ReconcileCephRBDMirror) makeDeployment(daemonConfig *daemonConfig, rbdM
 	}
 	rbdMirror.Spec.Placement.ApplyToPodSpec(&podSpec.Spec)
 
+	// nolint:gosec // G115 no overflow expected for rbd mirror count
 	replicas := int32(rbdMirror.Spec.Count)
 	d := &apps.Deployment{
 		ObjectMeta: metav1.ObjectMeta{

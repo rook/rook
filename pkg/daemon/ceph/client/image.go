@@ -31,7 +31,8 @@ import (
 )
 
 const (
-	ImageMinSize = uint64(1048576) // 1 MB
+	MiB          = uint64(1048576) // 1 MiB
+	ImageMinSize = MiB
 )
 
 type CephBlockImage struct {
@@ -141,6 +142,13 @@ func DeleteImageFromTrashInRadosNamespace(context *clusterd.Context, clusterInfo
 	return nil
 }
 
+// for a given size in bytes, round up to the nearest number of Mibibytes,
+// i. e. return the smallest  number of Mibibytes larger than or equal to size.
+func roundupSizeMiB(size uint64) uint64 {
+	sizeMiB := (size + MiB - 1) / MiB
+	return sizeMiB
+}
+
 // CreateImage creates a block storage image.
 // If dataPoolName is not empty, the image will use poolName as the metadata pool and the dataPoolname for data.
 // If size is zero an empty image will be created. Otherwise, an image will be
@@ -156,11 +164,11 @@ func CreateImage(context *clusterd.Context, clusterInfo *ClusterInfo, name, pool
 
 	// Roundup the size of the volume image since we only create images on 1MB boundaries and we should never create an image
 	// size that's smaller than the requested one, e.g, requested 1048698 bytes should be 2MB while not be truncated to 1MB
-	sizeMB := int((size + ImageMinSize - 1) / ImageMinSize)
+	sizeMB := roundupSizeMiB(size)
 
 	imageSpec := getImageSpec(name, poolName)
 
-	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}
+	args := []string{"create", imageSpec, "--size", fmt.Sprintf("%d", sizeMB)}
 
 	if dataPoolName != "" {
 		args = append(args, fmt.Sprintf("--data-pool=%s", dataPoolName))
