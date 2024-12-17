@@ -594,6 +594,8 @@ cephObjectStores:
         erasureCoded:
           dataChunks: 2
           codingChunks: 1
+        parameters:
+          bulk: "true"
       preservePoolsOnDelete: true
       gateway:
         port: 80

@@ -32,6 +32,10 @@ spec:
       dataChunks: 2
       codingChunks: 1
     parameters:
+      # RGW data pools are expected to be large, so mark them as "bulk" so that the PG autoscaler will treat them accordingly
+      # (see https://docs.ceph.com/en/reef/rados/operations/placement-groups/)
+      # In short, it will precreate a full number of PGs, so that the cluster works with optimal performance from day 1.
+      bulk: "true"
       # Inline compression mode for the data pool
       # Further reference: https://docs.ceph.com/docs/master/rados/configuration/bluestore-config-ref/#inline-compression
       compression_mode: none
