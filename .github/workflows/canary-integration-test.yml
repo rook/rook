@@ -407,8 +407,8 @@ jobs:
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools-operator-image -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           s5cmd_version="$(kubectl -n rook-ceph exec ${toolbox} -- /usr/local/bin/s5cmd version)"
-          echo ${s5cmd_version} | grep -q "^v2.2.1"  || {
-             echo " Error: the version of s5cmd version in the  toolbox is not the expected v2.2.1 but ${s5cmd_version}"
+          echo ${s5cmd_version} | grep -q "^v2.3.0"  || {
+             echo " Error: the version of s5cmd version in the  toolbox is not the expected v2.3.0 but ${s5cmd_version}"
              exit 1
           }
 
