@@ -498,7 +498,7 @@ csi:
     # -- Kubernetes CSI snapshotter image repository
     repository: registry.k8s.io/sig-storage/csi-snapshotter
     # -- Snapshotter image tag
-    tag: v8.0.1
+    tag: v8.2.0
 
   attacher:
     # -- Kubernetes CSI Attacher image repository

@@ -132,7 +132,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.serviceMonitor.namespace` | Use a different namespace for the ServiceMonitor | `nil` |
 | `csi.sidecarLogLevel` | Set logging level for Kubernetes-csi sidecar containers. Supported values from 0 to 5. 0 for general useful logs (the default), 5 for trace level verbosity. | `0` |
 | `csi.snapshotter.repository` | Kubernetes CSI snapshotter image repository | `"registry.k8s.io/sig-storage/csi-snapshotter"` |
-| `csi.snapshotter.tag` | Snapshotter image tag | `"v8.0.1"` |
+| `csi.snapshotter.tag` | Snapshotter image tag | `"v8.2.0"` |
 | `csi.topology.domainLabels` | domainLabels define which node labels to use as domains for CSI nodeplugins to advertise their domains | `nil` |
 | `csi.topology.enabled` | Enable topology based provisioning | `false` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |

@@ -135,7 +135,7 @@ var (
 	DefaultRegistrarImage   = "registry.k8s.io/sig-storage/csi-node-driver-registrar:v2.11.1"
 	DefaultProvisionerImage = "registry.k8s.io/sig-storage/csi-provisioner:v5.0.1"
 	DefaultAttacherImage    = "registry.k8s.io/sig-storage/csi-attacher:v4.6.1"
-	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v8.0.1"
+	DefaultSnapshotterImage = "registry.k8s.io/sig-storage/csi-snapshotter:v8.2.0"
 	DefaultResizerImage     = "registry.k8s.io/sig-storage/csi-resizer:v1.11.1"
 	DefaultCSIAddonsImage   = "quay.io/csiaddons/k8s-sidecar:v0.11.0"
 

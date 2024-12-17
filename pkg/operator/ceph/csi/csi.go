@@ -315,11 +315,11 @@ func (r *ReconcileCSI) setParams() error {
 		disableVGS := strings.EqualFold(k8sutil.GetValue(r.opConfig.Parameters, "CSI_ENABLE_VOLUME_GROUP_SNAPSHOT", "true"), "false")
 		const (
 			enableVolumeGroupSnapshotFlag = "--enable-volume-group-snapshots="
-			featureGateFlag               = "--feature-gate=CSIVolumeGroupSnapshot="
+			featureGateFlag               = "--feature-gates=CSIVolumeGroupSnapshot="
 		)
 		// Check for "v1alpha1" version to determine the appropriate CLI flag
 		// In the "v1alpha1" version, we use the '--enable-volume-group-snapshots' flag.
-		// In later versions (e.g., "v1beta1"), we use the '--feature-gate=CSIVolumeGroupSnapshot' flag.
+		// In later versions (e.g., "v1beta1"), we use the '--feature-gates=CSIVolumeGroupSnapshot' flag.
 		if ver.Name == "v1alpha1" {
 			CSIParam.VolumeGroupSnapshotCLIFlag = enableVolumeGroupSnapshotFlag + "true"
 		} else {
