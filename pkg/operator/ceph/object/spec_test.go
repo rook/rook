@@ -982,10 +982,12 @@ func TestRgwCommandFlags(t *testing.T) {
 		}
 		rgwContainer, err := c.makeDaemonContainer(rgwConfig)
 		assert.NoError(t, err)
+		// ordering of additional args amongst themselves doesn't matter (and is random b/c of
+		// underlying map data type), but it is still important that the additional args are always
+		// after the args Rook normally applies
 		l := len(rgwContainer.Args)
-		assert.Equal(t, "--rgw-option=val spaced", rgwContainer.Args[l-3])
-		assert.Equal(t, "--rgw-option=val-dashed", rgwContainer.Args[l-2])
-		assert.Equal(t, "--rgw-option=val_underscored", rgwContainer.Args[l-1])
+		addedArgs := rgwContainer.Args[l-3:]
+		assert.ElementsMatch(t, []string{"--rgw-option=val spaced", "--rgw-option=val-dashed", "--rgw-option=val_underscored"}, addedArgs)
 	})
 }
 
