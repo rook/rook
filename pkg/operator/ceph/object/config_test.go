@@ -17,7 +17,6 @@ limitations under the License.
 package object
 
 import (
-	"fmt"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -178,7 +177,7 @@ func Test_clusterConfig_generateMonConfigOptions(t *testing.T) {
 				t.Errorf("clusterConfig.generateMonConfigOptions() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Equal(t, fmt.Sprint(tt.want), fmt.Sprint(got)) // go maps are stringified in sorted order for testing
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
