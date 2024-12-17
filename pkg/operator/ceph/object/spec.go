@@ -158,11 +158,26 @@ func (c *clusterConfig) makeRGWPodSpec(rgwConfig *rgwConfig) (v1.PodTemplateSpec
 		ServiceAccountName: serviceAccountName,
 	}
 
+	opsLogFile := ""
+	if opsLogSidecar := c.store.Spec.Gateway.OpsLogSidecar; opsLogSidecar != nil {
+		// Generate ops log file name based on rgw daemon ID
+		opsLogName := fmt.Sprintf("ops-log-%s.log", getDaemonName(rgwConfig))
+		opsLogFile = path.Join(cephconfig.VarLogCephDir, opsLogName)
+
+		// Add the side-car container named ops-log
+		podSpec.Containers = append(podSpec.Containers,
+			*controller.RgwOpsLogSidecarContainer(opsLogName,
+				c.clusterInfo.Namespace, *c.clusterSpec,
+				opsLogSidecar.Resources))
+	}
+
 	// If the log collector is enabled we add the side-car container
 	if c.clusterSpec.LogCollector.Enabled {
 		shareProcessNamespace := true
 		podSpec.ShareProcessNamespace = &shareProcessNamespace
-		podSpec.Containers = append(podSpec.Containers, *controller.LogCollectorContainer(getDaemonName(rgwConfig), c.clusterInfo.Namespace, *c.clusterSpec))
+		podSpec.Containers = append(podSpec.Containers,
+			*controller.LogCollectorContainer(getDaemonName(rgwConfig),
+				c.clusterInfo.Namespace, *c.clusterSpec, opsLogFile))
 	}
 
 	// Replace default unreachable node toleration

@@ -235,6 +235,24 @@ The gateway settings correspond to the RGW daemon settings.
       service.beta.openshift.io/serving-cert-secret-name: <name of TLS secret for automatic generation>
     ```
 
+* `opsLogSidecar`: By default, all RGW logs are included in the main RGW container logs.
+    For enhanced observability of the operations, the [RGW operations log](https://docs.ceph.com/en/latest/radosgw/config-ref/#confval-rgw_enable_ops_log) can be separated from the main RGW container logs by enabling a sidecar.
+    OpsLogSidecar can be enabled by the following example:
+
+```yaml
+  gateway:
+    opsLogSidecar:
+      resources:
+        requests: {}
+        limits: {}
+```
+
+Once enabled, logs can be accessed in RGW pod `ops-log` sidecar containers. For example:
+
+```sh
+kubectl --namespace rook-ceph logs rook-ceph-rgw-my-store-a-59d48474d8-jv7ps --container ops-log
+```
+
 ## Zone Settings
 
 The [zone](../../Storage-Configuration/Object-Storage-RGW/ceph-object-multisite.md) settings allow the object store to join custom created [ceph-object-zone](ceph-object-zone-crd.md).
