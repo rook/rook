@@ -724,7 +724,7 @@ function install_minikube_with_none_driver() {
 }
 
 function toolbox() {
-  kubectl -n rook-ceph exec -it "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
+  kubectl -n rook-ceph exec -t "$(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}')" -- "$@"
 }
 
 function ceph() {

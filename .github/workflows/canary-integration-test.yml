@@ -65,10 +65,9 @@ jobs:
 
       - name: wait for ceph mgr to be ready
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
-          mgr_raw=$(kubectl -n rook-ceph exec $toolbox -- ceph mgr dump -f json|jq --raw-output .active_addr)
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
+          timeout 15 sh -c "until tests/scripts/github-action-helper.sh ceph mgr dump -f json|jq --raw-output .active_addr|grep -Eosq \"(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\" ; do sleep 1 && echo 'waiting for the manager IP to be available'; done"
+          mgr_raw=$(tests/scripts/github-action-helper.sh ceph mgr dump -f json|jq --raw-output .active_addr)
+          timeout 60 sh -c "until tests/scripts/github-action-helper.sh toolbox curl --silent --show-error ${mgr_raw%%:*}:9283; do echo 'waiting for mgr prometheus exporter to be ready' && sleep 1; done"
 
       - name: test osd.0 auth recovery from keyring file
         run: |
@@ -88,20 +87,19 @@ jobs:
       - name: test external script create-external-cluster-resources.py
         run: |
           toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- mkdir -p /etc/ceph/test-data
+          tests/scripts/github-action-helper.sh toolbox mkdir -p /etc/ceph/test-data
           kubectl -n rook-ceph cp tests/external-cluster/ceph-status-out $toolbox:/etc/ceph/test-data/
           kubectl -n rook-ceph cp tests/external-cluster/external-config.ini $toolbox:/etc/ceph/
           kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources.py $toolbox:/etc/ceph
           kubectl -n rook-ceph cp deploy/examples/create-external-cluster-resources-tests.py $toolbox:/etc/ceph
-          timeout 10 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
+          timeout 10 sh -c "until tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool; do echo 'waiting for script to succeed' && sleep 1; done"
           # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+          tests/scripts/github-action-helper.sh ceph auth ls
 
       - name: test re-running of external script should result in same output
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output1.txt
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output2.txt
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output1.txt
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool | tee output2.txt
           if cmp output1.txt output2.txt; then
             echo "files have same output"
             rm output1.txt
@@ -115,21 +113,19 @@ jobs:
 
       - name: dry run external script create-external-cluster-resources.py
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run
 
       - name: test external script create-external-cluster-resources.py if users already exist with different caps
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # update client.csi-rbd-provisioner csi user caps
           # print client.csi-rbd-provisioner user before update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
+          tests/scripts/github-action-helper.sh ceph auth get client.csi-rbd-provisioner
+          tests/scripts/github-action-helper.sh ceph auth caps client.csi-rbd-provisioner mon 'profile rbd, allow command "osd ls"' osd 'profile rbd' mgr 'allow rw'
           # print client.csi-rbd-provisioner user after update
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
+          tests/scripts/github-action-helper.sh ceph auth get client.csi-rbd-provisioner
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool
           # print client.csi-rbd-provisioner user after running script
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-provisioner
+          tests/scripts/github-action-helper.sh ceph auth get client.csi-rbd-provisioner
 
       - name: run external script create-external-cluster-resources.py unit tests
         run: |
@@ -137,37 +133,32 @@ jobs:
 
       - name: wait for the subvolumegroup to be created
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
+          timeout 60 sh -c "until tests/scripts/github-action-helper.sh ceph fs subvolumegroup ls myfs|jq .[0].name|grep -q "group-a"; do sleep 1 && echo 'waiting for the subvolumegroup to be created'; done"
 
       - name: test subvolumegroup validation
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # pass the correct subvolumegroup and cephfs_filesystem flag name
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group group-a --cephfs-filesystem-name myfs
           # pass the subvolumegroup name which doesn't exist
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --subvolume-group false-test-subvolume-group
 
       - name: dry run test skip monitoring endpoint
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run --skip-monitoring-endpoint
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name=replicapool --dry-run --skip-monitoring-endpoint
 
       - name: test of rados namespace
         run: |
           kubectl create -f deploy/examples/radosnamespace.yaml
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          timeout 60 sh -c "until kubectl -n rook-ceph exec $toolbox -- rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
+          timeout 60 sh -c "until tests/scripts/github-action-helper.sh rbd namespace ls replicapool --format=json|jq .[0].name|grep -q "namespace-a"; do sleep 1 && echo 'waiting for the rados namespace to be created'; done"
           kubectl delete -f deploy/examples/radosnamespace.yaml
 
       - name: test rados namespace validation
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # create `radosNamespace1` rados-namespace for `replicapool` rbd data-pool
-          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosnamespace1
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosnamespace1
+          tests/scripts/github-action-helper.sh rbd namespace create replicapool/radosnamespace1
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosnamespace1
            # test the rados namespace which not exit for replicapool(false testing)
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
+          if output=$(tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace false-test-namespace); then
             echo "unexpectedly succeeded after passing the wrong rados namespace: $output"
             exit 1
           else
@@ -176,50 +167,44 @@ jobs:
 
       - name: test external script with restricted_auth_permission flag and without having cephfs_filesystem flag
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
 
       - name: test external script with restricted_auth_permission flag and with --cluster-name legacy flag
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cluster-name rookstorage --restricted-auth-permission true
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --cluster-name rookstorage --restricted-auth-permission true
 
       - name: test external script with restricted_auth_permission flag
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --cephfs-filesystem-name myfs --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage --restricted-auth-permission true
 
       - name: test the upgrade flag
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+          tests/scripts/github-action-helper.sh ceph auth ls
           # update the existing non-restricted client auth with the new ones
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --upgrade
           # print upgraded client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth ls
+          tests/scripts/github-action-helper.sh ceph auth ls
 
       - name: test the upgrade flag for restricted auth user
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # print existing client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
+          tests/scripts/github-action-helper.sh ceph auth get client.csi-rbd-node-rookstorage-replicapool
           # restricted auth user need to provide --rbd-data-pool-name,
           #  --k8s-cluster-name and --run-as-user flag while upgrading
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --upgrade --rbd-data-pool-name replicapool --k8s-cluster-name rookstorage  --run-as-user client.csi-rbd-node-rookstorage-replicapool
           # print upgraded client auth
-          kubectl -n rook-ceph exec $toolbox -- ceph auth get client.csi-rbd-node-rookstorage-replicapool
+          tests/scripts/github-action-helper.sh ceph auth get client.csi-rbd-node-rookstorage-replicapool
 
       - name: validate-rgw-endpoint
         run: |
           rgw_endpoint=$(kubectl get service -n rook-ceph -l rgw=store-a |  awk '/rgw/ {print $3":80"}')
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # pass the valid rgw-endpoint of same ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           tests/scripts/github-action-helper.sh check_empty_file output.txt
           rm -f output.txt
           # pass the invalid rgw-endpoint of different ceph cluster
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80  2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint 10.108.96.128:80  2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           if [ -s output.txt ]; then
             echo "script run completed with stderr error after passing the wrong rgw-endpoint: $output"
             rm -f output.txt
@@ -229,23 +214,22 @@ jobs:
             exit 1
           fi
           # pass the valid rgw-endpoint of same ceph cluster with --rgw-tls-cert-path
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-tls-cert-path my-cert 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           tests/scripts/github-action-helper.sh check_empty_file output.txt
           rm -f output.txt
           # pass the valid rgw-endpoint of same ceph cluster with --rgw-skip-tls
-          timeout 15 sh -c "until kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
+          timeout 15 sh -c "until tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-endpoint $rgw_endpoint --rgw-skip-tls true 2> output.txt; do sleep 1 && echo 'waiting for the rgw endpoint to be validated'; done"
           tests/scripts/github-action-helper.sh check_empty_file output.txt
           rm -f output.txt
 
       - name: validate multisite
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # create realm
-          kubectl -n rook-ceph exec $toolbox -- radosgw-admin realm create --rgw-realm=realm1
+          tests/scripts/github-action-helper.sh radosgw-admin realm create --rgw-realm=realm1
           # pass correct realm
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm1
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm1
           # pass wrong realm
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm3); then
+          if output=$(tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rgw-realm-name realm3); then
             echo "script run completed with stderr error after passing the wrong realm: $output"
           else
             echo "script failed because wrong realm was passed"
@@ -253,7 +237,6 @@ jobs:
 
       - name: test topology flags
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # create 3 replica-1 pools
           sed -i 's/replicapool/replica1a/' deploy/examples/pool-test.yaml
           kubectl create -f deploy/examples/pool-test.yaml
@@ -270,15 +253,15 @@ jobs:
           kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replica1c -nrook-ceph
 
           # pass correct flags
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03
           # pass the pool which is not exists
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools ab,cd,ef --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
+          if output=$(tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools ab,cd,ef --topology-failure-domain-label hostname --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
             echo "script run completed with stderr error after passing the wrong pools: $output"
           else
             echo "script failed because wrong pools doesn't exist"
           fi
           # dont pass all topology flags
-          if output=$(kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
+          if output=$(tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --topology-pools replica1a,replica1b,replica1c --topology-failure-domain-values minikube,minikube-m02,minikube-m03); then
             echo "script run completed with stderr error after passing the wrong flags: $output"
           else
             echo "script failed because topology-failure-domain-label is missing"
@@ -286,18 +269,16 @@ jobs:
 
       - name: test enable v2 mon port
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --v2-port-enable
 
       - name: test config file flag
         run: |
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
           # create `radosNamespace2` rados-namespace for `replicapool` rbd data-pool
-          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapool/radosnamespace2
+          tests/scripts/github-action-helper.sh rbd namespace create replicapool/radosnamespace2
 
           # validate `--rados-namespace`, config file value is radosnamespace2, cli arg flag is set to radosnamespace1 and no default is set
           # command line arg should be used
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosnamespace1 --config-file /etc/ceph/external-config.ini
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --rados-namespace radosnamespace1 --config-file /etc/ceph/external-config.ini
 
           # validate the `rbd-data-pool-name`,config value set to replicapoolconfig, command line arg is not set and no default
           # config value should be used
@@ -305,12 +286,12 @@ jobs:
           kubectl create -f deploy/examples/pool-test.yaml
           kubectl wait --for='jsonpath={.status.phase}=Ready' Cephblockpool/replicapoolconfig -nrook-ceph
           # create `radosNamespace2` rados-namespace for `replicapoolconfig` rbd data-pool
-          kubectl -n rook-ceph exec $toolbox -- rbd namespace create replicapoolconfig/radosnamespace2
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --config-file /etc/ceph/external-config.ini
+          tests/scripts/github-action-helper.sh rbd namespace create replicapoolconfig/radosnamespace2
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --config-file /etc/ceph/external-config.ini
 
           # validate the default `format`` flag, config file value is not set and no cmd line argument is set and default value is `Json``,
           # default value should be used
-          kubectl -n rook-ceph exec $toolbox -- python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --config-file /etc/ceph/external-config.ini
+          tests/scripts/github-action-helper.sh toolbox python3 /etc/ceph/create-external-cluster-resources.py --rbd-data-pool-name replicapool --config-file /etc/ceph/external-config.ini
 
       - name: check-ownerreferences
         run: tests/scripts/github-action-helper.sh check_ownerreferences
@@ -329,12 +310,11 @@ jobs:
           sed -i 's/false/true/' deploy/examples/osd-purge.yaml
           sed -i 's|rook/ceph:.*|rook/ceph:local-build|' deploy/examples/osd-purge.yaml
           kubectl -n rook-ceph create -f deploy/examples/osd-purge.yaml
-          toolbox=$(kubectl get pod -l app=rook-ceph-tools -n rook-ceph -o jsonpath='{.items[*].metadata.name}')
-          kubectl -n rook-ceph exec $toolbox -- ceph status
+          tests/scripts/github-action-helper.sh ceph status
           # wait until osd.1 is removed from the osd tree
-          timeout 120 sh -c "while kubectl -n rook-ceph exec $toolbox -- ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
-          kubectl -n rook-ceph exec $toolbox -- ceph status
-          kubectl -n rook-ceph exec $toolbox -- ceph osd tree
+          timeout 120 sh -c "while tests/scripts/github-action-helper.sh ceph osd tree|grep -qE 'osd.1'; do echo 'waiting for ceph osd 1 to be purged'; sleep 1; done"
+          tests/scripts/github-action-helper.sh ceph status
+          tests/scripts/github-action-helper.sh ceph osd tree
 
       - name: collect common logs
         if: always()
