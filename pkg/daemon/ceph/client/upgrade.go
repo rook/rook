@@ -180,6 +180,7 @@ func okToStopDaemon(context *clusterd.Context, clusterInfo *ClusterInfo, deploym
 		args := []string{daemonType, "ok-to-stop", daemonName}
 		buf, err := NewCephCommand(context, clusterInfo, args).Run()
 		if err != nil {
+			logger.Infof("deployment %s cannot be stopped, error:%v", deployment, err)
 			return errors.Wrapf(err, "deployment %s cannot be stopped", deployment)
 		}
 		output := string(buf)
