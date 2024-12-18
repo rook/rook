@@ -27,7 +27,7 @@ import (
 const (
 	// snapshotterVersion from which the snapshotcontroller and CRD will be
 	// installed
-	snapshotterVersion = "v8.0.1"
+	snapshotterVersion = "v8.2.0"
 	repoURL            = "https://raw.githubusercontent.com/kubernetes-csi/external-snapshotter"
 	rbacPath           = "deploy/kubernetes/snapshot-controller/rbac-snapshot-controller.yaml"
 	controllerPath     = "deploy/kubernetes/snapshot-controller/setup-snapshot-controller.yaml"
