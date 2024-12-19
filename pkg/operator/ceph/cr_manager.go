@@ -143,11 +143,7 @@ func (o *Operator) startCRDManager(context context.Context, mgrErrorCh chan erro
 		}
 	}
 
-	metricsBindAddress, err := k8sutil.GetOperatorSetting(context, o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_OPERATOR_METRICS_BIND_ADDRESS", "0")
-	if err != nil {
-		mgrErrorCh <- errors.Wrap(err, "failed to get configmap value `ROOK_OPERATOR_METRICS_BIND_ADDRESS`.")
-		return
-	}
+	metricsBindAddress := k8sutil.GetOperatorSetting("ROOK_OPERATOR_METRICS_BIND_ADDRESS", "0")
 	skipNameValidation := true
 	// Set up a manager
 	mgrOpts := manager.Options{

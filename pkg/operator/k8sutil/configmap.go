@@ -70,50 +70,21 @@ func CreateOrUpdateConfigMap(ctx context.Context, clientset kubernetes.Interface
 	return existingCm, nil
 }
 
-// GetOperatorSetting gets the operator setting from ConfigMap or Env Var
+// GetOperatorSetting gets the operator setting from Env Var merged with ConfigMap
 // returns defaultValue if setting is not found
-func GetOperatorSetting(context context.Context, clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
-	// config must be in operator pod namespace
-	namespace := os.Getenv(PodNamespaceEnvVar)
-	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(context, configMapName, metav1.GetOptions{})
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			if settingValue, ok := os.LookupEnv(settingName); ok {
-				logger.Infof("%s=%q (env var)", settingName, settingValue)
-				return settingValue, nil
-			}
-			logger.Infof("%s=%q (default)", settingName, defaultValue)
-			return defaultValue, nil
-		}
-		return defaultValue, fmt.Errorf("error reading ConfigMap %q. %v", configMapName, err)
+func GetOperatorSetting(settingName, defaultValue string) string {
+	if settingValue, ok := os.LookupEnv(settingName); ok {
+		return settingValue
 	}
-
-	return GetValue(cm.Data, settingName, defaultValue), nil
+	return defaultValue
 }
 
 func GetValue(data map[string]string, settingName, defaultValue string) string {
 	settingValue := defaultValue
-	settingSource := "default"
 
-	if val, ok := data[settingName]; ok {
+	if val, ok := os.LookupEnv(settingName); ok {
 		settingValue = val
-		settingSource = "configmap"
-	} else if val, ok := os.LookupEnv(settingName); ok {
-		settingValue = val
-		settingSource = "env var"
-	}
-
-	if logChangedSettings(settingName, settingValue) {
-		logger.Infof("%s=%q (%s)", settingName, settingValue, settingSource)
 	}
 
 	return settingValue
-}
-
-func logChangedSettings(settingName, settingValue string) bool {
-	if val, ok := loggedOperatorSettings.Load(settingName); !ok || val != settingValue {
-		loggedOperatorSettings.Store(settingName, settingValue)
-		return true
-	}
-	return false
 }
