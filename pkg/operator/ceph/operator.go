@@ -149,7 +149,7 @@ func (o *Operator) runCRDManager() {
 }
 
 func (o *Operator) namespaceToWatch(context context.Context) {
-	currentNamespaceOnly, _ := k8sutil.GetOperatorSetting(opManagerContext, o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_CURRENT_NAMESPACE_ONLY", "true")
+	currentNamespaceOnly := k8sutil.GetOperatorSetting("ROOK_CURRENT_NAMESPACE_ONLY", "true")
 	if currentNamespaceOnly == "true" {
 		o.config.NamespaceToWatch = o.config.OperatorNamespace
 		logger.Infof("watching the current namespace %q for a Ceph CRs", o.config.OperatorNamespace)
