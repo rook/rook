@@ -98,7 +98,7 @@ The format can be described more formally as follows:
 <BLANK LINE>
 <why this change was made>
 <BLANK LINE>
-<footer>
+Signed-off-by: Random J Developer <random@developer.example.org>
 ```
 
 The first line is the subject and should be no longer than 70 characters, the
@@ -148,7 +148,7 @@ The format of the file can start with simply listing the reviewers and maintaine
 
 ```yaml
 areas:
-  feature-foo:
+    feature-foo:
     maintainers:
     - alice
     - bob
