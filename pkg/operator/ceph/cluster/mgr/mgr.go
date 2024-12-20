@@ -252,7 +252,7 @@ func (c *Cluster) removeExtraMgrs(daemonIDs []string) {
 // Otherwise sets 'mgr_role: standby' label to manager pods.
 func (c *Cluster) SetMgrRoleLabel(daemonNameToUpdate string, isActive bool) error {
 	pods, err := c.context.Clientset.CoreV1().Pods(c.clusterInfo.Namespace).List(c.clusterInfo.Context, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("%s=%s", controller.DaemonIDLabel, daemonNameToUpdate),
+		LabelSelector: fmt.Sprintf("%s=%s,%s=%s", k8sutil.AppAttr, AppName, controller.DaemonIDLabel, daemonNameToUpdate),
 	})
 	if err != nil {
 		logger.Infof("cannot get pod for mgr daemon %s", daemonNameToUpdate)
