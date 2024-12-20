@@ -18,7 +18,9 @@ package bucket
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"reflect"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +49,6 @@ const (
 type ReconcileBucket struct {
 	client           client.Client
 	context          *clusterd.Context
-	clusterInfo      *cephclient.ClusterInfo
 	opConfig         opcontroller.OperatorConfig
 	opManagerContext context.Context
 }
@@ -59,7 +60,7 @@ func Add(mgr manager.Manager, context *clusterd.Context, opManagerContext contex
 		logger.Info("skip running Object Bucket controller")
 		return nil
 	}
-	return add(opManagerContext, mgr, newReconciler(mgr, context, opManagerContext, opConfig))
+	return add(mgr, newReconciler(mgr, context, opManagerContext, opConfig))
 }
 
 // newReconciler returns a new reconcile.Reconciler
@@ -72,7 +73,7 @@ func newReconciler(mgr manager.Manager, context *clusterd.Context, opManagerCont
 	}
 }
 
-func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error {
+func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	// Create a new controller
 	c, err := controller.New(controllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
@@ -84,19 +85,21 @@ func add(ctx context.Context, mgr manager.Manager, r reconcile.Reconciler) error
 	cmKind := source.Kind[client.Object](
 		mgr.GetCache(),
 		&v1.ConfigMap{TypeMeta: metav1.TypeMeta{Kind: "ConfigMap", APIVersion: v1.SchemeGroupVersion.String()}},
-		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()),
+		&handler.EnqueueRequestForObject{}, predicateController(),
 	)
 	err = c.Watch(cmKind)
 	if err != nil {
 		return err
 	}
 
-	// Watch for CephCluster
-	clusterKind := source.Kind[client.Object](mgr.GetCache(),
-		&cephv1.CephCluster{TypeMeta: metav1.TypeMeta{Kind: "CephCluster", APIVersion: v1.SchemeGroupVersion.String()}},
-		&handler.EnqueueRequestForObject{}, predicateController(ctx, mgr.GetClient()),
-	)
-	err = c.Watch(clusterKind)
+	var cephObjectStoreKind = reflect.TypeOf(cephv1.CephObjectStore{}).Name()
+	// Sets the type meta for the controller main object
+	var controllerTypeMeta = metav1.TypeMeta{
+		Kind:       cephObjectStoreKind,
+		APIVersion: fmt.Sprintf("%s/%s", cephv1.CustomResourceGroup, cephv1.Version),
+	}
+	// Watch for changes on the cephObjectStore CRD object
+	err = c.Watch(source.Kind[client.Object](mgr.GetCache(), &cephv1.CephObjectStore{TypeMeta: controllerTypeMeta}, &handler.EnqueueRequestForObject{}, opcontroller.WatchControllerPredicate()))
 	if err != nil {
 		return err
 	}
@@ -118,26 +121,16 @@ func (r *ReconcileBucket) Reconcile(context context.Context, request reconcile.R
 }
 
 func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result, error) {
-	// See if there is a CephCluster
-	cephCluster := &cephv1.CephCluster{}
-	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephCluster)
+	// Fetch the cephObjectStore instance
+	cephObjectStore := &cephv1.CephObjectStore{}
+	err := r.client.Get(r.opManagerContext, request.NamespacedName, cephObjectStore)
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			logger.Infof("no ceph cluster found in %+v. not deploying the bucket provisioner", request.NamespacedName)
+			logger.Debug("cephObjectStore resource not found. Ignoring since object must be deleted.")
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get the ceph cluster")
-	}
-
-	if !cephCluster.DeletionTimestamp.IsZero() {
-		logger.Debug("ceph cluster is being deleted, no need to reconcile the bucket provisioner")
-		return reconcile.Result{}, nil
-	}
-
-	if !cephCluster.Spec.External.Enable && cephCluster.Spec.CleanupPolicy.HasDataDirCleanPolicy() {
-		logger.Debug("ceph cluster has cleanup policy, the cluster will soon go away, no need to reconcile the bucket provisioner")
-		return reconcile.Result{}, nil
+		return reconcile.Result{}, errors.Wrap(err, "failed to get cephObjectStore")
 	}
 
 	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
@@ -159,17 +152,10 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 		r.opConfig.Parameters = opConfig.Data
 	}
 
-	// Populate clusterInfo during each reconcile
-	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace, &cephCluster.Spec)
-	if err != nil {
-		// This avoids a requeue with exponential backoff and allows the controller to reconcile
-		// more quickly when the cluster is ready.
-		if errors.Is(err, opcontroller.ClusterInfoNoClusterNoSecret) {
-			return opcontroller.WaitForRequeueIfOperatorNotInitialized, nil
-		}
-		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to populate cluster info")
+	clusterInfo := &cephclient.ClusterInfo{
+		Namespace: cephObjectStore.Namespace,
+		Context:   r.opManagerContext,
 	}
-	r.clusterInfo = clusterInfo
 
 	// Start the object bucket provisioner
 	bucketProvisioner := NewProvisioner(r.context, clusterInfo)
