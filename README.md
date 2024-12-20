@@ -9,6 +9,7 @@
 [![Security scanning](https://github.com/rook/rook/actions/workflows/snyk.yaml/badge.svg)](https://github.com/rook/rook/actions/workflows/snyk.yaml)
 [![Slack](https://img.shields.io/badge/rook-slack-blue)](https://slack.rook.io)
 [![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
+[![Gurubase](https://img.shields.io/badge/Gurubase-Ask%20Rook%20Guru-006BFF)](https://gurubase.io/g/rook)
 
 # What is Rook?
 
