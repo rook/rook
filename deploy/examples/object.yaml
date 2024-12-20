@@ -109,9 +109,6 @@ spec:
     #       secret:
     #         secretName: rgw-ldap
     #         defaultMode: 0600
-  #zone:
-  #name: zone-a
-  # service endpoint healthcheck
     # opsLogSidecar:
     #   resources:
     #     limits:
@@ -119,6 +116,9 @@ spec:
     #   requests:
     #     cpu: "100m"
     #     memory: "60Mi"
+  # zone:
+  #   name: zone-a
+  # service endpoint healthcheck
   healthCheck:
     # Configure the pod probes for the rgw daemon
     startupProbe:
