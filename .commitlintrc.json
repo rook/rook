@@ -47,13 +47,21 @@
       2,
       "always"
     ],
+    "body-max-line-length": [
+      0,
+      "always"
+    ],
+    "body-empty": [
+      2,
+      "never"
+    ],
     "footer-leading-blank": [
       2,
       "always"
     ],
-    "body-max-line-length": [
-      0,
-      "always"
+    "footer-empty": [
+      2,
+      "never"
     ]
   }
 }
