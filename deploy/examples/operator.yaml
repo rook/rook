@@ -613,6 +613,9 @@ spec:
               name: rook-config
             - mountPath: /etc/ceph
               name: default-config-dir
+          envFrom:
+            - configMapRef:
+                name: rook-ceph-operator-config
           env:
             # If the operator should only watch for cluster CRDs in the same namespace, set this to "true".
             # If this is not set to true, the operator will watch for cluster CRDs in all namespaces.
