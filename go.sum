@@ -171,8 +171,8 @@ github.com/ceph/ceph-csi-operator/api v0.0.0-20241211130321-1c8ad98a7d6e h1:Qoca
 github.com/ceph/ceph-csi-operator/api v0.0.0-20241211130321-1c8ad98a7d6e/go.mod h1:odEUoarG26wXBCC2l4O4nMWhAz6VTKr2FRkv9yELgi8=
 github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f h1:ja5xvJlv3Sq5dlQVQMeM/dlCwcUXgZXg/kTPmMMQhJ8=
 github.com/ceph/ceph-csi/api v0.0.0-20241216133622-88b7e0d6684f/go.mod h1:NfzKbdhaXhWh1PJCExML9dAXHCqEDppf26ueLWYdxlk=
-github.com/ceph/go-ceph v0.30.0 h1:p/+rNnn9dUByrDhXfBFilVriRZKJghMJcts8N2wQ+ws=
-github.com/ceph/go-ceph v0.30.0/go.mod h1:OJFju/Xmtb7ihHo/aXOayw6RhVOUGNke5EwTipwaf6A=
+github.com/ceph/go-ceph v0.31.0 h1:3yqMVsRN89VyMhJ+qiF91mQHw4RBjbWVVERGX7bYxkk=
+github.com/ceph/go-ceph v0.31.0/go.mod h1:VnMYp08oE2o2of29p/oGkxnM8VNF/+LJyVQ5pZSj3Wg=
 github.com/cespare/xxhash v1.1.0/go.mod h1:XrSqR1VqqWfGrhpAt58auRo0WTKS1nRRg3ghfAqPWnc=
 github.com/cespare/xxhash/v2 v2.1.1/go.mod h1:VGX0DQ3Q6kWi7AoAeZDth3/j3BFtOZR5XLFGgcrjCOs=
 github.com/cespare/xxhash/v2 v2.3.0 h1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=
@@ -783,11 +783,11 @@ github.com/prashantv/gostub v1.1.0 h1:BTyx3RfQjRHnUWaGF9oQos79AlQ5k8WNktv7VGvVH4
 github.com/prashantv/gostub v1.1.0/go.mod h1:A5zLQHz7ieHGG7is6LLXLz7I8+3LZzsrV0P1IAHhP5U=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.44.1/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
 github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.46.0/go.mod h1:3WYi4xqXxGGXWDdQIITnLNmuDzO5n6wYva9spVhR4fg=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.79.0 h1:IiCqr23V8SexkXkPmK+6tS/Ped/oCVhXSSmLacEATy4=
-github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.79.0/go.mod h1:AVMP4QEW8xuGWnxaWSpI3kKjP9fDA31nO68zsyREJZA=
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.79.2 h1:DGv150w4UyxnjNHlkCw85R3+lspOxegtdnbpP2vKRrk=
+github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring v0.79.2/go.mod h1:AVMP4QEW8xuGWnxaWSpI3kKjP9fDA31nO68zsyREJZA=
 github.com/prometheus-operator/prometheus-operator/pkg/client v0.46.0/go.mod h1:k4BrWlVQQsvBiTcDnKEMgyh/euRxyxgrHdur/ZX/sdA=
-github.com/prometheus-operator/prometheus-operator/pkg/client v0.79.0 h1:a7zpHl5g3R6RK8niokKXkMw6ezY8IsuJ1pvqurClmUI=
-github.com/prometheus-operator/prometheus-operator/pkg/client v0.79.0/go.mod h1:HL34KPDMFT7iGTjxGjUhOOx33bSjm7awjEUtLaxFFbs=
+github.com/prometheus-operator/prometheus-operator/pkg/client v0.79.2 h1:wUMuHTC069Ayy+0/srqD5OrLVP/QRhSCUR/7SJ8tSqQ=
+github.com/prometheus-operator/prometheus-operator/pkg/client v0.79.2/go.mod h1:671/KciyzKiTmvIYTpp7CzWD1/TNXVPgeDLJcGFWrOM=
 github.com/prometheus/client_golang v0.9.0/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.1/go.mod h1:7SWBe2y4D6OKWSNQJUaRYU/AaXPKyh/dDVn+NZz0KFw=
 github.com/prometheus/client_golang v0.9.3/go.mod h1:/TN21ttK/J9q6uSwhBd54HahCDft0ttaMvbicHlPoso=
