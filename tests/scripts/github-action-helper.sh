@@ -368,6 +368,19 @@ function deploy_csi_hostnetwork_disabled_cluster() {
 }
 
 function wait_for_prepare_pod() {
+  # wait for a mon to be created
+  # most of this time is likely waiting for the detect version job to pull the ceph image
+  get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
+  timeout=600
+  start_time="${SECONDS}"
+  while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
+    pod="$("${get_pod_cmd[@]}" --selector=app=rook-ceph-mon --output custom-columns=NAME:.metadata.name,PHASE:status.phase)"
+    if echo "$pod" | grep 'rook-ceph-mon-a'; then break; fi
+    echo 'waiting for mon.a to be created'
+    sleep 5
+  done
+
+  # wait for at an osd prepare pod to complete
   OSD_COUNT=$1
   get_pod_cmd=(kubectl --namespace rook-ceph get pod --no-headers)
   timeout=450
@@ -380,6 +393,8 @@ function wait_for_prepare_pod() {
   done
   pod="$("${get_pod_cmd[@]}" --selector app=rook-ceph-osd-prepare --output name | awk 'FNR <= 1')"
   kubectl --namespace rook-ceph logs --follow "$pod"
+
+  # wait for an osd daemon pod to start
   timeout=60
   start_time="${SECONDS}"
   while [[ $((SECONDS - start_time)) -lt $timeout ]]; do
