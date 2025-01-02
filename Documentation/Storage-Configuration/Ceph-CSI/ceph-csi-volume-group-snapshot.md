@@ -16,7 +16,7 @@ refer to VolumeGroupSnapshot documentation
 
 - A `VolumeGroupSnapshotClass` is needed for the volume group snapshot to work. The purpose of a `VolumeGroupSnapshotClass` is
 defined in [the kubernetes
-documentation](https://kubernetes.io/blog/2023/05/08/kubernetes-1-27-volume-group-snapshot-alpha/).
+documentation](https://kubernetes.io/blog/2024/12/18/kubernetes-1-32-volume-group-snapshot-beta/).
 In short, as the documentation describes it:
 
 !!! info
@@ -73,11 +73,11 @@ The snapshot will be ready to restore to a new PVC when `READYTOUSE` field of th
 Find the name of the snapshots created by the `VolumeGroupSnapshot` first by running:
 
 ```console
-$ kubectl get volumegroupsnapshot/cephfs-groupsnapshot -o=jsonpath='{range .status.pvcVolumeSnapshotRefList[*]}PVC: {.persistentVolumeClaimRef.name}, Snapshot: {.volumeSnapshotRef.name}{"\n"}{end}'
-PVC: cephfs-pvc, Snapshot: snapshot-9d21b143904c10f49ddc92664a7e8fe93c23387d0a88549c14337484ebaf1011-2024-09-12-3.49.13
+$ kubectl get volumesnapshot -o=jsonpath='{range .items[?(@.metadata.ownerReferences[0].name=="cephfs-groupsnapshot")]}{.metadata.name}{"\n"}{end}'
+snapshot-a79d08c7b7e18953ec321e77be9c9646234593411136a3671d72e8a26ffd419c
 ```
 
-It will list the PVC's name followed by its snapshot name.
+It will list the names of the snapshots created as part of the group.
 
 In
 [pvc-restore](https://github.com/rook/rook/tree/master/deploy/examples/csi/cephfs/pvc-restore.yaml),
