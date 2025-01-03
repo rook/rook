@@ -424,7 +424,7 @@ data:
 
   # (Optional) CEPH CSI NFS provisioner resource requirement list, Put here list of resource
   # requests and limits you want to apply for provisioner pod
-  # CSI_NFS_PROVISIONER_RESOURCE: |
+  #CSI_NFS_PROVISIONER_RESOURCE: |
   #  - name : csi-provisioner
   #    resource:
   #      requests:
@@ -448,7 +448,7 @@ data:
   #        memory: 256Mi
   # (Optional) CEPH CSI NFS plugin resource requirement list, Put here list of resource
   # requests and limits you want to apply for plugin pod
-  # CSI_NFS_PLUGIN_RESOURCE: |
+  #CSI_NFS_PLUGIN_RESOURCE: |
   #  - name : driver-registrar
   #    resource:
   #      requests:
