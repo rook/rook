@@ -575,6 +575,8 @@ function write_object_read_from_replica_cluster() {
   # ensure that test file has unique data
   echo "$test_object_name" >>"$test_object_name"
 
+  echo "sleeping - $"
+  sleep 800
   s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
   s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
 
