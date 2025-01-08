@@ -1896,7 +1896,7 @@ class RadosJSON:
             )
             json_out.append(
                 {
-                    "name": "ceph-rbd-rados-namespace",
+                    "name": f"ceph-rbd-rados-namespace-{self.out_map['RADOS_NAMESPACE']}",
                     "kind": "StorageClass",
                     "data": {
                         "pool": self.out_map["RBD_POOL_NAME"],
