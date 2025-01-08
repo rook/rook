@@ -105,14 +105,15 @@ func (m *migrationConfig) migrateForEncryption(c *Cluster, osdDeployments *appsv
 
 // migrateForOSDStore gets all the OSDs that require migration due to change in the cephCluster OSD storeType setting
 func (m *migrationConfig) migrateForOSDStore(c *Cluster, osdDeployments *appsv1.DeploymentList) error {
+	desiredOSDStore := c.spec.Storage.GetOSDStore()
 	for i := range osdDeployments.Items {
 		if osdStore, ok := osdDeployments.Items[i].Labels[osdStore]; ok {
-			if osdStore != string(c.spec.Storage.Store.Type) {
+			if osdStore != desiredOSDStore {
 				osdInfo, err := c.getOSDInfo(&osdDeployments.Items[i])
 				if err != nil {
 					return errors.Wrapf(err, "failed to details about the OSD %q", osdDeployments.Items[i].Name)
 				}
-				logger.Infof("migration is required for OSD.%d to update storeType from %q to %q", osdInfo.ID, osdStore, c.spec.Storage.Store.Type)
+				logger.Infof("migration is required for OSD.%d to update storeType from %q to %q", osdInfo.ID, osdStore, desiredOSDStore)
 				if _, exists := m.osds[osdInfo.ID]; !exists {
 					m.osds[osdInfo.ID] = &osdInfo
 				}
