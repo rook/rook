@@ -309,16 +309,6 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 
 	logger.Info("osd migration is requested")
 
-	// start migration only if PGs are active+clean
-	pgsHealhty, err := c.waitForHealthyPGs()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to wait for pgs to be healthy")
-	}
-
-	if !pgsHealhty {
-		return nil, errors.Wrapf(err, "failed to start migration due to unhealthy PGs")
-	}
-
 	// skip migration if previously migrated OSD is not up yet.
 	migrationComplete, err := isLastOSDMigrationComplete(c)
 	if err != nil {
@@ -332,6 +322,18 @@ func (c *Cluster) startOSDMigration() (*migrationConfig, error) {
 	migrationConfig, err := c.newMigrationConfig()
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get new OSD migration config")
+	}
+
+	if migrationConfig.checkPGHealth {
+		// start migration only if PGs are active+clean
+		pgsHealhty, err := c.waitForHealthyPGs()
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to wait for pgs to be healthy")
+		}
+
+		if !pgsHealhty {
+			return nil, errors.Wrapf(err, "failed to start migration due to unhealthy PGs")
+		}
 	}
 
 	// delete deployment of the osd that needs migration
