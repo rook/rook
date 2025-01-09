@@ -203,6 +203,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		CVMode: "lvm",
 	}
 
+	osdProp.pvcSize = "1Gi"
 	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
