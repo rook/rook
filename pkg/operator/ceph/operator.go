@@ -131,7 +131,7 @@ func (o *Operator) runCRDManager() {
 
 	// The operator config manager is also watching for changes here so if the operator config map
 	// content changes for ROOK_CURRENT_NAMESPACE_ONLY we must reload the operator CRD manager
-	o.namespaceToWatch(opManagerContext)
+	o.namespaceToWatch()
 
 	// Pass the parent context to the cluster controller so that the monitoring go routines can
 	// consume it to terminate gracefully
@@ -148,11 +148,11 @@ func (o *Operator) runCRDManager() {
 	}()
 }
 
-func (o *Operator) namespaceToWatch(context context.Context) {
+func (o *Operator) namespaceToWatch() {
 	currentNamespaceOnly, _ := k8sutil.GetOperatorSetting(opManagerContext, o.context.Clientset, opcontroller.OperatorSettingConfigMapName, "ROOK_CURRENT_NAMESPACE_ONLY", "true")
 	if currentNamespaceOnly == "true" {
 		o.config.NamespaceToWatch = o.config.OperatorNamespace
-		logger.Infof("watching the current namespace %q for a Ceph CRs", o.config.OperatorNamespace)
+		logger.Infof("watching the current namespace %q for Ceph CRs", o.config.OperatorNamespace)
 	} else {
 		o.config.NamespaceToWatch = v1.NamespaceAll
 		logger.Infof("watching all namespaces for Ceph CRs")
