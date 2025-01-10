@@ -161,6 +161,14 @@ fmt: ## Check formatting of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
+.PHONY: yamllint
+yamllint:
+	yamllint -c .yamllint deploy/examples/ --no-warnings
+
+.PHONY: pylint
+pylint:
+	pylint $(shell find $(ROOT_DIR)  -name '*.py') -E
+
 gen.codegen: codegen
 codegen: ${CODE_GENERATOR} ## Run code generators.
 	@build/codegen/codegen.sh
