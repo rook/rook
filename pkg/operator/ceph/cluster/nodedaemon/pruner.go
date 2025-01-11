@@ -36,7 +36,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
+<<<<<<< HEAD
 func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) error {
+=======
+func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster, tolerations []corev1.Toleration) error {
+>>>>>>> 8817a1a70 (core: add tolerations to crashcollector pruner cronJob pod)
 	if cephCluster.Spec.CrashCollector.Disable {
 		logger.Debugf("crash collector is disabled in namespace %q so skipping crash retention reconcile", namespace)
 		return nil
@@ -76,7 +80,11 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 		}
 	} else {
 		logger.Debugf("daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
+<<<<<<< HEAD
 		op, err := r.createOrUpdateCephCron(cephCluster, cephVersion, useCronJobV1)
+=======
+		op, err := r.createOrUpdateCephCron(cephCluster, tolerations)
+>>>>>>> 8817a1a70 (core: add tolerations to crashcollector pruner cronJob pod)
 		if err != nil {
 			return errors.Wrapf(err, "node reconcile failed on op %q", op)
 		}
@@ -84,7 +92,11 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 	}
 	return nil
 }
+<<<<<<< HEAD
 func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion, useCronJobV1 bool) (controllerutil.OperationResult, error) {
+=======
+func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, tolerations []corev1.Toleration) (controllerutil.OperationResult, error) {
+>>>>>>> 8817a1a70 (core: add tolerations to crashcollector pruner cronJob pod)
 	objectMeta := metav1.ObjectMeta{
 		Name:      prunerName,
 		Namespace: cephCluster.GetNamespace(),
@@ -98,7 +110,6 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 		k8sutil.AppAttr: prunerName,
 	}
 	cronJobLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
-
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: cronJobLabels,
@@ -112,6 +123,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, c
 			Volumes:            volumes,
 			SecurityContext:    &corev1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
+			Tolerations:        tolerations,
 		},
 	}
 
