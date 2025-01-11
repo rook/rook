@@ -190,8 +190,8 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 		}
 
 		// If the node has Ceph pods we create the daemons
+		tolerations := uniqueTolerations.ToList()
 		if hasCephPods {
-			tolerations := uniqueTolerations.ToList()
 			err := r.createOrUpdateNodeDaemons(*node, tolerations, cephCluster, cephVersion)
 			if err != nil {
 				return reconcile.Result{}, errors.Wrap(err, "node reconcile failed")
@@ -219,7 +219,7 @@ func (r *ReconcileNode) reconcile(request reconcile.Request) (reconcile.Result, 
 			}
 		}
 
-		if err := r.reconcileCrashPruner(namespace, cephCluster); err != nil {
+		if err := r.reconcileCrashPruner(namespace, cephCluster, tolerations); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
