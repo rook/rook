@@ -68,3 +68,26 @@ echo "Done"
 #  - Change namespace to rook-b
 # 3. cluster-b.yaml:
 #   - Change dataDirHostPath
+
+
+#config-map, secret, OBC will part of default if no specific name space mentioned
+export NS=b
+export AWS_HOST=$(kubectl -n default get cm ceph-bucket-$NS -o jsonpath='{.data.BUCKET_HOST}')
+export PORT=$(kubectl -n default get cm ceph-bucket-$NS -o jsonpath='{.data.BUCKET_PORT}')
+export BUCKET_NAME=$(kubectl -n default get cm ceph-bucket-$NS -o jsonpath='{.data.BUCKET_NAME}')
+export AWS_ACCESS_KEY_ID=$(kubectl -n default get secret ceph-bucket-$NS -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
+export AWS_SECRET_ACCESS_KEY=$(kubectl -n default get secret ceph-bucket-$NS -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --decode)
+echo "export AWS_HOST=$AWS_HOST"
+echo "export PORT=$PORT"
+echo "export AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
+echo "export AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
+echo "export BUCKET_NAME=$BUCKET_NAME"
+# b bucket
+#echo "export BUCKET_NAME=ceph-bkt-ce85048d-de2c-46b5-ae6b-5caed00f295f"
+
+
+echo "Hello Rook AAA" > /tmp/rookObj
+s5cmd --endpoint-url http://$AWS_HOST:$PORT cp /tmp/rookObj s3://$BUCKET_NAME
+
+s5cmd --endpoint-url http://$AWS_HOST:$PORT cp s3://$BUCKET_NAME/rookObj /tmp/rookObj-download
+cat /tmp/rookObj-download
