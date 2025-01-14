@@ -77,7 +77,7 @@ func (r *ReconcileCSI) createOrUpdateDriverResources(cluster cephv1.CephCluster,
 }
 
 func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", cluster.Namespace)
+	resourceName := fmt.Sprintf("%s.rbd.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 }
 
 func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", cluster.Namespace)
+	resourceName := fmt.Sprintf("%s.cephfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
@@ -175,7 +175,7 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 }
 
 func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluster, clusterInfo *cephclient.ClusterInfo) error {
-	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", cluster.Namespace)
+	resourceName := fmt.Sprintf("%s.nfs.csi.ceph.com", r.opConfig.OperatorNamespace)
 	spec, err := r.generateDriverSpec(cluster.Name)
 	if err != nil {
 		return err
