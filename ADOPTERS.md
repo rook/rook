@@ -67,6 +67,8 @@ If submitting a description, the addition will be at the end of first part of th
 * [Radio Sound](https://radiosound.com/) uses Rook to power their website and GitLab for their CI/CD
   pipeline, because of the truly cloud-native experience, like *"a little drop of the Google magic
   in our own server rack"*.
+* [Alauda](https://www.alauda.io/) Our container platform product(ACP) uses Rook Ceph to provide data
+  persistence for applications, in addition to middleware backups, virtual machine disks, and more.
 * [CyCore Systems](https://www.cycoresys.com/)
 * [Datacom](http://datacom.co.nz/Home.aspx)
 * [Turtle Network (BLACK TURTLE BVBA)](https://www.turtlenetwork.eu/#home)
