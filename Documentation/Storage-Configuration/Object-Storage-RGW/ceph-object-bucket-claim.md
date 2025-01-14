@@ -34,6 +34,26 @@ spec:
     maxSize: "2G"
     bucketMaxObjects: "3000"
     bucketMaxSize: "4G"
+    bucketPolicy: |
+      {
+          "Version": "2012-10-17",
+          "Statement": [
+              {
+                  "Effect": "Allow",
+                  "Principal": {
+                      "AWS": "arn:aws:iam:::user/bar"
+                  },
+                  "Action": [
+                      "s3:GetObject",
+                      "s3:ListBucket",
+                      "s3:GetBucketLocation"
+                  ],
+                  "Resource": [
+                      "arn:aws:s3:::bucket-policy-test/*"
+                  ]
+              }
+          ]
+      }
 ```
 
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
@@ -51,6 +71,7 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
     * `maxSize`: The maximum size of the bucket as a quota on the user account automatically created for the bucket. Please note minimum recommended value is 4K.
     * `bucketMaxObjects`: The maximum number of objects in the bucket as an individual bucket quota. This is useful when the bucket is shared among multiple users.
     * `bucketMaxSize`: The maximum size of the bucket as an individual bucket quota.
+    * `bucketPolicy`: A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
 
 ### OBC Custom Resource after Bucket Provisioning
 
