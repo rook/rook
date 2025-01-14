@@ -35,7 +35,12 @@ ifeq ($(BUILD_CONTEXT_DIR),)
 BUILD_CONTEXT_DIR := $(shell mktemp -d)
 endif
 
+
+ifeq ($(GOARCH),amd64)
 S5CMD_ARCH = Linux-64bit
+else
+S5CMD_ARCH = Linux-arm64
+endif
 
 # s5cmd's version
 S5CMD_VERSION = 2.3.0
