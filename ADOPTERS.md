@@ -13,9 +13,8 @@ To add your organization to this list, choose one of the following options:
 
 - [Open a PR](https://rook.io/docs/rook/latest/Contributing/development-flow/#submitting-a-pull-request) to directly update this list
 - [Open a new issue](https://github.com/rook/rook/issues/new/choose) with the information
-- Send an email to [Steering committee members](https://github.com/rook/rook/blob/master/OWNERS.md#steering-committee) with the information
 
-For the latter two options, a maintainer will submit a PR to update the table.
+For the latter option, a maintainer will submit a PR to update the table on your behalf.
 Please reach out to us on [Slack](https://slack.rook.io) with any questions.
 
 If submitting a description, the addition will be at the end of first part of the list. If a description is not provided, the addition will be at the end of the full list.
