@@ -25,6 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -46,7 +47,6 @@ var (
 
 const (
 	topologyLabelPrefix = "topology.rook.io/"
-	labelHostname       = "kubernetes.io/hostname"
 )
 
 // ExtractOSDTopologyFromLabels extracts rook topology from labels and returns a map from topology type to value
@@ -74,16 +74,15 @@ func allKubernetesTopologyLabelsOrdered() []string {
 		append([]string{corev1.LabelTopologyRegion,
 			corev1.LabelTopologyZone},
 			rookTopologyLabelsOrdered()...),
-		labelHostname, //  host is the lowest level in the crush map hierarchy
+		k8sutil.LabelHostname(), //  host is the lowest level in the crush map hierarchy
 	)
 }
 
 func kubernetesTopologyLabelToCRUSHLabel(label string) string {
-	crushLabel := strings.Split(label, "/")
-	if crushLabel[len(crushLabel)-1] == "hostname" {
-		// kubernetes uses "kubernetes.io/hostname" whereas CRUSH uses "host"
+	if label == k8sutil.LabelHostname() {
 		return "host"
 	}
+	crushLabel := strings.Split(label, "/")
 	return crushLabel[len(crushLabel)-1]
 }
 
@@ -140,7 +139,7 @@ func formatTopologyAffinity(label, value string) string {
 
 // GetDefaultTopologyLabels returns the supported default topology labels.
 func GetDefaultTopologyLabels() string {
-	Labels := []string{corev1.LabelHostname, corev1.LabelZoneRegionStable, corev1.LabelZoneFailureDomainStable}
+	Labels := []string{k8sutil.LabelHostname(), corev1.LabelZoneRegionStable, corev1.LabelZoneFailureDomainStable}
 	for _, label := range CRUSHTopologyLabels {
 		Labels = append(Labels, topologyLabelPrefix+label)
 	}

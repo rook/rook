@@ -89,6 +89,10 @@ spec:
         - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
           value: "{{ .Values.hostpathRequiresPrivileged }}"
 {{- end }}
+{{- if .Values.customHostnameLabel }}
+        - name: ROOK_CUSTOM_HOSTNAME_LABEL
+          value: {{ .Values.customHostnameLabel }}
+{{- end }}
         - name: ROOK_DISABLE_DEVICE_HOTPLUG
           value: "{{ .Values.disableDeviceHotplug }}"
         - name: ROOK_DISCOVER_DEVICES_INTERVAL

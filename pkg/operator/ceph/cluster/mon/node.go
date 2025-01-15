@@ -19,6 +19,7 @@ package mon
 import (
 	"github.com/pkg/errors"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -29,7 +30,7 @@ const (
 func getNodeInfoFromNode(n v1.Node) (*opcontroller.MonScheduleInfo, error) {
 	nr := &opcontroller.MonScheduleInfo{
 		Name:     n.Name,
-		Hostname: n.Labels[v1.LabelHostname],
+		Hostname: n.Labels[k8sutil.LabelHostname()],
 	}
 
 	// If the host networking is setup such that a different IP should be used

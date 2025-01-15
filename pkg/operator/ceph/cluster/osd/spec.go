@@ -757,7 +757,7 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 			return nil, err
 		}
 	} else {
-		deployment.Spec.Template.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
+		deployment.Spec.Template.Spec.NodeSelector = map[string]string{k8sutil.LabelHostname(): osdProps.crushHostname}
 	}
 	k8sutil.AddRookVersionLabelToDeployment(deployment)
 	cephv1.GetOSDAnnotations(c.spec.Annotations).ApplyToObjectMeta(&deployment.ObjectMeta)

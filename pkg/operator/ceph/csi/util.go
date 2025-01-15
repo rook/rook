@@ -197,7 +197,7 @@ func GetPodAntiAffinity(key, value string) corev1.PodAntiAffinity {
 						},
 					},
 				},
-				TopologyKey: corev1.LabelHostname,
+				TopologyKey: k8sutil.LabelHostname(),
 			},
 		},
 	}

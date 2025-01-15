@@ -646,6 +646,10 @@ spec:
             - name: ROOK_UNREACHABLE_NODE_TOLERATION_SECONDS
               value: "5"
 
+            #  Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
+            - name: ROOK_CUSTOM_HOSTNAME_LABEL
+              value: ""
+
             # The name of the node to pass with the downward API
             - name: NODE_NAME
               valueFrom:

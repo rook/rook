@@ -52,7 +52,7 @@ func (c *Cluster) makeJob(osdProps osdProperties, provisionConfig *provisionConf
 			podSpec.Spec.InitContainers = append(podSpec.Spec.InitContainers, c.getPVCWalInitContainer("/wal", osdProps))
 		}
 	} else {
-		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: osdProps.crushHostname}
+		podSpec.Spec.NodeSelector = map[string]string{k8sutil.LabelHostname(): osdProps.crushHostname}
 	}
 
 	job := &batch.Job{

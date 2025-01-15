@@ -19,6 +19,8 @@ package k8sutil
 import (
 	"os"
 	"strings"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 // ParseStringToLabels parse a label selector string into a map[string]string
@@ -57,4 +59,12 @@ func AddRecommendedLabels(labels map[string]string, appName, parentName, resourc
 	labels["app.kubernetes.io/managed-by"] = "rook-ceph-operator"
 	labels["app.kubernetes.io/created-by"] = "rook-ceph-operator"
 	labels["rook.io/operator-namespace"] = os.Getenv(PodNamespaceEnvVar)
+}
+
+// LabelHostname returns label name to identify k8s node hostname
+func LabelHostname() string {
+	if label := os.Getenv("ROOK_CUSTOM_HOSTNAME_LABEL"); label != "" {
+		return label
+	}
+	return corev1.LabelHostname
 }
