@@ -486,13 +486,13 @@ csi:
     # -- Kubernetes CSI registrar image repository
     repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
     # -- Registrar image tag
-    tag: v2.11.1
+    tag: v2.13.0
 
   provisioner:
     # -- Kubernetes CSI provisioner image repository
     repository: registry.k8s.io/sig-storage/csi-provisioner
     # -- Provisioner image tag
-    tag: v5.0.1
+    tag: v5.1.0
 
   snapshotter:
     # -- Kubernetes CSI snapshotter image repository
@@ -504,13 +504,13 @@ csi:
     # -- Kubernetes CSI Attacher image repository
     repository: registry.k8s.io/sig-storage/csi-attacher
     # -- Attacher image tag
-    tag: v4.6.1
+    tag: v4.8.0
 
   resizer:
     # -- Kubernetes CSI resizer image repository
     repository: registry.k8s.io/sig-storage/csi-resizer
     # -- Resizer image tag
-    tag: v1.11.1
+    tag: v1.13.1
 
   # -- Image pull policy
   imagePullPolicy: IfNotPresent
