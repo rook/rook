@@ -336,6 +336,22 @@ func TestRookNodesMatchingKubernetesNodes(t *testing.T) {
 	// no k8s nodes specified
 	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, []v1.Node{})
 	assert.Len(t, retNodes, 0)
+
+	// custom node hostname label
+	t.Setenv("ROOK_CUSTOM_HOSTNAME_LABEL", "my_custom_hostname_label")
+	n0.Labels["my_custom_hostname_label"] = "node0-custom-hostname"
+	k8sNodes[0] = n0
+
+	rookStorage.Nodes = []cephv1.Node{
+		{Name: "node0"},
+		{Name: "node1"},
+		{Name: "node2"}}
+	retNodes = RookNodesMatchingKubernetesNodes(rookStorage, k8sNodes)
+	assert.Len(t, retNodes, 3)
+	// this should return nodes named by hostname if that is available
+	assert.Contains(t, retNodes, cephv1.Node{Name: "node0-custom-hostname"})
+	assert.Contains(t, retNodes, cephv1.Node{Name: "node1"})
+	assert.Contains(t, retNodes, cephv1.Node{Name: "node2"})
 }
 
 func TestGenerateNodeAffinity(t *testing.T) {

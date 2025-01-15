@@ -101,7 +101,7 @@ func GetValidNodes(ctx context.Context, rookStorage cephv1.StorageScopeSpec, cli
 // Typically these will be the same name, but sometimes they are not such as when nodes have a longer
 // dns name, but the hostname is short.
 func GetNodeNameFromHostname(ctx context.Context, clientset kubernetes.Interface, hostName string) (string, error) {
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", v1.LabelHostname, hostName)}
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", LabelHostname(), hostName)}
 	nodes, err := clientset.CoreV1().Nodes().List(ctx, options)
 	if err != nil {
 		return hostName, err
@@ -123,7 +123,7 @@ func GetNodeHostName(ctx context.Context, clientset kubernetes.Interface, nodeNa
 }
 
 func GetNodeHostNameLabel(node *v1.Node) (string, error) {
-	hostname, ok := node.Labels[v1.LabelHostname]
+	hostname, ok := node.Labels[LabelHostname()]
 	if !ok {
 		return "", fmt.Errorf("hostname not found on the node")
 	}
@@ -141,7 +141,7 @@ func GetNodeHostNames(ctx context.Context, clientset kubernetes.Interface) (map[
 
 	nodeMap := map[string]string{}
 	for _, node := range nodes.Items {
-		nodeMap[node.Name] = node.Labels[v1.LabelHostname]
+		nodeMap[node.Name] = node.Labels[LabelHostname()]
 	}
 	return nodeMap, nil
 }
@@ -275,9 +275,10 @@ func rookNodeMatchesKubernetesNode(rookNode cephv1.Node, kubernetesNode v1.Node)
 }
 
 func normalizeHostname(kubernetesNode v1.Node) string {
-	hostname := kubernetesNode.Labels[v1.LabelHostname]
+	hostname := kubernetesNode.Labels[LabelHostname()]
 	if len(hostname) == 0 {
 		// fall back to the node name if the hostname label is not set
+		logger.Warningf("hostname label %q is missing for node %q. Fallback to node name", LabelHostname(), kubernetesNode.Name)
 		hostname = kubernetesNode.Name
 	}
 	return hostname
@@ -301,7 +302,7 @@ func GetKubernetesNodesMatchingRookNodes(ctx context.Context, rookNodes []cephv1
 			}
 		}
 		if !nodeFound {
-			logger.Warningf("failed to find matching kubernetes node for %q. Check the CephCluster's config and confirm each 'name' field in spec.storage.nodes matches their 'kubernetes.io/hostname' label", rn.Name)
+			logger.Warningf("failed to find matching kubernetes node for %q. Check the CephCluster's config and confirm each 'name' field in spec.storage.nodes matches their %q label", rn.Name, LabelHostname())
 		}
 	}
 	return nodes, nil

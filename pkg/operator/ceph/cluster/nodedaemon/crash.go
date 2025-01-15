@@ -44,9 +44,9 @@ const (
 // createOrUpdateCephCrash is a wrapper around controllerutil.CreateOrUpdate
 func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []corev1.Toleration, cephCluster cephv1.CephCluster, cephVersion *cephver.CephVersion) (controllerutil.OperationResult, error) {
 	// Create or Update the deployment default/foo
-	nodeHostnameLabel, ok := node.ObjectMeta.Labels[corev1.LabelHostname]
+	nodeHostnameLabel, ok := node.ObjectMeta.Labels[k8sutil.LabelHostname()]
 	if !ok {
-		return controllerutil.OperationResultNone, errors.Errorf("label key %q does not exist on node %q", corev1.LabelHostname, node.GetName())
+		return controllerutil.OperationResultNone, errors.Errorf("label key %q does not exist on node %q", k8sutil.LabelHostname(), node.GetName())
 	}
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -66,21 +66,21 @@ func (r *ReconcileNode) createOrUpdateCephCrash(node corev1.Node, tolerations []
 
 		// labels for the pod, the deployment, and the deploymentSelector
 		deploymentLabels := map[string]string{
-			corev1.LabelHostname: nodeHostnameLabel,
-			k8sutil.AppAttr:      CrashCollectorAppName,
-			NodeNameLabel:        node.GetName(),
+			k8sutil.LabelHostname(): nodeHostnameLabel,
+			k8sutil.AppAttr:         CrashCollectorAppName,
+			NodeNameLabel:           node.GetName(),
 		}
 		deploymentLabels[config.CrashType] = "crash"
 		deploymentLabels[controller.DaemonIDLabel] = "crash"
 		deploymentLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
 
 		selectorLabels := map[string]string{
-			corev1.LabelHostname: nodeHostnameLabel,
-			k8sutil.AppAttr:      CrashCollectorAppName,
-			NodeNameLabel:        node.GetName(),
+			k8sutil.LabelHostname(): nodeHostnameLabel,
+			k8sutil.AppAttr:         CrashCollectorAppName,
+			NodeNameLabel:           node.GetName(),
 		}
 
-		nodeSelector := map[string]string{corev1.LabelHostname: nodeHostnameLabel}
+		nodeSelector := map[string]string{k8sutil.LabelHostname(): nodeHostnameLabel}
 
 		// Deployment selector is immutable so we set this value only if
 		// a new object is going to be created

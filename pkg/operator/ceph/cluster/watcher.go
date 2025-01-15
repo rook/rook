@@ -101,7 +101,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 	}
 
 	if !k8sutil.GetNodeSchedulable(*node, false) {
-		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[corev1.LabelHostname])
+		logger.Debugf("node watcher: skipping cluster update. added node %q is unschedulable", node.Labels[k8sutil.LabelHostname()])
 		return false
 	}
 
@@ -126,7 +126,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 	err := k8sutil.ValidNode(*node, cephv1.GetOSDPlacement(cluster.Spec.Placement), cluster.Spec.Storage.ScheduleAlways)
 	if err == nil {
 		nodeName := node.Name
-		hostname, ok := node.Labels[corev1.LabelHostname]
+		hostname, ok := node.Labels[k8sutil.LabelHostname()]
 		if ok && hostname != "" {
 			nodeName = hostname
 		}
@@ -148,7 +148,7 @@ func (c *clientCluster) onK8sNode(ctx context.Context, object runtime.Object, op
 
 		// Reconcile if there are no OSDs in the CRUSH map and if the host does not exist in the CRUSH map.
 		if osds == "" {
-			logger.Infof("node watcher: adding node %q to cluster %q", node.Labels[corev1.LabelHostname], cluster.Namespace)
+			logger.Infof("node watcher: adding node %q to cluster %q", node.Labels[k8sutil.LabelHostname()], cluster.Namespace)
 			return true
 		}
 

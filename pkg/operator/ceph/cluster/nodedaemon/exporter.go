@@ -67,9 +67,9 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 		return controllerutil.OperationResultNone, nil
 	}
 
-	nodeHostnameLabel, ok := node.Labels[corev1.LabelHostname]
+	nodeHostnameLabel, ok := node.Labels[k8sutil.LabelHostname()]
 	if !ok {
-		return controllerutil.OperationResultNone, errors.Errorf("label key %q does not exist on node %q", corev1.LabelHostname, node.GetName())
+		return controllerutil.OperationResultNone, errors.Errorf("label key %q does not exist on node %q", k8sutil.LabelHostname(), node.GetName())
 	}
 	deploy := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -91,20 +91,20 @@ func (r *ReconcileNode) createOrUpdateCephExporter(node corev1.Node, tolerations
 
 		// labels for the pod, the deployment, and the deploymentSelector
 		deploymentLabels := map[string]string{
-			corev1.LabelHostname: nodeHostnameLabel,
-			k8sutil.AppAttr:      cephExporterAppName,
-			NodeNameLabel:        node.GetName(),
+			k8sutil.LabelHostname(): nodeHostnameLabel,
+			k8sutil.AppAttr:         cephExporterAppName,
+			NodeNameLabel:           node.GetName(),
 		}
 		deploymentLabels[controller.DaemonIDLabel] = "exporter"
 		deploymentLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
 
 		selectorLabels := map[string]string{
-			corev1.LabelHostname: nodeHostnameLabel,
-			k8sutil.AppAttr:      cephExporterAppName,
-			NodeNameLabel:        node.GetName(),
+			k8sutil.LabelHostname(): nodeHostnameLabel,
+			k8sutil.AppAttr:         cephExporterAppName,
+			NodeNameLabel:           node.GetName(),
 		}
 
-		nodeSelector := map[string]string{corev1.LabelHostname: nodeHostnameLabel}
+		nodeSelector := map[string]string{k8sutil.LabelHostname(): nodeHostnameLabel}
 
 		// Deployment selector is immutable so we set this value only if
 		// a new object is going to be created

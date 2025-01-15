@@ -90,7 +90,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) (*apps.Deployment, error)
 			mon.CephSecretVolume())
 
 		// Stretch the mgrs across hosts by default, or across a bigger failure domain for when zones are required like in case of stretched cluster
-		topologyKey := v1.LabelHostname
+		topologyKey := k8sutil.LabelHostname()
 		if c.spec.ZonesRequired() {
 			topologyKey = mon.GetFailureDomainLabel(c.spec)
 		}
