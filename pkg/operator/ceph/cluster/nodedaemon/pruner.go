@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster) error {
+func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv1.CephCluster, tolerations []corev1.Toleration) error {
 	if cephCluster.Spec.CrashCollector.Disable {
 		logger.Debugf("crash collector is disabled in namespace %q so skipping crash retention reconcile", namespace)
 		return nil
@@ -60,7 +60,7 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 		}
 	} else {
 		logger.Debugf("daysToRetain set to: %d", cephCluster.Spec.CrashCollector.DaysToRetain)
-		op, err := r.createOrUpdateCephCron(cephCluster)
+		op, err := r.createOrUpdateCephCron(cephCluster, tolerations)
 		if err != nil {
 			return errors.Wrapf(err, "node reconcile failed on op %q", op)
 		}
@@ -68,7 +68,7 @@ func (r *ReconcileNode) reconcileCrashPruner(namespace string, cephCluster cephv
 	}
 	return nil
 }
-func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster) (controllerutil.OperationResult, error) {
+func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster, tolerations []corev1.Toleration) (controllerutil.OperationResult, error) {
 	objectMeta := metav1.ObjectMeta{
 		Name:      prunerName,
 		Namespace: cephCluster.GetNamespace(),
@@ -82,7 +82,6 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster) (
 		k8sutil.AppAttr: prunerName,
 	}
 	cronJobLabels[k8sutil.ClusterAttr] = cephCluster.GetNamespace()
-
 	podTemplateSpec := corev1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Labels: cronJobLabels,
@@ -96,6 +95,7 @@ func (r *ReconcileNode) createOrUpdateCephCron(cephCluster cephv1.CephCluster) (
 			Volumes:            volumes,
 			SecurityContext:    &corev1.PodSecurityContext{},
 			ServiceAccountName: k8sutil.DefaultServiceAccount,
+			Tolerations:        tolerations,
 		},
 	}
 
