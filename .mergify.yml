@@ -224,7 +224,6 @@ pull_request_rules:
       - "check-success=canary-tests / encryption-pvc-kms-vault-k8s-auth (quay.io/ceph/ceph:v19)"
       - "check-success=canary-tests / lvm-pvc (quay.io/ceph/ceph:v19)"
       - "check-success=canary-tests / multi-cluster-mirroring (quay.io/ceph/ceph:v19)"
-      - "check-success=canary-tests / rgw-multisite-testing (quay.io/ceph/ceph:v19)"
       - "check-success=canary-tests / encryption-pvc-kms-ibm-kp (quay.io/ceph/ceph:v19)"
       - "check-success=canary-tests / multus-public-and-cluster (quay.io/ceph/ceph:v19)"
       - "check-success=TestCephSmokeSuite (v1.27.16)"
