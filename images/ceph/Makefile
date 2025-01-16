@@ -35,14 +35,19 @@ ifeq ($(BUILD_CONTEXT_DIR),)
 BUILD_CONTEXT_DIR := $(shell mktemp -d)
 endif
 
-# Note: as of version 1.3 of operator-sdk, the url format changed to:
-# ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
-# (see: https://sdk.operatorframework.io/docs/installation/)
+
+ifeq ($(GOARCH),amd64)
 S5CMD_ARCH = Linux-64bit
+else
+S5CMD_ARCH = Linux-arm64
+endif
 
 # s5cmd's version
 S5CMD_VERSION = 2.3.0
 
+# Note: as of version 1.3 of operator-sdk, the url format changed to:
+# ${OPERATOR_SDK_DL_URL}/operator-sdk_${OS}_${ARCH}
+# (see: https://sdk.operatorframework.io/docs/installation/)
 OPERATOR_SDK := $(TOOLS_HOST_DIR)/operator-sdk-$(OPERATOR_SDK_VERSION)
 YQv3 := $(TOOLS_HOST_DIR)/yq-$(YQv3_VERSION)
 export OPERATOR_SDK YQv3
