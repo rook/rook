@@ -93,7 +93,7 @@ func (m *MonStore) SetIfChanged(who, option, value string) (bool, error) {
 // Set sets a config in the centralized mon configuration database.
 // https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Set(who, option, value string) error {
-	logger.Infof("setting %q=%q=%q option to the mon configuration database", who, option, value)
+	logger.Infof("setting option %q (user %q) to the mon configuration database", option, who)
 	args := []string{"config", "set", who, normalizeKey(option), value}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
@@ -102,7 +102,7 @@ func (m *MonStore) Set(who, option, value string) error {
 			"you may need to use the rook-config-override ConfigMap. output: %s", string(out))
 	}
 
-	logger.Infof("successfully set %q=%q=%q option to the mon configuration database", who, option, value)
+	logger.Infof("successfully set option %q (user %q) to the mon configuration database", option, who)
 	return nil
 }
 
@@ -199,7 +199,7 @@ func (m *MonStore) DeleteAll(options ...Option) error {
 // spaces, underscores, dashes, and slashes.
 // See: https://docs.ceph.com/en/latest/man/8/ceph/#config-key
 func (m *MonStore) SetKeyValue(key, value string) error {
-	logger.Debugf("setting %q=%q option in the mon config-key store", key, value)
+	logger.Debugf("setting %q option in the mon config-key store", key)
 	args := []string{"config-key", "set", key, value}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
