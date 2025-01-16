@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	v1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -34,7 +35,26 @@ import (
 )
 
 func TestCreateOrUpdateCephCron(t *testing.T) {
-	cephCluster := cephv1.CephCluster{ObjectMeta: metav1.ObjectMeta{Namespace: "rook-ceph"}}
+	tolerations := []corev1.Toleration{
+		{
+			Key:      "key",
+			Operator: corev1.TolerationOpEqual,
+			Value:    "value",
+			Effect:   corev1.TaintEffectNoSchedule,
+		},
+	}
+	cephCluster := cephv1.CephCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: "rook-ceph",
+		},
+		Spec: cephv1.ClusterSpec{
+			Placement: cephv1.PlacementSpec{
+				"all": {
+					Tolerations: tolerations,
+				},
+			},
+		},
+	}
 	ctx := context.TODO()
 	context := &clusterd.Context{
 		Clientset:     test.New(t, 1),
@@ -61,10 +81,11 @@ func TestCreateOrUpdateCephCron(t *testing.T) {
 	}
 
 	// check if cronJob is created
-	cntrlutil, err := r.createOrUpdateCephCron(cephCluster)
+	cntrlutil, err := r.createOrUpdateCephCron(cephCluster, tolerations)
 	assert.NoError(t, err)
 	assert.Equal(t, cntrlutil, controllerutil.OperationResult("created"))
 
 	err = r.client.Get(ctx, types.NamespacedName{Namespace: "rook-ceph", Name: prunerName}, cronV1)
 	assert.NoError(t, err)
+	assert.Equal(t, tolerations, cronV1.Spec.JobTemplate.Spec.Template.Spec.Tolerations, "Tolerations do not match")
 }
