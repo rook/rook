@@ -19,10 +19,9 @@ import (
 	"fmt"
 	"os/exec"
 	"reflect"
+	"slices"
 	"strconv"
 	"testing"
-
-	"golang.org/x/exp/slices"
 
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
