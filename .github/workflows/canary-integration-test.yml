@@ -1644,6 +1644,7 @@ jobs:
         uses: ./.github/workflows/collect-logs
         with:
           name: ${{ github.job }}-${{ matrix.ceph-image }}
+          additional-namespace: rook-ceph-secondary
 
   encryption-pvc-kms-ibm-kp:
     runs-on: ubuntu-22.04
