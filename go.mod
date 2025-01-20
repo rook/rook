@@ -16,7 +16,7 @@ replace (
 
 require (
 	github.com/IBM/keyprotect-go-client v0.15.1
-	github.com/aws/aws-sdk-go v1.55.5
+	github.com/aws/aws-sdk-go v1.55.6
 	github.com/banzaicloud/k8s-objectmatcher v1.8.0
 	github.com/ceph/ceph-csi-operator/api v0.0.0-20241211130321-1c8ad98a7d6e
 	github.com/ceph/go-ceph v0.31.0
