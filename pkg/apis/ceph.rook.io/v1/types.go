@@ -410,6 +410,11 @@ type MonitoringSpec struct {
 	// Ceph exporter configuration
 	// +optional
 	Exporter *CephExporterSpec `json:"exporter,omitempty"`
+
+	// ExcludePerfCounters determines whether export ceph daemon perf
+	// counters as prometheus metrics
+	// +optional
+	ExcludePerfCounters *bool `json:"excludePerfCounters,omitempty"`
 }
 
 type CephExporterSpec struct {

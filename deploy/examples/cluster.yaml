@@ -82,6 +82,8 @@ spec:
   monitoring:
     # requires Prometheus to be pre-installed
     enabled: false
+    # whether export ceph daemon perf counters as mgr prometheus metrics
+    excludePerfCounters: true
     # Whether to disable the metrics reported by Ceph. If false, the prometheus mgr module and Ceph exporter are enabled.
     # If true, the prometheus mgr module and Ceph exporter are both disabled. Default is false.
     metricsDisabled: false

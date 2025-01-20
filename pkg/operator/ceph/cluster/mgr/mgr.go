@@ -408,10 +408,11 @@ func (c *Cluster) configurePrometheusModule() error {
 	}
 
 	var (
-		err                error
-		portHasChanged     bool
-		intervalHasChanged bool
-		daemonID           = "mgr"
+		err                        error
+		portHasChanged             bool
+		intervalHasChanged         bool
+		daemonID                   = "mgr"
+		defaultExcludePerfCounters = "true"
 	)
 	monStore := config.GetMonStore(c.context, c.clusterInfo)
 	// port
@@ -431,6 +432,22 @@ func (c *Cluster) configurePrometheusModule() error {
 			return err
 		}
 		logger.Infof("prometheus config will change, interval: %v", interval)
+	}
+
+	// mgr/prometheus/exclude_perf_counters introduced since version reef
+	_, versionOK := c.moduleMeetsMinVersion("prometheus")
+	if versionOK {
+		excludePerfCounters := defaultExcludePerfCounters
+		if c.spec.Monitoring.ExcludePerfCounters != nil {
+			excludePerfCounters = strconv.FormatBool(*c.spec.Monitoring.ExcludePerfCounters)
+		}
+		changed, err := monStore.SetIfChanged(daemonID, "mgr/prometheus/exclude_perf_counters", excludePerfCounters)
+		if err != nil {
+			return err
+		}
+		if changed {
+			logger.Infof("prometheus config will change, exclude_perf_counters: %s", excludePerfCounters)
+		}
 	}
 
 	if portHasChanged || intervalHasChanged {
@@ -512,6 +529,7 @@ func (c *Cluster) moduleMeetsMinVersion(name string) (*cephver.CephVersion, bool
 	minVersions := map[string]cephver.CephVersion{
 		// Put the modules here, example:
 		// "moduleName": {Major: 15},
+		PrometheusModuleName: {Major: 18},
 	}
 	if ver, ok := minVersions[name]; ok {
 		// Check if the required min version is met
