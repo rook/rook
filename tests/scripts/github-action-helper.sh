@@ -273,8 +273,8 @@ function deploy_toolbox() {
 }
 
 function replace_ceph_image() {
-  local file="$1"  # parameter 1: the file in which to replace the ceph image
-  local ceph_image="${2?ceph_image is required}"  # parameter 2: the new ceph image to use
+  local file="$1"                                # parameter 1: the file in which to replace the ceph image
+  local ceph_image="${2?ceph_image is required}" # parameter 2: the new ceph image to use
 
   # check for ceph_image being an empty string
   if [ -z "$ceph_image" ]; then
@@ -575,6 +575,9 @@ function write_object_read_from_replica_cluster() {
   # ensure that test file has unique data
   echo "$test_object_name" >>"$test_object_name"
 
+  echo "sleeping - $"
+  sleep 100
+
   s3cmd --host="${write_cluster_ip}" mb "s3://${test_bucket_name}"
   s3cmd --host="${write_cluster_ip}" put "$test_object_name" "s3://${test_bucket_name}"
 
@@ -781,7 +784,7 @@ function test_object_separate_pools() {
     done
     if [[ "$found" == false ]]; then
       echo "Live pool $l is not an expected pool"
-      errors=$((errors+1))
+      errors=$((errors + 1))
     fi
   done
 
