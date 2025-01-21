@@ -19,6 +19,7 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -26,7 +27,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
-	"golang.org/x/exp/slices"
 	"gopkg.in/ini.v1"
 )
 
