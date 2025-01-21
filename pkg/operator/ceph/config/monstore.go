@@ -94,6 +94,8 @@ func (m *MonStore) SetIfChanged(who, option, value string) (bool, error) {
 // https://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#monitor-configuration-database
 func (m *MonStore) Set(who, option, value string) error {
 	logger.Infof("setting option %q (user %q) to the mon configuration database", option, who)
+	logger.Tracef("setting option %q = %q (user %q) to the mon configuration database", option, value, who)
+
 	args := []string{"config", "set", who, normalizeKey(option), value}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
@@ -102,6 +104,7 @@ func (m *MonStore) Set(who, option, value string) error {
 			"you may need to use the rook-config-override ConfigMap. output: %s", string(out))
 	}
 
+	logger.Tracef("successfully set option %q = %q (user %q) to the mon configuration database", option, value, who)
 	logger.Infof("successfully set option %q (user %q) to the mon configuration database", option, who)
 	return nil
 }
@@ -200,6 +203,7 @@ func (m *MonStore) DeleteAll(options ...Option) error {
 // See: https://docs.ceph.com/en/latest/man/8/ceph/#config-key
 func (m *MonStore) SetKeyValue(key, value string) error {
 	logger.Debugf("setting %q option in the mon config-key store", key)
+	logger.Tracef("setting %q=%q option in the mon config-key store", key, value)
 	args := []string{"config-key", "set", key, value}
 	cephCmd := client.NewCephCommand(m.context, m.clusterInfo, args)
 	out, err := cephCmd.RunWithTimeout(exec.CephCommandsTimeout)
