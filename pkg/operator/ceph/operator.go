@@ -148,7 +148,7 @@ func (o *Operator) runCRDManager() {
 	}()
 }
 
-func (o *Operator) namespaceToWatch(context context.Context) {
+func (o *Operator) namespaceToWatch() {
 	currentNamespaceOnly := k8sutil.GetOperatorSetting("ROOK_CURRENT_NAMESPACE_ONLY", "true")
 	if currentNamespaceOnly == "true" {
 		o.config.NamespaceToWatch = o.config.OperatorNamespace
