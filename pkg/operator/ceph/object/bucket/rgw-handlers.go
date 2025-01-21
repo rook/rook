@@ -3,8 +3,47 @@ package bucket
 import (
 	"github.com/ceph/go-ceph/rgw/admin"
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/apis/objectbucket.io/v1alpha1"
+	apibkt "github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner/api"
 	"github.com/pkg/errors"
 )
+
+// The Provisioner struct is a mix of "long lived" fields for the provisioner
+// object instantiated by lib-bucket-provisioner and "short lived" fields used
+// for each Provision/Grant/Delete/Revoke call. The intent for bucket struct is
+// to incrementally migrate "short lived" request fields to the bucket struct
+// and eventually to migrate methods as appropriate.
+type bucket struct {
+	provisioner      *Provisioner
+	options          *apibkt.BucketOptions
+	additionalConfig *additionalConfigSpec
+}
+
+// Retrieve the s3 access credentials for the rgw user.  The rgw user will be
+// created if appropriate.
+func (b *bucket) getUserCreds() (accessKeyID, secretAccessKey string, err error) {
+	p := b.provisioner
+
+	if b.additionalConfig.bucketOwner == nil {
+		// get or create user
+		accessKeyID, secretAccessKey, err = p.createCephUser(p.cephUserName)
+		if err != nil {
+			err = errors.Wrapf(err, "unable to create Ceph object user %q", p.cephUserName)
+			return
+		}
+	} else {
+		// only get an existing user
+		var user admin.User
+		user, err = p.adminOpsClient.GetUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName})
+		if err != nil {
+			err = errors.Wrapf(err, "Ceph object user %q not found", p.cephUserName)
+			return
+		}
+		accessKeyID = user.Keys[0].AccessKey
+		secretAccessKey = user.Keys[0].SecretKey
+	}
+
+	return
+}
 
 func (p *Provisioner) bucketExists(name string) (bool, string, error) {
 	bucket, err := p.adminOpsClient.GetBucketInfo(p.clusterInfo.Context, admin.Bucket{Bucket: name})
@@ -23,12 +62,12 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 	if len(username) == 0 {
 		return "", "", errors.Wrap(err, "no user name provided")
 	}
-	p.cephUserName = username
 
-	logger.Infof("creating Ceph user %q", username)
+	logger.Infof("creating Ceph object user %q", username)
+
 	userConfig := admin.User{
 		ID:          username,
-		DisplayName: p.cephUserName,
+		DisplayName: username,
 	}
 
 	var u admin.User
@@ -37,14 +76,16 @@ func (p *Provisioner) createCephUser(username string) (accKey string, secKey str
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			u, err = p.adminOpsClient.CreateUser(p.clusterInfo.Context, userConfig)
 			if err != nil {
-				return "", "", errors.Wrapf(err, "failed to create ceph object user %v", userConfig.ID)
+				return "", "", errors.Wrapf(err, "failed to create Ceph object user %v", userConfig.ID)
 			}
 		} else {
-			return "", "", errors.Wrapf(err, "failed to get ceph user %q", username)
+			return "", "", errors.Wrapf(err, "failed to get Ceph object user %q", username)
 		}
+	} else {
+		logger.Infof("Ceph object user %q already exists", username)
 	}
 
-	logger.Infof("successfully created Ceph user %q with access keys", username)
+	logger.Infof("successfully created Ceph object user %q with access keys", username)
 	return u.Keys[0].AccessKey, u.Keys[0].SecretKey, nil
 }
 

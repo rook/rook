@@ -536,6 +536,12 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketLifecycle: &(&struct{ s string }{"foo"}).s}, *spec)
 	})
+
+	t.Run("bucketOwner field should be set", func(t *testing.T) {
+		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketOwner": "foo"})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{bucketOwner: &(&struct{ s string }{"foo"}).s}, *spec)
+	})
 }
 
 func numberOfCallsWithValue(substr string, strs []string) int {

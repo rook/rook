@@ -130,6 +130,11 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 		spec.bucketLifecycle = &lifecycle
 	}
 
+	if _, ok := config["bucketOwner"]; ok {
+		bucketOwner := config["bucketOwner"]
+		spec.bucketOwner = &bucketOwner
+	}
+
 	return &spec, nil
 }
 

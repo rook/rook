@@ -75,6 +75,7 @@ spec:
           }
         ]
       }
+    bucketOwner: "rgw-user"
 ```
 
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
@@ -94,6 +95,7 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
     * `bucketMaxSize`: The maximum size of the bucket as an individual bucket quota.
     * `bucketPolicy`: A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
     * `bucketLifecycle`: A raw JSON format string that defines an AWS S3 format bucket lifecycle configuration. Note that the rules must be sorted by `ID` in order to be idempotent.
+    * `bucketOwner`: The name of a pre-existing ceph rgw user account that will own the bucket. A `CephObjectStoreUser` resource may be used to create an ceph rgw user account. If the bucket already exists and is owned by a different user, the bucket will be re-linked to the specified user.
 
 ### OBC Custom Resource after Bucket Provisioning
 
