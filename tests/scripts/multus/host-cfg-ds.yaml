@@ -51,7 +51,7 @@ spec:
               last="${ip##*.}" # e.g., 3
 
               # add a shim to connect IFACE to the macvlan public network, with a static IP
-              # avoid IP conflicts by re-using the last part of the existing IFACE IP
+              # avoid IP conflicts by reusing the last part of the existing IFACE IP
               ip link add public-shim link ${IFACE} type macvlan mode bridge
               ip addr add ${NODE_PUBLIC_NET_IP_FIRST3}.${last}/24 dev public-shim
               ip link set public-shim up

@@ -1089,7 +1089,7 @@ func createSimilarPools(ctx *Context, pools []string, cluster *cephv1.ClusterSpe
 	if configurePoolsConcurrently() {
 		waitGroup, _ := errgroup.WithContext(ctx.clusterInfo.Context)
 		for _, pool := range pools {
-			// Avoid the loop re-using the same value with a closure
+			// Avoid the loop reusing the same value with a closure
 			pool := pool
 
 			waitGroup.Go(func() error { return createRGWPool(ctx, cluster, poolSpec, pgCount, pool) })
