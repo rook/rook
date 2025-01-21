@@ -81,12 +81,35 @@ func (p Placement) mergeNodeAffinity(nodeAffinity *v1.NodeAffinity) *v1.NodeAffi
 	// merge the match expressions together since they are defined in both placements
 	// this will only work if we want an "and" between all the expressions, more complex conditions won't work with this merge
 	var nodeTerm v1.NodeSelectorTerm
-	nodeTerm.MatchExpressions = append(
-		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions,
-		p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions...)
-	nodeTerm.MatchFields = append(
-		nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields,
-		p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields...)
+	nodeTerm.MatchExpressions = nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions
+	// only append unique match expressions and match fields
+	for _, matchExpression := range p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions {
+		found := false
+		for _, match := range nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions {
+			if match.Key == matchExpression.Key && match.Operator == matchExpression.Operator {
+				found = true
+				break
+			}
+		}
+		if !found {
+			nodeTerm.MatchExpressions = append(nodeTerm.MatchExpressions, matchExpression)
+		}
+	}
+
+	nodeTerm.MatchFields = nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields
+	for _, matchField := range p.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields {
+		found := false
+		for _, match := range nodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchFields {
+			if match.Key == matchField.Key && match.Operator == matchField.Operator {
+				found = true
+				break
+			}
+		}
+		if !found {
+			nodeTerm.MatchFields = append(nodeTerm.MatchFields, matchField)
+		}
+	}
+
 	result.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0] = nodeTerm
 
 	return result
@@ -98,7 +121,22 @@ func (p Placement) mergeTolerations(tolerations []v1.Toleration) []v1.Toleration
 		return p.Tolerations
 	}
 
-	return append(p.Tolerations, tolerations...)
+	// only append the tolerations that are not already in the pod spec
+	// to avoid duplicates values
+	for _, toleration := range p.Tolerations {
+		found := false
+		for _, t := range tolerations {
+			if toleration.Key == t.Key && toleration.Operator == t.Operator && toleration.Value == t.Value {
+				found = true
+				break
+			}
+		}
+		if !found {
+			tolerations = append(tolerations, toleration)
+		}
+	}
+
+	return tolerations
 }
 
 // Merge returns a Placement which results from merging the attributes of the

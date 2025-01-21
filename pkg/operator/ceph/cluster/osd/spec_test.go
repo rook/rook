@@ -826,7 +826,7 @@ func TestOSDPlacement(t *testing.T) {
 				{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
 						{
-							Key:      "role",
+							Key:      "role3",
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{"storage-node3"},
 						},
@@ -843,7 +843,7 @@ func TestOSDPlacement(t *testing.T) {
 				{
 					MatchExpressions: []corev1.NodeSelectorRequirement{
 						{
-							Key:      "role",
+							Key:      "role3",
 							Operator: corev1.NodeSelectorOpIn,
 							Values:   []string{"storage-node3"},
 						},
@@ -893,12 +893,12 @@ func TestOSDPlacement(t *testing.T) {
 	c = New(context, clusterInfo, spec, "rook/rook:myversion")
 	r, err = c.makeDeployment(osdProps, osd, dataPathMap)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(r.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
+	assert.Equal(t, 1, len(r.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
 
 	// For OSD-prepare job
 	job, err = c.makeJob(osdProps, dataPathMap)
 	assert.NoError(t, err)
-	assert.Equal(t, 2, len(job.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
+	assert.Equal(t, 1, len(job.Spec.Template.Spec.Affinity.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms[0].MatchExpressions))
 
 	// When OnlyApplyOSDPlacement true, in case of non-PVC
 	spec.Storage.OnlyApplyOSDPlacement = true

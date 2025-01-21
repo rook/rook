@@ -189,7 +189,9 @@ func TestPlacementApplyToPodSpec(t *testing.T) {
 	}
 	p.ApplyToPodSpec(ps)
 	assert.Equal(t, 1, len(ps.Tolerations))
-	p = Placement{Tolerations: to, NodeAffinity: na, PodAntiAffinity: antiaffinity}
+	// tolerations should be unique
+	to1 := placementTestGetTolerations("foo1", "bar")
+	p = Placement{Tolerations: to1, NodeAffinity: na, PodAntiAffinity: antiaffinity}
 	p.ApplyToPodSpec(ps)
 	assert.Equal(t, 2, len(ps.Tolerations))
 }
@@ -233,16 +235,16 @@ func TestPlacementMerge(t *testing.T) {
 		NodeAffinity: na,
 		Tolerations: []v1.Toleration{
 			{
-				Key:               "bar",
+				Key:               "foo",
 				Operator:          v1.TolerationOpExists,
-				Value:             "baz",
+				Value:             "bar",
 				Effect:            v1.TaintEffectNoSchedule,
 				TolerationSeconds: &ts,
 			},
 			{
-				Key:               "foo",
+				Key:               "bar",
 				Operator:          v1.TolerationOpExists,
-				Value:             "bar",
+				Value:             "baz",
 				Effect:            v1.TaintEffectNoSchedule,
 				TolerationSeconds: &ts,
 			},
@@ -355,6 +357,6 @@ func TestMergeToleration(t *testing.T) {
 
 	result = p.mergeTolerations(newToleration)
 	assert.Equal(t, 2, len(result))
-	assert.Equal(t, placementToleration[0].Key, result[0].Key)
-	assert.Equal(t, newToleration[0].Key, result[1].Key)
+	assert.Equal(t, newToleration[0].Key, result[0].Key)
+	assert.Equal(t, placementToleration[0].Key, result[1].Key)
 }
