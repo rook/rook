@@ -105,6 +105,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        envFrom:
+        - configMapRef:
+            name: rook-ceph-operator-config
 {{- if .Values.resources }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
