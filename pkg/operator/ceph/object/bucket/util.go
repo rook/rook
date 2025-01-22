@@ -125,6 +125,11 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 		spec.bucketPolicy = &policy
 	}
 
+	if _, ok := config["bucketLifecycle"]; ok {
+		lifecycle := config["bucketLifecycle"]
+		spec.bucketLifecycle = &lifecycle
+	}
+
 	return &spec, nil
 }
 
