@@ -17,6 +17,7 @@ limitations under the License.
 package bucket
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -64,6 +65,7 @@ type additionalConfigSpec struct {
 	bucketMaxObjects *int64
 	bucketMaxSize    *int64
 	bucketPolicy     *string
+	bucketLifecycle  *string
 }
 
 var _ apibkt.Provisioner = &Provisioner{}
@@ -587,6 +589,11 @@ func (p *Provisioner) setAdditionalSettings(additionalConfig *additionalConfigSp
 		return errors.Wrap(err, "failed to set bucket policy")
 	}
 
+	err = p.setBucketLifecycle(additionalConfig)
+	if err != nil {
+		return errors.Wrap(err, "failed to set bucket lifecycle")
+	}
+
 	return nil
 }
 
@@ -735,6 +742,77 @@ func (p *Provisioner) setBucketPolicy(additionalConfig *additionalConfigSpec) er
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to set policy for bucket %q", p.bucketName)
+		}
+	}
+
+	return nil
+}
+
+func (p *Provisioner) setBucketLifecycle(additionalConfig *additionalConfigSpec) error {
+	svc := p.s3Agent.Client
+	var liveLc *s3.GetBucketLifecycleConfigurationOutput
+
+	liveLc, err := svc.GetBucketLifecycleConfiguration(&s3.GetBucketLifecycleConfigurationInput{
+		Bucket: &p.bucketName,
+	})
+	if err != nil {
+		// when no lifecycle configuration is set, an err with a "code" of
+		// NoSuchLifecycleConfiguration is returned
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() == "NoSuchLifecycleConfiguration" {
+			logger.Debugf("no lifecycle configuration set for bucket %q", p.bucketName)
+		} else {
+			return errors.Wrapf(err, "failed to fetch lifecycle configuration for bucket %q", p.bucketName)
+		}
+	}
+
+	// parse the conf supplied lifecycle configuration json as aws-sdk-go will not operate on a
+	// json string
+	confLc := &s3.BucketLifecycleConfiguration{}
+	// don't try to parse the conf json if it is nil
+	if additionalConfig.bucketLifecycle != nil {
+		err = json.Unmarshal([]byte(*additionalConfig.bucketLifecycle), confLc)
+		if err != nil {
+			return errors.Wrapf(err, "failed to unmarshal lifecycle configuration for bucket %q", p.bucketName)
+		}
+	}
+
+	// Comparing the conf json with a json serialization of the live rules is
+	// unreliable as aws-sdk-go does not tag fields with "ommitempty". The
+	// GetBucketLifecycleConfigurationOutput type has a String() method that
+	// returns a json like format which isn't valid json.  The options are to
+	// write a custom json unmarshaler or compare go structs directly.
+
+	// convert the api returned GetBucketLifecycleConfigurationOutput to a
+	// BucketLifecycleConfiguration for apples to apples comparison to determine
+	// sync state
+	diffLiveLc := &s3.BucketLifecycleConfiguration{Rules: liveLc.Rules}
+
+	// note that the xml serialization of the rules returned by rgw sorts the
+	// rules by "ID".  The rule ordering from the
+	// PutBucketLifecycleConfiguration() call is not preserved.
+	diff := cmp.Diff(diffLiveLc, confLc)
+	if diff == "" {
+		// policy is in sync
+		return nil
+	}
+
+	logger.Debugf("Lifecycle configuration for bucket %q has changed. diff:%s", p.bucketName, diff)
+	if additionalConfig.bucketLifecycle == nil {
+		// if policy is out of sync and the new policy is nil, delete the live policy
+		_, err = svc.DeleteBucketLifecycle(&s3.DeleteBucketLifecycleInput{
+			Bucket: &p.bucketName,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete lifecycle configuration for bucket %q", p.bucketName)
+		}
+	} else {
+		// set the new policy
+		_, err = svc.PutBucketLifecycleConfiguration(&s3.PutBucketLifecycleConfigurationInput{
+			Bucket:                 &p.bucketName,
+			LifecycleConfiguration: confLc,
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to set lifecycle configuration for bucket %q", p.bucketName)
 		}
 	}
 

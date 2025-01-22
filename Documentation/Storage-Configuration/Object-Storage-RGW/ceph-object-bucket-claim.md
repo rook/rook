@@ -54,6 +54,27 @@ spec:
               }
           ]
       }
+    bucketLifecycle: |
+      {
+        "Rules": [
+          {
+            "ID": "AbortIncompleteMultipartUploads",
+            "Status": "Enabled",
+            "Prefix": "",
+            "AbortIncompleteMultipartUpload": {
+              "DaysAfterInitiation": 1
+            }
+          },
+          {
+            "ID": "ExpireAfter30Days",
+            "Status": "Enabled",
+            "Prefix": "",
+            "Expiration": {
+              "Days": 30
+            }
+          }
+        ]
+      }
 ```
 
 1. `name` of the `ObjectBucketClaim`. This name becomes the name of the Secret and ConfigMap.
@@ -72,6 +93,7 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
     * `bucketMaxObjects`: The maximum number of objects in the bucket as an individual bucket quota. This is useful when the bucket is shared among multiple users.
     * `bucketMaxSize`: The maximum size of the bucket as an individual bucket quota.
     * `bucketPolicy`: A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
+    * `bucketLifecycle`: A raw JSON format string that defines an AWS S3 format bucket lifecycle configuration. Note that the rules must be sorted by `ID` in order to be idempotent.
 
 ### OBC Custom Resource after Bucket Provisioning
 
