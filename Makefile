@@ -165,6 +165,10 @@ yamllint:
 pylint:
 	pylint $(shell find $(ROOT_DIR)  -name '*.py') -E
 
+.PHONY: shellcheck
+shellcheck:
+	shellcheck --severity=warning --format=gcc --shell=bash $(shell find $(ROOT_DIR) -type f -name '*.sh') build/reset build/sed-in-place
+
 gen.codegen: codegen
 codegen: ${CODE_GENERATOR} ## Run code generators.
 	@build/codegen/codegen.sh
