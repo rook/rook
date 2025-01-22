@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/rook/rook/tests/integration/object/bucketowner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -151,6 +152,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, install
 
 	// now test operation of the first object store
 	testObjectStoreOperations(s, helper, k8sh, namespace, storeName, swiftAndKeystone)
+
+	bucketowner.TestObjectBucketClaimBucketOwner(s.T(), k8sh, installer, logger, tlsEnable)
 
 	bucketNotificationTestStoreName := "bucket-notification-" + storeName
 	createCephObjectStore(s.T(), helper, k8sh, installer, namespace, bucketNotificationTestStoreName, 1, tlsEnable, swiftAndKeystone)
