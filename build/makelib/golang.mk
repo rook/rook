@@ -64,7 +64,6 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_DIR)/go-junit-report
 
 GO := go
@@ -144,11 +143,6 @@ go.test.integration: $(GOJUNIT)
 	CGO_ENABLED=$(CGO_ENABLED_VALUE) $(GOHOST) test -v -timeout 7200s $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES) $(TEST_FILTER_PARAM) 2>&1 | tee $(GO_TEST_OUTPUT)/integration-tests.log
 	@cat $(GO_TEST_OUTPUT)/integration-tests.log | $(GOJUNIT) -set-exit-code > $(GO_TEST_OUTPUT)/integration-tests.xml
 
-.PHONY: go.lint
-go.lint: $(GOLINT)
-	@echo === go lint
-	@$(GOLINT) -set_exit_status=true $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
-
 .PHONY: go.vet
 go.vet:
 	@echo === go vet
@@ -184,12 +178,6 @@ go.mod.clean:
 	@echo === cleaning modules cache
 	@sudo rm -fr $(WORK_DIR)/cross_pkg
 	@$(GOHOST) clean -modcache
-
-$(GOLINT):
-	@echo === installing golint
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/golang/lint/golint
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 $(GOFMT):
 	@echo === installing gofmt$(GOFMT_VERSION)
