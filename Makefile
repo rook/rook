@@ -149,10 +149,6 @@ check test: ## Runs unit tests.
 test-integration: ## Runs integration tests.
 	@$(MAKE) go.test.integration
 
-lint: ## Check syntax and styling of go sources.
-	@$(MAKE) go.init
-	@$(MAKE) go.lint
-
 vet: ## Runs lint checks on go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.vet
