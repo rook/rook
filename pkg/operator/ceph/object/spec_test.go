@@ -182,6 +182,12 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.Error(t, err)
 
 	// Using SSLCertificateRef
+
+	c.store.Spec.Gateway.SSLCertificateRef = "bogusCert"
+	// Secret missing, will return error
+	_, err = c.makeRGWPodSpec(rgwConfig)
+	assert.Error(t, err)
+
 	// Opaque Secret
 	c.store.Spec.Gateway.SSLCertificateRef = "mycert"
 	rgwtlssecret := &v1.Secret{
