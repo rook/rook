@@ -383,6 +383,20 @@ func RemoveDuplicateEnvVars(pod *v1.PodSpec) {
 	}
 }
 
+func RemoveDuplicateTolerations(podSpec *v1.PodSpec) {
+	tolerationsMap := make(map[v1.Toleration]struct{})
+	var uniqueTolerations []v1.Toleration
+
+	for _, toleration := range podSpec.Tolerations {
+		if _, exists := tolerationsMap[toleration]; !exists {
+			tolerationsMap[toleration] = struct{}{}
+			uniqueTolerations = append(uniqueTolerations, toleration)
+		}
+	}
+
+	podSpec.Tolerations = uniqueTolerations
+}
+
 func removeDuplicateEnvVarsFromContainer(container *v1.Container) {
 	foundVars := map[string]string{}
 	vars := []v1.EnvVar{}

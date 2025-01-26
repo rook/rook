@@ -264,3 +264,33 @@ func TestIsMonScheduled(t *testing.T) {
 	assert.Error(t, err)
 	assert.False(t, isScheduled)
 }
+
+func TestRemoveDuplicateTolerations(t *testing.T) {
+	tolerationSeconds := int64(5)
+	duplicateToleration := v1.Toleration{
+		Key:               "node.kubernetes.io/unreachable",
+		Operator:          "Exists",
+		Effect:            "NoExecute",
+		TolerationSeconds: &tolerationSeconds,
+	}
+	uniqueToleration := v1.Toleration{
+		Key:      "node.kubernetes.io/network-unavailable",
+		Operator: "Exists",
+		Effect:   "NoExecute",
+	}
+	podSpec := v1.PodSpec{
+		Tolerations: []v1.Toleration{
+			duplicateToleration,
+			duplicateToleration, // Duplicate
+			uniqueToleration,
+		},
+	}
+
+	// Act: Remove duplicates
+	RemoveDuplicateTolerations(&podSpec)
+
+	// Assert: Validate the results
+	assert.Equal(t, 2, len(podSpec.Tolerations), "expected 2 unique tolerations")
+	assert.Contains(t, podSpec.Tolerations, duplicateToleration, "expected to keep the duplicate toleration only once")
+	assert.Contains(t, podSpec.Tolerations, uniqueToleration, "expected the unique toleration to be present")
+}

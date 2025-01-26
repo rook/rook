@@ -196,6 +196,7 @@ func (c *Cluster) getKeyRotationPodTemplateSpec(osdProps osdProperties, osd OSDI
 	podTemplateSpec.Spec.HostIPC = true
 
 	k8sutil.RemoveDuplicateEnvVars(&podTemplateSpec.Spec)
+	k8sutil.RemoveDuplicateTolerations(&podTemplateSpec.Spec)
 	return &podTemplateSpec, nil
 }
 
