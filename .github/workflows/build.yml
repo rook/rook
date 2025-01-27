@@ -84,7 +84,7 @@ jobs:
           go-version: ${{ matrix.go-version }}
 
       - name: set up QEMU
-        uses: docker/setup-qemu-action@49b3bc8e6bdd4a60e6116a5414239cba5943d3cf # master
+        uses: docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a # master
         with:
           platforms: all
 
