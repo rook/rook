@@ -68,6 +68,9 @@ If submitting a description, the addition will be at the end of first part of th
   in our own server rack"*.
 * [Alauda](https://www.alauda.io/) Our container platform product(ACP) uses Rook Ceph to provide data
   persistence for applications, in addition to middleware backups, virtual machine disks, and more.
+* [Thalassa Cloud](https://thalassa.cloud) is a private cloud platform that brings the functionality
+  of public cloud services into on-premises data centers. With Rook Ceph, we provide highly reliable
+  and scalable storage solutions tailored for our IaaS layer.
 * [CyCore Systems](https://www.cycoresys.com/)
 * [Datacom](http://datacom.co.nz/Home.aspx)
 * [Turtle Network (BLACK TURTLE BVBA)](https://www.turtlenetwork.eu/#home)
