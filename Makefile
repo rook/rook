@@ -161,9 +161,12 @@ fmt: ## Check formatting of go sources.
 yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
 
+.PHONY: lint
+lint: yamllint pylint shellcheck vet ## Run various linters
+
 .PHONY: pylint
 pylint:
-	pylint $(shell find $(ROOT_DIR)  -name '*.py') -E
+	pylint $(shell find $(ROOT_DIR) -name '*.py') -E
 
 .PHONY: shellcheck
 shellcheck:
