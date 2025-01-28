@@ -139,8 +139,9 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		logger.Debugf("bucket %q already exists", p.bucketName)
 	}
 
-	// do not modify externally managed users
-	if bucket.additionalConfig.bucketOwner == nil {
+	// is the bucket owner a provisioner generated user?
+	if p.isObcGeneratedUser(p.cephUserName, options.ObjectBucketClaim) {
+		// set user quota
 		singleBucketQuota := 1
 		_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &singleBucketQuota})
 		if err != nil {
@@ -154,7 +155,7 @@ func (p Provisioner) Provision(options *apibkt.BucketOptions) (*bktv1alpha1.Obje
 		return nil, errors.Wrapf(err, "failed to set additional settings for OBC %q in NS %q associated with CephObjectStore %q in NS %q", options.ObjectBucketClaim.Name, options.ObjectBucketClaim.Namespace, p.objectStoreName, p.clusterInfo.Namespace)
 	}
 
-	return p.composeObjectBucket(), nil
+	return p.composeObjectBucket(bucket), nil
 }
 
 // Grant attaches to an existing rgw bucket and returns a connection info
@@ -187,9 +188,9 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 		return nil, errors.Wrapf(err, "unable to get user %q creds", p.cephUserName)
 	}
 
-	// restrict creation of new buckets in rgw
-	// do not modify externally managed users
-	if bucket.additionalConfig.bucketOwner == nil {
+	// is the bucket owner a provisioner generated user?
+	if p.isObcGeneratedUser(p.cephUserName, options.ObjectBucketClaim) {
+		// restrict creation of new buckets in rgw
 		restrictBucketCreation := 0
 		_, err = p.adminOpsClient.ModifyUser(p.clusterInfo.Context, admin.User{ID: p.cephUserName, MaxBuckets: &restrictBucketCreation})
 		if err != nil {
@@ -210,7 +211,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 
 	if additionalConfig.bucketPolicy != nil {
 		// if the user is managing the bucket policy, there's nothing else to do
-		return p.composeObjectBucket(), nil
+		return p.composeObjectBucket(bucket), nil
 	}
 
 	// generate the bucket policy if it isn't managed by the user
@@ -245,7 +246,7 @@ func (p Provisioner) Grant(options *apibkt.BucketOptions) (*bktv1alpha1.ObjectBu
 	}
 
 	// returned ob with connection info
-	return p.composeObjectBucket(), nil
+	return p.composeObjectBucket(bucket), nil
 }
 
 // Delete is called when the ObjectBucketClaim (OBC) is deleted and the associated
@@ -260,8 +261,13 @@ func (p Provisioner) Delete(ob *bktv1alpha1.ObjectBucket) error {
 	}
 	logger.Infof("Delete: deleting bucket %q for OB %q", p.bucketName, ob.Name)
 
-	if err := p.deleteOBCResource(p.bucketName); err != nil {
-		return errors.Wrapf(err, "failed to delete OBCResource bucket %q", p.bucketName)
+	if err := p.deleteBucket(p.bucketName); err != nil {
+		return errors.Wrapf(err, "failed to delete bucket %q", p.bucketName)
+	}
+
+	logger.Infof("Delete: deleting user %q for OB %q", p.bucketName, ob.Name)
+	if err := p.deleteOBUser(ob); err != nil {
+		return errors.Wrapf(err, "failed to delete user %q", p.cephUserName)
 	}
 	return nil
 }
@@ -352,7 +358,7 @@ func (p Provisioner) Revoke(ob *bktv1alpha1.ObjectBucket) error {
 	}
 
 	// finally, delete the user
-	err = p.deleteOBCResource("")
+	err = p.deleteOBUser(ob)
 	if err != nil {
 		return errors.Wrapf(err, "failed to delete user %q", p.cephUserName)
 	}
@@ -470,7 +476,7 @@ func (p *Provisioner) initializeDeleteOrRevoke(ob *bktv1alpha1.ObjectBucket) err
 }
 
 // Return the OB struct with minimal fields filled in.
-func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
+func (p *Provisioner) composeObjectBucket(bucket *bucket) *bktv1alpha1.ObjectBucket {
 
 	conn := &bktv1alpha1.Connection{
 		Endpoint: &bktv1alpha1.Endpoint{
@@ -492,6 +498,15 @@ func (p *Provisioner) composeObjectBucket() *bktv1alpha1.ObjectBucket {
 			ObjectStoreName:      p.objectStoreName,
 			ObjectStoreNamespace: p.clusterInfo.Namespace,
 		},
+	}
+
+	// bucketOwner will either match CephUser, indicating that it is an
+	// explicitly set name, or the key will be unset, indicating that either the
+	// provisioner created the user or a grant was made on a pre-existing bucket
+	// linked to a pre-existing user.  Due to the semantics of lib-bucket, it
+	// isn't possible to determine if it was a pre-existing bucket.
+	if bucket.additionalConfig.bucketOwner != nil {
+		conn.AdditionalState["bucketOwner"] = *bucket.additionalConfig.bucketOwner
 	}
 
 	return &bktv1alpha1.ObjectBucket{
@@ -853,7 +868,6 @@ func (p *Provisioner) setTlsCaCert() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
