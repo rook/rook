@@ -136,6 +136,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.topology.domainLabels` | domainLabels define which node labels to use as domains for CSI nodeplugins to advertise their domains | `nil` |
 | `csi.topology.enabled` | Enable topology based provisioning | `false` |
 | `currentNamespaceOnly` | Whether the operator should watch cluster CRD in its own namespace or not | `false` |
+| `customHostnameLabel` | Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used | `nil` |
 | `disableDeviceHotplug` | Disable automatic orchestration when new devices are discovered. | `false` |
 | `discover.nodeAffinity` | The node labels for affinity of `discover-agent` [^1] | `nil` |
 | `discover.podLabels` | Labels to add to the discover pods | `nil` |

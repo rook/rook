@@ -623,6 +623,9 @@ discover:
   #       cpu: 100m
   #       memory: 128Mi
 
+# -- Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
+customHostnameLabel: 
+
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false
 

@@ -75,7 +75,7 @@ func (c *ClusterController) startCleanUpJobs(cluster *cephv1.CephCluster, cephHo
 		logger.Infof("starting clean up job on node %q", hostName)
 		jobName := k8sutil.TruncateNodeNameForJob("cluster-cleanup-job-%s", hostName)
 		podSpec := c.cleanUpJobTemplateSpec(cluster, monSecret, clusterFSID)
-		podSpec.Spec.NodeSelector = map[string]string{v1.LabelHostname: hostName}
+		podSpec.Spec.NodeSelector = map[string]string{k8sutil.LabelHostname(): hostName}
 		labels := controller.AppLabels(CleanupAppName, cluster.Namespace)
 		labels[CleanupAppName] = "true"
 		job := &batch.Job{

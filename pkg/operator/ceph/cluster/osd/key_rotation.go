@@ -57,7 +57,7 @@ func applyKeyRotationPlacement(spec *v1.PodSpec, labels map[string]string) {
 				LabelSelector: &metav1.LabelSelector{
 					MatchLabels: labels,
 				},
-				TopologyKey: v1.LabelHostname,
+				TopologyKey: k8sutil.LabelHostname(),
 			},
 		},
 	}
