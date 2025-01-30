@@ -15,3 +15,4 @@ Object:
 ## Features
 
 - Support external mons for local Rook cluster (see [#14733](https://github.com/rook/rook/issues/14733)).
+- add credentials/keypair management to CephObjectStoreUser (see [#15359](https://github.com/rook/rook/issues/15359)
