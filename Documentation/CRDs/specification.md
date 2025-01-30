@@ -2086,6 +2086,21 @@ ObjectUserQuotaSpec
 </tr>
 <tr>
 <td>
+<code>keys</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserKey">
+[]ObjectUserKey
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Allows specifying credentials for the user. If not provided, the operator
+will generate them.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>clusterNamespace</code><br/>
 <em>
 string
@@ -10353,6 +10368,21 @@ ObjectUserQuotaSpec
 </tr>
 <tr>
 <td>
+<code>keys</code><br/>
+<em>
+<a href="#ceph.rook.io/v1.ObjectUserKey">
+[]ObjectUserKey
+</a>
+</em>
+</td>
+<td>
+<em>(Optional)</em>
+<p>Allows specifying credentials for the user. If not provided, the operator
+will generate them.</p>
+</td>
+</tr>
+<tr>
+<td>
 <code>clusterNamespace</code><br/>
 <em>
 string
@@ -10623,6 +10653,51 @@ string
 <td>
 <em>(Optional)</em>
 <p>Add capabilities for user to set rate limiter for user and bucket. Documented in <a href="https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities">https://docs.ceph.com/en/latest/radosgw/admin/?#add-remove-admin-capabilities</a></p>
+</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ceph.rook.io/v1.ObjectUserKey">ObjectUserKey
+</h3>
+<p>
+(<em>Appears on:</em><a href="#ceph.rook.io/v1.ObjectStoreUserSpec">ObjectStoreUserSpec</a>)
+</p>
+<div>
+<p>ObjectUserKey defines a set of rgw user access credentials to be retrieved
+from secret resources.</p>
+</div>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>
+<code>accessKeyRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<p>Secret key selector for the access_key (commonly referred to as AWS_ACCESS_KEY_ID).</p>
+</td>
+</tr>
+<tr>
+<td>
+<code>secretKeyRef</code><br/>
+<em>
+<a href="https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.24/#secretkeyselector-v1-core">
+Kubernetes core/v1.SecretKeySelector
+</a>
+</em>
+</td>
+<td>
+<p>Secret key selector for the secret_key (commonly referred to as AWS_SECRET_ACCESS_KEY).</p>
 </td>
 </tr>
 </tbody>
