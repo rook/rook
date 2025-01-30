@@ -216,6 +216,12 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationcontents"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["replication.storage.openshift.io"]
+    resources: ["volumegroupreplicationclasses"]
+    verbs: ["get", "list", "watch"]
 ---
 # The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1
