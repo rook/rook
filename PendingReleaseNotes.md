@@ -12,6 +12,12 @@ Object:
     new `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS` to enable users to set potentially risky options.
     See https://github.com/rook/rook/pull/15376 for more information.
 
+- Add credentials/keys management to CephObjectStoreUser. Note that this will
+    cause manually created credentials/keys on an rgw user to be purged. This
+    behavior is necessary to ensure that keys that were explicitly declared and
+    then undeclared are purged. This could be a user observable regression.
+    (see [#15359](https://github.com/rook/rook/issues/15359)
+
 ## Features
 
 - Support external mons for local Rook cluster (see [#14733](https://github.com/rook/rook/issues/14733)).
