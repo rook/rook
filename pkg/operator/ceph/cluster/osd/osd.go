@@ -583,7 +583,7 @@ func (c *Cluster) getPVCHostName(pvcName string) (string, error) {
 	for _, d := range deployments.Items {
 		selectors := d.Spec.Template.Spec.NodeSelector
 		for label, value := range selectors {
-			if label == corev1.LabelHostname {
+			if label == k8sutil.LabelHostname() {
 				return value, nil
 			}
 		}
@@ -734,10 +734,18 @@ func getNodeOrPVCName(d *appsv1.Deployment) (string, error) {
 		return v, nil // OSD is on PVC
 	}
 	for k, v := range d.Spec.Template.Spec.NodeSelector {
-		if k == corev1.LabelHostname {
+		if k == k8sutil.LabelHostname() {
 			return v, nil
 		}
 	}
+	// try to fallback on previous hostname label
+	// NodeSelector always has a single entry
+	if len(d.Spec.Template.Spec.NodeSelector) == 1 {
+		for _, v := range d.Spec.Template.Spec.NodeSelector {
+			return v, nil
+		}
+	}
+
 	return "", errors.Errorf("failed to find node/PVC name for OSD deployment %q: %+v", d.Name, d)
 }
 
@@ -858,7 +866,7 @@ func getNode(ctx context.Context, clientset kubernetes.Interface, nodeName strin
 	// try to find by the node by matching the provided nodeName
 	node, err = clientset.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{})
 	if kerrors.IsNotFound(err) {
-		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%q=%q", corev1.LabelHostname, nodeName)}
+		listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%q=%q", k8sutil.LabelHostname(), nodeName)}
 		nodeList, err := clientset.CoreV1().Nodes().List(ctx, listOpts)
 		if err != nil || len(nodeList.Items) < 1 {
 			return nil, errors.Wrapf(err, "could not find node %q hostname label", nodeName)

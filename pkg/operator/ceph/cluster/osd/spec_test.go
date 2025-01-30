@@ -71,10 +71,18 @@ func TestPodContainer(t *testing.T) {
 }
 
 func TestDaemonset(t *testing.T) {
-	testPodDevices(t, "", "sda", true)
-	testPodDevices(t, "/var/lib/mydatadir", "sdb", false)
-	testPodDevices(t, "", "", true)
-	testPodDevices(t, "", "", false)
+	t.Run(("device name and all devices"), func(t *testing.T) {
+		testPodDevices(t, "", "sda", true)
+	})
+	t.Run(("data dir and device name"), func(t *testing.T) {
+		testPodDevices(t, "/var/lib/mydatadir", "sdb", false)
+	})
+	t.Run(("all devices"), func(t *testing.T) {
+		testPodDevices(t, "", "", true)
+	})
+	t.Run(("no data dir and device name"), func(t *testing.T) {
+		testPodDevices(t, "", "", false)
+	})
 }
 
 func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
@@ -493,6 +501,17 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 		assert.Equal(t, int32(900), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds)
 		assert.Equal(t, int32(1000), deployment.Spec.Template.Spec.Containers[0].StartupProbe.InitialDelaySeconds)
 	})
+
+	// test custom topology label
+	t.Setenv("ROOK_CUSTOM_HOSTNAME_LABEL", "my_custom_hostname_label")
+	deployment, err = c.makeDeployment(osdProp, osd, dataPathMap)
+	assert.Nil(t, err)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
+	assert.Equal(t, c.clusterInfo.Namespace, deployment.Namespace)
+	assert.Equal(t, serviceAccountName, deployment.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
+	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector["my_custom_hostname_label"])
 }
 
 func verifyEnvVar(t *testing.T, envVars []corev1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
