@@ -220,7 +220,10 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// Generate user config
-	userConfig := generateUserConfig(cephObjectStoreUser)
+	userConfig, err := r.generateUserConfig(cephObjectStoreUser)
+	if err != nil {
+		return reconcile.Result{}, *cephObjectStoreUser, errors.Wrapf(err, "failed to generate user config for %q", cephObjectStoreUser.Name)
+	}
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -364,6 +367,7 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Set access and secret key
+	// XXX why not just use the keys from the user object or replace r.userConfig with he updated user?
 	if len(userConfig.Keys) == 0 {
 		userConfig.Keys = make([]admin.UserKeySpec, 1)
 	}
@@ -434,7 +438,7 @@ func generateUserCaps(user admin.User) string {
 	return caps
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
+func (r *ReconcileObjectStoreUser) generateUserConfig(user *cephv1.CephObjectStoreUser) (*admin.User, error) {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -505,7 +509,32 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 		}
 	}
 
-	return userConfig
+	// Set any provided key pair(s)
+	if len(user.Spec.Keys) > 0 {
+		keys := make([]admin.UserKeySpec, len(user.Spec.Keys))
+		for _, key := range user.Spec.Keys {
+			accessKey, err := r.getSecretValue(key.AccessKeyRef, user.Namespace)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get secret value")
+			}
+			secretKey, err := r.getSecretValue(key.SecretKeyRef, user.Namespace)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get secret value")
+			}
+
+			keys = append(keys, admin.UserKeySpec{
+				UID:       user.Name,
+				AccessKey: accessKey,
+				SecretKey: secretKey,
+				KeyType:   "s3",
+			})
+		}
+
+		// this has the effect of removing any existing key pairs
+		userConfig.Keys = keys
+	}
+
+	return userConfig, nil
 }
 
 func generateCephUserSecretName(u *cephv1.CephObjectStoreUser) string {
@@ -703,4 +732,22 @@ func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name t
 		return
 	}
 	logger.Debugf("object store user %q status updated to %q", name, status)
+}
+
+// getSecretValue returns the value of key in a kubernetes secret
+func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySelector, namespace string) (string, error) {
+	var secret *corev1.Secret
+	namespacedName := types.NamespacedName{
+		Name:      selector.Name,
+		Namespace: namespace,
+	}
+	if err := r.client.Get(r.opManagerContext, namespacedName, secret); err != nil {
+		return "", errors.Wrapf(err, "failed to get secret %q", namespacedName)
+	}
+	value, ok := secret.Data[selector.Key]
+	if !ok {
+		return "", errors.Errorf("failed to find key %q in secret %q", selector.Key, namespacedName)
+	}
+
+	return string(value), nil
 }
