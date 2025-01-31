@@ -1277,6 +1277,59 @@ spec:
                         type: string
                       description: Pod's annotations
                       type: object
+                    deploymentStrategy:
+                      description: |-
+                        DeploymentStrategy describes how to replace existing pods with new ones
+                        Default value is RollingUpdate with MaxUnavailable and MaxSurege as 25% (kubernetes default)
+                      properties:
+                        rollingUpdate:
+                          description: |-
+                            Rolling update config params. Present only if DeploymentStrategyType =
+                            RollingUpdate.
+                            ---
+                            TODO: Update this to follow our convention for oneOf, whatever we decide it
+                            to be.
+                          properties:
+                            maxSurge:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              description: |-
+                                The maximum number of pods that can be scheduled above the desired number of
+                                pods.
+                                Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                                This can not be 0 if MaxUnavailable is 0.
+                                Absolute number is calculated from percentage by rounding up.
+                                Defaults to 25%.
+                                Example: when this is set to 30%, the new ReplicaSet can be scaled up immediately when
+                                the rolling update starts, such that the total number of old and new pods do not exceed
+                                130% of desired pods. Once old pods have been killed,
+                                new ReplicaSet can be scaled up further, ensuring that total number of pods running
+                                at any time during the update is at most 130% of desired pods.
+                              x-kubernetes-int-or-string: true
+                            maxUnavailable:
+                              anyOf:
+                                - type: integer
+                                - type: string
+                              description: |-
+                                The maximum number of pods that can be unavailable during the update.
+                                Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                                Absolute number is calculated from percentage by rounding down.
+                                This can not be 0 if MaxSurge is 0.
+                                Defaults to 25%.
+                                Example: when this is set to 30%, the old ReplicaSet can be scaled down to 70% of desired pods
+                                immediately when the rolling update starts. Once new pods are ready, old ReplicaSet
+                                can be scaled down further, followed by scaling up the new ReplicaSet, ensuring
+                                that the total number of pods available at all times during the update is at
+                                least 70% of desired pods.
+                              x-kubernetes-int-or-string: true
+                          type: object
+                        type:
+                          description:
+                            Type of deployment. Can be "Recreate" or "RollingUpdate".
+                            Default is RollingUpdate.
+                          type: string
+                      type: object
                     imagePullPolicy:
                       description:
                         To indicate the image pull policy to be applied to
@@ -3839,8 +3892,8 @@ spec:
                   description: |-
                     OMAP generator will generate the omap mapping between the PV name and the RBD image.
                     Need to be enabled when we are using rbd mirroring feature.
-                    By default OMAP generator sidecar is deployed with Csi controller plugin pod, to disable
-                    it set it to false.
+                    By default OMAP generator sidecar is not deployed with Csi controller plugin pod, to enable
+                    it set it to true.
                   type: boolean
                 grpcTimeout:
                   description:
@@ -8346,6 +8399,59 @@ spec:
                             type: string
                           description: Pod's annotations
                           type: object
+                        deploymentStrategy:
+                          description: |-
+                            DeploymentStrategy describes how to replace existing pods with new ones
+                            Default value is RollingUpdate with MaxUnavailable and MaxSurege as 25% (kubernetes default)
+                          properties:
+                            rollingUpdate:
+                              description: |-
+                                Rolling update config params. Present only if DeploymentStrategyType =
+                                RollingUpdate.
+                                ---
+                                TODO: Update this to follow our convention for oneOf, whatever we decide it
+                                to be.
+                              properties:
+                                maxSurge:
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  description: |-
+                                    The maximum number of pods that can be scheduled above the desired number of
+                                    pods.
+                                    Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                                    This can not be 0 if MaxUnavailable is 0.
+                                    Absolute number is calculated from percentage by rounding up.
+                                    Defaults to 25%.
+                                    Example: when this is set to 30%, the new ReplicaSet can be scaled up immediately when
+                                    the rolling update starts, such that the total number of old and new pods do not exceed
+                                    130% of desired pods. Once old pods have been killed,
+                                    new ReplicaSet can be scaled up further, ensuring that total number of pods running
+                                    at any time during the update is at most 130% of desired pods.
+                                  x-kubernetes-int-or-string: true
+                                maxUnavailable:
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  description: |-
+                                    The maximum number of pods that can be unavailable during the update.
+                                    Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%).
+                                    Absolute number is calculated from percentage by rounding down.
+                                    This can not be 0 if MaxSurge is 0.
+                                    Defaults to 25%.
+                                    Example: when this is set to 30%, the old ReplicaSet can be scaled down to 70% of desired pods
+                                    immediately when the rolling update starts. Once new pods are ready, old ReplicaSet
+                                    can be scaled down further, followed by scaling up the new ReplicaSet, ensuring
+                                    that the total number of pods available at all times during the update is at
+                                    least 70% of desired pods.
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                            type:
+                              description:
+                                Type of deployment. Can be "Recreate" or
+                                "RollingUpdate". Default is RollingUpdate.
+                              type: string
+                          type: object
                         imagePullPolicy:
                           description:
                             To indicate the image pull policy to be applied
@@ -10955,8 +11061,8 @@ spec:
                       description: |-
                         OMAP generator will generate the omap mapping between the PV name and the RBD image.
                         Need to be enabled when we are using rbd mirroring feature.
-                        By default OMAP generator sidecar is deployed with Csi controller plugin pod, to disable
-                        it set it to false.
+                        By default OMAP generator sidecar is not deployed with Csi controller plugin pod, to enable
+                        it set it to true.
                       type: boolean
                     grpcTimeout:
                       description:
@@ -14539,6 +14645,34 @@ rules:
     resources:
       - csiaddonsnodes
     verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - daemonsets/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
       - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -14604,6 +14738,34 @@ rules:
     resources:
       - csiaddonsnodes
     verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - daemonsets/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
+    verbs:
       - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -14616,6 +14778,34 @@ rules:
       - csiaddons.openshift.io
     resources:
       - csiaddonsnodes
+    verbs:
+      - get
+      - create
+      - update
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - replicasets
+    verbs:
+      - get
+  - apiGroups:
+      - apps
+    resources:
+      - deployments/finalizers
+      - daemonsets/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - authentication.k8s.io
+    resources:
+      - tokenreviews
     verbs:
       - create
 ---
@@ -14684,6 +14874,28 @@ rules:
   - apiGroups:
       - ""
     resources:
+      - configmaps
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - nodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - csinodes
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
       - persistentvolumes
     verbs:
       - get
@@ -14692,6 +14904,7 @@ rules:
       - create
       - delete
       - patch
+      - update
   - apiGroups:
       - ""
     resources:
@@ -14773,6 +14986,43 @@ rules:
     verbs:
       - update
       - patch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -15375,6 +15625,7 @@ rules:
       - create
       - delete
       - patch
+      - update
   - apiGroups:
       - ""
     resources:
@@ -15491,21 +15742,30 @@ rules:
     verbs:
       - create
   - apiGroups:
-      - ""
+      - groupsnapshot.storage.k8s.io
     resources:
-      - nodes
-    verbs:
-      - get
-      - list
-      - watch"
-  - apiGroups:
-      - storage.k8s.io
-    resources:
-      - csinodes
+      - volumegroupsnapshotclasses
     verbs:
       - get
       - list
       - watch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents
+    verbs:
+      - get
+      - list
+      - watch
+      - update
+      - patch
+  - apiGroups:
+      - groupsnapshot.storage.k8s.io
+    resources:
+      - volumegroupsnapshotcontents/status
+    verbs:
+      - update
+      - patch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -15802,7 +16062,9 @@ spec:
                   fieldPath: metadata.namespace
             - name: CSI_SERVICE_ACCOUNT_PREFIX
               value: ceph-csi-
-          image: quay.io/cephcsi/ceph-csi-operator:v0.1.0
+            - name: WATCH_NAMESPACE
+              value: ""
+          image: quay.io/cephcsi/ceph-csi-operator:v0.2.0
           livenessProbe:
             httpGet:
               path: /healthz
