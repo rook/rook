@@ -297,7 +297,8 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
 	var err error
-	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, *userConfig)
+	// lookup user by name only and not by access key
+	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, admin.User{ID: u.Name})
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
 			user, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *userConfig)
@@ -364,6 +365,13 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	err = r.objContext.AdminOpsClient.SetUserQuota(r.opManagerContext, userQuota)
 	if err != nil {
 		return errors.Wrapf(err, "failed to set quotas for user %q", u.Name)
+	}
+
+	// XXX sync keys here
+	if len(userConfig.Keys) > 0 {
+		if err := reconcileUserKeys(r.opManagerContext, r.objContext.AdminOpsClient, u.Name, userConfig.Keys); err != nil {
+			return errors.Wrapf(err, "failed to reconcile keys for user %q", u.Name)
+		}
 	}
 
 	// Set access and secret key
@@ -736,7 +744,7 @@ func (r *ReconcileObjectStoreUser) updateStatus(observedGeneration int64, name t
 
 // getSecretValue returns the value of key in a kubernetes secret
 func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySelector, namespace string) (string, error) {
-	var secret *corev1.Secret
+	secret := &corev1.Secret{}
 	namespacedName := types.NamespacedName{
 		Name:      selector.Name,
 		Namespace: namespace,
@@ -750,4 +758,68 @@ func (r *ReconcileObjectStoreUser) getSecretValue(selector *corev1.SecretKeySele
 	}
 
 	return string(value), nil
+}
+
+// reconcileUserKeys ensures the user's RGW keys match exactly the targetKeys slice.  Any keys set on the user but not present in targetKeys are purged.
+func reconcileUserKeys(ctx context.Context, client *admin.API, userID string, targetKeys []admin.UserKeySpec) error {
+	// Fetch the current user keys
+	userInfo, err := client.GetUser(ctx, admin.User{ID: userID})
+	if err != nil {
+		return errors.Wrapf(err, "failed to get user %q", userID)
+	}
+
+	// Create a lookup for the targetkeys (by AccessKey)
+	targetMap := make(map[string]admin.UserKeySpec, len(targetKeys))
+	for _, k := range targetKeys {
+		targetMap[k.AccessKey] = k
+	}
+
+	syncdKeys := make([]admin.UserKeySpec, len(targetKeys))
+
+	// Remove any keys configured for the user that aren't present in targetKeys
+	for _, existingKey := range userInfo.Keys {
+		k, found := targetMap[existingKey.AccessKey]
+		if !found {
+			// RemoveKey() requires the UID to be set but GetUser() returns the list of keys with only .User set
+			rmKey := existingKey
+			rmKey.UID = userID
+
+			if err := client.RemoveKey(ctx, rmKey); err != nil {
+				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
+			}
+			logger.Debugf("removed key %q from user %q as it is not in the target list", existingKey.AccessKey, userID)
+			continue
+		}
+		if existingKey.KeyType != k.KeyType || existingKey.UID != k.UID || existingKey.SecretKey != k.SecretKey {
+			// Key exists but needs to be updated; delete it so it will be recreated
+
+			// RemoveKey() requires the UID to be set but GetUser() returns the list of keys with only .User set
+			rmKey := existingKey
+			rmKey.UID = userID
+
+			if err := client.RemoveKey(ctx, rmKey); err != nil {
+				return errors.Wrapf(err, "failed to remove key %q from user %q", existingKey.AccessKey, userID)
+			}
+			logger.Debugf("removed key %q from user %q needs as it needs to be recreated", existingKey.AccessKey, userID)
+			continue
+		}
+		// else key exists and is correct, no action needed
+		// defer removal from targetMap until after the loop to avoid changing the map while iterating
+		syncdKeys = append(syncdKeys, k)
+	}
+
+	// Remove any keys from targetKeys that are already in sync
+	for _, k := range syncdKeys {
+		delete(targetMap, k.AccessKey)
+	}
+
+	// create each desired key
+	for _, k := range targetMap {
+		if _, err := client.CreateKey(ctx, k); err != nil {
+			return errors.Wrapf(err, "failed to create key %q for user %q", k.AccessKey, userID)
+		}
+		logger.Debugf("created key %q for user %q", k.AccessKey, userID)
+	}
+
+	return nil
 }
