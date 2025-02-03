@@ -553,12 +553,6 @@ class RadosJSON:
                 contents = f.read()
                 return contents.rstrip()
 
-    def _check_conflicting_options(self):
-        if not self._arg_parser.upgrade and not self._arg_parser.rbd_data_pool_name:
-            raise ExecutionFailureException(
-                "Either '--upgrade' or '--rbd-data-pool-name <pool_name>' should be specified"
-            )
-
     def _invalid_endpoint(self, endpoint_str):
         # extract the port by getting the last split on `:` delimiter
         try:
@@ -651,7 +645,6 @@ class RadosJSON:
         self._arg_parser = self.gen_arg_parser(args_to_parse=arg_list)
         if self._arg_parser.config_file:
             self.config = self.parse_config_file(self._arg_parser.config_file)
-        self._check_conflicting_options()
         self.run_as_user = self._arg_parser.run_as_user
         self.output_file = self._arg_parser.output
         self.ceph_conf = self._arg_parser.ceph_conf
