@@ -2,7 +2,7 @@ module github.com/rook/rook/pkg/apis
 
 go 1.23.0
 
-toolchain go1.23.4
+toolchain go1.23.5
 
 replace (
 	github.com/googleapis/gnostic => github.com/googleapis/gnostic v0.4.1
