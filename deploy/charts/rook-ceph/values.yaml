@@ -7,7 +7,7 @@ image:
   repository: docker.io/rook/ceph
   # -- Image tag
   # @default -- `master`
-  tag: v1.16.2
+  tag: v1.16.3
   # -- Image pull policy
   pullPolicy: IfNotPresent
 
@@ -624,7 +624,7 @@ discover:
   #       memory: 128Mi
 
 # -- Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
-customHostnameLabel: 
+customHostnameLabel:
 
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false
