@@ -73,7 +73,6 @@ type ReconcileObjectStoreUser struct {
 	context           *clusterd.Context
 	objContext        *object.AdminOpsContext
 	advertiseEndpoint string
-	userConfig        *admin.User
 	cephClusterSpec   *cephv1.ClusterSpec
 	clusterInfo       *cephclient.ClusterInfo
 	opManagerContext  context.Context
@@ -222,7 +221,6 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 
 	// Generate user config
 	userConfig := generateUserConfig(cephObjectStoreUser)
-	r.userConfig = &userConfig
 
 	// DELETE: the CR was deleted
 	if !cephObjectStoreUser.GetDeletionTimestamp().IsZero() {
@@ -253,7 +251,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE CEPH USER
-	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser)
+	reconcileResponse, err = r.reconcileCephUser(cephObjectStoreUser, userConfig)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -266,7 +264,7 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	}
 
 	tlsSecretName := store.Spec.Gateway.SSLCertificateRef
-	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser, tlsSecretName)
+	reconcileResponse, err = r.reconcileCephUserSecret(cephObjectStoreUser, userConfig, tlsSecretName)
 	if err != nil {
 		r.updateStatus(k8sutil.ObservedGenerationNotAvailable, request.NamespacedName, k8sutil.ReconcileFailedStatus)
 		return reconcileResponse, *cephObjectStoreUser, err
@@ -281,8 +279,8 @@ func (r *ReconcileObjectStoreUser) reconcile(request reconcile.Request) (reconci
 	return reconcile.Result{}, *cephObjectStoreUser, nil
 }
 
-func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser) (reconcile.Result, error) {
-	err := r.createOrUpdateCephUser(cephObjectStoreUser)
+func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1.CephObjectStoreUser, userConfig *admin.User) (reconcile.Result, error) {
+	err := r.createOrUpdateCephUser(cephObjectStoreUser, userConfig)
 	if err != nil {
 		return reconcile.Result{}, errors.Wrapf(err, "failed to create/update object store user %q", cephObjectStoreUser.Name)
 	}
@@ -290,18 +288,18 @@ func (r *ReconcileObjectStoreUser) reconcileCephUser(cephObjectStoreUser *cephv1
 	return reconcile.Result{}, nil
 }
 
-func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser) error {
+func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectStoreUser, userConfig *admin.User) error {
 	logger.Infof("creating ceph object user %q in namespace %q", u.Name, u.Namespace)
 
 	logCreateOrUpdate := fmt.Sprintf("retrieved existing ceph object user %q", u.Name)
 	var user admin.User
 	var err error
-	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, *r.userConfig)
+	user, err = r.objContext.AdminOpsClient.GetUser(r.opManagerContext, *userConfig)
 	if err != nil {
 		if errors.Is(err, admin.ErrNoSuchUser) {
-			user, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *r.userConfig)
+			user, err = r.objContext.AdminOpsClient.CreateUser(r.opManagerContext, *userConfig)
 			if err != nil {
-				return errors.Wrapf(err, "failed to create ceph object user %v", &r.userConfig.ID)
+				return errors.Wrapf(err, "failed to create ceph object user %v", &userConfig.ID)
 			}
 			logCreateOrUpdate = fmt.Sprintf("created ceph object user %q", u.Name)
 		} else {
@@ -312,30 +310,30 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	// Update max bucket if necessary
 	logger.Tracef("user capabilities(id: %s, caps: %#v, user caps: %s, op mask: %s)",
 		user.ID, user.Caps, user.UserCaps, user.OpMask)
-	if *user.MaxBuckets != *r.userConfig.MaxBuckets {
-		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *r.userConfig)
+	if *user.MaxBuckets != *userConfig.MaxBuckets {
+		user, err = r.objContext.AdminOpsClient.ModifyUser(r.opManagerContext, *userConfig)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update ceph object user %q max buckets", r.userConfig.ID)
+			return errors.Wrapf(err, "failed to update ceph object user %q max buckets", userConfig.ID)
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
 	}
 
 	// Update caps if necessary
 	user.UserCaps = generateUserCaps(user)
-	if user.UserCaps != r.userConfig.UserCaps {
+	if user.UserCaps != userConfig.UserCaps {
 		// If they are no caps to be removed, the API will return an error "missing user capabilities"
 		if user.UserCaps != "" {
-			logger.Tracef("remove capabilities %s from user %s", user.UserCaps, r.userConfig.ID)
-			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, r.userConfig.ID, user.UserCaps)
+			logger.Tracef("remove capabilities %s from user %s", user.UserCaps, userConfig.ID)
+			_, err = r.objContext.AdminOpsClient.RemoveUserCap(r.opManagerContext, userConfig.ID, user.UserCaps)
 			if err != nil {
-				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", r.userConfig.ID)
+				return errors.Wrapf(err, "failed to remove current ceph object user %q capabilities", userConfig.ID)
 			}
 		}
-		if r.userConfig.UserCaps != "" {
-			logger.Tracef("set capabilities %s for user %s", r.userConfig.UserCaps, r.userConfig.ID)
-			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, r.userConfig.ID, r.userConfig.UserCaps)
+		if userConfig.UserCaps != "" {
+			logger.Tracef("set capabilities %s for user %s", userConfig.UserCaps, userConfig.ID)
+			_, err = r.objContext.AdminOpsClient.AddUserCap(r.opManagerContext, userConfig.ID, userConfig.UserCaps)
 			if err != nil {
-				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", r.userConfig.ID)
+				return errors.Wrapf(err, "failed to update ceph object user %q capabilities", userConfig.ID)
 			}
 		}
 		logCreateOrUpdate = fmt.Sprintf("updated ceph object user %q", u.Name)
@@ -366,11 +364,11 @@ func (r *ReconcileObjectStoreUser) createOrUpdateCephUser(u *cephv1.CephObjectSt
 	}
 
 	// Set access and secret key
-	if len(r.userConfig.Keys) == 0 {
-		r.userConfig.Keys = make([]admin.UserKeySpec, 1)
+	if len(userConfig.Keys) == 0 {
+		userConfig.Keys = make([]admin.UserKeySpec, 1)
 	}
-	r.userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
-	r.userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
+	userConfig.Keys[0].AccessKey = user.Keys[0].AccessKey
+	userConfig.Keys[0].SecretKey = user.Keys[0].SecretKey
 	logger.Info(logCreateOrUpdate)
 
 	return nil
@@ -436,7 +434,7 @@ func generateUserCaps(user admin.User) string {
 	return caps
 }
 
-func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
+func generateUserConfig(user *cephv1.CephObjectStoreUser) *admin.User {
 	// Set DisplayName to match Name if DisplayName is not set
 	displayName := user.Spec.DisplayName
 	if len(displayName) == 0 {
@@ -444,7 +442,7 @@ func generateUserConfig(user *cephv1.CephObjectStoreUser) admin.User {
 	}
 
 	// create the user
-	userConfig := admin.User{
+	userConfig := &admin.User{
 		ID:          user.Name,
 		DisplayName: displayName,
 		Keys:        make([]admin.UserKeySpec, 0),
@@ -520,11 +518,11 @@ func generateStatusInfo(u *cephv1.CephObjectStoreUser) map[string]string {
 	return m
 }
 
-func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser, tlsSecretName string) *corev1.Secret {
+func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectStoreUser, userConfig *admin.User, tlsSecretName string) *corev1.Secret {
 	// Store the keys in a secret
 	secrets := map[string]string{
-		"AccessKey": r.userConfig.Keys[0].AccessKey,
-		"SecretKey": r.userConfig.Keys[0].SecretKey,
+		"AccessKey": userConfig.Keys[0].AccessKey,
+		"SecretKey": userConfig.Keys[0].SecretKey,
 		"Endpoint":  r.objContext.Endpoint,
 	}
 	if tlsSecretName != "" {
@@ -547,9 +545,9 @@ func (r *ReconcileObjectStoreUser) generateCephUserSecret(u *cephv1.CephObjectSt
 	return secret
 }
 
-func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser, tlsSecretName string) (reconcile.Result, error) {
+func (r *ReconcileObjectStoreUser) reconcileCephUserSecret(cephObjectStoreUser *cephv1.CephObjectStoreUser, userConfig *admin.User, tlsSecretName string) (reconcile.Result, error) {
 	// Generate Kubernetes Secret
-	secret := r.generateCephUserSecret(cephObjectStoreUser, tlsSecretName)
+	secret := r.generateCephUserSecret(cephObjectStoreUser, userConfig, tlsSecretName)
 
 	// Set owner ref to the object store user object
 	err := controllerutil.SetControllerReference(cephObjectStoreUser, secret, r.scheme)
