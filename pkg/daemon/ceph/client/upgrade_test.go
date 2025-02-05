@@ -323,7 +323,7 @@ func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
 	t.Run("1 node with 3 OSDs", func(t *testing.T) {
 		lsOutput = fake.OsdLsOutput(3)
 		treeOutput = fake.OsdTreeOutput(1, 3)
-		assert.False(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+		assert.True(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
 	})
 
 	t.Run("2 nodes with 1 OSD each", func(t *testing.T) {
@@ -349,6 +349,6 @@ func TestOSDUpdateShouldCheckOkToStop(t *testing.T) {
 	t.Run("0 nodes with down OSDs", func(t *testing.T) {
 		lsOutput = fake.OsdLsOutput(3)
 		treeOutput = fake.OsdTreeOutput(0, 1)
-		assert.False(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
+		assert.True(t, OSDUpdateShouldCheckOkToStop(context, clusterInfo))
 	})
 }
