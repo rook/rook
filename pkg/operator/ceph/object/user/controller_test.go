@@ -498,30 +498,27 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objContext: &cephobject.AdminOpsContext{
 			AdminOpsClient: adminClient,
 		},
-		userConfig:       &userConfig,
 		opManagerContext: context.TODO(),
 	}
 	maxsize, err := resource.ParseQuantity(maxsizestr)
 	assert.NoError(t, err)
 
 	t.Run("user with empty name", func(t *testing.T) {
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.Error(t, err)
 	})
 
 	t.Run("user without any Quotas or Capabilities", func(t *testing.T) {
 		objectUser.Name = name
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
 	t.Run("setting MaxBuckets for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket}
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -534,8 +531,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 			Info:   "read, write",
 		}
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -544,36 +540,31 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		objectUser.Spec.Capabilities = nil
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject}
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting MaxSize for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxSize: &maxsize}
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("setting both MaxSize and MaxObjects for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxObjects: &maxobject, MaxSize: &maxsize}
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 	t.Run("resetting MaxSize and MaxObjects again for the user", func(t *testing.T) {
 		objectUser.Spec.Quotas = nil
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 
@@ -586,8 +577,7 @@ func TestCreateOrUpdateCephUser(t *testing.T) {
 		}
 		objectUser.Spec.Quotas = &cephv1.ObjectUserQuotaSpec{MaxBuckets: &maxbucket, MaxObjects: &maxobject, MaxSize: &maxsize}
 		userConfig = generateUserConfig(objectUser)
-		r.userConfig = &userConfig
-		err = r.createOrUpdateCephUser(objectUser)
+		err = r.createOrUpdateCephUser(objectUser, userConfig)
 		assert.NoError(t, err)
 	})
 }
