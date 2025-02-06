@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/rook/rook/tests/integration/object/bucketowner"
+	"github.com/rook/rook/tests/integration/object/userkeys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -133,6 +134,9 @@ func (s *ObjectSuite) TestWithoutTLS() {
 // Check issues in MGRs, Delete Bucket and Delete user
 // Test for ObjectStore with and without TLS enabled
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, installer *installer.CephInstaller, s *suite.Suite, namespace string, tlsEnable bool, swiftAndKeystone bool) {
+	// XXX first for dev testing
+	userkeys.TestObjectStoreUserKeys(s.T(), k8sh, installer, logger, tlsEnable)
+
 	storeName := "test-store"
 	if tlsEnable {
 		storeName = objectStoreTLSName
