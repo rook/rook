@@ -188,36 +188,6 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore))
 	}
 
-	// Make sure a CephCluster is present otherwise do nothing
-	cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
-	if !isReadyToReconcile {
-		// This handles the case where the Ceph Cluster is gone and we want to delete that CR
-		// We skip the deleteStore() function since everything is gone already
-		//
-		// Also, only remove the finalizer if the CephCluster is gone
-		// If not, we should wait for it to be ready
-		// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
-		if !cephObjectStore.GetDeletionTimestamp().IsZero() && !cephClusterExists {
-			// Remove finalizer
-			err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStore)
-			if err != nil {
-				return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to remove finalizer")
-			}
-
-			// Return and do not requeue. Successful deletion.
-			return reconcile.Result{}, *cephObjectStore, nil
-		}
-
-		return reconcileResponse, *cephObjectStore, nil
-	}
-	r.clusterSpec = &cephCluster.Spec
-
-	// Populate clusterInfo during each reconcile
-	r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.clusterSpec)
-	if err != nil {
-		return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to populate cluster info")
-	}
-
 	// DELETE: the CR was deleted
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
 		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
@@ -271,14 +241,37 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 		return reconcile.Result{}, *cephObjectStore, nil
 	}
 
-	if cephObjectStore.Spec.IsExternal() {
-		// Check the ceph version of the running monitors
-		desiredCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
-		if err != nil {
-			return reconcile.Result{}, *cephObjectStore, errors.Wrapf(err, "failed to retrieve current ceph %q version", config.MonType)
+	if !cephObjectStore.Spec.IsExternal() {
+		// Make sure a CephCluster is present otherwise do nothing
+		cephCluster, isReadyToReconcile, cephClusterExists, reconcileResponse := opcontroller.IsReadyToReconcile(r.opManagerContext, r.client, request.NamespacedName, controllerName)
+		if !isReadyToReconcile {
+			// This handles the case where the Ceph Cluster is gone and we want to delete that CR
+			// We skip the deleteStore() function since everything is gone already
+			//
+			// Also, only remove the finalizer if the CephCluster is gone
+			// If not, we should wait for it to be ready
+			// This handles the case where the operator is not ready to accept Ceph command but the cluster exists
+			if !cephObjectStore.GetDeletionTimestamp().IsZero() && !cephClusterExists {
+				// Remove finalizer
+				err := opcontroller.RemoveFinalizer(r.opManagerContext, r.client, cephObjectStore)
+				if err != nil {
+					return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to remove finalizer")
+				}
+
+				// Return and do not requeue. Successful deletion.
+				return reconcile.Result{}, *cephObjectStore, nil
+			}
+
+			return reconcileResponse, *cephObjectStore, nil
 		}
-		r.clusterInfo.CephVersion = desiredCephVersion
-	} else {
+		r.clusterSpec = &cephCluster.Spec
+
+		// Populate clusterInfo during each reconcile
+		r.clusterInfo, _, _, err = opcontroller.LoadClusterInfo(r.context, r.opManagerContext, request.NamespacedName.Namespace, r.clusterSpec)
+		if err != nil {
+			return reconcile.Result{}, *cephObjectStore, errors.Wrap(err, "failed to populate cluster info")
+		}
+
 		// Detect desired CephCluster version
 		runningCephVersion, desiredCephVersion, err := currentAndDesiredCephVersion(
 			r.opManagerContext,
@@ -317,7 +310,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	}
 
 	// CREATE/UPDATE
-	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName, cephCluster.Spec)
+	_, err = r.reconcileCreateObjectStore(cephObjectStore, request.NamespacedName)
 	if err != nil && kerrors.IsNotFound(err) {
 		logger.Info(opcontroller.OperatorNotInitializedMessage)
 		return opcontroller.WaitForRequeueIfOperatorNotInitialized, *cephObjectStore, nil
@@ -335,7 +328,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	return reconcile.Result{}, *cephObjectStore, nil
 }
 
-func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName, cluster cephv1.ClusterSpec) (reconcile.Result, error) {
+func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *cephv1.CephObjectStore, namespacedName types.NamespacedName) (reconcile.Result, error) {
 	ownerInfo := k8sutil.NewOwnerInfo(cephObjectStore, r.scheme)
 	cfg := clusterConfig{
 		context:     r.context,
@@ -365,8 +358,7 @@ func (r *ReconcileCephObjectStore) reconcileCreateObjectStore(cephObjectStore *c
 		// service can also be removed at that point.
 		service := cfg.generateService(cephObjectStore)
 		clientset := cfg.context.Clientset
-		clusterCtx := cfg.clusterInfo.Context
-		_, err = clientset.CoreV1().Services(service.Namespace).Get(clusterCtx, service.Name, metav1.GetOptions{})
+		_, err = clientset.CoreV1().Services(service.Namespace).Get(context.TODO(), service.Name, metav1.GetOptions{})
 		if err != nil {
 			if kerrors.IsNotFound(err) {
 				// We do not need to create Services/Endpoints for new CephObjectStores.
