@@ -20,6 +20,8 @@ spec:
   mon:
     count: 1
     allowMultiplePerNode: true
+  # test environments can skip ok-to-stop checks during upgrades
+  skipUpgradeChecks: true
   mgr:
     count: 1
     allowMultiplePerNode: true
