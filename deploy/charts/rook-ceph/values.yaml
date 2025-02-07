@@ -624,7 +624,7 @@ discover:
   #       memory: 128Mi
 
 # -- Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
-customHostnameLabel: 
+customHostnameLabel:
 
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false
@@ -651,6 +651,13 @@ enableOBCWatchOperatorNamespace: true
 # -- Specify the prefix for the OBC provisioner in place of the cluster namespace
 # @default -- `ceph cluster namespace`
 obcProvisionerNamePrefix:
+
+# -- Many OBC additional config fields may be risky for administrators to allow users control over.
+# The safe and default-allowed fields are 'maxObjects' and 'maxSize'.
+# Other fields should be considered risky. To allow all additional configs, use this value:
+#   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"
+# @default -- "maxObjects,maxSize"
+obcAllowAdditionalConfigFields: "maxObjects,maxSize"
 
 monitoring:
   # -- Enable monitoring. Requires Prometheus to be pre-installed.
