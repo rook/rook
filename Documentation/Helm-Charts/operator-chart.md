@@ -155,6 +155,7 @@ The following table lists the configurable parameters of the rook-operator chart
 | `image.tag` | Image tag | `master` |
 | `imagePullSecrets` | imagePullSecrets option allow to pull docker images from private docker registry. Option will be passed to all service accounts. | `nil` |
 | `logLevel` | Global log level for the operator. Options: `ERROR`, `WARNING`, `INFO`, `DEBUG` | `"INFO"` |
+| `monitoring` | Many OBC additional config fields are dangerous for administrators to allow users control over. The safe and default-allowed fields are 'maxObjects' and 'maxSize'. Other fields should be considered risky. To allow all additional configs, use this value:   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner" obcAllowAdditionalConfigFields: "maxObjects,maxSize" | "maxObjects,maxSize" |
 | `monitoring.enabled` | Enable monitoring. Requires Prometheus to be pre-installed. Enabling will also create RBAC rules to allow Operator to create ServiceMonitors | `false` |
 | `nodeSelector` | Kubernetes [`nodeSelector`](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector) to add to the Deployment. | `{}` |
 | `obcProvisionerNamePrefix` | Specify the prefix for the OBC provisioner in place of the cluster namespace | `ceph cluster namespace` |

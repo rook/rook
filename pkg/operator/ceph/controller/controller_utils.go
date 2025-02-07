@@ -54,6 +54,9 @@ const (
 	enforceHostNetworkSettingName  string = "ROOK_ENFORCE_HOST_NETWORK"
 	enforceHostNetworkDefaultValue string = "false"
 
+	obcAllowAdditionalConfigFieldsSettingName  string = "ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS"
+	obcAllowAdditionalConfigFieldsDefaultValue string = "maxObjects,maxSize"
+
 	revisionHistoryLimitSettingName string = "ROOK_REVISION_HISTORY_LIMIT"
 
 	// UninitializedCephConfigError refers to the error message printed by the Ceph CLI when there is no ceph configuration file
@@ -90,6 +93,9 @@ var (
 	// loopDevicesAllowed indicates whether loop devices are allowed to be used
 	loopDevicesAllowed          = false
 	revisionHistoryLimit *int32 = nil
+
+	// allowed OBC additional config fields
+	obcAllowAdditionalConfigFields = []string{"maxObjects", "maxSize"}
 )
 
 func DiscoveryDaemonEnabled(data map[string]string) bool {
@@ -157,6 +163,20 @@ func SetRevisionHistoryLimit(data map[string]string) {
 
 func RevisionHistoryLimit() *int32 {
 	return revisionHistoryLimit
+}
+
+func SetObcAllowAdditionalConfigFields(data map[string]string) {
+	strval := k8sutil.GetValue(data, obcAllowAdditionalConfigFieldsSettingName, obcAllowAdditionalConfigFieldsDefaultValue)
+	obcAllowAdditionalConfigFields = strings.Split(strval, ",")
+}
+
+func ObcAdditionalConfigKeyIsAllowed(configField string) bool {
+	for _, allowedConfig := range obcAllowAdditionalConfigFields {
+		if configField == allowedConfig {
+			return true
+		}
+	}
+	return false
 }
 
 // canIgnoreHealthErrStatusInReconcile determines whether a status of HEALTH_ERR in the CephCluster can be ignored safely.

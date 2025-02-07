@@ -246,3 +246,45 @@ func TestIsReadyToReconcile(t *testing.T) {
 		assert.False(t, clusterExists)
 	})
 }
+
+func TestObcAllowAdditionalConfigFields(t *testing.T) {
+	tests := []struct {
+		name           string
+		data           map[string]string
+		shouldAllow    []string
+		shouldDisallow []string
+	}{
+		{"not set", map[string]string{},
+			[]string{"maxObjects", "maxSize"}, // default allowlist is unlikely to need changing EVER
+			[]string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
+		{"set to empty", map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": ""},
+			[]string{}, // admin can allow no quota options if desired
+			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
+		{"set to default", map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "maxObjects,maxSize"},
+			[]string{"maxObjects", "maxSize"},
+			[]string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
+		{"all quota fields", map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize"},
+			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize"},
+			[]string{"bucketPolicy", "bucketLifecycle", "bucketOwner", "random"}},
+		{"all fields", map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"},
+			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner"},
+			[]string{"random"}},
+		// this mechanism doesn't do any field checking - that isn't it's job - it merely handles
+		// allow-listing essentially arbitrary config keys
+		{"all fields including unknown", map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner,random"},
+			[]string{"maxObjects", "maxSize", "bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner", "random"},
+			[]string{"otherRandom"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetObcAllowAdditionalConfigFields(tt.data)
+
+			for _, toAllow := range tt.shouldAllow {
+				assert.True(t, ObcAdditionalConfigKeyIsAllowed(toAllow))
+			}
+			for _, toDisallow := range tt.shouldDisallow {
+				assert.False(t, ObcAdditionalConfigKeyIsAllowed(toDisallow))
+			}
+		})
+	}
+}
