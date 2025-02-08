@@ -148,6 +148,9 @@ fi
 if [[ "$CV_MODE" == "lvm" ]]; then
 	TMP_DIR=$(mktemp -d)
 
+	# prevent LVM from trying to scan RBD volumes that may be unable to serve reads without this OSD up
+	echo 'devices { filter = ["r|/dev/rbd.*|"] }' >> /etc/lvm/lvm.conf
+
 	# activate osd
 	ceph-volume lvm activate --no-systemd "$OSD_STORE_FLAG" "$OSD_ID" "$OSD_UUID"
 
