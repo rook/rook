@@ -104,6 +104,7 @@ func (c *Cluster) provisionPodTemplateSpec(osdProps osdProperties, restart v1.Re
 	// ceph-volume is currently set up to use /etc/ceph/ceph.conf; this means no user config
 	// overrides will apply to ceph-volume, but this is unnecessary anyway
 	volumes := append(controller.PodVolumes(provisionConfig.DataPathMap, c.spec.DataDirHostPath, c.spec.DataDirHostPath, true), copyBinariesVolume)
+	volumes = c.updateCephConfigVolume(volumes, osdProps.crushHostname)
 
 	// create a volume on /dev so the pod can access devices on the host
 	devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
