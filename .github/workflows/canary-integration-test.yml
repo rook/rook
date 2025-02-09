@@ -1621,6 +1621,7 @@ jobs:
       - name: write an object to one cluster, read from the other
         shell: bash --noprofile --norc -eo pipefail -x {0}
         run: |
+          # testing
           tests/scripts/github-action-helper.sh test_multisite_object_replication
 
       # if this test fails, it could mean the RGW `period get` or `period update` output has changed
