@@ -22,8 +22,8 @@ spec:
       labels:
         app: rook-ceph-operator
         helm.sh/chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
-{{- if .Values.podLabels }}
-{{ toYaml .Values.podLabels | indent 8 }}
+{{- if .Values.operatorPodLabels }}
+{{ toYaml .Values.operatorPodLabels | indent 8 }}
 {{- end }}
 {{- if .Values.annotations }}
       annotations:
