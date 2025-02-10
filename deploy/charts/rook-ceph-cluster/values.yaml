@@ -431,6 +431,7 @@ ingress:
     # host:
     #   name: dashboard.example.com
     #   path: "/ceph-dashboard(/|$)(.*)"
+    #   pathType: Prefix
     # tls:
     # - hosts:
     #     - dashboard.example.com
