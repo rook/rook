@@ -37,7 +37,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions := []byte(`
 	{
 		"mon": {
-			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
+			"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
 			"ceph version 18.1.0 (4be78cea2b4ae54a27b1049cffa1208df48bffae) reef (stable)": 2
 		}
 	}`)
@@ -53,7 +53,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
-			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
+			"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 1,
 			"ceph version 18.1.0 (4be78cea2b4ae54a27b1049cffa1208df48bffae) reef (stable)": 2
 		}
 	}`)
@@ -69,7 +69,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+				"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions3 cephv1.CephDaemonsVersions
@@ -86,7 +86,7 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	fakeRunningVersions = []byte(`
 	{
 		"overall": {
-			"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+			"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 		}
 	}`)
 	var dummyRunningVersions4 cephv1.CephDaemonsVersions
@@ -98,12 +98,12 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 5 test - spec version and running cluster versions are identical --> we upgrade
-	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 1,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+				"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions5 cephv1.CephDaemonsVersions
@@ -115,12 +115,12 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.False(t, m)
 
 	// 6 test - spec version and running cluster have different commit ID
-	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0, Build: 139,
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 1, Build: 139,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+				"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions6 cephv1.CephDaemonsVersions
@@ -132,12 +132,12 @@ func TestDiffImageSpecAndClusterRunningVersion(t *testing.T) {
 	assert.True(t, m)
 
 	// 7 test - spec version and running cluster have same commit ID
-	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 0,
+	fakeImageVersion = cephver.CephVersion{Major: 19, Minor: 2, Extra: 1,
 		CommitID: "3a54b2b6d167d4a2a19e003a705696d4fe619afc"}
 	fakeRunningVersions = []byte(`
 		{
 			"overall": {
-				"ceph version 19.2.0 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
+				"ceph version 19.2.1 (3a54b2b6d167d4a2a19e003a705696d4fe619afc) squid (stable)": 2
 			}
 		}`)
 	var dummyRunningVersions7 cephv1.CephDaemonsVersions
@@ -180,7 +180,7 @@ func TestSupportedVersion(t *testing.T) {
 	assert.NoError(t, c.validateCephVersion(v))
 
 	// Squid is supported
-	v = &cephver.CephVersion{Major: 19, Minor: 2, Extra: 0}
+	v = &cephver.CephVersion{Major: 19, Minor: 2, Extra: 1}
 	assert.NoError(t, c.validateCephVersion(v))
 
 	// Tentacle release is not supported

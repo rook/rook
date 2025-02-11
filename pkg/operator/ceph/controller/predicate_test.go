@@ -98,18 +98,18 @@ func TestIsUpgrade(t *testing.T) {
 	assert.False(t, b)
 
 	// different value do something
-	newLabel["ceph_version"] = "19.2.0-squid"
+	newLabel["ceph_version"] = "19.2.1-squid"
 	b = isUpgrade(oldLabel, newLabel)
 	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 
 	// same value do nothing
-	oldLabel["ceph_version"] = "19.2.0-squid"
-	newLabel["ceph_version"] = "19.2.0-squid"
+	oldLabel["ceph_version"] = "19.2.1-squid"
+	newLabel["ceph_version"] = "19.2.1-squid"
 	b = isUpgrade(oldLabel, newLabel)
 	assert.False(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 
 	// different value do something
-	newLabel["ceph_version"] = "19.2.1-squid"
+	newLabel["ceph_version"] = "19.2.2-squid"
 	b = isUpgrade(oldLabel, newLabel)
 	assert.True(t, b, fmt.Sprintf("%v,%v", oldLabel, newLabel))
 }
