@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rook/rook/pkg/operator/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -364,5 +365,47 @@ func (c *Cluster) deleteAllStatusConfigMaps() {
 		if err != nil {
 			logger.Warningf("failed to clean up dangling OSD prepare status configmap %q. %v", cm.Name, err)
 		}
+	}
+}
+
+// delete the prepare jobs, which are completed and have duplicated placements
+func (c *Cluster) deletePrepareJobs() {
+	// list all the prepare jobs
+	jobName := "rook-ceph-osd-prepare"
+	listOpts := metav1.ListOptions{
+		LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, jobName),
+	}
+
+	jobs, err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).List(c.clusterInfo.Context, listOpts)
+	if err != nil {
+		logger.Warningf("failed to list OSD prepare jobs. %v", err)
+		return
+	}
+
+	// filter out the completed jobs
+	for _, job := range jobs.Items {
+		if job.Status.Succeeded == 1 {
+			c.deleteDuplicatePlacementJobs(job)
+		}
+	}
+}
+
+func (c *Cluster) deleteDuplicatePlacementJobs(job batchv1.Job) {
+	// filter the jobs that has duplicated tolearations
+	tolerations := job.Spec.Template.Spec.Tolerations
+
+	duplicate := make(map[corev1.Toleration]bool)
+	for _, tole := range tolerations {
+		if duplicate[tole] {
+			logger.Infof("deleting completed and duplicated toleartions OSD prepare job %q", job.Name)
+			deletePolicy := metav1.DeletePropagationForeground
+			err := c.context.Clientset.BatchV1().Jobs(c.clusterInfo.Namespace).Delete(c.clusterInfo.Context, job.Name, metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+			if err != nil {
+				logger.Warningf("failed to delete OSD prepare job %q. %v", job.Name, err)
+			}
+			return
+		}
+
+		duplicate[tole] = true
 	}
 }

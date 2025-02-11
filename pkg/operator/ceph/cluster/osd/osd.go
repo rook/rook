@@ -279,6 +279,10 @@ func (c *Cluster) Start() error {
 	// for example, if the storage spec changed from or a node failed in a previous failed reconcile
 	c.deleteAllStatusConfigMaps()
 
+	// prepare jobs might have duplicate tolertions, so we need to delete them
+	// this is a workaround until we have a better solution for this
+	c.deletePrepareJobs()
+
 	// The following block is used to apply any command(s) required by an upgrade
 	c.applyUpgradeOSDFunctionality()
 
