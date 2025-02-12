@@ -113,7 +113,7 @@ EXPORT_DEFAULTS {
 
 NFSv4 {
 	Delegations = false;
-	RecoveryBackend = 'rados_cluster';
+	RecoveryBackend = "rados_cluster";
 	Minor_Versions = 1, 2;
 }
 
@@ -128,7 +128,7 @@ RADOS_KV {
 RADOS_URLS {
 	ceph_conf = "` + cephclient.DefaultConfigFilePath() + `";
 	userid = ` + userID + `;
-	watch_url = '` + url + `';
+	watch_url = "` + url + `";
 }
 
 RGW {
