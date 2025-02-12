@@ -398,6 +398,9 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 		t.Run(fmt.Sprintf("keys set on user %q changed", osu1.Name), func(t *testing.T) {
 			var liveUser admin.User
 
+			// the 2 explicit keypairs are set and nothing else
+			secretKeys := []corev1.Secret{*secret4, *secret5}
+
 			// assume that the .Phase doesn't change when updating keys
 			inSync := utils.Retry(40, time.Second, "CephObjectStoreUser keys changed", func() bool {
 				var err error
@@ -405,12 +408,63 @@ func TestObjectStoreUserKeys(t *testing.T, k8sh *utils.K8sHelper, installer *ins
 				if err != nil {
 					return false
 				}
-				return len(liveUser.Keys) == 2
+				return len(secretKeys) == len(liveUser.Keys)
 			})
 			require.True(t, inSync)
 
-			// the 2 explicit keypairs are set and nothing else
-			secretKeys := []corev1.Secret{*secret4, *secret5}
+			assert.Equal(t, len(secretKeys), len(liveUser.Keys))
+
+			for _, secret := range secretKeys {
+				k, err := findUserKeySpec(liveUser.Keys, secret.StringData["AWS_ACCESS_KEY_ID"])
+				require.NoError(t, err)
+				assert.Equal(t, secret.StringData["AWS_ACCESS_KEY_ID"], k.AccessKey)
+				assert.Equal(t, secret.StringData["AWS_SECRET_ACCESS_KEY"], k.SecretKey)
+			}
+		})
+
+		// when all explicit keys are removed from CephObjectStoreUser, an authomtic keypair should be created
+		t.Run(fmt.Sprintf("Remove all keys set on CephObjectStoreUser %q", osu1.Name), func(t *testing.T) {
+			liveOsu, err := k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Get(ctx, osu1.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+
+			liveOsu.Spec.Keys = nil // []cephv1.ObjectUserKey{
+
+			_, err = k8sh.RookClientset.CephV1().CephObjectStoreUsers(ns.Name).Update(ctx, liveOsu, metav1.UpdateOptions{})
+			require.NoError(t, err)
+		})
+
+		// secret was created
+		t.Run(fmt.Sprintf("automatic secret for CephObjectStoreUser %q created", osu1.Name), func(t *testing.T) {
+			secretName := "rook-ceph-object-user-" + ns.Name + "-" + osu1.Name
+
+			present := utils.Retry(40, time.Second, "Secret exists", func() bool {
+				_, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secretName, metav1.GetOptions{})
+				return err == nil
+			})
+			assert.True(t, present)
+		})
+
+		// XXX keys updated on user
+		t.Run(fmt.Sprintf("keys set on user %q changed", osu1.Name), func(t *testing.T) {
+			var liveUser admin.User
+			secretName := "rook-ceph-object-user-" + ns.Name + "-" + osu1.Name
+
+			liveSecret, err := k8sh.Clientset.CoreV1().Secrets(ns.Name).Get(ctx, secretName, metav1.GetOptions{})
+			require.NoError(t, err)
+
+			// XXX the only key set is the automatic keypair???
+			secretKeys := []corev1.Secret{*liveSecret}
+
+			// assume that the .Phase doesn't change when updating keys
+			inSync := utils.Retry(40, time.Second, "CephObjectStoreUser keys changed", func() bool {
+				var err error
+				liveUser, err = adminClient.GetUser(ctx, admin.User{ID: osu1.Name})
+				if err != nil {
+					return false
+				}
+				return len(secretKeys) == len(liveUser.Keys)
+			})
+			require.True(t, inSync)
 
 			assert.Equal(t, len(secretKeys), len(liveUser.Keys))
 
