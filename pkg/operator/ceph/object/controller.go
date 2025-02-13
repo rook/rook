@@ -183,9 +183,9 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 	// The CR was just created, initializing status fields
 	if cephObjectStore.Status == nil {
 		// The store is not available so let's not build the status Info yet
-		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{})
+		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, replicaCountNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, map[string]string{})
 	} else {
-		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore))
+		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, replicaCountNotAvailable, r.client, request.NamespacedName, cephv1.ConditionProgressing, buildStatusInfo(cephObjectStore))
 	}
 
 	// Make sure a CephCluster is present otherwise do nothing
@@ -220,7 +220,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// DELETE: the CR was deleted
 	if !cephObjectStore.GetDeletionTimestamp().IsZero() {
-		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
+		updateStatus(r.opManagerContext, k8sutil.ObservedGenerationNotAvailable, replicaCountNotAvailable, r.client, request.NamespacedName, cephv1.ConditionDeleting, buildStatusInfo(cephObjectStore))
 
 		// Detect running Ceph version
 		runningCephVersion, err := cephclient.LeastUptodateDaemonVersion(r.context, r.clusterInfo, config.MonType)
@@ -328,7 +328,7 @@ func (r *ReconcileCephObjectStore) reconcile(request reconcile.Request) (reconci
 
 	// update ObservedGeneration in status at the end of reconcile
 	// Set Progressing status, we are done reconciling, the health check go routine will update the status
-	updateStatus(r.opManagerContext, observedGeneration, r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore))
+	updateStatus(r.opManagerContext, observedGeneration, cephObjectStore.Spec.Gateway.Instances, r.client, request.NamespacedName, cephv1.ConditionReady, buildStatusInfo(cephObjectStore))
 
 	// Return and do not requeue
 	logger.Debug("done reconciling")

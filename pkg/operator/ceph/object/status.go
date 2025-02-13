@@ -25,19 +25,24 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/reporting"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	replicaCountNotAvailable = -1
+)
+
 func (r *ReconcileCephObjectStore) setFailedStatus(observedGeneration int64, name types.NamespacedName, errMessage string, err error) (reconcile.Result, error) {
-	updateStatus(r.opManagerContext, observedGeneration, r.client, name, cephv1.ConditionFailure, map[string]string{})
+	updateStatus(r.opManagerContext, observedGeneration, replicaCountNotAvailable, r.client, name, cephv1.ConditionFailure, map[string]string{})
 	return reconcile.Result{}, errors.Wrapf(err, "%s", errMessage)
 }
 
 // updateStatus updates an object with a given status
-func updateStatus(ctx context.Context, observedGeneration int64, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
+func updateStatus(ctx context.Context, observedGeneration int64, replicaCount int32, client client.Client, namespacedName types.NamespacedName, status cephv1.ConditionType, info map[string]string) {
 	// Updating the status is important to users, but we can still keep operating if there is a
 	// failure. Retry a few times to give it our best effort attempt.
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
@@ -65,6 +70,11 @@ func updateStatus(ctx context.Context, observedGeneration int64, client client.C
 
 		objectStore.Status.Phase = status
 		objectStore.Status.Info = info
+		if replicaCount != replicaCountNotAvailable {
+			objectStore.Status.Replicas = replicaCount
+		}
+
+		objectStore.Status.Selector = labels.SelectorFromSet(getLabels(objectStore.Name, objectStore.Namespace, false)).String()
 		if observedGeneration != k8sutil.ObservedGenerationNotAvailable {
 			objectStore.Status.ObservedGeneration = observedGeneration
 		}
