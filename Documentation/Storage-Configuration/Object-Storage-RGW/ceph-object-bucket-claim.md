@@ -91,11 +91,25 @@ If both `bucketName` and `generateBucketName` are blank or omitted then the stor
 
     * `maxObjects`: The maximum number of objects in the bucket as a quota on the user account automatically created for the bucket.
     * `maxSize`: The maximum size of the bucket as a quota on the user account automatically created for the bucket. Please note minimum recommended value is 4K.
-    * `bucketMaxObjects`: The maximum number of objects in the bucket as an individual bucket quota. This is useful when the bucket is shared among multiple users.
-    * `bucketMaxSize`: The maximum size of the bucket as an individual bucket quota.
-    * `bucketPolicy`: A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
-    * `bucketLifecycle`: A raw JSON format string that defines an AWS S3 format bucket lifecycle configuration. Note that the rules must be sorted by `ID` in order to be idempotent.
-    * `bucketOwner`: The name of a pre-existing ceph rgw user account that will own the bucket. A `CephObjectStoreUser` resource may be used to create an ceph rgw user account. If the bucket already exists and is owned by a different user, the bucket will be re-linked to the specified user.
+    * `bucketMaxObjects`: (disabled by default) The maximum number of objects in the bucket as an individual bucket quota. This is useful when the bucket is shared among multiple users.
+    * `bucketMaxSize`: (disabled by default) The maximum size of the bucket as an individual bucket quota.
+    * `bucketPolicy`: (disabled by default) A raw JSON format string that defines an AWS S3 format the bucket policy. If set, the policy string will override any existing policy set on the bucket and any default bucket policy that the bucket provisioner potentially would have automatically generated.
+    * `bucketLifecycle`: (disabled by default) A raw JSON format string that defines an AWS S3 format bucket lifecycle configuration. Note that the rules must be sorted by `ID` in order to be idempotent.
+    * `bucketOwner`: (disabled by default)  The name of a pre-existing ceph rgw user account that will own the bucket. A `CephObjectStoreUser` resource may be used to create an ceph rgw user account. If the bucket already exists and is owned by a different user, the bucket will be re-linked to the specified user.
+
+Several OBC `additionalConfig` fields are disabled by default. Default-disabled additional config
+fields may be risky for administrators to allow users control over, and they should be enabled only
+with caution.
+
+The default allowed fields are `maxObjects` and `maxSize`. These are designed to fit into the OBC
+framework's original design goals. Other fields can be allowed but exert control outside of OBC's
+original design goals and should be considered risky. At best, users may be able to break their own
+OBCs in unexpected ways. At worst, users may brick the whole S3 object store for all users
+(`bucketPolicy` in particular). Administrators should take care to enable features only when they
+are personally willing to take on the risks.
+
+OBC `additionalConfig` fields can be enabled and disabled using the the `rook-ceph-operator-config`
+configmap value `ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS`.
 
 ### OBC Custom Resource after Bucket Provisioning
 

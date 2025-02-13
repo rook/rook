@@ -541,6 +541,12 @@ data:
   # Custom prefix value for the OBC provisioner instead of ceph cluster namespace, do not set on existing cluster
   # ROOK_OBC_PROVISIONER_NAME_PREFIX: "custom-prefix"
 
+  # Many OBC additional config fields may be risky for administrators to allow users control over.
+  # The safe and default-allowed fields are 'maxObjects' and 'maxSize'.
+  # Other fields should be considered risky. To allow all additional configs, use this value:
+  #   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"
+  # ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS: "maxObjects,maxSize" # default allowed configs
+
   # Whether to start the discovery daemon to watch for raw storage devices on nodes in the cluster.
   # This daemon does not need to run if you are only going to create your OSDs based on StorageClassDeviceSets with PVCs.
   ROOK_ENABLE_DISCOVERY_DAEMON: "false"
