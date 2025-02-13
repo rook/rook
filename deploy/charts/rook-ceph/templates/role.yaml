@@ -84,9 +84,6 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/finalizers", "daemonsets/finalizers"]
     verbs: ["update"]
-  - apiGroups: ["authentication.k8s.io"]
-    resources: ["tokenreviews"]
-    verbs: ["create"]
 {{- end }}
 ---
 {{- if and .Values.csi.csiAddons .Values.csi.csiAddons.enabled }}
@@ -108,9 +105,6 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/finalizers", "daemonsets/finalizers"]
     verbs: ["update"]
-  - apiGroups: ["authentication.k8s.io"]
-    resources: ["tokenreviews"]
-    verbs: ["create"]
 ---
 {{- end }}
 kind: Role
@@ -135,8 +129,5 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/finalizers", "daemonsets/finalizers"]
     verbs: ["update"]
-  - apiGroups: ["authentication.k8s.io"]
-    resources: ["tokenreviews"]
-    verbs: ["create"]
   {{- end }}
 {{- end }}
