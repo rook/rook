@@ -294,8 +294,8 @@ func TestPVCName(t *testing.T) {
 }
 
 func TestCreateValidImageVersionLabel(t *testing.T) {
-	image := "ceph/ceph:v19.2.0"
-	assert.Equal(t, "ceph_ceph_v19.2.0", createValidImageVersionLabel(image))
+	image := "ceph/ceph:v19.2.1"
+	assert.Equal(t, "ceph_ceph_v19.2.1", createValidImageVersionLabel(image))
 	image = "rook/ceph:master"
 	assert.Equal(t, "rook_ceph_master", createValidImageVersionLabel(image))
 	image = ".invalid_label"

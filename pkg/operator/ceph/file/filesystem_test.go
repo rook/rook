@@ -327,7 +327,7 @@ func fsExecutor(t *testing.T, fsName, configDir string, multiFS bool, createData
 				versionStr, _ := json.Marshal(
 					map[string]map[string]int{
 						"mds": {
-							"ceph version 19.2.0-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) squid (stable)": 2,
+							"ceph version 19.2.1-0-g2f728b9 (2f728b952cf293dd7f809ad8a0f5b5d040c43010) squid (stable)": 2,
 						},
 					})
 				return string(versionStr), nil

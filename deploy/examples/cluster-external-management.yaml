@@ -20,4 +20,4 @@ spec:
   dataDirHostPath: /var/lib/rook
   # providing an image is required, if you want to create other CRs (rgw, mds, nfs)
   cephVersion:
-    image: quay.io/ceph/ceph:v19.2.0 # Should match external cluster version
+    image: quay.io/ceph/ceph:v19.2.1 # Should match external cluster version

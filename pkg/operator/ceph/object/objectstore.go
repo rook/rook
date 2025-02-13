@@ -937,7 +937,7 @@ func adjustZoneDefaultPools(zone map[string]interface{}, spec cephv1.ObjectShare
 }
 
 // There was a radosgw-admin bug that was preventing the RADOS namespace from being applied
-// for the data pool. The fix is included in Reef v18.2.3 or newer, and v19.2.0.
+// for the data pool. The fix is included in Reef v18.2.3 or newer, and v19.2.1.
 // The workaround is to run a "radosgw-admin zone placement modify" command to apply
 // the desired data pool config.
 // After Reef (v18) support is removed, this method will be dead code.

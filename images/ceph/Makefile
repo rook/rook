@@ -17,11 +17,7 @@ include ../image.mk
 # ====================================================================================
 # Image Build Options
 
-ifeq ($(GOARCH),amd64)
-CEPH_VERSION ?= v18.2.4-20240723
-else
-CEPH_VERSION ?= v18.2.4-20240724
-endif
+CEPH_VERSION ?= v19.2.0-20240927
 REGISTRY_NAME = quay.io
 BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph-$(GOARCH):$(CEPH_VERSION)
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
