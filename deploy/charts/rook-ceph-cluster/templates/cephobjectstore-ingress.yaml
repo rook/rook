@@ -21,7 +21,7 @@ spec:
                 name: rook-ceph-rgw-{{ .name }}
                 port:
                   number: {{ .spec.gateway.securePort | default .spec.gateway.port }}
-            pathType: Prefix
+            pathType: {{ .ingress.host.pathType | default "Prefix" }}
 {{- else }}
               serviceName: rook-ceph-rgw-{{ .name }}
               servicePort: {{ .spec.gateway.securePort | default .spec.gateway.port }}

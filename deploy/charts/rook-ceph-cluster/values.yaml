@@ -431,6 +431,7 @@ ingress:
     # host:
     #   name: dashboard.example.com
     #   path: "/ceph-dashboard(/|$)(.*)"
+    #   pathType: Prefix
     # tls:
     # - hosts:
     #     - dashboard.example.com
@@ -634,6 +635,7 @@ cephObjectStores:
       # host:
       #   name: objectstore.example.com
       #   path: /
+      #   pathType: Prefix
       # tls:
       # - hosts:
       #     - objectstore.example.com

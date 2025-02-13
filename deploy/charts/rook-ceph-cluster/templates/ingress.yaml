@@ -24,7 +24,7 @@ spec:
                   {{- else }}
                   name: http-dashboard
                   {{- end }}
-            pathType: Prefix
+            pathType: {{ .Values.ingress.dashboard.host.pathType | default "Prefix" }}
 {{- else }}
               serviceName: rook-ceph-mgr-dashboard
               {{- if .Values.cephClusterSpec.dashboard.ssl }}
