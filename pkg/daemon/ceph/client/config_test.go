@@ -37,7 +37,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		FSID:          "id",
 		MonitorSecret: "monsecret",
 		Namespace:     "foo-cluster",
-		Monitors: map[string]*MonInfo{
+		InternalMonitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6789"},
 		},
@@ -89,7 +89,7 @@ func TestGenerateConfigFile(t *testing.T) {
 		FSID:          "myfsid",
 		MonitorSecret: "monsecret",
 		Namespace:     ns,
-		Monitors: map[string]*MonInfo{
+		InternalMonitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6789"},
 		},
 		CephCred: CephCred{Username: "admin", Secret: "mysecret"},
@@ -112,9 +112,9 @@ func TestGenerateConfigFile(t *testing.T) {
 }
 
 func verifyConfig(t *testing.T, cephConfig *CephConfig, cluster *ClusterInfo, loggingLevel int) {
-	monMembers := make([]string, len(cluster.Monitors))
+	monMembers := make([]string, len(cluster.InternalMonitors))
 	i := 0
-	for _, expectedMon := range cluster.Monitors {
+	for _, expectedMon := range cluster.InternalMonitors {
 		contained := false
 		monMembers[i] = expectedMon.Name
 		for _, actualMon := range strings.Split(cephConfig.MonMembers, " ") {

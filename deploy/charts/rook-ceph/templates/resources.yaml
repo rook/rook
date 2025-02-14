@@ -1789,6 +1789,13 @@ spec:
                       maximum: 9
                       minimum: 0
                       type: integer
+                    externalMonIDs:
+                      description: |-
+                        ExternalMonIDs - optional list of monitor IDS which are deployed externallly and not managed by Rook.
+                        If set, Rook will not remove mons with given IDs from quorum.
+                      items:
+                        type: string
+                      type: array
                     failureDomainLabel:
                       type: string
                     stretchCluster:
