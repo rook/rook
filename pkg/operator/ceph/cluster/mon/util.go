@@ -17,6 +17,7 @@ limitations under the License.
 package mon
 
 import (
+	"slices"
 	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -32,6 +33,17 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 		}
 	}
 	return false
+}
+
+func getMonByID(monID string, monMap client.MonStatusResponse) (info client.MonMapEntry, inQuorum bool) {
+	for _, mon := range monMap.MonMap.Mons {
+		if mon.Name != monID {
+			continue
+		}
+		monRank := mon.Rank
+		return mon, slices.Contains(monMap.Quorum, monRank)
+	}
+	return client.MonMapEntry{}, false
 }
 
 // convert the mon name to the numeric mon ID

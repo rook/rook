@@ -288,8 +288,8 @@ func TestPersistMons(t *testing.T) {
 	assert.Equal(t, map[string]string{"key": "value"}, cm.Annotations)
 
 	// Persist mon b, and remove mon a for simply testing the configmap is updated
-	c.ClusterInfo.Monitors["b"] = &cephclient.MonInfo{Name: "b", Endpoint: "4.5.6.7:3300"}
-	delete(c.ClusterInfo.Monitors, "a")
+	c.ClusterInfo.InternalMonitors["b"] = &cephclient.MonInfo{Name: "b", Endpoint: "4.5.6.7:3300"}
+	delete(c.ClusterInfo.InternalMonitors, "a")
 	err = c.persistExpectedMonDaemons()
 	assert.NoError(t, err)
 
@@ -317,7 +317,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.Equal(t, "-1", cm.Data[opcontroller.MaxMonIDKey])
 
 	// update the config map
-	c.ClusterInfo.Monitors["a"].Endpoint = "2.3.4.5:6789"
+	c.ClusterInfo.InternalMonitors["a"].Endpoint = "2.3.4.5:6789"
 	c.maxMonID = 2
 	c.mapping.Schedule["a"] = &opcontroller.MonScheduleInfo{
 		Name:     "node0",
