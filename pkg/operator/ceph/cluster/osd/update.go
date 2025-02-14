@@ -236,7 +236,7 @@ func (c *Cluster) getOSDUpdateInfo(errs *provisionErrors) (*updateQueue, *existe
 	updateQueue := newUpdateQueueWithCapacity(len(deps.Items))
 	existenceList := newExistenceListWithCapacity(len(deps.Items))
 	for i := range deps.Items {
-		id, err := getOSDID(&deps.Items[i]) // avoid implicit memory aliasing by indexing
+		id, err := GetOSDID(&deps.Items[i]) // avoid implicit memory aliasing by indexing
 		if err != nil {
 			// add a question to the user AFTER the error text to help them recover from user error
 			errs.addError("%v. did a user create their own deployment with label %q?", selector, err)
