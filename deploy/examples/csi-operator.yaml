@@ -14649,6 +14649,8 @@ rules:
       - create
       - update
       - delete
+      - list
+      - watch
   - apiGroups:
       - ""
     resources:
@@ -14742,6 +14744,8 @@ rules:
       - create
       - update
       - delete
+      - list
+      - watch
   - apiGroups:
       - ""
     resources:
