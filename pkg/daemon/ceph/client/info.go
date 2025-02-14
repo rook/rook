@@ -36,13 +36,14 @@ import (
 // ClusterInfo is a collection of information about a particular Ceph cluster. Rook uses information
 // about the cluster to configure daemons to connect to the desired cluster.
 type ClusterInfo struct {
-	FSID          string
-	MonitorSecret string
-	CephCred      CephCred
-	Monitors      map[string]*MonInfo
-	CephVersion   cephver.CephVersion
-	Namespace     string
-	OwnerInfo     *k8sutil.OwnerInfo
+	FSID             string
+	MonitorSecret    string
+	CephCred         CephCred
+	InternalMonitors map[string]*MonInfo
+	ExtArbiterMons   map[string]*MonInfo
+	CephVersion      cephver.CephVersion
+	Namespace        string
+	OwnerInfo        *k8sutil.OwnerInfo
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name              string
@@ -57,6 +58,20 @@ type ClusterInfo struct {
 	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
 	// re-hydrated when a context is cancelled.
 	Context context.Context
+}
+
+func (c *ClusterInfo) AllMonitors() map[string]*MonInfo {
+	if c.ExtArbiterMons == nil || len(c.ExtArbiterMons) == 0 {
+		return c.InternalMonitors
+	}
+	res := make(map[string]*MonInfo, len(c.InternalMonitors)+len(c.ExtArbiterMons))
+	for id, mon := range c.InternalMonitors {
+		res[id] = mon
+	}
+	for id, mon := range c.ExtArbiterMons {
+		res[id] = mon
+	}
+	return res
 }
 
 // MonInfo is a collection of information about a Ceph mon.
