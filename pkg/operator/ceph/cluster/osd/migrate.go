@@ -39,6 +39,8 @@ const (
 	OSDUpdateStoreConfirmation = "yes-really-update-store"
 	// OSDMigrationConfigName is the configMap that stores the ID of the last migrated OSD
 	OSDMigrationConfigName = "osd-migration-config"
+	// OSDReplaceAnnotation on the OSD deployment indicates that user intends to replace the OSD
+	OSDReplaceAnnotation = "ceph.rook.io/replace-osd"
 	// OSDIdKey is the key used to store the OSD ID inside the `osd-migration-config` configMap
 	OSDIdKey = "osdID"
 )
@@ -47,11 +49,14 @@ const (
 type migrationConfig struct {
 	// osds that require migration (map key is the OSD id)
 	osds map[int]*OSDInfo
+	// checkPGHealth if true, will check for PG health (active+clean) before OSD migration
+	checkPGHealth bool
 }
 
 func (c *Cluster) newMigrationConfig() (*migrationConfig, error) {
 	mc := migrationConfig{
-		osds: map[int]*OSDInfo{},
+		osds:          map[int]*OSDInfo{},
+		checkPGHealth: true,
 	}
 
 	osdDeployments, err := c.getOSDDeployments()
@@ -69,6 +74,12 @@ func (c *Cluster) newMigrationConfig() (*migrationConfig, error) {
 	err = mc.migrateForOSDStore(c, osdDeployments)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get OSDs that require migration due to change in OSD Store type setting")
+	}
+
+	// get OSDs the require migration due to presence of <TBD> annotation
+	err = mc.migrateAnnotatedOSDs(c, osdDeployments)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get OSDs that require migration due to presence of annotation")
 	}
 
 	return &mc, nil
@@ -117,6 +128,25 @@ func (m *migrationConfig) migrateForOSDStore(c *Cluster, osdDeployments *appsv1.
 				if _, exists := m.osds[osdInfo.ID]; !exists {
 					m.osds[osdInfo.ID] = &osdInfo
 				}
+			}
+		}
+	}
+	return nil
+}
+
+// migrateAnnotatedOSDs migrates the OSDs with <TBD> annotation
+func (m *migrationConfig) migrateAnnotatedOSDs(c *Cluster, osdDeployments *appsv1.DeploymentList) error {
+	for i := range osdDeployments.Items {
+		if osdDeployments.Items[i].GetAnnotations()[OSDReplaceAnnotation] == "yes" {
+			// skip checking for PG health for annotated OSDs
+			m.checkPGHealth = false
+			osdInfo, err := c.getOSDInfo(&osdDeployments.Items[i])
+			if err != nil {
+				return errors.Wrapf(err, "failed to details about the OSD %q", osdDeployments.Items[i].Name)
+			}
+			logger.Infof("migration is required for OSD.%d due to annotation", osdInfo.ID)
+			if _, exists := m.osds[osdInfo.ID]; !exists {
+				m.osds[osdInfo.ID] = &osdInfo
 			}
 		}
 	}
