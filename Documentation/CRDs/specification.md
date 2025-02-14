@@ -5766,10 +5766,7 @@ time.Duration
 </td>
 <td>
 <em>(Optional)</em>
-<p>PGHealthCheckTimeout is the time (in minutes) that the operator will wait for the placement groups to become
-healthy (active+clean) after a drain was completed and OSDs came back up. Rook will continue with the next drain
-if the timeout exceeds. It only works if managePodBudgets is true.
-No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.</p>
+<p>DEPRECATED: PGHealthCheckTimeout is no longer implemented</p>
 </td>
 </tr>
 <tr>

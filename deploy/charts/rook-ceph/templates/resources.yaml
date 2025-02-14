@@ -1342,11 +1342,7 @@ spec:
                       format: int64
                       type: integer
                     pgHealthCheckTimeout:
-                      description: |-
-                        PGHealthCheckTimeout is the time (in minutes) that the operator will wait for the placement groups to become
-                        healthy (active+clean) after a drain was completed and OSDs came back up. Rook will continue with the next drain
-                        if the timeout exceeds. It only works if managePodBudgets is true.
-                        No values or 0 means that the operator will wait until the placement groups are healthy before unblocking the next drain.
+                      description: 'DEPRECATED: PGHealthCheckTimeout is no longer implemented'
                       format: int64
                       type: integer
                     pgHealthyRegex:
