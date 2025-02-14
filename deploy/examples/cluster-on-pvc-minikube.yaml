@@ -188,7 +188,6 @@ spec:
   disruptionManagement:
     managePodBudgets: true
     osdMaintenanceTimeout: 30
-    pgHealthCheckTimeout: 0
   cephConfig:
     global:
       mon_warn_on_pool_no_redundancy: "false"

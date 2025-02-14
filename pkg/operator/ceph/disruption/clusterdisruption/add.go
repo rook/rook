@@ -80,8 +80,6 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 		return err
 	}
 
-	// Only reconcile for PDB update event when allowed disruptions for the main OSD PDB is 0.
-	// This means that one of the OSD is down due to node drain or any other reason
 	pdbPredicate := predicate.Funcs{
 		CreateFunc: func(e event.CreateEvent) bool {
 			// Do not reconcile when PDB is created
@@ -92,6 +90,7 @@ func Add(mgr manager.Manager, context *controllerconfig.Context) error {
 			if !ok {
 				return false
 			}
+			// reconcile for the main PDB update event when first OSD goes down, that is,  when `DisruptionsAllowed` gets updated to 0.
 			return pdb.Name == osdPDBAppName && pdb.Status.DisruptionsAllowed == 0
 		},
 		DeleteFunc: func(e event.DeleteEvent) bool {
