@@ -440,7 +440,7 @@ func WatchControllerPredicate() predicate.Funcs {
 			case *cephv1.CephCOSIDriver:
 				objNew := e.ObjectNew.(*cephv1.CephCOSIDriver)
 				namespacedName := fmt.Sprintf("%s/%s", objNew.Namespace, objNew.Name)
-				logger.Debug("update event on CephCOSIDriver %q CR", namespacedName)
+				logger.Debugf("update event on CephCOSIDriver %q CR", namespacedName)
 				// If the labels "do_not_reconcile" is set on the object, let's not reconcile that request
 				IsDoNotReconcile := IsDoNotReconcile(objNew.GetLabels())
 				if IsDoNotReconcile {
