@@ -66,7 +66,7 @@ Anyone who wants to discuss the direction of the project, design and implementat
 -   [Current agenda and past meeting notes](https://docs.google.com/document/d/1exd8_IG6DkdvyA0eiTtL2z5K2Ra-y68VByUUgwP7I9A/edit?usp=sharing)
 -   [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)huu
 
-## Official Releases
+## Official Releasesครรีี
 
 Official releases of Rook can be found on the [releases page](https://github.com/rook/rook/releases).
 Please note that it is **strongly recommended** that you use [official releases](https://github.com/rook/rook/releases) of Rook, as unreleased versions from the master branch are subject to changes and incompatibilities that will not be supported in the official releases.
