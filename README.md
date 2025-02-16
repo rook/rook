@@ -64,7 +64,7 @@ Anyone who wants to discuss the direction of the project, design and implementat
 
 -   Meeting link: <https://zoom.us/j/98052644520?pwd=K0R4RUZCc3NhQisyMnA5VlV2MVBhQT09>
 -   [Current agenda and past meeting notes](https://docs.google.com/document/d/1exd8_IG6DkdvyA0eiTtL2z5K2Ra-y68VByUUgwP7I9A/edit?usp=sharing)
--   [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)
+-   [Past meeting recordings](https://www.youtube.com/playlist?list=PLP0uDo-ZFnQP6NAgJWAtR9jaRcgqyQKVy)huu
 
 ## Official Releases
 
