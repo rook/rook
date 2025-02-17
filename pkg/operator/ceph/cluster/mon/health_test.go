@@ -630,15 +630,15 @@ func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
 						Mons []cephclient.MonMapEntry `json:"mons"`
 					}{
 						Mons: []cephclient.MonMapEntry{
-							cephclient.MonMapEntry{
+							{
 								Name: "a",
 								Rank: 0,
 							},
-							cephclient.MonMapEntry{
+							{
 								Name: "b",
 								Rank: 1,
 							},
-							cephclient.MonMapEntry{
+							{
 								Name: "c",
 								Rank: 2,
 							},
@@ -653,11 +653,11 @@ func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
 					Mons []cephclient.MonMapEntry `json:"mons"`
 				}{
 					Mons: []cephclient.MonMapEntry{
-						cephclient.MonMapEntry{
+						{
 							Name: "a",
 							Rank: 0,
 						},
-						cephclient.MonMapEntry{
+						{
 							Name: "c",
 							Rank: 2,
 						},
@@ -674,15 +674,15 @@ func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
 						Mons []cephclient.MonMapEntry `json:"mons"`
 					}{
 						Mons: []cephclient.MonMapEntry{
-							cephclient.MonMapEntry{
+							{
 								Name: "a",
 								Rank: 0,
 							},
-							cephclient.MonMapEntry{
+							{
 								Name: "b",
 								Rank: 1,
 							},
-							cephclient.MonMapEntry{
+							{
 								Name: "c",
 								Rank: 2,
 							},
@@ -697,15 +697,15 @@ func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
 					Mons []cephclient.MonMapEntry `json:"mons"`
 				}{
 					Mons: []cephclient.MonMapEntry{
-						cephclient.MonMapEntry{
+						{
 							Name: "a",
 							Rank: 0,
 						},
-						cephclient.MonMapEntry{
+						{
 							Name: "b",
 							Rank: 1,
 						},
-						cephclient.MonMapEntry{
+						{
 							Name: "c",
 							Rank: 2,
 						},
