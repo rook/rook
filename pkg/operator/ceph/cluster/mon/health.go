@@ -401,7 +401,7 @@ func (c *Cluster) reconcileExtArbiterMons(ctx context.Context, quorumStatus ceph
 		// extMonsChanged = true
 	}
 
-	// handle external arbiter monitors if configured in cluser CRD:
+	// handle external arbiter monitors if configured in cluster CRD:
 	logger.Debugf("external arbiter mon IDs: %v", extMonIDs)
 	for _, extID := range extMonIDs {
 		monStatus, inQuorum := getMonByID(extID, quorumStatus)

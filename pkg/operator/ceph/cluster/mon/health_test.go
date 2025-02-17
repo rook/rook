@@ -611,114 +611,114 @@ func TestUpdateMonInterval(t *testing.T) {
 	})
 }
 
-// func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
-// 	type args struct {
-// 		quorumStatus cephclient.MonStatusResponse
-// 		idsToRemove  []string
-// 	}
-// 	tests := []struct {
-// 		name string
-// 		args args
-// 		want cephclient.MonStatusResponse
-// 	}{
-// 		{
-// 			name: "remove one mon",
-// 			args: args{
-// 				quorumStatus: cephclient.MonStatusResponse{
-// 					Quorum: []int{0, 1, 2},
-// 					MonMap: struct {
-// 						Mons []cephclient.MonMapEntry `json:"mons"`
-// 					}{
-// 						Mons: []cephclient.MonMapEntry{
-// 							cephclient.MonMapEntry{
-// 								Name: "a",
-// 								Rank: 0,
-// 							},
-// 							cephclient.MonMapEntry{
-// 								Name: "b",
-// 								Rank: 1,
-// 							},
-// 							cephclient.MonMapEntry{
-// 								Name: "c",
-// 								Rank: 2,
-// 							},
-// 						},
-// 					},
-// 				},
-// 				idsToRemove: []string{"b"},
-// 			},
-// 			want: cephclient.MonStatusResponse{
-// 				Quorum: []int{0, 2},
-// 				MonMap: struct {
-// 					Mons []cephclient.MonMapEntry `json:"mons"`
-// 				}{
-// 					Mons: []cephclient.MonMapEntry{
-// 						cephclient.MonMapEntry{
-// 							Name: "a",
-// 							Rank: 0,
-// 						},
-// 						cephclient.MonMapEntry{
-// 							Name: "c",
-// 							Rank: 2,
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 		{
-// 			name: "not remove if not present",
-// 			args: args{
-// 				quorumStatus: cephclient.MonStatusResponse{
-// 					Quorum: []int{0, 1, 2},
-// 					MonMap: struct {
-// 						Mons []cephclient.MonMapEntry `json:"mons"`
-// 					}{
-// 						Mons: []cephclient.MonMapEntry{
-// 							cephclient.MonMapEntry{
-// 								Name: "a",
-// 								Rank: 0,
-// 							},
-// 							cephclient.MonMapEntry{
-// 								Name: "b",
-// 								Rank: 1,
-// 							},
-// 							cephclient.MonMapEntry{
-// 								Name: "c",
-// 								Rank: 2,
-// 							},
-// 						},
-// 					},
-// 				},
-// 				idsToRemove: []string{"e"},
-// 			},
-// 			want: cephclient.MonStatusResponse{
-// 				Quorum: []int{0, 1, 2},
-// 				MonMap: struct {
-// 					Mons []cephclient.MonMapEntry `json:"mons"`
-// 				}{
-// 					Mons: []cephclient.MonMapEntry{
-// 						cephclient.MonMapEntry{
-// 							Name: "a",
-// 							Rank: 0,
-// 						},
-// 						cephclient.MonMapEntry{
-// 							Name: "b",
-// 							Rank: 1,
-// 						},
-// 						cephclient.MonMapEntry{
-// 							Name: "c",
-// 							Rank: 2,
-// 						},
-// 					},
-// 				},
-// 			},
-// 		},
-// 	}
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			if got := removeMonsFromQuorumStatusResponse(tt.args.quorumStatus, tt.args.idsToRemove); !reflect.DeepEqual(got, tt.want) {
-// 				t.Errorf("removeMonsFromQuorumStatusResponse() = %v, want %v", got, tt.want)
-// 			}
-// 		})
-// 	}
-// }
+func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
+	type args struct {
+		quorumStatus cephclient.MonStatusResponse
+		idsToRemove  []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want cephclient.MonStatusResponse
+	}{
+		{
+			name: "remove one mon",
+			args: args{
+				quorumStatus: cephclient.MonStatusResponse{
+					Quorum: []int{0, 1, 2},
+					MonMap: struct {
+						Mons []cephclient.MonMapEntry `json:"mons"`
+					}{
+						Mons: []cephclient.MonMapEntry{
+							cephclient.MonMapEntry{
+								Name: "a",
+								Rank: 0,
+							},
+							cephclient.MonMapEntry{
+								Name: "b",
+								Rank: 1,
+							},
+							cephclient.MonMapEntry{
+								Name: "c",
+								Rank: 2,
+							},
+						},
+					},
+				},
+				idsToRemove: []string{"b"},
+			},
+			want: cephclient.MonStatusResponse{
+				Quorum: []int{0, 2},
+				MonMap: struct {
+					Mons []cephclient.MonMapEntry `json:"mons"`
+				}{
+					Mons: []cephclient.MonMapEntry{
+						cephclient.MonMapEntry{
+							Name: "a",
+							Rank: 0,
+						},
+						cephclient.MonMapEntry{
+							Name: "c",
+							Rank: 2,
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "not remove if not present",
+			args: args{
+				quorumStatus: cephclient.MonStatusResponse{
+					Quorum: []int{0, 1, 2},
+					MonMap: struct {
+						Mons []cephclient.MonMapEntry `json:"mons"`
+					}{
+						Mons: []cephclient.MonMapEntry{
+							cephclient.MonMapEntry{
+								Name: "a",
+								Rank: 0,
+							},
+							cephclient.MonMapEntry{
+								Name: "b",
+								Rank: 1,
+							},
+							cephclient.MonMapEntry{
+								Name: "c",
+								Rank: 2,
+							},
+						},
+					},
+				},
+				idsToRemove: []string{"e"},
+			},
+			want: cephclient.MonStatusResponse{
+				Quorum: []int{0, 1, 2},
+				MonMap: struct {
+					Mons []cephclient.MonMapEntry `json:"mons"`
+				}{
+					Mons: []cephclient.MonMapEntry{
+						cephclient.MonMapEntry{
+							Name: "a",
+							Rank: 0,
+						},
+						cephclient.MonMapEntry{
+							Name: "b",
+							Rank: 1,
+						},
+						cephclient.MonMapEntry{
+							Name: "c",
+							Rank: 2,
+						},
+					},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := removeMonsFromQuorumStatusResponse(tt.args.quorumStatus, tt.args.idsToRemove); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("removeMonsFromQuorumStatusResponse() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

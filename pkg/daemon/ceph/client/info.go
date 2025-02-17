@@ -61,7 +61,7 @@ type ClusterInfo struct {
 }
 
 func (c *ClusterInfo) AllMonitors() map[string]*MonInfo {
-	if c.ExtArbiterMons == nil || len(c.ExtArbiterMons) == 0 {
+	if len(c.ExtArbiterMons) == 0 {
 		return c.InternalMonitors
 	}
 	res := make(map[string]*MonInfo, len(c.InternalMonitors)+len(c.ExtArbiterMons))

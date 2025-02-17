@@ -155,19 +155,6 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	if err != nil {
 		return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon config")
 	}
-	// if len(cephClusterSpec.Mon.ExternalMonIDs) == 0 {
-	// 	clusterInfo.InternalMonitors = allMonitors
-	// } else {
-	// 	clusterInfo.InternalMonitors = make(map[string]*cephclient.MonInfo, len(allMonitors))
-	// 	clusterInfo.ExtArbiterMons = make(map[string]*cephclient.MonInfo, len(cephClusterSpec.Mon.ExternalMonIDs))
-	// 	for monID, mon := range allMonitors {
-	// 		if slices.Contains(cephClusterSpec.Mon.ExternalMonIDs, monID) {
-	// 			clusterInfo.ExtArbiterMons[monID] = mon
-	// 		} else {
-	// 			clusterInfo.InternalMonitors[monID] = mon
-	// 		}
-	// 	}
-	// }
 
 	// update clusterInfo with cephCLusterSpec Network info
 	// it will also update if Multus is enabled, so ceph cmds

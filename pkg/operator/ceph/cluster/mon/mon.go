@@ -530,8 +530,6 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 }
 
 func (c *Cluster) initMonConfig(size int) (int, []*monConfig, error) {
-	//TODO: retunr only internal mons - extarbiter
-
 	// initialize the mon pod info for mons that have been previously created
 	mons := c.clusterInfoToMonConfig()
 
@@ -554,7 +552,6 @@ func (c *Cluster) clusterInfoToMonConfig() []*monConfig {
 }
 
 func (c *Cluster) clusterInfoToMonConfigWithExclude(excludedMon string) []*monConfig {
-	// TODO: retun only internal mons here!!! extarbiter
 	mons := []*monConfig{}
 	for _, monitor := range c.ClusterInfo.InternalMonitors {
 		if monitor.Name == excludedMon {
@@ -1557,7 +1554,6 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterInfo *cephclient.Cl
 
 		// get the quorum_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		// TODO: handle external arbiter mons here extarbiter
 		monQuorumStatusResp, err := cephclient.GetMonQuorumStatus(context, clusterInfo)
 		if err != nil {
 			logger.Debugf("failed to get quorum_status. %v", err)
