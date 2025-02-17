@@ -1,7 +1,7 @@
 The Ceph Cluster has been installed. Check its status by running:
   kubectl --namespace {{ .Release.Namespace }} get cephcluster
 
-Visit https://rook.io/docs/rook/latest/CRDs/ceph-cluster-crd/ for more information about the Ceph CRD.
+Visit https://rook.io/docs/rook/latest/CRDs/Cluster/ceph-cluster-crd/ for more information about the Ceph CRD.
 
 Important Notes:
 - You can only deploy a single cluster per namespace
