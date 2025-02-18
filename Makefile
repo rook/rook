@@ -157,12 +157,20 @@ fmt: ## Check formatting of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
+.PHONY: markdownlint
+markdownlint: ## Check formatting of documentation sources
+	markdownlint-cli2 "Documentation/**/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs
+
 .PHONY: yamllint
 yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
 
+.PHONY: golangci-lint
+golangci-lint:
+	@golangci-lint run
+
 .PHONY: lint
-lint: yamllint pylint shellcheck vet ## Run various linters
+lint: yamllint pylint shellcheck vet markdownlint ## Run various linters
 
 .PHONY: pylint
 pylint:
