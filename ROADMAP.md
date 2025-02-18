@@ -16,7 +16,7 @@ The following high level features are targeted for Rook v1.17 (April 2025). For 
 * Replace a single OSD when a metadataDevice is configured with multiple OSDs [#13240](https://github.com/rook/rook/issues/13240)
 * CSI Driver
   * Enable the stable Ceph-CSI operator by default, after it is declared stable [#14766](https://github.com/rook/rook/issues/15271)
-  * Integrate Ceph-CSI [v3.14](https://github.com/ceph/ceph-csi/)
+  * Integrate Ceph-CSI [v3.14](https://github.com/ceph/ceph-csi/milestone/23)
 
 ## Kubectl Plugin
 
