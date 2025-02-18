@@ -44,6 +44,9 @@ unreachableNodeTolerationSeconds: 5
 # -- Whether the operator should watch cluster CRD in its own namespace or not
 currentNamespaceOnly: false
 
+# -- Custom pod labels for the operator
+operatorPodLabels: {}
+
 # -- Pod annotations
 annotations: {}
 
@@ -624,7 +627,7 @@ discover:
   #       memory: 128Mi
 
 # -- Custom label to identify node hostname. If not set `kubernetes.io/hostname` will be used
-customHostnameLabel: 
+customHostnameLabel:
 
 # -- Runs Ceph Pods as privileged to be able to write to `hostPaths` in OpenShift with SELinux restrictions.
 hostpathRequiresPrivileged: false
