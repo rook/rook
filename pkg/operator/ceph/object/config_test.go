@@ -17,6 +17,7 @@ limitations under the License.
 package object
 
 import (
+	"context"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -25,6 +26,8 @@ import (
 	cephver "github.com/rook/rook/pkg/operator/ceph/version"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func newConfig(t *testing.T) *clusterConfig {
@@ -181,4 +184,50 @@ func Test_clusterConfig_generateMonConfigOptions(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestRgwConfigFromSecret(t *testing.T) {
+	objContext := &Context{
+		Context: &clusterd.Context{
+			Clientset: test.New(t, 3),
+		},
+		clusterInfo: cephclient.AdminTestClusterInfo("rook-ceph"),
+	}
+
+	objectStore := simpleStore()
+	objectStore.Spec.Gateway.RgwConfigFromSecret = map[string]v1.SecretKeySelector{
+		"rgw_secret_conf_name": {
+			LocalObjectReference: v1.LocalObjectReference{
+				Name: "my-secret",
+			},
+			Key: "secKey",
+		},
+	}
+
+	c := &clusterConfig{
+		store:       objectStore,
+		context:     objContext.Context,
+		clusterInfo: objContext.clusterInfo,
+	}
+
+	rgwConfig := &rgwConfig{}
+
+	_, err := c.generateMonConfigOptions(rgwConfig)
+	assert.Error(t, err, "error if secret not exists")
+
+	s := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-secret",
+			Namespace: "rook-ceph",
+		},
+		Data: map[string][]byte{
+			"secKey": []byte("secVal"),
+		},
+	}
+	_, err = objContext.Context.Clientset.CoreV1().Secrets(objContext.clusterInfo.Namespace).Create(context.TODO(), s, metav1.CreateOptions{})
+	assert.NoError(t, err, "create secret")
+
+	got, err := c.generateMonConfigOptions(rgwConfig)
+	assert.NoError(t, err)
+	assert.EqualValues(t, "secVal", got["rgw_secret_conf_name"])
 }
