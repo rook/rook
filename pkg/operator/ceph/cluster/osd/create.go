@@ -23,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	kms "github.com/rook/rook/pkg/daemon/ceph/osd/kms"
-	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	v1 "k8s.io/api/core/v1"
@@ -305,38 +304,25 @@ func (c *Cluster) startProvisioningOverNodes(config *provisionConfig, errs *prov
 		if c.clusterInfo.Context.Err() != nil {
 			return awaitingStatusConfigMaps, c.clusterInfo.Context.Err()
 		}
-		// fully resolve the storage config and resources for this node
-		// don't care about osd device class resources since it will be overwritten later for prepareosd resources
-		n := c.resolveNode(node.Name, "")
-		if n == nil {
-			logger.Warningf("node %q did not resolve", node.Name)
+
+		if node.Name == "" {
+			logger.Warningf("skipping node with a blank name! %+v", node.Name)
 			continue
 		}
 
-		if n.Name == "" {
-			logger.Warningf("skipping node with a blank name! %+v", n)
+		osdProps, err := c.getOSDPropsForNode(node.Name, "")
+		if err != nil {
+			logger.Warningf("failed to get osd properties: %v", err)
 			continue
-		}
-
-		// create the job that prepares osds on the node
-		storeConfig := osdconfig.ToStoreConfig(n.Config)
-		metadataDevice := osdconfig.MetadataDevice(n.Config)
-		osdProps := osdProperties{
-			crushHostname:  n.Name,
-			devices:        n.Devices,
-			selection:      n.Selection,
-			resources:      n.Resources,
-			storeConfig:    storeConfig,
-			metadataDevice: metadataDevice,
 		}
 
 		// update the orchestration status of this node to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
-		cmName := c.updateOSDStatus(n.Name, status)
+		cmName := c.updateOSDStatus(node.Name, status)
 
 		if err := c.runPrepareJob(&osdProps, config); err != nil {
-			c.handleOrchestrationFailure(errs, n.Name, "%v", err)
-			c.deleteStatusConfigMap(n.Name)
+			c.handleOrchestrationFailure(errs, node.Name, "%v", err)
+			c.deleteStatusConfigMap(node.Name)
 			continue // do not record the status CM's name
 		}
 

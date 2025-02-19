@@ -475,31 +475,20 @@ func setOSDProperties(c *Cluster, osdProps osdProperties, osd *OSDInfo) error {
 	return nil
 }
 
-func (c *Cluster) resolveNode(nodeName, deviceClass string) *cephv1.Node {
-	// fully resolve the storage config and resources for this node
-	rookNode := c.ValidStorage.ResolveNode(nodeName)
-	if rookNode == nil {
-		return nil
-	}
-	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, cephv1.GetOSDResources(c.spec.Resources, deviceClass))
-
-	return rookNode
-}
-
 func (c *Cluster) getOSDPropsForNode(nodeName, deviceClass string) (osdProperties, error) {
-	// fully resolve the storage config and resources for this node
-	n := c.resolveNode(nodeName, deviceClass)
+	n := c.ValidStorage.ResolveNode(nodeName)
 	if n == nil {
 		return osdProperties{}, errors.Errorf("failed to resolve node %q", nodeName)
 	}
 
+	resources := k8sutil.MergeResourceRequirements(n.Resources, cephv1.GetOSDResources(c.spec.Resources, deviceClass))
 	storeConfig := osdconfig.ToStoreConfig(n.Config)
 	metadataDevice := osdconfig.MetadataDevice(n.Config)
 	osdProps := osdProperties{
 		crushHostname:  n.Name,
 		devices:        n.Devices,
 		selection:      n.Selection,
-		resources:      n.Resources,
+		resources:      resources,
 		storeConfig:    storeConfig,
 		metadataDevice: metadataDevice,
 	}
