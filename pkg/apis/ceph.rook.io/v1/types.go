@@ -626,7 +626,7 @@ type MonSpec struct {
 	// +kubebuilder:pruning:PreserveUnknownFields
 	// +optional
 	VolumeClaimTemplate *VolumeClaimTemplate `json:"volumeClaimTemplate,omitempty"`
-	// ExternalMonIDs - optional list of monitor IDS which are deployed externallly and not managed by Rook.
+	// ExternalMonIDs - optional list of monitor IDs which are deployed externally and not managed by Rook.
 	// If set, Rook will not remove mons with given IDs from quorum.
 	// +optional
 	ExternalMonIDs []string `json:"externalMonIDs,omitempty"`

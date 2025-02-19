@@ -8786,7 +8786,7 @@ VolumeClaimTemplate
 </td>
 <td>
 <em>(Optional)</em>
-<p>ExternalMonIDs - optional list of monitor IDS which are deployed externallly and not managed by Rook.
+<p>ExternalMonIDs - optional list of monitor IDs which are deployed externally and not managed by Rook.
 If set, Rook will not remove mons with given IDs from quorum.</p>
 </td>
 </tr>
