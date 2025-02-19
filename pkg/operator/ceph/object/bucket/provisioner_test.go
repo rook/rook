@@ -31,6 +31,7 @@ import (
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
@@ -500,6 +501,8 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("maxObjects field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"maxObjects": "2"})
 		assert.NoError(t, err)
 		var i int64 = 2
@@ -507,6 +510,8 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("maxSize field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"maxSize": "3"})
 		assert.NoError(t, err)
 		var i int64 = 3
@@ -514,33 +519,65 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("bucketMaxObjects field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketMaxObjects"})
+		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketMaxObjects": "4"})
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketMaxObjects: &(&struct{ i int64 }{4}).i}, *spec)
 	})
 
 	t.Run("bucketMaxSize field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketMaxSize"})
+		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketMaxSize": "5"})
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketMaxSize: &(&struct{ i int64 }{5}).i}, *spec)
 	})
 
 	t.Run("bucketPolicy field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketPolicy"})
+		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketPolicy": "foo"})
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketPolicy: &(&struct{ s string }{"foo"}).s}, *spec)
 	})
 
 	t.Run("bucketLifecycle field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketLifecycle"})
+		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketLifecycle": "foo"})
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketLifecycle: &(&struct{ s string }{"foo"}).s}, *spec)
 	})
 
 	t.Run("bucketOwner field should be set", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketOwner"})
+		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketOwner": "foo"})
 		assert.NoError(t, err)
 		assert.Equal(t, additionalConfigSpec{bucketOwner: &(&struct{ s string }{"foo"}).s}, *spec)
+	})
+
+	t.Run("fields disallowed by default", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
+		for _, configKey := range []string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner"} {
+			_, err := additionalConfigSpecFromMap(map[string]string{configKey: "foo"})
+			assert.Error(t, err)
+		}
+	})
+
+	t.Run("does not fail on empty map", func(t *testing.T) {
+		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+
+		spec, err := additionalConfigSpecFromMap(map[string]string{})
+		assert.NoError(t, err)
+		assert.Equal(t, additionalConfigSpec{}, *spec)
 	})
 }
 

@@ -655,6 +655,13 @@ enableOBCWatchOperatorNamespace: true
 # @default -- `ceph cluster namespace`
 obcProvisionerNamePrefix:
 
+# -- Many OBC additional config fields may be risky for administrators to allow users control over.
+# The safe and default-allowed fields are 'maxObjects' and 'maxSize'.
+# Other fields should be considered risky. To allow all additional configs, use this value:
+#   "maxObjects,maxSize,bucketMaxObjects,bucketMaxSize,bucketPolicy,bucketLifecycle,bucketOwner"
+# @default -- "maxObjects,maxSize"
+obcAllowAdditionalConfigFields: "maxObjects,maxSize"
+
 monitoring:
   # -- Enable monitoring. Requires Prometheus to be pre-installed.
   # Enabling will also create RBAC rules to allow Operator to create ServiceMonitors

@@ -24,6 +24,7 @@ import (
 	"github.com/kube-object-storage/lib-bucket-provisioner/pkg/provisioner"
 	"github.com/pkg/errors"
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
+	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	cephObject "github.com/rook/rook/pkg/operator/ceph/object"
 	storagev1 "k8s.io/api/storage/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -93,6 +94,9 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 	spec := additionalConfigSpec{}
 
 	if _, ok := config["maxObjects"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("maxObjects") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "maxObjects")
+		}
 		spec.maxObjects, err = quanityToInt64(config["maxObjects"])
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse maxObjects quota")
@@ -100,6 +104,9 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 	}
 
 	if _, ok := config["maxSize"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("maxSize") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "maxSize")
+		}
 		spec.maxSize, err = quanityToInt64(config["maxSize"])
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse maxSize quota")
@@ -107,6 +114,9 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 	}
 
 	if _, ok := config["bucketMaxObjects"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("bucketMaxObjects") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "bucketMaxObjects")
+		}
 		spec.bucketMaxObjects, err = quanityToInt64(config["bucketMaxObjects"])
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse bucketMaxObjects quota")
@@ -114,6 +124,9 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 	}
 
 	if _, ok := config["bucketMaxSize"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("bucketMaxSize") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "bucketMaxSize")
+		}
 		spec.bucketMaxSize, err = quanityToInt64(config["bucketMaxSize"])
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to parse bucketMaxSize quota")
@@ -121,16 +134,25 @@ func additionalConfigSpecFromMap(config map[string]string) (*additionalConfigSpe
 	}
 
 	if _, ok := config["bucketPolicy"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("bucketPolicy") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "bucketPolicy")
+		}
 		policy := config["bucketPolicy"]
 		spec.bucketPolicy = &policy
 	}
 
 	if _, ok := config["bucketLifecycle"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("bucketLifecycle") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "bucketLifecycle")
+		}
 		lifecycle := config["bucketLifecycle"]
 		spec.bucketLifecycle = &lifecycle
 	}
 
 	if _, ok := config["bucketOwner"]; ok {
+		if !opcontroller.ObcAdditionalConfigKeyIsAllowed("bucketOwner") {
+			return nil, errors.Errorf("OBC config %q is not allowed", "bucketOwner")
+		}
 		bucketOwner := config["bucketOwner"]
 		spec.bucketOwner = &bucketOwner
 	}
