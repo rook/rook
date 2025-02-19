@@ -2743,6 +2743,13 @@ func (in *GatewaySpec) DeepCopyInto(out *GatewaySpec) {
 			(*out)[key] = val
 		}
 	}
+	if in.RgwConfigFromSecret != nil {
+		in, out := &in.RgwConfigFromSecret, &out.RgwConfigFromSecret
+		*out = make(map[string]corev1.SecretKeySelector, len(*in))
+		for key, val := range *in {
+			(*out)[key] = *val.DeepCopy()
+		}
+	}
 	if in.RgwCommandFlags != nil {
 		in, out := &in.RgwCommandFlags, &out.RgwCommandFlags
 		*out = make(map[string]string, len(*in))
