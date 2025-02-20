@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/pkg/errors"
@@ -230,6 +231,9 @@ func Provision(context *clusterd.Context, agent *OsdAgent, crushLocation, topolo
 	// but the resulting device was already configured for another cluster (disk not wiped and leftover)
 	// So we need to make sure the list is filled up, otherwise fail
 	if len(deviceOSDs) == 0 {
+		logger.Infof("SLEEPING 30m FOR TROUBLESHOOTING 0 OSDs")
+		time.Sleep(30 * time.Minute)
+
 		logger.Warningf("skipping OSD configuration as no devices matched the storage settings for this node %q", agent.nodeName)
 		status = oposd.OrchestrationStatus{OSDs: deviceOSDs, Status: oposd.OrchestrationStatusCompleted, PvcBackedOSD: agent.pvcBacked}
 		oposd.UpdateNodeOrPVCStatus(agent.clusterInfo.Context, agent.kv, agent.nodeName, status)

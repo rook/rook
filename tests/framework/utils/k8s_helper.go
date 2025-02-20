@@ -61,7 +61,7 @@ type K8sHelper struct {
 
 const (
 	// RetryInterval param for test - wait time while in RetryLoop
-	RetryInterval = 5
+	RetryInterval = 10
 	// TestMountPath is the path inside a test pod where storage is mounted
 	TestMountPath = "/tmp/testrook"
 	//hostnameTestPrefix is a prefix added to the node hostname

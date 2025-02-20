@@ -81,7 +81,7 @@ func (s *MultiClusterDeploySuite) SetupSuite() {
 		Mons:              1,
 		MultipleMgrs:      true,
 		RookVersion:       installer.LocalBuildTag,
-		CephVersion:       installer.SquidVersion,
+		CephVersion:       installer.MainVersion,
 		RequireMsgr2:      true,
 	}
 	s.settings.ApplyEnvVars()
