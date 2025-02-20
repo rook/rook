@@ -344,21 +344,6 @@ func OSDUpdateShouldCheckOkToStop(context *clusterd.Context, clusterInfo *Cluste
 		return false
 	}
 
-	// aio means all in one
-	aio, err := allOSDsSameHost(context, clusterInfo)
-	if err != nil {
-		if errors.Is(err, errNoHostInCRUSH) {
-			logger.Warning("the CRUSH map has no 'host' entries so not performing ok-to-stop checks")
-			return false
-		}
-		logger.Warningf("failed to determine if all osds are running on the same host. will check if OSDs are ok-to-stop. if all OSDs are running on one host %s. %v", userIntervention, err)
-		return true
-	}
-	if aio {
-		logger.Warningf("all OSDs are running on the same host. not performing upgrade check. running in best-effort")
-		return false
-	}
-
 	return true
 }
 
