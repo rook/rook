@@ -83,6 +83,8 @@ type Param struct {
 	SidecarLogLevel                          uint8
 	CephFSLivenessMetricsPort                uint16
 	CSIAddonsPort                            uint16
+	CSIAddonsRBDProvisionerPort              uint16
+	CSIAddonsCephFSProvisionerPort           uint16
 	RBDLivenessMetricsPort                   uint16
 	KubeApiBurst                             uint16
 	KubeApiQPS                               float32
@@ -219,12 +221,14 @@ const (
 	// kubelet directory path
 	DefaultKubeletDirPath = "/var/lib/kubelet"
 
-	// grpc metrics and liveness port for cephfs  and rbd
-	DefaultCephFSGRPCMerticsPort     uint16 = 9091
-	DefaultCephFSLivenessMerticsPort uint16 = 9081
-	DefaultRBDGRPCMerticsPort        uint16 = 9090
-	DefaultRBDLivenessMerticsPort    uint16 = 9080
-	DefaultCSIAddonsPort             uint16 = 9070
+	// gRPC metrics and liveness port for CephFS and RBD
+	DefaultCephFSGRPCMerticsPort          uint16 = 9091
+	DefaultCephFSLivenessMerticsPort      uint16 = 9081
+	DefaultRBDGRPCMerticsPort             uint16 = 9090
+	DefaultRBDLivenessMerticsPort         uint16 = 9080
+	DefaultCSIAddonsPort                  uint16 = 9070
+	DefaultCSIAddonsRBDProvisionerPort    uint16 = 9070
+	DefaultCSIAddonsCephFSProvisionerPort uint16 = 9070
 
 	// default log level for csi containers
 	defaultLogLevel        uint8 = 0
