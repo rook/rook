@@ -982,6 +982,8 @@ func runSwiftE2ETest(t *testing.T, helper *clients.TestClient, k8sh *utils.K8sHe
 }
 
 func testInOpenStackClient(t *testing.T, sh *utils.K8sHelper, namespace string, projectname string, username string, expectNoError bool, command ...string) {
+	err := sh.WaitForLabeledPodsToRun("app=osc-admin-admin", namespace)
+	assert.NoError(t, err)
 
 	commandLine := []string{"exec", "-n", namespace, "deployment/osc-" + projectname + "-" + username, "--"}
 
