@@ -52,7 +52,7 @@ func CreateTestClusterInfo(monCount int) *client.ClusterInfo {
 			Secret:   "adminkey",
 		},
 		InternalMonitors: map[string]*client.MonInfo{},
-		ExtArbiterMons:   map[string]*client.MonInfo{},
+		ExternalMons:     map[string]*client.MonInfo{},
 		OwnerInfo:        ownerInfo,
 		Context:          context.TODO(),
 	}

@@ -58,8 +58,8 @@ const (
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
 	EndpointDataKey = "data"
-	// EndpointExtArbitersKey key in EndpointConfigMapName configmap containing IDs of external arbiter mons
-	EndpointExtArbitersKey = "extArbiters"
+	// EndpointExternalMonsKey key in EndpointConfigMapName configmap containing IDs of external mons
+	EndpointExternalMonsKey = "externalMons"
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
 	//nolint:gosec // OperatorCreds is the name of the secret
@@ -1205,16 +1205,16 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 			monsOutOfQuorum = append(monsOutOfQuorum, monName)
 		}
 	}
-	extMonIDs := make([]string, 0, len(c.ClusterInfo.ExtArbiterMons))
-	if c.ClusterInfo.ExtArbiterMons != nil {
-		for monID := range c.ClusterInfo.ExtArbiterMons {
+	extMonIDs := make([]string, 0, len(c.ClusterInfo.ExternalMons))
+	if c.ClusterInfo.ExternalMons != nil {
+		for monID := range c.ClusterInfo.ExternalMons {
 			extMonIDs = append(extMonIDs, monID)
 		}
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey:        flattenMonEndpoints(c.ClusterInfo.AllMonitors()),
-		EndpointExtArbitersKey: strings.Join(extMonIDs, ","),
+		EndpointDataKey:         flattenMonEndpoints(c.ClusterInfo.AllMonitors()),
+		EndpointExternalMonsKey: strings.Join(extMonIDs, ","),
 		// persist the maxMonID that was previously stored in the configmap. We are likely saving info
 		// about scheduling of the mons, but we only want to update the maxMonID once a new mon has
 		// actually been started. If the operator is restarted or the reconcile is otherwise restarted,

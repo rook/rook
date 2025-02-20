@@ -57,8 +57,8 @@ const (
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
 	EndpointDataKey = "data"
-	// EndpointExtArbitersKey key in EndpointConfigMapName configmap containing IDs of external arbiter mons
-	EndpointExtArbitersKey = "extArbiters"
+	// EndpointExternalMonsKey key in EndpointConfigMapName configmap containing IDs of external mons
+	EndpointExternalMonsKey = "externalMons"
 	// OutOfQuorumKey is the name of the key for tracking mons detected out of quorum
 	OutOfQuorumKey = "outOfQuorum"
 	// MaxMonIDKey is the name of the max mon id used
@@ -151,7 +151,7 @@ func CreateOrLoadClusterInfo(clusterdContext *clusterd.Context, context context.
 	}
 
 	// get the existing monitor config
-	clusterInfo.ExtArbiterMons, clusterInfo.InternalMonitors, maxMonID, monMapping, err = loadMonConfig(clusterdContext.Clientset, namespace)
+	clusterInfo.ExternalMons, clusterInfo.InternalMonitors, maxMonID, monMapping, err = loadMonConfig(clusterdContext.Clientset, namespace)
 	if err != nil {
 		return nil, maxMonID, monMapping, errors.Wrap(err, "failed to get mon config")
 	}
@@ -279,9 +279,9 @@ func UpdateMonsOutOfQuorum(clientset kubernetes.Interface, namespace string, mon
 }
 
 // loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (extArbiters map[string]*cephclient.MonInfo, internalMons map[string]*cephclient.MonInfo, maxMonID int, monMapping *Mapping, err error) {
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (extMons map[string]*cephclient.MonInfo, internalMons map[string]*cephclient.MonInfo, maxMonID int, monMapping *Mapping, err error) {
 	ctx := context.TODO()
-	extArbiters = map[string]*cephclient.MonInfo{}
+	extMons = map[string]*cephclient.MonInfo{}
 	internalMons = map[string]*cephclient.MonInfo{}
 	maxMonID = -1
 	monMapping = &Mapping{
@@ -294,7 +294,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extArbiter
 			return nil, nil, maxMonID, monMapping, err
 		}
 		// If the config map was not found, initialize the empty set of monitors
-		return extArbiters, internalMons, maxMonID, monMapping, nil
+		return extMons, internalMons, maxMonID, monMapping, nil
 	}
 
 	// Parse the monitor List
@@ -340,19 +340,19 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (extArbiter
 	if err != nil {
 		logger.Errorf("invalid JSON in mon mapping. %v", err)
 	}
-	// filter externalArbiters:
-	if arbiterIDsStr, ok := cm.Data[EndpointExtArbitersKey]; ok && arbiterIDsStr != "" {
-		arbiterIDs := strings.Split(arbiterIDsStr, ",")
+	// filter external mons:
+	if extMonIDsStr, ok := cm.Data[EndpointExternalMonsKey]; ok && extMonIDsStr != "" {
+		extMonIDs := strings.Split(extMonIDsStr, ",")
 		for monID, mon := range internalMons {
-			if slices.Contains(arbiterIDs, monID) {
-				extArbiters[monID] = mon
+			if slices.Contains(extMonIDs, monID) {
+				extMons[monID] = mon
 				delete(internalMons, monID)
 			}
 		}
 	}
 
-	logger.Debugf("loaded: maxMonID=%d, extArbiters=%+v, mons=%+v, assignment=%+v", maxMonID, extArbiters, internalMons, monMapping)
-	return extArbiters, internalMons, maxMonID, monMapping, nil
+	logger.Debugf("loaded: maxMonID=%d, extMons=%+v, mons=%+v, assignment=%+v", maxMonID, extMons, internalMons, monMapping)
+	return extMons, internalMons, maxMonID, monMapping, nil
 }
 
 // convert the mon name to the numeric mon ID

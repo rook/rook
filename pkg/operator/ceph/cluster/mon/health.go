@@ -202,10 +202,10 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	}
 	logger.Debugf("Mon quorum status: %+v", quorumStatus)
 
-	// handle external Mon arbiters
-	quorumStatus, err = c.reconcileExtArbiterMons(ctx, quorumStatus)
+	// handle external Mons
+	quorumStatus, err = c.reconcileExternalMons(ctx, quorumStatus)
 	if err != nil {
-		return errors.Wrap(err, "failed to check external arbiter mon health")
+		return errors.Wrap(err, "failed to check external mons health")
 	}
 
 	// Use a local mon count in case the user updates the crd in another goroutine.
@@ -383,55 +383,67 @@ func (c *Cluster) checkHealth(ctx context.Context) error {
 	return nil
 }
 
-func (c *Cluster) reconcileExtArbiterMons(ctx context.Context, quorumStatus cephclient.MonStatusResponse) (cephclient.MonStatusResponse, error) {
+// reconcileExternalMons handling external monitors defined in CephCluster.spec.mon.externalMonIDs when Rook managing local cluster.
+func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephclient.MonStatusResponse) (cephclient.MonStatusResponse, error) {
+	if len(c.spec.Mon.ExternalMonIDs) != 0 {
+		if c.spec.External.Enable {
+			logger.Warning("ignore external mon IDs in cluster spec: cluster is running in external mode")
+			return quorumStatus, nil
+		}
+		if c.spec.IsStretchCluster() {
+			logger.Warning("ignore external mon IDs in cluster spec: cluster is running in stretch mode")
+			return quorumStatus, nil
+		}
+	}
+
 	extMonIDs := c.spec.Mon.ExternalMonIDs
-	if c.ClusterInfo.ExtArbiterMons == nil {
-		c.ClusterInfo.ExtArbiterMons = make(map[string]*cephclient.MonInfo, len(extMonIDs))
+	if c.ClusterInfo.ExternalMons == nil {
+		c.ClusterInfo.ExternalMons = make(map[string]*cephclient.MonInfo, len(extMonIDs))
 	}
 
 	extMonsChanged := false
-	for extID := range c.ClusterInfo.ExtArbiterMons {
+	for extID := range c.ClusterInfo.ExternalMons {
 		if slices.Contains(extMonIDs, extID) {
 			continue
 		}
-		// existing external arbiter mon was removed from Cluster CRD spec:
+		// existing external mon was removed from Cluster CRD spec:
 		// remove it from CLusterInfo
-		logger.Debugf("existing external arbiter mon %q was removed from spec: removing it", extID)
-		delete(c.ClusterInfo.ExtArbiterMons, extID)
+		logger.Debugf("existing external mon %q was removed from spec: removing it", extID)
+		delete(c.ClusterInfo.ExternalMons, extID)
 		// extMonsChanged = true
 	}
 
-	// handle external arbiter monitors if configured in cluster CRD:
-	logger.Debugf("external arbiter mon IDs: %v", extMonIDs)
+	// handle external monitors if configured in cluster CRD:
+	logger.Debugf("external mon IDs: %v", extMonIDs)
 	for _, extID := range extMonIDs {
 		monStatus, inQuorum := getMonByID(extID, quorumStatus)
 		if inQuorum {
-			logger.Debugf("external arbiter mon %q in quorum", extID)
+			logger.Debugf("external mon %q in quorum", extID)
 		} else {
-			logger.Debugf("external arbiter mon %q not in quorum %+v, %+v", extID, quorumStatus.Quorum, quorumStatus.MonMap.Mons)
+			logger.Debugf("external mon %q not in quorum %+v, %+v", extID, quorumStatus.Quorum, quorumStatus.MonMap.Mons)
 		}
-		_, inInfo := c.ClusterInfo.ExtArbiterMons[extID]
+		_, inInfo := c.ClusterInfo.ExternalMons[extID]
 		if inQuorum && !inInfo {
 			// add newly discovered external mon to cluster info:
 			monInfo := monStatusToInfo(monStatus)
-			c.ClusterInfo.ExtArbiterMons[extID] = monInfo
+			c.ClusterInfo.ExternalMons[extID] = monInfo
 			extMonsChanged = true
-			logger.Infof("new external arbiter mon %q found: %s, adding it", extID, monInfo.Endpoint)
+			logger.Infof("new external mon %q found: %s, adding it", extID, monInfo.Endpoint)
 		} else if !inQuorum && inInfo {
 			// remove external mon from cluster info if it is out of quorum:
-			delete(c.ClusterInfo.ExtArbiterMons, extID)
+			delete(c.ClusterInfo.ExternalMons, extID)
 			extMonsChanged = true
-			logger.Infof("new external arbiter mon %q not in quorum: removing it", extID)
+			logger.Infof("new external mon %q not in quorum: removing it", extID)
 		}
 	}
 	if extMonsChanged {
 		// update config if external mon was removed or added:
 		if err := c.saveMonConfig(); err != nil {
-			return cephclient.MonStatusResponse{}, errors.Wrap(err, "failed to save mon config after adding/removing external arbiter mon")
+			return cephclient.MonStatusResponse{}, errors.Wrap(err, "failed to save mon config after adding/removing external mon")
 		}
 	}
 
-	// now remove processed external arbiters mons from ceph quourum status response
+	// now remove processed external mons from ceph quourum status response
 	// to not affect to not affect existign logic
 	quorumStatus = removeMonsFromQuorumStatusResponse(quorumStatus, extMonIDs)
 	return quorumStatus, nil
