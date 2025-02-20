@@ -99,7 +99,7 @@ func ReturnCephVersion() cephv1.CephVersionSpec {
 		return SquidDevelVersion
 	default:
 		// Default to the latest stable version
-		return SquidVersion
+		return MainVersion
 	}
 }
 
