@@ -7,7 +7,8 @@ FILESYSTEM_NAME="{{ .FilesystemName }}"
 KEYRING="{{ .Keyring }}"
 CMD_TIMEOUT="{{ .CmdTimeout }}"
 
-outp="$(ceph fs dump --mon-host="$ROOK_CEPH_MON_HOST" --mon-initial-members="$ROOK_CEPH_MON_INITIAL_MEMBERS" --keyring "$KEYRING" --connect-timeout="$CMD_TIMEOUT" --format json)"
+export CEPH_ARGS="--keyring $KEYRING" # workaround till ceph does not fix the issue with keyring
+outp="$(ceph fs dump -n "mds.$MDS_ID" --mon-host="$ROOK_CEPH_MON_HOST" --mon-initial-members="$ROOK_CEPH_MON_INITIAL_MEMBERS" --connect-timeout="$CMD_TIMEOUT" --format json)"
 rc=$?
 if [ $rc -ne 0 ]; then
     echo "ceph MDS dump check failed with the following output:"
