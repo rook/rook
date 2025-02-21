@@ -29,6 +29,7 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	"github.com/rook/rook/pkg/operator/ceph/config"
+	"github.com/rook/rook/pkg/operator/ceph/controller"
 	opcontroller "github.com/rook/rook/pkg/operator/ceph/controller"
 	testopk8s "github.com/rook/rook/pkg/operator/k8sutil/test"
 	"github.com/rook/rook/pkg/operator/test"
@@ -720,5 +721,412 @@ func Test_removeMonsFromQuorumStatusResponse(t *testing.T) {
 				t.Errorf("removeMonsFromQuorumStatusResponse() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestExternalMons_notInSpec_InQuorum(t *testing.T) {
+	// 1. setup test
+	ctx := context.TODO()
+	var deploymentsUpdated *[]*apps.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
+	monQuorumResponse := clienttest.MonInQuorumResponse()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			return monQuorumResponse, nil
+		},
+	}
+	clientset := test.New(t, 1)
+	configDir := t.TempDir()
+	context := &clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
+	}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
+	c.maxMonID = 0 // "a" is max mon id
+	c.waitForStart = false
+
+	// checking the health will increase the mons as desired all in one go
+	err := c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors), fmt.Sprintf("mons: %v", c.ClusterInfo.InternalMonitors))
+	assert.ElementsMatch(t, []string{
+		// b is created first, no updates
+		"rook-ceph-mon-b",                    // b updated when c created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	inital5Mons := make(map[string]*cephclient.MonInfo)
+	for k, v := range c.ClusterInfo.InternalMonitors {
+		inital5Mons[k] = v
+	}
+
+	// 2. add external mon to quorum but not in spec:
+
+	mons := make(map[string]*cephclient.MonInfo)
+	for k, v := range inital5Mons {
+		mons[k] = v
+	}
+	// add unknown mon to quorum:
+	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
+
+	// internal mons and deployments has not changed
+	// and unknown mon was removed from quorum
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))
+	assert.Empty(t, c.ClusterInfo.ExternalMons)
+
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
+	monsFromCM := controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 5)
+	for id, mon := range monsFromCM {
+		assert.Equal(t, inital5Mons[id].Name, mon.Name)
+		assert.Equal(t, inital5Mons[id].Endpoint, mon.Endpoint)
+		assert.Equal(t, inital5Mons[id].OutOfQuorum, mon.OutOfQuorum)
+	}
+
+	// 3. downscale mons to 4:
+	c.spec.Mon.Count = 4
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.InternalMonitors)
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	// todo fix
+	assert.Equal(t, 4, len(c.ClusterInfo.InternalMonitors))
+	assert.Empty(t, c.ClusterInfo.ExternalMons)
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
+	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 4)
+	for id, mon := range monsFromCM {
+		assert.Equal(t, inital5Mons[id].Name, mon.Name)
+		assert.Equal(t, inital5Mons[id].Endpoint, mon.Endpoint)
+		assert.Equal(t, inital5Mons[id].OutOfQuorum, mon.OutOfQuorum)
+	}
+
+	// 4. upscale back to 5:
+	c.spec.Mon.Count = 5
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.InternalMonitors)
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))
+	assert.Empty(t, c.ClusterInfo.ExternalMons)
+	// No updates in unit tests w/ workaround
+	assert.Len(t, testopk8s.DeploymentNamesUpdated(deploymentsUpdated), 4)
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
+	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 5)
+	for id, mon := range monsFromCM {
+		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Name, mon.Name)
+		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Endpoint, mon.Endpoint)
+		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].OutOfQuorum, mon.OutOfQuorum)
+	}
+
+}
+
+func TestExternalMons_inSpec_notInQuorum(t *testing.T) {
+	// 1. setup test
+	ctx := context.TODO()
+	var deploymentsUpdated *[]*apps.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
+	monQuorumResponse := clienttest.MonInQuorumResponse()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			return monQuorumResponse, nil
+		},
+	}
+	clientset := test.New(t, 1)
+	configDir := t.TempDir()
+	context := &clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
+	}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
+	c.maxMonID = 0 // "a" is max mon id
+	c.waitForStart = false
+
+	// checking the health will increase the mons as desired all in one go
+	err := c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors), fmt.Sprintf("mons: %v", c.ClusterInfo.InternalMonitors))
+	assert.ElementsMatch(t, []string{
+		// b is created first, no updates
+		"rook-ceph-mon-b",                    // b updated when c created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	inital5Mons := make(map[string]*cephclient.MonInfo)
+	for k, v := range c.ClusterInfo.InternalMonitors {
+		inital5Mons[k] = v
+	}
+
+	// 2. add external mon id to spec but not to quorum
+	c.spec.Mon.ExternalMonIDs = []string{"ext-mon-id"}
+
+	// don't add ext mon to quorum:
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(inital5Mons)
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))
+	assert.Empty(t, c.ClusterInfo.ExternalMons)
+
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
+	monsFromCM := controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 5)
+	for id, mon := range monsFromCM {
+		assert.Equal(t, inital5Mons[id].Name, mon.Name)
+		assert.Equal(t, inital5Mons[id].Endpoint, mon.Endpoint)
+		assert.Equal(t, inital5Mons[id].OutOfQuorum, mon.OutOfQuorum)
+	}
+
+	// 3. downscale mons to 4:
+	c.spec.Mon.Count = 4
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(c.ClusterInfo.InternalMonitors))
+	assert.Empty(t, c.ClusterInfo.ExternalMons)
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
+	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 4)
+	for id, mon := range monsFromCM {
+		assert.Equal(t, inital5Mons[id].Name, mon.Name)
+		assert.Equal(t, inital5Mons[id].Endpoint, mon.Endpoint)
+		assert.Equal(t, inital5Mons[id].OutOfQuorum, mon.OutOfQuorum)
+	}
+
+	// 4. upscale back to 5:
+	c.spec.Mon.Count = 5
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.ClusterInfo.InternalMonitors)
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))
+	assert.Empty(t, c.ClusterInfo.ExternalMons)
+	// No updates in unit tests w/ workaround
+	assert.Len(t, testopk8s.DeploymentNamesUpdated(deploymentsUpdated), 4)
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Empty(t, cm.Data[EndpointExternalMonsKey])
+	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 5)
+	for id, mon := range monsFromCM {
+		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Name, mon.Name)
+		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Endpoint, mon.Endpoint)
+		assert.Equal(t, c.ClusterInfo.InternalMonitors[id].OutOfQuorum, mon.OutOfQuorum)
+	}
+
+}
+
+func TestExternalMons_inSpec_inQuorum(t *testing.T) {
+	// 1. setup test
+	ctx := context.TODO()
+	var deploymentsUpdated *[]*apps.Deployment
+	updateDeploymentAndWait, deploymentsUpdated = testopk8s.UpdateDeploymentAndWaitStub()
+
+	monQuorumResponse := clienttest.MonInQuorumResponse()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, args ...string) (string, error) {
+			logger.Infof("executing command: %s %+v", command, args)
+			if args[0] == "auth" && args[1] == "get-or-create-key" {
+				return "{\"key\":\"mysecurekey\"}", nil
+			}
+			return monQuorumResponse, nil
+		},
+	}
+	clientset := test.New(t, 1)
+	configDir := t.TempDir()
+	context := &clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
+	}
+	ownerInfo := cephclient.NewMinimumOwnerInfoWithOwnerRef()
+	c := New(ctx, context, "ns", cephv1.ClusterSpec{}, ownerInfo)
+	setCommonMonProperties(c, 0, cephv1.MonSpec{Count: 5, AllowMultiplePerNode: true}, "myversion")
+	c.maxMonID = 0 // "a" is max mon id
+	c.waitForStart = false
+
+	// checking the health will increase the mons as desired all in one go
+	err := c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors), fmt.Sprintf("mons: %v", c.ClusterInfo.InternalMonitors))
+	assert.ElementsMatch(t, []string{
+		// b is created first, no updates
+		"rook-ceph-mon-b",                    // b updated when c created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", // b and c updated when d created
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", // etc.
+		"rook-ceph-mon-b", "rook-ceph-mon-c", "rook-ceph-mon-d", "rook-ceph-mon-e"},
+		testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	inital5Mons := make(map[string]*cephclient.MonInfo)
+	for k, v := range c.ClusterInfo.InternalMonitors {
+		inital5Mons[k] = v
+	}
+
+	// 2. add external mon id to spec
+	c.spec.Mon.ExternalMonIDs = []string{"ext-mon-id"}
+
+	// add ext mon to quorum:
+	mons := make(map[string]*cephclient.MonInfo)
+	for k, v := range inital5Mons {
+		mons[k] = v
+	}
+	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
+
+	// internal mons and deployments has not changed
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))
+	// external mon is in quorum
+	assert.Len(t, c.ClusterInfo.ExternalMons, 1)
+	assert.Equal(t, "ext-mon-id", c.ClusterInfo.ExternalMons["ext-mon-id"].Name)
+
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that ext mon is in endpoint configmap
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, "ext-mon-id", cm.Data[EndpointExternalMonsKey])
+	monsFromCM := controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 6)
+	for id, mon := range monsFromCM {
+		if id == "ext-mon-id" {
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].Name, mon.Name)
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].Endpoint, mon.Endpoint)
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].OutOfQuorum, mon.OutOfQuorum)
+		} else {
+			assert.Equal(t, inital5Mons[id].Name, mon.Name)
+			assert.Equal(t, inital5Mons[id].Endpoint, mon.Endpoint)
+			assert.Equal(t, inital5Mons[id].OutOfQuorum, mon.OutOfQuorum)
+		}
+	}
+
+	// 3. downscale mons to 4:
+	c.spec.Mon.Count = 4
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(c.ClusterInfo.InternalMonitors))
+	assert.Len(t, c.ClusterInfo.ExternalMons, 1)
+	// No updates in unit tests w/ workaround
+	assert.ElementsMatch(t, []string{}, testopk8s.DeploymentNamesUpdated(deploymentsUpdated))
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, "ext-mon-id", cm.Data[EndpointExternalMonsKey])
+	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 5)
+	for id, mon := range monsFromCM {
+		if id == "ext-mon-id" {
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].Name, mon.Name)
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].Endpoint, mon.Endpoint)
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].OutOfQuorum, mon.OutOfQuorum)
+		} else {
+			assert.Equal(t, inital5Mons[id].Name, mon.Name)
+			assert.Equal(t, inital5Mons[id].Endpoint, mon.Endpoint)
+			assert.Equal(t, inital5Mons[id].OutOfQuorum, mon.OutOfQuorum)
+		}
+	}
+
+	// 4. upscale back to 5:
+	c.spec.Mon.Count = 5
+	mons = make(map[string]*cephclient.MonInfo)
+	for k, v := range c.ClusterInfo.InternalMonitors {
+		mons[k] = v
+	}
+	mons["ext-mon-id"] = &cephclient.MonInfo{Name: "ext-mon-id", Endpoint: "0.0.0.0:6789"}
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(mons)
+
+	err = c.checkHealth(ctx)
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.ClusterInfo.InternalMonitors))
+	assert.Len(t, c.ClusterInfo.ExternalMons, 1)
+	// No updates in unit tests w/ workaround
+	assert.Len(t, testopk8s.DeploymentNamesUpdated(deploymentsUpdated), 4)
+	testopk8s.ClearDeploymentsUpdated(deploymentsUpdated)
+
+	// check that unknown mon is not in endpoint configmap
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(ctx, EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, "ext-mon-id", cm.Data[EndpointExternalMonsKey])
+	monsFromCM = controller.ParseMonEndpoints(cm.Data[EndpointDataKey])
+	assert.Len(t, monsFromCM, 6)
+	for id, mon := range monsFromCM {
+		if id == "ext-mon-id" {
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].Name, mon.Name)
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].Endpoint, mon.Endpoint)
+			assert.Equal(t, c.ClusterInfo.ExternalMons[id].OutOfQuorum, mon.OutOfQuorum)
+		} else {
+			assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Name, mon.Name)
+			assert.Equal(t, c.ClusterInfo.InternalMonitors[id].Endpoint, mon.Endpoint)
+			assert.Equal(t, c.ClusterInfo.InternalMonitors[id].OutOfQuorum, mon.OutOfQuorum)
+		}
 	}
 }

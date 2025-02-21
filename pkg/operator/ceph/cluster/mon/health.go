@@ -443,7 +443,7 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 	}
 
 	// now, remove processed external mons from ceph quorum status response
-	// to not affect existing logic
+	// to not affect existing logic processing internal mons that are within the mon.count
 	quorumStatus = removeMonsFromQuorumStatusResponse(quorumStatus, extMonIDs)
 	return quorumStatus, nil
 }
