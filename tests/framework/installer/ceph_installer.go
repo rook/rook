@@ -146,6 +146,11 @@ func (h *CephInstaller) CreateCephOperator() (err error) {
 	}
 
 	logger.Infof("Rook operator started")
+
+	if err := h.InstallCSIOperator(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -467,6 +472,45 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	return names, nil
 }
 
+func (h *CephInstaller) InstallCSIOperator() error {
+	if h.settings.RookVersion == Version1_15 {
+		logger.Infof("Skipping the CSI operator installation for previous version of Rook")
+		return nil
+	}
+
+	logger.Infof("Starting the CSI operator")
+	_, err := h.k8shelper.KubectlWithStdin(h.Manifests.GetCSIOperator(), createFromStdinArgs...)
+	if err != nil {
+		return errors.Wrap(err, "failed to create csi-operator")
+	}
+	if !h.k8shelper.IsPodInExpectedStateWithLabel("control-plane=ceph-csi-op-controller-manager", h.settings.OperatorNamespace, "Running") {
+		logger.Error("csi-operator is not running")
+		h.k8shelper.GetLogsFromNamespace(h.settings.OperatorNamespace, "test-setup", utils.TestEnvName())
+		logger.Error("csi-operator is not Running, abort!")
+		return err
+	}
+	logger.Infof("CSI operator started")
+	return nil
+}
+
+func (h *CephInstaller) SetOperatorSetting(key, value string) error {
+	configmap := "rook-ceph-operator-config"
+	logger.Infof("applying configmap %q setting: %q -> %q", configmap, key, value)
+
+	ctx := context.TODO()
+	cm, err := h.k8shelper.Clientset.CoreV1().ConfigMaps(h.settings.OperatorNamespace).Get(ctx, configmap, metav1.GetOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "error reading configmap %q", configmap)
+	}
+
+	cm.Data[key] = value
+	_, err = h.k8shelper.Clientset.CoreV1().ConfigMaps(h.settings.OperatorNamespace).Update(ctx, cm, metav1.UpdateOptions{})
+	if err != nil {
+		return errors.Wrapf(err, "failed to update configmap %q", configmap)
+	}
+	return nil
+}
+
 func (h *CephInstaller) installRookOperator() (bool, error) {
 	var err error
 
@@ -751,6 +795,14 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(manifests ...CephManifests) 
 			logger.Errorf("failed to remove operator resources. %v", err)
 		} else {
 			logger.Infof("done deleting all the resources in the operator manifest")
+		}
+
+		logger.Info("Removing the CSI operator")
+		_, err = h.k8shelper.KubectlWithStdin(h.Manifests.GetCSIOperator(), deleteFromStdinArgs...)
+		if err != nil {
+			logger.Errorf("failed to remove CSI operator. %v", err)
+		} else {
+			logger.Infof("done deleting the CSI operator")
 		}
 	}
 
