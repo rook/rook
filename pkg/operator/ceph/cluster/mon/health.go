@@ -410,7 +410,6 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 		// remove it from CLusterInfo
 		logger.Debugf("existing external mon %q was removed from spec: removing it", extID)
 		delete(c.ClusterInfo.ExternalMons, extID)
-		// extMonsChanged = true
 	}
 
 	// handle external monitors if configured in cluster CRD:
@@ -443,8 +442,8 @@ func (c *Cluster) reconcileExternalMons(ctx context.Context, quorumStatus cephcl
 		}
 	}
 
-	// now remove processed external mons from ceph quourum status response
-	// to not affect to not affect existign logic
+	// now, remove processed external mons from ceph quorum status response
+	// to not affect existing logic
 	quorumStatus = removeMonsFromQuorumStatusResponse(quorumStatus, extMonIDs)
 	return quorumStatus, nil
 }
