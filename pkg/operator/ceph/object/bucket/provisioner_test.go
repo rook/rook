@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -501,7 +502,7 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("maxObjects field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"maxObjects": "2"})
 		assert.NoError(t, err)
@@ -510,7 +511,7 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("maxSize field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"maxSize": "3"})
 		assert.NoError(t, err)
@@ -519,8 +520,10 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("bucketMaxObjects field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketMaxObjects"})
-		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketMaxObjects")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketMaxObjects": "4"})
 		assert.NoError(t, err)
@@ -528,8 +531,10 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("bucketMaxSize field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketMaxSize"})
-		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketMaxSize")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketMaxSize": "5"})
 		assert.NoError(t, err)
@@ -537,8 +542,10 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("bucketPolicy field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketPolicy"})
-		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketPolicy")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketPolicy": "foo"})
 		assert.NoError(t, err)
@@ -546,8 +553,10 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("bucketLifecycle field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketLifecycle"})
-		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketLifecycle")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketLifecycle": "foo"})
 		assert.NoError(t, err)
@@ -555,8 +564,10 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("bucketOwner field should be set", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{"ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS": "bucketOwner"})
-		defer opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		os.Setenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS", "bucketOwner")
+		defer os.Unsetenv("ROOK_OBC_ALLOW_ADDITIONAL_CONFIG_FIELDS")
+		opcontroller.SetObcAllowAdditionalConfigFields()
+		defer opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{"bucketOwner": "foo"})
 		assert.NoError(t, err)
@@ -564,7 +575,7 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("fields disallowed by default", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		opcontroller.SetObcAllowAdditionalConfigFields()
 
 		for _, configKey := range []string{"bucketMaxObjects", "bucketMaxSize", "bucketPolicy", "bucketLifecycle", "bucketOwner"} {
 			_, err := additionalConfigSpecFromMap(map[string]string{configKey: "foo"})
@@ -573,7 +584,7 @@ func TestProvisioner_additionalConfigSpecFromMap(t *testing.T) {
 	})
 
 	t.Run("does not fail on empty map", func(t *testing.T) {
-		opcontroller.SetObcAllowAdditionalConfigFields(map[string]string{})
+		opcontroller.SetObcAllowAdditionalConfigFields()
 
 		spec, err := additionalConfigSpecFromMap(map[string]string{})
 		assert.NoError(t, err)

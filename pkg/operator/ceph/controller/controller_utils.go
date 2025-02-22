@@ -40,7 +40,6 @@ type OperatorConfig struct {
 	Image             string
 	ServiceAccount    string
 	NamespaceToWatch  string
-	Parameters        map[string]string
 }
 
 // ClusterHealth is passed to the various monitoring go routines to stop them when the context is cancelled
@@ -99,13 +98,13 @@ var (
 	obcAllowAdditionalConfigFields = strings.Split(obcAllowAdditionalConfigFieldsDefaultValue, ",")
 )
 
-func DiscoveryDaemonEnabled(data map[string]string) bool {
-	return k8sutil.GetValue(data, "ROOK_ENABLE_DISCOVERY_DAEMON", "false") == "true"
+func DiscoveryDaemonEnabled() bool {
+	return k8sutil.GetOperatorSetting("ROOK_ENABLE_DISCOVERY_DAEMON", "false") == "true"
 }
 
 // SetCephCommandsTimeout sets the timeout value of Ceph commands which are executed from Rook
-func SetCephCommandsTimeout(data map[string]string) {
-	strTimeoutSeconds := k8sutil.GetValue(data, "ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "15")
+func SetCephCommandsTimeout() {
+	strTimeoutSeconds := k8sutil.GetOperatorSetting("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "15")
 	timeoutSeconds, err := strconv.Atoi(strTimeoutSeconds)
 	if err != nil || timeoutSeconds < 1 {
 		logger.Warningf("ROOK_CEPH_COMMANDS_TIMEOUT is %q but it should be >= 1, set the default value 15", strTimeoutSeconds)
@@ -114,8 +113,8 @@ func SetCephCommandsTimeout(data map[string]string) {
 	exec.CephCommandsTimeout = time.Duration(timeoutSeconds) * time.Second
 }
 
-func SetAllowLoopDevices(data map[string]string) {
-	strLoopDevicesAllowed := k8sutil.GetValue(data, "ROOK_CEPH_ALLOW_LOOP_DEVICES", "false")
+func SetAllowLoopDevices() {
+	strLoopDevicesAllowed := k8sutil.GetOperatorSetting("ROOK_CEPH_ALLOW_LOOP_DEVICES", "false")
 	var err error
 	loopDevicesAllowed, err = strconv.ParseBool(strLoopDevicesAllowed)
 	if err != nil {
@@ -128,8 +127,8 @@ func LoopDevicesAllowed() bool {
 	return loopDevicesAllowed
 }
 
-func SetEnforceHostNetwork(data map[string]string) {
-	strval := k8sutil.GetValue(data, enforceHostNetworkSettingName, enforceHostNetworkDefaultValue)
+func SetEnforceHostNetwork() {
+	strval := k8sutil.GetOperatorSetting(enforceHostNetworkSettingName, enforceHostNetworkDefaultValue)
 	val, err := strconv.ParseBool(strval)
 	if err != nil {
 		logger.Warningf("failed to parse value %q for %q. assuming false value", strval, enforceHostNetworkSettingName)
@@ -143,8 +142,8 @@ func EnforceHostNetwork() bool {
 	return cephv1.EnforceHostNetwork()
 }
 
-func SetRevisionHistoryLimit(data map[string]string) {
-	strval := k8sutil.GetValue(data, revisionHistoryLimitSettingName, "")
+func SetRevisionHistoryLimit() {
+	strval := k8sutil.GetOperatorSetting(revisionHistoryLimitSettingName, "")
 	var limit int32
 	if strval == "" {
 		logger.Debugf("not parsing empty string to int for %q. assuming default value.", revisionHistoryLimitSettingName)
@@ -166,8 +165,8 @@ func RevisionHistoryLimit() *int32 {
 	return revisionHistoryLimit
 }
 
-func SetObcAllowAdditionalConfigFields(data map[string]string) {
-	strval := k8sutil.GetValue(data, obcAllowAdditionalConfigFieldsSettingName, obcAllowAdditionalConfigFieldsDefaultValue)
+func SetObcAllowAdditionalConfigFields() {
+	strval := k8sutil.GetOperatorSetting(obcAllowAdditionalConfigFieldsSettingName, obcAllowAdditionalConfigFieldsDefaultValue)
 	obcAllowAdditionalConfigFields = strings.Split(strval, ",")
 }
 
