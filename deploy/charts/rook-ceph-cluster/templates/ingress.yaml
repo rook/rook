@@ -10,7 +10,7 @@ metadata:
   {{- end }}
 spec:
   rules:
-    - host: {{ .Values.ingress.dashboard.host.name }}
+    - host: {{ .Values.ingress.dashboard.host.name | quote }}
       http:
         paths:
           - path: {{ .Values.ingress.dashboard.host.path | default "/" }}
