@@ -157,12 +157,24 @@ fmt: ## Check formatting of go sources.
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
+
+.PHONY: markdownlint
+# the markdownlint target requires
+# markdownlint-cli2 to be available locally in the PATH
+markdownlint: ## Check formatting of documentation sources
+	@if ! type markdownlint-cli2 ; then \
+	    echo "please install markdownlint-cli2 to use 'make markdownlint'" ; \
+	    false ; \
+	 else  \
+	    markdownlint-cli2 "Documentation/**.md" "#Documentation/Helm-Charts/**" --config .markdownlint-cli2.cjs ; \
+	 fi 
+
 .PHONY: yamllint
 yamllint:
 	yamllint -c .yamllint deploy/examples/ --no-warnings
 
 .PHONY: lint
-lint: yamllint pylint shellcheck vet ## Run various linters
+lint: yamllint pylint shellcheck vet markdownlint ## Run various linters
 
 .PHONY: pylint
 pylint:
