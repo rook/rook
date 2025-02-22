@@ -7,7 +7,7 @@ set -ex
 
 MAKE='make --debug=v --output-sync'
 
-function  build() {
+function build() {
     $MAKE build.all
     # quick check that go modules are tidied
     $MAKE mod.check
@@ -18,7 +18,7 @@ function publish() {
     $MAKE -C build/release build BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} GIT_API_TOKEN=${GIT_API_TOKEN}
     git status &
     git diff &
-    $MAKE -C build/release publish BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_API_TOKEN}
+    $MAKE -C build/release publish BRANCH_NAME=${BRANCH_NAME} TAG_WITH_SUFFIX=${TAG_WITH_SUFFIX} GIT_API_TOKEN=${GIT_API_TOKEN} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}
 }
 
 function promote() {
@@ -69,7 +69,6 @@ else
         SHOULD_PROMOTE=false
     fi
 fi
-
 
 publish
 
