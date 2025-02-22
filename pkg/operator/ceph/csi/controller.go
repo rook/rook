@@ -42,7 +42,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -158,32 +157,17 @@ func (r *ReconcileCSI) reconcile(request reconcile.Request) (reconcile.Result, e
 		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed creating csi config map")
 	}
 
-	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
-	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
-	// CM won't be found
-	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: r.opConfig.OperatorNamespace}
-	opConfig := &v1.ConfigMap{}
-	err = r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("operator's configmap resource not found. will use default value or env var.")
-			r.opConfig.Parameters = make(map[string]string)
-		} else {
-			// Error reading the object - requeue the request.
-			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get operator's configmap")
-		}
-	} else {
-		// Populate the operator's config
-		r.opConfig.Parameters = opConfig.Data
+	if err := k8sutil.ApplyOperatorSettingsConfigmap(r.opManagerContext, r.context.Clientset); err != nil {
+		return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to apply operator settings configmap")
 	}
 
-	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_USE_CSI_OPERATOR", "false"))
+	enableCSIOperator, err = strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_USE_CSI_OPERATOR", "false"))
 	if err != nil {
 		return reconcileResult, errors.Wrap(err, "unable to parse value for 'ROOK_USE_CSI_OPERATOR'")
 	}
 
 	// do not recocnile if csi driver is disabled
-	disableCSI, err := strconv.ParseBool(k8sutil.GetValue(r.opConfig.Parameters, "ROOK_CSI_DISABLE_DRIVER", "false"))
+	disableCSI, err := strconv.ParseBool(k8sutil.GetOperatorSetting("ROOK_CSI_DISABLE_DRIVER", "false"))
 	if err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "unable to parse value for 'ROOK_CSI_DISABLE_DRIVER")
 	} else if disableCSI {

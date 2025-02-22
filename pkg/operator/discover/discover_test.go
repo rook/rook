@@ -19,12 +19,12 @@ package discover
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
-	"github.com/rook/rook/pkg/operator/ceph/controller"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 
@@ -63,7 +63,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	_, err := clientset.CoreV1().Pods("rook-system").Create(ctx, &pod, metav1.CreateOptions{})
 	assert.NoError(t, err)
 	// start a basic cluster
-	err = a.Start(ctx, namespace, "rook/rook:myversion", "mysa", map[string]string{}, false)
+	err = a.Start(ctx, namespace, "rook/rook:myversion", "mysa", false)
 	assert.Nil(t, err)
 
 	// check daemonset parameters
@@ -86,21 +86,11 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	assert.Nil(t, agentDS.Spec.Template.Spec.Tolerations)
 
 	// Test with rook override configmap setting
-	opConfigCM := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      controller.OperatorSettingConfigMapName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{
-			"DISCOVER_TOLERATIONS": "- effect: NoSchedule\n  key: node-role.kubernetes.io/control-plane\n  operator: Exists\n- effect: NoExecute\n  key: node-role.kubernetes.io/etcd\n  operator: Exists",
-		},
-	}
-
-	cm, err := clientset.CoreV1().ConfigMaps(namespace).Create(ctx, opConfigCM, metav1.CreateOptions{})
-	assert.NoError(t, err)
+	os.Setenv("DISCOVER_TOLERATIONS", "- effect: NoSchedule\n  key: node-role.kubernetes.io/control-plane\n  operator: Exists\n- effect: NoExecute\n  key: node-role.kubernetes.io/etcd\n  operator: Exists")
+	defer os.Unsetenv("DISCOVER_TOLERATIONS")
 
 	// start a basic cluster
-	err = a.Start(ctx, namespace, "rook/rook:myversion", "mysa", cm.Data, false)
+	err = a.Start(ctx, namespace, "rook/rook:myversion", "mysa", false)
 	assert.Nil(t, err)
 
 	agentDS, err = clientset.AppsV1().DaemonSets(namespace).Get(ctx, "rook-discover", metav1.GetOptions{})

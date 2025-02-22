@@ -18,6 +18,7 @@ package controller
 
 import (
 	ctx "context"
+	"os"
 	"testing"
 	"time"
 
@@ -80,83 +81,94 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 }
 
 func TestSetCephCommandsTimeout(t *testing.T) {
-	SetCephCommandsTimeout(map[string]string{})
+	defer os.Unsetenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS")
+
+	SetCephCommandsTimeout()
 	assert.Equal(t, 15*time.Second, exec.CephCommandsTimeout)
 
 	exec.CephCommandsTimeout = 0
-	SetCephCommandsTimeout(map[string]string{"ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS": "0"})
+	os.Setenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "0")
+	SetCephCommandsTimeout()
 	assert.Equal(t, 15*time.Second, exec.CephCommandsTimeout)
 
 	exec.CephCommandsTimeout = 0
-	SetCephCommandsTimeout(map[string]string{"ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS": "1"})
+	os.Setenv("ROOK_CEPH_COMMANDS_TIMEOUT_SECONDS", "1")
+	SetCephCommandsTimeout()
 	assert.Equal(t, 1*time.Second, exec.CephCommandsTimeout)
 }
 
 func TestSetAllowLoopDevices(t *testing.T) {
-	SetAllowLoopDevices(map[string]string{})
+	defer os.Unsetenv("ROOK_CEPH_ALLOW_LOOP_DEVICES")
+
+	SetAllowLoopDevices()
 	assert.False(t, LoopDevicesAllowed())
 
-	SetAllowLoopDevices(map[string]string{"ROOK_CEPH_ALLOW_LOOP_DEVICES": "foo"})
+	os.Setenv("ROOK_CEPH_ALLOW_LOOP_DEVICES", "foo")
+	SetAllowLoopDevices()
 	assert.False(t, LoopDevicesAllowed())
 
-	SetAllowLoopDevices(map[string]string{"ROOK_CEPH_ALLOW_LOOP_DEVICES": "false"})
+	os.Setenv("ROOK_CEPH_ALLOW_LOOP_DEVICES", "false")
+	SetAllowLoopDevices()
 	assert.False(t, LoopDevicesAllowed())
 
-	SetAllowLoopDevices(map[string]string{"ROOK_CEPH_ALLOW_LOOP_DEVICES": "true"})
+	os.Setenv("ROOK_CEPH_ALLOW_LOOP_DEVICES", "true")
+	SetAllowLoopDevices()
 	assert.True(t, LoopDevicesAllowed())
 }
 
 func TestSetEnforceHostNetwork(t *testing.T) {
+	defer os.Unsetenv(enforceHostNetworkSettingName)
+
 	logger.Infof("testing default value for %v", enforceHostNetworkSettingName)
-	opConfig := map[string]string{}
-	SetEnforceHostNetwork(opConfig)
+	SetEnforceHostNetwork()
 	assert.False(t, EnforceHostNetwork())
 
 	// test invalid setting
 	var value string = "foo"
 	logger.Infof("testing invalid value'%v' for %v", value, enforceHostNetworkSettingName)
-	opConfig[enforceHostNetworkSettingName] = value
-	SetEnforceHostNetwork(opConfig)
+	os.Setenv(enforceHostNetworkSettingName, value)
+	SetEnforceHostNetwork()
 	assert.False(t, EnforceHostNetwork())
 
 	// test valid settings
 	value = "true"
 	logger.Infof("testing valid value'%v' for %v", value, enforceHostNetworkSettingName)
-	opConfig[enforceHostNetworkSettingName] = value
-	SetEnforceHostNetwork(opConfig)
+	os.Setenv(enforceHostNetworkSettingName, value)
+	SetEnforceHostNetwork()
 	assert.True(t, EnforceHostNetwork())
 
 	value = "false"
 	logger.Infof("testing valid value'%v' for %v", value, enforceHostNetworkSettingName)
-	opConfig[enforceHostNetworkSettingName] = value
-	SetEnforceHostNetwork(opConfig)
+	os.Setenv(enforceHostNetworkSettingName, value)
+	SetEnforceHostNetwork()
 	assert.False(t, EnforceHostNetwork())
 }
 
 func TestSetRevisionHistoryLimit(t *testing.T) {
-	opConfig := map[string]string{}
+	defer os.Unsetenv(revisionHistoryLimitSettingName)
+
 	t.Run("ROOK_REVISION_HISTORY_LIMIT: test default value", func(t *testing.T) {
-		SetRevisionHistoryLimit(opConfig)
+		SetRevisionHistoryLimit()
 		assert.Nil(t, RevisionHistoryLimit())
 	})
 
 	var value string = "foo"
 	t.Run("ROOK_REVISION_HISTORY_LIMIT: test invalid value 'foo'", func(t *testing.T) {
-		opConfig[revisionHistoryLimitSettingName] = value
-		SetRevisionHistoryLimit(opConfig)
+		os.Setenv(revisionHistoryLimitSettingName, value)
+		SetRevisionHistoryLimit()
 		assert.Nil(t, RevisionHistoryLimit())
 	})
 
 	t.Run("ROOK_REVISION_HISTORY_LIMIT: test empty string value", func(t *testing.T) {
 		value = ""
-		opConfig[revisionHistoryLimitSettingName] = value
-		SetRevisionHistoryLimit(opConfig)
+		os.Setenv(revisionHistoryLimitSettingName, value)
+		SetRevisionHistoryLimit()
 		assert.Nil(t, RevisionHistoryLimit())
 	})
 	t.Run("ROOK_REVISION_HISTORY_LIMIT:  test valig value '10'", func(t *testing.T) {
 		value = "10"
-		opConfig[revisionHistoryLimitSettingName] = value
-		SetRevisionHistoryLimit(opConfig)
+		os.Setenv(revisionHistoryLimitSettingName, value)
+		SetRevisionHistoryLimit()
 		assert.Equal(t, int32(10), *RevisionHistoryLimit())
 	})
 }

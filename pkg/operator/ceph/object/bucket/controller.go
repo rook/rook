@@ -36,7 +36,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 )
 
 const (
@@ -140,25 +139,6 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 		return reconcile.Result{}, nil
 	}
 
-	// Fetch the operator's configmap. We force the NamespaceName to the operator since the request
-	// could be a CephCluster. If so the NamespaceName will be the one from the cluster and thus the
-	// CM won't be found
-	opNamespaceName := types.NamespacedName{Name: opcontroller.OperatorSettingConfigMapName, Namespace: r.opConfig.OperatorNamespace}
-	opConfig := &v1.ConfigMap{}
-	err = r.client.Get(r.opManagerContext, opNamespaceName, opConfig)
-	if err != nil {
-		if kerrors.IsNotFound(err) {
-			logger.Debug("operator's configmap resource not found. will use default value or env var.")
-			r.opConfig.Parameters = make(map[string]string)
-		} else {
-			// Error reading the object - requeue the request.
-			return opcontroller.ImmediateRetryResult, errors.Wrap(err, "failed to get operator's configmap")
-		}
-	} else {
-		// Populate the operator's config
-		r.opConfig.Parameters = opConfig.Data
-	}
-
 	// Populate clusterInfo during each reconcile
 	clusterInfo, _, _, err := opcontroller.LoadClusterInfo(r.context, r.opManagerContext, cephCluster.Namespace, &cephCluster.Spec)
 	if err != nil {
@@ -177,7 +157,7 @@ func (r *ReconcileBucket) reconcile(request reconcile.Request) (reconcile.Result
 
 	// note: the error return below is ignored and is expected to be removed from the
 	//   bucket library's `NewProvisioner` function
-	bucketController, _ := NewBucketController(r.context.KubeConfig, bucketProvisioner, r.opConfig.Parameters)
+	bucketController, _ := NewBucketController(r.context.KubeConfig, bucketProvisioner)
 
 	// We must run this in a go routine since RunWithContext() blocks and waits for the context to
 	// be Done. However, since it has a context, the go routine will exit on reload with SIGHUP
