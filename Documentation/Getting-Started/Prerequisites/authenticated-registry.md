@@ -3,7 +3,7 @@ title: Authenticated Container Registries
 ---
 
 If you want to use an image from authenticated docker registry (e.g. for image cache/mirror), you'll need to
-add an `imagePullSecret` to all relevant service accounts. See the next section for the required service accounts.
+add `imagePullSecrets` to all relevant service accounts. See the next section for the required service accounts.
 
 The whole process is described in the [official kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account).
 
