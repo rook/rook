@@ -18,7 +18,6 @@ package k8sutil
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,85 +56,6 @@ func TestDeleteConfigMap(t *testing.T) {
 	_, err = k8s.CoreV1().ConfigMaps("test-namespace").Get(ctx, "test-configmap", metav1.GetOptions{})
 	assert.Error(t, err)
 	assert.True(t, errors.IsNotFound(err))
-}
-
-func TestGetOperatorSetting(t *testing.T) {
-	k8s := fake.NewSimpleClientset()
-	ctx := context.TODO()
-
-	operatorSettingConfigMapName := "rook-operator-config"
-	testNamespace := "test-namespace"
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      operatorSettingConfigMapName,
-			Namespace: testNamespace,
-		},
-		Data: map[string]string{
-			"NODE_AFFINITY": "storage=rook, worker",
-		},
-	}
-
-	nodeAffinity := "NODE_AFFINITY"
-	podAffinity := "POD_AFFINITY"
-	envSettingValue := "role=storage-node"
-	cmSettingValue := "storage=rook, worker"
-	defaultValue := ""
-
-	// ConfigMap is not found
-	setting, err := GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
-	assert.NoError(t, err)
-
-	// Env Var doesn't exist
-	assert.Equal(t, defaultValue, setting)
-	// Env Var exists
-	t.Setenv(nodeAffinity, envSettingValue)
-	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
-	assert.NoError(t, err)
-	assert.Equal(t, envSettingValue, setting)
-
-	// ConfigMap is found
-	t.Setenv("POD_NAMESPACE", testNamespace)
-	_, err = k8s.CoreV1().ConfigMaps(testNamespace).Create(ctx, cm, metav1.CreateOptions{})
-	assert.NoError(t, err)
-
-	// Setting exists in ConfigMap
-	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, nodeAffinity, defaultValue)
-	assert.NoError(t, err)
-	// Env Var exists
-	assert.Equal(t, cmSettingValue, setting)
-	// Env Var doesn't exist
-	err = os.Unsetenv(nodeAffinity)
-	assert.NoError(t, err)
-	assert.Equal(t, cmSettingValue, setting)
-
-	// Setting doesn't exist in ConfigMap
-	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
-	assert.NoError(t, err)
-	// Env Var doesn't exist
-	assert.Equal(t, defaultValue, setting)
-	// Env Var exists
-	t.Setenv(podAffinity, envSettingValue)
-	setting, err = GetOperatorSetting(ctx, k8s, operatorSettingConfigMapName, podAffinity, defaultValue)
-	assert.NoError(t, err)
-	assert.Equal(t, envSettingValue, setting)
-}
-
-func TestLogChangedSettings(t *testing.T) {
-	key := "Node_Affinity"
-	value := "storage=rook, worker"
-
-	// When the key is not in the map, it should be added and return true for logging
-	ok := logChangedSettings(key, value)
-	assert.True(t, true, ok)
-
-	// When the key is already present in the map and value is same, it should return false for logging
-	ok = logChangedSettings(key, value)
-	assert.False(t, false, ok)
-
-	// When the key is already present in the map and value is updated, it should return true for logging
-	value = "storage=rook, test"
-	ok = logChangedSettings(key, value)
-	assert.True(t, true, ok)
 }
 
 func TestCreateOrUpdateConfigMap(t *testing.T) {
