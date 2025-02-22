@@ -1137,10 +1137,10 @@ func poolName(poolPrefix, poolName string) string {
 }
 
 // GetObjectBucketProvisioner returns the bucket provisioner name appended with operator namespace if OBC is watching on it
-func GetObjectBucketProvisioner(data map[string]string, namespace string) (string, error) {
+func GetObjectBucketProvisioner(namespace string) (string, error) {
 	provName := bucketProvisionerName
-	obcWatchOnNamespace := k8sutil.GetValue(data, "ROOK_OBC_WATCH_OPERATOR_NAMESPACE", "false")
-	obcProvisionerNamePrefix := k8sutil.GetValue(data, "ROOK_OBC_PROVISIONER_NAME_PREFIX", "")
+	obcWatchOnNamespace := k8sutil.GetOperatorSetting("ROOK_OBC_WATCH_OPERATOR_NAMESPACE", "false")
+	obcProvisionerNamePrefix := k8sutil.GetOperatorSetting("ROOK_OBC_PROVISIONER_NAME_PREFIX", "")
 	if obcProvisionerNamePrefix != "" {
 		errList := validation.IsDNS1123Label(obcProvisionerNamePrefix)
 		if len(errList) > 0 {
