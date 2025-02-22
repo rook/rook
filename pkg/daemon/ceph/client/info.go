@@ -39,10 +39,13 @@ type ClusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	CephCred      CephCred
-	Monitors      map[string]*MonInfo
-	CephVersion   cephver.CephVersion
-	Namespace     string
-	OwnerInfo     *k8sutil.OwnerInfo
+	// InternalMonitors - montiros managed by Rook or external monitors when Rook manages external cluster.
+	InternalMonitors map[string]*MonInfo
+	// ExternalMons - external montiros listed in CephCluster.spec.mon.externalMonIDs when Rook managing local cluster.
+	ExternalMons map[string]*MonInfo
+	CephVersion  cephver.CephVersion
+	Namespace    string
+	OwnerInfo    *k8sutil.OwnerInfo
 	// Hide the name of the cluster since in 99% of uses we want to use the cluster namespace.
 	// If the CR name is needed, access it through the NamespacedName() method.
 	name              string
@@ -57,6 +60,20 @@ type ClusterInfo struct {
 	// Whereas if passed through clusterInfo, we don't have that problem since clusterInfo is
 	// re-hydrated when a context is cancelled.
 	Context context.Context
+}
+
+func (c *ClusterInfo) AllMonitors() map[string]*MonInfo {
+	if len(c.ExternalMons) == 0 {
+		return c.InternalMonitors
+	}
+	res := make(map[string]*MonInfo, len(c.InternalMonitors)+len(c.ExternalMons))
+	for id, mon := range c.InternalMonitors {
+		res[id] = mon
+	}
+	for id, mon := range c.ExternalMons {
+		res[id] = mon
+	}
+	return res
 }
 
 // MonInfo is a collection of information about a Ceph mon.
