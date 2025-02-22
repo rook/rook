@@ -73,16 +73,16 @@ func New(clientset kubernetes.Interface) *Discover {
 }
 
 // Start the discover
-func (d *Discover) Start(ctx context.Context, namespace, discoverImage, securityAccount string, data map[string]string, useCephVolume bool) error {
-	err := d.createDiscoverDaemonSet(ctx, namespace, discoverImage, securityAccount, data, useCephVolume)
+func (d *Discover) Start(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
+	err := d.createDiscoverDaemonSet(ctx, namespace, discoverImage, securityAccount, useCephVolume)
 	if err != nil {
 		return fmt.Errorf("failed to start discover daemonset. %v", err)
 	}
 	return nil
 }
 
-func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, data map[string]string, useCephVolume bool) error {
-	discoveryInterval := k8sutil.GetValue(data, discoverIntervalEnv, defaultDiscoverInterval)
+func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, discoverImage, securityAccount string, useCephVolume bool) error {
+	discoveryInterval := k8sutil.GetOperatorSetting(discoverIntervalEnv, defaultDiscoverInterval)
 
 	discoveryParameters := []string{"discover",
 		"--discover-interval", discoveryInterval}
@@ -90,7 +90,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		discoveryParameters = append(discoveryParameters, "--use-ceph-volume")
 	}
 
-	discoverDaemonResourcesRaw := k8sutil.GetValue(data, discoverDaemonResourcesEnv, "")
+	discoverDaemonResourcesRaw := k8sutil.GetOperatorSetting(discoverDaemonResourcesEnv, "")
 	discoverDaemonResources, err := k8sutil.YamlToContainerResource(discoverDaemonResourcesRaw)
 	if err != nil {
 		logger.Warningf("failed to parse.%s %v", discoverDaemonResourcesRaw, err)
@@ -176,7 +176,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 						},
 					},
 					HostNetwork:       opcontroller.EnforceHostNetwork(),
-					PriorityClassName: k8sutil.GetValue(data, discoverDaemonsetPriorityClassNameEnv, ""),
+					PriorityClassName: k8sutil.GetOperatorSetting(discoverDaemonsetPriorityClassNameEnv, ""),
 					SecurityContext:   &v1.PodSecurityContext{},
 				},
 			},
@@ -191,18 +191,18 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 	}
 
 	// Add toleration if any
-	tolerationValue := k8sutil.GetValue(data, discoverDaemonsetTolerationEnv, "")
+	tolerationValue := k8sutil.GetOperatorSetting(discoverDaemonsetTolerationEnv, "")
 	if tolerationValue != "" {
 		ds.Spec.Template.Spec.Tolerations = []v1.Toleration{
 			{
 				Effect:   v1.TaintEffect(tolerationValue),
 				Operator: v1.TolerationOpExists,
-				Key:      k8sutil.GetValue(data, discoverDaemonsetTolerationKeyEnv, ""),
+				Key:      k8sutil.GetOperatorSetting(discoverDaemonsetTolerationKeyEnv, ""),
 			},
 		}
 	}
 
-	tolerationsRaw := k8sutil.GetValue(data, discoverDaemonsetTolerationsEnv, "")
+	tolerationsRaw := k8sutil.GetOperatorSetting(discoverDaemonsetTolerationsEnv, "")
 	tolerations, err := k8sutil.YamlToTolerations(tolerationsRaw)
 	if err != nil {
 		logger.Warningf("failed to parse %s. %+v", tolerationsRaw, err)
@@ -211,7 +211,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 	ds.Spec.Template.Spec.Tolerations = append(ds.Spec.Template.Spec.Tolerations, tolerations...)
 
 	// Add NodeAffinity if any
-	nodeAffinity := k8sutil.GetValue(data, discoverDaemonSetNodeAffinityEnv, "")
+	nodeAffinity := k8sutil.GetOperatorSetting(discoverDaemonSetNodeAffinityEnv, "")
 	if nodeAffinity != "" {
 		v1NodeAffinity, err := k8sutil.GenerateNodeAffinity(nodeAffinity)
 		if err != nil {
@@ -224,7 +224,7 @@ func (d *Discover) createDiscoverDaemonSet(ctx context.Context, namespace, disco
 		logger.Infof("nodeAffinity: %s", v1NodeAffinity)
 	}
 
-	podLabels := k8sutil.GetValue(data, discoverDaemonSetPodLabelsEnv, "")
+	podLabels := k8sutil.GetOperatorSetting(discoverDaemonSetPodLabelsEnv, "")
 	if podLabels != "" {
 		podLabels := k8sutil.ParseStringToLabels(podLabels)
 		// Override / Set the app label even if set by the user as

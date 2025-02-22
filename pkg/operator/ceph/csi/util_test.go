@@ -47,28 +47,27 @@ func TestDeploymentTemplate(t *testing.T) {
 func TestGetPortFromConfig(t *testing.T) {
 	key := "TEST_CSI_PORT_ENV"
 	var defaultPort uint16 = 8000
-	data := map[string]string{}
 
 	// empty env variable
-	port, err := getPortFromConfig(data, key, defaultPort)
+	port, err := getPortFromConfig(key, defaultPort)
 	assert.Nil(t, err)
 	assert.Equal(t, port, defaultPort)
 
 	// valid port is set in env
 	t.Setenv(key, "9000")
-	port, err = getPortFromConfig(data, key, defaultPort)
+	port, err = getPortFromConfig(key, defaultPort)
 	assert.Nil(t, err)
 	assert.Equal(t, port, uint16(9000))
 
 	// higher port value is set in env
 	t.Setenv(key, "65536")
-	port, err = getPortFromConfig(data, key, defaultPort)
+	port, err = getPortFromConfig(key, defaultPort)
 	assert.Error(t, err)
 	assert.Equal(t, port, defaultPort)
 
 	// negative port is set in env
 	t.Setenv(key, "-1")
-	port, err = getPortFromConfig(data, key, defaultPort)
+	port, err = getPortFromConfig(key, defaultPort)
 	assert.Error(t, err)
 	assert.Equal(t, port, defaultPort)
 
@@ -80,7 +79,6 @@ func TestApplyingResourcesToRBDPlugin(t *testing.T) {
 	tp := templateParam{}
 	rbdPlugin, err := templateToDaemonSet("rbdplugin", RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	params := make(map[string]string)
 
 	// need to build using map[string]interface{} because the following resource
 	// doesn't serialise nicely
@@ -103,8 +101,9 @@ func TestApplyingResourcesToRBDPlugin(t *testing.T) {
 
 	resourceRaw, err := yaml.Marshal(resource)
 	assert.Nil(t, err)
-	params[rbdPluginResource] = string(resourceRaw)
-	applyResourcesToContainers(params, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
+	os.Setenv(rbdPluginResource, string(resourceRaw))
+	defer os.Unsetenv(rbdPluginResource)
+	applyResourcesToContainers(rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String(), "128Mi")
 	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String(), "256Mi")
 	assert.Equal(t, rbdPlugin.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String(), "100m")
@@ -113,7 +112,6 @@ func TestApplyingResourcesToRBDPlugin(t *testing.T) {
 
 func Test_applyVolumeToPodSpec(t *testing.T) {
 	// when no volumes specified
-	config := make(map[string]string)
 	configKey := "TEST_CSI_PLUGIN_VOLUME"
 	dsName := "test-ds"
 	tp := templateParam{
@@ -124,7 +122,7 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 	defaultVolumes := 11
 	ds, err := templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	applyVolumeToPodSpec(configKey, &ds.Spec.Template.Spec)
 
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes)
 
@@ -132,7 +130,7 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 	tp.CSILogRotation = true
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	applyVolumeToPodSpec(configKey, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes+2)
 	tp.CSILogRotation = false
 
@@ -145,10 +143,11 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 	}
 	volumeRaw, err := yaml.Marshal(volumes)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeRaw)
+	os.Setenv(configKey, string(volumeRaw))
+	defer os.Unsetenv(configKey)
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	applyVolumeToPodSpec(configKey, &ds.Spec.Template.Spec)
 
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes+1)
 	// add one more volume
@@ -158,10 +157,10 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 	})
 	volumeRaw, err = yaml.Marshal(volumes)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeRaw)
+	os.Setenv(configKey, string(volumeRaw))
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	applyVolumeToPodSpec(configKey, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes+2)
 	// override existing volume configuration
 	volumes[1].VolumeSource = corev1.VolumeSource{
@@ -169,10 +168,10 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 	}
 	volumeRaw, err = yaml.Marshal(volumes)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeRaw)
+	os.Setenv(configKey, string(volumeRaw))
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	applyVolumeToPodSpec(configKey, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes+2)
 	// remove existing volume configuration
 	volumes = []corev1.Volume{
@@ -183,16 +182,15 @@ func Test_applyVolumeToPodSpec(t *testing.T) {
 	}
 	volumeRaw, err = yaml.Marshal(volumes)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeRaw)
+	os.Setenv(configKey, string(volumeRaw))
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeToPodSpec(config, configKey, &ds.Spec.Template.Spec)
+	applyVolumeToPodSpec(configKey, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Volumes, defaultVolumes+1)
 }
 
 func Test_applyVolumeMountToContainer(t *testing.T) {
 	// when no volumes specified
-	config := make(map[string]string)
 	configKey := "TEST_CSI_PLUGIN_VOLUME_MOUNT"
 	dsName := "test-ds"
 	rbdContainerName := "csi-rbdplugin"
@@ -204,7 +202,7 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	defaultVolumes := 10
 	ds, err := templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	applyVolumeMountToContainer(configKey, rbdContainerName, &ds.Spec.Template.Spec)
 
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes)
 
@@ -212,7 +210,7 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	tp.CSILogRotation = true
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	applyVolumeMountToContainer(configKey, rbdContainerName, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+1)
 	tp.CSILogRotation = false
 
@@ -225,10 +223,11 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	}
 	volumeMountsRaw, err := yaml.Marshal(volumeMounts)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeMountsRaw)
+	os.Setenv(configKey, string(volumeMountsRaw))
+	defer os.Unsetenv(configKey)
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	applyVolumeMountToContainer(configKey, rbdContainerName, &ds.Spec.Template.Spec)
 
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+1)
 	// add one more volumemount
@@ -238,19 +237,19 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	})
 	volumeMountsRaw, err = yaml.Marshal(volumeMounts)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeMountsRaw)
+	os.Setenv(configKey, string(volumeMountsRaw))
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	applyVolumeMountToContainer(configKey, rbdContainerName, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+2)
 	// override existing volume configuration
 	volumeMounts[1].MountPath = "/run/test/run"
 	volumeMountsRaw, err = yaml.Marshal(volumeMounts)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeMountsRaw)
+	os.Setenv(configKey, string(volumeMountsRaw))
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	applyVolumeMountToContainer(configKey, rbdContainerName, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+2)
 	// remove existing volume configuration
 	volumeMounts = []corev1.VolumeMount{
@@ -261,17 +260,16 @@ func Test_applyVolumeMountToContainer(t *testing.T) {
 	}
 	volumeMountsRaw, err = yaml.Marshal(volumeMounts)
 	assert.Nil(t, err)
-	config[configKey] = string(volumeMountsRaw)
+	os.Setenv(configKey, string(volumeMountsRaw))
 	ds, err = templateToDaemonSet(dsName, RBDPluginTemplatePath, tp)
 	assert.Nil(t, err)
-	applyVolumeMountToContainer(config, configKey, rbdContainerName, &ds.Spec.Template.Spec)
+	applyVolumeMountToContainer(configKey, rbdContainerName, &ds.Spec.Template.Spec)
 	assert.Len(t, ds.Spec.Template.Spec.Containers[1].VolumeMounts, defaultVolumes+1)
 }
 
 func Test_getImage(t *testing.T) {
 	type args struct {
-		data         map[string]string
-		settingName  string
+		userImage    string
 		defaultImage string
 	}
 	tests := []struct {
@@ -282,8 +280,6 @@ func Test_getImage(t *testing.T) {
 		{
 			name: "test with default image",
 			args: args{
-				data:         map[string]string{},
-				settingName:  "ROOK_CSI_CEPH_IMAGE",
 				defaultImage: "quay.io/cephcsi/cephcsi:v3.13.0",
 			},
 			want: DefaultCSIPluginImage,
@@ -291,10 +287,7 @@ func Test_getImage(t *testing.T) {
 		{
 			name: "test with user image",
 			args: args{
-				data: map[string]string{
-					"ROOK_CSI_CEPH_IMAGE": "registry.io/private/cephcsi:v8",
-				},
-				settingName:  "ROOK_CSI_CEPH_IMAGE",
+				userImage:    "registry.io/private/cephcsi:v8",
 				defaultImage: "quay.io/cephcsi/cephcsi:v3.11.0",
 			},
 			want: "registry.io/private/cephcsi:v8",
@@ -302,10 +295,7 @@ func Test_getImage(t *testing.T) {
 		{
 			name: "test with user image without version",
 			args: args{
-				data: map[string]string{
-					"ROOK_CSI_CEPH_IMAGE": "registry.io/private/cephcsi",
-				},
-				settingName:  "ROOK_CSI_CEPH_IMAGE",
+				userImage:    "registry.io/private/cephcsi",
 				defaultImage: "quay.io/cephcsi/cephcsi:v3.11.0",
 			},
 			want: "registry.io/private/cephcsi:v3.11.0",
@@ -313,7 +303,11 @@ func Test_getImage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := getImage(tt.args.data, tt.args.settingName, tt.args.defaultImage)
+			if tt.args.userImage != "" {
+				os.Setenv("ROOK_CSI_CEPH_IMAGE", tt.args.userImage)
+				defer os.Unsetenv("ROOK_CSI_CEPH_IMAGE")
+			}
+			got := getImage("ROOK_CSI_CEPH_IMAGE", tt.args.defaultImage)
 			assert.Equal(t, tt.want, got)
 		})
 	}

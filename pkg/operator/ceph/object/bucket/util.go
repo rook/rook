@@ -43,9 +43,9 @@ const (
 	objectStoreEndpoint  = "endpoint"
 )
 
-func NewBucketController(cfg *rest.Config, p *Provisioner, data map[string]string) (*provisioner.Provisioner, error) {
+func NewBucketController(cfg *rest.Config, p *Provisioner) (*provisioner.Provisioner, error) {
 	const allNamespaces = ""
-	provName, err := cephObject.GetObjectBucketProvisioner(data, p.clusterInfo.Namespace)
+	provName, err := cephObject.GetObjectBucketProvisioner(p.clusterInfo.Namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get provisioner name")
 	}

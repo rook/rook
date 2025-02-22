@@ -20,17 +20,17 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 )
 
-var loggedOperatorSettings = sync.Map{}
+var loadedOperatorSettings bool
 
 // DeleteConfigMap deletes a ConfigMap.
 func DeleteConfigMap(ctx context.Context, clientset kubernetes.Interface, cmName, namespace string, opts *DeleteOptions) error {
@@ -70,50 +70,43 @@ func CreateOrUpdateConfigMap(ctx context.Context, clientset kubernetes.Interface
 	return existingCm, nil
 }
 
-// GetOperatorSetting gets the operator setting from ConfigMap or Env Var
+// GetOperatorSetting gets the operator setting from Env Var merged with ConfigMap
 // returns defaultValue if setting is not found
-func GetOperatorSetting(context context.Context, clientset kubernetes.Interface, configMapName, settingName, defaultValue string) (string, error) {
-	// config must be in operator pod namespace
-	namespace := os.Getenv(PodNamespaceEnvVar)
-	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(context, configMapName, metav1.GetOptions{})
+func GetOperatorSetting(settingName, defaultValue string) string {
+	if !loadedOperatorSettings {
+		logger.Warningf("WARNING: attempting to load operator setting %q before configmap is loaded", settingName)
+	}
+	if settingValue, ok := os.LookupEnv(settingName); ok {
+		return settingValue
+	}
+	return defaultValue
+}
+
+func ApplyOperatorSettingsConfigmap(ctx context.Context, clientset kubernetes.Interface) error {
+	namespacedName := types.NamespacedName{Namespace: os.Getenv(PodNamespaceEnvVar), Name: "rook-ceph-operator-config"}
+	logger.Debugf("loading operator settings configmap from %v", namespacedName)
+	opConfig, err := clientset.CoreV1().ConfigMaps(namespacedName.Namespace).Get(ctx, namespacedName.Name, metav1.GetOptions{})
+
 	if err != nil {
 		if kerrors.IsNotFound(err) {
-			if settingValue, ok := os.LookupEnv(settingName); ok {
-				logger.Infof("%s=%q (env var)", settingName, settingValue)
-				return settingValue, nil
-			}
-			logger.Infof("%s=%q (default)", settingName, defaultValue)
-			return defaultValue, nil
+			loadedOperatorSettings = true
+			logger.Debug("operator's configmap resource not found. will use default value or env var.")
+			return nil
 		}
-		return defaultValue, fmt.Errorf("error reading ConfigMap %q. %v", configMapName, err)
+		return err
 	}
 
-	return GetValue(cm.Data, settingName, defaultValue), nil
-}
-
-func GetValue(data map[string]string, settingName, defaultValue string) string {
-	settingValue := defaultValue
-	settingSource := "default"
-
-	if val, ok := data[settingName]; ok {
-		settingValue = val
-		settingSource = "configmap"
-	} else if val, ok := os.LookupEnv(settingName); ok {
-		settingValue = val
-		settingSource = "env var"
+	for key, value := range opConfig.Data {
+		currentValue := os.Getenv(key)
+		if currentValue == value {
+			continue
+		}
+		logger.Infof("operator setting %q = %q", key, value)
+		if err := os.Setenv(key, value); err != nil {
+			logger.Errorf("failed to set env var %q = %q. %v", key, value, err)
+		}
 	}
-
-	if logChangedSettings(settingName, settingValue) {
-		logger.Infof("%s=%q (%s)", settingName, settingValue, settingSource)
-	}
-
-	return settingValue
-}
-
-func logChangedSettings(settingName, settingValue string) bool {
-	if val, ok := loggedOperatorSettings.Load(settingName); !ok || val != settingValue {
-		loggedOperatorSettings.Store(settingName, settingValue)
-		return true
-	}
-	return false
+	loadedOperatorSettings = true
+	logger.Debug("done loading operator settings configmap")
+	return nil
 }

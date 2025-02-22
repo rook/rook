@@ -92,11 +92,11 @@ func (r *ReconcileCSI) createOrUpdateRBDDriverResource(cluster cephv1.CephCluste
 		Spec: spec,
 	}
 
-	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(r.opConfig.Parameters, rbdPluginResource)
+	rbdDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(rbdPluginResource)
 	rbdDriver.Spec.Liveness = &csiopv1a1.LivenessSpec{
 		MetricsPort: int(CSIParam.RBDLivenessMetricsPort),
 	}
-	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(r.opConfig.Parameters, rbdProvisionerResource)
+	rbdDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(rbdProvisionerResource)
 	rbdDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
 	}
@@ -143,12 +143,12 @@ func (r *ReconcileCSI) createOrUpdateCephFSDriverResource(cluster cephv1.CephClu
 		cephFsDriver.Spec.SnapshotPolicy = csiopv1a1.VolumeGroupSnapshotPolicy
 	}
 
-	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(r.opConfig.Parameters, cephFSPluginResource)
+	cephFsDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(cephFSPluginResource)
 	cephFsDriver.Spec.Liveness = &csiopv1a1.LivenessSpec{
 		MetricsPort: int(CSIParam.CephFSLivenessMetricsPort),
 	}
 
-	cephFsDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(r.opConfig.Parameters, cephFSProvisionerResource)
+	cephFsDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(cephFSProvisionerResource)
 	cephFsDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
 	}
@@ -190,9 +190,9 @@ func (r *ReconcileCSI) createOrUpdateNFSDriverResource(cluster cephv1.CephCluste
 		Spec: spec,
 	}
 
-	NFSDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(r.opConfig.Parameters, nfsPluginResource)
+	NFSDriver.Spec.ControllerPlugin.Resources = createDriverControllerPluginResources(nfsPluginResource)
 
-	NFSDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(r.opConfig.Parameters, nfsProvisionerResource)
+	NFSDriver.Spec.NodePlugin.Resources = createDriverNodePluginResouces(nfsProvisionerResource)
 	NFSDriver.Spec.NodePlugin.UpdateStrategy = &v1.DaemonSetUpdateStrategy{
 		Type: v1.RollingUpdateDaemonSetStrategyType,
 	}
@@ -270,9 +270,9 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverS
 			PodCommonSpec: csiopv1a1.PodCommonSpec{
 				PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
 				Affinity: &corev1.Affinity{
-					NodeAffinity: getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{}),
+					NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &corev1.NodeAffinity{}),
 				},
-				Tolerations: getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{}),
+				Tolerations: getToleration(pluginTolerationsEnv, []corev1.Toleration{}),
 			},
 			Resources:              csiopv1a1.NodePluginResourcesSpec{},
 			KubeletDirPath:         CSIParam.KubeletDirPath,
@@ -282,9 +282,9 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverS
 			PodCommonSpec: csiopv1a1.PodCommonSpec{
 				PrioritylClassName: &CSIParam.PluginPriorityClassName,
 				Affinity: &corev1.Affinity{
-					NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
+					NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &corev1.NodeAffinity{}),
 				},
-				Tolerations: getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{}),
+				Tolerations: getToleration(provisionerTolerationsEnv, []corev1.Toleration{}),
 			},
 			Replicas:  &CSIParam.ProvisionerReplicas,
 			Resources: csiopv1a1.ControllerPluginResourcesSpec{},
@@ -294,9 +294,9 @@ func (r *ReconcileCSI) generateDriverSpec(clusterName string) (csiopv1a1.DriverS
 	}, nil
 }
 
-func createDriverControllerPluginResources(opConfig map[string]string, key string) csiopv1a1.ControllerPluginResourcesSpec {
+func createDriverControllerPluginResources(key string) csiopv1a1.ControllerPluginResourcesSpec {
 	controllerPluginResources := csiopv1a1.ControllerPluginResourcesSpec{}
-	resource := getComputeResource(opConfig, key)
+	resource := getComputeResource(key)
 
 	for _, r := range resource {
 		if !reflect.DeepEqual(r.Resource, corev1.ResourceRequirements{}) {
@@ -347,9 +347,9 @@ func createDriverControllerPluginResources(opConfig map[string]string, key strin
 	return controllerPluginResources
 }
 
-func createDriverNodePluginResouces(opConfig map[string]string, key string) csiopv1a1.NodePluginResourcesSpec {
+func createDriverNodePluginResouces(key string) csiopv1a1.NodePluginResourcesSpec {
 	nodePluginResources := csiopv1a1.NodePluginResourcesSpec{}
-	resource := getComputeResource(opConfig, key)
+	resource := getComputeResource(key)
 
 	for _, r := range resource {
 		if !reflect.DeepEqual(r.Resource, corev1.ResourceRequirements{}) {
