@@ -169,7 +169,7 @@ spec:
             - "--node-id=$(NODE_ID)"
             - "--v={{ .LogLevel }}"
             - "--csi-addons-address=$(CSIADDONS_ENDPOINT)"
-            - "--controller-port={{ .CSIAddonsPort }}"
+            - "--controller-port={{ .CSIAddonsRBDProvisionerPort }}"
             - "--pod=$(POD_NAME)"
             - "--namespace=$(POD_NAMESPACE)"
             - "--pod-uid=$(POD_UID)"
@@ -184,7 +184,7 @@ spec:
             - "--log_file={{ .CsiLogRootPath }}/log/{{ .CsiComponentName }}/csi-addons.log"
             {{ end }}
           ports:
-            - containerPort: {{ .CSIAddonsPort }}
+            - containerPort: {{ .CSIAddonsRBDProvisionerPort }}
           env:
             - name: NODE_ID
               valueFrom:

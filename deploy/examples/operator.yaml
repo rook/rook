@@ -470,7 +470,12 @@ data:
   # CSI_CEPHFS_LIVENESS_METRICS_PORT: "9081"
   # Configure CSI RBD liveness metrics port
   # CSI_RBD_LIVENESS_METRICS_PORT: "9080"
+
+  # We can override the ports for each individual component that uses the CSIADDONS sidecar
+  # This is useful if we're running in hostNetwork, where ports may conflict on the same host
   # CSIADDONS_PORT: "9070"
+  # CSIADDONS_RBD_PROVISIONER_PORT: "9070"
+  # CSIADDONS_CEPHFS_PROVISIONER_PORT: "9070"
 
   # Set CephFS Kernel mount options to use https://docs.ceph.com/en/latest/man/8/mount.ceph/#options
   # Set to "ms_mode=secure" when connections.encrypted is enabled in CephCluster CR

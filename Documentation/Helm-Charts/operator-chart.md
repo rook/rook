@@ -67,7 +67,9 @@ The following table lists the configurable parameters of the rook-operator chart
 | `csi.csiAddons.enabled` | Enable CSIAddons | `false` |
 | `csi.csiAddons.repository` | CSIAddons sidecar image repository | `"quay.io/csiaddons/k8s-sidecar"` |
 | `csi.csiAddons.tag` | CSIAddons sidecar image tag | `"v0.11.0"` |
+| `csi.csiAddonsCephFSProvisionerPort` | CSI Addons server port for the Ceph FS provisioner | `9070` |
 | `csi.csiAddonsPort` | CSI Addons server port | `9070` |
+| `csi.csiAddonsRBDProvisionerPort` | CSI Addons server port for the RBD provisioner | `9070` |
 | `csi.csiCephFSPluginResource` | CEPH CSI CephFS plugin resource requirement list | see values.yaml |
 | `csi.csiCephFSPluginVolume` | The volume of the CephCSI CephFS plugin DaemonSet | `nil` |
 | `csi.csiCephFSPluginVolumeMount` | The volume mounts of the CephCSI CephFS plugin DaemonSet | `nil` |

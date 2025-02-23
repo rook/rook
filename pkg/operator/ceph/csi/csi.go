@@ -97,10 +97,22 @@ func (r *ReconcileCSI) setParams() error {
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI CephFS liveness metrics port.")
 	}
+
 	CSIParam.CSIAddonsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSIADDONS_PORT", DefaultCSIAddonsPort)
 	if err != nil {
 		return errors.Wrap(err, "failed to get CSI Addons port")
 	}
+
+	CSIParam.CSIAddonsRBDProvisionerPort, err = getPortFromConfig(r.opConfig.Parameters, "CSIADDONS_RBD_PROVISIONER_PORT", DefaultCSIAddonsRBDProvisionerPort)
+	if err != nil {
+		return errors.Wrap(err, "failed to get CSI Addons port for RBD provisioner")
+	}
+
+	CSIParam.CSIAddonsCephFSProvisionerPort, err = getPortFromConfig(r.opConfig.Parameters, "CSIADDONS_CEPHFS_PROVISIONER_PORT", DefaultCSIAddonsCephFSProvisionerPort)
+	if err != nil {
+		return errors.Wrap(err, "failed to get CSI Addons port for Ceph FS provisioner")
+	}
+
 	CSIParam.RBDLivenessMetricsPort, err = getPortFromConfig(r.opConfig.Parameters, "CSI_RBD_LIVENESS_METRICS_PORT", DefaultRBDLivenessMerticsPort)
 	if err != nil {
 		return errors.Wrap(err, "error getting CSI RBD liveness metrics port.")

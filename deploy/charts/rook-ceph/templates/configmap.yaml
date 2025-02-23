@@ -208,6 +208,12 @@ data:
 {{- if .Values.csi.csiAddonsPort }}
   CSIADDONS_PORT: {{ .Values.csi.csiAddonsPort | quote }}
 {{- end }}
+{{- if .Values.csi.csiAddonsRBDProvisionerPort }}
+  CSIADDONS_RBD_PROVISIONER_PORT: {{ .Values.csi.csiAddonsRBDProvisionerPort | quote }}
+{{- end }}
+{{- if .Values.csi.csiAddonsCephFSProvisionerPort }}
+  CSIADDONS_CEPHFS_PROVISIONER_PORT: {{ .Values.csi.csiAddonsCephFSProvisionerPort | quote }}
+{{- end }}
 {{- if .Values.csi.forceCephFSKernelClient }}
   CSI_FORCE_CEPHFS_KERNEL_CLIENT: {{ .Values.csi.forceCephFSKernelClient | quote }}
 {{- end }}
