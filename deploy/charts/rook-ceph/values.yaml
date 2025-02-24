@@ -443,6 +443,12 @@ csi:
   # -- CSI Addons server port
   # @default -- `9070`
   csiAddonsPort:
+  # -- CSI Addons server port for the RBD provisioner
+  # @default -- `9070`
+  csiAddonsRBDProvisionerPort:
+  # -- CSI Addons server port for the Ceph FS provisioner
+  # @default -- `9070`
+  csiAddonsCephFSProvisionerPort:
 
   # -- Enable Ceph Kernel clients on kernel < 4.17. If your kernel does not support quotas for CephFS
   # you may want to disable this setting. However, this will cause an issue during upgrades
