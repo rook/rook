@@ -150,6 +150,14 @@ A specific will contain a specific release of Ceph as well as security fixes fro
 * `failureDomainLabel`: The label that is expected on each node where the mons
     are expected to be deployed. The labels must be found in the list of
     well-known [topology labels](#osd-topology).
+* `externalMonIDs`: ID list of external mons deployed outside of Rook cluster
+    and not managed by Rook. If set, Rook will not remove external mons from quorum
+    and populate external mons addresses to mon endpoints for CSI.
+    This parameter is supported only for local Rook cluster running in normal mode,
+    meaning that it will be ignored for external cluster (`spec.external.enabled: true`)
+    or for `stretchedCluster`.
+    External monitors can be used in 2 zone k8s cluster to maintain mon quorum
+    when zone outage leads to outage of half of internal mons and k8s control plane.
 * `zones`: The failure domain names where the Mons are expected to be deployed.
     There must be **at least three zones** specified in the list. Each zone can be
     backed by a different storage class by specifying the `volumeClaimTemplate`.
