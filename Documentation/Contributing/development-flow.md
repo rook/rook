@@ -207,6 +207,11 @@ All pull requests must pass all continuous integration (CI) tests before they ca
 automatically run against every pull request. The results of these tests along with code review feedback determine whether
 your request will be merged.
 
+For developers who would like to locally test their changes
+as much as possible before pushing
+(a behavior that is not required but highly encouraged),
+the unit tests and various linters can easily be run locally.
+
 ## Unit Tests
 
 From the root of your local Rook repo execute the following to run all of the unit tests:
@@ -242,6 +247,21 @@ Common cases that may need tests:
 * an input is not specified, for each input
 * an input is specified incorrectly, for each input
 * a resource the code relies on doesn't exist, for each dependency
+
+## Linting
+
+Run `make lint` to run all linters. This will require the following CLI tools to be installed on the system:
+
+* [yamllint](https://www.yamllint.com/)
+* [shellcheck](https://www.shellcheck.net/)
+* [pylint](https://www.pylint.org/)
+* [markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2)
+
+Many of those tools are available via `brew` for MacOS or as Linux distribution packages.
+Otherwise refer to the respective project websites for installation instructions.
+
+!!! tip
+    Run `make help` to see a list of all possible make targets
 
 ## Integration Tests
 
