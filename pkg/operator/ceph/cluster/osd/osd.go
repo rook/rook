@@ -88,6 +88,7 @@ type Cluster struct {
 	deviceSets     []deviceSet
 	migrateOSD     *OSDInfo
 	deprecatedOSDs map[string][]int
+	nodeConfigmaps map[string]struct{}
 }
 
 // New creates an instance of the OSD manager
@@ -204,6 +205,9 @@ func (c *Cluster) Start() error {
 	errs := newProvisionErrors()
 
 	if err := c.validateOSDSettings(); err != nil {
+		return err
+	}
+	if err := c.initializeNodeConfigmaps(); err != nil {
 		return err
 	}
 	logger.Infof("start running osds in namespace %q", namespace)
@@ -1052,4 +1056,25 @@ func getOSDLocationFromArgs(args []string) (string, bool) {
 	}
 
 	return "", false
+}
+
+func (c *Cluster) initializeNodeConfigmaps() error {
+	// Find existing configmaps matching the label
+	label := "node.config.rook.io/osd"
+	options := metav1.ListOptions{LabelSelector: label}
+	configmaps, err := c.context.Clientset.CoreV1().ConfigMaps(c.clusterInfo.Namespace).List(c.clusterInfo.Context, options)
+	if err != nil {
+		return errors.Wrapf(err, "failed to list configmaps in namespace %q with label %q", c.clusterInfo.Namespace, label)
+	}
+
+	c.nodeConfigmaps = map[string]struct{}{}
+	prefix := k8sutil.ConfigOverrideName + "-"
+	for _, configmap := range configmaps.Items {
+		if strings.HasPrefix(configmap.Name, prefix) {
+			nodeName := strings.TrimPrefix(configmap.Name, prefix)
+			logger.Infof("found node %q configmap, will mount it for alternate ceph conf overrides for osds on this node", nodeName)
+			c.nodeConfigmaps[nodeName] = struct{}{}
+		}
+	}
+	return nil
 }

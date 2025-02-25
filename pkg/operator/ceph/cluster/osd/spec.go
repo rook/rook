@@ -328,6 +328,24 @@ func deploymentName(osdID int) string {
 	return fmt.Sprintf(osdAppNameFmt, osdID)
 }
 
+func (c *Cluster) updateCephConfigVolume(volumes []v1.Volume, nodeName string) []v1.Volume {
+	if _, ok := c.nodeConfigmaps[nodeName]; !ok {
+		logger.Debugf("no configmap to override for node %q", nodeName)
+		return volumes
+	}
+
+	updatedVolumes := []v1.Volume{}
+	for _, volume := range volumes {
+		if volume.Name == k8sutil.ConfigOverrideName {
+			logger.Debugf("found configmap volume to override for node %q", nodeName)
+			name := fmt.Sprintf("%s-%s", k8sutil.ConfigOverrideName, nodeName)
+			volume.VolumeSource.Projected.Sources[0].ConfigMap.LocalObjectReference.Name = name
+		}
+		updatedVolumes = append(updatedVolumes, volume)
+	}
+	return updatedVolumes
+}
+
 func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provisionConfig *provisionConfig) (*apps.Deployment, error) {
 	deploymentName := deploymentName(osd.ID)
 	replicaCount := int32(1)
@@ -339,6 +357,8 @@ func (c *Cluster) makeDeployment(osdProps osdProperties, osd *OSDInfo, provision
 		dataDirHostPath = ""
 	}
 	volumes := controller.PodVolumes(provisionConfig.DataPathMap, dataDirHostPath, c.spec.DataDirHostPath, false)
+	volumes = c.updateCephConfigVolume(volumes, osdProps.crushHostname)
+
 	failureDomainValue := osdProps.crushHostname
 	doConfigInit := true     // initialize ceph.conf in init container?
 	doBinaryCopyInit := true // copy rook binary in an init container?
