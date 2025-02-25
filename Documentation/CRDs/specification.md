@@ -8426,7 +8426,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Mode is the mirroring mode: either pool or image</p>
+<p>Mode is the mirroring mode: pool, image or init-only.</p>
 </td>
 </tr>
 <tr>
@@ -11860,7 +11860,7 @@ RadosNamespaceMirroringMode
 </em>
 </td>
 <td>
-<p>Mode is the mirroring mode; either pool or image</p>
+<p>Mode is the mirroring mode; either pool or image.</p>
 </td>
 </tr>
 <tr>
