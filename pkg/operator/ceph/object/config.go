@@ -218,7 +218,7 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 			// RGW might break with some user-specified config overrides; log clearly to help triage
 			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfig",
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag)
-			logger.Debugf("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfig %q",
+			logger.Tracef("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfig %q",
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, val)
 		}
 		configOptions[flag] = val
@@ -226,8 +226,7 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 
 	for flag, val := range c.store.Spec.Gateway.RgwConfigFromSecret {
 		if val.Key == "" || val.Name == "" {
-			logger.Warningf("invalid object store %q rgwConfigFromSecret value %q=%+v", fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val)
-			continue
+			return nil, fmt.Errorf("invalid object store %q rgwConfigFromSecret value %q=%+v", fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, val)
 		}
 		secret, err := c.context.Clientset.CoreV1().Secrets(c.clusterInfo.Namespace).Get(c.clusterInfo.Context, val.Name, metav1.GetOptions{})
 		if err != nil {
@@ -243,7 +242,7 @@ func (c *clusterConfig) generateMonConfigOptions(rgwConfig *rgwConfig) (map[stri
 			// RGW might break with some user-specified config overrides; log clearly to help triage
 			logger.Infof("overriding object store %q RGW config option %q with user-specified rgwConfigFromSecret",
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag)
-			logger.Debugf("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfigFromSecret %q",
+			logger.Tracef("overriding object store %q RGW config option %q (current value %q) with user-specified rgwConfigFromSecret %q",
 				fmt.Sprintf("%s/%s", c.store.Namespace, c.store.Name), flag, currVal, secretVal)
 		}
 		configOptions[flag] = string(secretVal)

@@ -462,7 +462,7 @@ data:
 
 ### Example - usage with `rgwConfigFromSecret`
 
-The sample configuration below demonstrates how to securely handle secret configuration parameters when setting up RGW for [Barbican integration](https://docs.ceph.com/en/reef/radosgw/config-ref/#barbican-settings).
+The sample configuration below demonstrates how to securely handle secret configuration parameters when setting up RGW for [Barbican integration](https://docs.ceph.com/en/latest/radosgw/config-ref/#barbican-settings).
 
 ```yaml
   # ...
@@ -481,11 +481,11 @@ The sample configuration below demonstrates how to securely handle secret config
 apiVersion: v1
 kind: Secret
 metadata:
-    name: barbican-secret
-    namespace: rook-ceph
+  name: barbican-secret
+  namespace: rook-ceph
 type: Opaque
 data:
-    "password": aGVsbG8ud29ybGQK # hello.world
+  "password": aGVsbG8ud29ybGQK # hello.world
 ```
 
 ## Deleting a CephObjectStore
