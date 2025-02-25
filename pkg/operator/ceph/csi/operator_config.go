@@ -94,9 +94,9 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 				PodCommonSpec: csiopv1a1.PodCommonSpec{
 					PrioritylClassName: &CSIParam.ProvisionerPriorityClassName,
 					Affinity: &v1.Affinity{
-						NodeAffinity: getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &v1.NodeAffinity{}),
+						NodeAffinity: getNodeAffinity(pluginNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
-					Tolerations: getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []v1.Toleration{}),
+					Tolerations: getToleration(pluginTolerationsEnv, []v1.Toleration{}),
 				},
 				Resources:              csiopv1a1.NodePluginResourcesSpec{},
 				KubeletDirPath:         CSIParam.KubeletDirPath,
@@ -106,9 +106,9 @@ func (r *ReconcileCSI) generateCSIOpConfigSpec(cluster cephv1.CephCluster, opCon
 				PodCommonSpec: csiopv1a1.PodCommonSpec{
 					PrioritylClassName: &CSIParam.PluginPriorityClassName,
 					Affinity: &v1.Affinity{
-						NodeAffinity: getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &v1.NodeAffinity{}),
+						NodeAffinity: getNodeAffinity(provisionerNodeAffinityEnv, &v1.NodeAffinity{}),
 					},
-					Tolerations: getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []v1.Toleration{}),
+					Tolerations: getToleration(provisionerTolerationsEnv, []v1.Toleration{}),
 				},
 				Replicas:  &CSIParam.ProvisionerReplicas,
 				Resources: csiopv1a1.ControllerPluginResourcesSpec{},
