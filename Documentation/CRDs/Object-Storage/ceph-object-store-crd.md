@@ -481,11 +481,11 @@ The sample configuration below demonstrates how to securely handle secret config
 apiVersion: v1
 kind: Secret
 metadata:
-    name: barbican-secret
-    namespace: rook-ceph
+  name: barbican-secret
+  namespace: rook-ceph
 type: Opaque
 data:
-    "password": aGVsbG8ud29ybGQK # hello.world
+  "password": aGVsbG8ud29ybGQK # hello.world
 ```
 
 ## Deleting a CephObjectStore
