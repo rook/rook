@@ -469,12 +469,12 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	}
 
 	// get common provisioner tolerations and node affinity
-	provisionerTolerations := getToleration(r.opConfig.Parameters, provisionerTolerationsEnv, []corev1.Toleration{})
-	provisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, provisionerNodeAffinityEnv, &corev1.NodeAffinity{})
+	provisionerTolerations := getToleration(provisionerTolerationsEnv, []corev1.Toleration{})
+	provisionerNodeAffinity := getNodeAffinity(provisionerNodeAffinityEnv, &corev1.NodeAffinity{})
 
 	// get common plugin tolerations and node affinity
-	pluginTolerations := getToleration(r.opConfig.Parameters, pluginTolerationsEnv, []corev1.Toleration{})
-	pluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, pluginNodeAffinityEnv, &corev1.NodeAffinity{})
+	pluginTolerations := getToleration(pluginTolerationsEnv, []corev1.Toleration{})
+	pluginNodeAffinity := getNodeAffinity(pluginNodeAffinityEnv, &corev1.NodeAffinity{})
 
 	// Deploy the CSI Holder DaemonSet if Multus is enabled or
 	// EnableCSIHostNetwork is disabled.
@@ -485,16 +485,16 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 
 	if rbdPlugin != nil {
 		// get RBD plugin tolerations and node affinity, defaults to common tolerations and node affinity if not specified
-		rbdPluginTolerations := getToleration(r.opConfig.Parameters, rbdPluginTolerationsEnv, pluginTolerations)
-		rbdPluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, rbdPluginNodeAffinityEnv, pluginNodeAffinity)
+		rbdPluginTolerations := getToleration(rbdPluginTolerationsEnv, pluginTolerations)
+		rbdPluginNodeAffinity := getNodeAffinity(rbdPluginNodeAffinityEnv, pluginNodeAffinity)
 		// apply RBD plugin tolerations and node affinity
 		applyToPodSpec(&rbdPlugin.Spec.Template.Spec, rbdPluginNodeAffinity, rbdPluginTolerations)
 		// apply resource request and limit to rbdplugin containers
-		applyResourcesToContainers(r.opConfig.Parameters, rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
+		applyResourcesToContainers(rbdPluginResource, &rbdPlugin.Spec.Template.Spec)
 		// apply custom mounts to volumes
-		applyVolumeToPodSpec(r.opConfig.Parameters, rbdPluginVolume, &rbdPlugin.Spec.Template.Spec)
+		applyVolumeToPodSpec(rbdPluginVolume, &rbdPlugin.Spec.Template.Spec)
 		// apply custom mounts to volume mounts
-		applyVolumeMountToContainer(r.opConfig.Parameters, rbdPluginVolumeMount, "csi-rbdplugin", &rbdPlugin.Spec.Template.Spec)
+		applyVolumeMountToContainer(rbdPluginVolumeMount, "csi-rbdplugin", &rbdPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(rbdPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to rbd plugin daemonset %q", rbdPlugin.Name)
@@ -515,12 +515,12 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 
 	if rbdProvisionerDeployment != nil {
 		// get RBD provisioner tolerations and node affinity, defaults to common tolerations and node affinity if not specified
-		rbdProvisionerTolerations := getToleration(r.opConfig.Parameters, rbdProvisionerTolerationsEnv, provisionerTolerations)
-		rbdProvisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, rbdProvisionerNodeAffinityEnv, provisionerNodeAffinity)
+		rbdProvisionerTolerations := getToleration(rbdProvisionerTolerationsEnv, provisionerTolerations)
+		rbdProvisionerNodeAffinity := getNodeAffinity(rbdProvisionerNodeAffinityEnv, provisionerNodeAffinity)
 		// apply RBD provisioner tolerations and node affinity
 		applyToPodSpec(&rbdProvisionerDeployment.Spec.Template.Spec, rbdProvisionerNodeAffinity, rbdProvisionerTolerations)
 		// apply resource request and limit to rbd provisioner containers
-		applyResourcesToContainers(r.opConfig.Parameters, rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
+		applyResourcesToContainers(rbdProvisionerResource, &rbdProvisionerDeployment.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(rbdProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to rbd provisioner deployment %q", rbdProvisionerDeployment.Name)
@@ -557,16 +557,16 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 
 	if cephfsPlugin != nil {
 		// get CephFS plugin tolerations and node affinity, defaults to common tolerations and node affinity if not specified
-		cephFSPluginTolerations := getToleration(r.opConfig.Parameters, cephFSPluginTolerationsEnv, pluginTolerations)
-		cephFSPluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, cephFSPluginNodeAffinityEnv, pluginNodeAffinity)
+		cephFSPluginTolerations := getToleration(cephFSPluginTolerationsEnv, pluginTolerations)
+		cephFSPluginNodeAffinity := getNodeAffinity(cephFSPluginNodeAffinityEnv, pluginNodeAffinity)
 		// apply CephFS plugin tolerations and node affinity
 		applyToPodSpec(&cephfsPlugin.Spec.Template.Spec, cephFSPluginNodeAffinity, cephFSPluginTolerations)
 		// apply resource request and limit to cephfs plugin containers
-		applyResourcesToContainers(r.opConfig.Parameters, cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
+		applyResourcesToContainers(cephFSPluginResource, &cephfsPlugin.Spec.Template.Spec)
 		// apply custom mounts to volumes
-		applyVolumeToPodSpec(r.opConfig.Parameters, cephFSPluginVolume, &cephfsPlugin.Spec.Template.Spec)
+		applyVolumeToPodSpec(cephFSPluginVolume, &cephfsPlugin.Spec.Template.Spec)
 		// apply custom mounts to volume mounts
-		applyVolumeMountToContainer(r.opConfig.Parameters, cephFSPluginVolumeMount, "csi-cephfsplugin", &cephfsPlugin.Spec.Template.Spec)
+		applyVolumeMountToContainer(cephFSPluginVolumeMount, "csi-cephfsplugin", &cephfsPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(cephfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to cephfs plugin daemonset %q", cephfsPlugin.Name)
@@ -590,13 +590,13 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 
 	if cephfsProvisionerDeployment != nil {
 		// get CephFS provisioner tolerations and node affinity, defaults to common tolerations and node affinity if not specified
-		cephFSProvisionerTolerations := getToleration(r.opConfig.Parameters, cephFSProvisionerTolerationsEnv, provisionerTolerations)
-		cephFSProvisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, cephFSProvisionerNodeAffinityEnv, provisionerNodeAffinity)
+		cephFSProvisionerTolerations := getToleration(cephFSProvisionerTolerationsEnv, provisionerTolerations)
+		cephFSProvisionerNodeAffinity := getNodeAffinity(cephFSProvisionerNodeAffinityEnv, provisionerNodeAffinity)
 		// apply CephFS provisioner tolerations and node affinity
 		applyToPodSpec(&cephfsProvisionerDeployment.Spec.Template.Spec, cephFSProvisionerNodeAffinity, cephFSProvisionerTolerations)
 		// get resource details for cephfs provisioner
 		// apply resource request and limit to cephfs provisioner containers
-		applyResourcesToContainers(r.opConfig.Parameters, cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
+		applyResourcesToContainers(cephFSProvisionerResource, &cephfsProvisionerDeployment.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(cephfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to cephfs provisioner deployment %q", cephfsProvisionerDeployment.Name)
@@ -632,16 +632,16 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 
 	if nfsPlugin != nil {
 		// get NFS plugin tolerations and node affinity, defaults to common tolerations and node affinity if not specified
-		nfsPluginTolerations := getToleration(r.opConfig.Parameters, nfsPluginTolerationsEnv, pluginTolerations)
-		nfsPluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, nfsPluginNodeAffinityEnv, pluginNodeAffinity)
+		nfsPluginTolerations := getToleration(nfsPluginTolerationsEnv, pluginTolerations)
+		nfsPluginNodeAffinity := getNodeAffinity(nfsPluginNodeAffinityEnv, pluginNodeAffinity)
 		// apply NFS plugin tolerations and node affinity
 		applyToPodSpec(&nfsPlugin.Spec.Template.Spec, nfsPluginNodeAffinity, nfsPluginTolerations)
 		// apply resource request and limit to nfs plugin containers
-		applyResourcesToContainers(r.opConfig.Parameters, nfsPluginResource, &nfsPlugin.Spec.Template.Spec)
+		applyResourcesToContainers(nfsPluginResource, &nfsPlugin.Spec.Template.Spec)
 		// apply custom mounts to volumes
-		applyVolumeToPodSpec(r.opConfig.Parameters, nfsPluginVolume, &nfsPlugin.Spec.Template.Spec)
+		applyVolumeToPodSpec(nfsPluginVolume, &nfsPlugin.Spec.Template.Spec)
 		// apply custom mounts to volume mounts
-		applyVolumeMountToContainer(r.opConfig.Parameters, nfsPluginVolumeMount, "csi-nfsplugin", &nfsPlugin.Spec.Template.Spec)
+		applyVolumeMountToContainer(nfsPluginVolumeMount, "csi-nfsplugin", &nfsPlugin.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(nfsPlugin)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to nfs plugin daemonset %q", nfsPlugin.Name)
@@ -665,13 +665,13 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 
 	if nfsProvisionerDeployment != nil {
 		// get NFS provisioner tolerations and node affinity, defaults to common tolerations and node affinity if not specified
-		nfsProvisionerTolerations := getToleration(r.opConfig.Parameters, nfsProvisionerTolerationsEnv, provisionerTolerations)
-		nfsProvisionerNodeAffinity := getNodeAffinity(r.opConfig.Parameters, nfsProvisionerNodeAffinityEnv, provisionerNodeAffinity)
+		nfsProvisionerTolerations := getToleration(nfsProvisionerTolerationsEnv, provisionerTolerations)
+		nfsProvisionerNodeAffinity := getNodeAffinity(nfsProvisionerNodeAffinityEnv, provisionerNodeAffinity)
 		// apply NFS provisioner tolerations and node affinity
 		applyToPodSpec(&nfsProvisionerDeployment.Spec.Template.Spec, nfsProvisionerNodeAffinity, nfsProvisionerTolerations)
 		// get resource details for nfs provisioner
 		// apply resource request and limit to nfs provisioner containers
-		applyResourcesToContainers(r.opConfig.Parameters, nfsProvisionerResource, &nfsProvisionerDeployment.Spec.Template.Spec)
+		applyResourcesToContainers(nfsProvisionerResource, &nfsProvisionerDeployment.Spec.Template.Spec)
 		err = ownerInfo.SetControllerReference(nfsProvisionerDeployment)
 		if err != nil {
 			return errors.Wrapf(err, "failed to set owner reference to nfs provisioner deployment %q", nfsProvisionerDeployment.Name)
@@ -697,7 +697,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	if EnableRBD {
 		err = csiDriverobj.createCSIDriverInfo(
 			r.opManagerContext, r.context.Clientset,
-			RBDDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_RBD_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
+			RBDDriverName, k8sutil.GetOperatorSetting("CSI_RBD_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
 			tp.Param.RBDAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", RBDDriverName)
@@ -706,7 +706,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	if EnableCephFS {
 		err = csiDriverobj.createCSIDriverInfo(
 			r.opManagerContext, r.context.Clientset,
-			CephFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
+			CephFSDriverName, k8sutil.GetOperatorSetting("CSI_CEPHFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
 			tp.Param.CephFSAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", CephFSDriverName)
@@ -714,7 +714,7 @@ func (r *ReconcileCSI) startDrivers(ownerInfo *k8sutil.OwnerInfo) error {
 	}
 	if EnableNFS {
 		err = csiDriverobj.createCSIDriverInfo(r.opManagerContext, r.context.Clientset,
-			NFSDriverName, k8sutil.GetValue(r.opConfig.Parameters, "CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
+			NFSDriverName, k8sutil.GetOperatorSetting("CSI_NFS_FSGROUPPOLICY", string(k8scsi.FileFSGroupPolicy)),
 			tp.Param.NFSAttachRequired, CSIParam.EnableCSIDriverSeLinuxMount)
 		if err != nil {
 			return errors.Wrapf(err, "failed to create CSI driver object for %q", NFSDriverName)
@@ -832,13 +832,13 @@ func (r *ReconcileCSI) configureHolder(driver driverDetails, c ClusterDetail, tp
 			return errors.Wrapf(err, "failed to set owner reference to plugin holder %q", driver.fullName)
 		}
 	}
-	holderPluginTolerations := getToleration(r.opConfig.Parameters, driver.toleration, pluginTolerations)
-	holderPluginNodeAffinity := getNodeAffinity(r.opConfig.Parameters, driver.nodeAffinity, pluginNodeAffinity)
+	holderPluginTolerations := getToleration(driver.toleration, pluginTolerations)
+	holderPluginNodeAffinity := getNodeAffinity(driver.nodeAffinity, pluginNodeAffinity)
 	// apply driver's plugin tolerations and node affinity
 	applyToPodSpec(&cephPluginHolder.Spec.Template.Spec, holderPluginNodeAffinity, holderPluginTolerations)
 
 	// apply resource request and limit from corresponding plugin container
-	applyResourcesToContainers(r.opConfig.Parameters, driver.resource, &cephPluginHolder.Spec.Template.Spec)
+	applyResourcesToContainers(driver.resource, &cephPluginHolder.Spec.Template.Spec)
 
 	// Append the CEPH_CLUSTER_NAMESPACE env var so that the main container can use it to create the network
 	// namespace symlink to the Kubelet plugin directory
@@ -936,7 +936,7 @@ func GenerateNetNamespaceFilePath(ctx context.Context, client client.Client, clu
 	}
 
 	// net namespace file path is empty string if holder pods are disabled
-	csiDisableHolders, err := strconv.ParseBool(k8sutil.GetValue(opConfig.Data, "CSI_DISABLE_HOLDER_PODS", "false"))
+	csiDisableHolders, err := strconv.ParseBool(k8sutil.GetOperatorSetting("CSI_DISABLE_HOLDER_PODS", "false"))
 	if err != nil {
 		return "", errors.Wrap(err, "failed to parse value for 'CSI_DISABLE_HOLDER_PODS'")
 	}
@@ -953,7 +953,7 @@ func GenerateNetNamespaceFilePath(ctx context.Context, client client.Client, clu
 		return "", errors.Errorf("unsupported driver name %q", driverName)
 	}
 
-	kubeletDirPath := k8sutil.GetValue(opConfig.Data, "ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
+	kubeletDirPath := k8sutil.GetOperatorSetting("ROOK_CSI_KUBELET_DIR_PATH", DefaultKubeletDirPath)
 	driverFullName := fmt.Sprintf("%s.%s", opNamespace, driverSuffix)
 
 	return generateNetNamespaceFilePath(kubeletDirPath, driverFullName, clusterNamespace), nil

@@ -19,6 +19,7 @@ package csi
 import (
 	"context"
 	_ "embed"
+	"os"
 	"testing"
 
 	cephv1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1"
@@ -32,7 +33,6 @@ import (
 	apps "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	kfake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -115,17 +115,9 @@ func TestGenerateNetNamespaceFilePath(t *testing.T) {
 	})
 
 	t.Run("generate with op configmap for cephfs", func(t *testing.T) {
-		opCm := &v1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      opcontroller.OperatorSettingConfigMapName,
-				Namespace: "rook-ceph",
-			},
-			Data: map[string]string{"ROOK_CSI_KUBELET_DIR_PATH": "/foo"},
-		}
-		object := []runtime.Object{
-			opCm,
-		}
-		client := fake.NewClientBuilder().WithRuntimeObjects(object...).Build()
+		os.Setenv("ROOK_CSI_KUBELET_DIR_PATH", "/foo")
+		defer os.Unsetenv("ROOK_CSI_KUBELET_DIR_PATH")
+		client := fake.NewClientBuilder().WithRuntimeObjects().Build()
 		netNsFilePath, err := GenerateNetNamespaceFilePath(ctx, client, "rook-ceph", "rook-ceph", "cephfs")
 		assert.NoError(t, err)
 		assert.Equal(t, "/foo/plugins/rook-ceph.cephfs.csi.ceph.com/rook-ceph.net.ns", netNsFilePath)
