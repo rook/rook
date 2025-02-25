@@ -8414,7 +8414,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Mode is the mirroring mode: either pool or image</p>
+<p>Mode is the mirroring mode: pool, image or init-only. Refer to <a href="https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring">mirroring doc</a></p>
 </td>
 </tr>
 <tr>
@@ -11848,7 +11848,7 @@ RadosNamespaceMirroringMode
 </em>
 </td>
 <td>
-<p>Mode is the mirroring mode; either pool or image</p>
+<p>Mode is the mirroring mode; either pool or image. Refer to <a href="https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#namespace-configuration">namespace mirroring doc</a></p>
 </td>
 </tr>
 <tr>
