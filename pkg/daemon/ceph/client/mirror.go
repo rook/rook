@@ -119,6 +119,16 @@ func CreateRBDMirrorBootstrapPeer(context *clusterd.Context, clusterInfo *Cluste
 func enablePoolMirroring(context *clusterd.Context, clusterInfo *ClusterInfo, pool cephv1.NamedPoolSpec) error {
 	logger.Infof("enabling mirroring type %q for pool %q", pool.Mirroring.Mode, pool.Name)
 
+	mirrorInfo, err := GetPoolMirroringInfo(context, clusterInfo, pool.Name)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get mirroring info for the radosnamespace %q", pool.Name)
+	}
+
+	if mirrorInfo.Mode != "disabled" {
+		logger.Infof("mirroring is already enabled on the pool %s", pool.Name)
+		return nil
+	}
+
 	// Build command
 	args := []string{"mirror", "pool", "enable", pool.Name, pool.Mirroring.Mode}
 	cmd := NewRBDCommand(context, clusterInfo, args)
@@ -374,6 +384,14 @@ func EnableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *Cl
 	// remove the check when the min supported version is 20.0.0
 	if !clusterInfo.CephVersion.IsAtLeast(radosNamespaceMirroringMinimumVersion) {
 		return errors.Errorf("ceph version %q does not support mirroring in rados namespace %q with --remote-namespace flag, supported version are v20 and above.", clusterInfo.CephVersion.String(), poolAndRadosNamespaceName)
+	}
+
+	implicitNamespaceKey := "<implicit>"
+	implicitNamespaceVal := ""
+	if remoteNamespace != nil {
+		if *remoteNamespace == implicitNamespaceKey {
+			*remoteNamespace = implicitNamespaceVal
+		}
 	}
 
 	args := []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode}
