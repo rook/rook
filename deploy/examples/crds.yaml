@@ -390,7 +390,7 @@ spec:
                       description: Enabled whether this pool is mirrored or not
                       type: boolean
                     mode:
-                      description: 'Mode is the mirroring mode: either pool or image'
+                      description: 'Mode is the mirroring mode: pool, image or init-only'
                       type: string
                     peers:
                       description: Peers represents the peers spec
@@ -7002,7 +7002,7 @@ spec:
                             description: Enabled whether this pool is mirrored or not
                             type: boolean
                           mode:
-                            description: 'Mode is the mirroring mode: either pool or image'
+                            description: 'Mode is the mirroring mode: pool, image or init-only'
                             type: string
                           peers:
                             description: Peers represents the peers spec
@@ -7186,7 +7186,7 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only'
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -10838,7 +10838,7 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only'
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -12385,7 +12385,7 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only'
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -13231,7 +13231,7 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only'
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -13410,7 +13410,7 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only'
                           type: string
                         peers:
                           description: Peers represents the peers spec

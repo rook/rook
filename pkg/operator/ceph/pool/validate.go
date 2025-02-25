@@ -162,7 +162,7 @@ func ValidatePoolSpec(context *clusterd.Context, clusterInfo *cephclient.Cluster
 	// Validate mirroring settings
 	if p.Mirroring.Enabled {
 		switch p.Mirroring.Mode {
-		case "image", "pool":
+		case "image", "pool", "init-only":
 			break
 		default:
 			return errors.Errorf("unrecognized mirroring mode %q. only 'image and 'pool' are supported", p.Mirroring.Mode)
