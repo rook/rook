@@ -67,7 +67,7 @@ spec:
                   description: Mirroring configuration of CephBlockPoolRadosNamespace
                   properties:
                     mode:
-                      description: Mode is the mirroring mode; either pool or image
+                      description: Mode is the mirroring mode; either pool or image. Refer to [namespace mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#namespace-configuration)
                       enum:
                         - ""
                         - pool
@@ -390,7 +390,12 @@ spec:
                       description: Enabled whether this pool is mirrored or not
                       type: boolean
                     mode:
-                      description: 'Mode is the mirroring mode: either pool or image'
+                      description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                      enum:
+                        - ""
+                        - pool
+                        - image
+                        - init-only
                       type: string
                     peers:
                       description: Peers represents the peers spec
@@ -7002,7 +7007,12 @@ spec:
                             description: Enabled whether this pool is mirrored or not
                             type: boolean
                           mode:
-                            description: 'Mode is the mirroring mode: either pool or image'
+                            description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                            enum:
+                              - ""
+                              - pool
+                              - image
+                              - init-only
                             type: string
                           peers:
                             description: Peers represents the peers spec
@@ -7186,7 +7196,12 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                          enum:
+                            - ""
+                            - pool
+                            - image
+                            - init-only
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -10838,7 +10853,12 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                          enum:
+                            - ""
+                            - pool
+                            - image
+                            - init-only
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -12385,7 +12405,12 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                          enum:
+                            - ""
+                            - pool
+                            - image
+                            - init-only
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -13231,7 +13256,12 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                          enum:
+                            - ""
+                            - pool
+                            - image
+                            - init-only
                           type: string
                         peers:
                           description: Peers represents the peers spec
@@ -13410,7 +13440,12 @@ spec:
                           description: Enabled whether this pool is mirrored or not
                           type: boolean
                         mode:
-                          description: 'Mode is the mirroring mode: either pool or image'
+                          description: 'Mode is the mirroring mode: pool, image or init-only. Refer to [mirroring doc](https://docs.ceph.com/en/latest/rbd/rbd-mirroring/#enable-mirroring)'
+                          enum:
+                            - ""
+                            - pool
+                            - image
+                            - init-only
                           type: string
                         peers:
                           description: Peers represents the peers spec

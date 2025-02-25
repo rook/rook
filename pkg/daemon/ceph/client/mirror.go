@@ -376,6 +376,12 @@ func EnableRBDRadosNamespaceMirroring(context *clusterd.Context, clusterInfo *Cl
 		return errors.Errorf("ceph version %q does not support mirroring in rados namespace %q with --remote-namespace flag, supported version are v20 and above.", clusterInfo.CephVersion.String(), poolAndRadosNamespaceName)
 	}
 
+	implicitnsKey := "<implicit>"
+	implicitnsVal := ""
+	if remoteNamespace == &implicitnsKey {
+		remoteNamespace = &implicitnsVal
+	}
+
 	args := []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode}
 	if remoteNamespace != nil {
 		args = []string{"mirror", "pool", "enable", poolAndRadosNamespaceName, mode, "--remote-namespace", *remoteNamespace}
