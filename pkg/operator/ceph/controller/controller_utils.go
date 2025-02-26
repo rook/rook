@@ -184,13 +184,30 @@ func canIgnoreHealthErrStatusInReconcile(cephCluster cephv1.CephCluster, control
 		}
 	}
 
-	// If there is only one cause for HEALTH_ERR and it's on the allowed list of errors, ignore it.
-	var allowedErrStatus = []string{"MDS_ALL_DOWN"}
-	var ignoreHealthErr = len(healthErrKeys) == 1 && contains(allowedErrStatus, healthErrKeys[0])
-	if ignoreHealthErr {
-		logger.Debugf("%q: ignoring ceph status %q because only cause is %q (full status is %+v)", controllerName, cephCluster.Status.CephStatus.Health, healthErrKeys[0], cephCluster.Status.CephStatus)
+	// If there are no errors, the caller actually expects false to be returned so the absence
+	// of an error doesn't cause the health status to be ignored. In production, if there are no
+	// errors, we would anyway expect the health status to be ok or warning. False in this case
+	// will cover if the health status is blank.
+	if len(healthErrKeys) == 0 {
+		return false
 	}
-	return ignoreHealthErr
+
+	allowedErrStatus := map[string]struct{}{
+		"MDS_ALL_DOWN":     {},
+		"MGR_MODULE_ERROR": {},
+	}
+	allCanBeIgnored := true
+	for _, healthErrKey := range healthErrKeys {
+		if _, ok := allowedErrStatus[healthErrKey]; !ok {
+			allCanBeIgnored = false
+			break
+		}
+	}
+	if allCanBeIgnored {
+		logger.Debugf("%q: ignoring ceph error status (full status is %+v)", controllerName, cephCluster.Status.CephStatus)
+		return true
+	}
+	return false
 }
 
 // IsReadyToReconcile determines if a controller is ready to reconcile or not

@@ -254,6 +254,7 @@ func TestCephFilesystemController(t *testing.T) {
 			recorder:         record.NewFakeRecorder(5),
 			scheme:           s,
 			context:          c,
+			fsContexts:       make(map[string]*fsHealth),
 			opManagerContext: context.TODO(),
 		}
 		res, err := r.Reconcile(ctx, req)
