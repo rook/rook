@@ -167,10 +167,10 @@ yamllint:
 
 .PHONY: golangci-lint
 golangci-lint:
-	@golangci-lint run
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@latest run
 
 .PHONY: lint
-lint: yamllint pylint shellcheck vet markdownlint ## Run various linters
+lint: yamllint pylint shellcheck vet markdownlint golangci-lint ## Run various linters
 
 .PHONY: pylint
 pylint:
