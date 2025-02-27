@@ -8397,7 +8397,7 @@ string
 </td>
 <td>
 <em>(Optional)</em>
-<p>Mode is the mirroring mode: either pool or image</p>
+<p>Mode is the mirroring mode: pool, image or init-only</p>
 </td>
 </tr>
 <tr>
@@ -11851,6 +11851,9 @@ RadosNamespaceMirroringMode
 </thead>
 <tbody><tr><td><p>&#34;image&#34;</p></td>
 <td><p>RadosNamespaceMirroringModeImage represents the image mode</p>
+</td>
+</tr><tr><td><p>&#34;init-only&#34;</p></td>
+<td><p>RadosNamespaceMirroringModeInitOnly represents the image mode</p>
 </td>
 </tr><tr><td><p>&#34;pool&#34;</p></td>
 <td><p>RadosNamespaceMirroringModePool represents the pool mode</p>

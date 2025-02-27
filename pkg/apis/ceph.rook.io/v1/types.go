@@ -1080,7 +1080,7 @@ type MirroringSpec struct {
 	// +optional
 	Enabled bool `json:"enabled,omitempty"`
 
-	// Mode is the mirroring mode: either pool or image
+	// Mode is the mirroring mode: pool, image or init-only
 	// +optional
 	Mode string `json:"mode,omitempty"`
 
@@ -3433,6 +3433,8 @@ const (
 	RadosNamespaceMirroringModePool RadosNamespaceMirroringMode = "pool"
 	// RadosNamespaceMirroringModeImage represents the image mode
 	RadosNamespaceMirroringModeImage RadosNamespaceMirroringMode = "image"
+	// RadosNamespaceMirroringModeInitOnly represents the image mode
+	RadosNamespaceMirroringModeInitOnly RadosNamespaceMirroringMode = "init-only"
 )
 
 // CephBlockPoolRadosNamespaceSpec represents the specification of a CephBlockPool Rados Namespace
