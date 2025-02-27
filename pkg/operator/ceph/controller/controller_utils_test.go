@@ -46,7 +46,11 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 	var cluster = CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{
 		"MDS_ALL_DOWN": {
 			Severity: "HEALTH_ERR",
-			Message:  "MDS_ALL_DOWN",
+			Message:  "mds all down error",
+		},
+		"MGR_MODULE_ERROR": {
+			Severity: "HEALTH_ERR",
+			Message:  "mgr module error",
 		},
 		"TEST_OTHER": {
 			Severity: "HEALTH_WARN",
@@ -58,6 +62,22 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 		},
 	})
 	assert.True(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
+
+	cluster = CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{
+		"MGR_MODULE_ERROR": {
+			Severity: "HEALTH_ERR",
+			Message:  "mgr module error",
+		},
+	})
+	assert.True(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
+
+	cluster = CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{
+		"MGR_MODULE_ERROR_FALSE": {
+			Severity: "HEALTH_ERR",
+			Message:  "mgr module error",
+		},
+	})
+	assert.False(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
 
 	cluster = CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{
 		"MDS_ALL_DOWN": {
@@ -77,6 +97,10 @@ func TestCanIgnoreHealthErrStatusInReconcile(t *testing.T) {
 			Message:  "TEST_UNIGNORABLE",
 		},
 	})
+	assert.False(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
+
+	// The empty status should return false
+	cluster = CreateTestClusterFromStatusDetails(map[string]cephv1.CephHealthMessage{})
 	assert.False(t, canIgnoreHealthErrStatusInReconcile(cluster, "controller"))
 }
 
