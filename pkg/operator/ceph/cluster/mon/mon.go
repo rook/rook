@@ -58,6 +58,8 @@ const (
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
 	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
 	EndpointDataKey = "data"
+	// EndpointExternalMonsKey key in EndpointConfigMapName configmap containing IDs of external mons
+	EndpointExternalMonsKey = "externalMons"
 	// AppName is the name of the secret storing cluster mon.admin key, fsid and name
 	AppName = "rook-ceph-mon"
 	//nolint:gosec // OperatorCreds is the name of the secret
@@ -303,7 +305,7 @@ func (c *Cluster) startMons(targetCount int) error {
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", flattenMonEndpoints(c.ClusterInfo.Monitors))
+	logger.Debugf("mon endpoints used are: %s", flattenMonEndpoints(c.ClusterInfo.AllMonitors()))
 
 	// reconcile mon PDB
 	if err := c.reconcileMonPDB(); err != nil {
@@ -484,7 +486,7 @@ func (c *Cluster) ensureMonsRunning(mons []*monConfig, i, targetCount int, requi
 	// Calculate how many mons we expected to exist after this method is completed.
 	// If we are adding a new mon, we expect one more than currently exist.
 	// If we haven't created all the desired mons already, we will be adding a new one with this iteration
-	expectedMonCount := len(c.ClusterInfo.Monitors)
+	expectedMonCount := len(c.ClusterInfo.InternalMonitors)
 	if expectedMonCount < targetCount {
 		expectedMonCount++
 	}
@@ -548,13 +550,12 @@ func (c *Cluster) initClusterInfo(cephVersion cephver.CephVersion, clusterName s
 }
 
 func (c *Cluster) initMonConfig(size int) (int, []*monConfig, error) {
-
 	// initialize the mon pod info for mons that have been previously created
 	mons := c.clusterInfoToMonConfig()
 
 	// initialize mon info if we don't have enough mons (at first startup)
-	existingCount := len(c.ClusterInfo.Monitors)
-	for i := len(c.ClusterInfo.Monitors); i < size; i++ {
+	existingCount := len(c.ClusterInfo.InternalMonitors)
+	for i := len(c.ClusterInfo.InternalMonitors); i < size; i++ {
 		c.maxMonID++
 		zone, err := c.findAvailableZone(mons)
 		if err != nil {
@@ -572,7 +573,7 @@ func (c *Cluster) clusterInfoToMonConfig() []*monConfig {
 
 func (c *Cluster) clusterInfoToMonConfigWithExclude(excludedMon string) []*monConfig {
 	mons := []*monConfig{}
-	for _, monitor := range c.ClusterInfo.Monitors {
+	for _, monitor := range c.ClusterInfo.InternalMonitors {
 		if monitor.Name == excludedMon {
 			// Skip a mon if it is being failed over
 			continue
@@ -851,7 +852,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 				}
 			}
 		}
-		c.ClusterInfo.Monitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
+		c.ClusterInfo.InternalMonitors[m.DaemonName] = cephclient.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 	}
 
 	return nil
@@ -1160,7 +1161,7 @@ func (c *Cluster) saveMonConfig() error {
 		return errors.Wrap(err, "failed to write connection config for new mons")
 	}
 
-	monEndpoints := csi.MonEndpoints(c.ClusterInfo.Monitors, c.spec.RequireMsgr2())
+	monEndpoints := csi.MonEndpoints(c.ClusterInfo.AllMonitors(), c.spec.RequireMsgr2())
 	csiConfigEntry := &csi.CSIClusterConfigEntry{
 		Namespace: c.ClusterInfo.Namespace,
 		ClusterInfo: cephcsi.ClusterInfo{
@@ -1173,7 +1174,7 @@ func (c *Cluster) saveMonConfig() error {
 		return errors.Wrap(err, "failed to update csi cluster config")
 	}
 
-	if csi.EnableCSIOperator() && len(c.ClusterInfo.Monitors) > 0 {
+	if csi.EnableCSIOperator() && len(c.ClusterInfo.AllMonitors()) > 0 {
 		err := csi.CreateUpdateCephConnection(c.context.Client, c.ClusterInfo, c.spec)
 		if err != nil {
 			return errors.Wrap(err, "failed to create/update cephConnection")
@@ -1207,7 +1208,7 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 	}
 
 	csiConfigValue, err := csi.FormatCsiClusterConfig(
-		c.Namespace, c.ClusterInfo.Monitors)
+		c.Namespace, c.ClusterInfo.AllMonitors())
 	if err != nil {
 		return errors.Wrap(err, "failed to format csi config")
 	}
@@ -1219,14 +1220,21 @@ func (c *Cluster) persistExpectedMonDaemons() error {
 
 	// preserve the mons detected out of quorum
 	var monsOutOfQuorum []string
-	for monName, mon := range c.ClusterInfo.Monitors {
+	for monName, mon := range c.ClusterInfo.InternalMonitors {
 		if mon.OutOfQuorum {
 			monsOutOfQuorum = append(monsOutOfQuorum, monName)
 		}
 	}
+	extMonIDs := make([]string, 0, len(c.ClusterInfo.ExternalMons))
+	if c.ClusterInfo.ExternalMons != nil {
+		for monID := range c.ClusterInfo.ExternalMons {
+			extMonIDs = append(extMonIDs, monID)
+		}
+	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey: flattenMonEndpoints(c.ClusterInfo.Monitors),
+		EndpointDataKey:         flattenMonEndpoints(c.ClusterInfo.AllMonitors()),
+		EndpointExternalMonsKey: strings.Join(extMonIDs, ","),
 		// persist the maxMonID that was previously stored in the configmap. We are likely saving info
 		// about scheduling of the mons, but we only want to update the maxMonID once a new mon has
 		// actually been started. If the operator is restarted or the reconcile is otherwise restarted,

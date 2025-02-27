@@ -298,7 +298,7 @@ func (r *ReconcileCephFilesystemSubVolumeGroup) updateClusterConfig(cephFilesyst
 	csiClusterConfigEntry := csi.CSIClusterConfigEntry{
 		Namespace: r.clusterInfo.Namespace,
 		ClusterInfo: cephcsi.ClusterInfo{
-			Monitors: csi.MonEndpoints(r.clusterInfo.Monitors, cephCluster.Spec.RequireMsgr2()),
+			Monitors: csi.MonEndpoints(r.clusterInfo.AllMonitors(), cephCluster.Spec.RequireMsgr2()),
 			CephFS: cephcsi.CephFS{
 				SubvolumeGroup:     getSubvolumeGroupName(cephFilesystemSubVolumeGroup),
 				KernelMountOptions: r.clusterInfo.CSIDriverSpec.CephFS.KernelMountOptions,

@@ -249,7 +249,7 @@ func PopulateMonHostMembers(clusterInfo *ClusterInfo) ([]string, []string) {
 	var monMembers []string
 	var monHosts []string
 
-	for _, monitor := range clusterInfo.Monitors {
+	for _, monitor := range clusterInfo.AllMonitors() {
 		if monitor.OutOfQuorum {
 			logger.Warningf("skipping adding mon %q to config file, detected out of quorum", monitor.Name)
 			continue

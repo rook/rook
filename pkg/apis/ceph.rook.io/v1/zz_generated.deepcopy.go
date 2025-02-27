@@ -3346,6 +3346,11 @@ func (in *MonSpec) DeepCopyInto(out *MonSpec) {
 		*out = new(VolumeClaimTemplate)
 		(*in).DeepCopyInto(*out)
 	}
+	if in.ExternalMonIDs != nil {
+		in, out := &in.ExternalMonIDs, &out.ExternalMonIDs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
