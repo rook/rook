@@ -16,15 +16,11 @@ include ../image.mk
 
 # ====================================================================================
 # Image Build Options
+CEPH_VERSION ?= v19.2.1-20250202
 
-ifeq ($(GOARCH),amd64)
-CEPH_VERSION ?= v18.2.4-20240723
-else
-CEPH_VERSION ?= v18.2.4-20240724
-endif
 REGISTRY_NAME = quay.io
-BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph-$(GOARCH):$(CEPH_VERSION)
-CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
+BASEIMAGE = $(REGISTRY_NAME)/ceph/ceph:$(CEPH_VERSION)
+CEPH_IMAGE = $(BUILD_REGISTRY)/ceph
 OPERATOR_SDK_VERSION = v1.25.0
 # TODO: update to yq v4 - v3 end of life in Aug 2021 ; v4 removes the 'yq delete' cmd and changes syntax
 YQv3_VERSION = 3.4.1
@@ -67,7 +63,7 @@ do.build:
 	@cp $(MANIFESTS_DIR)/create-external-cluster-resources.* $(BUILD_CONTEXT_DIR)/rook-external/
 	@cd $(BUILD_CONTEXT_DIR) && $(SED_IN_PLACE) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@if [ -z "$(BUILD_CONTAINER_IMAGE)" ]; then\
-		$(DOCKERCMD) build $(BUILD_ARGS) \
+		$(DOCKERCMD) build --platform linux/$(GOARCH) $(BUILD_ARGS) \
 		--build-arg S5CMD_VERSION=$(S5CMD_VERSION) \
 		--build-arg S5CMD_ARCH=$(S5CMD_ARCH) \
 		-t $(CEPH_IMAGE) \
